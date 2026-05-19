@@ -409,14 +409,27 @@ bd update ${ISSUE_BEAD} --metadata '{"upstream":"#142","disposition":"include"}'
 
 ### 4.5 — Create capability gates (if any)
 
+Create each gate individually (creates need IDs, cannot be batched):
+
 ```bash
 CAP_GATE=$(bd create "Gate: ${gate_name}" \
   --description="Condition: ${condition}\nTest: ${test_cmd}\nInstructions: ${instructions}" \
   -t gate --parent ${EPIC} \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
-
-bd update ${blocked_issue} --deps "${CAP_GATE}" -q
 ```
+
+Wire all dep-add links in a single `bd batch` call after all gates and issues exist:
+
+```bash
+# Accumulate dep-add ops for all gate/issue pairs:
+DEP_OPS=""
+DEP_OPS+="dep add ${ISSUE_BEAD_1} ${CAP_GATE}\n"
+DEP_OPS+="dep add ${ISSUE_BEAD_2} ${CAP_GATE}\n"
+# ... one line per dep link ...
+printf "${DEP_OPS}" | bd batch -m "plan-${plan_id} dep wiring"
+```
+
+**Rule:** Never call `bd dep add A B` as individual shell commands — always accumulate into `DEP_OPS` and pipe once. An empty `DEP_OPS` is a no-op (skip the printf).
 
 ### 4.6 — Create reconcile gate and step
 
