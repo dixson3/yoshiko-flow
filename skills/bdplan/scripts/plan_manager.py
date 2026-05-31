@@ -686,9 +686,9 @@ def check(as_json: bool):
 
     # status == "ok" — run additional project-level checks
     errors = False
-    if not Path("AGENTS/PLANS.md").exists():
+    if not Path(".claude/rules/PLANS.md").exists():
         click.echo(
-            "ERROR: AGENTS/PLANS.md not found. "
+            "ERROR: .claude/rules/PLANS.md not found. "
             "The planning protocol file is required.",
             err=True,
         )

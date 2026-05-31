@@ -45,7 +45,7 @@ Optional:
 - `gh` — GitHub CLI (for upstream issue tracking)
 - `glab` — GitLab CLI (for upstream issue tracking)
 
-Run `/bdplan init` in your project to check prerequisites and set up `AGENTS/PLANS.md` and instructions file integration automatically.
+Run `/bdplan init` in your project to check prerequisites and set up `.claude/rules/PLANS.md` (Claude-local; CLAUDE.md is not modified) automatically.
 
 ## Install
 
@@ -120,7 +120,7 @@ formulas/
 scripts/
   plan_manager.py            Plan CRUD, prerequisite checking, portability audit (run via uv)
 protocols/
-  PLANS.md                   Planning protocol (copied to AGENTS/PLANS.md during bootstrap)
+  PLANS.md                   Planning protocol (copied to .claude/rules/PLANS.md during bootstrap)
 ```
 
 Per-plan folder layout after `/bdplan init` (plan root is either `docs/plans/` or `Incubator/<slug>/plans/` depending on the answer to the scoping incubator question; numbering is global):

@@ -63,14 +63,12 @@ Run bdplan init for Claude Code:
    If status is "ok" (prereqs already cached), skip to step 3.
 2. If status is "system_deps_missing" or "bd_not_initialized", return the JSON as-is. Do nothing else.
 3. mkdir -p docs/plans  (per-incubator plan roots like `Incubator/<slug>/plans/` are created lazily when an incubator-scoped plan is first initialized)
-4. mkdir -p AGENTS
-5. If AGENTS/PLANS.md does not exist, copy ${SKILL_DIR}/protocols/PLANS.md to ./AGENTS/PLANS.md. Record this action.
-6. If CLAUDE.md does not exist, create it with:
-   ## Plans
-   @AGENTS/PLANS.md
-   Record this action.
-7. If CLAUDE.md exists but does not contain @AGENTS/PLANS.md, append the Plans section from step 6. Record this action.
-8. Return JSON: {"status":"ready","actions":["<list of actions taken, empty if none>"]}
+4. mkdir -p .claude/rules
+5. If .claude/rules/PLANS.md does not exist, copy ${SKILL_DIR}/protocols/PLANS.md to ./.claude/rules/PLANS.md. Record this action.
+   Do NOT create or modify CLAUDE.md, AGENTS.md, or AGENTS/PLANS.md — the
+   planning protocol is Claude-local (.claude/rules/ is auto-loaded; keep it
+   out of tracked, portable instruction surfaces).
+6. Return JSON: {"status":"ready","actions":["<list of actions taken, empty if none>"]}
 ```
 
 Handle the sub-agent result:
