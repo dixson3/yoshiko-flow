@@ -78,11 +78,20 @@ not be stranded.
 
 ## `--json` is not always a single JSON document
 
+**First: for a status report or eyeballing state, do NOT use `--json`.** `bd show <id>`,
+`bd list --status <s>`, `bd ready` already print id/title/status/close-reason in
+human-readable form — that is the direct path for "what's the state of these beads."
+Reach for `--json` only when a script consumes specific fields. Going to `--json` +
+ad-hoc `json.loads` for a report is the common self-inflicted failure (it yields a wrong
+"?" report when the parse silently misses).
+
 `bd`'s `--json` output may contain:
 
 - **Warning prefixes** on stdout (e.g. test-pattern title warnings, auto-export warnings).
 - **A JSON array / multiple concatenated documents** — confirmed for `bd show --json`
-  (returns an array) and common with `bd list`.
+  (returns an array **even for a single id**) and common with `bd list`. So
+  `json.loads(stdin).get("status")` raises `AttributeError` on the list and, if swallowed,
+  produces a bogus report.
 
 Never call `json.loads(stdin)` directly on `bd` output. Parse defensively — extract the
 first balanced `{…}` (or `[…]`) block:
@@ -107,9 +116,22 @@ for o in objs:
         pass
 ```
 
-For arrays, swap the `{`/`}` triggers for `[`/`]`. The `bdplan` skill ships a hardened
-version of this as `plan_manager.py json-get` — prefer that script when you are inside
-bdplan rather than re-implementing the parser.
+The example above grabs the **first** record (`break`). For a multi-record report (e.g.
+every bead in an epic), drop the `break` and iterate all `objs` — or, since `bd list/show
+--json` is a single top-level array, parse it once and iterate:
+
+```python
+import sys, json
+data = json.loads(sys.stdin.read())
+rows = data if isinstance(data, list) else data.get("issues", [data])
+for r in rows:
+    print(r["id"], r.get("status"))
+```
+
+`bd show <id> --json` returns a one-element array — unwrap with `data[0]` (or the
+`isinstance` guard above), never `data.get(...)`. The `bdplan` skill ships a hardened
+single-value extractor as `plan_manager.py json-get` — prefer that script when you are
+inside bdplan rather than re-implementing the parser.
 
 ### Test-data title warnings
 
