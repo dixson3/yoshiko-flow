@@ -10,3 +10,7 @@
 # Python bytecode cache
 __pycache__/
 *.pyc
+
+# Skill runtime state + local config (never committed; per Skill Surface Convention)
+/.state/
+/.bdplan.local.json
