@@ -41,8 +41,8 @@ scoring. A beads-backed skill — companion to `bdplan`.
 - `/bdresearch status [<idx>]` — check research status
 
 The research protocol and routing rules (bdresearch vs the built-in deep-research) live
-in `${SKILL_DIR}/protocols/RESEARCH.md`; `/bdresearch init` installs a copy to
-`.agents/rules/RESEARCH.md`.
+in `${SKILL_DIR}/protocols/RESEARCH.md`; `/bdresearch init` installs a copy to the
+skill's surface rules dir (`.claude/rules/RESEARCH.md` or `.agents/rules/RESEARCH.md`).
 
 ## SKILL_DIR
 
@@ -86,8 +86,8 @@ uv run ${SKILL_DIR}/scripts/research_manager.py check --json-output
 
 Config vs state: `ignore-skill` is an operator decision in `.bdresearch.local.json` (repo
 root, gitignored). `prereqs-present` is runtime state in `.state/bdresearch/preflight.json`.
-The installed rule `.agents/rules/RESEARCH.md` is hash-checked against
-`protocols/manifest.json`.
+The installed rule (under the skill's surface — `.claude/rules/RESEARCH.md` or
+`.agents/rules/RESEARCH.md`) is hash-checked against `protocols/manifest.json`.
 
 ## /bdresearch init
 
@@ -103,8 +103,9 @@ Run bdresearch init for Claude Code:
    Do nothing else.
 3. mkdir -p docs/research  (per-incubator roots like Incubator/<slug>/research/ are
    created lazily when an incubator-scoped run is first started).
-4. Pick the active rules surface: `.agents/rules` if `.agents/` exists, else
-   `.claude/rules` (the default). mkdir -p that dir. Call it RULES_DIR.
+4. Resolve the rules dir: `RULES_DIR=$(uv run ${SKILL_DIR}/scripts/research_manager.py rules-dir)`.
+   It follows the skill's install surface (`.claude/rules` for a `.claude/skills` install,
+   `.agents/rules` for a `.agents/skills` install). mkdir -p "$RULES_DIR".
 5. Install the companion rule: copy ${SKILL_DIR}/protocols/RESEARCH.md to
    ${RULES_DIR}/RESEARCH.md when it is missing, when --upgrade is passed, or when
    --force is passed (the only way to clobber a hand-edited rule). Never write to AGENTS/

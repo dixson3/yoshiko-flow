@@ -29,9 +29,9 @@ Verification: SKILL.md Pre-flight bullet 1; `_check_prerequisites()` returns `{"
 
 ## research_manager.py CLI
 
-REQ-CLI-006: `research_manager.py` exposes exactly 2 subcommands: `check`, `json-get`.
-Rationale: The manager is deliberately narrow — preflight and parsing only. Research-directory and `_index.md` state stays in `index_manager.py`; citation/report tooling in `link_normalizer.py` and `credibility_scorer.py`.
-Verification: `grep -c '@cli.command' scripts/research_manager.py` == 2.
+REQ-CLI-006: `research_manager.py` exposes exactly 3 subcommands: `check`, `rules-dir`, `json-get`.
+Rationale: The manager is deliberately narrow — preflight, surface resolution, and parsing only. `rules-dir` lets `/bdresearch init` resolve the surface-matched rules dir from one source of truth instead of the old `.agents/`-exists heuristic. Research-directory and `_index.md` state stays in `index_manager.py`; citation/report tooling in `link_normalizer.py` and `credibility_scorer.py`.
+Verification: `grep -c '@cli.command' scripts/research_manager.py` == 3.
 
 REQ-CLI-007: `research_manager.py check --json-output` emits a JSON object with keys `status` (`ignored|ok|system_deps_missing|bd_not_initialized`), `missing`, `instructions`, `warnings`.
 Rationale: SKILL.md `init` parses this to decide ready/halt and to relay advisory warnings.

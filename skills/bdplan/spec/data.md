@@ -42,9 +42,9 @@ REQ-DATA-022: `/bdplan init` adds anchored entries `/.bdplan.local.json` and `/.
 Rationale: Machine-specific config and all runtime state must not be committed; enumeration keeps `.gitignore` auditable.
 Verification: SKILL.md `/bdplan init` gitignore-stewardship step.
 
-REQ-DATA-023: The companion rule `protocols/PLANS.md` is installed to `.agents/rules/PLANS.md` and hash-checked against `protocols/manifest.json` (schema_version 1) at preflight.
-Rationale: A manifest hash detects drift, stale, or deprecated installed rules; `.agents/rules/` is the project's auto-loaded rules location.
-Verification: plan_manager.py `_check_rule()` + `MANIFEST_FILE`; `protocols/manifest.json`; SKILL.md `/bdplan init` install step.
+REQ-DATA-023: The companion rule `protocols/PLANS.md` is installed to the rules dir of the skill's install surface (`.claude/rules/PLANS.md` for a `.claude/skills` install, `.agents/rules/PLANS.md` for a `.agents/skills` install) and hash-checked against `protocols/manifest.json` (schema_version 1) at preflight.
+Rationale: A manifest hash detects drift, stale, or deprecated installed rules; matching the install surface keeps a `.claude`-installed skill from polluting an unrelated `.agents/` tree (and vice versa). Both `.claude/rules/` and `.agents/rules/` are auto-loaded rules locations.
+Verification: plan_manager.py `_skill_surface()` + `_rules_dir()` + `_check_rule()`; `rules-dir` subcommand; SKILL.md `/bdplan init` install step.
 
 ## Upstream Tracking
 

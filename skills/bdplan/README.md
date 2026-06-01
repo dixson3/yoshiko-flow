@@ -45,7 +45,7 @@ Optional:
 - `gh` — GitHub CLI (for upstream issue tracking)
 - `glab` — GitLab CLI (for upstream issue tracking)
 
-Run `/bdplan init` in your project to check prerequisites and install the `PLANS.md` companion rule to `.agents/rules/` automatically.
+Run `/bdplan init` in your project to check prerequisites and install the `PLANS.md` companion rule automatically. It installs to the rules dir matching the skill's install surface — `.claude/rules/` for a `.claude/skills` install, `.agents/rules/` for a `.agents/skills` install.
 
 ## Install
 
@@ -121,7 +121,7 @@ scripts/
   plan_manager.py            Plan CRUD, prerequisite checking, portability audit (run via uv)
   manifest_update.py         Vendored manifest hash/version helper (run via uv)
 protocols/
-  PLANS.md                   Planning protocol (installed to .agents/rules/PLANS.md by /bdplan init)
+  PLANS.md                   Planning protocol (installed to the surface rules dir, e.g. .claude/rules/PLANS.md, by /bdplan init)
   manifest.json              Hash manifest for PLANS.md
 ```
 

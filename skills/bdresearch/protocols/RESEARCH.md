@@ -1,9 +1,10 @@
 # Research Protocol
 
 > **Canonical source.** This file travels with the `bdresearch` skill. `/bdresearch init`
-> installs a copy to `.agents/rules/RESEARCH.md` (this project's auto-loaded rules
-> location) so the routing below is always in context. Edit this file; re-run
-> `/bdresearch init` to refresh the installed copy.
+> installs a copy to the rules dir of the skill's install surface — `.claude/rules/RESEARCH.md`
+> for a `.claude/skills` install, `.agents/rules/RESEARCH.md` for a `.agents/skills` install
+> (an auto-loaded rules location) — so the routing below is always in context. Edit this file;
+> re-run `/bdresearch init` to refresh the installed copy.
 
 Substantive research in this repo uses the `/bdresearch` skill — a beads-tracked,
 multi-phase pipeline (retrieve → triangulate → synthesize → critique → refine → package)

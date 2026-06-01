@@ -45,7 +45,7 @@ Subagents spawned by a skill do NOT inherit `${SKILL_DIR}` from the orchestratin
 
 2. **Internal cross-references use SKILL_DIR** — when one skill file references another (e.g., an agent loading a sibling agent), use `${SKILL_DIR}/` — not bare relative paths like `agents/foo.md`. Agent/subagent files self-resolve `${SKILL_DIR}` first (see § Agent / subagent self-resolution).
 
-6. **Companion rules install to the active surface's rules dir** — `init` writes rule files to `.agents/rules/` if `.agents/` exists, else `.claude/rules/` (default `.claude/rules`). Never hardcode one surface.
+6. **Companion rules install to the install surface's rules dir** — `init` writes rule files to the rules dir matching the skill's own install surface: `.claude/rules/` for a `.claude/skills` install, `.agents/rules/` for a `.agents/skills` install (derive the surface from the helper script's resolved path; fall back to an existing project surface, else `.claude/rules`, for a dev checkout). Never hardcode one surface.
 
 3. **Error messages avoid absolute paths** — describe files by role, not path.
    - Bad: `echo "See .agents/skills/<name>/SKILL.md"`
@@ -64,4 +64,4 @@ When reviewing a skill for portability:
 - [ ] All backtick-quoted paths to skill internals use `${SKILL_DIR}/`
 - [ ] Error messages reference files by role, not absolute path
 - [ ] Agent/subagent files self-resolve `${SKILL_DIR}` and cross-reference siblings via `${SKILL_DIR}/`
-- [ ] Companion rules install to the active surface's rules dir (`.agents/rules` or `.claude/rules`, default `.claude`)
+- [ ] Companion rules install to the install surface's rules dir (`.claude/rules` for a `.claude/skills` install, `.agents/rules` for a `.agents/skills` install; dev-checkout fallback to existing project surface, else `.claude/rules`)

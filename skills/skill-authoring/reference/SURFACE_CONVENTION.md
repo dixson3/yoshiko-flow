@@ -23,7 +23,7 @@ Both SKILL.md and agent/subagent files self-resolve `${SKILL_DIR}` via this reso
 
 Source of truth lives at `${SKILL_DIR}/protocols/<NAME>.md` (e.g. `bdplan/protocols/PLANS.md`; a skill may ship one rule file or several, one per `<NAME>`).
 
-On `<skill> init`, the file is copied to the active surface's rules dir: `.agents/rules/<NAME>.md` if `.agents/` exists, else `.claude/rules/<NAME>.md` (default `.claude/rules`).
+On `<skill> init`, the file is copied to the rules dir of **the skill's own install surface**: a skill resolved under `.claude/skills` installs to `.claude/rules/<NAME>.md`; one resolved under `.agents/skills` installs to `.agents/rules/<NAME>.md`. The surface is derived from the install path (the helper script's own location), not from which project dirs happen to exist — so a `.claude`-installed skill never writes into an unrelated `.agents/` tree, and vice versa. If the skill resolves to neither surface (e.g. a dev checkout), fall back to an existing project surface, else default to `.claude/rules`. Expose the resolved dir via a `rules-dir` subcommand so `init` and preflight share one source of truth.
 
 **Never** write to `AGENTS/`. **Never** edit `CLAUDE.md` to add an `@`-include. Project-level instruction trees own those files; skill init must not pollute them. If the operator wants the rule visible from `CLAUDE.md`, they wire the include themselves — the skill ships the rule file, nothing else.
 
@@ -53,7 +53,7 @@ Each skill's `protocols/` directory contains `manifest.json`:
 }
 ```
 
-Preflight compares the installed rule file's sha256 (in the active surface's rules dir — `.agents/rules/<NAME>.md` or `.claude/rules/<NAME>.md`) to the manifest entry. The six outcomes:
+Preflight compares the installed rule file's sha256 (in the install surface's rules dir — `.claude/rules/<NAME>.md` or `.agents/rules/<NAME>.md`) to the manifest entry. The six outcomes:
 
 | Condition | Verdict | Operator action |
 |---|---|---|
@@ -62,7 +62,7 @@ Preflight compares the installed rule file's sha256 (in the active surface's rul
 | installed hash matches neither | drift | resolve manually or `<skill> init --force` |
 | `deprecated: true` | deprecated | `<skill> init --prune` |
 | declared in manifest but absent on disk | rule missing | `<skill> init` |
-| rule file exists in the active surface's rules dir, not declared in any manifest | stale orphan | investigate — unknown provenance |
+| rule file exists in the install surface's rules dir, not declared in any manifest | stale orphan | investigate — unknown provenance |
 
 **Forward-compat rule.** Preflight reads `schema_version`. Unknown value → preflight FAIL with `upgrade <skill> to a version that understands manifest schema v$N`. Never silently treat an unknown schema as v1.
 
@@ -123,7 +123,7 @@ The `*.local.json` glob is **rejected** — it would silently ignore files anywh
 `<skill> preflight` (or the skill's first-run guard) checks:
 
 - system deps present
-- the rule file in the active surface's rules dir (`.agents/rules/<NAME>.md` or `.claude/rules/<NAME>.md`) exists and matches the manifest hash (one of the six outcomes from §2)
+- the rule file in the install surface's rules dir (`.claude/rules/<NAME>.md` or `.agents/rules/<NAME>.md`) exists and matches the manifest hash (one of the six outcomes from §2)
 - config file readable (only if the skill requires config)
 - hooks installed (only if the skill installs hooks)
 
@@ -152,7 +152,7 @@ A skill named `<skill>` that ships one rule file `<NAME>.md`, has runtime state,
 ├── SKILL.md
 ├── README.md
 ├── protocols/
-│   ├── <NAME>.md             # source of truth; installed to the active surface's rules dir
+│   ├── <NAME>.md             # source of truth; installed to the install surface's rules dir
 │   └── manifest.json         # sha256 + semver + previous_versions[] for <NAME>.md
 ├── scripts/
 │   ├── <skill>               # CLI entry point (wrapper or direct)
@@ -166,15 +166,16 @@ repo root/
 ├── .gitignore                # contains /.<skill>.local.json and /.state/
 ├── .state/
 │   └── <skill>/              # runtime cache (e.g. preflight.json)
-└── <surface>/                # .agents or .claude — whichever is active
+└── <surface>/                # .agents or .claude — matches the skill's install surface
     └── rules/
         └── <NAME>.md         # installed by `<skill> init`; hash-checked by preflight
 ```
 
-> Companion rules install to the active surface's rules dir: `.agents/rules/` if `.agents/`
-> exists, else `.claude/rules/` (default `.claude/rules`). Where this repo uses `.agents/`
-> as its canonical tree, `.claude/skills` and `.claude/rules` may be symlinks into it; the
-> SKILL_DIR resolver works regardless. Hooks still merge into `.claude/settings.json`
-> (a real file, not symlinked).
+> Companion rules install to the rules dir of the skill's install surface: a `.claude/skills`
+> install → `.claude/rules/`, a `.agents/skills` install → `.agents/rules/`. Where this repo
+> uses `.agents/` as its canonical tree, `.claude/skills` and `.claude/rules` may be symlinks
+> into it; the SKILL_DIR resolver and surface detection (which inspects the resolved script
+> path) work regardless. Hooks still merge into `.claude/settings.json` (a real file, not
+> symlinked).
 
-For a skill that *does* install Claude Code hooks, add `hooks/manifest.json` next to `protocols/`. For a skill with multiple rule files, list each in `manifest.json` `files[]` and install each into the active surface's rules dir.
+For a skill that *does* install Claude Code hooks, add `hooks/manifest.json` next to `protocols/`. For a skill with multiple rule files, list each in `manifest.json` `files[]` and install each into the install surface's rules dir.

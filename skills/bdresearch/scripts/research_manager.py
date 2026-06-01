@@ -29,25 +29,46 @@ RULE_NAME = "RESEARCH.md"
 CONFIG_FILE = Path(f".{SKILL_NAME}.local.json")          # operator decisions (gitignored)
 STATE_DIR = Path(".state") / SKILL_NAME                  # runtime cache (gitignored)
 STATE_FILE = STATE_DIR / "preflight.json"
+def _skill_surface() -> str | None:
+    # Which surface this skill is installed under, from the script's own path.
+    # Honor the invocation path first (a .claude/skills symlink keeps .claude),
+    # then the resolved path (canonical tree when .claude/skills -> .agents).
+    for p in (Path(__file__), Path(__file__).resolve()):
+        parts = p.parts
+        if ".claude" in parts:
+            return ".claude"
+        if ".agents" in parts:
+            return ".agents"
+    return None
+
+
 def _rules_dir() -> Path:
-    # Active project rules surface: prefer an existing surface dir, else default to .claude.
+    # Rules surface follows the skill's install surface: a skill installed under
+    # .claude/skills installs its rule to .claude/rules; under .agents/skills to
+    # .agents/rules.
+    surface = _skill_surface()
+    if surface == ".agents":
+        return Path(".agents/rules")
+    if surface == ".claude":
+        return Path(".claude/rules")
+    # Skill not under a recognized surface (e.g. a dev checkout): fall back to an
+    # existing project surface, else default to .claude.
     if Path(".agents").is_dir():
         return Path(".agents/rules")
-    if Path(".claude").is_dir():
-        return Path(".claude/rules")
     return Path(".claude/rules")
 
 
 def _installed_rule_path():
-    # An installed rule may live under either surface; return whichever exists.
-    for d in (Path(".agents/rules"), Path(".claude/rules")):
+    # An installed rule may live under either surface; prefer the install surface,
+    # then the other, so drift detection finds a pre-existing copy after a move.
+    for d in (_rules_dir(), Path(".agents/rules"), Path(".claude/rules")):
         p = d / RULE_NAME
         if p.exists():
             return p
     return None
 
 
-INSTALLED_RULE = _rules_dir() / RULE_NAME   # install target for the active surface
+INSTALLED_RULE = _rules_dir() / RULE_NAME   # install target for the skill's install surface
 MANIFEST_FILE = Path(__file__).resolve().parent.parent / "protocols" / "manifest.json"
 MANIFEST_SCHEMA = 1
 
@@ -278,6 +299,12 @@ def check(as_json: bool):
         click.echo(f"NOTE: {msg}", err=True)
     Path("docs/research").mkdir(parents=True, exist_ok=True)
     click.echo("All prerequisites satisfied.")
+
+
+@cli.command("rules-dir")
+def rules_dir():
+    """Print the rules dir for this install surface (.claude/rules or .agents/rules)."""
+    click.echo(_rules_dir())
 
 
 @cli.command("json-get")

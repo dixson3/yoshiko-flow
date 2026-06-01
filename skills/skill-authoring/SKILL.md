@@ -41,7 +41,7 @@ Rules for Claude Code skills and instruction files. Background and worked exampl
 
 Adopt the whole contract or none of it. Full spec + worked example: [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
 
-1. **Companion rules.** Source: `.agents/skills/<skill>/protocols/<NAME>.md`. Installed by `<skill> init` to `.agents/rules/<NAME>.md`. Never write to `AGENTS/`. Never edit `CLAUDE.md`.
+1. **Companion rules.** Source: `${SKILL_DIR}/protocols/<NAME>.md`. Installed by `<skill> init` to the rules dir of the skill's install surface — `.claude/rules/<NAME>.md` for a `.claude/skills` install, `.agents/rules/<NAME>.md` for a `.agents/skills` install. Never write to `AGENTS/`. Never edit `CLAUDE.md`.
 2. **Hash manifest.** `protocols/manifest.json` (`schema_version`, `files[<NAME>] = {sha256, version, deprecated, previous_versions[]}`). Preflight checks installed-rule hash against manifest. Six outcomes: match / older-version / drift / deprecated / missing-from-disk / orphan. Unknown `schema_version` → preflight FAIL.
 3. **Config files.** `.<skill>.json` (committed) and `.<skill>.local.json` (gitignored), both at repo root, both optional. Config = operator decisions. State ≠ config.
 4. **Local state.** `.state/<skill>/`. Skill scripts write runtime cache here only. Never under the skill source dir. Never under `.claude/`.

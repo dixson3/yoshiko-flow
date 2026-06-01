@@ -15,9 +15,9 @@ REQ-PORT-003: All scripts are `uv run` PEP 723 scripts (inline `# /// script` de
 Rationale: `uv run` resolves dependencies per-invocation, keeping the skill self-contained.
 Verification: `# /// script` headers in `scripts/*.py`.
 
-REQ-PORT-004: `protocols/RESEARCH.md` is the canonical routing/protocol source; `/bdresearch init` installs a verbatim copy to the active surface's rules dir — `.agents/rules/RESEARCH.md` if `.agents/` exists, else `.claude/rules/RESEARCH.md` (default `.claude/rules`).
-Rationale: The skill carries its protocol (upgradeable with the skill); the project gets an always-loaded copy in whichever surface's rules dir is active so routing is in context without an `@import`.
-Verification: SKILL.md `/bdresearch init` step 5 (surface detection selecting `.agents/rules` or `.claude/rules`); `protocols/RESEARCH.md` header; the installed copy is byte-identical to the source after init.
+REQ-PORT-004: `protocols/RESEARCH.md` is the canonical routing/protocol source; `/bdresearch init` installs a verbatim copy to the rules dir of the skill's install surface — `.claude/rules/RESEARCH.md` for a `.claude/skills` install, `.agents/rules/RESEARCH.md` for a `.agents/skills` install.
+Rationale: The skill carries its protocol (upgradeable with the skill); the project gets an always-loaded copy in the matching surface's rules dir so routing is in context without an `@import`, and a `.claude`-installed skill never writes into an unrelated `.agents/` tree.
+Verification: research_manager.py `_skill_surface()` + `_rules_dir()` + `rules-dir` subcommand; SKILL.md `/bdresearch init` step 4 (resolves RULES_DIR from `rules-dir`); `protocols/RESEARCH.md` header; the installed copy is byte-identical to the source after init.
 
 REQ-PORT-005: The formula is staged transiently into `.beads/formulas/` for the pour and removed afterward.
 Rationale: Keeps the formula's source of truth in the skill while satisfying `bd`'s fixed formula search path.
