@@ -4,15 +4,18 @@ description: 'Conventions for authoring Claude Code skills, agents, and instruct
   files. Covers directory layout, the inline-vs-script threshold, modularization,
   token-efficient writing rules, AND Python helper scripts for skills (uv invocation
   discipline, PEP 723 inline deps, argument parsers). TRIGGER when: creating or editing
-  a skill under `.agents/skills/`, scaffolding agents, authoring `SKILL.md` / `CLAUDE.md`
-  / agent prompt content, writing/editing a `.py` script under `.agents/skills/` to
+  a skill under `.agents/skills/`, `.claude/skills/`, scaffolding agents, authoring a skill''s
+  `SKILL.md` / agent prompt content, writing/editing a `.py` script under `.agents/skills/` or `.claude/skills/` to
   run via `uv run`, adding PEP 723 inline metadata, or asking how to structure skill
-  helpers and instruction files. SKIP for: writing application code outside skills,
-  end-user docs, or notes; planning a skill''s design beyond conventions (use the
-  project planning skill); backend-specific protocol surfaces (verbs, invocation,
-  translation tables — use the relevant protocol skill); meta-reviewers that overlay
-  these conventions for a specific protocol (use the protocol-specific authoring skill
-  after applying these conventions).'
+  helpers and instruction files. SKIP for: project-root instruction files (CLAUDE.md,
+  AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to optimal-instructions;
+  writing application code outside skills, end-user docs, or notes; planning a skill''s
+  design beyond conventions (use the project planning skill); backend-specific protocol
+  surfaces (verbs, invocation, translation tables — use the relevant protocol skill);
+  meta-reviewers that overlay these conventions for a specific protocol (use the
+  protocol-specific authoring skill after applying these conventions). Distinguishing
+  axis: skill-authoring owns skill-dir instruction files; optimal-instructions owns
+  project-root ones.'
 user-invocable: false
 title: skill-authoring
 created: '2026-05-24'
@@ -62,6 +65,10 @@ uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols
 ## Token efficiency
 
 Always-loaded context (SKILL.md, CLAUDE.md, AGENTS.md, `.agents/rules/*`) must stay tight.
+This Cut/Keep/Extract ruleset is the single source of truth for token efficiency; the
+`optimal-instructions` skill cites it rather than restating it. The *structural* convention
+for project-root instruction files (AGENTS.md primary, CLAUDE.md a thin `@-include` index,
+behavioral rules in the rules subdir) is owned by `optimal-instructions`, not here.
 
 ### Cut
 
@@ -172,7 +179,7 @@ Watch for:
 Three read-only agents. All dispatched via the Agent tool. Caller applies fixes.
 
 1. [[reviewer|agents/reviewer.md]] — general skill review (structure, token efficiency, trigger quality, scope, design, portability).
-2. [[optimizer|agents/optimizer.md]] — token-efficiency optimizer for any instruction file (SKILL.md, agent .md, `.agents/rules/*.md`, AGENTS.md). Returns ranked findings + suggested edits.
+2. [[optimizer|agents/optimizer.md]] — token-efficiency optimizer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.agents/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `optimal-instructions`' domain.
 3. [[red-team|agents/red-team.md]] — adversarial check: what does this skill miss, where does it overcommit, what assumptions break.
 
 For Python helpers, also run [[python-reviewer|agents/python-reviewer.md]] (toolchain + design critique).
