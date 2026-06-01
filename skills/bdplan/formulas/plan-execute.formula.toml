@@ -23,8 +23,9 @@ approvers = ["operator"]
 
 # Execution steps (epics, issues, capability gates) are injected
 # dynamically from plan.md during Phase 4 intake. The intake process
-# reads the plan's Epics and Gates sections and creates bd issues
-# wired to the start gate.
+# reads the plan's Epics and Gates sections and creates bd issues:
+# entry leaf issues are wired to the start gate (child epics are not —
+# bd rejects a task blocking an epic). See SKILL.md §4.3.
 
 # Reconcile gate and step are also injected during intake, only when
 # upstream issues are incorporated (any non-exclude disposition).

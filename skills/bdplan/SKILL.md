@@ -431,8 +431,9 @@ rm -f .beads/formulas/plan-execute.formula.toml
 
 EPIC=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new_epic_id)
 # A gate-type formula step yields TWO beads: a task wrapper (key "plan-execute.start-gate",
-# what downstream --deps should reference) and the real gate (key "plan-execute.gate-start-gate",
-# what `bd gate resolve` must target). See beads-authoring → Formula gate steps.
+# what downstream TASK --deps reference — never an epic, §4.3) and the real gate
+# (key "plan-execute.gate-start-gate", what `bd gate resolve` must target).
+# See beads-authoring → Formula gate steps.
 START_GATE=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.start-gate")
 START_GATE_BEAD=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.gate-start-gate")
 ```
@@ -440,19 +441,31 @@ START_GATE_BEAD=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py j
 `new_epic_id` and `id_mapping` are the pour result keys — see `beads-extra` →
 *`bd mol pour` output shape*. `json-get` is bdplan's hardened defensive JSON parser
 (`bd` output may be a multi-document array; see `beads-extra` → *`--json` is not always a
-single JSON document*). Use `${START_GATE}` for `--deps` wiring (§4.3) and
-`${START_GATE_BEAD}` for `bd gate resolve` (§5.2).
+single JSON document*). Use `${START_GATE}` for entry-issue `--deps` wiring (§4.3 — tasks
+only, never epics) and `${START_GATE_BEAD}` for `bd gate resolve` (§5.2).
 
 ### 4.3 — Create beads from plan.md
 
-For each epic/issue:
+**Never block a child epic on the start gate.** `${START_GATE}` is a task, and bd rejects a
+task blocking an epic (`epics can only block other epics, not tasks` — see `beads-extra` →
+*Epic blocking rule*). Child epics are containers: create them with `--parent` only. Gate the
+epic's **entry leaf issues** (those with no intra-plan predecessor) on `${START_GATE}`;
+downstream issues depend on their predecessors and inherit the gate transitively.
 
 ```bash
+# Child epic — parent only, NO start-gate dep (task→epic block is rejected).
 EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
   --description="${epic_description}" -t epic -p 2 \
-  --parent ${EPIC} --deps "${START_GATE}" \
+  --parent ${EPIC} \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
+# Entry issue (no intra-plan predecessor) — gate on the start-gate wrapper task.
+ISSUE_BEAD=$(bd create "${entry_issue_description}" \
+  --description="${issue_detail}" -t task -p 2 \
+  --parent ${EPIC_BEAD} --deps "${START_GATE}" \
+  --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
+
+# Downstream issue — depends on predecessor(s) only; gate inherited transitively.
 ISSUE_BEAD=$(bd create "${issue_description}" \
   --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${dependency_beads}" \
