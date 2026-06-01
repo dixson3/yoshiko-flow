@@ -7,8 +7,8 @@ tags: []
 # optimal-instructions
 
 Auto-fix skill for project instruction files (`CLAUDE.md`, `AGENTS.md`, `AGENTS/*`, repo-root
-`.agents/rules/*`). On create/modify it reads the file, auto-applies token-efficiency cuts, and
-proposes structural relocation toward AGENTS.md-primacy, then reports what changed.
+`.{claude,agents}/rules/*`). On create/modify it reads the file, auto-applies token-efficiency
+cuts, and proposes structural relocation toward AGENTS.md-primacy, then reports what changed.
 
 ## Prerequisites
 
@@ -31,8 +31,8 @@ project-root instruction file is created or modified. Triggering is **best-effor
 description-only skill (no rule, no hook) cannot guarantee it runs on every write. There are no
 subcommands.
 
-Scope boundary: instruction files **inside a skill directory** (a skill's `SKILL.md`,
-`agents/*.md`, its own `.agents/skills/<skill>/` files) belong to `skill-authoring`. The two
+Scope boundary: instruction files **inside a skill directory** under `.{claude,agents}/skills/<skill>/`
+(a skill's `SKILL.md`, `agents/*.md`, its own rules) belong to `skill-authoring`. The two
 skills' descriptions are mutually exclusive on this skill-dir vs project-root axis.
 
 ## Behavior model
@@ -41,7 +41,7 @@ skills' descriptions are mutually exclusive on this skill-dir vs project-root ax
 changed instruction file
         │
         ▼
-detect file kind + rules surface (AGENTS/* or .agents/rules/*)
+detect file kind + rules surface (AGENTS/*, .agents/rules/*, or .claude/rules/*)
         │
         ▼
 dispatch instruction-optimizer agent

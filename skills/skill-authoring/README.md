@@ -21,7 +21,7 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 
 ## What this skill does NOT cover
 
-- Application code outside `.agents/skills/`.
+- Application code outside `.{claude,agents}/skills/`.
 - End-user documentation or operator-facing notes.
 - Planning a skill's design beyond conventions — that belongs in the project's planning skill.
 - Backend-specific protocol surfaces (beads vocabulary, protocol verbs, etc.) — those live in their own skills.
@@ -40,7 +40,7 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 ## Layout shipped by this skill
 
 ```
-.agents/skills/skill-authoring/
+.{claude,agents}/skills/skill-authoring/
 ├── SKILL.md
 ├── README.md                       # this file
 ├── agents/

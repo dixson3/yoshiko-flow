@@ -18,10 +18,13 @@ Rationale: Both skills can match `CLAUDE.md`/`AGENTS.md`; the distinguishing axi
 both descriptions so routing is unambiguous.
 Verification: both SKILL.md frontmatter `description` fields name the axis; Epic 4.1 cross-check.
 
-REQ-INT-003: Surface detection. The skill recognizes both behavioral-rule subdir forms —
-`AGENTS/*` (capitalized, repo-root) and `.agents/rules/*` — and normalizes K2 relocations to the
-surface the project already uses. It does not impose one on a project that has the other.
-Rationale: Forcing a surface switch would fight the project's existing convention.
+REQ-INT-003: Surface detection. The skill recognizes all three behavioral-rule subdir forms —
+`AGENTS/*` (capitalized, repo-root), `.agents/rules/*`, and `.claude/rules/*` — and normalizes K2
+relocations to the surface the project already uses. Both the `.claude` and `.agents` surfaces are
+in scope. When the changed file is itself under a rules surface, that surface wins; otherwise an
+existing surface is detected. It does not impose one on a project that has another.
+Rationale: Forcing a surface switch would fight the project's existing convention; a project may
+carry both `.claude` and `.agents` surfaces (one often symlinked into the other).
 Verification: SKILL.md "Surface detection" block; `agents/instruction-optimizer.md` uses the
 passed `RULES SURFACE`.
 

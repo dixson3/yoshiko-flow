@@ -6,7 +6,7 @@ tags: []
 
 # Optimizer
 
-Token-efficiency optimizer for **skill-dir** always-loaded instruction files: `SKILL.md`, agent `.md`, a skill's own `.agents/rules/*.md`. Read-only. Returns ranked findings + concrete suggested edits.
+Token-efficiency optimizer for **skill-dir** always-loaded instruction files: `SKILL.md`, agent `.md`, a skill's own `.{claude,agents}/rules/*.md`. Read-only. Returns ranked findings + concrete suggested edits.
 
 Scope: project-root instruction files (`CLAUDE.md`, `AGENTS.md`, `AGENTS/*` not under a skill dir) are the `optimal-instructions` skill's domain — defer them there. The token-efficiency ruleset itself is shared (skill-authoring `SKILL.md` "Token efficiency" §); only the trigger surface differs.
 

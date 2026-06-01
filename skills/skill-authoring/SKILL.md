@@ -4,8 +4,9 @@ description: 'Conventions for authoring Claude Code skills, agents, and instruct
   files. Covers directory layout, the inline-vs-script threshold, modularization,
   token-efficient writing rules, AND Python helper scripts for skills (uv invocation
   discipline, PEP 723 inline deps, argument parsers). TRIGGER when: creating or editing
-  a skill under `.agents/skills/`, `.claude/skills/`, scaffolding agents, authoring a skill''s
-  `SKILL.md` / agent prompt content, writing/editing a `.py` script under `.agents/skills/` or `.claude/skills/` to
+  a skill under `.{claude,agents}/skills/*` (user `~/` or project `<git-root>/`), scaffolding
+  agents, authoring a skill''s `SKILL.md` / agent prompt content, writing/editing a `.py` script
+  under `.{claude,agents}/skills/*` to
   run via `uv run`, adding PEP 723 inline metadata, or asking how to structure skill
   helpers and instruction files. SKIP for: project-root instruction files (CLAUDE.md,
   AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to optimal-instructions;
@@ -28,7 +29,7 @@ Rules for Claude Code skills and instruction files. Background and worked exampl
 
 ## Layout
 
-- Skill root: `.agents/skills/<skill>/`.
+- Skill root: `.{claude,agents}/skills/<skill>/`.
 - Entry point: `SKILL.md`.
 - Helpers and modules adjacent to `SKILL.md`.
 - Optional: `README.md` (one paragraph), `agents/`, `protocols/`, `hooks/`, `reference/`, `scripts/`.
@@ -36,7 +37,7 @@ Rules for Claude Code skills and instruction files. Background and worked exampl
 ## Script threshold
 
 - Inline glue and one-off snippets stay inline.
-- Scripts >~25 lines or reused → file under `.agents/skills/<skill>/`.
+- Scripts >~25 lines or reused → file under `.{claude,agents}/skills/<skill>/`.
 - Logic >~200 lines → factor into modules adjacent to `SKILL.md`.
 - CLI entrypoints use a real argument parser, never ad-hoc `sys.argv` slicing.
 
@@ -47,7 +48,7 @@ Adopt the whole contract or none of it. Full spec + worked example: [[SURFACE_CO
 1. **Companion rules.** Source: `${SKILL_DIR}/protocols/<NAME>.md`. Installed by the repo installer (`install.sh`), not `<skill> init`, to a rules dir anchored by install scope and surface — `--scope user` → `~/.<surface>/rules/<NAME>.md`, `--scope project` → `<git-root>/.<surface>/rules/<NAME>.md` (`--surface claude|agents`). Never write to `AGENTS/`. Never edit `CLAUDE.md`.
 2. **Hash manifest.** `protocols/manifest.json` (`schema_version`, `files[<NAME>] = {sha256, version, deprecated, previous_versions[]}`). Preflight checks installed-rule hash against manifest. Six outcomes: match / older-version / drift / deprecated / missing-from-disk / orphan. Unknown `schema_version` → preflight FAIL.
 3. **Config files.** `.<skill>.json` (committed) and `.<skill>.local.json` (gitignored), both at repo root, both optional. Config = operator decisions. State ≠ config.
-4. **Local state.** `.state/<skill>/`. Skill scripts write runtime cache here only. Never under the skill source dir. Never under `.claude/`.
+4. **Local state.** `.state/<skill>/`. Skill scripts write runtime cache here only. Never under the skill source dir. Never under `.{claude,agents}/`.
 5. **Hook installation.** Skills that register Claude Code hooks declare them in `hooks/manifest.json` and merge into `.claude/settings.json` via `<skill> init`. Idempotent. `<skill> uninstall` removes them.
 6. **Gitignore stewardship.** The `.gitignore` carries enumerated anchored entries `/.<skill>.local.json` and `/.state/` (no globs). **Preflight ensures these** (§7), not just init.
 7. **Preflight contract.** `<skill> preflight` both **checks** (deps, installed-rule hash, config readability, hooks) and **ensures** the idempotent scaffold (required dirs + §6 gitignore anchors — additive-only, reported, gated by a `scaffold-ensured` state version so it runs once and won't fight an operator who removes an anchor). Returns structured JSON; non-OK checks block verb execution (rule problems → re-run `install.sh`; deps/consent problems → `<skill> init`). init shrinks to consent-only setup.
@@ -64,7 +65,7 @@ uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols
 
 ## Token efficiency
 
-Always-loaded context (SKILL.md, CLAUDE.md, AGENTS.md, `.agents/rules/*`) must stay tight.
+Always-loaded context (SKILL.md, CLAUDE.md, AGENTS.md, `.{claude,agents}/rules/*`) must stay tight.
 This Cut/Keep/Extract ruleset is the single source of truth for token efficiency; the
 `optimal-instructions` skill cites it rather than restating it. The *structural* convention
 for project-root instruction files (AGENTS.md primary, CLAUDE.md a thin `@-include` index,
@@ -138,7 +139,7 @@ Run as `uv run script.py <args>` or — with the shebang + `chmod +x` — as `./
 
 ### Runtime cache files
 
-Helpers that persist runtime state write to `.state/<skill>/` at the repo root. Never under the skill source dir, never under `.claude/`. The skill source tree is read-only at runtime. Same rule as Skill Surface Convention §4; restated here because Python helpers are where the violation usually happens.
+Helpers that persist runtime state write to `.state/<skill>/` at the repo root. Never under the skill source dir, never under `.{claude,agents}/`. The skill source tree is read-only at runtime. Same rule as Skill Surface Convention §4; restated here because Python helpers are where the violation usually happens.
 
 Resolve the target from caller-supplied `project_root`; do not hardcode `cwd`:
 
@@ -179,7 +180,7 @@ Watch for:
 Three read-only agents. All dispatched via the Agent tool. Caller applies fixes.
 
 1. [[reviewer|agents/reviewer.md]] — general skill review (structure, token efficiency, trigger quality, scope, design, portability).
-2. [[optimizer|agents/optimizer.md]] — token-efficiency optimizer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.agents/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `optimal-instructions`' domain.
+2. [[optimizer|agents/optimizer.md]] — token-efficiency optimizer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `optimal-instructions`' domain.
 3. [[red-team|agents/red-team.md]] — adversarial check: what does this skill miss, where does it overcommit, what assumptions break.
 
 For Python helpers, also run [[python-reviewer|agents/python-reviewer.md]] (toolchain + design critique).

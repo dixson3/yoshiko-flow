@@ -10,14 +10,14 @@ the portable file keeps instructions reachable by other harnesses.
 Verification: `agents/instruction-optimizer.md` K2 proposal logic; the before/after example in `apply.md`.
 
 REQ-STRUCT-002: `CLAUDE.md` is a thin index. It carries `@-include` directives pointing at
-`AGENTS.md` and `AGENTS/*` (or `.agents/rules/*`), plus only Claude-specific essentials that
-have no portable home (e.g. an Upstream-Tracking block).
+`AGENTS.md` and the rules subdir (`AGENTS/*`, `.agents/rules/*`, or `.claude/rules/*`), plus
+only Claude-specific essentials that have no portable home (e.g. an Upstream-Tracking block).
 Rationale: Every line of CLAUDE.md is always-loaded Claude context; content that belongs in
 the portable surface should not be duplicated into it.
 Verification: K2 proposal demotes non-`@-include`, non-essential CLAUDE.md content to a relocation proposal.
 
-REQ-STRUCT-003: Behavioral rules live in the project's rules-subdir surface — `AGENTS/*` or
-`.agents/rules/*` — one concern per file.
+REQ-STRUCT-003: Behavioral rules live in the project's rules-subdir surface — `AGENTS/*`,
+`.agents/rules/*`, or `.claude/rules/*` — one concern per file.
 Rationale: Factoring shared behavioral rules into their own file (vs inlining in AGENTS.md or
 CLAUDE.md) is the deduplication the convention exists to enforce.
 Verification: K2 proposal relocates behavioral-rule blocks to `${RULES_SURFACE}/<concern>.md`.

@@ -14,8 +14,8 @@ edit set the caller applies.
 ## Inputs
 
 - `TARGET` — absolute path to the changed instruction file.
-- `FILE KIND` — `CLAUDE.md` | `AGENTS.md` | `AGENTS/*` | `.agents/rules/*`.
-- `RULES SURFACE` — `AGENTS` | `.agents/rules` (the project's detected behavioral-rules subdir).
+- `FILE KIND` — `CLAUDE.md` | `AGENTS.md` | `AGENTS/*` | `.claude/rules/*` | `.agents/rules/*`.
+- `RULES SURFACE` — `AGENTS` | `.agents/rules` | `.claude/rules` (the project's detected behavioral-rules subdir).
 
 ## K1 — token efficiency (auto-apply)
 
