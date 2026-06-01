@@ -53,6 +53,7 @@ into the matching `<scope>/.<surface>/rules/` dir. It discovers every skill unde
 | [beads-extra](skills/beads-extra/) | auto | Advanced/gotcha layer for using the `bd` CLI directly — issue-type semantics, gates, bulk intake, JSON parsing |
 | [beads-authoring](skills/beads-authoring/) | auto | Conventions for building beads-backed skills — `.formula.toml`, `bd mol pour`, coordinator dispatch |
 | [skill-authoring](skills/skill-authoring/README.md) | auto | How to author, structure, and optimize Claude Code skills themselves |
+| [optimal-instructions](skills/optimal-instructions/README.md) | auto | Auto-fix skill for project instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) — token-efficiency cuts + AGENTS.md-primacy structural proposals |
 
 "auto" skills are not user-invoked directly; they trigger from their `description`
 conditions when relevant work appears.
@@ -126,6 +127,12 @@ See [skills/beads-authoring/README.md](skills/beads-authoring/README.md).
 
 ### skill-authoring
 
-How to author, structure, and optimize Claude Code skills themselves: `SKILL.md` frontmatter, progressive disclosure, the dispatch-vs-inline decision, token-efficient phrasing, file layout, and consistency/documentation discipline. Triggers automatically when creating or editing skill files.
+How to author, structure, and optimize Claude Code skills themselves: `SKILL.md` frontmatter, progressive disclosure, the dispatch-vs-inline decision, token-efficient phrasing, file layout, and consistency/documentation discipline. Triggers automatically when creating or editing skill files. Owns the token-efficiency ruleset; optimizing project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) is delegated to `optimal-instructions`.
 
 See [skills/skill-authoring/README.md](skills/skill-authoring/README.md).
+
+### optimal-instructions
+
+Auto-fix skill for project instruction files (`CLAUDE.md`, `AGENTS.md`, `AGENTS/*`, repo-root `.{claude,agents}/rules/*`). On create/modify it auto-applies token-efficiency cuts (K1, citing skill-authoring's ruleset) and proposes structural relocation toward AGENTS.md-primacy / a thin CLAUDE.md `@-include` index (K2, propose-and-confirm, relocate-never-delete), then reports what changed. Triggers automatically (best-effort, description-only); not user-invocable. Handles project-root instruction files; skill-dir instruction files are skill-authoring's domain.
+
+See [skills/optimal-instructions/README.md](skills/optimal-instructions/README.md).

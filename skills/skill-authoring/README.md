@@ -12,17 +12,21 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 
 - **Structure.** Where skill files live, when to extract a script or module, what the directory layout looks like.
 - **Skill Surface Convention.** How skills install companion rules, store config and state, register hooks, and run preflight. Seven elements, adopt as a contract. Full spec in [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
-- **Token efficiency.** What to cut and what to keep so always-loaded context stays tight.
+- **Token efficiency.** What to cut and what to keep so always-loaded context stays tight. This
+  is the single source of truth for the token-efficiency ruleset; `optimal-instructions` cites it.
 - **Python helpers.** `uv run` discipline, PEP 723 inline deps, argument parsers, runtime-cache rules.
-- **Review pipeline.** Three read-only review agents (general, optimizer, red-team) plus a Python-specific reviewer.
+- **Review pipeline.** Three read-only review agents (general, optimizer, red-team) plus a
+  Python-specific reviewer. The optimizer covers **skill-dir** instruction files; project-root
+  instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are the `optimal-instructions` skill's domain.
 
 ## What this skill does NOT cover
 
-- Application code outside `.agents/skills/`.
+- Application code outside `.{claude,agents}/skills/`.
 - End-user documentation or operator-facing notes.
 - Planning a skill's design beyond conventions — that belongs in the project's planning skill.
 - Backend-specific protocol surfaces (beads vocabulary, protocol verbs, etc.) — those live in their own skills.
 - Protocol-specific meta-conventions that overlay these rules — those live in protocol-specific authoring skills, applied *after* these conventions.
+- Optimizing **project-root** instruction files (CLAUDE.md, AGENTS.md, AGENTS/* not under a skill dir) — that is the `optimal-instructions` skill's domain. The token-efficiency ruleset is shared from here; only the trigger surface differs.
 
 ## When to read what
 
@@ -31,17 +35,17 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 - Writing an agent file inside a multi-agent skill → [[PIPELINE|reference/PIPELINE.md]].
 - Referencing skill-internal files from a script → [[PORTABILITY|reference/PORTABILITY.md]].
 - Reviewing an existing skill → see § Review sequence in [[SKILL]].
-- Trimming an instruction file → dispatch the [[optimizer|agents/optimizer.md]] agent.
+- Trimming a skill-dir instruction file → dispatch the [[optimizer|agents/optimizer.md]] agent. For a project-root instruction file, use the `optimal-instructions` skill.
 
 ## Layout shipped by this skill
 
 ```
-.agents/skills/skill-authoring/
+.{claude,agents}/skills/skill-authoring/
 ├── SKILL.md
 ├── README.md                       # this file
 ├── agents/
 │   ├── reviewer.md                 # general skill review
-│   ├── optimizer.md                # token-efficiency optimizer (any instruction file)
+│   ├── optimizer.md                # token-efficiency optimizer (skill-dir instruction files)
 │   ├── red-team.md                 # adversarial skill check
 │   └── python-reviewer.md          # Python helper review
 ├── reference/

@@ -86,7 +86,7 @@ If you can't decide which bucket a value belongs in, ask: *would a fresh clone o
 
 Per-skill state and cache at `.state/<skill>/`. The whole `.state/` dir is gitignored once at repo root (§6).
 
-Skill scripts that write runtime cache files **must** write under `.state/<skill>/`. Never under the skill's source directory, never under `.claude/`. The skill's source dir is read-only at runtime; any file the skill writes is per-checkout state and belongs in `.state/`.
+Skill scripts that write runtime cache files **must** write under `.state/<skill>/`. Never under the skill's source directory, never under `.{claude,agents}/`. The skill's source dir is read-only at runtime; any file the skill writes is per-checkout state and belongs in `.state/`.
 
 This rule extends to the Python helper convention in [[SKILL]] § Python helpers — runtime caches written by helper scripts go under `.state/<skill>/`, not adjacent to the script.
 
