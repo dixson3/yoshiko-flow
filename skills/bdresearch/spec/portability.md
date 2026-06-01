@@ -15,9 +15,9 @@ REQ-PORT-003: All scripts are `uv run` PEP 723 scripts (inline `# /// script` de
 Rationale: `uv run` resolves dependencies per-invocation, keeping the skill self-contained.
 Verification: `# /// script` headers in `scripts/*.py`.
 
-REQ-PORT-004: `protocols/RESEARCH.md` is the canonical routing/protocol source; `/bdresearch init` installs a verbatim copy to the rules dir of the skill's install surface — `.claude/rules/RESEARCH.md` for a `.claude/skills` install, `.agents/rules/RESEARCH.md` for a `.agents/skills` install.
-Rationale: The skill carries its protocol (upgradeable with the skill); the project gets an always-loaded copy in the matching surface's rules dir so routing is in context without an `@import`, and a `.claude`-installed skill never writes into an unrelated `.agents/` tree.
-Verification: research_manager.py `_skill_surface()` + `_rules_dir()` + `rules-dir` subcommand; SKILL.md `/bdresearch init` step 4 (resolves RULES_DIR from `rules-dir`); `protocols/RESEARCH.md` header; the installed copy is byte-identical to the source after init.
+REQ-PORT-004: `protocols/RESEARCH.md` is the canonical routing/protocol source; the repo installer (`install.sh`) — not `/bdresearch init` — installs a verbatim copy to a rules dir anchored by install scope and surface: user-scope → `~/.<surface>/rules/RESEARCH.md`, project-scope → `<git-root>/.<surface>/rules/RESEARCH.md` (`.claude` or `.agents`). Preflight resolves the rule across locations in precedence order (user/global `~/.<surface>/rules` first) and hash-checks it; a correct user-scope copy satisfies every project, and `install.sh --force` overwrites an existing rule.
+Rationale: The skill carries its protocol (upgradeable with the skill); the project gets an always-loaded copy in the matching surface's rules dir so routing is in context without an `@import`; anchoring by scope shares a user-scope copy across all projects and keeps a `.claude` install out of an unrelated `.agents/` tree; installing at install time means the rule lands with the skill.
+Verification: `install.sh` rule-copy step (`install_rules`); research_manager.py `_skill_surface()` + `_skill_scope()` + `_git_root()` + `_rules_dir()` + `_rule_candidates()` + `_check_rule()` (preflight hash check); `protocols/RESEARCH.md` header; the installed copy is byte-identical to the source.
 
 REQ-PORT-005: The formula is staged transiently into `.beads/formulas/` for the pour and removed afterward.
 Rationale: Keeps the formula's source of truth in the skill while satisfying `bd`'s fixed formula search path.

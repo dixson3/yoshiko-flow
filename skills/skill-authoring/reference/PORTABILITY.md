@@ -45,7 +45,7 @@ Subagents spawned by a skill do NOT inherit `${SKILL_DIR}` from the orchestratin
 
 2. **Internal cross-references use SKILL_DIR** — when one skill file references another (e.g., an agent loading a sibling agent), use `${SKILL_DIR}/` — not bare relative paths like `agents/foo.md`. Agent/subagent files self-resolve `${SKILL_DIR}` first (see § Agent / subagent self-resolution).
 
-6. **Companion rules install to the install surface's rules dir** — `init` writes rule files to the rules dir matching the skill's own install surface: `.claude/rules/` for a `.claude/skills` install, `.agents/rules/` for a `.agents/skills` install (derive the surface from the helper script's resolved path; fall back to an existing project surface, else `.claude/rules`, for a dev checkout). Never hardcode one surface.
+6. **Companion rules install to the scope+surface rules dir, via the installer** — the repo installer (`install.sh`), not `<skill> init`, copies rule files to the rules dir anchored by install scope and surface: `--scope user` → `~/.<surface>/rules/`, `--scope project` → `<git-root>/.<surface>/rules/`; `--surface claude|agents` picks the surface. A skill's helper scripts independently derive their own surface (from the resolved script path; fall back to an existing project surface, else `.claude/rules`, for a dev checkout) when locating the installed rule for preflight. Never hardcode one surface.
 
 3. **Error messages avoid absolute paths** — describe files by role, not path.
    - Bad: `echo "See .agents/skills/<name>/SKILL.md"`

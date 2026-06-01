@@ -45,17 +45,20 @@ Optional:
 - `gh` — GitHub CLI (for upstream issue tracking)
 - `glab` — GitLab CLI (for upstream issue tracking)
 
-Run `/bdplan init` in your project to check prerequisites and install the `PLANS.md` companion rule automatically. It installs to the rules dir matching the skill's install surface — `.claude/rules/` for a `.claude/skills` install, `.agents/rules/` for a `.agents/skills` install.
+The repo installer (`install.sh`) installs the `PLANS.md` companion rule alongside the skill, to a rules dir anchored by scope and surface — `--scope user` (default) → `~/.<surface>/rules/` (global, shared by every project), `--scope project` → `<git-root>/.<surface>/rules/` (`.claude` or `.agents` per `--surface`). `/bdplan init` then handles per-project setup only (prerequisite check, `.gitignore` entries, config); it does not install the rule.
 
 ## Install
 
-Via repo-level installer:
+Via the repo-level installer (installs the skill + its companion rule):
 
 ```bash
-./install.sh
+./install.sh                       # all skills -> ~/.claude/{skills,rules}/
+./install.sh --scope project       # -> <git-root>/.claude/{skills,rules}/
+./install.sh --surface agents      # -> ~/.agents/{skills,rules}/
+./install.sh --force bdplan        # reinstall bdplan, overwriting its rule
 ```
 
-Or per-skill: copy the `skills/bdplan` directory to `~/.claude/skills/bdplan`.
+Or per-skill: copy the `skills/bdplan` directory to `~/.claude/skills/bdplan` and its `protocols/PLANS.md` to `~/.claude/rules/PLANS.md`.
 
 ## Usage
 
@@ -121,7 +124,7 @@ scripts/
   plan_manager.py            Plan CRUD, prerequisite checking, portability audit (run via uv)
   manifest_update.py         Vendored manifest hash/version helper (run via uv)
 protocols/
-  PLANS.md                   Planning protocol (installed to the surface rules dir, e.g. .claude/rules/PLANS.md, by /bdplan init)
+  PLANS.md                   Planning protocol (installed to the scope+surface rules dir, e.g. ~/.claude/rules/PLANS.md or <git-root>/.claude/rules/PLANS.md, by install.sh)
   manifest.json              Hash manifest for PLANS.md
 ```
 

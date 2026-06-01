@@ -30,8 +30,8 @@ Verification: `_provider_warnings()` in `research_manager.py`; `warnings[]` in t
 
 ## Bootstrap
 
-REQ-PREREQ-006: `/bdresearch init` is the sole entry point for prerequisite checking and protocol installation; all other invocations gate on `research_manager.py check` (operator config `.bdresearch.local.json` + state `.state/bdresearch/` + installed-rule hash).
-Rationale: Running the pipeline without prerequisites produces confusing failures; init must run first and cache the result.
+REQ-PREREQ-006: `/bdresearch init` is the entry point for per-project setup (prerequisite checking, `.gitignore` stewardship, config); all invocations gate on `research_manager.py check` (operator config `.bdresearch.local.json` + state `.state/bdresearch/` + installed-rule hash). The companion rule is installed by the repo installer (`install.sh`), not by init.
+Rationale: Running the pipeline without prerequisites produces confusing failures; init must run first and cache the result. Installing the rule at install time keeps it present with the skill across all projects.
 Verification: SKILL.md Pre-flight section + `/bdresearch init`; `_write_state({"prereqs-present": True})` on success (state, not config).
 
 REQ-PREREQ-007: Install URLs are identical across all files: uv → `https://docs.astral.sh/uv/`, bd → `https://github.com/gastownhall/beads`.

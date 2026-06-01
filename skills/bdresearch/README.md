@@ -2,7 +2,7 @@
 
 Multi-phase, beads-tracked deep research: decomposes a topic into a DAG of focused subtasks (retrieve → triangulate → synthesize → critique → refine → package) and produces a structured, citation-backed report with source credibility scoring. A beads-backed skill — companion to `bdplan`.
 
-Prefer this over the built-in deep-research harness when the result should be tracked, cited, or resumable. The research protocol and routing rules live in `protocols/RESEARCH.md`; `/bdresearch init` installs a copy to the project's rules surface.
+Prefer this over the built-in deep-research harness when the result should be tracked, cited, or resumable. The research protocol and routing rules live in `protocols/RESEARCH.md`; the repo installer (`install.sh`) installs a copy to a scope+surface-anchored rules dir (user-scope `~/.<surface>/rules/`, project-scope `<git-root>/.<surface>/rules/`).
 
 ## Prerequisites
 
@@ -18,21 +18,24 @@ Also required: an initialized beads database (`bd init`).
 
 Search providers are **advisory, not blocking**. Exa MCP is preferred; absent it, `TAVILY_API_KEY` / `PERPLEXITY_API_KEY` are used if set. Missing providers surface as warnings and never block init.
 
-Run `/bdresearch init` in your project to check prerequisites and install the `RESEARCH.md` companion rule automatically.
+The `RESEARCH.md` companion rule is installed by the repo installer (`install.sh`) alongside the skill. `/bdresearch init` handles per-project setup only (prerequisite check, `.gitignore` entries, config); it does not install the rule.
 
 ## Install
 
-Via repo-level installer:
+Via the repo-level installer (installs the skill + its companion rule):
 
 ```bash
-./install.sh
+./install.sh                       # all skills -> ~/.claude/{skills,rules}/
+./install.sh --scope project       # -> <git-root>/.claude/{skills,rules}/
+./install.sh --surface agents      # -> ~/.agents/{skills,rules}/
+./install.sh --force bdresearch    # reinstall bdresearch, overwriting its rule
 ```
 
-Or per-skill: copy the `skills/bdresearch` directory to `~/.claude/skills/bdresearch`.
+Or per-skill: copy the `skills/bdresearch` directory to `~/.claude/skills/bdresearch` and its `protocols/RESEARCH.md` to `~/.claude/rules/RESEARCH.md`.
 
 ## Usage
 
-- `/bdresearch init` — initialize bdresearch for this project (prereq check + protocol install)
+- `/bdresearch init` — per-project setup (prereq check, `.gitignore`, config; the rule is installed by `install.sh`)
 - `/bdresearch <topic>` — start a new research project
 - `/bdresearch coordinate [<idx-or-epic>]` — resolve a gate and run the coordinator loop
 - `/bdresearch status [<idx>]` — check research status
@@ -55,7 +58,7 @@ See `spec/phases.md` and the rest of `spec/` for the full requirement set.
 ## File layout
 
 - `SKILL.md` — orchestration: invocation, SKILL_DIR resolution, pre-flight, the pour sequence, and the four subcommands.
-- `protocols/RESEARCH.md` — the companion rule installed by `init` (research protocol + bdresearch-vs-deep-research routing).
+- `protocols/RESEARCH.md` — the companion rule installed by `install.sh` (research protocol + bdresearch-vs-deep-research routing).
 - `protocols/manifest.json` — hash manifest for the companion rule.
 - `formulas/bdresearch.formula.toml` — the fixed DAG skeleton (gate → tooling → triangulate → synthesize → critique → refine → package).
 - `agents/` — one file per pipeline role:

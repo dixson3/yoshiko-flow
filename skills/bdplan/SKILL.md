@@ -73,14 +73,19 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py check --json-output
   silently, fall back to native plan mode.
 - **`ok`**: proceed to the requested command. (`instructions` may carry a non-blocking
   `update available` note for `PLANS.md`.)
-- **`system_deps_missing` / `bd_not_initialized` / `rule_missing` / `rule_drift` /
-  `rule_deprecated` / `manifest_*`**: tell the user to run `/bdplan init` (or follow the
-  `instructions` in the result, e.g. `init --force` for drift). Stop.
+- **`system_deps_missing` / `bd_not_initialized`**: tell the user to run `/bdplan init` to
+  set up the project. Stop.
+- **`rule_missing` / `rule_drift` / `rule_deprecated` / `manifest_*`**: follow the
+  `instructions` in the result. The companion rule is installed by the repo installer, so
+  these point at `install.sh` (e.g. re-run `install.sh --force` to restore a drifted rule),
+  not `init`. Stop.
 
 Config vs state: `ignore-skill` is an operator decision in `.bdplan.local.json` (repo
 root, gitignored). The `prereqs-present` cache is runtime state in
-`.state/bdplan/preflight.json`. The installed rule (under the skill's surface —
-`.claude/rules/PLANS.md` or `.agents/rules/PLANS.md`) is hash-checked against
+`.state/bdplan/preflight.json`. The companion rule is installed by the repo installer
+(`install.sh`) to the scope+surface rules dir (user-scope `~/.<surface>/rules/PLANS.md`,
+project-scope `<git-root>/.<surface>/rules/PLANS.md`; `.claude` or `.agents`); preflight
+resolves it in precedence order (user/global copy first) and hash-checks it against
 `protocols/manifest.json`.
 
 ## /bdplan init
@@ -93,20 +98,16 @@ Run bdplan init for Claude Code:
 1. Run `uv run ${SKILL_DIR}/scripts/plan_manager.py check --json-output` and parse the JSON.
 2. If status is "system_deps_missing" or "bd_not_initialized", return the JSON as-is. Do nothing else.
 3. mkdir -p docs/plans  (per-incubator plan roots like `Incubator/<slug>/plans/` are created lazily).
-4. Resolve the rules dir: `RULES_DIR=$(uv run ${SKILL_DIR}/scripts/plan_manager.py rules-dir)`.
-   It follows the skill's install surface (`.claude/rules` for a `.claude/skills` install,
-   `.agents/rules` for a `.agents/skills` install). mkdir -p "$RULES_DIR".
-5. Install the companion rule: copy ${SKILL_DIR}/protocols/PLANS.md to "$RULES_DIR/PLANS.md"
-   when it is missing, when --upgrade is passed, or when --force is passed (the only way to
-   clobber a hand-edited rule). Never write to AGENTS/ and never edit CLAUDE.md. Record this.
-6. Gitignore stewardship: ensure ./.gitignore contains the anchored lines `/.bdplan.local.json`
+4. Gitignore stewardship: ensure ./.gitignore contains the anchored lines `/.bdplan.local.json`
    and `/.state/` (add if absent; no globs). Record this.
-7. Return JSON: {"status":"ready","actions":["<list of actions taken, empty if none>"]}
+   The companion rule `PLANS.md` is installed by the repo installer (`install.sh`), not here —
+   never write to AGENTS/ and never edit CLAUDE.md.
+5. Return JSON: {"status":"ready","actions":["<list of actions taken, empty if none>"],"rule":<the check's `rule` object>}
 ```
 
 Handle the sub-agent result:
 
-- **"ready"**: print actions taken, then show usage.
+- **"ready"**: print actions taken. If the returned `rule.outcome` is not `ok`/`update_available` (e.g. `rule_missing`/`rule_drift`), tell the user the companion rule is missing or drifted and to re-run the repo installer — `install.sh` (add `--force` to clobber a drifted/hand-edited copy); init does not install rules. Then show usage.
 - **"system_deps_missing"** or **"bd_not_initialized"**: print the missing items and instructions. Ask: "Would you like to (1) stop and fix the prerequisites, or (2) ignore bdplan in this project?" If ignore, write `{"ignore-skill":true}` to `.bdplan.local.json` at the repo root, and ensure `/.bdplan.local.json` is in `.gitignore`, then exit.
 
 **Rule:** All task tracking uses `bd`. Never use TodoWrite, markdown checklists, or inline task lists.

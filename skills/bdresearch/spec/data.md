@@ -24,7 +24,7 @@ REQ-DATA-005: `_index.md` is the artifact manifest, created/updated only via `in
 Rationale: A single writer prevents drift in the manifest format.
 Verification: `scripts/index_manager.py`; coordinator/packager call sites.
 
-REQ-DATA-006: Per the Skill Surface Convention, operator config (`ignore-skill`) lives at `.bdresearch.local.json` (repo root, gitignored); runtime state (`prereqs-present` cache) lives at `.state/bdresearch/preflight.json`; the installed rule `.agents/rules/RESEARCH.md` is hash-checked against `protocols/manifest.json` (schema_version 1). `/bdresearch init` adds anchored `.gitignore` entries `/.bdresearch.local.json` and `/.state/` (no globs).
+REQ-DATA-006: Per the Skill Surface Convention, operator config (`ignore-skill`) lives at `.bdresearch.local.json` (repo root, gitignored); runtime state (`prereqs-present` cache) lives at `.state/bdresearch/preflight.json`; the installed rule (in the scope+surface rules dir, e.g. `~/.<surface>/rules/RESEARCH.md`, installed by `install.sh`) is hash-checked against `protocols/manifest.json` (schema_version 1). `/bdresearch init` adds anchored `.gitignore` entries `/.bdresearch.local.json` and `/.state/` (no globs).
 Rationale: Config = operator decisions a fresh clone needs; state = recomputable cache tied to one checkout; the manifest hash detects rule drift/staleness. Conflating these commits machine-local state or loses operator intent.
 Verification: `research_manager.py` `CONFIG_FILE` vs `STATE_FILE`; `_read_config()`/`_read_state()`/`_write_state()`; `_check_rule()` + `MANIFEST_FILE`; `protocols/manifest.json`; SKILL.md `/bdresearch init` gitignore step.
 

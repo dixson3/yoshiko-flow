@@ -41,8 +41,8 @@ scoring. A beads-backed skill — companion to `bdplan`.
 - `/bdresearch status [<idx>]` — check research status
 
 The research protocol and routing rules (bdresearch vs the built-in deep-research) live
-in `${SKILL_DIR}/protocols/RESEARCH.md`; `/bdresearch init` installs a copy to the
-skill's surface rules dir (`.claude/rules/RESEARCH.md` or `.agents/rules/RESEARCH.md`).
+in `${SKILL_DIR}/protocols/RESEARCH.md`; the repo installer (`install.sh`) copies it to the
+scope+surface rules dir (`~/.<surface>/rules/RESEARCH.md` or `<git-root>/.<surface>/rules/RESEARCH.md`).
 
 ## SKILL_DIR
 
@@ -80,14 +80,19 @@ uv run ${SKILL_DIR}/scripts/research_manager.py check --json-output
   silently.
 - **`ok`**: proceed. (`warnings` carry advisory provider notes; `instructions` may carry
   a non-blocking `update available` note for `RESEARCH.md`.)
-- **`system_deps_missing` / `bd_not_initialized` / `rule_missing` / `rule_drift` /
-  `rule_deprecated` / `manifest_*`**: tell the user to run `/bdresearch init` (or follow
-  the `instructions`, e.g. `init --force` for drift). Stop.
+- **`system_deps_missing` / `bd_not_initialized`**: tell the user to run `/bdresearch init`
+  to set up the project. Stop.
+- **`rule_missing` / `rule_drift` / `rule_deprecated` / `manifest_*`**: follow the
+  `instructions` in the result. The companion rule is installed by the repo installer, so
+  these point at `install.sh` (e.g. re-run `install.sh --force` to restore a drifted rule),
+  not `init`. Stop.
 
 Config vs state: `ignore-skill` is an operator decision in `.bdresearch.local.json` (repo
 root, gitignored). `prereqs-present` is runtime state in `.state/bdresearch/preflight.json`.
-The installed rule (under the skill's surface — `.claude/rules/RESEARCH.md` or
-`.agents/rules/RESEARCH.md`) is hash-checked against `protocols/manifest.json`.
+The companion rule is installed by the repo installer (`install.sh`) to the scope+surface
+rules dir (user-scope `~/.<surface>/rules/RESEARCH.md`, project-scope
+`<git-root>/.<surface>/rules/RESEARCH.md`; `.claude` or `.agents`); preflight resolves it in
+precedence order (user/global copy first) and hash-checks it against `protocols/manifest.json`.
 
 ## /bdresearch init
 
@@ -103,21 +108,16 @@ Run bdresearch init for Claude Code:
    Do nothing else.
 3. mkdir -p docs/research  (per-incubator roots like Incubator/<slug>/research/ are
    created lazily when an incubator-scoped run is first started).
-4. Resolve the rules dir: `RULES_DIR=$(uv run ${SKILL_DIR}/scripts/research_manager.py rules-dir)`.
-   It follows the skill's install surface (`.claude/rules` for a `.claude/skills` install,
-   `.agents/rules` for a `.agents/skills` install). mkdir -p "$RULES_DIR".
-5. Install the companion rule: copy ${SKILL_DIR}/protocols/RESEARCH.md to
-   ${RULES_DIR}/RESEARCH.md when it is missing, when --upgrade is passed, or when
-   --force is passed (the only way to clobber a hand-edited rule). Never write to AGENTS/
-   and never edit CLAUDE.md. Record this.
-6. Gitignore stewardship: ensure ./.gitignore contains the anchored lines
+4. Gitignore stewardship: ensure ./.gitignore contains the anchored lines
    `/.bdresearch.local.json` and `/.state/` (add if absent; no globs). Record this.
-7. Return JSON: {"status":"ready","actions":[...],"warnings":[...]}.
+   The companion rule `RESEARCH.md` is installed by the repo installer (`install.sh`), not
+   here — never write to AGENTS/ and never edit CLAUDE.md.
+5. Return JSON: {"status":"ready","actions":[...],"warnings":[...],"rule":<the check's `rule` object>}.
 ```
 
 Handle the sub-agent result:
 
-- **"ready"**: print actions taken and relay any provider `warnings`, then show usage.
+- **"ready"**: print actions taken and relay any provider `warnings`. If the returned `rule.outcome` is not `ok`/`update_available` (e.g. `rule_missing`/`rule_drift`), tell the user the companion rule is missing or drifted and to re-run the repo installer — `install.sh` (add `--force` to clobber a drifted/hand-edited copy); init does not install rules. Then show usage.
 - **"system_deps_missing"** / **"bd_not_initialized"**: print the missing items and
   instructions. Ask: "(1) stop and fix the prerequisites, or (2) ignore bdresearch in
   this project?" If ignore, write `{"ignore-skill":true}` to `.bdresearch.local.json` at

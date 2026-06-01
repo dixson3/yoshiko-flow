@@ -42,9 +42,9 @@ REQ-DATA-022: `/bdplan init` adds anchored entries `/.bdplan.local.json` and `/.
 Rationale: Machine-specific config and all runtime state must not be committed; enumeration keeps `.gitignore` auditable.
 Verification: SKILL.md `/bdplan init` gitignore-stewardship step.
 
-REQ-DATA-023: The companion rule `protocols/PLANS.md` is installed to the rules dir of the skill's install surface (`.claude/rules/PLANS.md` for a `.claude/skills` install, `.agents/rules/PLANS.md` for a `.agents/skills` install) and hash-checked against `protocols/manifest.json` (schema_version 1) at preflight.
-Rationale: A manifest hash detects drift, stale, or deprecated installed rules; matching the install surface keeps a `.claude`-installed skill from polluting an unrelated `.agents/` tree (and vice versa). Both `.claude/rules/` and `.agents/rules/` are auto-loaded rules locations.
-Verification: plan_manager.py `_skill_surface()` + `_rules_dir()` + `_check_rule()`; `rules-dir` subcommand; SKILL.md `/bdplan init` install step.
+REQ-DATA-023: The companion rule `protocols/PLANS.md` is installed by the repo installer (`install.sh`) — not by `/bdplan init` — to a rules dir anchored by install scope and surface: user-scope → `~/.<surface>/rules/PLANS.md`, project-scope → `<git-root>/.<surface>/rules/PLANS.md` (`.claude` or `.agents`). Preflight resolves the installed rule across locations in precedence order — the user/global `~/.<surface>/rules` copy before the project copy — and hash-checks it against `protocols/manifest.json` (schema_version 1). A correct user-scope copy satisfies every project; `install.sh --force` overwrites an existing rule.
+Rationale: A manifest hash detects drift/stale/deprecated installed rules; matching the surface keeps a `.claude` install from polluting an unrelated `.agents/` tree (and vice versa); anchoring by scope puts a user-scope rule at `~/.<surface>/rules` (shared by every project) and a project-scope rule at the git root. Installing at install time (not init) means the rule is present the moment the skill is. Both `.claude/rules/` and `.agents/rules/` are auto-loaded.
+Verification: `install.sh` rule-copy step (`install_rules`); plan_manager.py `_skill_surface()` + `_skill_scope()` + `_git_root()` + `_rules_dir()` + `_rule_candidates()` + `_check_rule()` (preflight hash check).
 
 ## Upstream Tracking
 

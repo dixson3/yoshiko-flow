@@ -20,17 +20,24 @@ Optional (detected at runtime):
 
 ```bash
 # User-scoped (recommended)
-./install.sh                          # ~/.claude/skills/
+./install.sh                          # ~/.claude/{skills,rules}/
 
-# Project-scoped
-./install.sh --scope project          # .claude/skills/
+# Project-scoped (anchored at the git root)
+./install.sh --scope project          # <git-root>/.claude/{skills,rules}/
 
-# Custom destination
+# Agents surface
+./install.sh --surface agents         # ~/.agents/{skills,rules}/
+
+# Overwrite an existing companion rule (default keeps hand-edits)
+./install.sh --force
+
+# Custom destination (skills here, rules in a sibling rules/ dir)
 ./install.sh --target /path/to/skills
 ```
 
-`install.sh` discovers every skill under `skills/` automatically. By default all
-skills install; pass names to install a subset:
+`install.sh` installs each skill **and copies its companion rules** (`protocols/*.md`)
+into the matching `<scope>/.<surface>/rules/` dir. It discovers every skill under
+`skills/` automatically; by default all install — pass names for a subset:
 
 ```bash
 ./install.sh bdplan bdresearch
@@ -54,10 +61,10 @@ conditions when relevant work appears.
 
 Decomposes objectives into investigated, scoped plans with beads-tracked execution and upstream issue reconciliation.
 
-**Setup** per project:
+**Setup** per project (the `PLANS.md` companion rule is installed by `install.sh`):
 
 1. `bd init` (if not already initialized)
-2. `/bdplan init` — checks prerequisites and installs the `PLANS.md` companion rule
+2. `/bdplan init` — checks prerequisites, adds `.gitignore` entries, writes per-project config
 
 **Usage:**
 

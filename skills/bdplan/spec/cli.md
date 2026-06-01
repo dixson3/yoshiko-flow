@@ -26,9 +26,9 @@ Verification: SKILL.md Pre-flight bullet 2; `_check_prerequisites()` in plan_man
 
 ## plan_manager.py CLI
 
-REQ-CLI-006: `plan_manager.py` exposes 9 subcommands: `check`, `rules-dir`, `json-get`, `init`, `scope`, `triage`, `list`, `update-status`, `audit`.
-Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. `audit` was added to support the portability precondition check at intake and the `/bdplan capture` maintenance subcommand. `rules-dir` was added so `/bdplan init` resolves the surface-matched rules dir from one source of truth instead of hardcoding `.agents/rules`.
-Verification: `grep '@cli.command' skills/bdplan/scripts/plan_manager.py` returns 9 matches.
+REQ-CLI-006: `plan_manager.py` exposes 8 subcommands: `check`, `json-get`, `init`, `scope`, `triage`, `list`, `update-status`, `audit`.
+Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. `audit` was added to support the portability precondition check at intake and the `/bdplan capture` maintenance subcommand. The companion rule is installed by the repo installer (`install.sh`), not by `init`, so no `rules-dir` subcommand is needed; preflight locates the installed rule internally via `_rule_candidates()`/`_check_rule()`.
+Verification: `grep '@cli.command' skills/bdplan/scripts/plan_manager.py` returns 8 matches.
 
 REQ-CLI-007: All `plan_manager.py` subcommands that produce structured output emit JSON to stdout. `check` and `list` default to human-readable but accept `--json-output` for skill use. `json-get` outputs the extracted value (plain text for scalars, JSON for objects/arrays).
 Rationale: SKILL.md parses output via `json-get` or `--json-output` flags — non-JSON in those modes breaks the pipeline.

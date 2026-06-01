@@ -42,33 +42,73 @@ def _skill_surface() -> str | None:
     return None
 
 
-def _rules_dir() -> Path:
-    # Rules surface follows the skill's install surface: a skill installed under
-    # .claude/skills installs its rule to .claude/rules; under .agents/skills to
-    # .agents/rules.
-    surface = _skill_surface()
-    if surface == ".agents":
-        return Path(".agents/rules")
-    if surface == ".claude":
-        return Path(".claude/rules")
-    # Skill not under a recognized surface (e.g. a dev checkout): fall back to an
-    # existing project surface, else default to .claude.
-    if Path(".agents").is_dir():
-        return Path(".agents/rules")
-    return Path(".claude/rules")
-
-
-def _installed_rule_path():
-    # An installed rule may live under either surface; prefer the install surface,
-    # then the other, so drift detection finds a pre-existing copy after a move.
-    for d in (_rules_dir(), Path(".agents/rules"), Path(".claude/rules")):
-        p = d / RULE_NAME
-        if p.exists():
-            return p
+def _skill_scope() -> str | None:
+    # user-scope when the skill is installed under $HOME/.<surface> (e.g.
+    # ~/.claude/skills); project-scope when installed inside a project tree.
+    # Inferred from the dir that holds the surface element in the script's own
+    # path. None when the skill resolves under no recognized surface.
+    home = Path.home()
+    for p in (Path(__file__), Path(__file__).resolve()):
+        parts = p.parts
+        for surface in (".claude", ".agents"):
+            if surface in parts:
+                idx = parts.index(surface)
+                root = Path(*parts[:idx]) if idx > 0 else None
+                return "user" if root == home else "project"
     return None
 
 
-INSTALLED_RULE = _rules_dir() / RULE_NAME   # install target for the skill's install surface
+def _git_root() -> Path:
+    # Project anchor for project-scope rule installs. Falls back to cwd outside a
+    # git repo (matches the SKILL_DIR resolver's `|| echo .`).
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=2)
+        if out.returncode == 0 and out.stdout.strip():
+            return Path(out.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return Path(".")
+
+
+def _rules_dir() -> Path:
+    # Install target for the companion rule, anchored by scope and surface:
+    #   user-scope    -> ~/.<surface>/rules
+    #   project-scope -> <git-root>/.<surface>/rules
+    # Both axes come from the skill's own install path. A dev checkout that
+    # resolves under neither surface falls back to an existing project surface
+    # (else .claude), project-anchored.
+    surface = _skill_surface()
+    scope = _skill_scope()
+    if surface is None:
+        surface = ".agents" if Path(".agents").is_dir() else ".claude"
+        scope = "project"
+    anchor = Path.home() if scope == "user" else _git_root()
+    return anchor / surface / "rules"
+
+
+def _rule_candidates() -> list[Path]:
+    # Precedence order for an already-installed rule (installed by install.sh).
+    # The user/global home dir (~/.<surface>/rules) is checked before the project
+    # copy: a correct global copy satisfies any project, so no per-project install
+    # is required. Trailing project-relative dirs catch a copy left by an earlier
+    # surface/scope.
+    seen: list[Path] = []
+
+    def add(d: Path) -> None:
+        if d not in seen:
+            seen.append(d)
+
+    surface = _skill_surface() or ".claude"
+    other = ".agents" if surface == ".claude" else ".claude"
+    add(Path.home() / surface / "rules")
+    add(Path.home() / other / "rules")
+    add(_rules_dir())
+    add(Path(".agents/rules"))
+    add(Path(".claude/rules"))
+    return seen
+
+
 MANIFEST_FILE = Path(__file__).resolve().parent.parent / "protocols" / "manifest.json"
 MANIFEST_SCHEMA = 1
 
@@ -106,6 +146,9 @@ def _sha256(path: Path) -> str | None:
 def _check_rule() -> dict:
     """Compare the installed companion rule against protocols/manifest.json.
 
+    Evaluates candidate locations in precedence order (the user/global home copy
+    before the project copy); a correct global copy short-circuits so no
+    per-project copy is required. The rule is installed by install.sh, not init.
     Outcomes: ok | update_available | drift | deprecated | missing |
     manifest_schema_unknown | manifest_missing (Surface Convention § Hash manifest).
     """
@@ -116,23 +159,40 @@ def _check_rule() -> dict:
         return {"outcome": "manifest_schema_unknown", "rule": RULE_NAME,
                 "schema_version": manifest.get("schema_version")}
     entry = manifest.get("files", {}).get(RULE_NAME, {})
-    rule_path = _installed_rule_path()
-    installed = _sha256(rule_path) if rule_path is not None else None
-    if installed is None:
+
+    def outcome_for(path: Path) -> str:
+        if entry.get("deprecated"):
+            return "deprecated"
+        installed = _sha256(path)
+        if installed == entry.get("sha256"):
+            return "ok"
+        if any(installed == p.get("sha256") for p in entry.get("previous_versions", [])):
+            return "update_available"
+        return "drift"
+
+    rank = {"ok": 0, "update_available": 1, "deprecated": 2, "drift": 3}
+    best, best_path = None, None
+    for cand in _rule_candidates():
+        path = cand / RULE_NAME
+        if not path.exists():
+            continue
+        oc = outcome_for(path)
+        if best is None or rank[oc] < rank[best]:
+            best, best_path = oc, path
+            if oc == "ok":
+                break
+    if best is None:
         return {"outcome": "missing", "rule": RULE_NAME}
-    if entry.get("deprecated"):
-        return {"outcome": "deprecated", "rule": RULE_NAME}
-    if installed == entry.get("sha256"):
-        return {"outcome": "ok", "rule": RULE_NAME, "version": entry.get("version")}
-    if any(installed == p.get("sha256") for p in entry.get("previous_versions", [])):
-        return {"outcome": "update_available", "rule": RULE_NAME, "version": entry.get("version")}
-    return {"outcome": "drift", "rule": RULE_NAME}
+    result = {"outcome": best, "rule": RULE_NAME, "path": str(best_path)}
+    if best in ("ok", "update_available"):
+        result["version"] = entry.get("version")
+    return result
 
 
 _RULE_INSTRUCTIONS = {
-    "missing": f"Run: /{SKILL_NAME} init  (installs {RULE_NAME} to the project rules dir (.claude/rules or .agents/rules))",
-    "drift": f"Installed {RULE_NAME} diverges from the manifest — resolve manually or run /{SKILL_NAME} init --force",
-    "deprecated": f"{RULE_NAME} is deprecated — run /{SKILL_NAME} init --prune",
+    "missing": f"{RULE_NAME} is not installed — run the repo installer (install.sh) to install it to the scope+surface rules dir (user-scope ~/.<surface>/rules, project-scope <git-root>/.<surface>/rules); add --force to overwrite an existing copy",
+    "drift": f"Installed {RULE_NAME} diverges from the manifest — re-run the repo installer with --force (install.sh --force) to restore the shipped version, or resolve manually",
+    "deprecated": f"{RULE_NAME} is deprecated — remove it from the rules dir (the skill no longer ships it)",
     "manifest_schema_unknown": f"Upgrade {SKILL_NAME}: manifest schema_version not understood",
     "manifest_missing": f"{SKILL_NAME} packaging error: protocols/manifest.json is missing",
 }
@@ -201,7 +261,7 @@ def _check_prerequisites() -> dict:
     if outcome in ("ok", "update_available"):
         return {"status": "ok", "missing": [], "warnings": warnings, "rule": rule,
                 "instructions": ([] if outcome == "ok"
-                                 else [f"A newer {RULE_NAME} is available — run /{SKILL_NAME} init --upgrade"])}
+                                 else [f"A newer {RULE_NAME} is available — re-run the repo installer (install.sh --force) to update"])}
     return {"status": f"rule_{outcome}" if outcome in ("missing", "drift", "deprecated") else outcome,
             "missing": [], "instructions": [_RULE_INSTRUCTIONS.get(outcome, "")], "warnings": warnings, "rule": rule}
 
@@ -299,12 +359,6 @@ def check(as_json: bool):
         click.echo(f"NOTE: {msg}", err=True)
     Path("docs/research").mkdir(parents=True, exist_ok=True)
     click.echo("All prerequisites satisfied.")
-
-
-@cli.command("rules-dir")
-def rules_dir():
-    """Print the rules dir for this install surface (.claude/rules or .agents/rules)."""
-    click.echo(_rules_dir())
 
 
 @cli.command("json-get")

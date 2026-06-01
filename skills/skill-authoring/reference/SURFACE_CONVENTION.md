@@ -23,15 +23,18 @@ Both SKILL.md and agent/subagent files self-resolve `${SKILL_DIR}` via this reso
 
 Source of truth lives at `${SKILL_DIR}/protocols/<NAME>.md` (e.g. `bdplan/protocols/PLANS.md`; a skill may ship one rule file or several, one per `<NAME>`).
 
-On `<skill> init`, the file is copied to the rules dir of **the skill's own install surface**: a skill resolved under `.claude/skills` installs to `.claude/rules/<NAME>.md`; one resolved under `.agents/skills` installs to `.agents/rules/<NAME>.md`. The surface is derived from the install path (the helper script's own location), not from which project dirs happen to exist — so a `.claude`-installed skill never writes into an unrelated `.agents/` tree, and vice versa. If the skill resolves to neither surface (e.g. a dev checkout), fall back to an existing project surface, else default to `.claude/rules`. Expose the resolved dir via a `rules-dir` subcommand so `init` and preflight share one source of truth.
+The rule is installed by **the repo installer (`install.sh`), not by `<skill> init`** — so it lands the moment the skill does. The installer copies each shipped `protocols/<NAME>.md` (never `manifest.json`) into a rules dir anchored by **install scope and surface**:
 
-**Never** write to `AGENTS/`. **Never** edit `CLAUDE.md` to add an `@`-include. Project-level instruction trees own those files; skill init must not pollute them. If the operator wants the rule visible from `CLAUDE.md`, they wire the include themselves — the skill ships the rule file, nothing else.
+- **surface** — `--surface claude` installs the skill under `.claude/skills/` and its rule under `.claude/rules/<NAME>.md`; `--surface agents` uses `.agents/`. The skill's helper scripts independently derive the surface from their own install path, so a `.claude`-installed skill's preflight never looks into an unrelated `.agents/` tree, and vice versa.
+- **scope** — `--scope user` anchors at `$HOME`: `~/.<surface>/rules/<NAME>.md` (the default). `--scope project` anchors at the git root (falling back to cwd): `<git-root>/.<surface>/rules/<NAME>.md`.
 
-Re-runs of `<skill> init` are idempotent: overwrite the installed copy only when
+A user-scope rule at `~/.<surface>/rules/<NAME>.md` is **global** — in context for every project. Preflight resolves the installed rule across candidate locations in precedence order, the user/global copy before the project copy; a correct global copy satisfies any project, so a project install is not required when the global copy already matches the manifest hash.
 
-- the existing file is missing, OR
-- `--upgrade` is passed (operator opts into latest published version), OR
-- `--force` is passed (the only way to clobber a hand-edited rule file).
+`<skill> init` does **not** install the rule. It handles per-project setup only (config, `.gitignore` stewardship, prerequisite gating) and surfaces the preflight rule status, pointing the operator at `install.sh` if the rule is missing or drifted.
+
+**Never** write to `AGENTS/`. **Never** edit `CLAUDE.md` to add an `@`-include. Project-level instruction trees own those files; neither the installer nor init may pollute them. If the operator wants the rule visible from `CLAUDE.md`, they wire the include themselves — the skill ships the rule file, nothing else.
+
+Re-runs of `install.sh` are idempotent: an existing installed rule is **kept** (hand-edits survive) unless `--force` is passed, which overwrites it from the shipped source.
 
 ## 2. Hash manifest
 
@@ -58,10 +61,10 @@ Preflight compares the installed rule file's sha256 (in the install surface's ru
 | Condition | Verdict | Operator action |
 |---|---|---|
 | installed hash == `sha256` | OK | none |
-| installed hash matches a `previous_versions[]` entry | update available | `<skill> init --upgrade` |
-| installed hash matches neither | drift | resolve manually or `<skill> init --force` |
-| `deprecated: true` | deprecated | `<skill> init --prune` |
-| declared in manifest but absent on disk | rule missing | `<skill> init` |
+| installed hash matches a `previous_versions[]` entry | update available | `install.sh --force` |
+| installed hash matches neither | drift | resolve manually or `install.sh --force` |
+| `deprecated: true` | deprecated | remove the rule from the rules dir |
+| declared in manifest but absent on disk | rule missing | `install.sh` |
 | rule file exists in the install surface's rules dir, not declared in any manifest | stale orphan | investigate — unknown provenance |
 
 **Forward-compat rule.** Preflight reads `schema_version`. Unknown value → preflight FAIL with `upgrade <skill> to a version that understands manifest schema v$N`. Never silently treat an unknown schema as v1.
@@ -152,7 +155,7 @@ A skill named `<skill>` that ships one rule file `<NAME>.md`, has runtime state,
 ├── SKILL.md
 ├── README.md
 ├── protocols/
-│   ├── <NAME>.md             # source of truth; installed to the install surface's rules dir
+│   ├── <NAME>.md             # source of truth; installed to the scope+surface-anchored rules dir
 │   └── manifest.json         # sha256 + semver + previous_versions[] for <NAME>.md
 ├── scripts/
 │   ├── <skill>               # CLI entry point (wrapper or direct)
@@ -168,14 +171,18 @@ repo root/
 │   └── <skill>/              # runtime cache (e.g. preflight.json)
 └── <surface>/                # .agents or .claude — matches the skill's install surface
     └── rules/
-        └── <NAME>.md         # installed by `<skill> init`; hash-checked by preflight
+        └── <NAME>.md         # project-scope target (installed by install.sh); hash-checked by preflight
+                              #   (user-scope installs to ~/.<surface>/rules/<NAME>.md instead)
 ```
 
-> Companion rules install to the rules dir of the skill's install surface: a `.claude/skills`
-> install → `.claude/rules/`, a `.agents/skills` install → `.agents/rules/`. Where this repo
-> uses `.agents/` as its canonical tree, `.claude/skills` and `.claude/rules` may be symlinks
-> into it; the SKILL_DIR resolver and surface detection (which inspects the resolved script
-> path) work regardless. Hooks still merge into `.claude/settings.json` (a real file, not
-> symlinked).
+> The repo installer (`install.sh`) copies companion rules to a rules dir anchored by
+> install scope and surface. Surface: `--surface claude` → `.claude/rules/`, `--surface
+> agents` → `.agents/rules/`. Scope: `--scope user` → `~/.<surface>/rules/` (global, shared
+> by every project); `--scope project` → `<git-root>/.<surface>/rules/`. A correct global
+> copy covers every project, so a project install is not required. `<skill> init` does not
+> install rules. Where this repo uses `.agents/` as its canonical tree, `.claude/skills` and
+> `.claude/rules` may be symlinks into it; the SKILL_DIR resolver and surface/scope detection
+> (which inspect the script path) work regardless. Hooks still merge into
+> `.claude/settings.json` (a real file, not symlinked).
 
-For a skill that *does* install Claude Code hooks, add `hooks/manifest.json` next to `protocols/`. For a skill with multiple rule files, list each in `manifest.json` `files[]` and install each into the install surface's rules dir.
+For a skill that *does* install Claude Code hooks, add `hooks/manifest.json` next to `protocols/`. For a skill with multiple rule files, list each in `manifest.json` `files[]` and install each into the scope+surface-anchored rules dir.
