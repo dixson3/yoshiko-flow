@@ -40,3 +40,6 @@ None. This is an instruction-only reference skill with no phases or state transi
 
 - `SKILL.md` — the conventions: SKILL_DIR resolution, formula vs agent split, formula structure and gate gotchas, dynamic fan-out, bead metadata, the coordinator loop, and the `coordinate` subcommand.
 - `agents/reviewer.md` — read-only anti-patterns checklist; one audit item per rule in SKILL.md.
+- `spec/structure.md` — skill layout, formula-vs-agent separation, SKILL_DIR, handoff (REQ-STRUCT-*).
+- `spec/formulas.md` — formula authoring: gate two-bead gotcha, right-sizing, flat-structure limit, fan-out (REQ-FORMULA-*).
+- `spec/orchestration.md` — post-pour metadata, coordinator loop, coordinate subcommand, gate auto-detection (REQ-ORCH-*).
