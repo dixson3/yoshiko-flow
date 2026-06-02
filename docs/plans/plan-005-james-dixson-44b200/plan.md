@@ -42,9 +42,12 @@ agent.
 ## Upstream Issues
 | Issue | Title | Disposition | Notes | Resolved By |
 |-------|-------|-------------|-------|-------------|
+| #13 | Canonical agent role vocabulary + factoring standard for skills | include | Filed post-intake as the upstream record of this plan's decision (not an incorporated external requirement). | whole plan (close at COMPLETE) |
 
-_No upstream issues match. Open issues #6 (mermaid diagrams) and #7 (Obsidian links) are
-unrelated. No reconcile gate needed._
+_No upstream issue matched at scoping; #13 was filed afterward as the portable record of the
+convention so peer clones inherit it. Open issues #6 (mermaid diagrams) and #7 (Obsidian
+links) are unrelated. No reconcile gate was created at intake — #13 is a self-referential
+tracking record; close it manually at plan COMPLETE rather than via an auto reconcile gate._
 
 ## Investigation Findings
 
