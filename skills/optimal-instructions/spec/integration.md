@@ -35,10 +35,19 @@ Rationale: A consistency reviewer would otherwise read the runtime edits as a Su
 violation. They are not: §1 governs install-time writes only.
 Verification: SKILL.md Rules (runtime carve-out note); this REQ.
 
-REQ-INT-005: No companion rule, no hook. The skill ships no `protocols/` rule and registers no
-hook; install.sh auto-discovers it with zero changes. Triggering is via `description` only —
-best-effort, not guaranteed on every write.
-Rationale: Locked scope chose description-only triggering; install.sh installs companion rules
-only when a `protocols/` dir exists.
-Verification: `ls skills/optimal-instructions/` shows no `protocols/`; install.sh §auto-discovery
-needs no edit; README documents the limitation.
+REQ-INT-005: Minimal companion footprint, no hook. Strive for the minimum always-loaded
+footprint: ship a `protocols/` rule only when an always-loaded obligation cannot be met by the
+`description` trigger alone, and keep any such rule as thin as possible (a pointer to a single
+source of truth, not a restatement). The skill currently ships exactly one such rule
+(`protocols/INSTRUCTIONS.md`, a thin token-efficiency backstop pointing to skill-authoring's
+ruleset) and registers no hook. install.sh auto-discovers both the skill and its rule with zero
+changes. The `description` trigger remains best-effort (not guaranteed on every write); the
+companion rule is the always-loaded backstop, not a trigger mechanism.
+Rationale: Always-loaded context is paid every turn, so default to none and add only the
+minimal necessary rule. The token-efficiency obligation must hold even when the description
+trigger misses; shipping it as a thin portable protocol (consistent with bdplan/bdresearch)
+replaces the former repo-local `AGENTS/OPTIMIZED_SKILLS.md` and removes its duplication of
+skill-authoring's ruleset.
+Verification: `ls skills/optimal-instructions/protocols/` shows `INSTRUCTIONS.md` +
+`manifest.json`, each thin and pointer-only; install.sh §install_rules copies it; README
+documents it.

@@ -4,19 +4,23 @@ Beads-backed skills for Claude Code.
 
 ## Memory
 
-Do NOT use Claude Code memory (`~/.claude/` memory directories). Write to and load from `AGENTS/MEMORY.md` instead.
+Do NOT use Claude Code memory (`~/.claude/` memory directories).
 
-@AGENTS/MEMORY.md
+Two tiers:
 
-On session start: review AGENTS/MEMORY.md entries. If a memory's effect is already enforced by a rule in AGENTS/, remove the memory entry — the rule supersedes it.
+- **Ephemeral / clone-local working memory** → `bd remember "<insight>"`; recall with `bd memories <keyword>` / `bd recall`. Injected at `bd prime`. Lives in the project dolt DB, absent from JSONL export, never synced upstream.
+- **Durable / cross-clone / behavioral knowledge** → an `AGENTS/` rule, or a bead filed and pushed upstream.
+
+`bd remember` is project-DB-local; never promote it to durable or portable use. Anything another clone, machine, or harness must see goes in an `AGENTS/` rule or an upstreamed bead — not `bd remember`.
 
 ## Rules
 
 All skill work MUST follow these rules. Each is enforced on every create or modify of skill files.
 
 - @AGENTS/CONSISTENCY.md
-- @AGENTS/OPTIMIZED_SKILLS.md
 - @AGENTS/DOCUMENTATION.md
+
+Token efficiency is enforced by the always-loaded `INSTRUCTIONS.md` rule shipped by the `optimal-instructions` skill (`skills/optimal-instructions/protocols/INSTRUCTIONS.md`, installed to the rules surface by `install.sh`). It points to `skill-authoring` `SKILL.md` "Token efficiency" § as the single source of truth.
 
 ## Upstream Tracking
 

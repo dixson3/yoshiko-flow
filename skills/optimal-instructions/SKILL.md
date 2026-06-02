@@ -117,6 +117,14 @@ its own output on the next write.
   from the Surface Convention §1 *installer* prohibition, which governs install-time writes.
   See [[spec|spec/]].
 
+## Companion rule
+
+This skill ships `protocols/INSTRUCTIONS.md` — an always-loaded rule that `install.sh` surfaces
+to the rules dir. It states the on-write token-efficiency obligation for all instruction
+surfaces (project-root and skill-dir) and points to skill-authoring `SKILL.md` "Token
+efficiency" § as the single source of truth. It is the always-loaded backstop for this skill's
+best-effort `description` trigger. `scripts/manifest_update.py` maintains `protocols/manifest.json`.
+
 ## Reference
 
 - [[README]] — what this skill is, when it fires, accepted limitations.
