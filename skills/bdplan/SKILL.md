@@ -484,7 +484,7 @@ deterministically — Phase 5 resume-guard). Two writes, both keyed on `${EPIC}`
 ```bash
 # (a) Stamp the epic with its plan_dir so a plan with no **Epic:** field
 #     (intaken before this feature) is still findable by resume-scan.
-bd update ${EPIC} --metadata "{\"plan_dir\":\"${plan_dir}\"}" -q
+bd update ${EPIC} --metadata "$(jq -nc --arg d "${plan_dir}" '{plan_dir:$d}')" -q
 
 # (b) Record the epic ID in plan.md: an **Epic:** header field plus an inert
 #     `- DATE intake: epic <id> poured` phase-log line (matches neither the
