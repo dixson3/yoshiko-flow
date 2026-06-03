@@ -68,6 +68,13 @@ skill/
 Do not conflate the two. Formulas define *what work exists and how it connects*; agents
 define *how to do the work*.
 
+**Agent roles and naming.** Name agents by the canonical role vocabulary (GATHER, PRODUCE,
+EVALUATE, REVISE, ORCHESTRATE, CLOSEOUT) and give each the standard YAML front-matter block.
+The bead-DAG driver is always `coordinator` (the term this skill uses throughout). Single
+source of truth — do not restate it here: the `skill-authoring` skill's
+`reference/AGENT_ROLES.md` (vocabulary, the factoring test, the front-matter schema, and the
+canonical role table for every agent in this repo).
+
 ## Beads formulas
 
 Formulas live in the skill (`formulas/`) and are staged transiently into
@@ -237,7 +244,7 @@ predecessors close, so discovered work runs in the same session.
 
 The loop above is the happy path. A coordinator that can be re-invoked — after a crash, a session
 timeout, or (for scheduled skills) the next interval — needs a resilience envelope around it.
-`bdplan` (`agents/executor.md` + `scripts/plan_manager.py`) is the in-repo worked example; an
+`bdplan` (`agents/coordinator.md` + `scripts/plan_manager.py`) is the in-repo worked example; an
 external consumer (an Obsidian-vault "orchestration"/"jobs" skill) implements the same contract
 over a shared `bd` wrapper. Capture it once here rather than re-deriving it per skill.
 
@@ -276,7 +283,7 @@ bdresearch) have no interval and skip this.
 
 Handle gate-type beads in place: read the condition/test, `bd gate resolve` on pass, mark blocked on
 fail. **Drain all unblocked work before reporting blocked gates** — do not halt at the first one;
-parallel work usually remains. (bdplan `agents/executor.md` → *Blocked gates*.)
+parallel work usually remains. (bdplan `agents/coordinator.md` → *Blocked gates*.)
 
 ### Discovered-work re-entry
 

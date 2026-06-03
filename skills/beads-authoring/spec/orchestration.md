@@ -41,7 +41,7 @@ Contracts for post-pour metadata, the dispatch loop, and the coordinate subcomma
 
 REQ-ORCH-004 is the happy path. A coordinator that can be re-invoked (crash, timeout, or — for
 scheduled skills — the next interval) wraps that loop in the contract below. bdplan
-(`agents/executor.md`, `scripts/plan_manager.py`) is the in-repo worked example; an external
+(`agents/coordinator.md`, `scripts/plan_manager.py`) is the in-repo worked example; an external
 consumer (an Obsidian-vault "orchestration"/"jobs" skill) implements the same contract over a
 shared `bd` wrapper.
 
@@ -59,7 +59,7 @@ shared `bd` wrapper.
   ready loop skips non-`open` beads, so a crash leaves them stalled; resetting (not closing) keeps
   the epic non-terminal so a terminal gate cannot fire on an incomplete run; no bd-state signal
   separates disposable scratch from real work. — *Verify:* SKILL.md "Coordinator resilience" →
-  *Stuck-bead sweep*; worked example bdplan `agents/executor.md` → *Resume orphan sweep*.
+  *Stuck-bead sweep*; worked example bdplan `agents/coordinator.md` → *Resume orphan sweep*.
 
 - **REQ-ORCH-010:** The resume sweep MAY auto-close ephemeral (vapor-phase) operational beads but
   MUST NOT auto-close durable (liquid-phase) work beads. The ephemeral/durable line is the formula
@@ -77,7 +77,7 @@ shared `bd` wrapper.
   unblocked work before reporting blocked gates** — never halts at the first blocked gate. —
   *Rationale:* parallel unblocked work usually remains; early halt wastes the run. — *Verify:*
   SKILL.md "Coordinator resilience" → *Blocked-gate draining*; worked example bdplan
-  `agents/executor.md` → *Blocked gates*.
+  `agents/coordinator.md` → *Blocked gates*.
 
 - **REQ-ORCH-013:** The loop terminates on `bd ready` empty, **not** on the initial bead set
   closing; beads created mid-run with `--deps discovered-from:<parent>` re-enter the loop once

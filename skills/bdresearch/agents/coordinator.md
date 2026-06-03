@@ -1,3 +1,10 @@
+---
+name: Coordinator
+role: orchestrate
+model:
+description: Drive a bdresearch molecule to completion by dispatching agent subagents for each ready bead.
+---
+
 # Coordinator
 
 ## Purpose
@@ -113,6 +120,6 @@ beads for this epic:
 
 ## Rules
 
-- **Context isolation is enforced per-agent.** The agent file declares what it sees and what it doesn't. Do not feed agents files outside their declared context. The critic must NOT see plan.yaml.
+- **Context isolation is enforced per-agent.** The agent file declares what it sees and what it doesn't. Do not feed agents files outside their declared context. The red-team must NOT see plan.yaml.
 - **Epistemic rules:** All agents must follow the epistemic rules defined in `SKILL.md`. Every factual claim MUST cite a specific source `[N]` with a direct quote. Absence of evidence is a valid finding.
 - **All task tracking uses `bd`.** Never use TodoWrite, markdown checklists, or inline task lists. If you discover new work during execution, create a new bead with `--deps discovered-from:<parent-id>`.

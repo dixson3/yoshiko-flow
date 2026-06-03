@@ -97,7 +97,7 @@ At intake, every plan folder is subject to a mechanical portability audit (`plan
 - `reviews/pass-<N>.md` for every review cycle (1:1 with phase-log review lines)
 - No dangling external refs (absolute paths or `../` outside fenced/inline code)
 
-A cold reader in a different repo, with no access to the drafting conversation, must be able to understand the plan from the folder alone. The audit runs as the **last step of Phase 3 (PLAN)** — after reviewer approval, before transition to intake. It is idempotent: safe to run repeatedly as the operator iterates on gaps via `/bdplan capture`. Override with explicit `--force` on approval (logged to the phase log). See `spec/portability.md` for full requirements and the activation date.
+A cold reader in a different repo, with no access to the drafting conversation, must be able to understand the plan from the folder alone. The audit runs as the **last step of Phase 3 (PLAN)** — after red-team approval, before transition to intake. It is idempotent: safe to run repeatedly as the operator iterates on gaps via `/bdplan capture`. Override with explicit `--force` on approval (logged to the phase log). See `spec/portability.md` for full requirements and the activation date.
 
 ## File Layout
 
@@ -111,11 +111,12 @@ spec/
   prerequisites.md           Required/optional tools, bootstrap flow, install URLs
   portability.md             Portability contract, audit semantics, activation date
 agents/
-  executor.md                Drives execution DAG to completion
+  coordinator.md             Drives execution DAG to completion
   investigator.md            Runs single experiment in disposable worktree
   planner.md                 Synthesizes scope + findings into plan
   reconciler.md              Updates upstream issues per dispositions
-  reviewer.md                Red-team plan review before approval
+  reviewer.md                Conformance/completeness plan check (PASS|INCOMPLETE), runs first
+  red-team.md                Adversarial plan review before approval (drives the phase transition)
   captor.md                  Drafts missing portability-contract files for /bdplan capture
 formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline

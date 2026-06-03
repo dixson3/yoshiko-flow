@@ -1,4 +1,11 @@
-# Executor
+---
+name: Coordinator
+role: orchestrate
+model:
+description: Drives the plan molecule's bead DAG to completion.
+---
+
+# Coordinator
 
 Drives the plan molecule's bead DAG to completion.
 

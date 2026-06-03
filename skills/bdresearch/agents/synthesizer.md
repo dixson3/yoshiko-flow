@@ -1,4 +1,11 @@
-# Formula: Synthesizer
+---
+name: Synthesizer
+role: produce
+model:
+description: Build narrative report answering each research question from triangulated findings.
+---
+
+# Synthesizer
 
 ## Purpose
 

@@ -17,7 +17,7 @@ Rationale: These fields enable cold resume (`/bdplan continue`) — a plan.md mi
 Verification: `seed_plan_md` in plan_manager.py writes all 5 fields; SKILL.md Phase 3 template includes all 5.
 
 REQ-DATA-011: Every plan.md contains these required sections: Objective, Motivation, Upstream Issues, Investigation Findings, Approach, Epics, Gates, Risks & Mitigations, Success Criteria. Motivation may alternatively live in a sibling `motivation.md` file (see REQ-PORT-004).
-Rationale: These sections are the planner agent's output contract and the executor's input contract. Motivation is required by the portability contract so cold readers can answer "why does this plan exist?" without the drafting conversation.
+Rationale: These sections are the planner agent's output contract and the coordinator's input contract. Motivation is required by the portability contract so cold readers can answer "why does this plan exist?" without the drafting conversation.
 Verification: SKILL.md Phase 3 plan.md structure template includes §Motivation; `seed_plan_md` in plan_manager.py writes a §Motivation placeholder; `_audit_plan` enforces non-placeholder content.
 
 REQ-DATA-012: The Phase log is append-only. Each entry is formatted `- YYYY-MM-DD <status>: <message>`.

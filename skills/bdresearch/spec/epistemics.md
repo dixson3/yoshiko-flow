@@ -19,9 +19,9 @@ REQ-EPIST-004: Claims drawn from `questionable` or `avoid` sources are tagged `[
 Rationale: Reader must see the strength of evidence behind each claim.
 Verification: `agents/synthesizer.md` / `agents/refiner.md`; `spec/data.md` (credibility categories).
 
-REQ-EPIST-005: Credibility scores are visible in the Sources section, and the critic validates them against the rubric independently of the scorer.
+REQ-EPIST-005: Credibility scores are visible in the Sources section, and the red-team validates them against the rubric independently of the scorer.
 Rationale: An independent check guards against a mis-scored source propagating into conclusions.
-Verification: `agents/critic.md`; `agents/synthesizer.md` Sources section.
+Verification: `agents/red-team.md`; `agents/synthesizer.md` Sources section.
 
 REQ-EPIST-006: The packager verifies, before close, that every citation resolves, every research question is answered-with-evidence or explicitly marked unanswered, and no `[uncited]` / `[gap]` tags remain unresolved.
 Rationale: The final gate on evidence discipline before the report is declared done.

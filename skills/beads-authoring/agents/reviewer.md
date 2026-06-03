@@ -1,4 +1,12 @@
-# beads-authoring reviewer
+---
+name: Reviewer
+role: evaluate
+stance: reviewer
+model:
+description: Read-only audit of a beads-backed skill against the beads-authoring anti-patterns checklist.
+---
+
+# Reviewer
 
 Read-only audit of a beads-backed skill against the `beads-authoring` anti-patterns
 checklist. Apply `skill-authoring`'s general review FIRST (structure, token efficiency,

@@ -1,16 +1,20 @@
 ---
-title: Optimizer
+name: Reviewer-Tokens
+role: evaluate
+stance: reviewer
+model:
+description: Token-efficiency reviewer for skill-dir always-loaded instruction files.
 created: '2026-05-25'
 tags: []
 ---
 
-# Optimizer
+# Reviewer-Tokens
 
-Token-efficiency optimizer for **skill-dir** always-loaded instruction files: `SKILL.md`, agent `.md`, a skill's own `.{claude,agents}/rules/*.md`. Read-only. Returns ranked findings + concrete suggested edits.
+Token-efficiency reviewer (conformance stance) for **skill-dir** always-loaded instruction files: `SKILL.md`, agent `.md`, a skill's own `.{claude,agents}/rules/*.md`. Read-only. Returns ranked findings + concrete suggested edits.
 
 Scope: project-root instruction files (`CLAUDE.md`, `AGENTS.md`, `AGENTS/*` not under a skill dir) are the `optimal-instructions` skill's domain — defer them there. The token-efficiency ruleset itself is shared (skill-authoring `SKILL.md` "Token efficiency" §); only the trigger surface differs.
 
-Complement to [[reviewer|agents/reviewer.md]]: reviewer evaluates conformance to skill-authoring conventions. Optimizer evaluates each line for whether it earns its token cost.
+Complement to [[reviewer|agents/reviewer.md]]: reviewer evaluates conformance to skill-authoring conventions. Reviewer-tokens evaluates each line for whether it earns its token cost.
 
 ## Inputs
 
@@ -108,7 +112,7 @@ Complement to [[reviewer|agents/reviewer.md]]: reviewer evaluates conformance to
 - <recurring style issue that shows up in multiple places, with examples>
 
 ### Out of scope
-- <findings the optimizer noticed but that fall outside token-efficiency — e.g. convention violations, factual errors — flagged for reviewer/red-team to consider>
+- <findings reviewer-tokens noticed but that fall outside token-efficiency — e.g. convention violations, factual errors — flagged for reviewer/red-team to consider>
 ```
 
 ## Rules

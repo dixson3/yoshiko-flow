@@ -1,4 +1,12 @@
-# Formula: Critic
+---
+name: Red-Team
+role: evaluate
+stance: red-team
+model:
+description: Red-team the draft report; flag gaps, unsupported claims, and bias.
+---
+
+# Red-Team
 
 ## Purpose
 

@@ -1,4 +1,11 @@
-# Formula: Refiner
+---
+name: Refiner
+role: revise
+model:
+description: Address critique findings; fill gaps with additional retrieval if needed.
+---
+
+# Refiner
 
 ## Purpose
 
@@ -7,7 +14,7 @@ Address critique findings. Fill gaps with additional retrieval if needed.
 ## Context
 
 - `Summary.md` — draft report to improve
-- `artifacts/critique.md` — actionable items from the critic
+- `artifacts/critique.md` — actionable items from the red-team
 - `plan.yaml` — original research questions for reference
 
 ## Tools

@@ -373,15 +373,18 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "review"
 
 ### Review
 
-Read `${SKILL_DIR}/agents/reviewer.md` and perform a structured red-team review of the plan. Present the review verdict and concerns to the operator.
+Two passes, in order. Both agents are read-only (REQ-AGENT-043); the main session acts on their verdicts.
+
+1. **Conformance** — read `${SKILL_DIR}/agents/reviewer.md` and run its mechanical checklist. Verdict `PASS | INCOMPLETE`. On `INCOMPLETE`, resolve the listed gaps and re-run before proceeding — this is a mechanical gate, not a phase transition. It does not produce a `pass-N.md`.
+2. **Adversarial** — once conformance is `PASS`, read `${SKILL_DIR}/agents/red-team.md` and perform a structured adversarial review. **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Present the red-team verdict and concerns to the operator.
 
 - **APPROVE**: run portability audit, then advance to INTAKE
 - **REVISE**: address concerns, stay in PLAN
 - **INVESTIGATE-MORE**: return to INVESTIGATE for additional experiments
 
-**Reviewer is read-only** (REQ-AGENT-043). The reviewer agent never writes files — the main session does.
+**Red-team is read-only** (REQ-AGENT-043). The agent never writes files — the main session does.
 
-**Write the report at presentation (create-on-present).** The moment the reviewer presents — *before* the operator resolves anything — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends the phase-log `review:` line, as a **single atomic step**. The file captures, verbatim:
+**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* the operator resolves anything — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends the phase-log `review:` line, as a **single atomic step**. The file captures, verbatim:
 
 - **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE)
 - **Strengths**
@@ -398,11 +401,11 @@ Writing at presentation makes the verdict portable the instant it exists: a plan
 
 **Lifecycle: mutable until resolved, then frozen.** The strict "never overwrite" rule relaxes to: the in-flight `pass-N.md` is **mutable** until every concern is resolved, then **frozen**. A frozen pass file is never edited again.
 
-**REVISE loops produce one file per cycle.** On REVISE, the operator addresses concerns and the reviewer runs *again* — that is a new review cycle: a new `pass-(N+1).md` is written at the next presentation (with its own phase-log `review:` line), updated in place, then frozen. Each full review cycle yields exactly one file; files are updated in place within a cycle, never replaced across cycles. The REQ-PORT-006 count-equality (`count(pass-*.md) == count(phase-log review: lines)`) is preserved at every step because file and phase-log line are written together at each presentation.
+**REVISE loops produce one file per cycle.** On REVISE, the operator addresses concerns and the red-team runs *again* — that is a new review cycle: a new `pass-(N+1).md` is written at the next presentation (with its own phase-log `review:` line), updated in place, then frozen. Each full review cycle yields exactly one file; files are updated in place within a cycle, never replaced across cycles. The REQ-PORT-006 count-equality (`count(pass-*.md) == count(phase-log review: lines)`) is preserved at every step because file and phase-log line are written together at each presentation.
 
 ### Portability audit (last step of PLAN)
 
-After the reviewer verdict is APPROVE (and the operator confirms), run the portability audit **before** transitioning to INTAKE. The audit is idempotent — safe to run multiple times during plan development. It is a **script exit-code check, not a bd gate**. Any `fail` finding blocks the transition to INTAKE; the operator fixes the gaps (or runs `/bdplan capture`) and re-runs the audit.
+After the red-team verdict is APPROVE (and the operator confirms), run the portability audit **before** transitioning to INTAKE. The audit is idempotent — safe to run multiple times during plan development. It is a **script exit-code check, not a bd gate**. Any `fail` finding blocks the transition to INTAKE; the operator fixes the gaps (or runs `/bdplan capture`) and re-runs the audit.
 
 ```bash
 AUDIT_JSON=$(uv run ${SKILL_DIR}/scripts/plan_manager.py audit "${plan_dir}" --json-output)
@@ -425,7 +428,7 @@ On audit pass, transition to INTAKE. On audit fail, stay in PLAN — the operato
 
 ### Iteration
 
-- Operator overrides reviewer verdict at their discretion
+- Operator overrides red-team verdict at their discretion
 - "what about X?" -> may return to INVESTIGATE or SCOPE
 - "change approach to Y" -> revise, stay in PLAN
 - "approve" / "looks good" -> run portability audit, then advance to INTAKE on pass
@@ -628,7 +631,7 @@ field existed. It reports descendant bead counts and the `stuck` list
 **Orphan sweep (resume only).** Run it **strictly before the ready loop and before
 any reconcile-trigger evaluation** — resetting beads keeps the epic non-terminal, so
 reconcile cannot fire on a resumed-but-incomplete plan. Follow the procedure in
-`agents/executor.md` → *Resume orphan sweep*: **reset** each `stuck` bead from the
+`agents/coordinator.md` → *Resume orphan sweep*: **reset** each `stuck` bead from the
 scan (`bd update <id> --status open`, making it re-workable) and **report** — never
 auto-close — any bead the sweep cannot positively classify, leaving the close
 decision to the operator. No bead is auto-closed: there is no reliable bd-state
@@ -645,7 +648,7 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "executi
 
 ### 5.4 — Run coordinator
 
-Read `${SKILL_DIR}/agents/executor.md` and follow its execution loop. The executor drives the bead DAG to completion, handles capability gates, and triggers reconciliation.
+Read `${SKILL_DIR}/agents/coordinator.md` and follow its execution loop. The coordinator drives the bead DAG to completion, handles capability gates, and triggers reconciliation.
 
 ### 5.5 — Blocked gates
 

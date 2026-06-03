@@ -1,3 +1,10 @@
+---
+name: Captor
+role: closeout
+model:
+description: Drafts missing portability-contract files for a plan folder from current plan state.
+---
+
 # Captor
 
 Drafts missing portability-contract files for a plan folder, from current plan state. Invoked by `/bdplan capture` via SKILL.md Phase: CAPTURE.

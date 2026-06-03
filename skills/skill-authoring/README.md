@@ -15,8 +15,8 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 - **Token efficiency.** What to cut and what to keep so always-loaded context stays tight. This
   is the single source of truth for the token-efficiency ruleset; `optimal-instructions` cites it.
 - **Python helpers.** `uv run` discipline, PEP 723 inline deps, argument parsers, runtime-cache rules.
-- **Review pipeline.** Three read-only review agents (general, optimizer, red-team) plus a
-  Python-specific reviewer. The optimizer covers **skill-dir** instruction files; project-root
+- **Review pipeline.** Three read-only review agents (general, reviewer-tokens, red-team) plus a
+  Python-specific reviewer. The reviewer-tokens agent covers **skill-dir** instruction files; project-root
   instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are the `optimal-instructions` skill's domain.
 
 ## What this skill does NOT cover
@@ -35,7 +35,7 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 - Writing an agent file inside a multi-agent skill → [[PIPELINE|reference/PIPELINE.md]].
 - Referencing skill-internal files from a script → [[PORTABILITY|reference/PORTABILITY.md]].
 - Reviewing an existing skill → see § Review sequence in [[SKILL]].
-- Trimming a skill-dir instruction file → dispatch the [[optimizer|agents/optimizer.md]] agent. For a project-root instruction file, use the `optimal-instructions` skill.
+- Trimming a skill-dir instruction file → dispatch the [[reviewer-tokens|agents/reviewer-tokens.md]] agent. For a project-root instruction file, use the `optimal-instructions` skill.
 
 ## Layout shipped by this skill
 
@@ -45,13 +45,14 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 ├── README.md                       # this file
 ├── agents/
 │   ├── reviewer.md                 # general skill review
-│   ├── optimizer.md                # token-efficiency optimizer (skill-dir instruction files)
+│   ├── reviewer-tokens.md          # token-efficiency reviewer (skill-dir instruction files)
 │   ├── red-team.md                 # adversarial skill check
-│   └── python-reviewer.md          # Python helper review
+│   └── reviewer-python.md          # Python helper review
 ├── reference/
 │   ├── SURFACE_CONVENTION.md       # full Skill Surface Convention spec + worked example
 │   ├── PORTABILITY.md              # SKILL_DIR resolution + portability checklist
-│   └── PIPELINE.md                 # multi-agent skill conventions
+│   ├── PIPELINE.md                 # multi-agent skill conventions
+│   └── AGENT_ROLES.md              # canonical agent role vocabulary + factoring test + role table
 └── scripts/
     └── manifest_update.py          # shared manifest helper (vendored by adopting skills)
 ```

@@ -1,4 +1,11 @@
-# Formula: Triangulator
+---
+name: Triangulator
+role: produce
+model:
+description: Cross-reference sources, score credibility, flag contradictions and consensus.
+---
+
+# Triangulator
 
 ## Purpose
 

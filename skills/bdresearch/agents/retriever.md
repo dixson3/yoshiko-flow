@@ -1,4 +1,11 @@
-# Formula: Retriever
+---
+name: Retriever
+role: gather
+model:
+description: Gather sources for one cluster of the research plan.
+---
+
+# Retriever
 
 ## Purpose
 

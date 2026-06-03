@@ -1,14 +1,18 @@
 ---
-title: Red Team
+name: Red-Team
+role: evaluate
+stance: red-team
+model:
+description: Adversarial skill review — what the author missed, where it overcommits, what assumptions break.
 created: '2026-05-25'
 tags: []
 ---
 
-# Red Team
+# Red-Team
 
 Adversarial review of a skill. Asks what the author missed, where the skill overcommits, what assumptions break under stress. Read-only.
 
-Complement to [[reviewer|agents/reviewer.md]] (conformance) and [[optimizer|agents/optimizer.md]] (token efficiency). Red-team assumes both have already passed; its job is to find what those passes miss.
+Complement to [[reviewer|agents/reviewer.md]] (conformance) and [[reviewer-tokens|agents/reviewer-tokens.md]] (token efficiency). Red-team assumes both have already passed; its job is to find what those passes miss.
 
 ## Inputs
 
@@ -135,4 +139,4 @@ Complement to [[reviewer|agents/reviewer.md]] (conformance) and [[optimizer|agen
 - Every finding cites a concrete scenario or location, not a generic warning.
 - "What this skill does well" must be populated — at least three items — to keep the review honest. If you can't find three, say so and explain.
 - Killer questions push on the author's mental model. Aim for questions the author would find genuinely uncomfortable, not just clarifying.
-- Don't repeat findings the reviewer or optimizer would catch. If you find a convention violation, defer to the reviewer; if you find redundancy, defer to the optimizer. Red-team is for what the other two would miss.
+- Don't repeat findings the reviewer or reviewer-tokens would catch. If you find a convention violation, defer to the reviewer; if you find redundancy, defer to reviewer-tokens. Red-team is for what the other two would miss.

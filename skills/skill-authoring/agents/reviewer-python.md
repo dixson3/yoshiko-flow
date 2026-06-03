@@ -1,12 +1,16 @@
 ---
-title: Python Reviewer
+name: Reviewer-Python
+role: evaluate
+stance: reviewer
+model:
+description: Conformance + design review of a skill's Python helper scripts.
 created: '2026-05-24'
 tags: []
 ---
 
-# Python Reviewer
+# Reviewer-Python
 
-Red-team review of a Python script (or set of scripts) against
+Conformance + design review of a Python script (or set of scripts) against
 `skill-authoring`'s Python conventions plus broader Python design
 critique. Read-only, fresh eyes.
 

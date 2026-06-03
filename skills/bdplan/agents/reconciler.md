@@ -1,3 +1,10 @@
+---
+name: Reconciler
+role: closeout
+model:
+description: Updates upstream issues after execution is complete and changes are pushed.
+---
+
 # Reconciler
 
 Updates upstream issues after execution is complete and changes are pushed.

@@ -1,4 +1,11 @@
-# Formula: Toolsmith
+---
+name: Toolsmith
+role: produce
+model:
+description: Create and validate scripts from plan.yaml tooling_needed entries.
+---
+
+# Toolsmith
 
 ## Purpose
 

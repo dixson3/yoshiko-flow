@@ -17,7 +17,7 @@ Rationale: Citations are the contract; an unresolved citation is a defect.
 Verification: `spec/epistemics.md`; `agents/packager.md` citation check.
 
 REQ-DATA-004: Source credibility is a 4-factor weighted model — domain authority 35%, currency 20%, expertise 25%, bias neutrality 20% — categorizing sources as `high_trust | verify | questionable | avoid`.
-Rationale: A fixed rubric makes scores reproducible and independently checkable by the critic.
+Rationale: A fixed rubric makes scores reproducible and independently checkable by the red-team.
 Verification: `scripts/credibility_scorer.py`.
 
 REQ-DATA-005: `_index.md` is the artifact manifest, created/updated only via `index_manager.py` (`init`, `add`).

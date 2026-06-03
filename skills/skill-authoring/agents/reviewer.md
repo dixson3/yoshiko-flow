@@ -1,12 +1,16 @@
 ---
-title: Reviewer
+name: Reviewer
+role: evaluate
+stance: reviewer
+model:
+description: General skill review against skill-authoring conventions — structure, token efficiency, trigger quality, scope, portability.
 created: '2026-05-24'
 tags: []
 ---
 
 # Reviewer
 
-Red-team review of a skill (SKILL.md + adjacent assets) against `skill-authoring` conventions plus broader design critique. Read-only, fresh eyes.
+Conformance + design review of a skill (SKILL.md + adjacent assets) against `skill-authoring` conventions plus broader design critique. Read-only, fresh eyes.
 
 ## Inputs
 

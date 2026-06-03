@@ -281,7 +281,7 @@ bd update ${EPIC} --metadata "$(jq -nc --arg d "${research_dir}" '{research_dir:
 bd update ${TOOLING_ID} --metadata '{"agent":"agents/toolsmith.md","context":["plan.yaml"]}' -q
 bd update ${TRIANG_ID}  --metadata '{"agent":"agents/triangulator.md","context":["sources.json","artifacts/"]}' -q
 bd update ${SYNTH_ID}   --metadata '{"agent":"agents/synthesizer.md","context":["plan.yaml","artifacts/triangulation.md"]}' -q
-bd update ${CRIT_ID}    --metadata '{"agent":"agents/critic.md","context":["Summary.md","sources.json"]}' -q
+bd update ${CRIT_ID}    --metadata '{"agent":"agents/red-team.md","context":["Summary.md","sources.json"]}' -q
 bd update ${REFINE_ID}  --metadata '{"agent":"agents/refiner.md","context":["Summary.md","artifacts/critique.md","plan.yaml"]}' -q
 bd update ${PACKAGE_ID} --metadata '{"agent":"agents/packager.md","context":["*"]}' -q
 ```

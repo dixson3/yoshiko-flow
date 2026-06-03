@@ -3,7 +3,7 @@
 **ID:** plan-005-james-dixson-44b200
 **Author:** james-dixson
 **Created:** 2026-06-02
-**Status:** approved
+**Status:** complete
 **Epic:** beads-skills-mol-5tv
 **Phase log:**
 - 2026-06-02 scoping: initial scope captured
@@ -12,6 +12,8 @@
 - 2026-06-02 review: pass-2 re-review; N1/N2/N3 resolved in-place
 - 2026-06-02 approved: operator approved after pass-2 re-review
 - 2026-06-02 intake: epic beads-skills-mol-5tv poured
+- 2026-06-02 executing: start gate resolved
+- 2026-06-03 complete: plan complete — all 5 epics executed, repo-wide consistency sweep passed
 
 ## Objective
 Canonicalize agent naming and factoring across beads-skills

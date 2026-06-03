@@ -21,7 +21,7 @@ REQ-PHASE-004: TRIANGULATE is wired to depend on every RETRIEVE bead using addit
 Rationale: `bd update --deps` is absent in 1.0.5; `bd dep add` is additive and `bd batch` makes the wiring one atomic transaction.
 Verification: SKILL.md Phase 3 step 6; see `beads-extra` → Dependency-edge mutation / Bulk intake.
 
-REQ-PHASE-005: REFINE may extend the DAG at runtime by spawning new RETRIEVE beads via `--deps discovered-from:<refine-id>` when the critic identifies gaps.
+REQ-PHASE-005: REFINE may extend the DAG at runtime by spawning new RETRIEVE beads via `--deps discovered-from:<refine-id>` when the red-team identifies gaps.
 Rationale: Gap-filling is discovered during critique, not at planning time.
 Verification: `agents/refiner.md`.
 

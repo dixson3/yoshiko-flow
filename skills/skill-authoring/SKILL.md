@@ -175,15 +175,27 @@ Watch for:
 - Dead branches, half-finished code, `TODO`s standing in for decisions.
 - Failure modes swallowed (exit 0 on error, silenced stderr).
 
+## Agent roles
+
+Every agent in a multi-agent skill maps to exactly one of six canonical roles — **GATHER,
+PRODUCE, EVALUATE, REVISE, ORCHESTRATE, CLOSEOUT** — and carries a YAML front-matter block
+declaring it. EVALUATE agents additionally carry a `stance` (`reviewer` = conformance,
+`red-team` = adversarial). The bead-DAG driver is always `coordinator`. Split a role into
+multiple agents only when the factoring test passes; when you split, keep the role word and
+add a qualifier (`reviewer-tokens`, not `optimizer`).
+
+Full vocabulary, the factoring test, the front-matter schema, and the canonical role table
+for every agent: [[AGENT_ROLES|reference/AGENT_ROLES.md]].
+
 ## Review sequence
 
 Three read-only agents. All dispatched via the Agent tool. Caller applies fixes.
 
 1. [[reviewer|agents/reviewer.md]] — general skill review (structure, token efficiency, trigger quality, scope, design, portability).
-2. [[optimizer|agents/optimizer.md]] — token-efficiency optimizer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `optimal-instructions`' domain.
+2. [[reviewer-tokens|agents/reviewer-tokens.md]] — token-efficiency reviewer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `optimal-instructions`' domain.
 3. [[red-team|agents/red-team.md]] — adversarial check: what does this skill miss, where does it overcommit, what assumptions break.
 
-For Python helpers, also run [[python-reviewer|agents/python-reviewer.md]] (toolchain + design critique).
+For Python helpers, also run [[reviewer-python|agents/reviewer-python.md]] (toolchain + design critique).
 
 ## Reference
 
@@ -191,3 +203,4 @@ For Python helpers, also run [[python-reviewer|agents/python-reviewer.md]] (tool
 - [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]] — full Skill Surface Convention spec + generic worked example.
 - [[PORTABILITY|reference/PORTABILITY.md]] — `SKILL_DIR` resolution + portability checklist.
 - [[PIPELINE|reference/PIPELINE.md]] — multi-agent skill conventions.
+- [[AGENT_ROLES|reference/AGENT_ROLES.md]] — canonical agent role vocabulary, factoring test, front-matter schema, role table.

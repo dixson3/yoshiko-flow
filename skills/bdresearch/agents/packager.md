@@ -1,4 +1,11 @@
-# Formula: Packager
+---
+name: Packager
+role: closeout
+model:
+description: Finalize report, update index, close epic, and report a conservative git handoff.
+---
+
+# Packager
 
 ## Purpose
 

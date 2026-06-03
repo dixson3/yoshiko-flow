@@ -1147,11 +1147,11 @@ def record_epic(plan_dir: str, epic_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Resume scan (Issue 1.2, #2 — executor crash recovery)
+# Resume scan (Issue 1.2, #2 — coordinator crash recovery)
 # ---------------------------------------------------------------------------
 
 # A claimed bead lands in `in_progress` (bd update --claim sets status + owner),
-# so in_progress is the orphan-sweep target the executor resets to `open`.
+# so in_progress is the orphan-sweep target the coordinator resets to `open`.
 _STUCK_STATUSES = ("in_progress",)
 
 
@@ -1308,7 +1308,7 @@ def _resume_scan(plan_dir: Path) -> dict:
 @click.option("--json-output", "--json", "as_json", is_flag=True,
               help="Emit structured JSON. Default is a human-readable summary.")
 def resume_scan(plan_dir: str, as_json: bool):
-    """Report the plan's epic + stuck-bead state for the executor resume-guard."""
+    """Report the plan's epic + stuck-bead state for the coordinator resume-guard."""
     result = _resume_scan(Path(plan_dir))
     if as_json:
         click.echo(json.dumps(result, indent=2))

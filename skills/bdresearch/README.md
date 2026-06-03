@@ -51,7 +51,7 @@ SCOPE → PLAN → GATE → TOOLING → RETRIEVE(×N) → TRIANGULATE → SYNTHE
 - **GATE** is a human checkpoint before spend — auto-resolved inline in `quick` mode, otherwise resolved in a new session via `/bdresearch coordinate`.
 - **RETRIEVE** fans out dynamically — one bead per source cluster, injected after pour (the formula defines the fixed skeleton only); clusters run in parallel.
 - **TRIANGULATE → SYNTHESIZE → CRITIQUE → REFINE → PACKAGE** are serial; each depends on the prior's verified output.
-- **REFINE** may extend the DAG at runtime, spawning new RETRIEVE beads via `discovered-from:` when the critic finds gaps.
+- **REFINE** may extend the DAG at runtime, spawning new RETRIEVE beads via `discovered-from:` when the red-team finds gaps.
 - **Crash recovery** — a `coordinate` session that dies mid-loop is resumable: because the start gate is already resolved, `/bdresearch coordinate` finds the open epic via a durable pointer (the `epic:` line stamped into `plan.yaml` at pour) and re-enters the loop. A pre-loop stuck-bead sweep resets any stranded `in_progress` beads to `open` — never auto-closing — before work continues.
 
 See `spec/phases.md` and the rest of `spec/` for the full requirement set.
@@ -67,8 +67,8 @@ See `spec/phases.md` and the rest of `spec/` for the full requirement set.
   - `retriever.md` — gather sources for one cluster.
   - `triangulator.md` — cross-reference claims, score credibility, flag contradictions.
   - `synthesizer.md` — assemble cited findings.
-  - `critic.md` — adversarial review of the draft.
-  - `refiner.md` — fill gaps the critic identifies.
+  - `red-team.md` — adversarial review of the draft.
+  - `refiner.md` — fill gaps the red-team identifies.
   - `packager.md` — finalize the report and resolve citations.
   - `toolsmith.md` — generate per-run helper scripts from the plan's tooling needs.
 - `scripts/` — `uv` PEP-723 helpers:

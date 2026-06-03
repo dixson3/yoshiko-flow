@@ -54,8 +54,8 @@ Verification: SKILL.md §5.2 "Resume guard" dispatches `resume-scan` and branche
 
 REQ-RESUME-002: On resume, the orphan sweep runs **strictly before the ready loop and before any reconcile-trigger evaluation**. The sweep **resets** stuck (`in_progress`/claimed) beads to `open` and **reports** — never auto-closes — any bead it cannot positively classify. No bead is ever auto-closed.
 Rationale: The ready loop skips `in_progress` beads, so a crash silently strands them; resetting makes them re-workable. Auto-closing is unsafe — there is no bd-state signal separating disposable scratch from real `discovered-from` work — so the close decision stays with the operator.
-Verification: SKILL.md §5.2 "Orphan sweep" and `agents/executor.md` → "Resume orphan sweep" specify reset-not-close and report-unclassifiable; ordering "before the ready loop and before reconcile-trigger evaluation" is stated in both.
+Verification: SKILL.md §5.2 "Orphan sweep" and `agents/coordinator.md` → "Resume orphan sweep" specify reset-not-close and report-unclassifiable; ordering "before the ready loop and before reconcile-trigger evaluation" is stated in both.
 
 REQ-RESUME-003: Resetting stuck beads (rather than closing them) keeps the epic non-terminal, so the reconcile gate cannot auto-fire on a resumed-but-incomplete plan.
 Rationale: Closing the last stuck bead would satisfy the reconcile gate's "all execution beads closed" condition and trigger premature upstream reconciliation.
-Verification: SKILL.md §5.2 and executor.md "Resume orphan sweep" both state reset keeps the epic non-terminal / prevents premature reconcile.
+Verification: SKILL.md §5.2 and coordinator.md "Resume orphan sweep" both state reset keeps the epic non-terminal / prevents premature reconcile.

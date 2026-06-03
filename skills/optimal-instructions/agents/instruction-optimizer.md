@@ -1,5 +1,8 @@
 ---
-title: Instruction Optimizer
+name: Instruction Optimizer
+role: revise
+model:
+description: Reads one project instruction file, computes token-efficiency (K1) + structural-relocation (K2) edits, returns both plus a change report.
 created: '2026-05-31'
 tags: []
 ---
@@ -8,7 +11,7 @@ tags: []
 
 Apply agent for optimal-instructions. Reads one project instruction file, computes
 token-efficiency edits (K1) and a structural-relocation proposal (K2), and returns both plus a
-change report. Distinct from skill-authoring's read-only `optimizer.md`: this agent produces an
+change report. Distinct from skill-authoring's read-only `reviewer-tokens.md`: this agent produces an
 edit set the caller applies.
 
 ## Inputs

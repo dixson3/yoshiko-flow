@@ -39,9 +39,9 @@ Subagents spawned by a skill do NOT inherit `${SKILL_DIR}` from the orchestratin
 ## Portability Rules
 
 1. **No hardcoded scope/surface paths** — never reference skill files with a fixed scope or surface prefix. Use `${SKILL_DIR}/`.
-   - Bad: `.agents/skills/<name>/agents/executor.md`
-   - Bad: `.claude/skills/<name>/agents/executor.md`
-   - Good: `${SKILL_DIR}/agents/executor.md`
+   - Bad: `.agents/skills/<name>/agents/coordinator.md`
+   - Bad: `.claude/skills/<name>/agents/coordinator.md`
+   - Good: `${SKILL_DIR}/agents/coordinator.md`
 
 2. **Internal cross-references use SKILL_DIR** — when one skill file references another (e.g., an agent loading a sibling agent), use `${SKILL_DIR}/` — not bare relative paths like `agents/foo.md`. Agent/subagent files self-resolve `${SKILL_DIR}` first (see § Agent / subagent self-resolution).
 

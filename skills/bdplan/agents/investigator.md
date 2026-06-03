@@ -1,3 +1,10 @@
+---
+name: Investigator
+role: gather
+model:
+description: Runs a single experiment in a disposable worktree to answer a planning question.
+---
+
 # Investigator
 
 Runs a single experiment in a disposable worktree to answer a planning question. No code from this worktree lands in the project.

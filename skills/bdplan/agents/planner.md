@@ -1,3 +1,10 @@
+---
+name: Planner
+role: produce
+model:
+description: Synthesizes scope + investigation findings into a structured plan document.
+---
+
 # Planner
 
 Synthesizes scope + investigation findings into a structured plan document. Writes only to the resolved plan root: `docs/plans/<plan-id>/` (vault-default) or `Incubator/<slug>/plans/<plan-id>/` (incubator-scoped). The caller passes `plan_dir` already resolved; the planner does not choose the root itself.
