@@ -9,7 +9,7 @@ Skills that leverage [beads](https://github.com/gastownhall/beads) for Claude Co
 |------|---------|---------|---------|
 | `git` | any | Identity, remotes, commit/push | system package manager |
 | `bd` | >= 1.0.5 | Task tracking (beads) | https://github.com/gastownhall/beads |
-| `uv` | any | Python environment & script runner | https://docs.astral.sh/uv/ |
+| `uv` | any | Python environment & script runner (also runs `install.py`) | https://docs.astral.sh/uv/ |
 
 Optional (detected at runtime):
 
@@ -18,30 +18,64 @@ Optional (detected at runtime):
 
 ## Install
 
+`install.sh` is a thin wrapper that runs `install.py` via `uv` (so `uv` must be on PATH).
+It reads each skill's frontmatter to compute install groups and resolve dependencies — see
+[Skill frontmatter contract](#skill-frontmatter-contract).
+
 ```bash
-# User-scoped (recommended)
+# Everything (default) — all skills + companion rules
 ./install.sh                          # ~/.claude/{skills,rules}/
 
-# Project-scoped (anchored at the git root)
-./install.sh --scope project          # <git-root>/.claude/{skills,rules}/
+# A single group (computed from frontmatter)
+./install.sh --group utility          # only the beads-free skills (no bd needed)
+./install.sh --group beads            # only the beads-dependent skills
+./install.sh --list-groups            # show the available groups + members
 
-# Agents surface
-./install.sh --surface agents         # ~/.agents/{skills,rules}/
+# A named subset (pulls each skill's in-repo dependencies transitively)
+./install.sh bdplan bdresearch
 
-# Overwrite an existing companion rule (default keeps hand-edits)
-./install.sh --force
-
-# Custom destination (skills here, rules in a sibling rules/ dir)
-./install.sh --target /path/to/skills
+# Preview without installing; or fail if a required tool is missing
+./install.sh --group beads --dry-run
+./install.sh --group beads --strict   # abort if bd/uv/gh etc. are absent (default: warn, install anyway)
 ```
 
-`install.sh` installs each skill **and copies its companion rules** (`protocols/*.md`)
-into the matching `<scope>/.<surface>/rules/` dir. It discovers every skill under
-`skills/` automatically; by default all install — pass names for a subset:
+Scope / surface / destination flags are unchanged:
 
 ```bash
-./install.sh bdplan bdresearch
+./install.sh --scope project          # <git-root>/.claude/{skills,rules}/
+./install.sh --surface agents         # ~/.agents/{skills,rules}/
+./install.sh --force                  # overwrite an existing companion rule (default keeps hand-edits)
+./install.sh --target /path/to/skills # skills here, rules in a sibling rules/ dir
 ```
+
+Each skill installs **with its companion rules** (`protocols/*.md`) copied into the matching
+`<scope>/.<surface>/rules/` dir. Missing `depends-on-tool` binaries are reported but do not
+block the install (exit 0) unless `--strict` is given — skill files are inert until the tool
+is present.
+
+## Skill frontmatter contract
+
+Each skill's `SKILL.md` frontmatter declares its install group and dependencies. The installer
+(`install.py`, wrapped by `install.sh`) reads these to compute groups and resolve dependencies —
+no installer edit is needed when a skill is added or regrouped.
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `skill-group` | string | Install group the skill belongs to (`beads` or `utility`). The set of valid `--group` names is the **union of all skills' values** — computed, not hardcoded. |
+| `depends-on-tool` | list | Binaries the skill needs at runtime (e.g. `[bd, uv, git]`). Probed with `shutil.which` at install: missing → warning, **install still proceeds (exit 0)**; `--strict` makes it a hard failure. |
+| `depends-on-skill` | list | **Bare** in-repo skill names this skill needs. The install set is closed over these (transitive pull). A name not found under `skills/*` is warned as external / assumed-provided and skipped. |
+
+**Groups.** `beads` skills depend on the `bd` binary; `utility` skills
+(`optimal-instructions`, `skill-authoring`) run without it. Install a single group with
+`--group <name>` (see [Install](#install)).
+
+**Soft-dep tie-break.** `skill-group` reflects *intended-use coupling*, not just hard tool deps.
+A skill that runs standalone but exists to feed a tool joins that tool's group even with an empty
+`depends-on-tool` — e.g. `incubator` files beads at promotion time, so it joins `beads` despite
+needing no `bd` binary itself.
+
+**Invariant.** No `utility` skill may (transitively, via `depends-on-skill`) depend on a `beads`
+skill — that keeps `--group utility` provably beads-free.
 
 ## Skills
 

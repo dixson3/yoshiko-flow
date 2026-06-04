@@ -13,6 +13,9 @@ description: >
   SKIP for: routine `bd` CLI use (use `beads`), direct-CLI gotchas (use `beads-extra`),
   or non-beads skills.
 user-invocable: false
+skill-group: beads
+depends-on-tool: [bd]
+depends-on-skill: [beads-extra]
 ---
 
 # beads-authoring

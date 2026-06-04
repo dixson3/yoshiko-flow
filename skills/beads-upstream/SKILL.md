@@ -12,6 +12,9 @@ description: >
   (use `beads-authoring`). The close-time / land-the-plane push trigger is NOT carried in
   this description — it lives in the always-loaded companion rule (protocols/UPSTREAM_TRACKING.md).
 user-invocable: true
+skill-group: beads
+depends-on-tool: [bd, uv, gh]
+depends-on-skill: [beads-extra]
 allowed-tools:
   - Read
   - Bash

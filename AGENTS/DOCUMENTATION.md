@@ -10,6 +10,13 @@ Rules for keeping documentation accurate across the project.
 
 Lower levels derive from higher. When implementation changes, documentation must follow.
 
+**Skill frontmatter contract.** Each `SKILL.md` frontmatter declares `skill-group`,
+`depends-on-tool`, and `depends-on-skill`; the installer (`install.py`) reads them to compute
+install groups and resolve dependencies. The contract (keys, resolution rules, soft-dep
+tie-break, the no-`utility`→`beads` invariant) is documented in the project README "Skill
+frontmatter contract" section — keep that section in sync when the contract or any skill's
+group/deps change.
+
 ## Skill README Requirements
 
 Every skill directory must contain a `README.md` with these sections, derived from the implementation:

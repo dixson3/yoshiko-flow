@@ -11,6 +11,9 @@ description: 'Auto-fix skill for project instruction files. On create/modify of 
   docs, notes. Distinguishing axis: this skill owns project-root instruction files (in both the
   .claude and .agents surfaces); skill-authoring owns skill-dir instruction files.'
 user-invocable: false
+skill-group: utility
+depends-on-tool: [uv]
+depends-on-skill: [skill-authoring]
 allowed-tools:
   - Read
   - Edit

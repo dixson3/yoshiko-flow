@@ -12,6 +12,9 @@ description: >
   those live in the canonical `beads` skill. For authoring beads-backed skills
   (formulas, coordinator loops), use `beads-authoring`.
 user-invocable: false
+skill-group: beads
+depends-on-tool: [bd]
+depends-on-skill: []
 ---
 
 # beads-extra

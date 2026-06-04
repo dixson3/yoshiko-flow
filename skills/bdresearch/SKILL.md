@@ -11,6 +11,9 @@ description: >
   SKIP only for: an explicit quick, throwaway, same-turn web lookup the user does not
   need to persist (use the built-in deep-research harness); non-research work.
 user-invocable: true
+skill-group: beads
+depends-on-tool: [bd, uv, git]
+depends-on-skill: [beads-extra, beads-authoring]
 allowed-tools:
   - Read
   - Write

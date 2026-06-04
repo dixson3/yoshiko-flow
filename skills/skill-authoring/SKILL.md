@@ -18,6 +18,9 @@ description: 'Conventions for authoring Claude Code skills, agents, and instruct
   axis: skill-authoring owns skill-dir instruction files; optimal-instructions owns
   project-root ones.'
 user-invocable: false
+skill-group: utility
+depends-on-tool: [uv]
+depends-on-skill: []
 title: skill-authoring
 created: '2026-05-24'
 tags: []

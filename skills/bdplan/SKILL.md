@@ -6,6 +6,9 @@ description: >
   "let's design", "how should we build", "let's architect"), or native plan mode triggers.
   OVERRIDE: replaces EnterPlanMode/ExitPlanMode — never use native plan mode.
 user-invocable: true
+skill-group: beads
+depends-on-tool: [bd, uv, git]
+depends-on-skill: [beads-extra, beads-authoring]
 allowed-tools:
   - Read
   - Write

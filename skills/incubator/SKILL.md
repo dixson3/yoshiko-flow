@@ -9,6 +9,9 @@ description: >
   SKIP for: beads-tracked multi-step build planning (use bdplan); routine note edits with no
   park/resume intent.
 user-invocable: true
+skill-group: beads
+depends-on-tool: [uv]
+depends-on-skill: [beads-extra]
 ---
 
 # incubator
