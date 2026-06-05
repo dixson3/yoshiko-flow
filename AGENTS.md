@@ -9,13 +9,6 @@ Do NOT use Claude Code memory (`~/.claude/` memory directories). Two tiers:
 - **Ephemeral / clone-local** → `bd remember "<insight>"`; recall with `bd memories <keyword>` / `bd recall`. Injected at `bd prime`. Project-DB-local: absent from JSONL export, never synced upstream. Never promote to durable or portable use.
 - **Durable / cross-clone / behavioral** → an `AGENTS/` rule or a bead filed and pushed upstream. Anything another clone, machine, or harness must see goes here — not `bd remember`.
 
-## Rules
-
-Enforced on every create/modify of skill files, via always-loaded companion rules `install.sh` installs to the rules surface (`~/.<surface>/rules/`):
-
-- **Consistency / drift** — `DRIFT-CHECK-TRIGGER.md` (drift-check) verifies cross-edge content agreement against this repo's manifest `DRIFT-CHECK.md` (repo root). Procedure: `skills/drift-check/`.
-- **Token efficiency** — `INSTRUCTIONS.md` (optimal-instructions) → `skill-authoring` `SKILL.md` "Token efficiency" § (single source of truth).
-
 ## Upstream Tracking
 
 - **Source / repo / tool:** github · `dixson3/beads-backed-skills` · `gh issue`
