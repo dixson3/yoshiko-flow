@@ -14,8 +14,10 @@ cuts, and proposes structural relocation toward AGENTS.md-primacy, then reports 
 
 - Claude Code (the skill loads as part of this repo's skill set).
 - The `skill-authoring` skill present in the same skill set — it is the single source of truth
-  for the token-efficiency (K1) ruleset this skill cites. No CLI tools beyond what Claude Code
-  provides; no `check-prereqs.sh`.
+  for the token-efficiency (K1) ruleset this skill cites.
+- `uv` — required only by `scripts/manifest_update.py` (a PEP 723 `uv run --script`), which
+  maintains `protocols/manifest.json`. Not needed for the skill's core auto-fix behavior. No
+  `check-prereqs.sh`.
 
 ## Install
 
