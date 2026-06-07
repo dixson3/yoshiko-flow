@@ -59,6 +59,7 @@ See `spec/phases.md` and the rest of `spec/` for the full requirement set.
 ## File layout
 
 - `SKILL.md` — orchestration: invocation, SKILL_DIR resolution, pre-flight, the pour sequence, and the four subcommands.
+- `README.md` — this file.
 - `protocols/RESEARCH.md` — the companion rule installed by `install.sh` (research protocol + bdresearch-vs-deep-research routing).
 - `protocols/manifest.json` — hash manifest for the companion rule.
 - `formulas/bdresearch.formula.toml` — the fixed DAG skeleton (gate → tooling → triangulate → synthesize → critique → refine → package).

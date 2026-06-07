@@ -11,6 +11,34 @@ cold reader (or another harness, on another machine) continue with no session
 history. All state lives in vault files so it is portable across harnesses;
 nothing is kept in session-only or Claude-only stores.
 
+## Prerequisites
+
+- `uv` — runs the `scripts/incubator-index.py` helper (PEP 723 inline deps).
+- `beads-extra` skill — the incubation→build hand-off (`## Beads to file`) files beads via the
+  `bd` CLI patterns that skill documents.
+
+## Install
+
+Installed by the repo-level `install.sh`, which auto-discovers every `skills/*/` directory and
+closes over `depends-on-skill` (it pulls `beads-extra` transitively). No install changes needed.
+See the project [README](../../README.md) for `install.sh` flags.
+
+## Usage
+
+User-invocable (`/incubator`). Subcommands:
+
+```
+/incubator new <name> [seed notes]   create, set active
+/incubator fork <name>               fork current sidequest into a new incubator, set active
+/incubator bookmark [notes]          rewrite active incubator's ## Resume + last_reviewed
+/incubator resume <name>             load bookmark, set active
+/incubator list                      index all incubators by state + staleness
+/incubator touch <name>              bump last_reviewed only
+```
+
+Proactive sidequest detection (offer once to fork a tangent) also fires from natural-language
+park/resume signals, driven from `AGENTS.md` (see below).
+
 ## What it does
 
 - **new / fork** — spin up a fresh incubator mid-conversation, or fork a
@@ -51,5 +79,6 @@ incubators and biasing toward the most active (bookpipe, gloak, yoshiko-flow):
 
 - `SKILL.md` — instruction-only entry point (frontmatter trigger, invocation,
   schema as output contract, subcommand steps, constraints).
+- `README.md` — this file.
 - `scripts/incubator-index.py` — `uv` PEP-723 script; classifies managed vs
   unmanaged, sorts by priority then staleness, `--json` / `--write` options.

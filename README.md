@@ -78,6 +78,8 @@ needing no `bd` binary itself.
 **Invariant.** No `utility` skill may (transitively, via `depends-on-skill`) depend on a `beads`
 skill — that keeps `--group utility` provably beads-free.
 
+![beads-skills install groups and depends-on-skill graph](docs/diagrams/skill-ecosystem.png)
+
 ## Skills
 
 | Skill | Invocable | Description |

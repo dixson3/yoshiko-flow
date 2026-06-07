@@ -1,0 +1,81 @@
+direction: right
+
+title: |md
+  # drift-check artifact graph (this repo's DRIFT-CHECK.md)
+  Arrow = source-of-truth edge (points source -> derived). Color = check category.
+| {
+  near: top-center
+  style.font-size: 22
+}
+
+# ---- nodes ----
+spec: "spec\n(FIXED authority)" {
+  style.fill: "#fdecec"
+  style.stroke: "#c0392b"
+  style.bold: true
+}
+
+skill_sources: "skill sources" {
+  style.fill: "#eef4fb"
+  style.stroke: "#2f6fb0"
+  skillmd: "skill-md\n(SKILL.md)"
+  fm: "frontmatter-contract\n(skill-group / depends-on-*)"
+  agent: agent
+  script: script
+  formula: formula
+  template: template
+  skpng: "skill-diagram-png\n(spec/*.png)"
+}
+
+docs: "docs (derived)" {
+  style.fill: "#eef7ee"
+  style.stroke: "#3f8f4f"
+  skreadme: "skill-readme\n(skills/*/README.md)"
+  prreadme: "project-readme\n(README.md)"
+  docspng: "docs-diagram-png\n(docs/diagrams/*.png)"
+}
+
+# ---- edges (colored by check category) ----
+# contract = blue
+spec -> skill_sources.skillmd: e-spec-compliance { style.stroke: "#2f6fb0" }
+skill_sources.script -> skill_sources.skillmd: e-json-contract { style.stroke: "#2f6fb0" }
+skill_sources.skillmd -> skill_sources.agent: e-status-values { style.stroke: "#2f6fb0" }
+skill_sources.skillmd -> skill_sources.formula: e-formula-vars { style.stroke: "#2f6fb0" }
+skill_sources.fm -> docs.skreadme: e-readme-prereqs { style.stroke: "#2f6fb0" }
+skill_sources.skillmd -> docs.skreadme: e-readme-desc { style.stroke: "#2f6fb0" }
+docs.skreadme -> docs.prreadme: e-index-table { style.stroke: "#2f6fb0" }
+skill_sources.fm -> docs.prreadme: e-frontmatter { style.stroke: "#2f6fb0" }
+docs.skreadme -> docs.prreadme: e-prereqs-union { style.stroke: "#2f6fb0" }
+
+# cross-ref = green
+skill_sources.script -> skill_sources.skillmd: e-skill-script-cli { style.stroke: "#3f8f4f" }
+skill_sources.formula -> skill_sources.skillmd: e-formula-name { style.stroke: "#3f8f4f" }
+skill_sources.agent -> skill_sources.skillmd: e-agent-ref { style.stroke: "#3f8f4f" }
+skill_sources.template -> skill_sources.skillmd: e-template-ref { style.stroke: "#3f8f4f" }
+skill_sources.skpng -> docs.skreadme: e-skill-diagram-ref { style.stroke: "#3f8f4f" }
+docs.docspng -> docs.prreadme: e-docs-diagram-ref { style.stroke: "#3f8f4f" }
+
+# behavioral = orange
+skill_sources.skillmd -> docs.skreadme: e-install-url { style.stroke: "#d98c1f" }
+docs.skreadme -> docs.prreadme: e-index-desc { style.stroke: "#d98c1f" }
+
+# required-section = purple
+skill_sources.skillmd -> docs.skreadme: e-readme-layout { style.stroke: "#7d3c98" }
+skill_sources.skillmd -> docs.skreadme: e-readme-usage { style.stroke: "#7d3c98" }
+
+legend: |md
+  **Check category (edge color)**
+  - 🔵 contract — value / field-set matches source
+  - 🟢 cross-ref — reference resolves into source
+  - 🟠 behavioral — duplicated logic/value equivalent
+  - 🟣 required-section — mandated section present
+
+  spec is the only **fixed** authority: on conflict the
+  spec wins, unless the spec itself names a missing file
+  (then CONFLICT, halt).
+| {
+  near: bottom-center
+  style.font-size: 13
+  style.fill: "#fffbe6"
+  style.stroke: "#c9a227"
+}

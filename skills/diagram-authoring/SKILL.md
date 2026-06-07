@@ -54,6 +54,13 @@ Every diagram keeps its `.d2` source beside the `.png` render — never temp-and
 | top-level / user-facing docs | `<repo-root>/docs/diagrams/<slug>.{d2,png}` | project `README.md` |
 | standalone | `./diagrams/` (override freely) | — |
 
+**Skill-spec vs repo-level — placement test.** Put a diagram in `skills/<name>/spec/` **only** if
+it documents the **skill itself** (its engine/model, repo-agnostic, ships with the skill). A
+diagram of a **specific repo's** content or config is repo-level → `docs/diagrams/`, referenced
+from a top-level doc — never a skill `spec/`. Trap: the `drift-check` skill and a repo's
+`DRIFT-CHECK.md` manifest share a name, so a diagram of *a repo's* `DRIFT-CHECK.md` graph reads as
+"drift-check" but is repo-level config → `docs/diagrams/`, not `skills/drift-check/spec/`.
+
 ## README image references
 
 Reference a render with markdown image syntax and a **relative** path (survives skill install):

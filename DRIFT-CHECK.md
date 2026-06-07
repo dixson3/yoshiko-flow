@@ -12,6 +12,11 @@ prerequisites source is the SKILL.md frontmatter `depends-on-tool` (+ checks sta
 **not** a `scripts/check-prereqs.sh` (which does not exist in this repo — the stale reference the
 old `DOCUMENTATION.md` carried; see `e-readme-prereqs`).
 
+The graph this manifest declares — nodes, source-of-truth edges, and the four check categories
+(edge colors) — rendered:
+
+![artifact graph declared by this DRIFT-CHECK.md](docs/diagrams/drift-check-artifact-graph.png)
+
 ## 0. Status
 
 `approved: yes` — this repo is the reference/regression instance for the drift-check engine
@@ -85,7 +90,7 @@ old `DOCUMENTATION.md` carried; see `e-readme-prereqs`).
 | `e-frontmatter` | `field-set-subset` | the project README "Skill frontmatter contract" section's documented keys/rules match the frontmatter `install.py` actually reads (`skill-group` / `depends-on-tool` / `depends-on-skill`). |
 | `e-prereqs-union` | `field-set-equal` | the project README Prerequisites table is the union of all skill READMEs' prerequisites. |
 | `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render freshness is NOT checked here (owned by `render.py check-dir`); diagram-vs-prose semantics are out of scope. |
-| `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in the project README (or other top-level doc) resolves to a real PNG under `docs/diagrams/`. Render freshness and semantics out of scope (as above). |
+| `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render freshness and semantics out of scope (as above). |
 
 ## 4. Referencers (orphan check)
 
@@ -132,6 +137,7 @@ content-agreement axis).
 | `skills/*/templates/*` | `e-template-ref` |
 | `skills/*/README.md` | `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table`, `e-index-desc`, `e-prereqs-union`, `e-skill-diagram-ref` |
 | `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref` |
+| `DRIFT-CHECK.md` | `e-docs-diagram-ref` |
 | `skills/*/spec/*.png` | `e-skill-diagram-ref` |
 | `docs/diagrams/*.png` | `e-docs-diagram-ref` |
 

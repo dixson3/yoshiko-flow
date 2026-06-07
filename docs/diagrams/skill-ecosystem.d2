@@ -1,0 +1,52 @@
+direction: right
+
+title: |md
+  # beads-skills ecosystem
+  Install groups + `depends-on-skill` edges (arrow = "depends on")
+| {
+  near: top-center
+  style.font-size: 26
+}
+
+beads: "beads group — needs the bd binary" {
+  style.fill: "#eef4fb"
+  style.stroke: "#2f6fb0"
+
+  bdplan: "bdplan\n[bd, uv, git]"
+  bdresearch: "bdresearch\n[bd, uv, git]"
+  incub: "incubator\n[uv]"
+  bupstream: "beads-upstream\n[bd, uv, gh]"
+  bauthor: "beads-authoring\n[bd]"
+  bextra: "beads-extra\n[bd]"
+}
+
+util: "utility group — beads-free (no bd)" {
+  style.fill: "#eef7ee"
+  style.stroke: "#3f8f4f"
+
+  skauth: "skill-authoring\n[uv]"
+  optinst: "optimal-instructions\n[uv]"
+  drift: "drift-check\n[ ]"
+  diagram: "diagram-authoring\n[d2]"
+}
+
+# depends-on-skill edges (the install set closes over these)
+beads.bdplan -> beads.bextra
+beads.bdplan -> beads.bauthor
+beads.bdresearch -> beads.bextra
+beads.bdresearch -> beads.bauthor
+beads.bauthor -> beads.bextra
+beads.bupstream -> beads.bextra
+beads.incub -> beads.bextra
+util.optinst -> util.skauth
+
+invariant: |md
+  **Invariant:** no `utility` skill may depend
+  (transitively) on a `beads` skill — that keeps
+  `--group utility` provably beads-free.
+| {
+  near: bottom-center
+  style.font-size: 13
+  style.fill: "#fffbe6"
+  style.stroke: "#c9a227"
+}
