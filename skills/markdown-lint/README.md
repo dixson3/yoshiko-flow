@@ -17,9 +17,14 @@ no companion rule.
 ## Install
 
 Installed by the repo-level `install.sh` / `install.py`, which auto-discovers
-every `skills/*/` directory (group `markdown`). See the project
+every `skills/*/` directory (group `markdown`) and copies the skill's
+`protocols/*.md` companion rule to the rules surface. See the project
 [README](../../README.md) for flags. Or per-skill: copy `skills/markdown-lint` to
 `~/.claude/skills/markdown-lint`.
+
+The companion rule `protocols/MARKDOWN_LINT.md` is the portable lint-on-edit
+trigger: a **silent no-op unless** the repo opts in with a `.markdown-lint-on-edit`
+marker at its root (see SKILL.md "Lint on edit").
 
 ## Usage
 
@@ -36,8 +41,8 @@ uv run .claude/skills/markdown-lint/scripts/convert_wikilinks.py <dir> --vault-r
 ```
 
 Exit 1 on any violation. Rules ML001–ML007 are documented in
-[SKILL.md](SKILL.md#rules); the optional lint-on-edit `FileChanged` hook is in
-[SKILL.md](SKILL.md#optional-filechanged-hook).
+[SKILL.md](SKILL.md#rules); the lint-on-edit trigger (portable rule + the
+Claude-Code hook alternative) is in [SKILL.md](SKILL.md#lint-on-edit).
 
 ## Phase model
 
@@ -47,8 +52,10 @@ None. This is a tool/reference skill with no phases or state transitions.
 
 ```text
 markdown-lint/
-  SKILL.md            entry point — rules, table conventions, hook
+  SKILL.md            entry point — rules, table conventions, lint-on-edit
   README.md           this file
+  protocols/
+    MARKDOWN_LINT.md  always-loaded lint-on-edit trigger (opt-in, portable)
   scripts/
     markdown_lint.py      the GFM linter (PEP 723, argparse)
     convert_wikilinks.py  one-time wiki-link → GFM migration tool

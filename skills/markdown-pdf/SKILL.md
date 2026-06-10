@@ -42,13 +42,19 @@ uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --table-font normalsiz
 ## Pipeline defaults
 
 The script runs `pandoc --pdf-engine=xelatex` with: `geometry:margin=1in`,
-`linkcolor=blue`, `mainfont=Arial Unicode MS`, `monofont=Menlo`, and
+`linkcolor=blue`, a platform-aware main/mono font (below), and
 `--resource-path=<dir of the source .md>`.
 
-- **Font choice matters.** The default LaTeX fonts lack common glyphs (→ ≤ ≈).
-  `Arial Unicode MS` (macOS) covers them. On a host without it, pass
-  `--mainfont` a Unicode-complete font or the render shows "Missing character"
-  warnings (the script surfaces these — they do not fail the build).
+- **Font defaults are platform-aware.** On **macOS** the defaults are
+  `mainfont=Arial Unicode MS` / `monofont=Menlo`, which cover common glyphs
+  (→ ≤ ≈) the LaTeX default fonts miss. Those fonts do **not** exist on
+  Linux/Windows, and naming a missing font makes xelatex **hard-fail**
+  (`fontspec: font cannot be found`) — so **off macOS the script forces no font**:
+  xelatex falls back to Latin Modern and merely *warns* on missing glyphs (the
+  script surfaces those warnings; the build still succeeds). For full glyph
+  coverage on Linux, pass `--mainfont` a Unicode-complete font, e.g.
+  `--mainfont "DejaVu Sans"`. Distinction: a missing *font* fails the build; a
+  missing *glyph* (font present, glyph absent) only warns.
 - **Relative images resolve from the source dir** via `--resource-path`. Keep
   referenced images present, or pandoc errors.
 

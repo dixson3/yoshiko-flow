@@ -5,10 +5,10 @@
 # ///
 """Convert Markdown to PDF via the pandoc + xelatex pipeline.
 
-Wraps the invocation validated for the PwrOn analysis reports: xelatex engine,
-a broad-coverage Unicode main font (so glyphs like →, ≤, ≈ render), 1in margins,
-blue links, and a resource-path anchored to the source file's directory so
-relative image references (`![](diagrams/foo.png)`) resolve.
+A validated pandoc + xelatex pipeline: xelatex engine, a broad-coverage Unicode
+main font on macOS (so glyphs like →, ≤, ≈ render), 1in margins, blue links, and
+a resource-path anchored to the source file's directory so relative image
+references (`![](diagrams/foo.png)`) resolve.
 
 Table handling (the usual pain point for wide tables):
   * --table-font shrinks all table text (default footnotesize) so dense, many-
@@ -43,10 +43,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Arial Unicode MS (macOS) covers the math/arrow glyphs the LaTeX default fonts
-# miss. Override with --mainfont on platforms that lack it.
-DEFAULT_MAINFONT = "Arial Unicode MS"
-DEFAULT_MONOFONT = "Menlo"
+# Font defaults are platform-aware. On macOS, Arial Unicode MS / Menlo cover the
+# math/arrow glyphs (→ ≤ ≈) the LaTeX default fonts miss. Those fonts do NOT exist
+# on Linux/Windows, and naming a missing font makes xelatex HARD-FAIL (fontspec
+# "cannot be found") — so off macOS we force no font: xelatex falls back to its
+# default (Latin Modern) and merely *warns* on missing glyphs, keeping the default
+# invocation portable. Pass --mainfont a Unicode-complete font (e.g. "DejaVu Sans"
+# on Linux) for full glyph coverage.
+_IS_MACOS = sys.platform == "darwin"
+DEFAULT_MAINFONT: str | None = "Arial Unicode MS" if _IS_MACOS else None
+DEFAULT_MONOFONT: str | None = "Menlo" if _IS_MACOS else None
 DEFAULT_MARGIN = "1in"
 DEFAULT_TABLE_FONT = "footnotesize"
 
@@ -80,15 +86,22 @@ def build_header(table_font: str, landscape: bool) -> str:
     return "\n".join(parts) + "\n" if parts else ""
 
 
-def convert(src: Path, out: Path, mainfont: str, monofont: str, margin: str,
-            pre_args: list[str], passthrough: list[str], env: dict[str, str]) -> None:
+def convert(src: Path, out: Path, mainfont: str | None, monofont: str | None,
+            margin: str, pre_args: list[str], passthrough: list[str],
+            env: dict[str, str]) -> None:
     cmd = [
         "pandoc", str(src), "-o", str(out),
         "--pdf-engine=xelatex",
         "-V", f"geometry:margin={margin}",
         "-V", "linkcolor=blue",
-        "-V", f"mainfont={mainfont}",
-        "-V", f"monofont={monofont}",
+    ]
+    # Only force a font when one is set (macOS default, or an explicit --mainfont/
+    # --monofont). Off macOS the defaults are None, so xelatex uses Latin Modern.
+    if mainfont:
+        cmd += ["-V", f"mainfont={mainfont}"]
+    if monofont:
+        cmd += ["-V", f"monofont={monofont}"]
+    cmd += [
         f"--resource-path={src.parent}",
         *pre_args,
         *passthrough,

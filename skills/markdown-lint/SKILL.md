@@ -87,20 +87,28 @@ uv run .claude/skills/markdown-lint/scripts/convert_wikilinks.py <dir> --vault-r
 It is code-aware and idempotent; unresolved/ambiguous links are best-effort
 converted and listed in the report.
 
-## Optional FileChanged hook
+## Lint on edit
 
-To lint on every `.md` edit, hand-wire a `FileChanged` hook for `**/*.md` in
-your `.claude/settings.json`. Run only the authoring-time rules (wiki-links,
-embeds, tables, empty links) and skip link/anchor resolution (ML003/ML004) so
-the hook stays fast and quiet:
+Two ways to lint every `.md` as it changes. Both run only the authoring-time
+rules (wiki-links, embeds, tables, empty links) and skip link/anchor resolution
+(ML003/ML004) to stay fast; run the full set (no `--rules`) for a deliberate
+link audit.
+
+**Portable (preferred) — the always-loaded trigger rule.** `protocols/MARKDOWN_LINT.md`
+ships with the skill and is installed to the rules surface by `install.sh`. It is
+a **silent no-op unless the repo opts in** by placing a `.markdown-lint-on-edit`
+marker file at its root; with the marker present, the agent lints each changed
+`.md` on edit. This works across harnesses and travels with the skill install.
+
+**Claude-Code-native (alternative) — a `FileChanged` hook.** Hand-wire it in
+`.claude/settings.json`:
 
 ```bash
 uv run .claude/skills/markdown-lint/scripts/markdown_lint.py "$CLAUDE_FILE_PATHS" --rules ML001,ML002,ML005,ML006,ML007
 ```
 
-Run the full rule set (including ML003/ML004) for a deliberate link audit. This
-hook is not managed by the skill installer — edit `settings.json` to add, change,
-or remove it; keep its `--rules` list in sync with this section.
+This hook is not managed by the installer — edit `settings.json` to add, change,
+or remove it. Use **one** of the two mechanisms, not both, to avoid double-linting.
 
 ---
 MIT © 2026 James Dixson <dixson3@gmail.com>, Yoshiko Studios LLC

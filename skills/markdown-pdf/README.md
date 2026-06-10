@@ -52,8 +52,10 @@ markdown-pdf/
     landscape_wide_tables.lua  render-time filter: rotate wide tables to landscape
 ```
 
-Requirements (`pandoc` + `xelatex`, and the macOS-only default font) are
-documented in [SKILL.md](SKILL.md#requirements).
+Requirements (`pandoc` + `xelatex`) and the platform-aware font defaults (macOS
+forces Arial Unicode MS / Menlo; off macOS no font is forced, so xelatex falls
+back to Latin Modern and warns on missing glyphs — pass `--mainfont` for full
+coverage) are documented in [SKILL.md](SKILL.md#pipeline-defaults).
 
 ---
 MIT © 2026 James Dixson <dixson3@gmail.com>, Yoshiko Studios LLC
