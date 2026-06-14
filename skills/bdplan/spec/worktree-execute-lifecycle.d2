@@ -1,0 +1,58 @@
+direction: down
+
+title: |md
+  # bdplan execute — worktree lifecycle (plan-009)
+  Two address spaces: PRIMARY checkout (bd + plan_dir) vs WORKTREE (code only)
+| {
+  near: top-center
+  style.font-size: 22
+}
+
+primary: "PRIMARY checkout (repo root)\ncwd never changes" {
+  style.fill: "#eef4ff"
+  style.stroke: "#3366cc"
+
+  beads: ".beads/ shared Dolt DB\n(INV-2: git-common-dir)" {
+    shape: cylinder
+    style.fill: "#dbe7ff"
+  }
+  plandir: "plan_dir/  plan.md, reviews/,\nphase-log  (relative path)" {
+    shape: page
+    style.fill: "#dbe7ff"
+  }
+  pm: "plan_manager.py verbs\n(run from repo root)" {
+    style.fill: "#dbe7ff"
+  }
+}
+
+worktree: ".worktrees/<plan-id>  (gitignored)\nbranch <plan>  — code only" {
+  style.fill: "#eafaf0"
+  style.stroke: "#2e9e5b"
+
+  code: "project code / build artifacts\ncommits accumulate on <plan>" {
+    shape: page
+    style.fill: "#d5f3e1"
+  }
+}
+
+flow: "Phase flow" {
+  style.fill: "#fff8e6"
+  style.stroke: "#cc9a06"
+  direction: down
+
+  s52: "§5.2 resume guard\nworktree ensure (re-attach, no -b)\n+ dirty-state check"
+  s53: "§5.3 resolve start gate (fresh)\nworktree ensure (create -b <plan>)\n+ viability check"
+  s54: "§5.4 coordinator loop\ncode edits via git -C / sub-agent cwd\n(NO isolation)"
+  s61: "§6.1 acquire landing lock\nbase current; git merge --no-ff <plan>"
+  s615: "§6.1.5 VALIDATE merged state\n(a) plan gates + (b) validate-cmd\nfail: halt (lock held)  pass: release lock"
+  s62: "§6.2 push handoff (separate step)\nconservative: report; on reject\npull --rebase + re-validate; teardown"
+  done: "COMPLETE" {style.fill: "#d5f3e1"}
+
+  s52 -> s53 -> s54 -> s61 -> s615 -> s62 -> done
+}
+
+flow.s54 -> worktree.code: "code commits" {style.stroke: "#2e9e5b"}
+flow.s54 -> primary.beads: "bd claim/close" {style.stroke: "#3366cc"}
+flow.s54 -> primary.plandir: "status/findings" {style.stroke: "#3366cc"}
+flow.s61 -> worktree.code: "merge from primary" {style.stroke: "#2e9e5b"; style.stroke-dash: 3}
+flow.s615 -> primary.pm: "validate" {style.stroke: "#3366cc"}

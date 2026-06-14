@@ -26,9 +26,13 @@ Claude Code has a native plan mode, but it treats planning as a single-session, 
 
 4. **Intake** — On approval, bdplan creates a beads molecule: a DAG of bead issues mirroring the plan's epics, with a start gate that can only be released in a new session. This is the handoff point.
 
-5. **Execute** — In a new session, `/bdplan execute` resolves the start gate and runs a coordinator loop: find ready beads, dispatch sub-agents, close beads, repeat. Capability gates block work that requires unavailable resources while all other work continues. Push the repo and the blocked gate can be resolved from another environment. If a prior execute session crashed mid-run, the resume guard detects the existing epic (no duplicate pour) and an orphan sweep resets stuck `in_progress` beads to `open` — never auto-closing — before the loop resumes.
+5. **Execute** — In a new session, `/bdplan execute` resolves the start gate and runs a coordinator loop: find ready beads, dispatch sub-agents, close beads, repeat. **By default the plan runs in an isolated git worktree** (`.worktrees/<plan-id>`, branch `<plan-id>`): code edits accumulate on that branch while bead tracking and the plan folder stay in the primary checkout (the shared Dolt DB resolves from the worktree via git-common-dir, so beads never diverge). Execution falls back to in-place automatically (not a git repo, beads not initialized, an unsafe worktree state, or the `execute.worktree:false` opt-out). Capability gates block work that requires unavailable resources while all other work continues. If a prior execute session crashed mid-run, the resume guard detects the existing epic (no duplicate pour), re-attaches the worktree (surfacing any dirty state), and an orphan sweep resets stuck `in_progress` beads to `open` — never auto-closing — before the loop resumes.
 
-6. **Reconcile** — After execution, bdplan verifies the work, reports a conservative git handoff (proposed `git`/`bd dolt push` commands, pushed only on explicit authorization), and—once the push is authorized—updates upstream issues per the triage dispositions set during scoping.
+6. **Reconcile** — After execution, in worktree mode bdplan brings the base current, merges the plan branch back (`git merge --no-ff`) under a single-machine landing lock, and **re-validates the merged state** (the plan's gates plus a configured project `validate-cmd`) before any push — catching regressions that only appear once concurrent changes integrate. It then reports a conservative git handoff (proposed `git`/`bd dolt push` commands, pushed only on explicit authorization), tears the worktree down, and—once the push is authorized—updates upstream issues per the triage dispositions set during scoping.
+
+The worktree execution lifecycle (two address spaces, §5.2→§6.2):
+
+![bdplan worktree execution lifecycle](spec/worktree-execute-lifecycle.png)
 
 ## Prerequisites
 
@@ -110,6 +114,8 @@ spec/
   data.md                    Plan identity, plan.md schema, config, formulas
   prerequisites.md           Required/optional tools, bootstrap flow, install URLs
   portability.md             Portability contract, audit semantics, activation date
+  worktree-execute-lifecycle.d2   d2 source for the worktree execution lifecycle diagram
+  worktree-execute-lifecycle.png  Rendered lifecycle diagram (referenced from SKILL.md)
 agents/
   coordinator.md             Drives execution DAG to completion
   investigator.md            Runs single experiment in disposable worktree
@@ -122,7 +128,8 @@ formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp
 scripts/
-  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery resume scan (run via uv)
+  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery resume scan, worktree lifecycle (ensure/path/teardown), landing lock, merged-state validation (run via uv)
+  test_worktree.py           Unit tests for the worktree verb cluster + landing lock + validate-merged (run via uv)
   manifest_update.py         Vendored manifest hash/version helper (run via uv)
 protocols/
   PLANS.md                   Planning protocol (installed to the scope+surface rules dir, e.g. ~/.claude/rules/PLANS.md or <git-root>/.claude/rules/PLANS.md, by install.sh)

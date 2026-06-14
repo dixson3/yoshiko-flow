@@ -49,6 +49,25 @@ Repeat until `bd ready --json` returns no beads for this epic:
 5. If metadata specifies agent file, spawn sub-agent with that prompt. Otherwise execute directly. Pass context files from `plan_dir`.
 6. `bd close <id> --reason "Completed" --json`
 
+### Address-space routing (worktree mode)
+
+When §5.3 created a worktree (verdict `viable`), code edits and builds for a bead's work
+target the worktree, never the primary checkout:
+
+- **Sub-agent beads** run with **cwd = `.worktrees/<plan-id>`** (the worktree path; get it
+  from `plan_manager.py worktree path "${plan_dir}"`). Direct (non-agent) code edits use
+  `git -C .worktrees/<plan-id>` for git ops and write files under that path.
+- **`bd` and `plan_manager.py` calls stay primary-side** — run them from the repo root, not
+  the worktree. The shared Dolt DB resolves from anywhere (INV-2); the plan folder and
+  `plan_dir`-relative verbs are primary-side (SKILL.md §5.4 address-space model).
+- EXECUTE sub-agents must **NOT** use `isolation="worktree"` — that harness primitive spawns
+  a disposable, auto-cleaned `.claude/worktrees/` tree (wrong lifecycle). The plan worktree
+  is an explicit, persistent `git worktree` that survives until §6.2 teardown.
+  (`isolation="worktree"` is reserved for INVESTIGATE-phase experiments.)
+
+In **fallback (in-place) mode** there is no worktree: all edits land in the primary checkout
+as before.
+
 ## Blocked gates
 
 Drain all unblocked work before reporting blocked gates (beads-authoring REQ-ORCH-012).
@@ -73,6 +92,12 @@ bd close ${EPIC} --reason "Plan complete" --json
 
 Set plan.md status to `complete`.
 
+**Hand back to RECONCILE (Phase 6).** After the epic closes, control returns to the
+SKILL.md main session for Phase 6. In **worktree mode** the land-the-plane flow is the
+reordered SKILL.md §6.1–§6.2: acquire the landing lock → `git merge --no-ff <plan>` from
+the **primary** → validate the merged state (§6.1.5) → conservative push handoff → worktree
+teardown. The coordinator does **not** merge or push; it reports completion.
+
 **Git handoff (conservative — do NOT auto-commit or push).** Per the project's git
 authority (beads-authoring REQ-ORCH-014), do not commit, push, or run `bd dolt push`
 unless the active profile or the operator explicitly authorizes it. Report the handoff:
@@ -82,8 +107,11 @@ git status   # show what changed under ${plan_dir} (docs/plans/ or Incubator/<sl
 ```
 
 Then summarize for the operator: changed files, validation done, and the exact commands
-you propose — `git add "${plan_dir}" .beads/`, `git commit -m "bdplan: complete ${plan_id}"`,
-`git pull --rebase`, `bd dolt push`, `git push`. Run them only on explicit authorization.
+you propose. In **in-place (fallback) mode** these are `git add "${plan_dir}" .beads/`,
+`git commit -m "bdplan: complete ${plan_id}"`, `git pull --rebase`, `bd dolt push`,
+`git push`. In **worktree mode** the merge-back + validation already ran (§6.1–§6.1.5);
+the proposed commands are just `bd dolt push` + `git push` of the validated merge. Run
+them only on explicit authorization.
 
 ## Rules
 

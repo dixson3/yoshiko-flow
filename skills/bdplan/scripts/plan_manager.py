@@ -1151,6 +1151,553 @@ def record_epic(plan_dir: str, epic_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Worktree lifecycle engine (plan-009 Epic 1 — the extraction seam)
+#
+# A self-contained `worktree {ensure,path,teardown}` --json verb cluster, modeled
+# on diagram-authoring/scripts/render.py's subcommand surface. Inputs are pure
+# (repo_root, plan_dir) — NO bdplan phase state — so a future standalone `worktree`
+# skill is a cheap lift-and-shift (rule-of-three; see SKILL.md / plan-009 INV-5).
+#
+# EXTRACTION TRIGGERS (record, do not act early — plan-009 INV-5):
+#   * `worktree` skill — extract this verb cluster ONLY on a committed SECOND consumer
+#     (bdplan execute is the only one today; one consumer ≈2x's v1 surface for zero reuse).
+#   * `acceptance` skill — extract the validate-merged / validate-cmd seam (below) ONLY when
+#     a second skill needs merged-state/regression validation.
+#   When extracted, the consumer keeps a PROSE soft-dep (present → worktree flow; absent →
+#   in-place), like diagram-authoring. NEVER add `worktree`/`acceptance` to a SKILL.md
+#   frontmatter `depends-on-skill` edge — that is force-install, the wrong coupling
+#   (plan-008 EXP-002 mitigation pattern).
+#
+# Placement (INV-1): a gitignored top-level `.worktrees/<plan-id>`, branch = plan-id
+# verbatim. NOT `.git/worktree/<plan>` (nests a live tree in the gitdir; rejected).
+# Beads (INV-2): the worktree shares the primary's single Dolt DB via git-common-dir;
+# `ensure` runtime-probes `bd` from inside the new worktree because that resolution is
+# version/config-fragile (M4 — a viability fallback, not only the one-time gate).
+# ---------------------------------------------------------------------------
+
+WORKTREES_DIR = Path(".worktrees")
+WORKTREES_GITIGNORE_ANCHOR = "/.worktrees/"
+
+# Operator config keys in .bdplan.local.json (Issue 2.4 / Issue 3.3):
+#   "execute.worktree": false   → opt out of worktree mode (run in-place)
+#   "validate-cmd": "<shell>"    → project integration suite run against the merged tree
+CONFIG_KEY_WORKTREE = "execute.worktree"
+CONFIG_KEY_VALIDATE_CMD = "validate-cmd"
+
+
+def _worktree_opted_out() -> bool:
+    """True iff the operator set `execute.worktree` false in .bdplan.local.json (2.4).
+
+    Default is opt-IN (worktree mode on). Tolerates both the flat dotted key and a
+    nested {"execute": {"worktree": false}} form.
+    """
+    cfg = _read_config()
+    if CONFIG_KEY_WORKTREE in cfg:
+        return cfg[CONFIG_KEY_WORKTREE] is False
+    nested = cfg.get("execute")
+    if isinstance(nested, dict) and "worktree" in nested:
+        return nested["worktree"] is False
+    return False
+
+
+def _resolve_validate_cmd() -> str | None:
+    """The project integration suite from .bdplan.local.json `validate-cmd` (3.3).
+
+    Unset → None (§6.1.5 runs plan gates only + emits the cross-plan-not-checked notice).
+    """
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_VALIDATE_CMD)
+    return val if isinstance(val, str) and val.strip() else None
+
+
+def _plan_id_from_dir(plan_dir: Path) -> str:
+    """The plan id == branch name == worktree leaf: the plan_dir basename.
+
+    Holds for both roots (docs/plans/<id> and Incubator/<slug>/plans/<id>).
+    """
+    return plan_dir.name
+
+
+def _worktree_path(plan_dir: Path) -> Path:
+    """Repo-relative worktree path `.worktrees/<plan-id>` (INV-1)."""
+    return WORKTREES_DIR / _plan_id_from_dir(plan_dir)
+
+
+def _run_git(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
+    """Run `git <args>` capturing output; never raises on non-zero exit."""
+    return subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True,
+    )
+
+
+def _is_git_repo() -> bool:
+    r = _run_git(["rev-parse", "--is-inside-work-tree"])
+    return r.returncode == 0 and r.stdout.strip() == "true"
+
+
+def _registered_worktree_paths(repo_root: Path) -> set[Path]:
+    """Resolved absolute paths of every registered git worktree."""
+    r = _run_git(["worktree", "list", "--porcelain"], cwd=repo_root)
+    paths: set[Path] = set()
+    for line in r.stdout.splitlines():
+        if line.startswith("worktree "):
+            paths.add(Path(line[len("worktree "):].strip()).resolve())
+    return paths
+
+
+def _branch_exists(branch: str, repo_root: Path) -> bool:
+    r = _run_git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+                 cwd=repo_root)
+    return r.returncode == 0
+
+
+def _worktree_dirty(wt_abs: Path) -> tuple[bool, list[str]]:
+    """(dirty?, porcelain lines). Surfaced on resume; never auto-resolved (1.3)."""
+    r = _run_git(["status", "--porcelain"], cwd=wt_abs)
+    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    return (bool(lines), lines)
+
+
+def _bd_resolves_from(wt_abs: Path) -> bool:
+    """INV-2 runtime probe: does `bd` reach the primary's shared DB from here?"""
+    try:
+        r = subprocess.run(["bd", "list", "--json"], cwd=wt_abs,
+                           capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
+def _ensure_worktrees_gitignored(repo_root: Path) -> bool:
+    """Append `/.worktrees/` to .gitignore if absent (Issue 1.2; idempotent).
+
+    Returns True iff the file was modified.
+    """
+    gi = repo_root / GITIGNORE_FILE
+    existing = gi.read_text().splitlines() if gi.exists() else []
+    if any(ln.strip() == WORKTREES_GITIGNORE_ANCHOR for ln in existing):
+        return False
+    with gi.open("a") as fh:
+        if existing and existing[-1].strip():
+            fh.write("\n")
+        fh.write(f"{WORKTREES_GITIGNORE_ANCHOR}\n")
+    return True
+
+
+def _worktree_viability(repo_root: Path) -> dict | None:
+    """Cheap, side-effect-free pre-checks (Issue 1.3).
+
+    Returns a fallback verdict dict if NOT viable, else None (proceed).
+    Enumerated reasons: not-a-git-repo, beads-not-initialized,
+    (dirty-locked and bd-db-unresolved are detected later, with the worktree in hand).
+    """
+    if not _is_git_repo():
+        return {"viable": False, "reason": "not-a-git-repo"}
+    # The primary must own the shared Dolt DB (INV-2): its .beads/ is the parent the
+    # worktree resolves through git-common-dir. No .beads → bd not initialized here.
+    if not (repo_root / ".beads").exists():
+        return {"viable": False, "reason": "beads-not-initialized"}
+    return None
+
+
+def _worktree_ensure(plan_dir: Path) -> dict:
+    """Idempotent create-or-reattach of the plan's worktree (Issues 1.1/1.2/1.3).
+
+    Verdict shape:
+      viable=True:  {viable, action, path, branch, dirty, dirty_files, gitignore_updated}
+      viable=False: {viable, reason, [path], [created]}
+    `action` ∈ {created, reattached-branch, reattached-worktree}.
+    `reason` ∈ {not-a-git-repo, beads-not-initialized, dirty-locked, bd-db-unresolved}.
+    """
+    if _worktree_opted_out():
+        return {"viable": False, "reason": "opted-out",
+                "detail": f"{CONFIG_KEY_WORKTREE} is false in .bdplan.local.json; "
+                          f"running in-place by operator choice."}
+    repo_root = _git_root()
+    fallback = _worktree_viability(repo_root)
+    if fallback is not None:
+        return fallback
+
+    plan_id = _plan_id_from_dir(plan_dir)
+    branch = plan_id
+    wt_rel = _worktree_path(plan_dir)
+    wt_abs = (repo_root / wt_rel).resolve()
+
+    gitignore_updated = _ensure_worktrees_gitignored(repo_root)
+
+    registered = _registered_worktree_paths(repo_root)
+    created_this_call = False
+    if wt_abs in registered:
+        action = "reattached-worktree"
+    elif wt_abs.exists():
+        # A path is squatting the worktree slot but git doesn't know it — an
+        # unresolved leftover. Surface, never clobber (Issue 1.3).
+        return {
+            "viable": False,
+            "reason": "dirty-locked",
+            "path": str(wt_rel),
+            "detail": f"{wt_rel} exists but is not a registered git worktree; "
+                      f"resolve manually (git worktree prune / remove the path).",
+        }
+    elif _branch_exists(branch, repo_root):
+        r = _run_git(["worktree", "add", str(wt_abs), branch], cwd=repo_root)
+        if r.returncode != 0:
+            return {"viable": False, "reason": "dirty-locked",
+                    "detail": r.stderr.strip()}
+        action = "reattached-branch"
+        created_this_call = True
+    else:
+        r = _run_git(["worktree", "add", str(wt_abs), "-b", branch], cwd=repo_root)
+        if r.returncode != 0:
+            return {"viable": False, "reason": "dirty-locked",
+                    "detail": r.stderr.strip()}
+        action = "created"
+        created_this_call = True
+
+    # INV-2 runtime probe (M4): confirm bd reaches the shared DB from the worktree.
+    # If it fails on a worktree we just created, tear it back down so `ensure` stays
+    # atomic (clean fallback, no orphaned worktree). A pre-existing worktree is left
+    # in place — surfacing beats clobbering possible work.
+    if not _bd_resolves_from(wt_abs):
+        torn = False
+        if created_this_call:
+            _run_git(["worktree", "remove", "--force", str(wt_abs)], cwd=repo_root)
+            _run_git(["branch", "-D", branch], cwd=repo_root)
+            _run_git(["worktree", "prune"], cwd=repo_root)
+            torn = True
+        return {
+            "viable": False,
+            "reason": "bd-db-unresolved",
+            "detail": "bd could not resolve the shared DB from the worktree "
+                      "(INV-2 fragile; run bd from the primary checkout instead).",
+            "torn_down": torn,
+        }
+
+    dirty, dirty_files = _worktree_dirty(wt_abs)
+    return {
+        "viable": True,
+        "action": action,
+        "path": str(wt_rel),
+        "branch": branch,
+        "dirty": dirty,
+        "dirty_files": dirty_files,
+        "gitignore_updated": gitignore_updated,
+    }
+
+
+def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
+    """Remove the worktree + delete the branch if merged + prune (Issue 1.1).
+
+    `git worktree remove` refuses on a dirty tree unless force=True (INV-1: never
+    --force without confirmation). `git branch -d` refuses an unmerged branch (a
+    feature — only a merged-back plan branch is deleted); force escalates to -D.
+    """
+    repo_root = _git_root()
+    plan_id = _plan_id_from_dir(plan_dir)
+    branch = plan_id
+    wt_rel = _worktree_path(plan_dir)
+    wt_abs = (repo_root / wt_rel).resolve()
+
+    steps: dict[str, dict] = {}
+    registered = _registered_worktree_paths(repo_root)
+
+    if wt_abs in registered:
+        rm_args = ["worktree", "remove", str(wt_abs)]
+        if force:
+            rm_args.append("--force")
+        r = _run_git(rm_args, cwd=repo_root)
+        steps["remove"] = {"ok": r.returncode == 0, "detail": r.stderr.strip()}
+        if r.returncode != 0:
+            # Refused (dirty) — stop before deleting the branch (work may be unmerged).
+            return {"status": "blocked", "path": str(wt_rel), "branch": branch,
+                    "steps": steps,
+                    "detail": "worktree remove refused (dirty?); rerun with --force "
+                              "only after confirming no work is lost."}
+    else:
+        steps["remove"] = {"ok": True, "detail": "no registered worktree (skipped)"}
+
+    if _branch_exists(branch, repo_root):
+        del_flag = "-D" if force else "-d"
+        r = _run_git(["branch", del_flag, branch], cwd=repo_root)
+        steps["branch_delete"] = {"ok": r.returncode == 0,
+                                  "detail": r.stderr.strip() or r.stdout.strip()}
+    else:
+        steps["branch_delete"] = {"ok": True, "detail": "no branch (skipped)"}
+
+    r = _run_git(["worktree", "prune"], cwd=repo_root)
+    steps["prune"] = {"ok": r.returncode == 0, "detail": r.stderr.strip()}
+
+    all_ok = all(s["ok"] for s in steps.values())
+    return {"status": "ok" if all_ok else "partial", "path": str(wt_rel),
+            "branch": branch, "steps": steps}
+
+
+@cli.group()
+def worktree():
+    """Worktree lifecycle verbs for plan execution (plan-009 Epic 1 seam).
+
+    Pure (repo_root, plan_dir) inputs; no bdplan phase state. All subcommands
+    emit --json for the SKILL.md EXECUTE/RECONCILE wiring.
+    """
+
+
+@worktree.command("path")
+@click.argument("plan_dir", type=click.Path())
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def worktree_path_cmd(plan_dir: str, as_json: bool):
+    """Print the repo-relative worktree path for a plan (pure computation)."""
+    wt_rel = _worktree_path(Path(plan_dir))
+    plan_id = _plan_id_from_dir(Path(plan_dir))
+    if as_json:
+        click.echo(json.dumps({"path": str(wt_rel), "branch": plan_id}))
+    else:
+        click.echo(str(wt_rel))
+
+
+@worktree.command("ensure")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def worktree_ensure_cmd(plan_dir: str, as_json: bool):
+    """Create-or-reattach the plan's worktree; emit a viability verdict.
+
+    Idempotent: a fresh plan gets `git worktree add -b <plan>`; a resume re-attaches
+    (no -b). Non-viable repos return a `fallback:<reason>` verdict (the caller runs
+    in-place). Exit 0 on viable, 3 on fallback — so a shell `if` can branch.
+    """
+    result = _worktree_ensure(Path(plan_dir))
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    elif result.get("viable"):
+        msg = f"worktree {result['action']}: {result['path']} (branch {result['branch']})"
+        if result.get("dirty"):
+            msg += f"  [DIRTY — {len(result['dirty_files'])} change(s), surfaced not resolved]"
+        click.echo(msg)
+    else:
+        click.echo(f"fallback: {result['reason']} — {result.get('detail', '')}".rstrip(" —"))
+    sys.exit(0 if result.get("viable") else 3)
+
+
+@worktree.command("teardown")
+@click.argument("plan_dir", type=click.Path())
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+@click.option("--force", is_flag=True,
+              help="Escalate to `worktree remove --force` + `branch -D` (clobbers "
+                   "a dirty tree / unmerged branch). Default refuses both (INV-1).")
+def worktree_teardown_cmd(plan_dir: str, as_json: bool, force: bool):
+    """Remove the worktree, delete the merged branch, prune."""
+    result = _worktree_teardown(Path(plan_dir), force)
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"teardown {result['status']}: {result['path']} (branch {result['branch']})")
+        for step, info in result["steps"].items():
+            click.echo(f"  {step}: {'ok' if info['ok'] else 'FAIL'} {info['detail']}".rstrip())
+    sys.exit(0 if result["status"] == "ok" else 3)
+
+
+# ---------------------------------------------------------------------------
+# RECONCILE merge-back engine (plan-009 Epic 3)
+#
+# Two seams the SKILL.md Phase-6 reorder leans on:
+#   landing-lock {acquire,release,status}  — serialize merge-backs on one machine (3.4)
+#   validate-merged <plan_dir>             — re-validate the MERGED tree before push (3.2)
+#
+# Order matters (INV-4): merge first, THEN validate the merged state — today's §6.1
+# tested pre-merge, which can't catch class-(b) integration regressions.
+# ---------------------------------------------------------------------------
+
+LANDING_LOCK = STATE_DIR / "landing.lock"
+
+
+def _pid_alive(pid: int | None) -> bool:
+    """True if a local PID is live. EPERM (exists, not ours) counts as alive."""
+    if not isinstance(pid, int):
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _landing_lock_acquire(plan_id: str) -> dict:
+    """Atomically acquire the single-machine landing lock (Issue 3.4).
+
+    Atomicity via O_CREAT|O_EXCL. A held lock is reclaimable ONLY when it is this
+    host's and its PID is dead (same-host stale). A lock from another host is never
+    auto-broken — surfaced for the operator (single-developer v1 scope; cross-machine
+    concurrent landing is out of scope).
+    """
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    hostname = socket.gethostname()
+    payload = {
+        "hostname": hostname,
+        "pid": os.getpid(),
+        "plan_id": plan_id,
+        "acquired_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    for attempt in (1, 2):
+        try:
+            fd = os.open(str(LANDING_LOCK),
+                         os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            held = _read_json(LANDING_LOCK)
+            same_host = held.get("hostname") == hostname
+            stale = same_host and not _pid_alive(held.get("pid"))
+            if stale and attempt == 1:
+                # Reclaim our own dead lock, then retry the atomic create once.
+                try:
+                    LANDING_LOCK.unlink()
+                except OSError:
+                    pass
+                continue
+            return {
+                "acquired": False,
+                "held_by": held,
+                "reclaimable": stale,
+                "detail": ("stale same-host lock; reclaim failed" if stale else
+                           "held by a live process"
+                           + ("" if same_host else " on another host — never auto-broken")),
+            }
+        os.write(fd, (json.dumps(payload, indent=2) + "\n").encode())
+        os.close(fd)
+        return {"acquired": True, "lock": payload}
+    return {"acquired": False, "detail": "could not acquire after reclaim"}
+
+
+def _landing_lock_release(plan_id: str, force: bool) -> dict:
+    """Release the lock iff this plan/host owns it (or force)."""
+    if not LANDING_LOCK.exists():
+        return {"released": True, "detail": "no lock held"}
+    held = _read_json(LANDING_LOCK)
+    owns = (held.get("plan_id") == plan_id
+            and held.get("hostname") == socket.gethostname())
+    if not owns and not force:
+        return {"released": False, "held_by": held,
+                "detail": "lock owned by a different plan/host; use --force to override"}
+    try:
+        LANDING_LOCK.unlink()
+    except OSError as e:
+        return {"released": False, "detail": str(e)}
+    return {"released": True, "freed": held}
+
+
+def _run_shell(cmd: str, cwd: Path | None = None) -> dict:
+    """Run a shell command, capturing a truncated result for a validation report."""
+    try:
+        r = subprocess.run(cmd, shell=True, cwd=cwd,
+                           capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"cmd": cmd, "ok": False, "returncode": None, "error": str(e)}
+    tail = (r.stdout + r.stderr).strip()
+    return {"cmd": cmd, "ok": r.returncode == 0, "returncode": r.returncode,
+            "output_tail": tail[-2000:]}
+
+
+def _validate_merged(plan_dir: Path) -> dict:
+    """Validate the merged tree before push (Issue 3.2; runs PRIMARY-side, post-merge).
+
+    Layer (b) — the configured project `validate-cmd` — is the real cross-plan safety
+    net. When it is UNSET, this runs no project suite and emits a prominent
+    cross-plan-not-checked notice (never a bare green). Layer (a) — the plan's own Gate
+    `Test:` commands — is run by the coordinator/operator against the merged tree (it
+    cannot reliably catch class-(b) regressions; see plan-009 §Approach), so this verb
+    owns layer (b) + the honesty notice, and the SKILL §6.1.5 prose drives layer (a).
+    """
+    validate_cmd = _resolve_validate_cmd()
+    result: dict = {
+        "plan_dir": str(plan_dir),
+        "validate_cmd_configured": validate_cmd is not None,
+        "layer_b": None,
+        "notice": None,
+    }
+    if validate_cmd is None:
+        result["status"] = "pass"
+        result["notice"] = (
+            "MERGED-STATE VALIDATION RAN PLAN GATES ONLY; no project `validate-cmd` "
+            "configured in .bdplan.local.json — CROSS-PLAN REGRESSIONS NOT CHECKED. "
+            "This is NOT integration-safe; configure validate-cmd for real safety.")
+        return result
+    layer_b = _run_shell(validate_cmd)
+    result["layer_b"] = layer_b
+    result["status"] = "pass" if layer_b["ok"] else "fail"
+    return result
+
+
+@cli.group("landing-lock")
+def landing_lock():
+    """Single-machine merge-back serialization lock (plan-009 Issue 3.4)."""
+
+
+@landing_lock.command("acquire")
+@click.argument("plan_id")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def landing_lock_acquire_cmd(plan_id: str, as_json: bool):
+    """Atomically acquire the landing lock for a plan; exit 3 if held."""
+    result = _landing_lock_acquire(plan_id)
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    elif result["acquired"]:
+        click.echo(f"landing lock acquired for {plan_id}")
+    else:
+        click.echo(f"landing lock HELD: {result.get('detail', '')} "
+                   f"(held_by={result.get('held_by')})")
+    sys.exit(0 if result["acquired"] else 3)
+
+
+@landing_lock.command("release")
+@click.argument("plan_id")
+@click.option("--force", is_flag=True, help="Release even if owned by another plan/host.")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def landing_lock_release_cmd(plan_id: str, force: bool, as_json: bool):
+    """Release the landing lock (only if this plan/host owns it, unless --force)."""
+    result = _landing_lock_release(plan_id, force)
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"landing lock {'released' if result['released'] else 'NOT released'}: "
+                   f"{result.get('detail', '')}".rstrip())
+    sys.exit(0 if result["released"] else 3)
+
+
+@landing_lock.command("status")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def landing_lock_status_cmd(as_json: bool):
+    """Report current landing-lock holder, if any."""
+    held = _read_json(LANDING_LOCK) if LANDING_LOCK.exists() else None
+    out = {"held": held is not None, "lock": held}
+    if as_json:
+        click.echo(json.dumps(out, indent=2))
+    elif held:
+        click.echo(f"landing lock held: {held}")
+    else:
+        click.echo("landing lock free")
+
+
+@cli.command("validate-merged")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def validate_merged_cmd(plan_dir: str, as_json: bool):
+    """Validate the merged tree before push (project validate-cmd + honesty notice)."""
+    result = _validate_merged(Path(plan_dir))
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"merged-state validation: {result['status']}")
+        if result.get("notice"):
+            click.echo(f"  NOTICE: {result['notice']}")
+        if result.get("layer_b"):
+            lb = result["layer_b"]
+            click.echo(f"  validate-cmd: {'ok' if lb['ok'] else 'FAIL'} "
+                       f"(rc={lb['returncode']})")
+    sys.exit(0 if result["status"] == "pass" else 3)
+
+
+# ---------------------------------------------------------------------------
 # Resume scan (Issue 1.2, #2 — coordinator crash recovery)
 # ---------------------------------------------------------------------------
 

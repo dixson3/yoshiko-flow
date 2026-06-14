@@ -589,6 +589,12 @@ Print plan ID, epic ID, start gate ID. Instruct operator to run `/bdplan execute
 
 ## Phase 5: EXECUTE
 
+By default, EXECUTE runs the plan in an isolated git worktree (`.worktrees/<plan-id>`,
+branch `<plan-id>`) and lands it via merge-back + merged-state re-validation in Phase 6.
+The two address spaces (primary checkout vs. worktree) and the §5.2→§6.2 flow:
+
+![bdplan worktree execution lifecycle](spec/worktree-execute-lifecycle.png)
+
 On `/bdplan execute [<plan-id>]` in a new session:
 
 ### 5.1 — Select plan
@@ -631,6 +637,21 @@ field existed. It reports descendant bead counts and the `stuck` list
   run the orphan sweep below, then continue at §5.4 (the start gate is already
   resolved from the prior session — do **not** re-resolve it).
 
+**Worktree re-attach (resume only).** On **Resume**, before the orphan sweep,
+re-attach the plan's worktree (idempotent — it never creates a second worktree) and
+**surface** any dirty prior state without resolving it:
+
+```bash
+WT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py worktree ensure "${plan_dir}" --json)
+# viable=true → action "reattached-worktree"; dirty=true means a crashed session left
+# uncommitted changes. Report dirty_files to the operator; never auto-stash/discard.
+# viable=false → run in-place this resume (the §5.3 fallback rationale applies).
+```
+
+If the verdict is `dirty`, report the `dirty_files` list and pause for the operator
+(the *crashed-worktree* mitigation in plan-009 §Risks) — do not auto-resolve. A
+non-viable verdict means this resume runs in-place (worktree mode off for the session).
+
 **Orphan sweep (resume only).** Run it **strictly before the ready loop and before
 any reconcile-trigger evaluation** — resetting beads keeps the epic non-terminal, so
 reconcile cannot fire on a resumed-but-incomplete plan. Follow the procedure in
@@ -640,18 +661,58 @@ auto-close — any bead the sweep cannot positively classify, leaving the close
 decision to the operator. No bead is auto-closed: there is no reliable bd-state
 signal separating disposable scratch from real `discovered-from` work.
 
-### 5.3 — Resolve start gate
+Resume order is therefore **re-attach → sweep → loop**.
 
-Fresh runs only (skip on a resume — §5.2 already confirmed the gate is resolved):
+### 5.3 — Resolve start gate + create worktree
+
+Fresh runs only (skip on a resume — §5.2 already confirmed the gate is resolved and
+re-attached the worktree):
 
 ```bash
 bd gate resolve ${START_GATE_BEAD}   # the gate-* bead, not the wrapper task ${START_GATE}
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "executing" -m "start gate resolved"
 ```
 
+**Create the execution worktree (default-on, D2).** After the gate resolves, create the
+plan's isolated worktree. This is the **viability check + opt-out gate** (Issue 2.4):
+
+```bash
+WT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py worktree ensure "${plan_dir}" --json)
+VIABLE=$(echo "$WT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get viable)
+```
+
+- **`viable` is `true`** — `worktree ensure` created `.worktrees/<plan-id>` on branch
+  `<plan-id>` (and ensured `/.worktrees/` is gitignored). The coordinator now runs in
+  worktree mode (§5.4): **code edits target the worktree**, while bead tracking and the
+  plan folder stay primary-side (see the address-space model below).
+- **`viable` is `false`** — a **safe in-place fallback**. Print a one-line reason from
+  the verdict (`reason` ∈ `opted-out`, `not-a-git-repo`, `beads-not-initialized`,
+  `dirty-locked`, `bd-db-unresolved`) and run the coordinator **in-place exactly as
+  before** — no regression in fallback mode. `opted-out` is the operator's
+  `"execute.worktree": false` in `.bdplan.local.json`; the rest are environment
+  conditions (`bd-db-unresolved` is the INV-2 runtime fallback, M4).
+
 ### 5.4 — Run coordinator
 
-Read `${SKILL_DIR}/agents/coordinator.md` and follow its execution loop. The coordinator drives the bead DAG to completion, handles capability gates, and triggers reconciliation.
+Read `${SKILL_DIR}/agents/coordinator.md` and follow its execution loop. The coordinator
+drives the bead DAG to completion, handles capability gates, and triggers reconciliation.
+
+**Execution address-space model (worktree mode).** There are **two** address spaces and
+operations are explicitly routed (resolves plan-009 red-team C1/M1):
+
+- **Primary checkout (repo root, where `/bdplan execute` ran).** The coordinator IS the
+  main session; its cwd is **not** changed per-plan. Primary-side: the **plan folder**
+  (`plan.md`, `reviews/`, phase-log, `findings/`), every `plan_manager.py <verb>
+  "${plan_dir}"` call (`plan_dir` is relative to cwd), and all **`bd`** calls (INV-2: the
+  shared Dolt DB lives in the primary's `.beads/` and is reached from anywhere).
+- **Worktree (`.worktrees/<plan-id>`, branch `<plan-id>`).** Only **project code/build
+  artifacts** the plan edits. Reach it via `git -C .worktrees/<plan-id>` or by giving an
+  agent-backed bead that worktree as its **cwd**. Only these commits land on `<plan-id>`.
+
+So **bead tracking and plan-folder bookkeeping happen primary-side; only code changes
+accumulate on the plan branch.** The coordinator never `cd`s into the worktree. In
+fallback (in-place) mode there is one address space — the primary — and all edits land
+there as today.
 
 ### 5.5 — Blocked gates
 
@@ -669,21 +730,85 @@ Auto-resolves when all execution beads close. Proceed to Phase 6.
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "reconciling" -m "post-execution reconciliation"
 ```
 
-### 6.1 — Pre-push
+**Phase 6 is reordered (plan-009 INV-4): merge-back FIRST, then validate the MERGED
+state, then push.** The old order validated pre-merge, which cannot catch class-(b)
+integration regressions (each change individually green, broken when integrated). All
+Phase-6 steps run **primary-side** (you cannot check out the base branch in two
+worktrees at once — §5.4 address-space model).
 
-Confirm all changes committed, tests pass.
+**In-place (fallback) mode skips the merge.** If §5.3 fell back to in-place, there is no
+plan branch to merge — changes are already on the base. Skip §6.1's merge; §6.1.5 still
+validates the working tree before the §6.2 handoff.
 
-### 6.2 — Git handoff (conservative)
+### 6.1 — Merge-back (worktree mode)
 
-Per the project's git authority (beads-authoring REQ-ORCH-014), do **not** push
-automatically. Report the proposed land-the-plane sequence and run it only on explicit
-operator or team-maintainer authorization:
+Acquire the single-machine landing lock, bring the base current, and merge the plan
+branch into it from the **primary checkout**:
 
 ```bash
-git status   # show changed files under ${plan_dir} and .beads/
-# Propose (run only when authorized):
-#   git pull --rebase && bd dolt push && git push
+uv run ${SKILL_DIR}/scripts/plan_manager.py landing-lock acquire "${plan_id}" --json
+# exit 3 → held; report the holder and wait. Stale same-host locks self-reclaim.
+git pull --rebase                 # bring local base current (other plans may have landed)
+git merge --no-ff "${plan_id}"    # --no-ff: auditable merge commit, clean revert (M2)
+# defer committing the merge until §6.1.5 validates it (merge leaves it staged/in-progress)
 ```
+
+`--no-ff` defines the merged tree §6.1.5 validates and keeps the landing as one
+revertable commit. The first changes land before any push, so the lock serializes
+merge-backs across concurrent plans on this machine.
+
+### 6.1.5 — Validate the merged state
+
+Before any push, validate the merged tree — **layer (a)** the plan's own Gate `Test:`
+commands run against the merged checkout (as in the §5.4 loop), **plus layer (b)** the
+configured project suite:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py validate-merged "${plan_dir}" --json
+# layer (b) runs `validate-cmd` from .bdplan.local.json (Issue 3.3). status fail → halt.
+```
+
+- **Fail** → halt with the lock **still held** (so the operator fixes under serialization),
+  report the failing command. Do not push.
+- **Pass** → commit the merge (`git commit` if the merge is still in progress), then
+  **release the lock immediately** — the base is now green and the §6.2 push must not hold
+  the global lock across the operator-authorization wait (Issue 3.5):
+
+  ```bash
+  uv run ${SKILL_DIR}/scripts/plan_manager.py landing-lock release "${plan_id}" --json
+  ```
+
+**Honest scope (plan-009 C2).** When `validate-cmd` is **unset**, `validate-merged` runs
+layer (a) only and emits a **prominent cross-plan-not-checked notice** — surface it
+verbatim; never present a bare green as integration-safe. The configured `validate-cmd`
+is the real cross-plan safety net; layer (a) alone cannot catch class-(b) regressions.
+
+### 6.2 — Push handoff (conservative) + teardown
+
+Push authority stays **conservative** (D4, ratified): everything through merge-back +
+local re-validation is automated; the upstream push is **reported and run only on explicit
+operator/team-maintainer authorization** (beads-authoring REQ-ORCH-014). This is a
+**separate primary-side step that does NOT hold the landing lock** (released at §6.1.5).
+
+```bash
+git status   # show the merge commit + changed files under ${plan_dir} and .beads/
+# Propose (run only when authorized):
+#   bd dolt push && git push
+```
+
+On an authorized push **rejection** (remote advanced): `git pull --rebase`, then
+**re-validate** (re-run §6.1.5) before retrying the push — never push an unvalidated
+rebase. After the push is authorized and completed, tear the worktree down:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py worktree teardown "${plan_dir}" --json
+# remove worktree + delete the now-merged branch (-d) + prune. Refuses on a dirty tree
+# without --force (INV-1); a clean merged plan tears down cleanly.
+```
+
+> **Full-auto push is NOT the shipped default.** It remains an operator-configurable
+> future option (plan-009 Issue 3.6); until ratified, the push is always reported and
+> operator-authorized.
 
 Reconciliation (6.3) references pushed commits, so it proceeds only after the push is
 authorized and completed.
