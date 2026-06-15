@@ -20,7 +20,31 @@ Optional (detected at runtime):
 
 ## Install
 
-`install.sh` is a thin wrapper that runs `install.py` via `uv` (so `uv` must be on PATH).
+**Recommended: Homebrew + the `yf` CLI.** Install the [Yoshiko Flow](https://github.com/dixson3/yoshiko-flow)
+CLI via the tap — the formula's `depends_on` transitively pulls `beads` (the `bd` CLI) and `uv`, so you
+do not install those separately:
+
+```bash
+brew install dixson3/tap/yf      # also installs beads (bd) + uv
+
+# Deploy the skills + companion rules into a scope/surface
+yf skills install                # all skills → ~/.claude/{skills,rules}/
+yf skills install --group beads  # only the beads-dependent skills
+yf skills install --scope project --surface agents  # <git-root>/.agents/{skills,rules}/
+yf skills install --dry-run      # preview without writing
+
+# Verify the toolchain + skill-install health
+yf doctor
+```
+
+`yf skills install` takes the same scope/surface/group selectors as the script installer below:
+`--group <name>` (group computed from `skill-group` frontmatter), `--scope user|project`,
+`--surface claude|agents`, `--target <path>`, and `--dry-run`. Upgraders coming from the script-based
+install should read [MIGRATION.md](MIGRATION.md).
+
+---
+
+**Alternative: the `install.sh` script.** `install.sh` is a thin wrapper that runs `install.py` via `uv` (so `uv` must be on PATH).
 It reads each skill's frontmatter to compute install groups and resolve dependencies — see
 [Skill frontmatter contract](#skill-frontmatter-contract).
 

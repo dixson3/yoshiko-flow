@@ -29,6 +29,21 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::embed;
 
+/// The `preflight:` nested descriptor (bead 2.2), surfaced for the preflight
+/// kernel (bead 2.3, REQ-YF-PRE-004). All fields optional — a skill without a
+/// `preflight:` block yields `None` for the whole [`Preflight`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Preflight {
+    /// `companion-rule:` — the hash-checked rule filename (e.g. `PLANS.md`).
+    pub companion_rule: Option<String>,
+    /// `min-bd-version:` — minimum bd semver the skill requires (e.g. `1.0.5`).
+    /// Absent for skills that do not need beads (e.g. optimal-instructions).
+    pub min_bd_version: Option<String>,
+    /// `config-basename:` — the legacy per-skill operator config file basename
+    /// at repo root (e.g. `.yf-plan.local.json`).
+    pub config_basename: Option<String>,
+}
+
 /// Parsed frontmatter for one skill. Mirrors the `meta` dict in `install.py`'s
 /// `load_skills`, plus `name` / `user_invocable` which the SPEC also requires.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -44,6 +59,9 @@ pub struct Frontmatter {
     pub skills: Vec<String>,
     /// `user-invocable:` — whether the skill is a slash-command entry point.
     pub user_invocable: Option<bool>,
+    /// `preflight:` — the nested preflight descriptor (REQ-YF-PRE-004). `None`
+    /// when the skill ships no `preflight:` block.
+    pub preflight: Option<Preflight>,
 }
 
 /// Parse the leading `--- … ---` YAML frontmatter block of a `SKILL.md`.
@@ -57,9 +75,15 @@ pub fn parse_frontmatter(text: &str) -> Frontmatter {
     let Some(block) = frontmatter_block(text) else {
         return fm;
     };
-    for raw in block.lines() {
+    // We need to detect nested maps (`preflight:` followed by indented children),
+    // so iterate over raw lines (indentation preserved) with peeking.
+    let raw_lines: Vec<&str> = block.lines().collect();
+    let mut i = 0;
+    while i < raw_lines.len() {
+        let raw = raw_lines[i];
+        i += 1;
         let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
+        if line.is_empty() || line.starts_with('#') || line.starts_with('-') {
             continue;
         }
         let Some((key, value)) = line.split_once(':') else {
@@ -76,10 +100,52 @@ pub fn parse_frontmatter(text: &str) -> Frontmatter {
             "depends-on-tool" => fm.tools = parse_list(value),
             "depends-on-skill" => fm.skills = parse_list(value),
             "user-invocable" => fm.user_invocable = parse_bool(value),
+            "preflight" if value.is_empty() => {
+                // A nested map: consume the following indented child lines.
+                let mut children: Vec<&str> = Vec::new();
+                while i < raw_lines.len() {
+                    let child = raw_lines[i];
+                    // Indented (and non-blank) → belongs to the preflight map.
+                    if child.trim().is_empty() {
+                        i += 1;
+                        continue;
+                    }
+                    let indent = child.len() - child.trim_start().len();
+                    if indent == 0 {
+                        break; // back to top level
+                    }
+                    children.push(child);
+                    i += 1;
+                }
+                fm.preflight = Some(parse_preflight(&children));
+            }
             _ => {} // ignore unknown keys (forward-compatible)
         }
     }
     fm
+}
+
+/// Parse the indented child lines of a `preflight:` block into a [`Preflight`].
+fn parse_preflight(children: &[&str]) -> Preflight {
+    let mut pf = Preflight::default();
+    for raw in children {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        let value = scalar(value.trim());
+        let value = if value.is_empty() { None } else { Some(value) };
+        match key.trim() {
+            "companion-rule" => pf.companion_rule = value,
+            "min-bd-version" => pf.min_bd_version = value,
+            "config-basename" => pf.config_basename = value,
+            _ => {}
+        }
+    }
+    pf
 }
 
 /// Extract the text between the opening `---` and the next `---` fence line.
@@ -274,6 +340,61 @@ mod tests {
         assert_eq!(fm.tools, vec!["bd", "uv", "git"]);
         assert_eq!(fm.skills, vec!["yf-beads-extra", "yf-beads-authoring"]);
         assert_eq!(fm.user_invocable, Some(true));
+    }
+
+    // REQ-YF-PRE-004: the nested `preflight:` descriptor is surfaced.
+    #[test]
+    fn parses_preflight_descriptor() {
+        let text = "---\n\
+            name: bdplan\n\
+            depends-on-tool: [bd, uv, git]\n\
+            preflight:\n\
+            \x20\x20companion-rule: PLANS.md\n\
+            \x20\x20min-bd-version: 1.0.5\n\
+            \x20\x20config-basename: .yf-plan.local.json\n\
+            ---\nbody\n";
+        let fm = parse_frontmatter(text);
+        let pf = fm.preflight.expect("preflight descriptor expected");
+        assert_eq!(pf.companion_rule.as_deref(), Some("PLANS.md"));
+        assert_eq!(pf.min_bd_version.as_deref(), Some("1.0.5"));
+        assert_eq!(pf.config_basename.as_deref(), Some(".yf-plan.local.json"));
+        // Existing flat keys still parse alongside the nested block.
+        assert_eq!(fm.name, "bdplan");
+        assert_eq!(fm.tools, vec!["bd", "uv", "git"]);
+    }
+
+    // REQ-YF-PRE-004: a preflight block without min-bd-version (no-beads skill).
+    #[test]
+    fn preflight_without_min_bd_version() {
+        let text = "---\n\
+            name: yf-optimal-instructions\n\
+            preflight:\n\
+            \x20\x20companion-rule: INSTRUCTIONS.md\n\
+            \x20\x20config-basename: .yf-optimal-instructions.local.json\n\
+            ---\n";
+        let pf = parse_frontmatter(text).preflight.expect("preflight expected");
+        assert_eq!(pf.companion_rule.as_deref(), Some("INSTRUCTIONS.md"));
+        assert_eq!(pf.min_bd_version, None);
+    }
+
+    // REQ-YF-PRE-004: no preflight block → None (the real markdown skills).
+    #[test]
+    fn no_preflight_block_is_none() {
+        let text = "---\nname: x\nskill-group: utility\n---\n";
+        assert_eq!(parse_frontmatter(text).preflight, None);
+    }
+
+    // REQ-YF-PRE-004: the real embedded bdplan SKILL.md exposes its descriptor.
+    #[test]
+    fn real_bdplan_preflight_descriptor() {
+        let skills = load_skills();
+        let pf = skills
+            .get("bdplan")
+            .and_then(|f| f.preflight.clone())
+            .expect("bdplan must carry a preflight descriptor");
+        assert_eq!(pf.companion_rule.as_deref(), Some("PLANS.md"));
+        assert_eq!(pf.min_bd_version.as_deref(), Some("1.0.5"));
+        assert_eq!(pf.config_basename.as_deref(), Some(".yf-plan.local.json"));
     }
 
     // REQ-YF-INSTALL-003

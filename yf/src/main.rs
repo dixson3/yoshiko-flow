@@ -10,6 +10,7 @@ mod dest;
 mod embed;
 mod frontmatter;
 mod marker;
+mod preflight;
 
 use anyhow::Result;
 use clap::Parser;
@@ -26,7 +27,7 @@ pub const VERSION_LINE: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("YF
 
 fn main() -> std::process::ExitCode {
     match run() {
-        Ok(()) => std::process::ExitCode::SUCCESS,
+        Ok(code) => code,
         Err(err) => {
             eprintln!("error: {err:#}");
             std::process::ExitCode::FAILURE
@@ -34,13 +35,15 @@ fn main() -> std::process::ExitCode {
     }
 }
 
-fn run() -> Result<()> {
+fn run() -> Result<std::process::ExitCode> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Version(args) => cmd_version(&args),
-        Command::Skills { command } => cmd_skills(&command),
-        Command::Doctor(args) => cmd::doctor::run(&args),
-        Command::Preflight(args) => stub("preflight", args.json),
+        // Most subcommands either succeed or return an Err; map Ok(()) → SUCCESS.
+        Command::Version(args) => cmd_version(&args).map(|()| std::process::ExitCode::SUCCESS),
+        Command::Skills { command } => cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS),
+        Command::Doctor(args) => cmd::doctor::run(&args).map(|()| std::process::ExitCode::SUCCESS),
+        // Preflight owns its exit code (REQ-YF-CLI-003: non-zero on a failing status).
+        Command::Preflight(args) => preflight::run(&args.skill, args.json),
     }
 }
 
@@ -65,20 +68,4 @@ fn cmd_skills(command: &SkillsCommand) -> Result<()> {
         SkillsCommand::Remove(a) => cmd::status::remove(a),
         SkillsCommand::Status(a) => cmd::status::status(a),
     }
-}
-
-/// Placeholder for subcommands implemented by later beads. Parses correctly and
-/// returns Ok so the CLI shape is exercisable; real bodies arrive per-bead.
-fn stub(command: &str, json: bool) -> Result<()> {
-    if json {
-        let out = serde_json::json!({
-            "command": command,
-            "status": "not_implemented",
-            "message": format!("`yf {command}` is not yet implemented"),
-        });
-        println!("{}", serde_json::to_string(&out)?);
-    } else {
-        println!("`yf {command}` is not yet implemented");
-    }
-    Ok(())
 }

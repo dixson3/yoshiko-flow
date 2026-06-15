@@ -203,7 +203,7 @@ responsibility (REQ cross-reference).
 
 | Status / outcome | Legacy source (function) | Produced by | yf kernel responsibility |
 | :-- | :-- | :-- | :-- |
-| `ignored` | `_check_prerequisites()` | `_read_config()["ignore-skill"]` truthy | Read `.yf/<skill>.local.json` config — **REQ-YF-PRE-004** |
+| `ignored` | `_check_prerequisites()` | `_read_config()["ignore-skill"]` truthy | Read `.yf-<skill>.local.json` config — **REQ-YF-PRE-004** |
 | `system_deps_missing` + `missing`/`instructions` | `_check_prerequisites()` | `shutil.which("git"/"uv")`, `_parse_bd_version()` vs `MIN_BD_VERSION=(1,0,5)` | Tool detection + min-bd-version enforcement — **REQ-YF-PRE-002** |
 | `bd_not_initialized` | `_check_prerequisites()` | `subprocess.check_output(["bd","status","--json"])` raises | beads-init **verify** classification — **REQ-YF-PRE-006** (see §5) |
 | `ok` / `update_available` rule outcome | `_check_rule()` → manifest sha256/semver compare | `_sha256(path)` vs `manifest.files[RULE].sha256` / `previous_versions` | Rule hash + semver vs embedded `manifest.json` — **REQ-YF-PRE-003** |
@@ -280,7 +280,7 @@ differences:
    the `<skill>` argument): bdplan → `PLANS.md`, `.bdplan.local.json`,
    `.state/bdplan/`; bdresearch → `RESEARCH.md`, `.bdresearch.local.json`,
    `.state/bdresearch/`. Under the new `.yf/` naming (§7) these become per-skill
-   `.yf/<skill>.local.json` and `.yf/<skill>/`.
+   `.yf-<skill>.local.json` and `.yf/<skill>/`.
 
 3. Everything else (`MIN_BD_VERSION=(1,0,5)`, `MANIFEST_SCHEMA=1`,
    `SCAFFOLD_VERSION=1`, the `_RULE_INSTRUCTIONS` text, exit behavior) is the same
@@ -292,7 +292,7 @@ Under plan-010 **decision C**, config and state move into a single `.yf/` tree:
 
 | Purpose | Legacy path | New `yf` path | REQ |
 | :-- | :-- | :-- | :-- |
-| Per-skill operator config | `.<skill>.local.json` (e.g. `.bdplan.local.json`) at repo root | `.yf/<skill>.local.json` | **REQ-YF-PRE-004** |
+| Per-skill operator config | `.<skill>.local.json` (e.g. `.bdplan.local.json`) at repo root | `.yf-<skill>.local.json` | **REQ-YF-PRE-004** |
 | Per-skill runtime state | `.state/<skill>/` (e.g. `.state/bdplan/preflight.json`) | `.yf/<skill>/` (e.g. `.yf/plan/preflight.json`) | **REQ-YF-PRE-004** |
 | Gitignore anchors | `/<config-file>`, `/.state/` (per-skill, enumerated) | `/.yf/` (single anchor) | **REQ-YF-PRE-005** |
 
@@ -302,7 +302,7 @@ research`, so the new config/state use the short `<skill>` names (`.yf/plan/`,
 
 Migration is one-time and idempotent (**REQ-YF-MIGRATE-001**): `yf` shall migrate
 legacy `.state/<old>/` → `.yf/<new>/` and `.<old>.local.json` →
-`.yf/<new>.local.json`. There are **no runtime aliases** (GR-009) — the migration
+`.yf-<new>.local.json`. There are **no runtime aliases** (GR-009) — the migration
 moves the files, the kernel reads only the new paths.
 
 ## 8. REQ index (for bead 6.3 tests)
@@ -310,7 +310,7 @@ moves the files, the kernel reads only the new paths.
 - **REQ-YF-PRE-001** — status superset + `scaffold_added`/`instructions`, §2/§3.
 - **REQ-YF-PRE-002** — tool detection + min bd version, §2.1/§4.
 - **REQ-YF-PRE-003** — rule hash/semver vs `manifest.json`, §3.1/§4.
-- **REQ-YF-PRE-004** — config `.yf/<skill>.local.json` + state `.yf/<skill>/`, §2.1/§7.
+- **REQ-YF-PRE-004** — config `.yf-<skill>.local.json` + state `.yf/<skill>/`, §2.1/§7.
 - **REQ-YF-PRE-005** — gitignore scaffold `/.yf/`, §3/§4/§7.
 - **REQ-YF-PRE-006** — beads-init verify, `error`-key parse not exit code, §5.
 - **REQ-YF-PRE-007** — beads-init repair sequence, §5.
