@@ -49,6 +49,30 @@ Each skill installs **with its companion rules** (`protocols/*.md`) copied into 
 block the install (exit 0) unless `--strict` is given — skill files are inert until the tool
 is present.
 
+## Operating & health
+
+After install, the `yf` CLI is the single front door for skill health:
+
+```bash
+yf doctor                        # toolchain + per-skill install health, all in one report
+yf skills status                 # installed / up-to-date / complete, per skill (--json for machines)
+yf skills upgrade                # bring installed skills up to the embedded version
+yf preflight <skill>             # a single skill's readiness check (e.g. yf preflight plan)
+```
+
+`yf preflight <skill>` is the per-skill readiness gate the beads skills run before they do
+work — it probes system deps + min `bd` version, verifies the companion rule against the
+embedded manifest, checks/repairs the beads config (routing through `yf-beads-init`), and
+ensures the gitignore scaffold. Its `--json` output is the machine-readable verdict (a
+`status` enum; parse the field, not the exit code). See
+[docs/yf/preflight-contract.md](docs/yf/preflight-contract.md) for the full contract.
+
+Per-skill runtime state lives under `.yf/<skill>/` and operator config under
+`.yf-<skill>.local.json`. If you are coming from the pre-`yf` skills (`bdplan`/`bdresearch`
+and the `.state/` layout), run `yf migrate` once — it idempotently moves legacy state/config
+into the `.yf/` layout. See [docs/MIGRATION.md](docs/MIGRATION.md) for the one-time rename
+guide (skill names, `/commands`, `.gitignore` anchors).
+
 ## Skill frontmatter contract
 
 Each skill's `SKILL.md` frontmatter declares its install group and dependencies. `yf skills install`
