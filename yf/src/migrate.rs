@@ -247,7 +247,11 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
         std::fs::create_dir_all(repo.join(".state").join("bdresearch")).unwrap();
-        std::fs::write(repo.join(".state").join("bdresearch").join("idx.json"), "{}").unwrap();
+        std::fs::write(
+            repo.join(".state").join("bdresearch").join("idx.json"),
+            "{}",
+        )
+        .unwrap();
 
         let first = migrate(repo, false).unwrap();
         assert_eq!(first.migrated, 1);
@@ -257,7 +261,11 @@ mod tests {
         // Every entry is now source-absent or dest-exists; none migrated.
         assert!(second.entries.iter().all(|e| e.action != Action::Migrated));
         // Content intact.
-        assert!(repo.join(".yf").join("yf-research").join("idx.json").is_file());
+        assert!(repo
+            .join(".yf")
+            .join("yf-research")
+            .join("idx.json")
+            .is_file());
     }
 
     // REQ-YF-MIGRATE-001: an existing dest is never clobbered.

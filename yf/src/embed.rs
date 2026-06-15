@@ -74,6 +74,9 @@ pub fn read_file(relpath: &str) -> Option<Cow<'static, [u8]>> {
 mod tests {
     use super::*;
 
+    // REQ-YF-EMBED-001: the binary embeds the entire skills/ tree at build time —
+    // skill_names() resolves from the embedded tree alone (no repo/network).
+    // REQ-YF-EMBED-002: yf enumerates embedded skill names from the binary alone.
     #[test]
     fn skill_names_nonempty_and_known() {
         let names = skill_names();
@@ -101,6 +104,8 @@ mod tests {
         assert!(!files.iter().any(|f| f.starts_with("yf-beads-extra/")));
     }
 
+    // REQ-YF-EMBED-002: yf reads any embedded file (and lists per-skill files)
+    // from the binary alone.
     #[test]
     fn read_embedded_file() {
         let data = read_file("yf-beads-extra/SKILL.md").expect("SKILL.md must be embedded");

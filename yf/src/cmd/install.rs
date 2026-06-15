@@ -86,9 +86,15 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     if args.dry_run {
         println!("(dry run — nothing written)");
         for name in &install {
-            println!("  would install {name} -> {}", skills_dir.join(name).display());
+            println!(
+                "  would install {name} -> {}",
+                skills_dir.join(name).display()
+            );
             for (base, _) in common::embedded_rules(name) {
-                println!("      would surface rule {base} -> {}", rules_dir.join(&base).display());
+                println!(
+                    "      would surface rule {base} -> {}",
+                    rules_dir.join(&base).display()
+                );
             }
         }
         return Ok(());
@@ -104,6 +110,10 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
         println!("      rule {base}: kept (exists; --force to overwrite)");
     }
     println!();
-    println!("Installed {} skill(s) -> {}", installed.len(), skills_dir.display());
+    println!(
+        "Installed {} skill(s) -> {}",
+        installed.len(),
+        skills_dir.display()
+    );
     Ok(())
 }

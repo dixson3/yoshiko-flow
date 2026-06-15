@@ -82,9 +82,7 @@ pub fn run(args: &DoctorArgs) -> Result<()> {
     if args.json {
         let arr: Vec<_> = axes
             .iter()
-            .map(|a| {
-                serde_json::json!({ "axis": a.name, "ok": a.ok, "detail": a.detail })
-            })
+            .map(|a| serde_json::json!({ "axis": a.name, "ok": a.ok, "detail": a.detail }))
             .collect();
         let out = serde_json::json!({
             "command": "doctor",
@@ -101,7 +99,14 @@ pub fn run(args: &DoctorArgs) -> Result<()> {
             println!("  [{mark}] {:<28} {}", a.name, a.detail);
         }
         println!();
-        println!("{}", if any_fail { "FAIL: one or more axes failed" } else { "ok: all axes healthy" });
+        println!(
+            "{}",
+            if any_fail {
+                "FAIL: one or more axes failed"
+            } else {
+                "ok: all axes healthy"
+            }
+        );
     }
 
     if any_fail {
@@ -119,7 +124,10 @@ fn run_repair(args: &DoctorArgs) -> Result<()> {
     if args.json {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
-        println!("yf doctor --repair (before: {})", result.before.status.as_str());
+        println!(
+            "yf doctor --repair (before: {})",
+            result.before.status.as_str()
+        );
         for step in &result.plan {
             let mark = match step.rc {
                 Some(0) => "ok  ",
@@ -139,7 +147,10 @@ fn run_repair(args: &DoctorArgs) -> Result<()> {
 
     if let Some(after) = &result.after {
         if after.status != crate::beads_init::VerifyStatus::Ok {
-            anyhow::bail!("repair did not reach a healthy state: {}", after.status.as_str());
+            anyhow::bail!(
+                "repair did not reach a healthy state: {}",
+                after.status.as_str()
+            );
         }
     }
     Ok(())

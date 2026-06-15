@@ -7,6 +7,8 @@
 mod beads_init;
 mod cli;
 mod cmd;
+#[cfg(test)]
+mod coverage;
 mod dest;
 mod embed;
 mod frontmatter;
@@ -46,13 +48,14 @@ fn run() -> Result<std::process::ExitCode> {
     match cli.command {
         // Most subcommands either succeed or return an Err; map Ok(()) → SUCCESS.
         Command::Version(args) => cmd_version(&args).map(|()| std::process::ExitCode::SUCCESS),
-        Command::Skills { command } => cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS),
+        Command::Skills { command } => {
+            cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
+        }
         Command::Doctor(args) => cmd::doctor::run(&args).map(|()| std::process::ExitCode::SUCCESS),
         // Preflight owns its exit code (REQ-YF-CLI-003: non-zero on a failing status).
         Command::Preflight(args) => preflight::run(&args.skill, args.json),
-        Command::Migrate(args) => {
-            migrate::run(args.path, args.dry_run, args.json).map(|()| std::process::ExitCode::SUCCESS)
-        }
+        Command::Migrate(args) => migrate::run(args.path, args.dry_run, args.json)
+            .map(|()| std::process::ExitCode::SUCCESS),
     }
 }
 

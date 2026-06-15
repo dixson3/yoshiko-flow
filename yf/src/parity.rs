@@ -79,7 +79,10 @@ fn skill_group_membership_matches_golden() {
 
     // Every skill install.py grouped must be grouped identically by yf, and yf
     // must not invent group membership install.py did not have.
-    assert_eq!(got, want, "yf skill→group membership diverged from install.py");
+    assert_eq!(
+        got, want,
+        "yf skill→group membership diverged from install.py"
+    );
 }
 
 // REQ-YF-INSTALL-003: the computed group set matches install.py.

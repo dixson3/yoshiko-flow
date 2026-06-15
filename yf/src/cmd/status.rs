@@ -108,12 +108,20 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
         return Ok(());
     }
 
-    let verb = if args.dry_run { "would upgrade" } else { "upgraded" };
+    let verb = if args.dry_run {
+        "would upgrade"
+    } else {
+        "upgraded"
+    };
     for name in &upgraded {
         println!("  {verb} {name} -> {}", skills_dir.join(name).display());
     }
     for p in &pruned {
-        let pv = if args.dry_run { "would prune" } else { "pruned" };
+        let pv = if args.dry_run {
+            "would prune"
+        } else {
+            "pruned"
+        };
         println!("      {pv} {p}");
     }
     if !args.dry_run {
@@ -179,7 +187,11 @@ pub fn remove(args: &SkillsArgs) -> Result<()> {
         return Ok(());
     }
 
-    let verb = if args.dry_run { "would remove" } else { "removed" };
+    let verb = if args.dry_run {
+        "would remove"
+    } else {
+        "removed"
+    };
     for name in &removed {
         println!("  {verb} {name} -> {}", skills_dir.join(name).display());
     }
@@ -331,7 +343,10 @@ mod tests {
         args.names = vec!["yf-beads-upstream".to_string()];
         super::super::install::run(&args).unwrap();
 
-        assert!(skills_dir.join("yf-beads-upstream").join("SKILL.md").is_file());
+        assert!(skills_dir
+            .join("yf-beads-upstream")
+            .join("SKILL.md")
+            .is_file());
         assert!(
             skills_dir.join("yf-beads-extra").join("SKILL.md").is_file(),
             "closure must deploy the dependency too"

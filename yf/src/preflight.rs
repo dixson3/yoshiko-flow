@@ -98,7 +98,10 @@ impl Outcome {
     pub fn to_json(&self) -> serde_json::Value {
         let mut m = serde_json::Map::new();
         m.insert("status".into(), self.status.clone().into());
-        m.insert("missing".into(), serde_json::to_value(&self.missing).unwrap());
+        m.insert(
+            "missing".into(),
+            serde_json::to_value(&self.missing).unwrap(),
+        );
         let rule_val = match &self.rule {
             Some(r) => serde_json::to_value(r).unwrap(),
             None => serde_json::Value::Null,
@@ -215,12 +218,8 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
 
     // Descriptor (REQ-YF-PRE-004): read the skill's embedded `preflight:` block.
     let descriptor = read_descriptor(&skill_dir);
-    let rule_name = descriptor
-        .as_ref()
-        .and_then(|d| d.companion_rule.clone());
-    let config_basename = descriptor
-        .as_ref()
-        .and_then(|d| d.config_basename.clone());
+    let rule_name = descriptor.as_ref().and_then(|d| d.companion_rule.clone());
+    let config_basename = descriptor.as_ref().and_then(|d| d.config_basename.clone());
 
     // 1. ignore-skill (REQ-YF-PRE-004).
     if read_config(env, &short, config_basename.as_deref())
@@ -238,7 +237,9 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
     }
 
     // 2. System deps (REQ-YF-PRE-002) — checked once, then cached in state.
-    let needs_bd = descriptor.as_ref().is_some_and(|d| d.min_bd_version.is_some())
+    let needs_bd = descriptor
+        .as_ref()
+        .is_some_and(|d| d.min_bd_version.is_some())
         || skill_tools(&skill_dir).iter().any(|t| t == "bd");
     let state = read_state(env, &short);
     if !state
@@ -246,8 +247,11 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
     {
-        let (missing, instructions) =
-            check_system_deps(&skill_dir, descriptor.as_ref(), env.path_override.as_deref());
+        let (missing, instructions) = check_system_deps(
+            &skill_dir,
+            descriptor.as_ref(),
+            env.path_override.as_deref(),
+        );
         if !missing.is_empty() {
             return Outcome {
                 status: "system_deps_missing".into(),
@@ -266,7 +270,12 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
                 return status;
             }
         }
-        write_state_key(env, &short, "prereqs-present", serde_json::Value::Bool(true));
+        write_state_key(
+            env,
+            &short,
+            "prereqs-present",
+            serde_json::Value::Bool(true),
+        );
     }
 
     // 4. Rule hash/semver (REQ-YF-PRE-003) — checked every run (cheap).
@@ -350,7 +359,10 @@ fn read_config(
     short: &str,
     config_basename: Option<&str>,
 ) -> serde_json::Map<String, serde_json::Value> {
-    let new_path = env.repo_root.join(".yf").join(format!("{short}.local.json"));
+    let new_path = env
+        .repo_root
+        .join(".yf")
+        .join(format!("{short}.local.json"));
     if let Some(m) = read_json_obj(&new_path) {
         return m;
     }
@@ -427,8 +439,7 @@ fn check_system_deps(
         match parse_bd_version(path_override) {
             None => {
                 missing.push("bd".into());
-                instructions
-                    .push("Install beads: https://github.com/gastownhall/beads".into());
+                instructions.push("Install beads: https://github.com/gastownhall/beads".into());
             }
             Some(v) if v < min => {
                 let v_str = ver_str(v);
@@ -504,7 +515,9 @@ fn extract_version_tuple(text: &str) -> Option<(u32, u32, u32)> {
                     break;
                 }
                 // Continue only if a '.' immediately follows another digit group.
-                if j < bytes.len() && bytes[j] == b'.' && j + 1 < bytes.len()
+                if j < bytes.len()
+                    && bytes[j] == b'.'
+                    && j + 1 < bytes.len()
                     && bytes[j + 1].is_ascii_digit()
                 {
                     j += 1;
@@ -653,7 +666,11 @@ fn check_rule(skill_dir: &str, rule_name: &str, env: &Env) -> RuleVerdict {
         }
     };
 
-    if manifest.get("schema_version").and_then(serde_json::Value::as_i64) != Some(MANIFEST_SCHEMA) {
+    if manifest
+        .get("schema_version")
+        .and_then(serde_json::Value::as_i64)
+        != Some(MANIFEST_SCHEMA)
+    {
         return RuleVerdict {
             outcome: "manifest_schema_unknown".into(),
             rule: rule_name.into(),
@@ -673,9 +690,15 @@ fn check_rule(skill_dir: &str, rule_name: &str, env: &Env) -> RuleVerdict {
         .and_then(|f| f.get(rule_name))
         .cloned()
         .unwrap_or(serde_json::Value::Null);
-    let deprecated = entry.get("deprecated").and_then(serde_json::Value::as_bool).unwrap_or(false);
+    let deprecated = entry
+        .get("deprecated")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
     let cur_sha = entry.get("sha256").and_then(serde_json::Value::as_str);
-    let version = entry.get("version").and_then(serde_json::Value::as_str).map(str::to_string);
+    let version = entry
+        .get("version")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string);
     let prev_shas: Vec<&str> = entry
         .get("previous_versions")
         .and_then(serde_json::Value::as_array)
@@ -738,7 +761,11 @@ fn check_rule(skill_dir: &str, rule_name: &str, env: &Env) -> RuleVerdict {
             outcome: oc.into(),
             rule: rule_name.into(),
             path: best_path.map(|p| p.to_string_lossy().into_owned()),
-            version: if oc == "ok" || oc == "update_available" { version } else { None },
+            version: if oc == "ok" || oc == "update_available" {
+                version
+            } else {
+                None
+            },
             schema_version: None,
         },
     }
@@ -868,7 +895,10 @@ pub fn run(skill_arg: &str, json: bool) -> anyhow::Result<std::process::ExitCode
         }
         println!("All prerequisites satisfied.");
     } else if outcome.status == "ignored" {
-        println!("yf-{} is ignored in this project.", resolve_skill(skill_arg).1);
+        println!(
+            "yf-{} is ignored in this project.",
+            resolve_skill(skill_arg).1
+        );
     } else {
         for msg in &outcome.instructions {
             eprintln!("ERROR: {msg}");
@@ -945,7 +975,11 @@ mod tests {
         let tmp = unique_tmp("legacy-ignore");
         let repo = tmp.join("repo");
         std::fs::create_dir_all(&repo).unwrap();
-        std::fs::write(repo.join(".yf-plan.local.json"), r#"{"ignore-skill": true}"#).unwrap();
+        std::fs::write(
+            repo.join(".yf-plan.local.json"),
+            r#"{"ignore-skill": true}"#,
+        )
+        .unwrap();
         let env = test_env(&repo, &tmp.join("rules"));
         let out = run_with_env("plan", &env);
         assert_eq!(out.status, "ignored");
@@ -1025,7 +1059,11 @@ mod tests {
         std::fs::create_dir_all(&rules).unwrap();
         let state_dir = repo.join(".yf").join("plan");
         std::fs::create_dir_all(&state_dir).unwrap();
-        std::fs::write(state_dir.join("preflight.json"), r#"{"prereqs-present": true}"#).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            r#"{"prereqs-present": true}"#,
+        )
+        .unwrap();
 
         let env = test_env(&repo, &rules);
         let out = run_with_env("plan", &env);
@@ -1046,7 +1084,11 @@ mod tests {
         std::fs::create_dir_all(&rules).unwrap();
         let state_dir = repo.join(".yf").join("plan");
         std::fs::create_dir_all(&state_dir).unwrap();
-        std::fs::write(state_dir.join("preflight.json"), r#"{"prereqs-present": true}"#).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            r#"{"prereqs-present": true}"#,
+        )
+        .unwrap();
         let embedded = embed::read_file("bdplan/protocols/PLANS.md").unwrap();
         std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
 
@@ -1088,7 +1130,10 @@ mod tests {
         let env = test_env(&tmp, &tmp.join("rules"));
         let out = bd_init_status(&env).expect("non-beads dir must produce a failing verdict");
         assert!(
-            matches!(out.status.as_str(), "bd_not_initialized" | "system_deps_missing"),
+            matches!(
+                out.status.as_str(),
+                "bd_not_initialized" | "system_deps_missing"
+            ),
             "unexpected verify→preflight status: {}",
             out.status
         );
@@ -1141,7 +1186,10 @@ mod tests {
         assert!(pos("\"missing\"") < pos("\"instructions\""));
         assert!(pos("\"instructions\"") < pos("\"rule\""));
         assert!(s.contains("\"rule\":null"));
-        assert!(!s.contains("scaffold_added"), "no scaffold_added on failure");
+        assert!(
+            !s.contains("scaffold_added"),
+            "no scaffold_added on failure"
+        );
     }
 
     // Skill resolution: short, yf-prefixed, and legacy dir names all resolve.
@@ -1150,7 +1198,10 @@ mod tests {
         assert_eq!(resolve_skill("plan"), ("bdplan".into(), "plan".into()));
         assert_eq!(resolve_skill("yf-plan"), ("bdplan".into(), "plan".into()));
         assert_eq!(resolve_skill("bdplan"), ("bdplan".into(), "plan".into()));
-        assert_eq!(resolve_skill("research"), ("bdresearch".into(), "research".into()));
+        assert_eq!(
+            resolve_skill("research"),
+            ("bdresearch".into(), "research".into())
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -1183,7 +1234,11 @@ mod tests {
         // isolates the rule-hash + scaffold axes of the `ok` state.
         let state_dir = repo.join(".yf").join("plan");
         std::fs::create_dir_all(&state_dir).unwrap();
-        std::fs::write(state_dir.join("preflight.json"), r#"{"prereqs-present": true}"#).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            r#"{"prereqs-present": true}"#,
+        )
+        .unwrap();
         // Materialize the EMBEDDED PLANS.md so its sha256 equals the manifest's.
         let embedded = embed::read_file("bdplan/protocols/PLANS.md").expect("embedded PLANS.md");
         std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
@@ -1203,7 +1258,10 @@ mod tests {
         assert!(rule.get("path").is_some(), "ok rule carries a path");
         assert!(rule.get("version").is_some(), "ok rule carries a version");
         // scaffold_added is present ONLY on `ok` (contract §3).
-        assert!(m.contains_key("scaffold_added"), "ok must carry scaffold_added");
+        assert!(
+            m.contains_key("scaffold_added"),
+            "ok must carry scaffold_added"
+        );
         assert!(m.get("instructions").unwrap().is_array());
         assert!(!out.is_failure(), "ok exits success");
         std::fs::remove_dir_all(&tmp).ok();
@@ -1231,13 +1289,19 @@ mod tests {
         let out = run_with_env("plan", &env);
 
         assert_eq!(out.status, "system_deps_missing");
-        assert!(!out.missing.is_empty(), "missing must be non-empty: {:?}", out.missing);
+        assert!(
+            !out.missing.is_empty(),
+            "missing must be non-empty: {:?}",
+            out.missing
+        );
         // git/uv absent → their exact legacy instruction strings present.
         assert!(out.missing.iter().any(|m| m == "git"));
         assert!(out.missing.iter().any(|m| m == "uv"));
         assert!(out.missing.iter().any(|m| m == "bd"));
         assert!(
-            out.instructions.iter().any(|i| i == "Install uv: https://docs.astral.sh/uv/"),
+            out.instructions
+                .iter()
+                .any(|i| i == "Install uv: https://docs.astral.sh/uv/"),
             "exact legacy uv instruction: {:?}",
             out.instructions
         );
@@ -1246,7 +1310,11 @@ mod tests {
         let m = json_of(&out);
         assert_eq!(m.get("status").unwrap(), "system_deps_missing");
         assert!(!m.get("missing").unwrap().as_array().unwrap().is_empty());
-        assert_eq!(m.get("rule").unwrap(), &serde_json::Value::Null, "rule is null");
+        assert_eq!(
+            m.get("rule").unwrap(),
+            &serde_json::Value::Null,
+            "rule is null"
+        );
         assert!(
             !m.contains_key("scaffold_added"),
             "no scaffold_added on a failing status (contract §3)"
@@ -1281,7 +1349,11 @@ mod tests {
         let out = run_with_env("plan", &env);
 
         assert_eq!(out.status, "rule_drift");
-        assert_eq!(out.missing, Vec::<String>::new(), "missing empty on rule_drift");
+        assert_eq!(
+            out.missing,
+            Vec::<String>::new(),
+            "missing empty on rule_drift"
+        );
         let m = json_of(&out);
         assert_eq!(m.get("status").unwrap(), "rule_drift");
         let rule = m.get("rule").unwrap().as_object().expect("rule object");

@@ -111,9 +111,7 @@ fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> io::
         if path.is_dir() {
             walk_files(root, &path, out)?;
         } else if path.is_file() {
-            let rel = path
-                .strip_prefix(root)
-                .map_err(io::Error::other)?;
+            let rel = path.strip_prefix(root).map_err(io::Error::other)?;
             let relpath = rel
                 .components()
                 .map(|c| c.as_os_str().to_string_lossy())
@@ -252,7 +250,8 @@ pub fn verify(skill_dir: &Path, expected_embedded_hash: &str) -> io::Result<(boo
 mod tests {
     use super::*;
 
-    const FM_SKILL: &str = "---\nname: yf-demo\nskill-group: utility\n---\n# Heading\n\nbody text\n";
+    const FM_SKILL: &str =
+        "---\nname: yf-demo\nskill-group: utility\n---\n# Heading\n\nbody text\n";
 
     // REQ-YF-MARK-001: embedded tree hash is stable across repeated calls.
     #[test]
@@ -261,7 +260,9 @@ mod tests {
         let b = embedded_tree_hash("yf-beads-extra");
         assert_eq!(a, b);
         assert_eq!(a.len(), 64, "sha256 hex must be 64 chars: {a}");
-        assert!(a.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(a
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     }
 
     // REQ-YF-MARK-001: tree_hash is order-independent (sorts by relpath).
@@ -367,11 +368,8 @@ mod tests {
 
         // Materialize the embedded skill to a temp dir, injecting a marker into
         // SKILL.md exactly as a real install would.
-        let tmp = std::env::temp_dir().join(format!(
-            "yf-marker-test-{}-{}",
-            std::process::id(),
-            skill
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("yf-marker-test-{}-{}", std::process::id(), skill));
         std::fs::remove_dir_all(&tmp).ok();
         let skill_root = tmp.join(skill);
         for relpath in embed::skill_files(skill) {

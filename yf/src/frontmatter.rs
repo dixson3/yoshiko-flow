@@ -235,10 +235,7 @@ pub fn load_skills() -> BTreeMap<String, Frontmatter> {
 
 /// Sorted set of distinct non-empty `skill-group` values, like `computed_groups`.
 pub fn computed_groups(skills: &BTreeMap<String, Frontmatter>) -> Vec<String> {
-    let groups: BTreeSet<String> = skills
-        .values()
-        .filter_map(|m| m.group.clone())
-        .collect();
+    let groups: BTreeSet<String> = skills.values().filter_map(|m| m.group.clone()).collect();
     groups.into_iter().collect()
 }
 
@@ -372,7 +369,9 @@ mod tests {
             \x20\x20companion-rule: INSTRUCTIONS.md\n\
             \x20\x20config-basename: .yf-optimal-instructions.local.json\n\
             ---\n";
-        let pf = parse_frontmatter(text).preflight.expect("preflight expected");
+        let pf = parse_frontmatter(text)
+            .preflight
+            .expect("preflight expected");
         assert_eq!(pf.companion_rule.as_deref(), Some("INSTRUCTIONS.md"));
         assert_eq!(pf.min_bd_version, None);
     }

@@ -191,9 +191,13 @@ pub fn verify(repo_root: &Path) -> VerifyResult {
             r.bd_functional = false;
             if let Some(d) = &doc {
                 if let Some(msg) = d.get("error") {
-                    let msg = msg.as_str().map(str::to_string).unwrap_or_else(|| msg.to_string());
-                    r.diagnostics
-                        .push(format!("`bd status --json` returned an error (exit {rc}): {msg}"));
+                    let msg = msg
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| msg.to_string());
+                    r.diagnostics.push(format!(
+                        "`bd status --json` returned an error (exit {rc}): {msg}"
+                    ));
                     let lower = msg.to_lowercase();
                     if WEDGED_MARKERS.iter().any(|m| lower.contains(m)) {
                         r.diagnostics.push(
@@ -205,8 +209,9 @@ pub fn verify(repo_root: &Path) -> VerifyResult {
                                 .to_string(),
                         );
                     } else {
-                        r.remediations
-                            .push("Run `yf doctor --repair` to attempt standard repairs.".to_string());
+                        r.remediations.push(
+                            "Run `yf doctor --repair` to attempt standard repairs.".to_string(),
+                        );
                     }
                     return r;
                 }
@@ -216,8 +221,7 @@ pub fn verify(repo_root: &Path) -> VerifyResult {
                 "`bd status --json` produced no parseable JSON (exit {rc}). stderr: {}",
                 err.trim().chars().take(200).collect::<String>()
             ));
-            r.remediations
-                .push("Run `yf doctor --repair`.".to_string());
+            r.remediations.push("Run `yf doctor --repair`.".to_string());
             return r;
         }
         VerifyStatus::Ok => {
@@ -332,13 +336,22 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
             "stop dolt server (flush working set)",
             &["bd", "dolt", "stop"],
         ));
-        plan.push(shelled("apply schema migrations", &["bd", "migrate", "schema"]));
+        plan.push(shelled(
+            "apply schema migrations",
+            &["bd", "migrate", "schema"],
+        ));
         plan.push(shelled("update db metadata version", &["bd", "migrate"]));
     }
 
     // Hardening (idempotent) — runs whenever .beads/ exists or after init.
-    plan.push(shelled("update git hooks", &["bd", "hooks", "install", "--force"]));
-    plan.push(shelled("repair gitignore/config", &["bd", "doctor", "--fix"]));
+    plan.push(shelled(
+        "update git hooks",
+        &["bd", "hooks", "install", "--force"],
+    ));
+    plan.push(shelled(
+        "repair gitignore/config",
+        &["bd", "doctor", "--fix"],
+    ));
     plan.push(shelled("update db metadata version", &["bd", "migrate"]));
     if local_only {
         plan.push(shelled(
@@ -354,14 +367,23 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
     // Native filesystem hardening steps (deterministic, no bd).
     plan.push(RepairStep {
         why: "tighten .beads perms (chmod 700)".to_string(),
-        cmd: vec!["<native>".into(), "chmod".into(), "700".into(), ".beads".into()],
+        cmd: vec![
+            "<native>".into(),
+            "chmod".into(),
+            "700".into(),
+            ".beads".into(),
+        ],
         native: true,
         rc: None,
         err: None,
     });
     plan.push(RepairStep {
         why: "ensure .beads/.gitignore exclusions".to_string(),
-        cmd: vec!["<native>".into(), "gitignore".into(), ".beads/.gitignore".into()],
+        cmd: vec![
+            "<native>".into(),
+            "gitignore".into(),
+            ".beads/.gitignore".into(),
+        ],
         native: true,
         rc: None,
         err: None,
@@ -515,7 +537,11 @@ fn parse_bd_version() -> Option<(u32, u32, u32)> {
     let (_, out, _) = run_in(&["bd", "version"], 60, Path::new("."));
     for tok in out.replace(['(', ')'], " ").split_whitespace() {
         let parts: Vec<&str> = tok.split('.').collect();
-        if parts.len() >= 2 && parts[..2].iter().all(|p| p.chars().all(|c| c.is_ascii_digit())) {
+        if parts.len() >= 2
+            && parts[..2]
+                .iter()
+                .all(|p| p.chars().all(|c| c.is_ascii_digit()))
+        {
             let nums: Vec<u32> = parts
                 .iter()
                 .filter(|p| p.chars().all(|c| c.is_ascii_digit()) && !p.is_empty())
@@ -582,7 +608,9 @@ fn dir_mode(p: &Path) -> Option<u32> {
     if !p.is_dir() {
         return None;
     }
-    std::fs::metadata(p).ok().map(|m| m.permissions().mode() & 0o7777)
+    std::fs::metadata(p)
+        .ok()
+        .map(|m| m.permissions().mode() & 0o7777)
 }
 
 #[cfg(not(unix))]
@@ -638,7 +666,10 @@ mod tests {
     #[test]
     fn unparseable_depends_on_initialized() {
         assert_eq!(classify("not json at all", true).0, VerifyStatus::Corrupted);
-        assert_eq!(classify("not json at all", false).0, VerifyStatus::NotInitialized);
+        assert_eq!(
+            classify("not json at all", false).0,
+            VerifyStatus::NotInitialized
+        );
         assert_eq!(classify("", true).0, VerifyStatus::Corrupted);
     }
 

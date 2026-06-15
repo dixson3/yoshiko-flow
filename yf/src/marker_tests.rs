@@ -31,7 +31,9 @@ fn req_yf_mark_001_tree_hash_deterministic_and_order_independent() {
     // collapses both to the same value — the sort is canonical.
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     for rel in embed::skill_files(SKILL) {
-        let bytes = embed::read_file(&format!("{SKILL}/{rel}")).unwrap().into_owned();
+        let bytes = embed::read_file(&format!("{SKILL}/{rel}"))
+            .unwrap()
+            .into_owned();
         files.push((rel, bytes));
     }
     assert!(files.len() >= 2, "need a multi-file skill to test ordering");
@@ -39,7 +41,10 @@ fn req_yf_mark_001_tree_hash_deterministic_and_order_independent() {
     let mut reversed = files.clone();
     reversed.reverse();
     let backward = marker::tree_hash(&reversed);
-    assert_eq!(forward, backward, "tree_hash must be input-order-independent");
+    assert_eq!(
+        forward, backward,
+        "tree_hash must be input-order-independent"
+    );
     // And it equals the embed-API path's hash.
     assert_eq!(forward, a);
 }
@@ -60,15 +65,23 @@ fn req_yf_mark_001_marker_strip_invariance_deployed_equals_embedded() {
     // The deployed SKILL.md differs from the embedded bytes (marker present)...
     let deployed_md = std::fs::read_to_string(skill_root.join("SKILL.md")).unwrap();
     let embedded_md = String::from_utf8(
-        embed::read_file(&format!("{SKILL}/SKILL.md")).unwrap().into_owned(),
+        embed::read_file(&format!("{SKILL}/SKILL.md"))
+            .unwrap()
+            .into_owned(),
     )
     .unwrap();
-    assert_ne!(deployed_md, embedded_md, "deployed SKILL.md must carry a marker");
+    assert_ne!(
+        deployed_md, embedded_md,
+        "deployed SKILL.md must carry a marker"
+    );
     assert!(marker::parse_marker(&deployed_md).is_some());
 
     // ...yet the marker-stripped deployed tree hashes equal to embedded.
     let (ok, actual) = marker::verify(&skill_root, &embedded).unwrap();
-    assert!(ok, "deployed (marked) tree {actual} must equal embedded {embedded}");
+    assert!(
+        ok,
+        "deployed (marked) tree {actual} must equal embedded {embedded}"
+    );
 }
 
 // REQ-YF-MARK-002: inject→parse round-trips; inject→strip restores the marker-free
@@ -77,7 +90,9 @@ fn req_yf_mark_001_marker_strip_invariance_deployed_equals_embedded() {
 #[test]
 fn req_yf_mark_002_inject_strip_parse_round_trip_and_replace() {
     let original = String::from_utf8(
-        embed::read_file(&format!("{SKILL}/SKILL.md")).unwrap().into_owned(),
+        embed::read_file(&format!("{SKILL}/SKILL.md"))
+            .unwrap()
+            .into_owned(),
     )
     .unwrap();
 
@@ -87,7 +102,11 @@ fn req_yf_mark_002_inject_strip_parse_round_trip_and_replace() {
     assert_eq!((v.as_str(), t.as_str()), ("1.2.3", "feedface"));
 
     // inject → strip restores the byte-identical original.
-    assert_eq!(marker::strip_marker(&once), original, "strip must restore original");
+    assert_eq!(
+        marker::strip_marker(&once),
+        original,
+        "strip must restore original"
+    );
 
     // Re-inject over an existing marker REPLACES it (exactly one marker remains).
     let twice = marker::inject_marker(&once, "2.0.0", "beadcafe");
@@ -120,7 +139,11 @@ fn req_yf_mark_004_prune_removes_stray_keeps_embedded() {
 
     // The dry-run extras list names exactly the stray (no embedded file).
     let extras = common::extra_deployed_files(SKILL, &skills_dir).unwrap();
-    assert_eq!(extras, vec!["scratch/ORPHAN.md".to_string()], "only the stray is extra");
+    assert_eq!(
+        extras,
+        vec!["scratch/ORPHAN.md".to_string()],
+        "only the stray is extra"
+    );
 
     // Re-deploy with prune: the stray (and its now-empty dir) go; embedded stays.
     common::deploy_skill(SKILL, &skills_dir, /*prune=*/ true).unwrap();
@@ -135,7 +158,10 @@ fn req_yf_mark_004_prune_removes_stray_keeps_embedded() {
 
     // After prune the deployed tree hashes equal to embedded again.
     let h = common::skill_health(SKILL, &skills_dir).unwrap();
-    assert!(h.unmodified && h.complete && h.up_to_date, "post-prune health: {h:?}");
+    assert!(
+        h.unmodified && h.complete && h.up_to_date,
+        "post-prune health: {h:?}"
+    );
 }
 
 // REQ-YF-MARK-003: the status 4-axis through `skill_health` — a fresh install is

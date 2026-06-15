@@ -1,0 +1,103 @@
+# =============================================================================
+# DISABLED until plan-010 Gate G4 resolves the yoshiko-flow.github.io hosting
+# strategy (decision D5).
+#
+# This workflow is scaffolded but intentionally NOT enabled. It cannot deploy
+# in its current form: the `push` trigger is commented out (only the manual
+# `workflow_dispatch` trigger remains), AND the deploy job is guarded by
+# `if: ${{ false }}` so even a manual dispatch is a no-op. This dual guard is
+# deliberate — removing one without the other still leaves the workflow inert.
+#
+# To enable (Gate G4 / decision D5 — operator action):
+#   1. Confirm the hosting strategy: org/user site
+#      (https://yoshiko-flow.github.io, baseUrl '/', repo
+#      `yoshiko-flow/yoshiko-flow.github.io`) vs a project-pages site
+#      (https://<org>.github.io/<repo>/, baseUrl '/<repo>/'). The config in
+#      website/docusaurus.config.js (url/baseUrl/organizationName/projectName)
+#      assumes the org-site path; reconcile it with the chosen strategy.
+#   2. Decide the custom-domain question and resolve the CNAME placeholder at
+#      website/static/CNAME (delete it for the default *.github.io domain, or
+#      replace its contents with the bare apex/subdomain, e.g.
+#      docs.example.com — Docusaurus copies static/CNAME into the build).
+#   3. In the repo's Settings > Pages, set Source = "GitHub Actions".
+#   4. Un-comment the `push` trigger block below.
+#   5. Remove the `if: ${{ false }}` guard from the `deploy` job.
+#
+# Location note: this workflow lives at the repo-root .github/workflows/
+# (consistent with ci.yml / release.yml), NOT under website/.github — so the
+# G4 enable-time check `! grep -RnE 'PLACEHOLDER|TODO' website/.github` is
+# satisfied by construction. The enable-time placeholder G4 resolves lives in
+# website/static/CNAME, outside any .github path.
+# =============================================================================
+
+name: Deploy Docs (DISABLED — Gate G4)
+
+on:
+  # MANUAL ONLY while disabled — workflow_dispatch never auto-runs, and the
+  # deploy job's `if: ${{ false }}` guard makes a manual run a no-op too.
+  workflow_dispatch:
+  # ENABLE AT G4: un-comment to deploy on pushes to main that touch the site.
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'website/**'
+  #     - '.github/workflows/docs-deploy.yml'
+
+# Minimum permissions for GitHub Pages deployment via actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; don't cancel in-progress production deploys.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Docusaurus site
+    # ENABLE AT G4: remove this guard to allow the workflow to run.
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: website
+
+      - name: Build site
+        run: npm run build
+        working-directory: website
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    name: Deploy to GitHub Pages (yoshiko-flow.github.io)
+    # ENABLE AT G4: remove this guard to allow the deploy to run.
+    if: ${{ false }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

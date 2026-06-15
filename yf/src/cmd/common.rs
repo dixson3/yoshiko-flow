@@ -56,7 +56,9 @@ pub fn resolve_selection(
         if !groups.iter().any(|x| x == g) {
             anyhow::bail!("unknown group '{g}'. valid groups: {}", groups.join(", "));
         }
-        frontmatter::skills_in_group(skills, g).into_iter().collect()
+        frontmatter::skills_in_group(skills, g)
+            .into_iter()
+            .collect()
     } else {
         skills.keys().cloned().collect()
     };
@@ -139,8 +141,7 @@ pub fn deploy_skill(name: &str, skills_dir: &Path, prune: bool) -> Result<Vec<St
         if relpath == "SKILL.md" {
             let text = String::from_utf8_lossy(&bytes).into_owned();
             let marked = marker::inject_marker(&text, version, &tree);
-            std::fs::write(&dest, marked)
-                .with_context(|| format!("writing {}", dest.display()))?;
+            std::fs::write(&dest, marked).with_context(|| format!("writing {}", dest.display()))?;
         } else {
             std::fs::write(&dest, bytes.as_ref())
                 .with_context(|| format!("writing {}", dest.display()))?;
@@ -206,8 +207,7 @@ pub fn install_rules(
         }
         std::fs::create_dir_all(rules_dir)
             .with_context(|| format!("creating {}", rules_dir.display()))?;
-        std::fs::write(&target, &bytes)
-            .with_context(|| format!("writing {}", target.display()))?;
+        std::fs::write(&target, &bytes).with_context(|| format!("writing {}", target.display()))?;
         written.push(basename);
     }
     Ok((written, kept))
