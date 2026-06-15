@@ -80,8 +80,12 @@ bdresearch relies on the shared beads skills rather than re-documenting `bd`:
 its status (it follows the Skill Surface Convention — see the `yf-skill-authoring` skill):
 
 ```bash
-uv run ${SKILL_DIR}/scripts/research_manager.py check --json-output
+yf preflight yf-research --json
 ```
+
+(The `yf preflight` JSON is a superset of the legacy `research_manager.py` preflight schema —
+same status values, plus `warnings` and the rule/scaffold fields — so the branch logic below
+is unchanged; only the command moved into the `yf` kernel. See docs/yf/preflight-contract.md.)
 
 - **`ignored`** (operator set `"ignore-skill": true` in `.bdresearch.local.json`): exit
   silently.
@@ -113,7 +117,7 @@ Initialize bdresearch for the current project. Spawn a sub-agent (`Agent` with
 ```
 Run bdresearch init for Claude Code:
 
-1. Run `uv run ${SKILL_DIR}/scripts/research_manager.py check --json-output` and parse
+1. Run `yf preflight yf-research --json` and parse
    the JSON. Record any `warnings` to relay. On status "ok", preflight has already ensured
    the idempotent scaffold (the docs/research dir plus the `/.bdresearch.local.json` and
    `/.state/` gitignore anchors); `scaffold_added` lists what it created. Per-incubator
@@ -133,8 +137,9 @@ Handle the sub-agent result:
   this project?" If ignore, write `{"ignore-skill":true}` to `.bdresearch.local.json` at
   the repo root, and ensure `/.bdresearch.local.json` is in `.gitignore`, then exit.
 
-`research_manager.py` is intentionally narrow — prerequisite `check` (config gating +
-state caching + installed-rule hash) and a defensive `json-get`. Research-directory and
+`research_manager.py` is intentionally narrow — a defensive `json-get`. The preflight
+(config gating + state caching + installed-rule hash) moved to the `yf preflight` kernel
+(plan-010). Research-directory and
 `_index.md` state stays in `index_manager.py`. After editing `protocols/RESEARCH.md`,
 refresh the hash: `uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols`,
 and commit the rule + `manifest.json` together.

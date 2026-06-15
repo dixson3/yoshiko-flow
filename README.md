@@ -9,7 +9,7 @@ Skills that leverage [beads](https://github.com/gastownhall/beads) for Claude Co
 |------|---------|---------|---------|
 | `git` | any | Identity, remotes, commit/push | system package manager |
 | `bd` | >= 1.0.5 | Task tracking (beads) | https://github.com/gastownhall/beads |
-| `uv` | any | Python environment & script runner (also runs `install.py`) | https://docs.astral.sh/uv/ |
+| `uv` | any | Python environment & script runner (skill helper scripts) | https://docs.astral.sh/uv/ |
 
 Optional (detected at runtime):
 
@@ -37,42 +37,12 @@ yf skills install --dry-run      # preview without writing
 yf doctor
 ```
 
-`yf skills install` takes the same scope/surface/group selectors as the script installer below:
-`--group <name>` (group computed from `skill-group` frontmatter), `--scope user|project`,
-`--surface claude|agents`, `--target <path>`, and `--dry-run`. Upgraders coming from the script-based
-install should read [MIGRATION.md](MIGRATION.md).
-
----
-
-**Alternative: the `install.sh` script.** `install.sh` is a thin wrapper that runs `install.py` via `uv` (so `uv` must be on PATH).
-It reads each skill's frontmatter to compute install groups and resolve dependencies — see
-[Skill frontmatter contract](#skill-frontmatter-contract).
-
-```bash
-# Everything (default) — all skills + companion rules
-./install.sh                          # ~/.claude/{skills,rules}/
-
-# A single group (computed from frontmatter)
-./install.sh --group utility          # only the beads-free skills (no bd needed)
-./install.sh --group beads            # only the beads-dependent skills
-./install.sh --list-groups            # show the available groups + members
-
-# A named subset (pulls each skill's in-repo dependencies transitively)
-./install.sh yf-plan yf-research
-
-# Preview without installing; or fail if a required tool is missing
-./install.sh --group beads --dry-run
-./install.sh --group beads --strict   # abort if bd/uv/gh etc. are absent (default: warn, install anyway)
-```
-
-Scope / surface / destination flags are unchanged:
-
-```bash
-./install.sh --scope project          # <git-root>/.claude/{skills,rules}/
-./install.sh --surface agents         # ~/.agents/{skills,rules}/
-./install.sh --force                  # overwrite an existing companion rule (default keeps hand-edits)
-./install.sh --target /path/to/skills # skills here, rules in a sibling rules/ dir
-```
+`yf skills install` selectors: `--group <name>` (group computed from `skill-group`
+frontmatter), `--scope user|project`, `--surface claude|agents`, `--target <path>`,
+`--force` (overwrite an existing companion rule; default keeps hand-edits), `--strict`
+(abort if a required tool is missing; default warns and installs anyway), and `--dry-run`.
+A named subset (`yf skills install yf-plan yf-research`) pulls each skill's in-repo
+dependencies transitively.
 
 Each skill installs **with its companion rules** (`protocols/*.md`) copied into the matching
 `<scope>/.<surface>/rules/` dir. Missing `depends-on-tool` binaries are reported but do not
@@ -81,14 +51,14 @@ is present.
 
 ## Skill frontmatter contract
 
-Each skill's `SKILL.md` frontmatter declares its install group and dependencies. The installer
-(`install.py`, wrapped by `install.sh`) reads these to compute groups and resolve dependencies —
-no installer edit is needed when a skill is added or regrouped.
+Each skill's `SKILL.md` frontmatter declares its install group and dependencies. `yf skills install`
+reads these to compute groups and resolve dependencies — no installer edit is needed when a skill is
+added or regrouped.
 
 | Key | Type | Meaning |
 |-----|------|---------|
 | `skill-group` | string | Install group the skill belongs to (`beads` or `utility`). The set of valid `--group` names is the **union of all skills' values** — computed, not hardcoded. |
-| `depends-on-tool` | list | Binaries the skill needs at runtime (e.g. `[bd, uv, git]`). Probed with `shutil.which` at install: missing → warning, **install still proceeds (exit 0)**; `--strict` makes it a hard failure. |
+| `depends-on-tool` | list | Binaries the skill needs at runtime (e.g. `[bd, uv, git]`). Probed on `PATH` at install: missing → warning, **install still proceeds (exit 0)**; `--strict` makes it a hard failure. |
 | `depends-on-skill` | list | **Bare** in-repo skill names this skill needs. The install set is closed over these (transitive pull). A name not found under `skills/*` is warned as external / assumed-provided and skipped. |
 
 **Groups.** `beads` skills depend on the `bd` binary; `utility` skills
@@ -131,7 +101,7 @@ conditions when relevant work appears.
 
 Decomposes objectives into investigated, scoped plans with beads-tracked execution and upstream issue reconciliation.
 
-**Setup** per project (the `PLANS.md` companion rule is installed by `install.sh`):
+**Setup** per project (the `PLANS.md` companion rule is installed by `yf skills install`):
 
 1. `bd init` (if not already initialized)
 2. `/yf-plan init` — checks prerequisites, adds `.gitignore` entries, writes per-project config

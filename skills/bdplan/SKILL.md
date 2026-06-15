@@ -73,8 +73,12 @@ the snippets below.
 status (it follows the Skill Surface Convention — see the `yf-skill-authoring` skill):
 
 ```bash
-uv run ${SKILL_DIR}/scripts/plan_manager.py check --json-output
+yf preflight yf-plan --json
 ```
+
+(The `yf preflight` JSON is a superset of the legacy `plan_manager.py` preflight schema —
+same status values and fields — so the branch logic below is unchanged; only the command
+moved into the `yf` kernel. See docs/yf/preflight-contract.md.)
 
 - **`ignored`** (operator set `"ignore-skill": true` in `.bdplan.local.json`): exit
   silently, fall back to native plan mode.
@@ -106,7 +110,7 @@ Initialize bdplan for the current project. Spawn a sub-agent (`Agent` with `suba
 ```
 Run bdplan init for Claude Code:
 
-1. Run `uv run ${SKILL_DIR}/scripts/plan_manager.py check --json-output` and parse the JSON.
+1. Run `yf preflight yf-plan --json` and parse the JSON.
    On status "ok", preflight has already ensured the idempotent scaffold (the docs/plans dir
    plus the `/.bdplan.local.json` and `/.state/` gitignore anchors); `scaffold_added` lists
    what it created. Per-incubator plan roots (`Incubator/<slug>/plans/`) are created lazily.

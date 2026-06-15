@@ -8,8 +8,8 @@ description: >
   corrupted** (e.g. `bd status` errors, `bd doctor` reports errors, a wedged schema
   migration, or `bd ready`/`bd list` work while `bd status` does not); or another beads
   skill's preflight reports `system_deps_missing` / `bd_not_initialized` / a corrupted DB.
-  SKIP when: bd is healthy (`beads_init.py verify` returns `ok`) and you only need routine
-  issue operations (use the `beads` skill); for direct-CLI gotchas use `yf-beads-extra`.
+  SKIP when: bd is healthy (`yf preflight yf-beads-init --json` returns `ok`) and you only
+  need routine issue operations (use the `beads` skill); for direct-CLI gotchas use `yf-beads-extra`.
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, git]
@@ -42,16 +42,19 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
 
 ## The engine
 
+The verify/repair engine moved into the `yf` kernel (plan-010); invoke it via `yf`:
+
 ```bash
-uv run ${SKILL_DIR}/scripts/beads_init.py verify --json-output     # READ-ONLY health check
-uv run ${SKILL_DIR}/scripts/beads_init.py repair                   # dry-run: print the fix plan
-uv run ${SKILL_DIR}/scripts/beads_init.py repair --apply           # apply the standard repairs
-uv run ${SKILL_DIR}/scripts/beads_init.py repair --apply --local-only   # also assert no Dolt remote
-uv run ${SKILL_DIR}/scripts/beads_init.py status                   # one-line human status
+yf preflight yf-beads-init --json     # READ-ONLY health check (canonical "is bd usable?")
+yf doctor --repair                    # apply the standard repairs
+yf doctor --repair --local-only       # also assert no Dolt remote
+yf doctor                             # one-line human status
 ```
 
-`verify` is the canonical preflight check. It returns `status ∈ {ok, deps_missing,
-not_initialized, corrupted}` with `diagnostics` and `remediations`.
+`yf preflight yf-beads-init --json` is the canonical preflight check; the richer beads
+verdict (`status ∈ {ok, deps_missing, not_initialized, corrupted}` with `diagnostics` and
+`remediations`) is carried in its output. The retired `scripts/beads_init.py` is now a thin
+shim that points stale callers at these `yf` commands.
 
 ## The one correction that matters most
 
@@ -68,13 +71,13 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
 
 ## Procedure
 
-1. **Verify.** Run `verify --json-output`. Branch on `status`:
+1. **Verify.** Run `yf preflight yf-beads-init --json`. Branch on the beads `status`:
    - `ok` — nothing to do.
    - `deps_missing` — install the listed tools (`bd` ≥ 1.0.5, `uv`, `git`); stop.
    - `not_initialized` — no usable `.beads/`. Confirm intent, then `bd init`, then go to step 3.
    - `corrupted` — initialized but wedged/broken; go to step 2.
-2. **Diagnose & repair.** Run `repair` (dry-run) to see the plan, then `repair --apply`. The
-   standard repairs, in order:
+2. **Diagnose & repair.** Run `yf doctor --repair` (add `--local-only` to also assert no Dolt
+   remote). The standard repairs, in order:
    - **Wedged schema migration** (the common case): `bd dolt stop` flushes and clears the
      in-memory Dolt working set; then `bd migrate schema` applies pending migrations; then
      bare `bd migrate` updates the DB metadata version. *Do not* try `bd vc commit` first —
@@ -87,7 +90,7 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
      proxied_server_client_info.json`; project `.gitignore` ← `.beads-credential-key,
      .beads/proxieddb/`.
    - **Portable record:** `bd export -o .beads/issues.jsonl` (ensure it is **not** gitignored).
-3. **Re-verify.** Run `verify` again; expect `ok`. Then `bd doctor` — 0 errors. Classify
+3. **Re-verify.** Run `yf preflight yf-beads-init --json` again; expect `ok`. Then `bd doctor` — 0 errors. Classify
    remaining warnings: *accepted by design* vs *actionable*. `Remote Consistency: No remotes
    configured` is **accepted** when the repo is intentionally local-only (resolving it would
    add a Dolt remote); `Dolt Status` / `Git Working Tree` warnings are transient (clear on
@@ -97,7 +100,7 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
 
 When beads is intentionally local-only (issues live upstream, e.g. GitHub, not in a Dolt
 remote): `bd config set dolt.local-only true`, keep `bd dolt remote list` empty, and never
-`bd dolt push`. `repair --apply --local-only` sets the flag. Upstream issue tracking is the
+`bd dolt push`. `yf doctor --repair --local-only` sets the flag. Upstream issue tracking is the
 `yf-beads-upstream` skill's job.
 
 ## As a preflight dependency for other beads skills
@@ -106,8 +109,8 @@ This skill is the home for "is bd usable here?". A beads skill's preflight shoul
 
 1. Run its own system-deps + rule checks.
 2. On a beads-config failure (`bd_not_initialized`, a corrupted DB, or a `bd status` error
-   JSON), route the operator to `/yf-beads-init` (or run `beads_init.py verify` / `repair`)
-   rather than re-deriving the repair steps. The always-loaded companion rule
+   JSON), route the operator to `/yf-beads-init` (or run `yf preflight yf-beads-init --json`
+   / `yf doctor --repair`) rather than re-deriving the repair steps. The always-loaded companion rule
    `protocols/BEADS_INIT.md` carries this trigger so it fires regardless of which skill is
    active.
 

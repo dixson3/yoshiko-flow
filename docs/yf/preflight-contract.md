@@ -183,7 +183,7 @@ Outcome semantics (from `_check_rule()` / `outcome_for()`):
   "status": "rule_drift",
   "missing": [],
   "instructions": [
-    "Installed PLANS.md diverges from the manifest — re-run the repo installer with --force (install.sh --force) to restore the shipped version, or resolve manually"
+    "Installed PLANS.md diverges from the manifest — re-run the repo installer with --force (yf skills install --force) to restore the shipped version, or resolve manually"
   ],
   "rule": {
     "outcome": "drift",

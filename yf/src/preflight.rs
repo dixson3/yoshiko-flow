@@ -301,8 +301,8 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
                 vec![]
             } else {
                 vec![format!(
-                    "A newer {rule_name} is available — re-run the repo installer \
-                     (install.sh --force) to update"
+                    "A newer {rule_name} is available — run `yf skills upgrade` \
+                     (or `yf skills install --force`) to update"
                 )]
             };
             Outcome {
@@ -790,14 +790,14 @@ fn rule_instruction(outcome: &str, rule_name: &str, short: &str) -> String {
     let skill_label = format!("yf-{short}");
     match outcome {
         "missing" => format!(
-            "{rule_name} is not installed — run the repo installer (install.sh) to install \
+            "{rule_name} is not installed — run `yf skills install` to install \
              it to the scope+surface rules dir (user-scope ~/.<surface>/rules, project-scope \
              <git-root>/.<surface>/rules); add --force to overwrite an existing copy"
         ),
         "drift" => format!(
-            "Installed {rule_name} diverges from the manifest — re-run the repo installer \
-             with --force (install.sh --force) to restore the shipped version, or resolve \
-             manually"
+            "Installed {rule_name} diverges from the manifest — run \
+             `yf skills install --force` (or `yf skills upgrade`) to restore the shipped \
+             version, or resolve manually"
         ),
         "deprecated" => format!(
             "{rule_name} is deprecated — remove it from the rules dir (the skill no longer \

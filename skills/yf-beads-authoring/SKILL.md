@@ -384,8 +384,8 @@ Convention** — preflight, config/state, manifest-hashed companion rules), then
    metadata → inject dynamic beads (if needed).
 3. Author `agents/coordinator.md` (or extend an existing one) for dispatch.
 4. Implement the `coordinate` subcommand with gate auto-detection.
-5. Add a preflight (`<skill>_manager.py check`) + `protocols/<NAME>.md` + `manifest.json`
-   per the Surface Convention; vendor `manifest_update.py`.
+5. Wire the preflight (`yf preflight <skill> --json`, the shared kernel) + `protocols/<NAME>.md`
+   + `manifest.json` per the Surface Convention; vendor `manifest_update.py`.
 6. Test with `bd mol pour <name> --dry-run` before wiring the full pipeline, then run
    `agents/reviewer.md`.
 
