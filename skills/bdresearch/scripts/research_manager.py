@@ -4,7 +4,7 @@
 #     "click>=8.1",
 # ]
 # ///
-"""Manager utility for the /bdresearch skill.
+"""Manager utility for the /yf-research skill.
 
 Scope is deliberately narrow — preflight (prerequisite check + config gating) and
 defensive JSON extraction. Research-directory and index state is managed by
@@ -24,10 +24,10 @@ import click
 
 # Skill Surface Convention (see skill-authoring/reference/SURFACE_CONVENTION.md):
 # operator config vs runtime state vs the hash-checked installed rule.
-SKILL_NAME = "bdresearch"
+SKILL_NAME = "yf-research"
 RULE_NAME = "RESEARCH.md"
 CONFIG_FILE = Path(f".{SKILL_NAME}.local.json")          # operator decisions (gitignored)
-STATE_DIR = Path(".state") / SKILL_NAME                  # runtime cache (gitignored)
+STATE_DIR = Path(".yf") / SKILL_NAME                      # runtime cache (gitignored)
 STATE_FILE = STATE_DIR / "preflight.json"
 
 # Idempotent project scaffold (Surface Convention §6/§7). Bump SCAFFOLD_VERSION
@@ -35,7 +35,7 @@ STATE_FILE = STATE_DIR / "preflight.json"
 SCAFFOLD_VERSION = 1
 RESEARCH_DIR = Path("docs/research")
 GITIGNORE_FILE = Path(".gitignore")
-GITIGNORE_ANCHORS = (f"/{CONFIG_FILE}", "/.state/")      # enumerated, anchored, no globs
+GITIGNORE_ANCHORS = (f"/{CONFIG_FILE}", "/.yf/")          # enumerated, anchored, no globs
 def _skill_surface() -> str | None:
     # Which surface this skill is installed under, from the script's own path.
     # Honor the invocation path first (a .claude/skills symlink keeps .claude),
@@ -130,12 +130,12 @@ def _read_json(path: Path) -> dict:
 
 
 def _read_config() -> dict:
-    """Operator config (.bdresearch.local.json) — operator decisions only (e.g. ignore-skill)."""
+    """Operator config (.yf-research.local.json) — operator decisions only (e.g. ignore-skill)."""
     return _read_json(CONFIG_FILE) if CONFIG_FILE.exists() else {}
 
 
 def _read_state() -> dict:
-    """Runtime state (.state/bdresearch/preflight.json) — cache, never operator config."""
+    """Runtime state (.yf/yf-research/preflight.json) — cache, never operator config."""
     return _read_json(STATE_FILE) if STATE_FILE.exists() else {}
 
 
@@ -378,7 +378,7 @@ def _extract_first_json(text: str):
 
 @click.group()
 def cli():
-    """Manager for the /bdresearch skill (preflight + defensive JSON)."""
+    """Manager for the /yf-research skill (preflight + defensive JSON)."""
     pass
 
 
@@ -386,7 +386,7 @@ def cli():
 @click.option("--json-output", "as_json", is_flag=True,
               help="Emit JSON (for skill bootstrap). Default is human-readable.")
 def check(as_json: bool):
-    """Check system prerequisites for bdresearch."""
+    """Check system prerequisites for yf-research."""
     result = _check_prerequisites()
 
     if as_json:
@@ -394,7 +394,7 @@ def check(as_json: bool):
         sys.exit(0)
 
     if result["status"] == "ignored":
-        click.echo("bdresearch is ignored in this project.")
+        click.echo("yf-research is ignored in this project.")
         sys.exit(0)
 
     if result["status"] != "ok":

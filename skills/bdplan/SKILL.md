@@ -8,7 +8,7 @@ description: >
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, git]
-depends-on-skill: [beads-extra, beads-authoring]
+depends-on-skill: [yf-beads-extra, yf-beads-authoring]
 allowed-tools:
   - Read
   - Write
@@ -43,14 +43,14 @@ companion skills and points at them where a `bd` pattern needs explanation:
 
 - **`beads`** — the canonical routine loop (`bd prime`, `ready`, `show`, `claim`, `create`,
   `close`). Baseline, installed by `bd init`.
-- **`beads-extra`** — direct-CLI gotchas this skill's commands depend on: issue-type and
+- **`yf-beads-extra`** — direct-CLI gotchas this skill's commands depend on: issue-type and
   gate semantics, dependency-edge mutation (`bd dep add` is additive; there is no
   `bd update --deps`), defensive `--json` parsing, transactional `bd batch`, and the
   `bd mol pour` output shape (`new_epic_id`, `id_mapping`).
-- **`beads-authoring`** — the formula / `mol pour` / coordinator / `coordinate`
+- **`yf-beads-authoring`** — the formula / `mol pour` / coordinator / `coordinate`
   conventions this skill is built on.
 
-When in doubt about a `bd` behavior, consult `beads-extra` rather than inferring from
+When in doubt about a `bd` behavior, consult `yf-beads-extra` rather than inferring from
 the snippets below.
 
 ## Invocation
@@ -66,7 +66,7 @@ the snippets below.
 ## Pre-flight
 
 **Run on every invocation except `/bdplan init`.** Run the preflight and branch on its
-status (it follows the Skill Surface Convention — see the `skill-authoring` skill):
+status (it follows the Skill Surface Convention — see the `yf-skill-authoring` skill):
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py check --json-output
@@ -212,7 +212,7 @@ plan_dir=$(echo "$PLAN_JSON" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-
 
 Plan dirs land under `Incubator/<slug>/plans/<plan-id>/` when an incubator was named, otherwise under `docs/plans/<plan-id>/`. Numbering is global across all roots.
 
-Creates `${plan_dir}/`, `findings/`, `diagrams/` (d2 diagrams per the `diagram-authoring` skill), `assets/` (attachments, not diagrams), `references/`, `reviews/`, initial `plan.md` with `status: scoping`, `README.md` (orientation), and `context.md` (tool-inventory snapshot with hostname+date header). Tool detection is best-effort — missing tools are recorded as `not present` and never block init.
+Creates `${plan_dir}/`, `findings/`, `diagrams/` (d2 diagrams per the `yf-diagram-authoring` skill), `assets/` (attachments, not diagrams), `references/`, `reviews/`, initial `plan.md` with `status: scoping`, `README.md` (orientation), and `context.md` (tool-inventory snapshot with hostname+date header). Tool detection is best-effort — missing tools are recorded as `not present` and never block init.
 
 ### 1.4 — Upstream issue scan
 
@@ -473,14 +473,14 @@ EPIC=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new
 # A gate-type formula step yields TWO beads: a task wrapper (key "plan-execute.start-gate",
 # what downstream TASK --deps reference — never an epic, §4.3) and the real gate
 # (key "plan-execute.gate-start-gate", what `bd gate resolve` must target).
-# See beads-authoring → Formula gate steps.
+# See yf-beads-authoring → Formula gate steps.
 START_GATE=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.start-gate")
 START_GATE_BEAD=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.gate-start-gate")
 ```
 
-`new_epic_id` and `id_mapping` are the pour result keys — see `beads-extra` →
+`new_epic_id` and `id_mapping` are the pour result keys — see `yf-beads-extra` →
 *`bd mol pour` output shape*. `json-get` is bdplan's hardened defensive JSON parser
-(`bd` output may be a multi-document array; see `beads-extra` → *`--json` is not always a
+(`bd` output may be a multi-document array; see `yf-beads-extra` → *`--json` is not always a
 single JSON document*). Use `${START_GATE}` for entry-issue `--deps` wiring (§4.3 — tasks
 only, never epics) and `${START_GATE_BEAD}` for `bd gate resolve` (§5.3).
 
@@ -501,7 +501,7 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py record-epic "${plan_dir}" "${EPIC}"
 ### 4.3 — Create beads from plan.md
 
 **Never block a child epic on the start gate.** `${START_GATE}` is a task, and bd rejects a
-task blocking an epic (`epics can only block other epics, not tasks` — see `beads-extra` →
+task blocking an epic (`epics can only block other epics, not tasks` — see `yf-beads-extra` →
 *Epic blocking rule*). Child epics are containers: create them with `--parent` only. Gate the
 epic's **entry leaf issues** (those with no intra-plan predecessor) on `${START_GATE}`;
 downstream issues depend on their predecessors and inherit the gate transitively.
@@ -535,7 +535,7 @@ bd update ${ISSUE_BEAD} --metadata '{"upstream":"#142","disposition":"include"}'
 ### 4.5 — Create capability gates (if any)
 
 Gates are first-class beads (`-t gate`); resolve with `bd gate resolve`. See
-`beads-extra` → *Gates*. Create each gate individually (creates need IDs, cannot be
+`yf-beads-extra` → *Gates*. Create each gate individually (creates need IDs, cannot be
 batched):
 
 ```bash
@@ -556,7 +556,7 @@ DEP_OPS+="dep add ${ISSUE_BEAD_2} ${CAP_GATE}\n"
 printf '%b' "${DEP_OPS}" | bd batch -m "plan-${plan_id} dep wiring"
 ```
 
-**Rule:** Never call `bd dep add A B` as individual shell commands — always accumulate into `DEP_OPS` and pipe once through `bd batch`. An empty `DEP_OPS` is a no-op (skip the printf). For why (single dolt transaction, atomic rollback) see `beads-extra` → *Bulk intake*.
+**Rule:** Never call `bd dep add A B` as individual shell commands — always accumulate into `DEP_OPS` and pipe once through `bd batch`. An empty `DEP_OPS` is a no-op (skip the printf). For why (single dolt transaction, atomic rollback) see `yf-beads-extra` → *Bulk intake*.
 
 ### 4.6 — Create reconcile gate and step
 
@@ -611,7 +611,7 @@ a valid `/bdplan execute` target — it routes through the resume guard below.
 
 ### 5.2 — Resume guard
 
-This section is bdplan's implementation of the beads-authoring resilience contract
+This section is bdplan's implementation of the yf-beads-authoring resilience contract
 (REQ-ORCH-008 resume detection, REQ-ORCH-009 stuck-bead sweep). A prior `bdplan execute`
 session can die mid-run (OOM, timeout, abort). Before resolving the start gate or entering
 the coordinator loop, detect whether this plan's epic already exists and carries prior
@@ -787,7 +787,7 @@ is the real cross-plan safety net; layer (a) alone cannot catch class-(b) regres
 
 Push authority stays **conservative** (D4, ratified): everything through merge-back +
 local re-validation is automated; the upstream push is **reported and run only on explicit
-operator/team-maintainer authorization** (beads-authoring REQ-ORCH-014). This is a
+operator/team-maintainer authorization** (yf-beads-authoring REQ-ORCH-014). This is a
 **separate primary-side step that does NOT hold the landing lock** (released at §6.1.5).
 
 ```bash

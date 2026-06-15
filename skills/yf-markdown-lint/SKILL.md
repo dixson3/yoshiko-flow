@@ -7,13 +7,13 @@ description: >
   Conventional GitHub-Flavored-Markdown linter. Checks that documents are valid
   GFM with well-formed, resolvable links — no Obsidian wiki-links (`[[...]]`) or
   embeds (`![[...]]`), valid relative links/anchors, and consistent tables.
-  TRIGGER when: /markdown-lint invoked; checking markdown validity; verifying a
+  TRIGGER when: /yf-markdown-lint invoked; checking markdown validity; verifying a
   generated/edited `.md` file is clean GFM; after a generator skill writes
   markdown. SKIP for: non-markdown files; Obsidian-specific wiki-link tooling
   (plain GFM is the convention this linter enforces).
 ---
 
-# markdown-lint
+# yf-markdown-lint
 
 Lint markdown against conventional GFM rules encoded in
 `scripts/markdown_lint.py`. The target dialect is **plain GFM** — Obsidian
@@ -22,7 +22,7 @@ wiki-links and embeds are not used.
 ## Invocation
 
 ```
-/markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]
+/yf-markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]
 ```
 
 - No args: lint the current directory tree
@@ -31,7 +31,7 @@ wiki-links and embeds are not used.
 - `--format json`: machine-readable output
 
 ```bash
-uv run .claude/skills/markdown-lint/scripts/markdown_lint.py ${ARGS:-.}
+uv run .claude/skills/yf-markdown-lint/scripts/markdown_lint.py ${ARGS:-.}
 ```
 
 Exit 1 if any violation is found; report each and explain the rule.
@@ -66,7 +66,7 @@ switching format.
   (renders in GFM, Obsidian, and pandoc). A literal newline can't occur inside a
   pipe-table row, so `<br>` is the only portable break.
 - **PDF column width** is tuned by the separator's dash counts when rendering
-  via the [`markdown-pdf`](../markdown-pdf/SKILL.md) skill (invisible to Obsidian
+  via the [`yf-markdown-pdf`](../yf-markdown-pdf/SKILL.md) skill (invisible to Obsidian
   and GitHub). When adding `:` markers, keep each segment's length fixed so those
   tuned widths survive.
 
@@ -81,7 +81,7 @@ wiki-links into GFM links (resolving relative paths and heading anchors). Run it
 on any directory that still contains `[[...]]`:
 
 ```bash
-uv run .claude/skills/markdown-lint/scripts/convert_wikilinks.py <dir> --vault-root . --report <out.md>
+uv run .claude/skills/yf-markdown-lint/scripts/convert_wikilinks.py <dir> --vault-root . --report <out.md>
 ```
 
 It is code-aware and idempotent; unresolved/ambiguous links are best-effort
@@ -104,7 +104,7 @@ marker file at its root; with the marker present, the agent lints each changed
 `.claude/settings.json`:
 
 ```bash
-uv run .claude/skills/markdown-lint/scripts/markdown_lint.py "$CLAUDE_FILE_PATHS" --rules ML001,ML002,ML005,ML006,ML007
+uv run .claude/skills/yf-markdown-lint/scripts/markdown_lint.py "$CLAUDE_FILE_PATHS" --rules ML001,ML002,ML005,ML006,ML007
 ```
 
 This hook is not managed by the installer — edit `settings.json` to add, change,

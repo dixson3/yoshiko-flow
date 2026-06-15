@@ -4,17 +4,17 @@ description: >
   Configurable, GitHub-first upstream-tracking skill for beads. Pushes open/deferred
   beads to an issue tracker (GitHub/GitLab/Jira) as a land-the-plane step, and enumerates
   upstream issues as the authoritative worklist on status/pull.
-  TRIGGER when: /beads-upstream invoked; "set up upstream tracking" / "configure upstream"
+  TRIGGER when: /yf-beads-upstream invoked; "set up upstream tracking" / "configure upstream"
   (init); "push beads upstream" / "push open work to GitHub"; asking for project status,
   available work, or the worklist when upstream tracking is configured (status/pull).
   SKIP for: routine local `bd ready` / `bd show` / `bd close` (use `beads`); direct-CLI
-  `bd` scripting gotchas (use `beads-extra`); authoring beads-backed skills
-  (use `beads-authoring`). The close-time / land-the-plane push trigger is NOT carried in
+  `bd` scripting gotchas (use `yf-beads-extra`); authoring beads-backed skills
+  (use `yf-beads-authoring`). The close-time / land-the-plane push trigger is NOT carried in
   this description — it lives in the always-loaded companion rule (protocols/UPSTREAM_TRACKING.md).
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, gh]
-depends-on-skill: [beads-extra]
+depends-on-skill: [yf-beads-extra]
 allowed-tools:
   - Read
   - Bash
@@ -23,7 +23,7 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# beads-upstream
+# yf-beads-upstream
 
 A **utility skill** (no formula / `bd mol pour` / coordinator) that binds a beads workspace
 to an upstream issue tracker. It owns three operations: `init` (configure a backend), the
@@ -33,14 +33,14 @@ config-only stubs sharing the same verb shape.
 
 Built on bd 1.0.5's first-class `bd github` / `bd gitlab` / `bd jira` upstream sync. For the
 `bd` CLI gotchas these steps rely on (defensive `--json` parsing, issue-type semantics) see
-`beads-extra`.
+`yf-beads-extra`.
 
 ## SKILL_DIR
 
 ```bash
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
-SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills -maxdepth 1 -name beads-upstream -type d 2>/dev/null | head -1)
-[ -z "$SKILL_DIR" ] && { echo "ERROR: beads-upstream skill directory not found"; exit 1; }
+SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills -maxdepth 1 -name yf-beads-upstream -type d 2>/dev/null | head -1)
+[ -z "$SKILL_DIR" ] && { echo "ERROR: yf-beads-upstream skill directory not found"; exit 1; }
 ```
 
 All skill-internal paths use `${SKILL_DIR}/` prefix.
@@ -69,7 +69,7 @@ Two distinct trigger classes, deliberately routed to two different surfaces:
 
 Auth is always passed **inline, never persisted**: `TOKEN=$(...) bd <backend> sync …`.
 
-## `/beads-upstream init`
+## `/yf-beads-upstream init`
 
 Configure the backend only. `init` does **not** write any rule file into the project — the
 trigger contract ships as this skill's companion rule (installed by `install.sh`).
@@ -152,7 +152,7 @@ uv run ${SKILL_DIR}/scripts/upstream.py enumerate --json   # open+blocked+deferr
 ```
 
 The helper (see `scripts/upstream.py`) lists candidate bead IDs and flags those already carrying
-an `External:` mapping (parsed defensively per `beads-extra`). Present the set; the operator
+an `External:` mapping (parsed defensively per `yf-beads-extra`). Present the set; the operator
 confirms the scoped IDs.
 
 ### 3 — Dry-run, then scoped push
@@ -221,7 +221,7 @@ bumps the issue's `updatedAt` on the next push but the text never reaches the bo
 > unchanged (timestamp bumped, no content); folding the same text into `--description` and
 > re-pushing carried it into the body, still a single issue (in-place update).
 
-**`bd show <id> --json` returns a JSON *list*, not an object** (per `beads-extra` defensive parsing).
+**`bd show <id> --json` returns a JSON *list*, not an object** (per `yf-beads-extra` defensive parsing).
 When reconstructing a `description` to append to, index `[0]` — a parse that assumes a dict yields an
 empty string, and `bd update --description "$empty"` **silently clobbers the existing description**
 (`bd update` replaces, never appends). Read → verify non-empty → append → write; if you do clobber,
@@ -291,6 +291,6 @@ The `--issues` / `--parent` / `--dry-run` flags are confirmed present on backend
 ## See also
 
 - **`beads`** — the canonical routine `bd` loop.
-- **`beads-extra`** — defensive `--json` parsing, issue-type/gate semantics this skill relies on.
+- **`yf-beads-extra`** — defensive `--json` parsing, issue-type/gate semantics this skill relies on.
 - **companion rule** `protocols/UPSTREAM_TRACKING.md` — the always-loaded close-time trigger.
   After editing it, restamp the hash: `uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols`.

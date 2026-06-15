@@ -8,13 +8,13 @@ description: >
   engine, a broad-coverage Unicode font (so →, ≤, ≈ and similar glyphs render),
   1in margins, blue links, and relative image paths (`![](diagrams/x.png)`)
   resolved against the source file's directory.
-  TRIGGER when: /markdown-pdf invoked; the user wants a PDF created/generated
+  TRIGGER when: /yf-markdown-pdf invoked; the user wants a PDF created/generated
   from a `.md` file; "export this report to PDF", "make a PDF of this note".
   SKIP for: slide decks; HTML or non-PDF output; linting markdown
-  (use `markdown-lint`).
+  (use `yf-markdown-lint`).
 ---
 
-# markdown-pdf
+# yf-markdown-pdf
 
 Convert Markdown to PDF with pandoc + xelatex. A pandoc + xelatex pipeline tuned
 for Unicode-glyph coverage and relative image paths.
@@ -22,7 +22,7 @@ for Unicode-glyph coverage and relative image paths.
 ## Invocation
 
 ```bash
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py <input.md>
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py <input.md>
 ```
 
 Output defaults to `<input>.pdf` beside the source. Multiple inputs each render
@@ -30,13 +30,13 @@ to `<name>.pdf`. `-o OUT.pdf` overrides the path (single input only).
 
 ```bash
 # explicit output
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py report.md -o /tmp/report.pdf
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py report.md -o /tmp/report.pdf
 # batch
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py a.md b.md
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py a.md b.md
 # override the main font / margin; pass extra pandoc flags after `--`
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --mainfont "STIX Two Text" -- --toc
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --mainfont "STIX Two Text" -- --toc
 # no table shrink; rotate any table with >8 columns to landscape
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --table-font normalsize --landscape-cols 8
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --table-font normalsize --landscape-cols 8
 ```
 
 ## Pipeline defaults
@@ -76,7 +76,7 @@ levers:
 
 Portable pipe-table authoring — `:` alignment, `<br>` in-cell breaks, pipe-only
 (don't switch to grid/multiline), split wide tables — lives in the
-[`markdown-lint`](../markdown-lint/SKILL.md) skill; those render identically in
+[`yf-markdown-lint`](../yf-markdown-lint/SKILL.md) skill; those render identically in
 pandoc, Obsidian, and GitHub.
 
 ## Requirements

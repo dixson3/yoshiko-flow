@@ -7,25 +7,25 @@ description: 'Auto-fix skill for project instruction files. On create/modify of 
   reports what changed. TRIGGER when: a project-root instruction file (CLAUDE.md, AGENTS.md,
   AGENTS/*, or repo-root .{claude,agents}/rules/*) is created or modified. SKIP for: instruction
   files INSIDE a skill directory under .{claude,agents}/skills/<skill>/ (a skill''s SKILL.md,
-  agents/*.md, its own rules) — those route to skill-authoring; also application code, end-user
+  agents/*.md, its own rules) — those route to yf-skill-authoring; also application code, end-user
   docs, notes. Distinguishing axis: this skill owns project-root instruction files (in both the
-  .claude and .agents surfaces); skill-authoring owns skill-dir instruction files.'
+  .claude and .agents surfaces); yf-skill-authoring owns skill-dir instruction files.'
 user-invocable: false
 skill-group: utility
 depends-on-tool: [uv]
-depends-on-skill: [skill-authoring]
+depends-on-skill: [yf-skill-authoring]
 allowed-tools:
   - Read
   - Edit
   - Write
   - Bash
   - Agent
-title: optimal-instructions
+title: yf-optimal-instructions
 created: '2026-05-31'
 tags: []
 ---
 
-# optimal-instructions
+# yf-optimal-instructions
 
 Active, on-write optimizer for project instruction files (`CLAUDE.md`, `AGENTS.md`,
 `AGENTS/*`, repo-root `.{claude,agents}/rules/*`). Reads the changed file, auto-applies
@@ -36,23 +36,23 @@ Background: see [[README]].
 
 ```bash
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
-SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills -maxdepth 1 -name optimal-instructions -type d 2>/dev/null | head -1)
-[ -z "$SKILL_DIR" ] && { echo "ERROR: optimal-instructions skill directory not found"; exit 1; }
+SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills -maxdepth 1 -name yf-optimal-instructions -type d 2>/dev/null | head -1)
+[ -z "$SKILL_DIR" ] && { echo "ERROR: yf-optimal-instructions skill directory not found"; exit 1; }
 ```
 
 ## Two bodies of knowledge
 
 - **K1 — token efficiency** (cut narrative, keep templates/constraints/command blocks,
-  extract scripts). Single source of truth: **skill-authoring `SKILL.md` "Token efficiency"
+  extract scripts). Single source of truth: **yf-skill-authoring `SKILL.md` "Token efficiency"
   §**. This skill cites that anchor and never restates the ruleset.
 - **K2 — instruction-file structure** (AGENTS.md primary; CLAUDE.md a thin `@-include`
   index; behavioral rules in the project's rules surface). Owned here, in [[spec|spec/]].
 
-## Scope vs skill-authoring
+## Scope vs yf-skill-authoring
 
 This skill handles **project-root** instruction files. Instruction files **inside a skill
 directory** under `.{claude,agents}/skills/<skill>/` (`SKILL.md`, `agents/*.md`, a skill's own
-rules) are skill-authoring's domain — route them there. The two skills' `description` fields are
+rules) are yf-skill-authoring's domain — route them there. The two skills' `description` fields are
 mutually exclusive on this skill-dir vs project-root axis.
 
 ## Surface detection
@@ -83,7 +83,7 @@ is editing.
 ## Workflow
 
 1. Identify the changed instruction file and its kind: `CLAUDE.md` | `AGENTS.md` | `AGENTS/*`
-   | `.{claude,agents}/rules/*`. If the path is inside a skill dir, stop — defer to skill-authoring.
+   | `.{claude,agents}/rules/*`. If the path is inside a skill dir, stop — defer to yf-skill-authoring.
 2. Detect `RULES_SURFACE` (above).
 3. Dispatch the apply agent. Read `${SKILL_DIR}/agents/instruction-optimizer.md` and follow
    it. Prompt:
@@ -113,7 +113,7 @@ its own output on the next write.
 
 - K1 auto-applies; K2 never writes without operator confirmation.
 - Relocate, never delete (K2).
-- K1 criteria are cited from skill-authoring `SKILL.md` "Token efficiency" §, never restated
+- K1 criteria are cited from yf-skill-authoring `SKILL.md` "Token efficiency" §, never restated
   here or in the agent.
 - Detect and normalize to the project's existing rules surface; do not impose one.
 - This skill edits `CLAUDE.md` / `AGENTS/*` at **runtime via its apply agent** — distinct
@@ -124,7 +124,7 @@ its own output on the next write.
 
 This skill ships `protocols/INSTRUCTIONS.md` — an always-loaded rule that `install.sh` surfaces
 to the rules dir. It states the on-write token-efficiency obligation for all instruction
-surfaces (project-root and skill-dir) and points to skill-authoring `SKILL.md` "Token
+surfaces (project-root and skill-dir) and points to yf-skill-authoring `SKILL.md` "Token
 efficiency" § as the single source of truth. It is the always-loaded backstop for this skill's
 best-effort `description` trigger. `scripts/manifest_update.py` maintains `protocols/manifest.json`.
 
@@ -132,4 +132,4 @@ best-effort `description` trigger. `scripts/manifest_update.py` maintains `proto
 
 - [[README]] — what this skill is, when it fires, accepted limitations.
 - [[spec|spec/]] — K2 structure, split-apply contract, idempotency, surface detection, the
-  runtime carve-out, and the no-duplication boundary with skill-authoring.
+  runtime carve-out, and the no-duplication boundary with yf-skill-authoring.

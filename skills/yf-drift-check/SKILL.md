@@ -9,11 +9,11 @@ description: "Verifies CONTENT AGREEMENT across a repository's declared source-o
   the manifest is in sync; or a manifest is being bootstrapped on first install. SKIP for:
   repos with no approved DRIFT-CHECK.md (silent no-op — no nag, no bootstrap on every edit);
   authoring or optimizing instruction files — skill-dir instruction files route to
-  skill-authoring (authoring conventions, a different axis from cross-edge agreement) and
-  project-root CLAUDE.md / AGENTS.md route to optimal-instructions (the project-root axis); any
-  request to FIX rather than report drift. Distinguishing axis: drift-check verifies that
-  already-written artifacts AGREE across declared edges; skill-authoring and optimal-instructions
-  WRITE and optimize instruction files. drift-check never lists CLAUDE.md / AGENTS.md as nodes,
+  yf-skill-authoring (authoring conventions, a different axis from cross-edge agreement) and
+  project-root CLAUDE.md / AGENTS.md route to yf-optimal-instructions (the project-root axis); any
+  request to FIX rather than report drift. Distinguishing axis: yf-drift-check verifies that
+  already-written artifacts AGREE across declared edges; yf-skill-authoring and yf-optimal-instructions
+  WRITE and optimize instruction files. yf-drift-check never lists CLAUDE.md / AGENTS.md as nodes,
   so it is structurally silent on the project-root axis."
 user-invocable: false
 skill-group: utility
@@ -24,12 +24,12 @@ allowed-tools:
   - Grep
   - Bash
   - Agent
-title: drift-check
+title: yf-drift-check
 created: '2026-06-04'
 tags: []
 ---
 
-# drift-check
+# yf-drift-check
 
 Repo-agnostic engine that detects **drift between a source of truth and its derivatives**
 (implementation ↔ docs ↔ spec) on edit, via an isolated, evidence-based verification pass.
@@ -56,8 +56,8 @@ operational summary; on any discrepancy, `spec/` wins.
 
 ```bash
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
-SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills -maxdepth 1 -name drift-check -type d 2>/dev/null | head -1)
-[ -z "$SKILL_DIR" ] && { echo "ERROR: drift-check skill directory not found"; exit 1; }
+SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills -maxdepth 1 -name yf-drift-check -type d 2>/dev/null | head -1)
+[ -z "$SKILL_DIR" ] && { echo "ERROR: yf-drift-check skill directory not found"; exit 1; }
 ```
 
 ## Manifest detection
@@ -156,17 +156,17 @@ applies the correction.
 
 ## Scope vs. neighbors
 
-drift-check shares the skill-dir file surface with `skill-authoring` and is adjacent to
-`optimal-instructions`, but on orthogonal axes:
+yf-drift-check shares the skill-dir file surface with `yf-skill-authoring` and is adjacent to
+`yf-optimal-instructions`, but on orthogonal axes:
 
 | Concern | Owner |
 |---------|-------|
-| Does an already-written artifact AGREE with its declared source of truth? | **drift-check** |
-| Is a skill-dir instruction file written to authoring conventions / token-efficient? | skill-authoring |
-| Is a project-root CLAUDE.md / AGENTS.md structured and token-efficient? | optimal-instructions |
+| Does an already-written artifact AGREE with its declared source of truth? | **yf-drift-check** |
+| Is a skill-dir instruction file written to authoring conventions / token-efficient? | yf-skill-authoring |
+| Is a project-root CLAUDE.md / AGENTS.md structured and token-efficient? | yf-optimal-instructions |
 
-drift-check **never** lists `CLAUDE.md` / `AGENTS.md` as nodes, so it is structurally silent
-on the project-root axis. On skill-dir files it may fire alongside `skill-authoring` — that
+yf-drift-check **never** lists `CLAUDE.md` / `AGENTS.md` as nodes, so it is structurally silent
+on the project-root axis. On skill-dir files it may fire alongside `yf-skill-authoring` — that
 overlap is orthogonal by design (content agreement vs. authoring conventions); the per-repo
 suppression lever is to omit the glob from the manifest's Trigger Scope section.
 

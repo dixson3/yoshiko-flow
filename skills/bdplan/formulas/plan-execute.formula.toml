@@ -16,7 +16,7 @@ required = true
 id = "start-gate"
 title = "Begin: {{objective}}"
 type = "gate"
-description = "Start gate. Resolve in a new session via /bdplan execute."
+description = "Start gate. Resolve in a new session via /yf-plan execute."
 [steps.gate]
 type = "human"
 approvers = ["operator"]

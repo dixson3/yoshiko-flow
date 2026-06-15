@@ -4,7 +4,7 @@
 #     "click>=8.1",
 # ]
 # ///
-"""Plan manager utility for the /bdplan skill.
+"""Plan manager utility for the /yf-plan skill.
 
 Handles plan directory creation, index management, status queries,
 and plan.md generation/updates.
@@ -28,17 +28,17 @@ INCUBATOR_PARENT = Path("Incubator")
 
 # Skill Surface Convention (see skill-authoring/reference/SURFACE_CONVENTION.md):
 # operator config vs runtime state vs the hash-checked installed rule.
-SKILL_NAME = "bdplan"
+SKILL_NAME = "yf-plan"
 RULE_NAME = "PLANS.md"
 CONFIG_FILE = Path(f".{SKILL_NAME}.local.json")          # operator decisions (gitignored)
-STATE_DIR = Path(".state") / SKILL_NAME                  # runtime cache (gitignored)
+STATE_DIR = Path(".yf") / SKILL_NAME                      # runtime cache (gitignored)
 STATE_FILE = STATE_DIR / "preflight.json"
 
 # Idempotent project scaffold (Surface Convention §6/§7). Bump SCAFFOLD_VERSION
 # when the anchor set changes — preflight re-ensures once per version.
 SCAFFOLD_VERSION = 1
 GITIGNORE_FILE = Path(".gitignore")
-GITIGNORE_ANCHORS = (f"/{CONFIG_FILE}", "/.state/")      # enumerated, anchored, no globs
+GITIGNORE_ANCHORS = (f"/{CONFIG_FILE}", "/.yf/")          # enumerated, anchored, no globs
 
 
 def _skill_surface() -> str | None:
@@ -170,7 +170,7 @@ def list_research_roots() -> list[Path]:
     Research lives across `docs/research/` (deep-research vault-default) and
     per-incubator `Incubator/<slug>/research/` roots. Items are either
     deep-research topics (`NNN-topic-slug/` with `plan.yaml`) or rehoused
-    bdplan plans (`plan-NNN-…/` with `plan.md`).
+    yf-plan plans (`plan-NNN-…/` with `plan.md`).
     """
     return _list_kind_roots("research", RESEARCH_DIR)
 
@@ -203,7 +203,7 @@ def _research_item_info(d: Path) -> dict | None:
     """Inspect a research-root child and classify it.
 
     Returns a dict for tracked items (deep-research topics or rehoused
-    bdplan plans); returns None for flat `.md` notes or other unstructured
+    yf-plan plans); returns None for flat `.md` notes or other unstructured
     siblings that just happen to live alongside research items.
     """
     if not d.is_dir():
@@ -270,7 +270,7 @@ def get_next_index() -> int:
     """Get next plan index by counting every plan-* dir vault-wide.
 
     Counts plan-* directories under both plan roots and research roots so
-    rehoused plans (e.g. an old bdplan moved into `Incubator/<slug>/research/`)
+    rehoused plans (e.g. an old yf-plan moved into `Incubator/<slug>/research/`)
     still consume a number and IDs stay globally unique.
     """
     total = 0
@@ -672,12 +672,12 @@ def _read_json(path: Path) -> dict:
 
 
 def _read_config() -> dict:
-    """Operator config (.bdplan.local.json) — operator decisions only (e.g. ignore-skill)."""
+    """Operator config (.yf-plan.local.json) — operator decisions only (e.g. ignore-skill)."""
     return _read_json(CONFIG_FILE) if CONFIG_FILE.exists() else {}
 
 
 def _read_state() -> dict:
-    """Runtime state (.state/bdplan/preflight.json) — cache, never operator config."""
+    """Runtime state (.yf/yf-plan/preflight.json) — cache, never operator config."""
     return _read_json(STATE_FILE) if STATE_FILE.exists() else {}
 
 
@@ -856,7 +856,7 @@ def _check_prerequisites() -> dict:
 
 @click.group()
 def cli():
-    """Plan manager for the /bdplan skill."""
+    """Plan manager for the /yf-plan skill."""
     pass
 
 
@@ -864,7 +864,7 @@ def cli():
 @click.option("--json-output", "as_json", is_flag=True,
               help="Emit JSON (for skill bootstrap). Default is human-readable.")
 def check(as_json: bool):
-    """Check system prerequisites for bdplan."""
+    """Check system prerequisites for yf-plan."""
     result = _check_prerequisites()
 
     if as_json:
@@ -873,7 +873,7 @@ def check(as_json: bool):
 
     # Human-readable output
     if result["status"] == "ignored":
-        click.echo("bdplan is ignored in this project.")
+        click.echo("yf-plan is ignored in this project.")
         sys.exit(0)
 
     if result["status"] != "ok":
@@ -1155,12 +1155,12 @@ def record_epic(plan_dir: str, epic_id: str):
 #
 # A self-contained `worktree {ensure,path,teardown}` --json verb cluster, modeled
 # on diagram-authoring/scripts/render.py's subcommand surface. Inputs are pure
-# (repo_root, plan_dir) — NO bdplan phase state — so a future standalone `worktree`
+# (repo_root, plan_dir) — NO yf-plan phase state — so a future standalone `worktree`
 # skill is a cheap lift-and-shift (rule-of-three; see SKILL.md / plan-009 INV-5).
 #
 # EXTRACTION TRIGGERS (record, do not act early — plan-009 INV-5):
 #   * `worktree` skill — extract this verb cluster ONLY on a committed SECOND consumer
-#     (bdplan execute is the only one today; one consumer ≈2x's v1 surface for zero reuse).
+#     (yf-plan execute is the only one today; one consumer ≈2x's v1 surface for zero reuse).
 #   * `acceptance` skill — extract the validate-merged / validate-cmd seam (below) ONLY when
 #     a second skill needs merged-state/regression validation.
 #   When extracted, the consumer keeps a PROSE soft-dep (present → worktree flow; absent →
@@ -1178,7 +1178,7 @@ def record_epic(plan_dir: str, epic_id: str):
 WORKTREES_DIR = Path(".worktrees")
 WORKTREES_GITIGNORE_ANCHOR = "/.worktrees/"
 
-# Operator config keys in .bdplan.local.json (Issue 2.4 / Issue 3.3):
+# Operator config keys in .yf-plan.local.json (Issue 2.4 / Issue 3.3):
 #   "execute.worktree": false   → opt out of worktree mode (run in-place)
 #   "validate-cmd": "<shell>"    → project integration suite run against the merged tree
 CONFIG_KEY_WORKTREE = "execute.worktree"
@@ -1186,7 +1186,7 @@ CONFIG_KEY_VALIDATE_CMD = "validate-cmd"
 
 
 def _worktree_opted_out() -> bool:
-    """True iff the operator set `execute.worktree` false in .bdplan.local.json (2.4).
+    """True iff the operator set `execute.worktree` false in .yf-plan.local.json (2.4).
 
     Default is opt-IN (worktree mode on). Tolerates both the flat dotted key and a
     nested {"execute": {"worktree": false}} form.
@@ -1201,7 +1201,7 @@ def _worktree_opted_out() -> bool:
 
 
 def _resolve_validate_cmd() -> str | None:
-    """The project integration suite from .bdplan.local.json `validate-cmd` (3.3).
+    """The project integration suite from .yf-plan.local.json `validate-cmd` (3.3).
 
     Unset → None (§6.1.5 runs plan gates only + emits the cross-plan-not-checked notice).
     """
@@ -1311,7 +1311,7 @@ def _worktree_ensure(plan_dir: Path) -> dict:
     """
     if _worktree_opted_out():
         return {"viable": False, "reason": "opted-out",
-                "detail": f"{CONFIG_KEY_WORKTREE} is false in .bdplan.local.json; "
+                "detail": f"{CONFIG_KEY_WORKTREE} is false in .yf-plan.local.json; "
                           f"running in-place by operator choice."}
     repo_root = _git_root()
     fallback = _worktree_viability(repo_root)
@@ -1436,7 +1436,7 @@ def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
 def worktree():
     """Worktree lifecycle verbs for plan execution (plan-009 Epic 1 seam).
 
-    Pure (repo_root, plan_dir) inputs; no bdplan phase state. All subcommands
+    Pure (repo_root, plan_dir) inputs; no yf-plan phase state. All subcommands
     emit --json for the SKILL.md EXECUTE/RECONCILE wiring.
     """
 
@@ -1619,7 +1619,7 @@ def _validate_merged(plan_dir: Path) -> dict:
         result["status"] = "pass"
         result["notice"] = (
             "MERGED-STATE VALIDATION RAN PLAN GATES ONLY; no project `validate-cmd` "
-            "configured in .bdplan.local.json — CROSS-PLAN REGRESSIONS NOT CHECKED. "
+            "configured in .yf-plan.local.json — CROSS-PLAN REGRESSIONS NOT CHECKED. "
             "This is NOT integration-safe; configure validate-cmd for real safety.")
         return result
     layer_b = _run_shell(validate_cmd)

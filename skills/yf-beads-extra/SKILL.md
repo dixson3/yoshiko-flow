@@ -10,14 +10,14 @@ description: >
   from a malformed dependency graph.
   SKIP for: routine `bd ready` / `bd show` / `bd update --claim` / `bd close` flows —
   those live in the canonical `beads` skill. For authoring beads-backed skills
-  (formulas, coordinator loops), use `beads-authoring`.
+  (formulas, coordinator loops), use `yf-beads-authoring`.
 user-invocable: false
 skill-group: beads
 depends-on-tool: [bd]
 depends-on-skill: []
 ---
 
-# beads-extra
+# yf-beads-extra
 
 The advanced/gotcha layer for driving the `bd` CLI directly. It layers on top of the
 canonical **`beads`** skill (which owns the routine loop); this skill documents only the
@@ -159,9 +159,9 @@ for r in rows:
 ```
 
 `bd show <id> --json` returns a one-element array — unwrap with `data[0]` (or the
-`isinstance` guard above), never `data.get(...)`. The `bdplan` skill ships a hardened
+`isinstance` guard above), never `data.get(...)`. The `yf-plan` skill ships a hardened
 single-value extractor as `plan_manager.py json-get` — prefer that script when you are
-inside bdplan rather than re-implementing the parser.
+inside yf-plan rather than re-implementing the parser.
 
 ### Test-data title warnings
 
@@ -212,7 +212,7 @@ gates without re-discovering them. (`bd mol wisp` is the ephemeral/vapor equival
 ## See also
 
 - **`beads`** — the canonical routine loop. Start there; this skill is the delta.
-- **`beads-authoring`** — conventions for *building* beads-backed skills (formulas,
+- **`yf-beads-authoring`** — conventions for *building* beads-backed skills (formulas,
   coordinator loops, the `coordinate` subcommand). This skill is runtime CLI usage;
   that one is authoring.
 - **Plugin `resources/`** — canonical, stable taxonomy this skill cites rather than

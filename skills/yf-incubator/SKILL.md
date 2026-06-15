@@ -2,27 +2,27 @@
 name: yf-incubator
 description: >
   Create, fork, bookmark, resume, and triage research topics ("incubators") under Incubator/.
-  TRIGGER when: /incubator invoked; starting a new investigation mid-conversation; the
+  TRIGGER when: /yf-incubator invoked; starting a new investigation mid-conversation; the
   conversation is descending into a sidequest off its main topic; user signals walking away
   / pausing / stopping a topic; asking what incubators exist or which to work next; resuming
   a parked topic.
-  SKIP for: beads-tracked multi-step build planning (use bdplan); routine note edits with no
+  SKIP for: beads-tracked multi-step build planning (use yf-plan); routine note edits with no
   park/resume intent.
 user-invocable: true
 skill-group: beads
 depends-on-tool: [uv]
-depends-on-skill: [beads-extra]
+depends-on-skill: [yf-beads-extra]
 ---
 
-# incubator
+# yf-incubator
 
 ## Skill Directory
 
 ```bash
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
 SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" .claude/skills .agents/skills \
-  -maxdepth 1 -name incubator -type d 2>/dev/null | head -1)
-[ -z "$SKILL_DIR" ] && { echo "ERROR: incubator skill directory not found"; exit 1; }
+  -maxdepth 1 -name yf-incubator -type d 2>/dev/null | head -1)
+[ -z "$SKILL_DIR" ] && { echo "ERROR: yf-incubator skill directory not found"; exit 1; }
 ```
 
 Skill-internal paths use the `${SKILL_DIR}/` prefix.
@@ -30,12 +30,12 @@ Skill-internal paths use the `${SKILL_DIR}/` prefix.
 ## Invocation
 
 ```
-/incubator new <name> [seed notes]   create, set active
-/incubator fork <name>               fork current sidequest into a new incubator, set active
-/incubator bookmark [notes]          rewrite active incubator's ## Resume + last_reviewed
-/incubator resume <name>             load bookmark, set active
-/incubator list                      index all incubators by state + staleness
-/incubator touch <name>              bump last_reviewed only
+/yf-incubator new <name> [seed notes]   create, set active
+/yf-incubator fork <name>               fork current sidequest into a new incubator, set active
+/yf-incubator bookmark [notes]          rewrite active incubator's ## Resume + last_reviewed
+/yf-incubator resume <name>             load bookmark, set active
+/yf-incubator list                      index all incubators by state + staleness
+/yf-incubator touch <name>              bump last_reviewed only
 ```
 
 Active incubator = the one worked this conversation (context only; no vault pointer).
@@ -103,8 +103,8 @@ Body, in order, verbatim. Never drop `## Decision log` or `## Beads to file`:
 
 The `## Beads to file` section is the incubation→build hand-off into the project's
 durable task system. When promoting, file these with the `beads` skill (`bd create`,
-dependencies via `bd dep add` — see `beads-extra` for the CLI patterns); for a full
-plan/execute DAG, hand off to `bdplan`. Keep the stubs human-readable until then.
+dependencies via `bd dep add` — see `yf-beads-extra` for the CLI patterns); for a full
+plan/execute DAG, hand off to `yf-plan`. Keep the stubs human-readable until then.
 
 Optional: `## Prior art and inspirations`. `## Layout` may replace `## Files`
 for research-heavy directory incubators.

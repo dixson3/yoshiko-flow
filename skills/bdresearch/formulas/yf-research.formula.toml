@@ -1,4 +1,4 @@
-formula = "bdresearch"
+formula = "yf-research"
 description = "Multi-phase research pipeline with source credibility scoring"
 version = 1
 type = "workflow"

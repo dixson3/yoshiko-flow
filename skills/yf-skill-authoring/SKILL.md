@@ -9,24 +9,24 @@ description: 'Conventions for authoring Claude Code skills, agents, and instruct
   under `.{claude,agents}/skills/*` to
   run via `uv run`, adding PEP 723 inline metadata, or asking how to structure skill
   helpers and instruction files. SKIP for: project-root instruction files (CLAUDE.md,
-  AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to optimal-instructions;
+  AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to yf-optimal-instructions;
   writing application code outside skills, end-user docs, or notes; planning a skill''s
   design beyond conventions (use the project planning skill); backend-specific protocol
   surfaces (verbs, invocation, translation tables — use the relevant protocol skill);
   meta-reviewers that overlay these conventions for a specific protocol (use the
   protocol-specific authoring skill after applying these conventions). Distinguishing
-  axis: skill-authoring owns skill-dir instruction files; optimal-instructions owns
+  axis: yf-skill-authoring owns skill-dir instruction files; yf-optimal-instructions owns
   project-root ones.'
 user-invocable: false
 skill-group: utility
 depends-on-tool: [uv]
 depends-on-skill: []
-title: skill-authoring
+title: yf-skill-authoring
 created: '2026-05-24'
 tags: []
 ---
 
-# skill-authoring
+# yf-skill-authoring
 
 Rules for Claude Code skills and instruction files. Background and worked example: see [[README]] and [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
 
@@ -41,13 +41,13 @@ Rules for Claude Code skills and instruction files. Background and worked exampl
 
 When authoring a skill's `SKILL.md`/spec, **if a diagram aids the description** (a non-trivial
 architecture, pipeline, state machine, or edge graph), author a d2 diagram per the
-`diagram-authoring` skill — co-resident with the spec, `skills/<name>/spec/<slug>.{d2,png}` (no
+`yf-diagram-authoring` skill — co-resident with the spec, `skills/<name>/spec/<slug>.{d2,png}` (no
 subfolder) — and reference the render from the skill `README.md` with a relative path:
 `![<alt>](spec/<slug>.png)`. For the project `README.md` or other top-level user-facing docs,
 write diagrams to `<repo-root>/docs/diagrams/` and reference `![<alt>](docs/diagrams/<slug>.png)`.
 
 This is **conditional** ("if it helps"), not always-attempt. No `depends-on-skill` edge —
-reference `diagram-authoring` by name and degrade to prose if it or `d2` is absent.
+reference `yf-diagram-authoring` by name and degrade to prose if it or `d2` is absent.
 **`e-readme-layout` coupling:** the README file-layout fence is `field-set-equal` to
 `find skills/<name> -type f`, so a new `spec/<slug>.d2`/`.png` must be listed in that skill's
 README layout fence or `e-readme-layout` fails.
@@ -73,7 +73,7 @@ Adopt the whole contract or none of it. Full spec + worked example: [[SURFACE_CO
 
 ### Manifest helper
 
-`scripts/manifest_update.py` (shipped under skill-authoring) recomputes sha256, bumps semver, appends to `previous_versions[]`. Each adopting skill **vendors** a copy into its own `scripts/`. Workflow:
+`scripts/manifest_update.py` (shipped under yf-skill-authoring) recomputes sha256, bumps semver, appends to `previous_versions[]`. Each adopting skill **vendors** a copy into its own `scripts/`. Workflow:
 
 ```bash
 # After editing ${SKILL_DIR}/protocols/<NAME>.md
@@ -85,9 +85,9 @@ uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols
 
 Always-loaded context (SKILL.md, CLAUDE.md, AGENTS.md, `.{claude,agents}/rules/*`) must stay tight.
 This Cut/Keep/Extract ruleset is the single source of truth for token efficiency; the
-`optimal-instructions` skill cites it rather than restating it. The *structural* convention
+`yf-optimal-instructions` skill cites it rather than restating it. The *structural* convention
 for project-root instruction files (AGENTS.md primary, CLAUDE.md a thin `@-include` index,
-behavioral rules in the rules subdir) is owned by `optimal-instructions`, not here.
+behavioral rules in the rules subdir) is owned by `yf-optimal-instructions`, not here.
 
 ### Cut
 
@@ -210,7 +210,7 @@ for every agent: [[AGENT_ROLES|reference/AGENT_ROLES.md]].
 Three read-only agents. All dispatched via the Agent tool. Caller applies fixes.
 
 1. [[reviewer|agents/reviewer.md]] — general skill review (structure, token efficiency, trigger quality, scope, design, portability).
-2. [[reviewer-tokens|agents/reviewer-tokens.md]] — token-efficiency reviewer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `optimal-instructions`' domain.
+2. [[reviewer-tokens|agents/reviewer-tokens.md]] — token-efficiency reviewer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `yf-optimal-instructions`' domain.
 3. [[red-team|agents/red-team.md]] — adversarial check: what does this skill miss, where does it overcommit, what assumptions break.
 
 For Python helpers, also run [[reviewer-python|agents/reviewer-python.md]] (toolchain + design critique).

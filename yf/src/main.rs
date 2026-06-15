@@ -5,6 +5,7 @@
 //! stubs for later beads; the process exits non-zero on any error.
 
 mod cli;
+mod embed;
 
 use anyhow::Result;
 use clap::Parser;
@@ -58,9 +59,33 @@ fn cmd_skills(command: &SkillsCommand) -> Result<()> {
         SkillsCommand::Install(a) => ("skills install", a.json),
         SkillsCommand::Upgrade(a) => ("skills upgrade", a.json),
         SkillsCommand::Remove(a) => ("skills remove", a.json),
-        SkillsCommand::Status(a) => ("skills status", a.json),
+        // Real install/status logic lands in beads 1.5/1.6. For now `status`
+        // exercises the embed enumeration API (REQ-YF-EMBED-002) by reporting
+        // how many skills are compiled into the binary.
+        SkillsCommand::Status(a) => return cmd_skills_status(a.json),
     };
     stub(verb, json)
+}
+
+/// Interim `skills status`: report the embedded skill inventory. Replaced by the
+/// real install/up-to-date/completeness logic in a later bead.
+fn cmd_skills_status(json: bool) -> Result<()> {
+    let names = embed::skill_names();
+    if json {
+        let out = serde_json::json!({
+            "command": "skills status",
+            "status": "not_implemented",
+            "embedded_skill_count": names.len(),
+            "embedded_skills": names,
+        });
+        println!("{}", serde_json::to_string(&out)?);
+    } else {
+        println!("{} skills embedded in this binary:", names.len());
+        for name in &names {
+            println!("  {name}");
+        }
+    }
+    Ok(())
 }
 
 /// Placeholder for subcommands implemented by later beads. Parses correctly and

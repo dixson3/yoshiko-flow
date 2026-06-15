@@ -10,18 +10,18 @@ description: >
   wiring `bd mol pour` into a SKILL.md, implementing a coordinator agent, designing
   crash-recovery/resume for a re-invokable coordinator, or designing gate-resolution flow
   for a multi-session skill.
-  SKIP for: routine `bd` CLI use (use `beads`), direct-CLI gotchas (use `beads-extra`),
+  SKIP for: routine `bd` CLI use (use `beads`), direct-CLI gotchas (use `yf-beads-extra`),
   or non-beads skills.
 user-invocable: false
 skill-group: beads
 depends-on-tool: [bd]
-depends-on-skill: [beads-extra]
+depends-on-skill: [yf-beads-extra]
 ---
 
-# beads-authoring
+# yf-beads-authoring
 
-Design rules for skills that orchestrate work through beads (`bd`). `bdplan` and
-`bdresearch` are worked examples of everything below. (Sibling skills: see *See also*.)
+Design rules for skills that orchestrate work through beads (`bd`). `yf-plan` and
+`yf-research` are worked examples of everything below. (Sibling skills: see *See also*.)
 
 ## Portability: SKILL_DIR resolution
 
@@ -74,7 +74,7 @@ define *how to do the work*.
 **Agent roles and naming.** Name agents by the canonical role vocabulary (GATHER, PRODUCE,
 EVALUATE, REVISE, ORCHESTRATE, CLOSEOUT) and give each the standard YAML front-matter block.
 The bead-DAG driver is always `coordinator` (the term this skill uses throughout). Single
-source of truth — do not restate it here: the `skill-authoring` skill's
+source of truth — do not restate it here: the `yf-skill-authoring` skill's
 `reference/AGENT_ROLES.md` (vocabulary, the factoring test, the front-matter schema, and the
 canonical role table for every agent in this repo).
 
@@ -90,7 +90,7 @@ RESULT=$(bd mol pour <name> --var key=value --json)
 rm -f .beads/formulas/<name>.formula.toml
 ```
 
-Capture `new_epic_id` and `id_mapping` from the pour result (see `beads-extra` →
+Capture `new_epic_id` and `id_mapping` from the pour result (see `yf-beads-extra` →
 *`bd mol pour` output shape*). Test a formula with `bd mol pour <name> --dry-run` before
 wiring the full pipeline.
 
@@ -146,7 +146,7 @@ and the skill injects dynamic beads after pour:
 1. Pour the formula — creates the fixed DAG.
 2. Inject dynamic beads: `bd create --parent ${EPIC} --deps ${UPSTREAM_ID}`.
 3. Wire downstream edges with `bd dep add` (additive) — batch them via `bd batch` when
-   there are many. See `beads-extra` → *Dependency-edge mutation* and *Bulk intake*.
+   there are many. See `yf-beads-extra` → *Dependency-edge mutation* and *Bulk intake*.
 
 (Beads' native expansion formula type is still undocumented; when it matures, fan-out
 can move into the formula.)
@@ -168,15 +168,15 @@ Test:
   intake).
 
 Examples in this repo:
-- **bdplan `plan-execute`** — minimal (just the start gate). Plans share no fixed
+- **yf-plan `plan-execute`** — minimal (just the start gate). Plans share no fixed
   downstream shape, so the formula is only the gate.
-- **bdresearch** — 7 static steps (gate → tooling → triangulate → synthesize → critique
+- **yf-research** — 7 static steps (gate → tooling → triangulate → synthesize → critique
   → refine → package); all always exist. Dynamic retrieve beads wire IN between tooling
   and triangulate at intake — no declared edge is rewritten.
 
-**bd structural limit:** bd rejects a task blocking an epic (see `beads-extra` → *Epic
+**bd structural limit:** bd rejects a task blocking an epic (see `yf-beads-extra` → *Epic
 blocking rule*). Keep formulas flat — no step nests another step as a structural parent.
-Minimal formulas avoid this trivially; structured ones (like bdresearch's) stay flat.
+Minimal formulas avoid this trivially; structured ones (like yf-research's) stay flat.
 
 ## Bead metadata
 
@@ -210,7 +210,7 @@ bd create "Retrieve: $cluster" --metadata "$META" --json
 ```
 
 Required keys: `agent` and `context` (empty `""` / `[]` are fine). Consumer-specific
-extras should be namespaced (`<skill>_<field>`, e.g. `bdplan_upstream`) or `x_`-prefixed
+extras should be namespaced (`<skill>_<field>`, e.g. `yf-plan_upstream`) or `x_`-prefixed
 for cross-consumer fields, so they're distinguishable from typos.
 
 ## SKILL.md responsibilities (beads variant)
@@ -231,7 +231,7 @@ directory, then loops:
 
 1. `bd ready --json` — find unblocked beads (filter to this epic).
 2. `bd update <id> --claim` — claim atomically.
-3. `bd show <id> --json` — read metadata (parse defensively; see `beads-extra`).
+3. `bd show <id> --json` — read metadata (parse defensively; see `yf-beads-extra`).
 4. Read the agent file from `${SKILL_DIR}/${agent}`.
 5. Read each `metadata.context` file from the work directory.
 6. Spawn a subagent with the agent file as instructions and context as working data.
@@ -247,7 +247,7 @@ predecessors close, so discovered work runs in the same session.
 
 The loop above is the happy path. A coordinator that can be re-invoked — after a crash, a session
 timeout, or (for scheduled skills) the next interval — needs a resilience envelope around it.
-`bdplan` (`agents/coordinator.md` + `scripts/plan_manager.py`) is the in-repo worked example; an
+`yf-plan` (`agents/coordinator.md` + `scripts/plan_manager.py`) is the in-repo worked example; an
 external consumer (an Obsidian-vault "orchestration"/"jobs" skill) implements the same contract
 over a shared `bd` wrapper. Capture it once here rather than re-deriving it per skill.
 
@@ -255,9 +255,9 @@ over a shared `bd` wrapper. Capture it once here rather than re-deriving it per 
 
 Before pouring or creating an epic, check whether one already exists for this work unit; if so,
 resume it — never pour a second (a duplicate epic forks progress). Detect via a **durable pointer**
-(the epic ID recorded in the skill's work artifact — e.g. bdplan's `**Epic:**` field in `plan.md`)
+(the epic ID recorded in the skill's work artifact — e.g. yf-plan's `**Epic:**` field in `plan.md`)
 with a **metadata fallback** (the epic stamped with its work-dir at pour, for artifacts written
-before the pointer existed). bdplan's `plan_manager.py resume-scan` is the worked example: it reads
+before the pointer existed). yf-plan's `plan_manager.py resume-scan` is the worked example: it reads
 the pointer, falls back to the stamp, and reports descendant counts + the `stuck` list.
 
 ### Stuck-bead sweep (resume only)
@@ -279,14 +279,14 @@ forever. On resume, **before the loop and before evaluating any terminal/auto ga
 ### Stale-run threshold (scheduled skills only)
 
 A coordinator re-triggered on an interval treats a prior run whose epic age exceeds **2× the
-interval** as dead: close the stale epic, start fresh. One-shot, operator-invoked skills (bdplan,
-bdresearch) have no interval and skip this.
+interval** as dead: close the stale epic, start fresh. One-shot, operator-invoked skills (yf-plan,
+yf-research) have no interval and skip this.
 
 ### Blocked-gate draining
 
 Handle gate-type beads in place: read the condition/test, `bd gate resolve` on pass, mark blocked on
 fail. **Drain all unblocked work before reporting blocked gates** — do not halt at the first one;
-parallel work usually remains. (bdplan `agents/coordinator.md` → *Blocked gates*.)
+parallel work usually remains. (yf-plan `agents/coordinator.md` → *Blocked gates*.)
 
 ### Discovered-work re-entry
 
@@ -299,7 +299,7 @@ The run is complete when `bd ready` is empty **and** no resettable stuck beads r
 resolve/verify terminal auto-gates, `bd close ${EPIC}`, and perform the git handoff **per the
 project's git authority** — conservative default: report changed files and the proposed commit /
 `bd dolt push` / push commands; commit or push only under explicit operator or team-maintainer
-authority. (bdresearch `agents/coordinator.md` → *Completion* is the conservative worked example.)
+authority. (yf-research `agents/coordinator.md` → *Completion* is the conservative worked example.)
 
 ## Coordinate subcommand
 
@@ -358,7 +358,7 @@ restating them — this skill owns only the authoring conventions layered on top
   ```
   (Inside this project's skills, prefer the manager's defensive parser — e.g.
   `research_manager.py json-get` — over hand-rolled `jq` when reading `bd show`/`bd list`,
-  whose output is an array. See `beads-extra` → *defensive JSON*.)
+  whose output is an array. See `yf-beads-extra` → *defensive JSON*.)
 - **Extract multi-step `bd` orchestration to a Python helper** once a SKILL.md bash block
   exceeds ~10 lines that is mostly calling `bd` + parsing JSON + branching. `plan_manager.py`
   and `research_manager.py` are the worked examples; the invocation site collapses to a
@@ -376,7 +376,7 @@ after authoring or modifying a beads-backed skill.
 
 ## Creating a new beads-backed skill
 
-Start from `skill-authoring` (general layout, token rules, and the **Skill Surface
+Start from `yf-skill-authoring` (general layout, token rules, and the **Skill Surface
 Convention** — preflight, config/state, manifest-hashed companion rules), then:
 
 1. Create a `.formula.toml` in `formulas/` for the fixed DAG skeleton (right-sized).
@@ -391,11 +391,11 @@ Convention** — preflight, config/state, manifest-hashed companion rules), then
 
 ## See also
 
-- **`skill-authoring`** — general skill conventions + the Skill Surface Convention
+- **`yf-skill-authoring`** — general skill conventions + the Skill Surface Convention
   (preflight / config / state / manifest) this skill's preflight guidance builds on.
 - **`beads`** — the canonical routine `bd` loop.
-- **`beads-extra`** — direct-CLI gotchas (issue types, gates, dep mutation, defensive
+- **`yf-beads-extra`** — direct-CLI gotchas (issue types, gates, dep mutation, defensive
   JSON, `bd batch`, `bd mol pour` output shape) that this skill's runtime steps depend on.
 - **Plugin `resources/`** — canonical taxonomy cited above: `DEPENDENCIES.md` (the four
   dependency types) and `WORKFLOWS.md` (the AI-supervised issue lifecycle).
-- **`bdplan`** / **`bdresearch`** — complete worked examples of these conventions.
+- **`yf-plan`** / **`yf-research`** — complete worked examples of these conventions.

@@ -181,7 +181,7 @@ def test_teardown_refuse_on_dirty(git_repo):
 
 @pytest.fixture
 def lock_cwd(tmp_path, monkeypatch):
-    """A clean cwd so .state/bdplan/landing.lock is created under tmp_path."""
+    """A clean cwd so .yf/yf-plan/landing.lock is created under tmp_path."""
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -239,7 +239,7 @@ def test_landing_lock_release_ownership(lock_cwd):
 # ---------------------------------------------------------------------------
 
 def test_validate_merged_unset_emits_notice(lock_cwd):
-    # No .bdplan.local.json -> no validate-cmd -> pass with the cross-plan notice.
+    # No .yf-plan.local.json -> no validate-cmd -> pass with the cross-plan notice.
     r = pm._validate_merged(Path("docs/plans/plan-x"))
     assert r["status"] == "pass"
     assert r["validate_cmd_configured"] is False
@@ -247,18 +247,18 @@ def test_validate_merged_unset_emits_notice(lock_cwd):
 
 
 def test_validate_merged_runs_configured_cmd(lock_cwd):
-    (lock_cwd / ".bdplan.local.json").write_text(json.dumps({"validate-cmd": "true"}))
+    (lock_cwd / ".yf-plan.local.json").write_text(json.dumps({"validate-cmd": "true"}))
     passing = pm._validate_merged(Path("docs/plans/plan-x"))
     assert passing["status"] == "pass"
     assert passing["validate_cmd_configured"] is True
     assert passing["notice"] is None
-    (lock_cwd / ".bdplan.local.json").write_text(json.dumps({"validate-cmd": "false"}))
+    (lock_cwd / ".yf-plan.local.json").write_text(json.dumps({"validate-cmd": "false"}))
     failing = pm._validate_merged(Path("docs/plans/plan-x"))
     assert failing["status"] == "fail"
 
 
 def test_worktree_opt_out_config(lock_cwd):
-    (lock_cwd / ".bdplan.local.json").write_text(json.dumps({"execute.worktree": False}))
+    (lock_cwd / ".yf-plan.local.json").write_text(json.dumps({"execute.worktree": False}))
     assert pm._worktree_opted_out() is True
     r = pm._worktree_ensure(Path("docs/plans/plan-x"))
     assert r["viable"] is False

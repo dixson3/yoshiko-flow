@@ -13,7 +13,7 @@ description: >
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, git]
-depends-on-skill: [beads-extra, beads-authoring]
+depends-on-skill: [yf-beads-extra, yf-beads-authoring]
 allowed-tools:
   - Read
   - Write
@@ -63,17 +63,17 @@ All skill-internal paths use the `${SKILL_DIR}/` prefix.
 bdresearch relies on the shared beads skills rather than re-documenting `bd`:
 
 - **`beads`** — the routine `bd` loop (prime/ready/show/claim/create/close).
-- **`beads-extra`** — direct-CLI gotchas this skill depends on: defensive `--json`
+- **`yf-beads-extra`** — direct-CLI gotchas this skill depends on: defensive `--json`
   parsing (`bd show --json` returns an array — never pipe it straight to `jq`),
   additive dep mutation via `bd dep add` (there is **no** `bd update --deps`), gate
   resolution via `bd gate resolve`, `bd batch`, and the `bd mol pour` output shape.
-- **`beads-authoring`** — the formula / `mol pour` / coordinator / `coordinate`
+- **`yf-beads-authoring`** — the formula / `mol pour` / coordinator / `coordinate`
   conventions this skill is built on.
 
 ## Pre-flight
 
 **Run on every invocation except `/bdresearch init`.** Run the preflight and branch on
-its status (it follows the Skill Surface Convention — see the `skill-authoring` skill):
+its status (it follows the Skill Surface Convention — see the `yf-skill-authoring` skill):
 
 ```bash
 uv run ${SKILL_DIR}/scripts/research_manager.py check --json-output
@@ -172,7 +172,7 @@ On `/bdresearch <topic>`, ask scoping questions via AskUserQuestion:
 
 - `docs/research/` — default
 - `Incubator/<slug>/research/` — when scoped to a specific incubator (see the
-  `incubator` skill)
+  `yf-incubator` skill)
 
 Auto-detect from CWD; if `pwd` is inside `Incubator/<slug>/...`, propose `<slug>`.
 Confirm during scoping; accept a different slug or `none` (→ `docs/research/`). If the
@@ -236,7 +236,7 @@ Present the plan to the operator. Iterate until approved.
 
 ```bash
 mkdir -p "${research_dir}/scripts" "${research_dir}/artifacts" "${research_dir}/diagrams"
-# diagrams/ holds d2 diagrams (.d2 source + .png render) authored per the diagram-authoring skill
+# diagrams/ holds d2 diagrams (.d2 source + .png render) authored per the yf-diagram-authoring skill
 # Write plan.yaml to ${research_dir}/plan.yaml
 ```
 
@@ -248,7 +248,7 @@ uv run ${SKILL_DIR}/scripts/index_manager.py init "${research_dir}" "${topic}"
 
 3. **Pour the bdresearch formula.** `bd mol pour --json` returns a single clean object
    (`new_epic_id`, `id_mapping`); `jq` is safe here. (For `bd show`/`bd list`, parse
-   defensively — see `beads-extra`.)
+   defensively — see `yf-beads-extra`.)
 
 ```bash
 cp -f "${SKILL_DIR}/formulas/bdresearch.formula.toml" .beads/formulas/
@@ -259,7 +259,7 @@ rm -f .beads/formulas/bdresearch.formula.toml
 EPIC=$(echo "$RESULT" | jq -r '.new_epic_id')
 # A gate-type formula step yields a task wrapper (id_mapping["bdresearch.gate"]) AND the
 # real gate (id_mapping["bdresearch.gate-gate"]). Resolve the gate via the gate-* key
-# (see beads-authoring → Formula gate steps).
+# (see yf-beads-authoring → Formula gate steps).
 GATE_ID=$(echo "$RESULT"   | jq -r '.id_mapping["bdresearch.gate-gate"]')
 TOOLING_ID=$(echo "$RESULT"| jq -r '.id_mapping["bdresearch.tooling"]')
 TRIANG_ID=$(echo "$RESULT" | jq -r '.id_mapping["bdresearch.triangulate"]')
@@ -270,7 +270,7 @@ PACKAGE_ID=$(echo "$RESULT"| jq -r '.id_mapping["bdresearch.package"]')
 ```
 
 **Persist the epic pointer** so a crashed `coordinate` session can resume after the start
-gate is already resolved (beads-authoring REQ-ORCH-008). Two writes keyed on `${EPIC}`: a
+gate is already resolved (yf-beads-authoring REQ-ORCH-008). Two writes keyed on `${EPIC}`: a
 **metadata fallback** (stamp the epic with its `research_dir`, queryable via
 `bd list --metadata-field`) and a **durable pointer** (`epic:` line in `plan.yaml`):
 
@@ -296,7 +296,7 @@ bd update ${PACKAGE_ID} --metadata '{"agent":"agents/packager.md","context":["*"
 ```bash
 RETRIEVE_IDS=()
 for cluster in ${clusters}; do
-  # Build metadata with jq -nc --arg, never shell interpolation (see beads-authoring).
+  # Build metadata with jq -nc --arg, never shell interpolation (see yf-beads-authoring).
   META=$(jq -nc --arg agent "agents/retriever.md" --arg cluster "${cluster_name}" \
     '{agent:$agent, context:["plan.yaml"], cluster:$cluster}')
   RID=$(bd create "Retrieve: ${cluster_name}" \
@@ -310,7 +310,7 @@ done
 
 6. **Wire triangulate to depend on every retrieve bead.** There is no `bd update --deps`
    in 1.0.5 — add each edge with `bd dep add` (additive), batched in one transaction
-   (see `beads-extra` → *Dependency-edge mutation* / *Bulk intake*):
+   (see `yf-beads-extra` → *Dependency-edge mutation* / *Bulk intake*):
 
 ```bash
 DEP_OPS=""
@@ -346,7 +346,7 @@ On `/bdresearch coordinate [<idx-or-epic>]`:
 
 ### Gate resolution
 
-With no argument, detect pending gates (parse defensively — see `beads-extra`):
+With no argument, detect pending gates (parse defensively — see `yf-beads-extra`):
 
 ```bash
 bd gate list --json    # filter to gates whose parent epic was poured from bdresearch
@@ -377,7 +377,7 @@ Then determine the research dir from the epic context, read
 A `coordinate` session can die mid-loop. The start gate was resolved on first entry, so
 gate auto-detection then finds **0 open gates** — without a resume path the run is
 unrecoverable. Before reporting "No pending research gates," look for a resumable epic
-(beads-authoring REQ-ORCH-008 resume detection):
+(yf-beads-authoring REQ-ORCH-008 resume detection):
 
 ```bash
 # Durable pointer (primary): read the `epic:` line from the target dir's plan.yaml.

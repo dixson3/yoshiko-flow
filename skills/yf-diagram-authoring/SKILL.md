@@ -4,7 +4,7 @@ description: "Generate light-mode, white-background diagram PNGs from d2 source,
   .d2 source beside every .png render. Standardizes d2 (not mermaid) as the single, local,
   offline diagram engine: write .d2 -> render .png (theme 0, elk) -> verify by Read. TRIGGER
   when: the operator asks to author/render/regenerate a diagram, or a content-producing skill
-  (bdplan, bdresearch, skill-authoring) generates a structural diagram for a plan, research
+  (yf-plan, yf-research, yf-skill-authoring) generates a structural diagram for a plan, research
   report, or skill spec. SKIP for: non-diagram image work; mermaid-specific workflows; any task
   that does not produce a d2 diagram. Output locations are caller-supplied (the skill is
   location-agnostic); consumers set their own convention (plan_dir/diagrams, research_dir/
@@ -18,12 +18,12 @@ allowed-tools:
   - Write
   - Edit
   - Bash
-title: diagram-authoring
+title: yf-diagram-authoring
 created: '2026-06-06'
 tags: []
 ---
 
-# diagram-authoring
+# yf-diagram-authoring
 
 Author diagrams as **d2** source and render light-mode, white-background PNGs. d2 is the single
 diagram engine: cleaner syntax than mermaid, stronger auto-layout (elk), fully local/offline.
@@ -48,18 +48,18 @@ Every diagram keeps its `.d2` source beside the `.png` render — never temp-and
 
 | Consumer | Location | Referenced from |
 |----------|----------|-----------------|
-| bdplan (plans) | `<plan_dir>/diagrams/<slug>.{d2,png}` | `plan.md` |
-| bdresearch (reports) | `<research_dir>/diagrams/<slug>.{d2,png}` | report body / `_index.md` |
-| skill-authoring (specs) | co-resident in `skills/<name>/spec/<slug>.{d2,png}` (no subfolder) | skill `README.md` |
+| yf-plan (plans) | `<plan_dir>/diagrams/<slug>.{d2,png}` | `plan.md` |
+| yf-research (reports) | `<research_dir>/diagrams/<slug>.{d2,png}` | report body / `_index.md` |
+| yf-skill-authoring (specs) | co-resident in `skills/<name>/spec/<slug>.{d2,png}` (no subfolder) | skill `README.md` |
 | top-level / user-facing docs | `<repo-root>/docs/diagrams/<slug>.{d2,png}` | project `README.md` |
 | standalone | `./diagrams/` (override freely) | — |
 
 **Skill-spec vs repo-level — placement test.** Put a diagram in `skills/<name>/spec/` **only** if
 it documents the **skill itself** (its engine/model, repo-agnostic, ships with the skill). A
 diagram of a **specific repo's** content or config is repo-level → `docs/diagrams/`, referenced
-from a top-level doc — never a skill `spec/`. Trap: the `drift-check` skill and a repo's
+from a top-level doc — never a skill `spec/`. Trap: the `yf-drift-check` skill and a repo's
 `DRIFT-CHECK.md` manifest share a name, so a diagram of *a repo's* `DRIFT-CHECK.md` graph reads as
-"drift-check" but is repo-level config → `docs/diagrams/`, not `skills/drift-check/spec/`.
+"drift-check" but is repo-level config → `docs/diagrams/`, not `skills/yf-drift-check/spec/`.
 
 ## README image references
 
@@ -79,8 +79,8 @@ enforced because git normalizes mtimes).
 
 Diagram when structure is easier *shown* than described: >2 interacting components, a
 lifecycle/state machine, a data model, a dependency or org graph. Skip trivial 1–2 node
-relationships and pure prose. Consumers that "always attempt" (bdplan, bdresearch) generate ≥1
-for any non-trivial artifact; skill-authoring is conditional ("if it aids the description").
+relationships and pure prose. Consumers that "always attempt" (yf-plan, yf-research) generate ≥1
+for any non-trivial artifact; yf-skill-authoring is conditional ("if it aids the description").
 
 ## d2 authoring notes (ported durable knowledge)
 
