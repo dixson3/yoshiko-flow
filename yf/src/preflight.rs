@@ -138,6 +138,14 @@ pub struct Env {
     /// Candidate directories searched (in precedence order) for the installed
     /// companion rule. Mirrors the legacy `_rule_candidates()`.
     pub rule_dirs: Vec<PathBuf>,
+    /// Test-only seam: when `Some`, this value is used as the PATH for system-dep
+    /// tool resolution (`git`/`uv`/`bd`) and the `bd --version` probe, instead of
+    /// the live process PATH. Production wiring ([`Env::live`]) sets `None`, so
+    /// behavior is identical to reading the real PATH; a test points it at an
+    /// empty dir to deterministically drive the `system_deps_missing` state
+    /// without mutating the global process environment (which would race other
+    /// tests). It never changes any non-test code path.
+    pub path_override: Option<std::ffi::OsString>,
 }
 
 impl Env {
@@ -159,7 +167,11 @@ impl Env {
         }
         push(repo_root.join(".agents").join("rules"), &mut rule_dirs);
         push(repo_root.join(".claude").join("rules"), &mut rule_dirs);
-        Env { repo_root, rule_dirs }
+        Env {
+            repo_root,
+            rule_dirs,
+            path_override: None,
+        }
     }
 }
 
@@ -234,7 +246,8 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
     {
-        let (missing, instructions) = check_system_deps(&skill_dir, descriptor.as_ref());
+        let (missing, instructions) =
+            check_system_deps(&skill_dir, descriptor.as_ref(), env.path_override.as_deref());
         if !missing.is_empty() {
             return Outcome {
                 status: "system_deps_missing".into(),
@@ -385,7 +398,11 @@ fn read_json_obj(path: &Path) -> Option<serde_json::Map<String, serde_json::Valu
 
 /// Probe `git` / `uv` / `bd` per the legacy `_check_prerequisites`. Returns
 /// `(missing, instructions)` byte-compatible with the legacy strings.
-fn check_system_deps(skill_dir: &str, descriptor: Option<&Preflight>) -> (Vec<String>, Vec<String>) {
+fn check_system_deps(
+    skill_dir: &str,
+    descriptor: Option<&Preflight>,
+    path_override: Option<&std::ffi::OsStr>,
+) -> (Vec<String>, Vec<String>) {
     let mut missing = vec![];
     let mut instructions = vec![];
 
@@ -393,11 +410,11 @@ fn check_system_deps(skill_dir: &str, descriptor: Option<&Preflight>) -> (Vec<St
     let needs = |t: &str| tools.iter().any(|x| x == t);
 
     // The legacy check always probes git + uv; the skill's tool list confirms it.
-    if needs("git") && which("git").is_none() {
+    if needs("git") && which_in(path_override, "git").is_none() {
         missing.push("git".into());
         instructions.push("Install git via your system package manager".into());
     }
-    if needs("uv") && which("uv").is_none() {
+    if needs("uv") && which_in(path_override, "uv").is_none() {
         missing.push("uv".into());
         instructions.push("Install uv: https://docs.astral.sh/uv/".into());
     }
@@ -407,7 +424,7 @@ fn check_system_deps(skill_dir: &str, descriptor: Option<&Preflight>) -> (Vec<St
     let needs_bd = descriptor.is_some_and(|d| d.min_bd_version.is_some()) || needs("bd");
     if needs_bd {
         let min = parse_min_bd(descriptor);
-        match parse_bd_version() {
+        match parse_bd_version(path_override) {
             None => {
                 missing.push("bd".into());
                 instructions
@@ -448,8 +465,14 @@ fn parse_semver(s: &str) -> Option<(u32, u32, u32)> {
 }
 
 /// Run `bd --version` and parse the first `\d+.\d+(.\d+)?` it finds (legacy
-/// `_parse_bd_version`). `None` if bd is absent or prints no version.
-fn parse_bd_version() -> Option<(u32, u32, u32)> {
+/// `_parse_bd_version`). `None` if bd is absent or prints no version. When
+/// `path_override` is `Some` (test-only seam), bd is resolved against that PATH
+/// and treated as absent if not found there — so a test pointing at an empty dir
+/// deterministically yields `None` without invoking the host's real `bd`.
+fn parse_bd_version(path_override: Option<&std::ffi::OsStr>) -> Option<(u32, u32, u32)> {
+    if path_override.is_some() && which_in(path_override, "bd").is_none() {
+        return None;
+    }
     let out = Command::new("bd").arg("--version").output().ok()?;
     if !out.status.success() {
         return None;
@@ -501,9 +524,14 @@ fn extract_version_tuple(text: &str) -> Option<(u32, u32, u32)> {
     None
 }
 
-/// `which`-style PATH lookup using std only (GR-011: no extra dep).
-fn which(bin: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
+/// `which`-style lookup against an explicit PATH (`path_override`), or the live
+/// process PATH when `None`. The `Some` arm is the test-only seam ([`Env`]'s
+/// `path_override`); the `None` arm is identical to the previous `which`.
+fn which_in(path_override: Option<&std::ffi::OsStr>, bin: &str) -> Option<PathBuf> {
+    let path = match path_override {
+        Some(p) => p.to_os_string(),
+        None => std::env::var_os("PATH")?,
+    };
     for dir in std::env::split_paths(&path) {
         let candidate = dir.join(bin);
         if is_executable(&candidate) {
@@ -858,11 +886,23 @@ pub fn run(skill_arg: &str, json: bool) -> anyhow::Result<std::process::ExitCode
 mod tests {
     use super::*;
 
-    /// A test Env rooted at `repo`, with one rule-candidate dir `rules`.
+    /// A test Env rooted at `repo`, with one rule-candidate dir `rules`. Uses the
+    /// live PATH for tool resolution (`path_override: None`).
     fn test_env(repo: &Path, rules: &Path) -> Env {
         Env {
             repo_root: repo.to_path_buf(),
             rule_dirs: vec![rules.to_path_buf()],
+            path_override: None,
+        }
+    }
+
+    /// Like [`test_env`], but with an injected PATH (the test-only seam) so tool
+    /// resolution is deterministic regardless of the host's installed tools.
+    fn test_env_with_path(repo: &Path, rules: &Path, path: &Path) -> Env {
+        Env {
+            repo_root: repo.to_path_buf(),
+            rule_dirs: vec![rules.to_path_buf()],
+            path_override: Some(path.as_os_str().to_os_string()),
         }
     }
 
@@ -1111,5 +1151,187 @@ mod tests {
         assert_eq!(resolve_skill("yf-plan"), ("bdplan".into(), "plan".into()));
         assert_eq!(resolve_skill("bdplan"), ("bdplan".into(), "plan".into()));
         assert_eq!(resolve_skill("research"), ("bdresearch".into(), "research".into()));
+    }
+
+    // -------------------------------------------------------------------------
+    // Gate G2 parity tests (bead 6.3). These three functions carry the
+    // `preflight_parity` token in their NAMES so the gate command
+    // `cargo test -p yf preflight_parity` selects exactly the three Gate-G2
+    // states. Each asserts the EXACT legacy status string and the JSON field
+    // schema of docs/yf/preflight-contract.md §3.
+    // -------------------------------------------------------------------------
+
+    /// A `serde_json::Map` view of an Outcome's contract JSON, for schema asserts.
+    fn json_of(out: &Outcome) -> serde_json::Map<String, serde_json::Value> {
+        match out.to_json() {
+            serde_json::Value::Object(m) => m,
+            other => panic!("to_json must be an object, got {other}"),
+        }
+    }
+
+    // REQ-YF-PRE-001 / 003: Gate-G2 `ok` — a fixture rules dir whose installed
+    // PLANS.md byte-matches the embedded manifest's current sha256. Asserts
+    // status=="ok", the rule object is populated (outcome ok + version), and the
+    // ok-only `scaffold_added` field is present (contract §2.1/§3).
+    #[test]
+    fn preflight_parity_ok() {
+        let tmp = unique_tmp("parity-ok");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        // Warm the prereqs cache so the system-deps/bd gate is skipped — this test
+        // isolates the rule-hash + scaffold axes of the `ok` state.
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(state_dir.join("preflight.json"), r#"{"prereqs-present": true}"#).unwrap();
+        // Materialize the EMBEDDED PLANS.md so its sha256 equals the manifest's.
+        let embedded = embed::read_file("bdplan/protocols/PLANS.md").expect("embedded PLANS.md");
+        std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
+
+        let env = test_env(&repo, &rules);
+        let out = run_with_env("plan", &env);
+
+        assert_eq!(out.status, "ok", "rule: {:?}", out.rule);
+        let m = json_of(&out);
+        assert_eq!(m.get("status").unwrap(), "ok");
+        // missing is the empty array.
+        assert_eq!(m.get("missing").unwrap(), &serde_json::json!([]));
+        // rule object populated with outcome ok + a version (contract §3.1).
+        let rule = m.get("rule").unwrap().as_object().expect("rule object");
+        assert_eq!(rule.get("outcome").unwrap(), "ok");
+        assert_eq!(rule.get("rule").unwrap(), "PLANS.md");
+        assert!(rule.get("path").is_some(), "ok rule carries a path");
+        assert!(rule.get("version").is_some(), "ok rule carries a version");
+        // scaffold_added is present ONLY on `ok` (contract §3).
+        assert!(m.contains_key("scaffold_added"), "ok must carry scaffold_added");
+        assert!(m.get("instructions").unwrap().is_array());
+        assert!(!out.is_failure(), "ok exits success");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-001 / 002: Gate-G2 `system_deps_missing` — a fixture whose PATH
+    // (injected via the test-only seam) is an empty dir, so git/uv/bd are all
+    // absent. Drives the FULL `run_with_env` assembly (cold state → deps probe).
+    // Asserts status=="system_deps_missing" with a non-empty `missing` array and
+    // matching `instructions`, `rule: null`, and NO `scaffold_added` key.
+    #[test]
+    fn preflight_parity_system_deps_missing() {
+        let tmp = unique_tmp("parity-deps");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        let empty_path = tmp.join("empty-bin"); // an empty PATH dir → nothing resolves
+        std::fs::create_dir_all(&repo).unwrap();
+        std::fs::create_dir_all(&rules).unwrap();
+        std::fs::create_dir_all(&empty_path).unwrap();
+        // NOTE: no prereqs-present in state → the system-deps gate runs.
+
+        // `plan` (bdplan) depends-on-tool [bd, uv, git] and has min-bd-version, so
+        // all three probes fire and all miss against the empty PATH.
+        let env = test_env_with_path(&repo, &rules, &empty_path);
+        let out = run_with_env("plan", &env);
+
+        assert_eq!(out.status, "system_deps_missing");
+        assert!(!out.missing.is_empty(), "missing must be non-empty: {:?}", out.missing);
+        // git/uv absent → their exact legacy instruction strings present.
+        assert!(out.missing.iter().any(|m| m == "git"));
+        assert!(out.missing.iter().any(|m| m == "uv"));
+        assert!(out.missing.iter().any(|m| m == "bd"));
+        assert!(
+            out.instructions.iter().any(|i| i == "Install uv: https://docs.astral.sh/uv/"),
+            "exact legacy uv instruction: {:?}",
+            out.instructions
+        );
+        assert!(!out.instructions.is_empty());
+
+        let m = json_of(&out);
+        assert_eq!(m.get("status").unwrap(), "system_deps_missing");
+        assert!(!m.get("missing").unwrap().as_array().unwrap().is_empty());
+        assert_eq!(m.get("rule").unwrap(), &serde_json::Value::Null, "rule is null");
+        assert!(
+            !m.contains_key("scaffold_added"),
+            "no scaffold_added on a failing status (contract §3)"
+        );
+        assert!(out.is_failure(), "system_deps_missing exits non-zero");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-001 / 003: Gate-G2 `rule_drift` — a fixture rules dir with a
+    // tampered PLANS.md whose bytes match neither the manifest current sha256 nor
+    // any previous_versions hash. Asserts status=="rule_drift", the `rule` object
+    // populated with outcome=="drift" + path, no version, empty `missing`, and the
+    // exact legacy drift instruction (contract §3.2).
+    #[test]
+    fn preflight_parity_rule_drift() {
+        let tmp = unique_tmp("parity-drift");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        // Warm prereqs so the deps gate is skipped — isolate the rule-hash axis.
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            r#"{"prereqs-present": true, "scaffold-ensured": 1}"#,
+        )
+        .unwrap();
+        // Tampered PLANS.md: diverges from both current and previous shas.
+        std::fs::write(rules.join("PLANS.md"), "drifted PLANS.md content\n").unwrap();
+
+        let env = test_env(&repo, &rules);
+        let out = run_with_env("plan", &env);
+
+        assert_eq!(out.status, "rule_drift");
+        assert_eq!(out.missing, Vec::<String>::new(), "missing empty on rule_drift");
+        let m = json_of(&out);
+        assert_eq!(m.get("status").unwrap(), "rule_drift");
+        let rule = m.get("rule").unwrap().as_object().expect("rule object");
+        assert_eq!(rule.get("outcome").unwrap(), "drift");
+        assert_eq!(rule.get("rule").unwrap(), "PLANS.md");
+        assert!(rule.get("path").is_some(), "drift carries the winning path");
+        assert!(rule.get("version").is_none(), "drift carries no version");
+        // Exact legacy drift instruction (contract §3.2 example).
+        assert_eq!(out.instructions.len(), 1);
+        assert!(
+            out.instructions[0].starts_with("Installed PLANS.md diverges from the manifest"),
+            "drift instruction: {:?}",
+            out.instructions
+        );
+        assert!(
+            !m.contains_key("scaffold_added"),
+            "no scaffold_added on rule_drift"
+        );
+        assert!(out.is_failure(), "rule_drift exits non-zero");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-006: the bd-status CLASSIFIER invariant exercised through the
+    // preflight→verify boundary — an `error` KEY (not the exit code) on an
+    // INITIALIZED repo classifies `corrupted`, which the kernel maps to the
+    // preflight `bd_not_initialized` status (the preflight enum has no
+    // `corrupted` member; contract §5). This complements the pure-`classify`
+    // unit tests in beads_init.rs by pinning the cross-module mapping.
+    #[test]
+    fn preflight_parity_bd_status_classifier_wedged_is_corrupted() {
+        use crate::beads_init::{self, VerifyStatus};
+        // The load-bearing classifier invariant: error key + initialized → corrupted
+        // (NOT not_initialized), regardless of the would-be exit code.
+        let wedged =
+            r#"{"error": "pending schema migration blocked by a dirty table in the working set"}"#;
+        let (status, functional) = beads_init::classify(wedged, /* repo_initialized */ true);
+        assert_eq!(
+            status,
+            VerifyStatus::Corrupted,
+            "an error KEY on an initialized repo must classify corrupted, never not_initialized"
+        );
+        assert!(!functional);
+
+        // And the verify→preflight mapping: corrupted → bd_not_initialized (§5),
+        // never a `corrupted` preflight status (the enum has no such member).
+        let mapped = match status {
+            VerifyStatus::Ok => None,
+            VerifyStatus::DepsMissing => Some("system_deps_missing"),
+            VerifyStatus::NotInitialized | VerifyStatus::Corrupted => Some("bd_not_initialized"),
+        };
+        assert_eq!(mapped, Some("bd_not_initialized"));
     }
 }

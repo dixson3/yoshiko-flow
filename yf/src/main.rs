@@ -11,6 +11,8 @@ mod dest;
 mod embed;
 mod frontmatter;
 mod marker;
+#[cfg(test)]
+mod marker_tests;
 mod migrate;
 #[cfg(test)]
 mod parity;
