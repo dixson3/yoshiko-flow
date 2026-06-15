@@ -150,8 +150,8 @@ parsing (`yf-beads-extra`); general skill layout/token rules (`yf-skill-authorin
 
 ## 6. References
 
-- `skills/beads-authoring/SKILL.md`; `skills/beads-authoring/spec/structure.md`,
-  `spec/formulas.md`, `spec/orchestration.md`; `skills/beads-authoring/agents/reviewer.md`.
+- `skills/yf-beads-authoring/SKILL.md`; `skills/yf-beads-authoring/spec/structure.md`,
+  `spec/formulas.md`, `spec/orchestration.md`; `skills/yf-beads-authoring/agents/reviewer.md`.
 - `protocols/` — none (no companion rule).
 - Root `SPEC.md` §4 (BAUTH) and `GUARDRAILS.md`.
 - Sibling specs: `yf-beads-extra` (BEXTRA) for the `bd` CLI gotchas this skill cites; worked

@@ -138,11 +138,11 @@ is `yf-drift-check`'s axis.
 
 ## 6. References
 
-- `skills/skill-authoring/SKILL.md` (layout, thresholds, Surface Convention summary, token
+- `skills/yf-skill-authoring/SKILL.md` (layout, thresholds, Surface Convention summary, token
   efficiency §, Python helpers, agent roles, review sequence).
-- `skills/skill-authoring/reference/SURFACE_CONVENTION.md` (full seven-point contract + worked
+- `skills/yf-skill-authoring/reference/SURFACE_CONVENTION.md` (full seven-point contract + worked
   example), `reference/PORTABILITY.md` (`SKILL_DIR` resolution + portability checklist),
   `reference/PIPELINE.md` (multi-agent conventions), `reference/AGENT_ROLES.md` (role vocabulary,
   factoring test, front-matter schema, role table).
-- `skills/skill-authoring/agents/*.md` (the review agents); `scripts/manifest_update.py`.
+- `skills/yf-skill-authoring/agents/*.md` (the review agents); `scripts/manifest_update.py`.
 - Root `SPEC.md` §4 (SKAUTH) and `GUARDRAILS.md` (GR-006, per-skill guardrails note).

@@ -101,7 +101,7 @@ this skill only renders them.
 
 ## 6. References
 
-- `skills/markdown-pdf/SKILL.md` (pipeline defaults, font policy, table levers).
-- `skills/markdown-pdf/scripts/md2pdf.py` and `scripts/landscape_wide_tables.lua`.
-- `skills/markdown-lint/SKILL.md` (portable pipe-table authoring — the lint axis).
+- `skills/yf-markdown-pdf/SKILL.md` (pipeline defaults, font policy, table levers).
+- `skills/yf-markdown-pdf/scripts/md2pdf.py` and `scripts/landscape_wide_tables.lua`.
+- `skills/yf-markdown-lint/SKILL.md` (portable pipe-table authoring — the lint axis).
 - Root `SPEC.md` §4 (MDPDF) and `GUARDRAILS.md` (GR-004, GR-011).

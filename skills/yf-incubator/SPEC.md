@@ -18,7 +18,7 @@ state schema (frontmatter + ordered body sections), proactive sidequest detectio
 indexer that triages `Incubator/` by status/priority/staleness.
 
 **Out of scope:** beads-tracked multi-step build planning (that is `yf-plan`); filing the actual
-beads from `## Beads to file` (that hands off to `yf-beads` / `yf-beads-extra`); routine note
+beads from `## Beads to file` (that hands off to the `beads` skill / `yf-beads-extra`); routine note
 edits with no park/resume intent.
 
 ## 2. Requirements (`REQ-INCUB-NNN`)
@@ -115,6 +115,6 @@ edits with no park/resume intent.
 
 ## 6. References
 
-- `skills/incubator/SKILL.md` (invocation, state schema, subcommands, proactive detection).
-- `skills/incubator/scripts/incubator-index.py` (managed/unmanaged classification + sort).
+- `skills/yf-incubator/SKILL.md` (invocation, state schema, subcommands, proactive detection).
+- `skills/yf-incubator/scripts/incubator-index.py` (managed/unmanaged classification + sort).
 - Root `SPEC.md` §4 (INCUB), §3.8 (rename), §3.9 (`REQ-YF-MIGRATE-001`), and `GUARDRAILS.md`.

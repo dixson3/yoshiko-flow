@@ -13,7 +13,7 @@
 such a file it reads it, **auto-applies** token-efficiency cuts (K1), **proposes** structural
 relocation (K2 — AGENTS.md primary, CLAUDE.md a thin `@-include` index, behavioral rules in the
 project's rules surface), and reports what changed. It is `user-invocable: false` — fired by its
-trigger and backstopped by its always-loaded companion rule. It `depends-on-skill: skill-authoring`.
+trigger and backstopped by its always-loaded companion rule. It `depends-on-skill: yf-skill-authoring`.
 
 **In scope:** the split-apply contract (K1 auto, K2 propose-and-confirm), the K2 structural
 convention, surface detection across the three rules-subdir forms, idempotency, the runtime
@@ -121,12 +121,12 @@ by `yf-skill-authoring` and is referenced here, never restated.
 
 ## 6. References
 
-- `skills/optimal-instructions/SKILL.md` (two bodies of knowledge K1/K2, workflow, surface
+- `skills/yf-optimal-instructions/SKILL.md` (two bodies of knowledge K1/K2, workflow, surface
   detection, runtime carve-out).
-- `skills/optimal-instructions/spec/apply.md` (split-apply + idempotency + acceptance example),
+- `skills/yf-optimal-instructions/spec/apply.md` (split-apply + idempotency + acceptance example),
   `spec/structure.md` (K2 structural convention), `spec/integration.md` (no-duplication, surface
   detection, runtime carve-out, minimal footprint).
-- `skills/optimal-instructions/agents/instruction-optimizer.md`.
+- `skills/yf-optimal-instructions/agents/instruction-optimizer.md`.
 - `protocols/INSTRUCTIONS.md` (always-loaded backstop); `yf-skill-authoring` `SKILL.md`
   "Token efficiency" § (single source of truth for K1).
 - Root `SPEC.md` §4 (OPTINST) and `GUARDRAILS.md` (GR-008, per-skill guardrails note).

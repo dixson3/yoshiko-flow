@@ -12,7 +12,7 @@
 `yf-beads-init` verifies, initializes, and repairs a functioning beads (`bd`) configuration in a
 repository, and is the shared **dependency-verification home** that every other beads-backed
 skill's preflight routes to when its own preflight reports missing deps, an uninitialized repo, or
-a corrupted DB. It is also invoked directly (`/beads-init`) when standing up beads in a new repo.
+a corrupted DB. It is also invoked directly (`/yf-beads-init`) when standing up beads in a new repo.
 
 **In scope:** the `verify`/`repair`/`status` engine; the false-negative classification (parse
 `bd status --json` for an `error` **key**, not the exit code); the standard repair sequence for a
@@ -69,12 +69,12 @@ storage (that is `bd`).
   upstream issue tracking is `yf-beads-upstream`'s job.
 - **REQ-BINIT-021** as a preflight dependency, another beads skill shall run its own
   system-deps/rule checks first, then on a beads-config failure (`bd_not_initialized`, a corrupted
-  DB, or a `bd status` error JSON) route to `/beads-init` / `beads_init.py verify`+`repair` rather
+  DB, or a `bd status` error JSON) route to `/yf-beads-init` / `beads_init.py verify`+`repair` rather
   than re-deriving the repair steps; the companion rule `protocols/BEADS_INIT.md` carries this
   trigger so it fires regardless of the active skill.
 - **REQ-BINIT-022** when `verify` returns `ok`, the preflight trigger shall be a **silent no-op** —
   no prompt, nag, or re-run; bootstrap/repair is offered only on an actual failure or explicit
-  `/beads-init`.
+  `/yf-beads-init`.
 
 ## 3. Interfaces
 
@@ -125,7 +125,7 @@ storage (that is `bd`).
 
 ## 6. References
 
-- `skills/beads-init/SKILL.md`; `skills/beads-init/scripts/beads_init.py`.
+- `skills/yf-beads-init/SKILL.md`; `skills/yf-beads-init/scripts/beads_init.py`.
 - `protocols/BEADS_INIT.md` (preflight-routing + safety trigger) and `protocols/manifest.json`.
 - Root `SPEC.md` §3.5 (`REQ-YF-PRE-006`/`REQ-YF-PRE-007` — the ported verify/repair kernel), §3.9
   (`REQ-YF-MIGRATE-001`), §4 (BINIT), and `GUARDRAILS.md`.

@@ -6,6 +6,7 @@
 
 mod cli;
 mod embed;
+mod frontmatter;
 
 use anyhow::Result;
 use clap::Parser;

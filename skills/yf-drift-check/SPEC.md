@@ -121,10 +121,10 @@ structurally silent on that axis.
 
 ## 6. References
 
-- `skills/drift-check/SKILL.md` (operational summary; on discrepancy, `spec/` wins).
-- `skills/drift-check/spec/schema.md` (seven-section manifest schema + six-term contract vocabulary),
+- `skills/yf-drift-check/SKILL.md` (operational summary; on discrepancy, `spec/` wins).
+- `skills/yf-drift-check/spec/schema.md` (seven-section manifest schema + six-term contract vocabulary),
   `spec/checks.md` (four check categories + evidence standard + verdict semantics),
   `spec/engine.md` (no-op, bootstrap, dispatch, conflict, out-of-scope limits).
-- `skills/drift-check/agents/drift-verifier.md`; `templates/manifest.md`.
+- `skills/yf-drift-check/agents/drift-verifier.md`; `templates/manifest.md`.
 - `protocols/DRIFT-CHECK-TRIGGER.md` (on-edit trigger).
 - Root `SPEC.md` §4 (DRIFT) and `GUARDRAILS.md` (GR-004, per-skill guardrails note).

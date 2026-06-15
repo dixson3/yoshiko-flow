@@ -19,7 +19,7 @@ formula, `bd mol pour`, or coordinator loop; the work is config plus scoped CLI 
 status/pull (upstream worklist), plus the always-loaded close-time trigger carried by the
 companion rule.
 
-**Out of scope:** routine local `bd` operations (`yf-beads`), direct-CLI `--json` gotchas
+**Out of scope:** routine local `bd` operations (the `beads` skill), direct-CLI `--json` gotchas
 (`yf-beads-extra`), and authoring beads-backed skills (`yf-beads-authoring`).
 
 ## 2. Requirements (`REQ-BUP-NNN`)
@@ -99,7 +99,7 @@ companion rule.
 
 - **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (open/blocked/deferred push
   candidates, flagging those already carrying an `External:` mapping; defensive `--json` parse
-  per `beads-extra`) and `mappings --issues <csv> [--json]` (report each bead's `External:` URL
+  per `yf-beads-extra`) and `mappings --issues <csv> [--json]` (report each bead's `External:` URL
   or null). `scripts/manifest_update.py` restamps the companion-rule manifest hash. Upstream
   pushes use bd's first-class `bd github|gitlab|jira push <ids>` (≡ scoped `sync --push-only`).
 - **Companion rule:** `protocols/UPSTREAM_TRACKING.md` (+ `protocols/manifest.json`,
@@ -142,8 +142,8 @@ companion rule.
 
 ## 6. References
 
-- `skills/beads-upstream/SKILL.md` (operations, backend table, safety invariants).
-- `skills/beads-upstream/spec/operations.md`, `spec/backends.md`, `spec/safety.md` (topical
+- `skills/yf-beads-upstream/SKILL.md` (operations, backend table, safety invariants).
+- `skills/yf-beads-upstream/spec/operations.md`, `spec/backends.md`, `spec/safety.md` (topical
   design docs; REQ-OP-*, REQ-BE-*, REQ-SAFE-* map into the requirements above).
 - `protocols/UPSTREAM_TRACKING.md` + `protocols/manifest.json` (close-time trigger).
 - Root `SPEC.md` §4 (BUP), §3.5 (`REQ-YF-PRE-*` preflight kernel), §3.8 (rename), §3.9

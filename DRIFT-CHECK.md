@@ -1,10 +1,10 @@
 # DRIFT-CHECK.md — beads-skills manifest
 
-The `drift-check` engine's per-repo configuration for **this** repository. It declares the
+The `yf-drift-check` engine's per-repo configuration for **this** repository. It declares the
 artifact graph the engine verifies: nodes, source-of-truth edges, per-edge contracts, the
 changed-path globs that scope an on-edit check, and the fixed-authority policy. The reusable
 mechanism (cascade principle, isolated evidence-based sub-agent, the four check categories,
-spec-bootstrap/conflict handling) lives in the `drift-check` skill — not here.
+spec-bootstrap/conflict handling) lives in the `yf-drift-check` skill — not here.
 
 This file is the ported, corrected successor to the engine prose that used to live inline in
 `AGENTS/CONSISTENCY.md` and `AGENTS/DOCUMENTATION.md`. One correction is baked in: the README
@@ -19,7 +19,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 
 ## 0. Status
 
-`approved: yes` — this repo is the reference/regression instance for the drift-check engine
+`approved: yes` — this repo is the reference/regression instance for the yf-drift-check engine
 (plan-007, operator-approved). The engine enforces this manifest.
 
 ## 1. Artifact Nodes
@@ -124,7 +124,7 @@ source that makes each mandatory.
 ## 6. Trigger Scope
 
 A source-node edit fans out to every derived edge it feeds. Globs retain **skill-dir
-coverage** (drift-check fires on skill-dir edits alongside skill-authoring, on the orthogonal
+coverage** (yf-drift-check fires on skill-dir edits alongside yf-skill-authoring, on the orthogonal
 content-agreement axis).
 
 | Changed-Path Glob | Scopes To |

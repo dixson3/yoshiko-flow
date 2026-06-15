@@ -62,6 +62,6 @@ GFM is the enforced convention).
 
 ## 6. References
 
-- `skills/markdown-lint/SKILL.md` (rule table ML001–ML007, table conventions).
+- `skills/yf-markdown-lint/SKILL.md` (rule table ML001–ML007, table conventions).
 - `protocols/MARKDOWN_LINT.md` (on-edit trigger).
 - Root `SPEC.md` §4 (MDLINT) and `GUARDRAILS.md` (GR-004).

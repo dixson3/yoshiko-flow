@@ -101,6 +101,6 @@ skill `spec/` co-resident, `docs/diagrams`).
 
 ## 6. References
 
-- `skills/diagram-authoring/SKILL.md` (workflow, output-location table, d2 authoring notes).
-- `skills/diagram-authoring/scripts/render.py` (the render wrapper).
+- `skills/yf-diagram-authoring/SKILL.md` (workflow, output-location table, d2 authoring notes).
+- `skills/yf-diagram-authoring/scripts/render.py` (the render wrapper).
 - Root `SPEC.md` §4 (DIAG) and `GUARDRAILS.md` (GR-004, GR-011).

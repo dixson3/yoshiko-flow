@@ -116,7 +116,7 @@ skill); authoring beads-backed skills — formulas, coordinator loops, the `coor
 
 ## 6. References
 
-- `skills/beads-extra/SKILL.md`; `skills/beads-extra/spec/cli.md`, `spec/json-and-scope.md`.
+- `skills/yf-beads-extra/SKILL.md`; `skills/yf-beads-extra/spec/cli.md`, `spec/json-and-scope.md`.
 - `protocols/` — none (no companion rule).
 - Root `SPEC.md` §4 (BEXTRA) and `GUARDRAILS.md`.
 - Sibling specs: `yf-beads-authoring` (BAUTH), which **cites** these CLI contracts; the canonical

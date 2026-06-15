@@ -1,6 +1,6 @@
 # Markdown Lint-on-Edit Trigger Protocol
 
-Always-loaded firing surface for the `markdown-lint` skill. The linter procedure,
+Always-loaded firing surface for the `yf-markdown-lint` skill. The linter procedure,
 the rule list (ML001–ML007), and the table conventions live in the skill's
 `SKILL.md`; this rule binds only the on-edit trigger a `description` cannot
 reliably fire. It is the **portable, cross-harness** equivalent of the optional
@@ -20,7 +20,7 @@ uv run <skill-dir>/scripts/markdown_lint.py "<changed.md>" --rules ML001,ML002,M
 The subset is the fast authoring rules — wiki-links (ML001), embeds (ML002),
 malformed tables (ML005), empty links (ML006), bad delimiters (ML007). It
 deliberately skips link/anchor resolution (ML003/ML004): those are a full link
-audit (`/markdown-lint` with no `--rules`), not an every-edit check. A non-empty
+audit (`/yf-markdown-lint` with no `--rules`), not an every-edit check. A non-empty
 marker file may override the rule set (`--rules …` on its own line) or list
 exclude globs; an empty marker means "use this default subset".
 
@@ -34,11 +34,11 @@ skill is installed.
 
 ## Scope boundary
 
-markdown-lint checks that a markdown file is valid GFM (links, embeds, tables).
+yf-markdown-lint checks that a markdown file is valid GFM (links, embeds, tables).
 It never authors, reformats, or rewrites prose, and never touches non-markdown
 files. Cross-edge content agreement (docs ↔ spec ↔ implementation) is
-`drift-check`'s axis, not this one — the two may both fire on a `.md` edit on
+`yf-drift-check`'s axis, not this one — the two may both fire on a `.md` edit on
 orthogonal axes (GFM validity vs. cross-edge agreement).
 
 For the rule list, table conventions, the migration helper, and the Claude-Code
-`FileChanged` hook alternative, see the `markdown-lint` `SKILL.md`.
+`FileChanged` hook alternative, see the `yf-markdown-lint` `SKILL.md`.
