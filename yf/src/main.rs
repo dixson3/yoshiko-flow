@@ -5,6 +5,7 @@
 //! stubs for later beads; the process exits non-zero on any error.
 
 mod cli;
+mod cmd;
 mod dest;
 mod embed;
 mod frontmatter;
@@ -38,7 +39,7 @@ fn run() -> Result<()> {
     match cli.command {
         Command::Version(args) => cmd_version(&args),
         Command::Skills { command } => cmd_skills(&command),
-        Command::Doctor(args) => stub("doctor", args.json),
+        Command::Doctor(args) => cmd::doctor::run(&args),
         Command::Preflight(args) => stub("preflight", args.json),
     }
 }
@@ -58,37 +59,12 @@ fn cmd_version(args: &VersionArgs) -> Result<()> {
 }
 
 fn cmd_skills(command: &SkillsCommand) -> Result<()> {
-    let (verb, json) = match command {
-        SkillsCommand::Install(a) => ("skills install", a.json),
-        SkillsCommand::Upgrade(a) => ("skills upgrade", a.json),
-        SkillsCommand::Remove(a) => ("skills remove", a.json),
-        // Real install/status logic lands in beads 1.5/1.6. For now `status`
-        // exercises the embed enumeration API (REQ-YF-EMBED-002) by reporting
-        // how many skills are compiled into the binary.
-        SkillsCommand::Status(a) => return cmd_skills_status(a.json),
-    };
-    stub(verb, json)
-}
-
-/// Interim `skills status`: report the embedded skill inventory. Replaced by the
-/// real install/up-to-date/completeness logic in a later bead.
-fn cmd_skills_status(json: bool) -> Result<()> {
-    let names = embed::skill_names();
-    if json {
-        let out = serde_json::json!({
-            "command": "skills status",
-            "status": "not_implemented",
-            "embedded_skill_count": names.len(),
-            "embedded_skills": names,
-        });
-        println!("{}", serde_json::to_string(&out)?);
-    } else {
-        println!("{} skills embedded in this binary:", names.len());
-        for name in &names {
-            println!("  {name}");
-        }
+    match command {
+        SkillsCommand::Install(a) => cmd::install::run(a),
+        SkillsCommand::Upgrade(a) => cmd::status::upgrade(a),
+        SkillsCommand::Remove(a) => cmd::status::remove(a),
+        SkillsCommand::Status(a) => cmd::status::status(a),
     }
-    Ok(())
 }
 
 /// Placeholder for subcommands implemented by later beads. Parses correctly and

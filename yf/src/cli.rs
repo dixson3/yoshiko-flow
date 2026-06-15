@@ -80,6 +80,18 @@ pub struct SkillsArgs {
     #[arg(long, value_name = "PATH")]
     pub target: Option<std::path::PathBuf>,
 
+    /// Act only on skills in this group (computed from `skill-group` frontmatter).
+    #[arg(long, value_name = "NAME")]
+    pub group: Option<String>,
+
+    /// Treat a missing `depends-on-tool` as a hard failure (install only).
+    #[arg(long)]
+    pub strict: bool,
+
+    /// Overwrite an existing companion rule (default preserves hand-edits).
+    #[arg(long)]
+    pub force: bool,
+
     /// Show what would change without writing anything.
     #[arg(long)]
     pub dry_run: bool,

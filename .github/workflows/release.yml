@@ -135,8 +135,113 @@ jobs:
             artifacts/*.tar.gz
             artifacts/*.sha256
 
-  # NOTE (bead 4.2): Homebrew tap publish + `depends_on "beads"` / `depends_on "uv"`
-  # (REQ-YF-DIST-002/003) is NOT wired here. cargo-dist's generated workflow adds a
-  # `homebrew` publish job that pushes the formula to `dixson3/homebrew-tap`. Bead 4.2
-  # finalizes that (tap repo + depends_on); regenerating via `dist generate` at G3 is
-  # the intended path to the canonical version of this job.
+  # Homebrew tap publish (REQ-YF-DIST-002/003) — bead 4.2.
+  #
+  # Hand-authored stand-in for cargo-dist's generated `homebrew` publish job
+  # (`publish-jobs = ["homebrew"]` in [workspace.metadata.dist]). It pushes the generated
+  # formula to the `dixson3/homebrew-tap` repo. cargo-dist renders the formula from the
+  # release artifacts + the `[workspace.metadata.dist.dependencies.homebrew]` table, so the
+  # committed formula carries:
+  #     depends_on "beads"
+  #     depends_on "uv"
+  # and a `test do` block that runs the binary — i.e. `system "#{bin}/yf", "version"`,
+  # satisfying REQ-YF-DIST-003 (`yf version`). At G3, regenerating with `dist generate`
+  # replaces this stand-in with cargo-dist's canonical homebrew job (same token + tap).
+  #
+  # AUTH (Gate G3 must verify): `secrets.HOMEBREW_TAP_TOKEN` must exist on this repo as a
+  # GitHub token with write access to `dixson3/homebrew-tap`. cargo-dist's homebrew publish
+  # consumes exactly this secret name to push the formula commit to the tap.
+  homebrew-publish:
+    name: Publish Homebrew formula
+    # Only publish the formula after the GitHub Release exists.
+    needs: release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Render and push Homebrew formula to tap
+        shell: bash
+        # HOMEBREW_TAP_TOKEN: a GitHub PAT/token with write access to dixson3/homebrew-tap.
+        # cargo-dist's generated homebrew job reads this same secret name; the hand-authored
+        # render here is replaced by `dist generate` at G3, but the token wiring is identical.
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_REPO: dixson3/homebrew-tap
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN secret is not set; cannot push formula to ${TAP_REPO}." >&2
+            echo "Gate G3 must confirm this secret exists with write access to ${TAP_REPO}." >&2
+            exit 1
+          fi
+          # Clone the tap repo using the token.
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+          mkdir -p tap/Formula
+
+          # Resolve per-target tarball sha256 checksums from the release artifacts.
+          sha_darwin_arm64=$(awk '{print $1}' artifacts/yf-${VERSION}-aarch64-apple-darwin.tar.gz.sha256)
+          sha_darwin_amd64=$(awk '{print $1}' artifacts/yf-${VERSION}-x86_64-apple-darwin.tar.gz.sha256)
+          sha_linux_arm64=$(awk '{print $1}' artifacts/yf-${VERSION}-aarch64-unknown-linux-gnu.tar.gz.sha256)
+          sha_linux_amd64=$(awk '{print $1}' artifacts/yf-${VERSION}-x86_64-unknown-linux-gnu.tar.gz.sha256)
+
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+
+          # Render the formula. REQ-YF-DIST-002: depends_on "beads" + depends_on "uv".
+          # REQ-YF-DIST-003: the `test do` block runs `yf version`.
+          cat > tap/Formula/yf.rb <<EOF
+          class Yf < Formula
+            desc "Yoshiko Flow CLI"
+            homepage "https://github.com/${GITHUB_REPOSITORY}"
+            version "${VERSION}"
+
+            depends_on "beads"
+            depends_on "uv"
+
+            on_macos do
+              on_arm do
+                url "${base}/yf-${VERSION}-aarch64-apple-darwin.tar.gz"
+                sha256 "${sha_darwin_arm64}"
+              end
+              on_intel do
+                url "${base}/yf-${VERSION}-x86_64-apple-darwin.tar.gz"
+                sha256 "${sha_darwin_amd64}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "${base}/yf-${VERSION}-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${sha_linux_arm64}"
+              end
+              on_intel do
+                url "${base}/yf-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${sha_linux_amd64}"
+              end
+            end
+
+            def install
+              bin.install "yf"
+            end
+
+            test do
+              system "#{bin}/yf", "version"
+            end
+          end
+          EOF
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/yf.rb
+          git commit -m "yf ${VERSION}"
+          git push origin HEAD
