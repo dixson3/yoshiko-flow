@@ -21,6 +21,10 @@ allowed-tools:
   - Write
   - Edit
   - AskUserQuestion
+preflight:
+  companion-rule: UPSTREAM_TRACKING.md
+  min-bd-version: 1.0.5
+  config-basename: .yf-beads-upstream.local.json
 ---
 
 # yf-beads-upstream

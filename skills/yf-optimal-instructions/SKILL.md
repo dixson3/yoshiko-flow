@@ -23,6 +23,9 @@ allowed-tools:
 title: yf-optimal-instructions
 created: '2026-05-31'
 tags: []
+preflight:
+  companion-rule: INSTRUCTIONS.md
+  config-basename: .yf-optimal-instructions.local.json
 ---
 
 # yf-optimal-instructions

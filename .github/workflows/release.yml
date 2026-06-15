@@ -1,0 +1,142 @@
+# Release workflow for the `yf` crate — REQ-YF-DIST-001.
+#
+# HAND-AUTHORED placeholder modeled on cargo-dist's standard generated
+# `release.yml`. cargo-dist (the `dist` tool) is NOT installed on this machine, so
+# this could not be produced by `dist init` / `dist generate`. At gate G3, once
+# cargo-dist is installed, REGENERATE this file with `dist generate` (or
+# `dist init`) to replace this skeleton with the canonical, cargo-dist-managed
+# release pipeline (which also wires the Homebrew tap publish from bead 4.2).
+#
+# Until then, this workflow is a faithful, valid stand-in: it builds the 4-way
+# matrix ({darwin,linux} × {amd64,arm64}), computes sha256 checksums, and creates
+# a GitHub Release with all artifacts attached.
+#
+# Versioning / semver-from-tags (REQ-YF-DIST-001):
+#   - The `yf` crate version in `yf/Cargo.toml` is the source of truth.
+#   - A release is cut by pushing a `v<semver>` tag (e.g. `v0.1.0`).
+#   - The release version is DERIVED from that git tag (`github.ref_name`); the tag
+#     and the crate version must agree.
+
+name: Release
+
+on:
+  push:
+    tags:
+      # Trigger on semver release tags, e.g. v0.1.0 / v1.2.3 / v0.1.0-rc.1
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # Build the release binaries across the 4-way target matrix.
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # darwin × arm64
+          - target: aarch64-apple-darwin
+            os: macos-14
+          # darwin × amd64
+          - target: x86_64-apple-darwin
+            os: macos-13
+          # linux × arm64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          # linux × amd64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        # semver-from-tags: strip the leading `v` from the git tag.
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation linker (linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          mkdir -p .cargo
+          {
+            echo '[target.aarch64-unknown-linux-gnu]'
+            echo 'linker = "aarch64-linux-gnu-gcc"'
+          } >> .cargo/config.toml
+
+      - name: Build release binary
+        shell: bash
+        run: cargo build --release --target ${{ matrix.target }} --package yf
+
+      - name: Package artifact + sha256 checksum
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          target="${{ matrix.target }}"
+          bin="yf"
+          dist_name="yf-${version}-${target}"
+          staging="${dist_name}"
+          mkdir -p "${staging}"
+          cp "target/${target}/release/${bin}" "${staging}/"
+          # Tarball the binary.
+          archive="${dist_name}.tar.gz"
+          tar -czf "${archive}" "${staging}"
+          # sha256 checksum (REQ-YF-DIST: checksums).
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${archive}" > "${archive}.sha256"
+          else
+            shasum -a 256 "${archive}" > "${archive}.sha256"
+          fi
+          echo "archive=${archive}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yf-${{ matrix.target }}
+          path: |
+            ${{ steps.package.outputs.archive }}
+            ${{ steps.package.outputs.archive }}.sha256
+          if-no-files-found: error
+
+  # Create the GitHub Release with all matrix artifacts + checksums attached.
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Release tag/name derive from the pushed git tag (semver-from-tags).
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.sha256
+
+  # NOTE (bead 4.2): Homebrew tap publish + `depends_on "beads"` / `depends_on "uv"`
+  # (REQ-YF-DIST-002/003) is NOT wired here. cargo-dist's generated workflow adds a
+  # `homebrew` publish job that pushes the formula to `dixson3/homebrew-tap`. Bead 4.2
+  # finalizes that (tap repo + depends_on); regenerating via `dist generate` at G3 is
+  # the intended path to the canonical version of this job.

@@ -5,8 +5,10 @@
 //! stubs for later beads; the process exits non-zero on any error.
 
 mod cli;
+mod dest;
 mod embed;
 mod frontmatter;
+mod marker;
 
 use anyhow::Result;
 use clap::Parser;

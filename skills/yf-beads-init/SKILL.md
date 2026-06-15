@@ -18,6 +18,10 @@ allowed-tools:
   - Read
   - Bash
   - AskUserQuestion
+preflight:
+  companion-rule: BEADS_INIT.md
+  min-bd-version: 1.0.5
+  config-basename: .yf-beads-init.local.json
 ---
 
 # yf-beads-init

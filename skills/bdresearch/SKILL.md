@@ -29,6 +29,10 @@ allowed-tools:
   - mcp__exa__web_search_advanced_exa
   - mcp__exa__crawling_exa
   - mcp__exa__get_code_context_exa
+preflight:
+  companion-rule: RESEARCH.md
+  min-bd-version: 1.0.5
+  config-basename: .yf-research.local.json
 ---
 
 # bdresearch

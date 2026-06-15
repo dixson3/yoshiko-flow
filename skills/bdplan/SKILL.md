@@ -20,6 +20,10 @@ allowed-tools:
   - WebFetch
   - Agent
   - AskUserQuestion
+preflight:
+  companion-rule: PLANS.md
+  min-bd-version: 1.0.5
+  config-basename: .yf-plan.local.json
 ---
 
 # bdplan

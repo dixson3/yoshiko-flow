@@ -1,3 +1,41 @@
 [workspace]
 members = ["yf"]
 resolver = "2"
+
+# cargo-dist (the `dist` tool) release configuration — REQ-YF-DIST-001.
+#
+# Hand-authored per cargo-dist's documented `[workspace.metadata.dist]` schema:
+# `dist`/`cargo-dist` is NOT installed on this machine, so `dist init` could not
+# be run interactively. Once cargo-dist is installed (at gate G3), regenerate the
+# workflow with `dist init` / `dist generate` to pick up the canonical generated
+# `.github/workflows/release.yml` and to confirm/adjust this block.
+#
+# Version source of truth: the `yf` crate version in `yf/Cargo.toml`. Releases are
+# cut by pushing a `v<semver>` git tag (e.g. `v0.1.0`); cargo-dist derives the
+# release semver from that tag. The crate version and the tag must agree.
+#
+# Bead 4.2 finalizes the Homebrew side: it owns the `dixson3/homebrew-tap` tap repo
+# wiring and the formula `depends_on "beads"` / `depends_on "uv"` (REQ-YF-DIST-002).
+# The `homebrew` installer key below is a placeholder enabling the installer; the
+# tap publish + dependency declarations remain 4.2's job.
+[workspace.metadata.dist]
+# Pinned to a recent stable cargo-dist. Adjust at G3 to match the installed `dist`.
+cargo-dist-version = "0.28.0"
+# CI backend that runs the release.
+ci = "github"
+# Installers cargo-dist generates. `shell` = curl|sh installer; `homebrew` is a
+# placeholder finalized by bead 4.2 (tap + depends_on).
+installers = ["shell", "homebrew"]
+# Homebrew tap target — bead 4.2 finalizes the tap repo + depends_on wiring.
+tap = "dixson3/homebrew-tap"
+# The 4-way release matrix: {darwin, linux} × {amd64, arm64}.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+]
+# sha256 checksums for every artifact.
+checksum = "sha256"
+# Publish a GitHub Release with the artifacts attached.
+pr-run-mode = "plan"
