@@ -45,7 +45,7 @@ changes. The `description` trigger remains best-effort (not guaranteed on every 
 companion rule is the always-loaded backstop, not a trigger mechanism.
 Rationale: Always-loaded context is paid every turn, so default to none and add only the
 minimal necessary rule. The token-efficiency obligation must hold even when the description
-trigger misses; shipping it as a thin portable protocol (consistent with bdplan/bdresearch)
+trigger misses; shipping it as a thin portable protocol (consistent with yf-plan/yf-research)
 replaces the former repo-local `AGENTS/OPTIMIZED_SKILLS.md` and removes its duplication of
 skill-authoring's ruleset.
 Verification: `ls skills/optimal-instructions/protocols/` shows `INSTRUCTIONS.md` +

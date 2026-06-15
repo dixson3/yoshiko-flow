@@ -107,8 +107,8 @@ def main() -> int:
         closures[f"group:{g}"] = closure(base)
     for s in [
         "yf-beads-upstream",
-        "bdplan",
-        "bdresearch",
+        "yf-plan",
+        "yf-research",
         "yf-beads-extra",
         "yf-markdown-lint",
     ]:

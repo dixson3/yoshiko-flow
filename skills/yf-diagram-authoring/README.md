@@ -3,7 +3,7 @@
 Generate light-mode, white-background diagram PNGs from **d2** source, keeping the `.d2` source
 beside every `.png` render. d2 is the single, local, offline diagram engine for this toolchain
 (replacing the ad-hoc mermaid+naba workflow). The skill is location-agnostic — callers
-(bdplan, bdresearch, skill-authoring, top-level docs) supply the output directory.
+(yf-plan, yf-research, skill-authoring, top-level docs) supply the output directory.
 
 ## Prerequisites
 

@@ -1,8 +1,6 @@
 {
   "_comment": "FROZEN GOLDEN \u2014 install.py authoritative output over skills/ (REQ-YF-INSTALL-003/004). install.py is deleted by plan-010 bead 5.1; do NOT run it at test time. Compared against by yf/src/parity.rs. Regenerate with: uv run yf/src/testdata/gen-install-parity.py > yf/src/testdata/install-parity.json",
   "skill_group": {
-    "bdplan": "beads",
-    "bdresearch": "beads",
     "yf-beads-authoring": "beads",
     "yf-beads-extra": "beads",
     "yf-beads-init": "beads",
@@ -13,6 +11,8 @@
     "yf-markdown-lint": "markdown",
     "yf-markdown-pdf": "markdown",
     "yf-optimal-instructions": "utility",
+    "yf-plan": "beads",
+    "yf-research": "beads",
     "yf-skill-authoring": "utility"
   },
   "groups": [
@@ -22,13 +22,13 @@
   ],
   "group_members": {
     "beads": [
-      "bdplan",
-      "bdresearch",
       "yf-beads-authoring",
       "yf-beads-extra",
       "yf-beads-init",
       "yf-beads-upstream",
-      "yf-incubator"
+      "yf-incubator",
+      "yf-plan",
+      "yf-research"
     ],
     "markdown": [
       "yf-markdown-lint",
@@ -43,13 +43,13 @@
   },
   "closures": {
     "group:beads": [
-      "bdplan",
-      "bdresearch",
       "yf-beads-authoring",
       "yf-beads-extra",
       "yf-beads-init",
       "yf-beads-upstream",
-      "yf-incubator"
+      "yf-incubator",
+      "yf-plan",
+      "yf-research"
     ],
     "group:markdown": [
       "yf-markdown-lint",
@@ -61,16 +61,6 @@
       "yf-optimal-instructions",
       "yf-skill-authoring"
     ],
-    "skill:bdplan": [
-      "bdplan",
-      "yf-beads-authoring",
-      "yf-beads-extra"
-    ],
-    "skill:bdresearch": [
-      "bdresearch",
-      "yf-beads-authoring",
-      "yf-beads-extra"
-    ],
     "skill:yf-beads-extra": [
       "yf-beads-extra"
     ],
@@ -80,6 +70,16 @@
     ],
     "skill:yf-markdown-lint": [
       "yf-markdown-lint"
+    ],
+    "skill:yf-plan": [
+      "yf-beads-authoring",
+      "yf-beads-extra",
+      "yf-plan"
+    ],
+    "skill:yf-research": [
+      "yf-beads-authoring",
+      "yf-beads-extra",
+      "yf-research"
     ]
   }
 }

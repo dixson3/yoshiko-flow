@@ -15,7 +15,7 @@
 //! ## Keying
 //!
 //! Both sides key skills by their **directory name** under `skills/` (the 11
-//! `yf-*` skills plus `bdplan`, `bdresearch`) — `depends-on-skill` references the
+//! `yf-*` skills plus `yf-plan`, `yf-research`) — `depends-on-skill` references the
 //! dir name in this repo's convention, matching [`crate::frontmatter::load_skills`].
 //!
 //! ## Documented divergence (excluded from the parity assertion)

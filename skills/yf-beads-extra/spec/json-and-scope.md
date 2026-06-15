@@ -13,7 +13,7 @@
   iteration). — *Rationale:* a naive load raises `AttributeError`/`JSONDecodeError` and, if
   swallowed, produces a wrong report. — *Verify:* SKILL.md defensive-parse snippets; `bd show <id> --json`.
 
-- **REQ-JSON-003:** Inside bdplan/bdresearch, prefer the manager script's hardened
+- **REQ-JSON-003:** Inside yf-plan/yf-research, prefer the manager script's hardened
   `json-get` extractor over a hand-rolled parser. — *Rationale:* one audited parser, not many.
   — *Verify:* SKILL.md reference to `plan_manager.py json-get`.
 

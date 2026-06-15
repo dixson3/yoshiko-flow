@@ -29,4 +29,4 @@ formula-vs-agent separation and runtime self-location.
 - **REQ-STRUCT-005:** Multi-session skills hand off to a `coordinate` subcommand run in a new
   session rather than continuing inline after pour. — *Rationale:* the start gate is released in
   a fresh session, preventing accidental auto-execution of unapproved work. — *Verify:* SKILL.md
-  "Coordinate subcommand" §; cross-ref bdplan/bdresearch handoff.
+  "Coordinate subcommand" §; cross-ref yf-plan/yf-research handoff.

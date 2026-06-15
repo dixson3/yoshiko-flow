@@ -21,7 +21,7 @@ Both SKILL.md and agent/subagent files self-resolve `${SKILL_DIR}` via this reso
 
 ## 1. Companion rules
 
-Source of truth lives at `${SKILL_DIR}/protocols/<NAME>.md` (e.g. `bdplan/protocols/PLANS.md`; a skill may ship one rule file or several, one per `<NAME>`).
+Source of truth lives at `${SKILL_DIR}/protocols/<NAME>.md` (e.g. `yf-plan/protocols/PLANS.md`; a skill may ship one rule file or several, one per `<NAME>`).
 
 The rule is installed by **the repo installer (`install.sh`), not by `<skill> init`** — so it lands the moment the skill does. The installer copies each shipped `protocols/<NAME>.md` (never `manifest.json`) into a rules dir anchored by **install scope and surface**:
 

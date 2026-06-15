@@ -2,7 +2,7 @@
 
 Conventions for building Claude Code skills that orchestrate work through beads (`bd`): formula authoring (`.formula.toml`), the `bd mol pour` lifecycle, dynamic fan-out, agent metadata wiring, the coordinator dispatch loop, the coordinator resilience contract (crash/resume recovery, stuck-bead sweep, completion handoff), and the `coordinate` subcommand with gate auto-detection.
 
-This is a **reference skill** — design rules consumed while authoring other beads-backed skills, not a runtime workflow. `bdplan` and `bdresearch` are the worked examples of every convention it documents. It pairs with `skill-authoring` (general layout, token rules, the Skill Surface Convention) and `beads-extra` (direct-CLI gotchas the runtime steps depend on).
+This is a **reference skill** — design rules consumed while authoring other beads-backed skills, not a runtime workflow. `yf-plan` and `yf-research` are the worked examples of every convention it documents. It pairs with `skill-authoring` (general layout, token rules, the Skill Surface Convention) and `beads-extra` (direct-CLI gotchas the runtime steps depend on).
 
 ## Prerequisites
 

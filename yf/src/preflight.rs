@@ -184,16 +184,16 @@ impl Env {
 
 /// Map the logical `<skill>` argument to (embedded-dir-name, short-name).
 ///
-/// The embedded `skills/` dirs are still `bdplan` / `bdresearch` (the
-/// REQ-YF-RENAME-001 rename is a later bead), while the contract's `<skill>`
-/// argument and the new `.yf/<skill>/` paths use the short names `plan` /
-/// `research`. We accept either form. `short` drives config/state paths; `dir`
-/// selects the embedded SKILL.md + manifest.
+/// The embedded `skills/` dirs are now `yf-plan` / `yf-research` (post
+/// REQ-YF-RENAME-001), while the contract's `<skill>` argument and the new
+/// `.yf/<skill>/` paths use the short names `plan` / `research`. We accept
+/// either form (and the legacy `bdplan`/`bdresearch` for back-compat). `short`
+/// drives config/state paths; `dir` selects the embedded SKILL.md + manifest.
 fn resolve_skill(arg: &str) -> (String, String) {
-    // Explicit aliases for the two renamed skills.
+    // Explicit aliases for the two self-renamed skills.
     let (dir, short) = match arg {
-        "plan" | "yf-plan" | "bdplan" => ("bdplan", "plan"),
-        "research" | "yf-research" | "bdresearch" => ("bdresearch", "research"),
+        "plan" | "yf-plan" | "bdplan" => ("yf-plan", "plan"),
+        "research" | "yf-research" | "bdresearch" => ("yf-research", "research"),
         other => {
             // Generic: the dir is the arg as-is (or with a `yf-` prefix if that
             // resolves to an embedded skill); the short name strips a `yf-`.
@@ -1036,7 +1036,7 @@ mod tests {
         )
         .unwrap();
         // Materialize the EMBEDDED PLANS.md so its sha256 matches the manifest.
-        let embedded = embed::read_file("bdplan/protocols/PLANS.md").expect("embedded PLANS.md");
+        let embedded = embed::read_file("yf-plan/protocols/PLANS.md").expect("embedded PLANS.md");
         std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
 
         let env = test_env(&repo, &rules);
@@ -1089,7 +1089,7 @@ mod tests {
             r#"{"prereqs-present": true}"#,
         )
         .unwrap();
-        let embedded = embed::read_file("bdplan/protocols/PLANS.md").unwrap();
+        let embedded = embed::read_file("yf-plan/protocols/PLANS.md").unwrap();
         std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
 
         let env = test_env(&repo, &rules);
@@ -1195,12 +1195,12 @@ mod tests {
     // Skill resolution: short, yf-prefixed, and legacy dir names all resolve.
     #[test]
     fn skill_alias_resolution() {
-        assert_eq!(resolve_skill("plan"), ("bdplan".into(), "plan".into()));
-        assert_eq!(resolve_skill("yf-plan"), ("bdplan".into(), "plan".into()));
-        assert_eq!(resolve_skill("bdplan"), ("bdplan".into(), "plan".into()));
+        assert_eq!(resolve_skill("plan"), ("yf-plan".into(), "plan".into()));
+        assert_eq!(resolve_skill("yf-plan"), ("yf-plan".into(), "plan".into()));
+        assert_eq!(resolve_skill("bdplan"), ("yf-plan".into(), "plan".into()));
         assert_eq!(
             resolve_skill("research"),
-            ("bdresearch".into(), "research".into())
+            ("yf-research".into(), "research".into())
         );
     }
 
@@ -1240,7 +1240,7 @@ mod tests {
         )
         .unwrap();
         // Materialize the EMBEDDED PLANS.md so its sha256 equals the manifest's.
-        let embedded = embed::read_file("bdplan/protocols/PLANS.md").expect("embedded PLANS.md");
+        let embedded = embed::read_file("yf-plan/protocols/PLANS.md").expect("embedded PLANS.md");
         std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
 
         let env = test_env(&repo, &rules);
@@ -1283,7 +1283,7 @@ mod tests {
         std::fs::create_dir_all(&empty_path).unwrap();
         // NOTE: no prereqs-present in state → the system-deps gate runs.
 
-        // `plan` (bdplan) depends-on-tool [bd, uv, git] and has min-bd-version, so
+        // `plan` (yf-plan) depends-on-tool [bd, uv, git] and has min-bd-version, so
         // all three probes fire and all miss against the empty PATH.
         let env = test_env_with_path(&repo, &rules, &empty_path);
         let out = run_with_env("plan", &env);

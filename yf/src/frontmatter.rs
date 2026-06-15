@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn parses_inline_arrays_and_scalars() {
         let text = "---\n\
-            name: bdplan\n\
+            name: yf-plan\n\
             user-invocable: true\n\
             skill-group: beads\n\
             depends-on-tool: [bd, uv, git]\n\
@@ -332,7 +332,7 @@ mod tests {
             ---\n\
             body text here\n";
         let fm = parse_frontmatter(text);
-        assert_eq!(fm.name, "bdplan");
+        assert_eq!(fm.name, "yf-plan");
         assert_eq!(fm.group.as_deref(), Some("beads"));
         assert_eq!(fm.tools, vec!["bd", "uv", "git"]);
         assert_eq!(fm.skills, vec!["yf-beads-extra", "yf-beads-authoring"]);
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn parses_preflight_descriptor() {
         let text = "---\n\
-            name: bdplan\n\
+            name: yf-plan\n\
             depends-on-tool: [bd, uv, git]\n\
             preflight:\n\
             \x20\x20companion-rule: PLANS.md\n\
@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(pf.min_bd_version.as_deref(), Some("1.0.5"));
         assert_eq!(pf.config_basename.as_deref(), Some(".yf-plan.local.json"));
         // Existing flat keys still parse alongside the nested block.
-        assert_eq!(fm.name, "bdplan");
+        assert_eq!(fm.name, "yf-plan");
         assert_eq!(fm.tools, vec!["bd", "uv", "git"]);
     }
 
@@ -383,14 +383,14 @@ mod tests {
         assert_eq!(parse_frontmatter(text).preflight, None);
     }
 
-    // REQ-YF-PRE-004: the real embedded bdplan SKILL.md exposes its descriptor.
+    // REQ-YF-PRE-004: the real embedded yf-plan SKILL.md exposes its descriptor.
     #[test]
-    fn real_bdplan_preflight_descriptor() {
+    fn real_yf_plan_preflight_descriptor() {
         let skills = load_skills();
         let pf = skills
-            .get("bdplan")
+            .get("yf-plan")
             .and_then(|f| f.preflight.clone())
-            .expect("bdplan must carry a preflight descriptor");
+            .expect("yf-plan must carry a preflight descriptor");
         assert_eq!(pf.companion_rule.as_deref(), Some("PLANS.md"));
         assert_eq!(pf.min_bd_version.as_deref(), Some("1.0.5"));
         assert_eq!(pf.config_basename.as_deref(), Some(".yf-plan.local.json"));
@@ -462,7 +462,7 @@ mod tests {
     fn beads_group_contains_beads_skills() {
         let skills = load_skills();
         let beads = skills_in_group(&skills, "beads");
-        for expected in ["yf-beads-extra", "yf-beads-authoring", "bdplan"] {
+        for expected in ["yf-beads-extra", "yf-beads-authoring", "yf-plan"] {
             assert!(
                 beads.contains(&expected.to_string()),
                 "beads group missing {expected}: {beads:?}"
@@ -497,11 +497,11 @@ mod tests {
     #[test]
     fn closure_handles_multi_hop_base() {
         let skills = load_skills();
-        // bdplan depends on yf-beads-extra AND yf-beads-authoring; the latter
+        // yf-plan depends on yf-beads-extra AND yf-beads-authoring; the latter
         // also depends on yf-beads-extra — exercise the de-dup path.
-        let base: BTreeSet<String> = ["bdplan".to_string()].into_iter().collect();
+        let base: BTreeSet<String> = ["yf-plan".to_string()].into_iter().collect();
         let (install, _log) = resolve_install_set(&skills, &base);
-        for expected in ["bdplan", "yf-beads-extra", "yf-beads-authoring"] {
+        for expected in ["yf-plan", "yf-beads-extra", "yf-beads-authoring"] {
             assert!(
                 install.contains(expected),
                 "closure missing {expected}: {install:?}"

@@ -104,21 +104,21 @@ are **post-rename** (the canonical names).
 
 | Skill | Agent | role | stance | Notes |
 |-------|-------|------|--------|-------|
-| bdplan | coordinator | orchestrate | — | |
-| bdplan | investigator | gather | — | |
-| bdplan | planner | produce | — | |
-| bdplan | reviewer | evaluate | reviewer | conformance pass |
-| bdplan | red-team | evaluate | red-team | adversarial pass |
-| bdplan | reconciler | closeout | — | |
-| bdplan | captor | closeout | — | |
-| bdresearch | coordinator | orchestrate | — | |
-| bdresearch | retriever | gather | — | |
-| bdresearch | toolsmith | produce | — | Generates validated scripts — a new artifact. The 6-role set has no SETUP; PRODUCE is a family. |
-| bdresearch | triangulator | produce | — | Scores source credibility / flags consensus, but emits no verdict on the primary artifact; its deliverable `triangulation.md` is an analytical intermediate → PRODUCE, not EVALUATE. |
-| bdresearch | synthesizer | produce | — | |
-| bdresearch | red-team | evaluate | red-team | was `critic`; keeps its `critique.md` output artifact name |
-| bdresearch | refiner | revise | — | Also spawns gap-fill GATHER beads, but its dominant operation is editing `Summary.md` per critique → REVISE. |
-| bdresearch | packager | closeout | — | |
+| yf-plan | coordinator | orchestrate | — | |
+| yf-plan | investigator | gather | — | |
+| yf-plan | planner | produce | — | |
+| yf-plan | reviewer | evaluate | reviewer | conformance pass |
+| yf-plan | red-team | evaluate | red-team | adversarial pass |
+| yf-plan | reconciler | closeout | — | |
+| yf-plan | captor | closeout | — | |
+| yf-research | coordinator | orchestrate | — | |
+| yf-research | retriever | gather | — | |
+| yf-research | toolsmith | produce | — | Generates validated scripts — a new artifact. The 6-role set has no SETUP; PRODUCE is a family. |
+| yf-research | triangulator | produce | — | Scores source credibility / flags consensus, but emits no verdict on the primary artifact; its deliverable `triangulation.md` is an analytical intermediate → PRODUCE, not EVALUATE. |
+| yf-research | synthesizer | produce | — | |
+| yf-research | red-team | evaluate | red-team | was `critic`; keeps its `critique.md` output artifact name |
+| yf-research | refiner | revise | — | Also spawns gap-fill GATHER beads, but its dominant operation is editing `Summary.md` per critique → REVISE. |
+| yf-research | packager | closeout | — | |
 | skill-authoring | reviewer | evaluate | reviewer | |
 | skill-authoring | reviewer-tokens | evaluate | reviewer | was `optimizer` |
 | skill-authoring | reviewer-python | evaluate | reviewer | was `python-reviewer` |
@@ -137,7 +137,7 @@ Defensible by the factoring test or distinct operation — **not** vocabulary dr
 
 ## Deliberate asymmetry
 
-bdplan gains both EVALUATE stances (a conformance `reviewer` + a `red-team`); bdresearch
+yf-plan gains both EVALUATE stances (a conformance `reviewer` + a `red-team`); yf-research
 gets only `red-team`. The factoring test, not symmetry, governs: a plan's conformance is
 semantic (epic / dependency / success-criteria soundness) and warrants a dedicated pass,
 while research-report conformance is largely mechanical and already covered by
