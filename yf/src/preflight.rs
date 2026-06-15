@@ -530,18 +530,49 @@ fn is_executable(p: &Path) -> bool {
 // beads-init hook (REQ-YF-PRE-006) — bead 2.4 plugs in here
 // ---------------------------------------------------------------------------
 
-/// Hook for bead 2.4's `yf-beads-init` verify classifier. It will inspect the
-/// PARSED `bd status --json` for an `error` key (NOT the exit code) and
-/// distinguish `corrupted` (initialized-but-wedged) from `not_initialized`,
-/// returning a richer verdict mapped back to the preflight enum.
+/// Bead 2.4's `yf-beads-init` verify classifier, plugged in (REQ-YF-PRE-006). It
+/// inspects the PARSED `bd status --json` for an `error` key (NOT the exit code)
+/// and distinguishes `corrupted` (initialized-but-wedged) from `not_initialized`,
+/// mapping the richer verdict back to the preflight enum (contract §5):
 ///
-/// TODO(REQ-YF-PRE-006): returns `None` for now so the kernel falls back to the
-/// coarse `bd status --json` check below. When 2.4 lands, return
-/// `Some(Outcome{ status: "bd_not_initialized", .. })` for verify
-/// `not_initialized`/`corrupted`, and `Some(system_deps_missing)` for verify
-/// `deps_missing`.
-fn bd_init_status(_env: &Env) -> Option<Outcome> {
-    None
+/// - verify `deps_missing`           → preflight `system_deps_missing`
+/// - verify `not_initialized` / `corrupted` → preflight `bd_not_initialized`
+///   (the preflight enum has no `corrupted` member; the richer verdict lives in
+///   `yf-beads-init`'s own `verify --json`)
+/// - verify `ok`                     → `None` (beads is healthy; pass)
+///
+/// The `corrupted` case's `instructions` surface the verify remediations (the
+/// wedged-migration fix) instead of the coarse `bd init`.
+fn bd_init_status(env: &Env) -> Option<Outcome> {
+    let v = crate::beads_init::verify(&env.repo_root);
+    match v.status {
+        crate::beads_init::VerifyStatus::Ok => None,
+        crate::beads_init::VerifyStatus::DepsMissing => Some(Outcome {
+            status: "system_deps_missing".into(),
+            missing: v.tools_missing,
+            rule: None,
+            scaffold_added: None,
+            instructions: v.remediations,
+        }),
+        crate::beads_init::VerifyStatus::NotInitialized => Some(Outcome {
+            status: "bd_not_initialized".into(),
+            missing: vec![],
+            rule: None,
+            scaffold_added: None,
+            instructions: vec!["Run: bd init".into()],
+        }),
+        crate::beads_init::VerifyStatus::Corrupted => Some(Outcome {
+            status: "bd_not_initialized".into(),
+            missing: vec![],
+            rule: None,
+            scaffold_added: None,
+            instructions: if v.remediations.is_empty() {
+                vec!["Run: yf doctor --repair".into()]
+            } else {
+                v.remediations
+            },
+        }),
+    }
 }
 
 /// Coarse legacy beads check (REQ-YF-PRE-006 parity): `bd status --json`; if it
@@ -1007,11 +1038,21 @@ mod tests {
         assert!((1, 0, 5) >= DEFAULT_MIN_BD_VERSION);
     }
 
-    // REQ-YF-PRE-006: the bd-init hook is unplugged (None) until bead 2.4.
+    // REQ-YF-PRE-006: the bd-init hook is plugged into the verify classifier
+    // (bead 2.4). On a non-beads dir with deps present it returns a failing
+    // `bd_not_initialized` verdict; with deps missing, `system_deps_missing`. It
+    // is never `ok`-as-None here (no `.beads/`), so the hook is wired.
     #[test]
-    fn bd_init_hook_unplugged() {
-        let env = test_env(Path::new("/tmp"), Path::new("/tmp/rules"));
-        assert!(bd_init_status(&env).is_none());
+    fn bd_init_hook_plugged_in() {
+        let tmp = unique_tmp("bd-init-hook");
+        let env = test_env(&tmp, &tmp.join("rules"));
+        let out = bd_init_status(&env).expect("non-beads dir must produce a failing verdict");
+        assert!(
+            matches!(out.status.as_str(), "bd_not_initialized" | "system_deps_missing"),
+            "unexpected verify→preflight status: {}",
+            out.status
+        );
+        std::fs::remove_dir_all(&tmp).ok();
     }
 
     // REQ-YF-PRE-001: JSON key ORDER is byte-compatible with the legacy `check`.

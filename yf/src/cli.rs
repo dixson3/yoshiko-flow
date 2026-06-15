@@ -30,6 +30,8 @@ pub enum Command {
     Doctor(DoctorArgs),
     /// Run a skill's preflight checks.
     Preflight(PreflightArgs),
+    /// Migrate legacy `.state/<old>/` + `.<old>.local.json` to the `.yf/` layout.
+    Migrate(MigrateArgs),
     /// Print the `yf` version and build metadata.
     Version(VersionArgs),
 }
@@ -103,6 +105,30 @@ pub struct SkillsArgs {
 
 #[derive(Debug, Args)]
 pub struct DoctorArgs {
+    /// Emit machine-readable JSON (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
+
+    /// Apply the `yf-beads-init` repair sequence to a broken beads config
+    /// (REQ-YF-PRE-007). Without `--repair`, doctor is read-only.
+    #[arg(long)]
+    pub repair: bool,
+
+    /// With `--repair`, also assert local-only Dolt (no remote).
+    #[arg(long)]
+    pub local_only: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct MigrateArgs {
+    /// Repo to migrate (default: git-root of cwd).
+    #[arg(long, value_name = "PATH")]
+    pub path: Option<std::path::PathBuf>,
+
+    /// Show what would change without writing anything.
+    #[arg(long)]
+    pub dry_run: bool,
+
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
     pub json: bool,

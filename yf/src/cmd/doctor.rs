@@ -27,6 +27,12 @@ struct Axis {
 /// returned exit decision. We signal failure by returning an error so `main`'s
 /// top-level handler produces a non-zero code.
 pub fn run(args: &DoctorArgs) -> Result<()> {
+    // --repair short-circuits the read-only doctor axes and runs the beads-init
+    // repair sequence (REQ-YF-PRE-007) against the cwd repo.
+    if args.repair {
+        return run_repair(args);
+    }
+
     // Doctor inspects the default user/claude install surface (matches the
     // install defaults). --target is not a doctor flag by design.
     let (skills_dir, rules_dir) = common::dirs_from(Scope::User, Surface::Claude);
@@ -100,6 +106,41 @@ pub fn run(args: &DoctorArgs) -> Result<()> {
 
     if any_fail {
         anyhow::bail!("doctor: one or more axes failed");
+    }
+    Ok(())
+}
+
+/// `yf doctor --repair` (REQ-YF-PRE-007): run the `yf-beads-init` repair sequence
+/// against the cwd repo. Exits non-zero if the post-repair verify is not `ok`.
+fn run_repair(args: &DoctorArgs) -> Result<()> {
+    let repo = crate::dest::git_root_or_cwd();
+    let result = crate::beads_init::repair(&repo, /* apply */ true, args.local_only)?;
+
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        println!("yf doctor --repair (before: {})", result.before.status.as_str());
+        for step in &result.plan {
+            let mark = match step.rc {
+                Some(0) => "ok  ",
+                Some(_) => "FAIL",
+                None => "-   ",
+            };
+            let kind = if step.native { "native" } else { "bd" };
+            println!("  [{mark}] ({kind}) {}", step.why);
+        }
+        if let Some(after) = &result.after {
+            println!("\nbeads status after repair: {}", after.status.as_str());
+            for d in &after.diagnostics {
+                println!("  - {d}");
+            }
+        }
+    }
+
+    if let Some(after) = &result.after {
+        if after.status != crate::beads_init::VerifyStatus::Ok {
+            anyhow::bail!("repair did not reach a healthy state: {}", after.status.as_str());
+        }
     }
     Ok(())
 }

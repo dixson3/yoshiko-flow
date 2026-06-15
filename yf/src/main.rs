@@ -4,12 +4,16 @@
 //! implemented `version` command (REQ-YF-CLI-004). Other subcommand bodies are
 //! stubs for later beads; the process exits non-zero on any error.
 
+mod beads_init;
 mod cli;
 mod cmd;
 mod dest;
 mod embed;
 mod frontmatter;
 mod marker;
+mod migrate;
+#[cfg(test)]
+mod parity;
 mod preflight;
 
 use anyhow::Result;
@@ -44,6 +48,9 @@ fn run() -> Result<std::process::ExitCode> {
         Command::Doctor(args) => cmd::doctor::run(&args).map(|()| std::process::ExitCode::SUCCESS),
         // Preflight owns its exit code (REQ-YF-CLI-003: non-zero on a failing status).
         Command::Preflight(args) => preflight::run(&args.skill, args.json),
+        Command::Migrate(args) => {
+            migrate::run(args.path, args.dry_run, args.json).map(|()| std::process::ExitCode::SUCCESS)
+        }
     }
 }
 
