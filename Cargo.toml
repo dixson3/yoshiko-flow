@@ -18,8 +18,8 @@ resolver = "2"
 # tap target, the `homebrew` publish job, and the formula's runtime `depends_on "beads"` /
 # `depends_on "uv"` declarations (via `[workspace.metadata.dist.dependencies.homebrew]`).
 [workspace.metadata.dist]
-# Pinned to a recent stable cargo-dist. Adjust at G3 to match the installed `dist`.
-cargo-dist-version = "0.28.0"
+# Pinned to match the `dist` installed at G3 prep (user-scope ~/.cargo/bin/dist).
+cargo-dist-version = "0.32.0"
 # CI backend that runs the release.
 ci = "github"
 # Installers cargo-dist generates. `shell` = curl|sh installer; `homebrew` emits a
@@ -44,15 +44,16 @@ pr-run-mode = "plan"
 
 # Homebrew runtime dependencies (REQ-YF-DIST-002).
 #
-# cargo-dist's system-dependency mechanism (`[workspace.metadata.dist.dependencies.homebrew]`,
-# stable since cargo-dist 0.4.0) declares packages installed via Homebrew. A bare version spec
-# defaults to the `run` stage, so each entry below becomes a `depends_on "<name>"` line in the
-# generated formula. `bd` (beads) ships as the homebrew-core formula `beads`; `uv` ships as the
-# homebrew-core formula `uv` — both live in core, so no extra tap is needed for the deps.
+# cargo-dist's system-dependency mechanism (`[workspace.metadata.dist.dependencies.homebrew]`)
+# declares packages installed via Homebrew. The default stage is `build` only — which does NOT
+# render a `depends_on` line. `beads`/`uv` are RUNTIME deps (yf shells to `bd`/`uv` at runtime,
+# not at build), so each is declared `stage = ["run"]` to emit a `depends_on "<name>"` in the
+# generated formula (verified with `dist build --artifacts=global`, dist 0.32.0). `bd` ships as
+# the homebrew-core formula `beads`; `uv` ships as `uv` — both in core, no extra tap needed.
 #
 # Result in the generated formula:
 #     depends_on "beads"
 #     depends_on "uv"
 [workspace.metadata.dist.dependencies.homebrew]
-beads = "*"
-uv = "*"
+beads = { version = "*", stage = ["run"] }
+uv = { version = "*", stage = ["run"] }

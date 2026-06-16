@@ -5,6 +5,8 @@ edition = "2021"
 description = "Yoshiko Flow CLI: install, upgrade, verify, and preflight portable agent skills."
 license = "MIT"
 authors = ["James Dixson <dixson3@gmail.com>"]
+repository = "https://github.com/dixson3/yoshiko-flow"
+homepage = "https://github.com/dixson3/yoshiko-flow"
 
 [dependencies]
 anyhow = "1"
