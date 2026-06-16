@@ -99,7 +99,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render freshness is NOT checked here (owned by `render.py check-dir`); diagram-vs-prose semantics are out of scope. |
 | `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render freshness and semantics out of scope (as above). |
 | `e-spec-guardrails` | `field-set-subset` | `GUARDRAILS.md` does not contradict any `SPEC.md` REQ-* statement; read both and compare. The macro spec is fixed authority — a guardrail that conflicts with a REQ is the guardrail drifting (FAIL on guardrails), unless the SPEC itself is stale (CONFLICT, §7). |
-| `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. Known pre-existing discrepancy held for operator ratification, NOT introduced by README: REQ-YF-PRE-004 says config `.yf/<skill>.local.json` while README/MIGRATION/impl use `.yf-<skill>.local.json` (a `-`→`/` typo, decision C). Do not flag README for this until SPEC is ratified. |
+| `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. (The REQ-YF-PRE-004 config-path typo was operator-ratified and corrected in SPEC — SPEC/README/impl now agree on `.yf-<skill>.local.json`.) |
 | `e-guardrails-readme` | `field-set-subset` | any guardrail (`GUARDRAILS.md` GR-*) that constrains user-facing behavior README documents (e.g. operator-owned files `yf` must not edit, install/migration behavior) is reflected, not contradicted, in `README.md`. |
 | `e-skillspec-skillmd` | `field-set-subset` | for a skill carrying a `SPEC.md`, the `SKILL.md` behavior does not violate any REQ-* statement in that spec; read each and compare. A fixed-authority conflict (the spec is stale) is a CONFLICT, not a FAIL (§7). |
 
@@ -166,8 +166,7 @@ never edit a spec or guardrail to make a derived artifact fit. **Exception (the 
 the evidence shows the authority itself is stale — it names a file, tool, or identifier that does
 not exist, or carries a known unratified typo — emit a **CONFLICT**, report it to the operator,
 and halt; never silently rewrite either side. This is exactly how the old `DOCUMENTATION.md` came
-to name a `check-prereqs.sh` that was never in the repo. **Known open CONFLICT (held for operator
-ratification at land):** `SPEC.md` REQ-YF-PRE-004 names config `.yf/<skill>.local.json` while
-`README.md`, `docs/MIGRATION.md`, and the implementation use `.yf-<skill>.local.json` (a `-`→`/`
-typo, decision C). Until ratified, `e-spec-readme` treats this as the held CONFLICT, not a README
-FAIL.
+to name a `check-prereqs.sh` that was never in the repo. (The plan-010 REQ-YF-PRE-004 config-path
+typo — `SPEC.md` had `.yf/<skill>.local.json` vs the `.yf-<skill>.local.json` used by `README.md`,
+`docs/MIGRATION.md`, and the implementation — was **operator-ratified and corrected in `SPEC.md`**;
+SPEC, README, and the implementation now agree, so `e-spec-readme` has no held conflict.)

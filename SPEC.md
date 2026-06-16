@@ -96,7 +96,7 @@ requirement lives only in code (GUARDRAILS GR-010).
 - **REQ-YF-PRE-003** *(testable)* the kernel shall verify a companion rule against the skill's
   embedded `manifest.json` (sha256 + semver), yielding `rule_missing`/`rule_drift`/`rule_deprecated`.
   This per-rule axis is **distinct** from the §3.4 whole-tree marker.
-- **REQ-YF-PRE-004** *(testable)* the kernel shall read per-skill config `.yf/<skill>.local.json`
+- **REQ-YF-PRE-004** *(testable)* the kernel shall read per-skill config `.yf-<skill>.local.json`
   (including `ignore-skill`) and maintain runtime state under `.yf/<skill>/`.
 - **REQ-YF-PRE-005** *(testable)* the kernel shall scaffold gitignore anchors (`/.yf/`) idempotently.
 - **REQ-YF-PRE-006** *(testable)* beads-init **verify** shall classify a repo by parsing

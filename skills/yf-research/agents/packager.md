@@ -39,11 +39,11 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
    `_index.md` (step 5). Always attempt at least one for a non-trivial report; the operator may
    delete it. Degrade gracefully (prose only) if the skill or `d2` is absent — never add a
    `depends-on-skill` edge for it.
-4. Generate `sources.md` from `sources.json` so wikilink citations resolve in Obsidian, and normalize any remaining plain-bracket citations:
+4. Generate `sources.md` from `sources.json` so GFM citation anchors resolve, and normalize any remaining plain-bracket citations:
    ```bash
    uv run ${SKILL_DIR}/scripts/link_normalizer.py all "${research_dir}"
    ```
-   This writes `sources.md` (one `## <ID>` heading per source) and rewrites `[ID]` citation patterns in `Summary.md` and `artifacts/*.md` to `[[sources#ID|ID]]` wikilinks. Re-running is safe and idempotent.
+   This writes `sources.md` (one `## <ID>` heading per source) and rewrites `[ID]` citation patterns in `Summary.md` and `artifacts/*.md` to `[ID](sources.md#id)` GFM links. Re-running is safe and idempotent.
 5. Update `_index.md` with all artifacts (including any `diagrams/<slug>.png` from step 3):
    ```bash
    uv run ${SKILL_DIR}/scripts/index_manager.py add "${research_dir}" "<phase>" "<artifact>" "<description>"

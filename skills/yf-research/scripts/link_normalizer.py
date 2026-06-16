@@ -2,19 +2,21 @@
 # requires-python = ">=3.11"
 # dependencies = ["click"]
 # ///
-"""Normalize links in research topics for Obsidian rendering.
+"""Normalize links in research topics to plain GFM (GitHub-Flavored Markdown).
 
 Operations:
   - build-sources: generate sources.md per topic from sources.json (or cluster
     sources-*.json files), one "## <ID>" heading per source.
   - link-citations: rewrite [ID] / [ID1, ID2] citation patterns in Summary.md
-    and artifacts/*.md to [[sources#ID|ID]] wikilinks. Only rewrites IDs that
-    exist in the topic's source set; annotations like [uncertain], [gap ...]
-    are left untouched.
-  - link-index: rewrite the Artifact column of _index.md to wikilinks.
+    and artifacts/*.md to [ID](sources.md#<slug>) GFM links. Only rewrites IDs
+    that exist in the topic's source set; annotations like [uncertain],
+    [gap ...] are left untouched.
+  - link-index: rewrite the Artifact column of _index.md to GFM links.
   - all: run all three in order.
 
-Intended to be idempotent; safe to re-run.
+Output is plain GFM that lints clean under the yf-markdown-lint skill.
+Intended to be idempotent; safe to re-run — already-GFM links are not
+rewritten again.
 """
 from __future__ import annotations
 import json
@@ -32,6 +34,20 @@ ANNOTATION_SKIP_RE = re.compile(
     r"^(uncertain|conflicted-source|gap|background|uncited|single-source|analytical\s+synthesis.*)$",
     re.IGNORECASE,
 )
+# A bracket immediately followed by a "(...)" target is already a GFM link
+# (e.g. "[CL12](sources.md#cl12)"). Used to skip already-converted citations so
+# re-running stays idempotent.
+GFM_LINK_AFTER_RE = re.compile(r"\s*\(")
+
+
+def gh_slug(text: str) -> str:
+    """GitHub heading-anchor slug: lowercase, drop chars that aren't
+    alphanumeric/space/hyphen, then spaces -> '-'. For the alphanumeric
+    cluster-prefixed IDs used here (CL12, AB3, ME7) this is just text.lower()."""
+    s = text.strip().lower()
+    s = re.sub(r"[^\w\s-]", "", s, flags=re.UNICODE)
+    s = re.sub(r"\s+", "-", s)
+    return s
 
 
 def load_sources(topic_dir: Path) -> tuple[list[dict], dict]:
@@ -74,7 +90,7 @@ def render_sources_md(topic_dir: Path, sources: list[dict], meta: dict) -> str:
         "",
         f"# Sources — {topic}",
         "",
-        "Citation format: `[[sources#ID|ID]]` from Summary.md and artifacts.",
+        "Citation format: `[ID](sources.md#id)` from Summary.md and artifacts.",
         "",
     ]
     by_cluster: dict[str, list[dict]] = {}
@@ -118,6 +134,11 @@ def rewrite_citations(text: str, known_ids: set[str]) -> tuple[str, int]:
 
     def sub(m: re.Match) -> str:
         nonlocal count
+        # Idempotency: a "[...]" immediately followed by "(...)" is already a
+        # GFM link (e.g. "[CL12](sources.md#cl12)") — leave it untouched so
+        # re-running never double-wraps an already-converted citation.
+        if GFM_LINK_AFTER_RE.match(text, m.end()):
+            return m.group(0)
         raw = m.group(1)
         parts = [p.strip() for p in raw.split(",")]
         valid_idx = [i for i, p in enumerate(parts) if ID_RE.match(p) and p in known_ids]
@@ -129,22 +150,18 @@ def rewrite_citations(text: str, known_ids: set[str]) -> tuple[str, int]:
         rendered: list[str] = []
         for i, p in enumerate(parts):
             if i in valid_idx:
-                rendered.append(f"[[sources#{p}|{p}]]")
+                rendered.append(f"[{p}](sources.md#{gh_slug(p)})")
                 count += 1
             else:
                 rendered.append(p)
-        # If all tokens are valid, drop outer brackets (cleaner in Obsidian).
-        # If mixed, preserve the bracket grouping so annotations read naturally.
+        # All tokens valid: emit comma-joined GFM links, no outer brackets.
+        # Mixed (refs + prose annotation): wrap in parens so the annotation
+        # reads naturally — GFM links inside have no parser ambiguity.
         if len(valid_idx) == len(parts):
             return ", ".join(rendered)
-        # Mixed: use parens to avoid [[ ambiguity with Obsidian's wikilink parser.
         return "(" + ", ".join(rendered) + ")"
 
     new = CITATION_RE.sub(sub, text)
-    # Cleanup pass: outer [...] wrappers that already contain a wikilink mixed
-    # with prose should render as parens to avoid [[ parser ambiguity.
-    mixed_re = re.compile(r"\[([^\[\]]*(?:\[\[sources#[^\]]+\]\][^\[\]]*)+)\]")
-    new = mixed_re.sub(lambda m: "(" + m.group(1) + ")", new)
     return new, count
 
 
@@ -154,7 +171,7 @@ INDEX_ROW_RE = re.compile(
 
 
 def rewrite_index(text: str) -> tuple[str, int]:
-    """Turn plain artifact cell into a wikilink when it resolves to a .md file."""
+    """Turn plain artifact cell into a GFM link when it resolves to a .md file."""
     count = 0
     out_lines = []
     for line in text.splitlines():
@@ -163,13 +180,13 @@ def rewrite_index(text: str) -> tuple[str, int]:
             out_lines.append(line)
             continue
         artifact = m.group("artifact")
-        if "[[" in artifact or artifact in ("Artifact", "(none)", "-"):
+        # "](" means the cell is already a GFM link — skip for idempotency.
+        if "](" in artifact or artifact in ("Artifact", "(none)", "-"):
             out_lines.append(line)
             continue
         if artifact.endswith(".md"):
             note = artifact[:-3]
-            # No alias — `|` inside `[[ ]]` collides with markdown table column separator.
-            link = f"[[{note}]]"
+            link = f"[{note}]({artifact})"
             new = f"| {m.group('ts')} | {m.group('phase')} | {link} | {m.group('desc')} |"
             out_lines.append(new)
             count += 1
@@ -180,7 +197,7 @@ def rewrite_index(text: str) -> tuple[str, int]:
 
 @click.group()
 def cli():
-    """Normalize research topic links for Obsidian."""
+    """Normalize research topic links to plain GFM."""
 
 
 @cli.command("build-sources")
@@ -199,7 +216,7 @@ def build_sources(topic_dir: Path):
 @cli.command("link-citations")
 @click.argument("topic_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
 def link_citations(topic_dir: Path):
-    """Rewrite [ID] citations to wikilinks across Summary.md and artifacts/*.md."""
+    """Rewrite [ID] citations to GFM links across Summary.md and artifacts/*.md."""
     sources, _ = load_sources(topic_dir)
     known: set[str] = {s["id"] for s in sources if s.get("id")}
     if not known:
@@ -225,7 +242,7 @@ def link_citations(topic_dir: Path):
 @cli.command("link-index")
 @click.argument("topic_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
 def link_index(topic_dir: Path):
-    """Rewrite _index.md Artifact column to wikilinks."""
+    """Rewrite _index.md Artifact column to GFM links."""
     idx = topic_dir / "_index.md"
     if not idx.exists():
         click.echo(f"{topic_dir.name}: no _index.md — skipped")
@@ -233,7 +250,7 @@ def link_index(topic_dir: Path):
     new, n = rewrite_index(idx.read_text())
     if n:
         idx.write_text(new)
-    click.echo(f"{topic_dir.name}: {n} artifact cells wikilinked")
+    click.echo(f"{topic_dir.name}: {n} artifact cells GFM-linked")
 
 
 @cli.command("all")

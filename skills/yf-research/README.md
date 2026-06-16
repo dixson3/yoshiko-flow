@@ -76,7 +76,7 @@ See `spec/phases.md` and the rest of `spec/` for the full requirement set.
   - `research_manager.py` — preflight (`check`), defensive JSON (`json-get`), init support.
   - `index_manager.py` — initialize and maintain a research output directory.
   - `credibility_scorer.py` — score sources for credibility (single or batch).
-  - `link_normalizer.py` — normalize citations for Obsidian rendering.
+  - `link_normalizer.py` — normalize citations to plain GFM links.
   - `search_api.py` — rate-limited multi-provider search wrapper (Tavily/Perplexity fallback).
   - `manifest_update.py` — vendored manifest hash/version helper.
 - `spec/` — fixed source of truth: `phases.md`, `agents.md`, `cli.md`, `data.md`, `epistemics.md`, `portability.md`, `prerequisites.md`.

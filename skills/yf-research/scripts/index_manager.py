@@ -9,7 +9,6 @@ Provides init, add, and list operations.
 """
 
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -85,10 +84,9 @@ def add(research_dir: str, phase: str, artifact: str, description: str, timestam
         raise SystemExit(1)
 
     ts = timestamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    # Render .md artifacts as Obsidian wikilinks so the artifact column is clickable.
-    # No alias — the bare wikilink avoids the `|` collision with markdown table columns.
+    # Render .md artifacts as GFM links so the artifact column is clickable.
     if artifact.endswith(".md"):
-        artifact_cell = f"[[{artifact[:-3]}]]"
+        artifact_cell = f"[{artifact[:-3]}]({artifact})"
     else:
         artifact_cell = artifact
     row = f"| {ts} | {phase} | {artifact_cell} | {description} |\n"

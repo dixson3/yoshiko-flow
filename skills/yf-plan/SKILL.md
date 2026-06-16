@@ -890,3 +890,13 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py list
 
 Show plan.md header + `bd show <epic-id> --json` + bead progress.
 Without plan-id: show all plans with bead counts.
+
+## Markdown output convention
+
+Every markdown artifact this skill writes (`plan.md`, `README.md`, `context.md`,
+`findings/*.md`, `reviews/*.md`, `upstream-triage.md`) is plain **GFM** — never Obsidian
+`[[wikilinks]]` or `![[embeds]]`. Use GFM links (`[text](path)` / `[text](file.md#anchor)`)
+and GFM tables with explicit alignment markers (`:--` left, `:-:` center, `--:` right) and
+variable, content-sized column widths (never fixed-width padding). Lint each generated `.md`
+with the `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007`) and resolve any
+violation before handoff.

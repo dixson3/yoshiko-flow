@@ -433,3 +433,13 @@ for dir in docs/research/[0-9]*-*/ Incubator/*/research/[0-9]*-*/; do
   echo
 done
 ```
+
+## Markdown output convention
+
+Every markdown artifact this skill writes (`Summary.md`, `sources.md`, `artifacts/*.md`,
+`_index.md`, the packaged report) is plain **GFM** — never Obsidian `[[wikilinks]]` or
+`![[embeds]]`. Citations are GFM links into `sources.md` (`[ID](sources.md#id)`, lowercase
+anchor) — see `agents/synthesizer.md` and `scripts/link_normalizer.py`. Use GFM tables with
+explicit alignment markers (`:--` left, `:-:` center, `--:` right) and variable, content-sized
+column widths (never fixed-width padding). Lint each generated `.md` with the `yf-markdown-lint`
+authoring subset (`ML001,ML002,ML005,ML006,ML007`) and resolve any violation before handoff.

@@ -157,3 +157,12 @@ on confirmation. One offer per tangent.
 - Bookmark only on departure signals or phase boundaries; no per-turn writes, no hook.
 - All state lives in vault files; never session-only or Claude-only stores.
 - Frontmatter and body blocks above are output contracts — copy verbatim.
+
+## Markdown output convention
+
+Every markdown artifact this skill writes (incubator `README.md` notes, `INDEX.md`) is plain
+**GFM** — never Obsidian `[[wikilinks]]` or `![[embeds]]`. Use GFM links (`[text](path)`) and,
+for any table, GFM with explicit alignment markers (`:--` left, `:-:` center, `--:` right) and
+variable, content-sized column widths (never fixed-width padding). Lint each generated `.md`
+with the `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007`) and resolve any
+violation before handoff.
