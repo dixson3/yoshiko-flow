@@ -2,6 +2,13 @@
 members = ["yf"]
 resolver = "2"
 
+# The profile cargo-dist builds release artifacts with (`cargo build --profile dist`).
+# Required by the cargo-dist CI build job; `dist init` normally adds this, so it must
+# be present whenever `[workspace.metadata.dist]` is configured.
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
 # cargo-dist (the `dist` tool) release configuration — REQ-YF-DIST-001.
 #
 # Hand-authored per cargo-dist's documented `[workspace.metadata.dist]` schema:
