@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "files": {
+    "RESEARCH.md": {
+      "sha256": "ba0bfbeed77c344eca36e1ceb46fbf4bd6a2f13e8da7219d3f6e62297acd5c36",
+      "version": "1.0.3",
+      "deprecated": false,
+      "previous_versions": [
+        {
+          "sha256": "c4c232354af84636bb32d6a4c7b53fd3aa0bdd375760eea183d0f1d9e5275fe3",
+          "version": "1.0.0"
+        },
+        {
+          "sha256": "7badf4b66385d7bb290137f36f2c262990c507aecf9488e967f0a1105988b60c",
+          "version": "1.0.1"
+        },
+        {
+          "sha256": "4d4bcfbcdc967b4d6f64d6f4debb8b5d15cbfef53b24308a397f5da2daeab195",
+          "version": "1.0.2"
+        }
+      ]
+    }
+  }
+}

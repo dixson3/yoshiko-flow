@@ -9,7 +9,25 @@ title: |md
 }
 
 # ---- nodes ----
-spec: "spec\n(FIXED authority)" {
+spec: "spec\n(skills/*/spec/*.md, FIXED)" {
+  style.fill: "#fdecec"
+  style.stroke: "#c0392b"
+  style.bold: true
+}
+
+macrospec: "macro-spec\n(SPEC.md, FIXED)" {
+  style.fill: "#fdecec"
+  style.stroke: "#c0392b"
+  style.bold: true
+}
+
+guardrails: "guardrails\n(GUARDRAILS.md, FIXED)" {
+  style.fill: "#fdecec"
+  style.stroke: "#c0392b"
+  style.bold: true
+}
+
+perskillspec: "per-skill-spec\n(skills/*/SPEC.md, FIXED)" {
   style.fill: "#fdecec"
   style.stroke: "#c0392b"
   style.bold: true
@@ -54,6 +72,14 @@ skill_sources.agent -> skill_sources.skillmd: e-agent-ref { style.stroke: "#3f8f
 skill_sources.template -> skill_sources.skillmd: e-template-ref { style.stroke: "#3f8f4f" }
 skill_sources.skpng -> docs.skreadme: e-skill-diagram-ref { style.stroke: "#3f8f4f" }
 docs.docspng -> docs.prreadme: e-docs-diagram-ref { style.stroke: "#3f8f4f" }
+guardrails -> docs.prreadme: e-guardrails-readme { style.stroke: "#3f8f4f" }
+
+# spec-enforcement contract edges = blue
+macrospec -> guardrails: e-spec-guardrails { style.stroke: "#2f6fb0" }
+perskillspec -> skill_sources.skillmd: e-skillspec-skillmd { style.stroke: "#2f6fb0" }
+
+# spec -> README behavioral = orange
+macrospec -> docs.prreadme: e-spec-readme { style.stroke: "#d98c1f" }
 
 # behavioral = orange
 skill_sources.skillmd -> docs.skreadme: e-install-url { style.stroke: "#d98c1f" }

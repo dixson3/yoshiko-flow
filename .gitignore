@@ -11,9 +11,13 @@
 __pycache__/
 *.pyc
 
+# Rust / Cargo build artifacts (yf workspace)
+/target/
+
 # Skill runtime state + local config (never committed; per Skill Surface Convention)
-/.state/
-/.bdplan.local.json
+/.yf/
+/.yf-plan.local.json
+/.yf-research.local.json
 /.agent-shell/
 
 /.worktrees/

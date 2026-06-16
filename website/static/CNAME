@@ -1,0 +1,16 @@
+# PLACEHOLDER — custom-domain CNAME, gated by plan-010 Gate G4 (decision D5).
+#
+# Docusaurus copies static/CNAME verbatim into the build output, where GitHub
+# Pages reads it to set a custom domain. This file is INERT as shipped: every
+# line is a comment (leading '#'), so no custom domain is configured and the
+# site serves from the default *.github.io domain.
+#
+# Resolve at G4 (operator action), per the chosen hosting strategy:
+#   - Default *.github.io domain (no custom domain): DELETE this file.
+#   - Custom domain: REPLACE this entire file with a single line containing the
+#     bare apex or subdomain, e.g.
+#         docs.yoshiko-flow.example
+#     (no '#', no scheme, no trailing slash), and configure the matching DNS
+#     record + the repo Settings > Pages "Custom domain" field.
+#
+# See .github/workflows/docs-deploy.yml for the full G4 enable checklist.

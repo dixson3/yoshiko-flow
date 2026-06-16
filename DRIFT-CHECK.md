@@ -1,10 +1,10 @@
 # DRIFT-CHECK.md — beads-skills manifest
 
-The `drift-check` engine's per-repo configuration for **this** repository. It declares the
+The `yf-drift-check` engine's per-repo configuration for **this** repository. It declares the
 artifact graph the engine verifies: nodes, source-of-truth edges, per-edge contracts, the
 changed-path globs that scope an on-edit check, and the fixed-authority policy. The reusable
 mechanism (cascade principle, isolated evidence-based sub-agent, the four check categories,
-spec-bootstrap/conflict handling) lives in the `drift-check` skill — not here.
+spec-bootstrap/conflict handling) lives in the `yf-drift-check` skill — not here.
 
 This file is the ported, corrected successor to the engine prose that used to live inline in
 `AGENTS/CONSISTENCY.md` and `AGENTS/DOCUMENTATION.md`. One correction is baked in: the README
@@ -19,7 +19,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 
 ## 0. Status
 
-`approved: yes` — this repo is the reference/regression instance for the drift-check engine
+`approved: yes` — this repo is the reference/regression instance for the yf-drift-check engine
 (plan-007, operator-approved). The engine enforces this manifest.
 
 ## 1. Artifact Nodes
@@ -37,6 +37,9 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `template` | `skills/*/templates/*` | source | derived | optional |
 | `skill-readme` | `skills/*/README.md` | doc | derived | required |
 | `project-readme` | `README.md` | doc | derived | required |
+| `macro-spec` | `SPEC.md` | spec | fixed | required |
+| `guardrails` | `GUARDRAILS.md` | spec | fixed | required |
+| `per-skill-spec` | `skills/*/SPEC.md` | spec | fixed | optional |
 | `skill-diagram-png` | `skills/*/spec/*.png` | source | derived | optional |
 | `docs-diagram-png` | `docs/diagrams/*.png` | source | derived | optional |
 
@@ -65,6 +68,10 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-prereqs-union` | `skill-readme` | `project-readme` | contract |
 | `e-skill-diagram-ref` | `skill-diagram-png` | `skill-readme` | cross-ref |
 | `e-docs-diagram-ref` | `docs-diagram-png` | `project-readme` | cross-ref |
+| `e-spec-guardrails` | `macro-spec` | `guardrails` | contract |
+| `e-spec-readme` | `macro-spec` | `project-readme` | behavioral |
+| `e-guardrails-readme` | `guardrails` | `project-readme` | cross-ref |
+| `e-skillspec-skillmd` | `per-skill-spec` | `skill-md` | contract |
 
 ## 3. Per-Edge Contracts
 
@@ -91,6 +98,10 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-prereqs-union` | `field-set-equal` | the project README Prerequisites table is the union of all skill READMEs' prerequisites. |
 | `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render freshness is NOT checked here (owned by `render.py check-dir`); diagram-vs-prose semantics are out of scope. |
 | `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render freshness and semantics out of scope (as above). |
+| `e-spec-guardrails` | `field-set-subset` | `GUARDRAILS.md` does not contradict any `SPEC.md` REQ-* statement; read both and compare. The macro spec is fixed authority — a guardrail that conflicts with a REQ is the guardrail drifting (FAIL on guardrails), unless the SPEC itself is stale (CONFLICT, §7). |
+| `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. (The REQ-YF-PRE-004 config-path typo was operator-ratified and corrected in SPEC — SPEC/README/impl now agree on `.yf-<skill>.local.json`.) |
+| `e-guardrails-readme` | `field-set-subset` | any guardrail (`GUARDRAILS.md` GR-*) that constrains user-facing behavior README documents (e.g. operator-owned files `yf` must not edit, install/migration behavior) is reflected, not contradicted, in `README.md`. |
+| `e-skillspec-skillmd` | `field-set-subset` | for a skill carrying a `SPEC.md`, the `SKILL.md` behavior does not violate any REQ-* statement in that spec; read each and compare. A fixed-authority conflict (the spec is stale) is a CONFLICT, not a FAIL (§7). |
 
 ## 4. Referencers (orphan check)
 
@@ -124,28 +135,38 @@ source that makes each mandatory.
 ## 6. Trigger Scope
 
 A source-node edit fans out to every derived edge it feeds. Globs retain **skill-dir
-coverage** (drift-check fires on skill-dir edits alongside skill-authoring, on the orthogonal
+coverage** (yf-drift-check fires on skill-dir edits alongside yf-skill-authoring, on the orthogonal
 content-agreement axis).
 
 | Changed-Path Glob | Scopes To |
 |-------------------|-----------|
-| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter` |
+| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd` |
 | `skills/*/spec/*.md` | `e-spec-compliance` |
 | `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values` |
 | `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
 | `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars` |
 | `skills/*/templates/*` | `e-template-ref` |
 | `skills/*/README.md` | `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table`, `e-index-desc`, `e-prereqs-union`, `e-skill-diagram-ref` |
-| `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref` |
+| `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref`, `e-spec-readme`, `e-guardrails-readme` |
+| `SPEC.md` | `e-spec-guardrails`, `e-spec-readme` |
+| `GUARDRAILS.md` | `e-spec-guardrails`, `e-guardrails-readme` |
+| `skills/*/SPEC.md` | `e-skillspec-skillmd` |
 | `DRIFT-CHECK.md` | `e-docs-diagram-ref` |
 | `skills/*/spec/*.png` | `e-skill-diagram-ref` |
 | `docs/diagrams/*.png` | `e-docs-diagram-ref` |
 
 ## 7. Fixed-Authority Conflict Policy
 
-`spec` (`skills/*/spec/*.md`) is the sole `fixed` authority. On an `e-spec-compliance` conflict,
-the spec wins: report the SKILL.md (or other implementation) as drifted; never edit a spec to
-make an implementation fit. **Exception (the E4 lesson):** if the evidence shows the authority
-itself is stale — it names a file, tool, or identifier that does not exist — emit a **CONFLICT**,
-report it to the operator, and halt; never silently rewrite either side. This is exactly how the
-old `DOCUMENTATION.md` came to name a `check-prereqs.sh` that was never in the repo.
+The `fixed`-authority nodes are the spec set: `spec` (`skills/*/spec/*.md`), `macro-spec`
+(`SPEC.md`), `guardrails` (`GUARDRAILS.md`), and `per-skill-spec` (`skills/*/SPEC.md`). On a
+conflict across any spec-rooted edge (`e-spec-compliance`, `e-skillspec-skillmd`,
+`e-spec-guardrails`, `e-spec-readme`, `e-guardrails-readme`), the spec/guardrail wins: report
+the derived node (SKILL.md, README.md, GUARDRAILS.md, or other implementation/doc) as drifted;
+never edit a spec or guardrail to make a derived artifact fit. **Exception (the E4 lesson):** if
+the evidence shows the authority itself is stale — it names a file, tool, or identifier that does
+not exist, or carries a known unratified typo — emit a **CONFLICT**, report it to the operator,
+and halt; never silently rewrite either side. This is exactly how the old `DOCUMENTATION.md` came
+to name a `check-prereqs.sh` that was never in the repo. (The plan-010 REQ-YF-PRE-004 config-path
+typo — `SPEC.md` had `.yf/<skill>.local.json` vs the `.yf-<skill>.local.json` used by `README.md`,
+`docs/MIGRATION.md`, and the implementation — was **operator-ratified and corrected in `SPEC.md`**;
+SPEC, README, and the implementation now agree, so `e-spec-readme` has no held conflict.)

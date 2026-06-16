@@ -1,0 +1,47 @@
+# CI workflow for the `yf` crate — SPEC.md §5 (verification).
+#
+# Consolidates Issue 4.3 (initial CI scaffold) + Issue 6.4 (meaningful test
+# suite) — this is the REQ-coverage CI surface. Runs the quality gates on every
+# pull request and on pushes to `main`: formatting (`cargo fmt --all --check`),
+# lints (`cargo clippy --workspace --all-targets -D warnings`, so test code is
+# linted too), and the full crate test suite (`cargo test --workspace`, which
+# covers frontmatter/closure parity, marker/tree-hash/prune, dest, preflight
+# 3-state parity, beads-init verify classifier, and migrate). The workspace
+# embeds `skills/` via rust-embed at build time, so the default full-repo
+# checkout is sufficient — no submodule handling needed.
+#
+# This is distinct from `release.yml` (which runs on `v*` tags to build/publish
+# the release matrix); this file owns the per-PR/per-push verification gate.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: fmt + clippy + test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace

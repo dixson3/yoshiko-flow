@@ -1,0 +1,58 @@
+[workspace]
+members = ["yf"]
+resolver = "2"
+
+# cargo-dist (the `dist` tool) release configuration — REQ-YF-DIST-001.
+#
+# Hand-authored per cargo-dist's documented `[workspace.metadata.dist]` schema:
+# `dist`/`cargo-dist` is NOT installed on this machine, so `dist init` could not
+# be run interactively. Once cargo-dist is installed (at gate G3), regenerate the
+# workflow with `dist init` / `dist generate` to pick up the canonical generated
+# `.github/workflows/release.yml` and to confirm/adjust this block.
+#
+# Version source of truth: the `yf` crate version in `yf/Cargo.toml`. Releases are
+# cut by pushing a `v<semver>` git tag (e.g. `v0.1.0`); cargo-dist derives the
+# release semver from that tag. The crate version and the tag must agree.
+#
+# Bead 4.2 finalizes the Homebrew side (REQ-YF-DIST-002/003): the `dixson3/homebrew-tap`
+# tap target, the `homebrew` publish job, and the formula's runtime `depends_on "beads"` /
+# `depends_on "uv"` declarations (via `[workspace.metadata.dist.dependencies.homebrew]`).
+[workspace.metadata.dist]
+# Pinned to a recent stable cargo-dist. Adjust at G3 to match the installed `dist`.
+cargo-dist-version = "0.28.0"
+# CI backend that runs the release.
+ci = "github"
+# Installers cargo-dist generates. `shell` = curl|sh installer; `homebrew` emits a
+# formula published to the tap below (bead 4.2).
+installers = ["shell", "homebrew"]
+# Homebrew tap target — the GitHub repo cargo-dist pushes the generated formula to.
+tap = "dixson3/homebrew-tap"
+# Publish jobs cargo-dist wires into the release pipeline. `homebrew` is the built-in
+# job that pushes the formula to `tap` using the HOMEBREW_TAP_TOKEN secret (REQ-YF-DIST-002).
+publish-jobs = ["homebrew"]
+# The 4-way release matrix: {darwin, linux} × {amd64, arm64}.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+]
+# sha256 checksums for every artifact.
+checksum = "sha256"
+# Publish a GitHub Release with the artifacts attached.
+pr-run-mode = "plan"
+
+# Homebrew runtime dependencies (REQ-YF-DIST-002).
+#
+# cargo-dist's system-dependency mechanism (`[workspace.metadata.dist.dependencies.homebrew]`,
+# stable since cargo-dist 0.4.0) declares packages installed via Homebrew. A bare version spec
+# defaults to the `run` stage, so each entry below becomes a `depends_on "<name>"` line in the
+# generated formula. `bd` (beads) ships as the homebrew-core formula `beads`; `uv` ships as the
+# homebrew-core formula `uv` — both live in core, so no extra tap is needed for the deps.
+#
+# Result in the generated formula:
+#     depends_on "beads"
+#     depends_on "uv"
+[workspace.metadata.dist.dependencies.homebrew]
+beads = "*"
+uv = "*"
