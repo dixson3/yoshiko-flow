@@ -119,7 +119,12 @@ requirement lives only in code (GUARDRAILS GR-010).
   {amd64,arm64}` with checksums and semver derived from git tags.
 - **REQ-YF-DIST-002** *(testable)* the release shall publish/update a Homebrew formula in
   `dixson3/homebrew-tap` that declares `depends_on "beads"` and `depends_on "uv"`.
-- **REQ-YF-DIST-003** the formula `test do` block shall run `yf version`.
+- **REQ-YF-DIST-003** *(WAIVED — operator-ratified 2026-06-16)* the cargo-dist-generated Homebrew
+  formula carries **no** `test do` block: cargo-dist (`dist` 0.32.0) emits a minimal formula and
+  exposes no test-block knob, so `brew test yf` is not provided. `yf`'s behavior is verified
+  instead by the crate test suite and the G1 install round-trip (build + `yf skills install` +
+  `yf skills status`). Adding a test block would require a post-publish formula patch, intentionally
+  not adopted (keeps the formula fully cargo-dist-managed).
 
 ### 3.8 Rename invariants (`REQ-YF-RENAME`)
 
