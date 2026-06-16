@@ -1,20 +1,27 @@
-Beads-backed skills for Claude Code
-====================================
+Yoshiko Flow (`yf`)
+===================
 
-Skills that leverage [beads](https://github.com/gastownhall/beads) for Claude Code.
+[Yoshiko Flow](https://github.com/dixson3/yoshiko-flow) is a family of portable, cross-harness
+agent **skills** plus a single compiled CLI, **`yf`**, that installs, upgrades, verifies, and
+preflights those skills and the toolchain they depend on. The skills are built on
+[beads](https://github.com/gastownhall/beads) (`bd`) for dependency-aware, multi-session work,
+and install into either the `.claude` or `.agents` surface, at user or project scope.
 
 ## Prerequisites
 
-| Tool | Version | Purpose | Install |
-|------|---------|---------|---------|
-| `git` | any | Identity, remotes, commit/push | system package manager |
-| `bd` | >= 1.0.5 | Task tracking (beads) | https://github.com/gastownhall/beads |
-| `uv` | any | Python environment & script runner (skill helper scripts) | https://docs.astral.sh/uv/ |
+With the **recommended Homebrew install** (below), `yf`'s formula pulls **`bd` (beads)** and
+**`uv`** in automatically — you don't install those separately. `git` is assumed already present.
+The toolchain `yf` and the skills rely on:
+
+| Tool  | Version  | Purpose                                            | Manual install (only if **not** using Homebrew)             |
+| :---- | :------- | :------------------------------------------------- | :---------------------------------------------------------- |
+| `bd`  | >= 1.0.5 | Task tracking (beads)                              | `brew install beads` — https://github.com/gastownhall/beads |
+| `uv`  | any      | Python env & script runner (skill helper scripts) | `brew install uv` — https://docs.astral.sh/uv/              |
+| `git` | any      | Identity, remotes, commit/push                     | system package manager                                      |
 
 Optional (detected at runtime):
 
-- `gh` — GitHub CLI (upstream issue tracking)
-- `glab` — GitLab CLI (upstream issue tracking)
+- `gh` / `glab` — GitHub / GitLab CLI (upstream issue tracking)
 - `d2` — diagram renderer for the `yf-diagram-authoring` skill (`.d2` → `.png`; `brew install d2`)
 - `pandoc` + `xelatex` — PDF rendering for the `yf-markdown-pdf` skill (a LaTeX distribution provides `xelatex`)
 
