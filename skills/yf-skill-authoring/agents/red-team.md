@@ -12,7 +12,7 @@ tags: []
 
 Adversarial review of a skill. Asks what the author missed, where the skill overcommits, what assumptions break under stress. Read-only.
 
-Complement to [[reviewer|agents/reviewer.md]] (conformance) and [[reviewer-tokens|agents/reviewer-tokens.md]] (token efficiency). Red-team assumes both have already passed; its job is to find what those passes miss.
+Complement to [agents/reviewer.md](reviewer.md) (conformance) and [agents/reviewer-tokens.md](reviewer-tokens.md) (token efficiency). Red-team assumes both have already passed; its job is to find what those passes miss.
 
 ## Inputs
 

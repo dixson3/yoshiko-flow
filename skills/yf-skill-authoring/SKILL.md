@@ -28,7 +28,7 @@ tags: []
 
 # yf-skill-authoring
 
-Rules for Claude Code skills and instruction files. Background and worked example: see [[README]] and [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
+Rules for Claude Code skills and instruction files. Background and worked example: see [README](README.md) and [reference/SURFACE_CONVENTION.md](reference/SURFACE_CONVENTION.md).
 
 ## Layout
 
@@ -61,7 +61,7 @@ README layout fence or `e-readme-layout` fails.
 
 ## Skill Surface Convention
 
-Adopt the whole contract or none of it. Full spec + worked example: [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
+Adopt the whole contract or none of it. Full spec + worked example: [reference/SURFACE_CONVENTION.md](reference/SURFACE_CONVENTION.md).
 
 1. **Companion rules.** Source: `${SKILL_DIR}/protocols/<NAME>.md`. Installed by the repo installer (`install.sh`), not `<skill> init`, to a rules dir anchored by install scope and surface — `--scope user` → `~/.<surface>/rules/<NAME>.md`, `--scope project` → `<git-root>/.<surface>/rules/<NAME>.md` (`--surface claude|agents`). Never write to `AGENTS/`. Never edit `CLAUDE.md`.
 2. **Hash manifest.** `protocols/manifest.json` (`schema_version`, `files[<NAME>] = {sha256, version, deprecated, previous_versions[]}`). Preflight checks installed-rule hash against manifest. Six outcomes: match / older-version / drift / deprecated / missing-from-disk / orphan. Unknown `schema_version` → preflight FAIL.
@@ -203,22 +203,34 @@ multiple agents only when the factoring test passes; when you split, keep the ro
 add a qualifier (`reviewer-tokens`, not `optimizer`).
 
 Full vocabulary, the factoring test, the front-matter schema, and the canonical role table
-for every agent: [[AGENT_ROLES|reference/AGENT_ROLES.md]].
+for every agent: [reference/AGENT_ROLES.md](reference/AGENT_ROLES.md).
 
 ## Review sequence
 
 Three read-only agents. All dispatched via the Agent tool. Caller applies fixes.
 
-1. [[reviewer|agents/reviewer.md]] — general skill review (structure, token efficiency, trigger quality, scope, design, portability).
-2. [[reviewer-tokens|agents/reviewer-tokens.md]] — token-efficiency reviewer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `yf-optimal-instructions`' domain.
-3. [[red-team|agents/red-team.md]] — adversarial check: what does this skill miss, where does it overcommit, what assumptions break.
+1. [agents/reviewer.md](agents/reviewer.md) — general skill review (structure, token efficiency, trigger quality, scope, design, portability).
+2. [agents/reviewer-tokens.md](agents/reviewer-tokens.md) — token-efficiency reviewer for skill-dir instruction files (SKILL.md, agent .md, a skill's own `.{claude,agents}/rules/*.md`). Returns ranked findings + suggested edits. Project-root instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) are `yf-optimal-instructions`' domain.
+3. [agents/red-team.md](agents/red-team.md) — adversarial check: what does this skill miss, where does it overcommit, what assumptions break.
 
-For Python helpers, also run [[reviewer-python|agents/reviewer-python.md]] (toolchain + design critique).
+For Python helpers, also run [agents/reviewer-python.md](agents/reviewer-python.md) (toolchain + design critique).
+
+## Markdown output convention
+
+Every markdown file a skill ships (`SKILL.md`, `agents/*.md`, `README.md`, `spec/*.md`,
+`reference/*.md`) is plain **GFM** — never Obsidian `[[wikilinks]]` or `![[embeds]]`. Use GFM
+links (`[text](path)` / `[text](file.md#anchor)`); cross-doc references inside a skill are
+relative GFM links. Tables are GFM with explicit alignment markers (`:--`/`:-:`/`--:`) and
+variable, content-sized column widths. **Lint every authored/edited `.md` with the
+`yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve every
+violation before the skill is considered done** — this is part of the review gate above, not
+optional. For a skill dir that still carries Obsidian wiki-links, run
+`yf-markdown-lint`'s `scripts/convert_wikilinks.py` once to migrate them to GFM.
 
 ## Reference
 
-- [[README]] — what this skill is, when to use it, what's not here.
-- [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]] — full Skill Surface Convention spec + generic worked example.
-- [[PORTABILITY|reference/PORTABILITY.md]] — `SKILL_DIR` resolution + portability checklist.
-- [[PIPELINE|reference/PIPELINE.md]] — multi-agent skill conventions.
-- [[AGENT_ROLES|reference/AGENT_ROLES.md]] — canonical agent role vocabulary, factoring test, front-matter schema, role table.
+- [README](README.md) — what this skill is, when to use it, what's not here.
+- [reference/SURFACE_CONVENTION.md](reference/SURFACE_CONVENTION.md) — full Skill Surface Convention spec + generic worked example.
+- [reference/PORTABILITY.md](reference/PORTABILITY.md) — `SKILL_DIR` resolution + portability checklist.
+- [reference/PIPELINE.md](reference/PIPELINE.md) — multi-agent skill conventions.
+- [reference/AGENT_ROLES.md](reference/AGENT_ROLES.md) — canonical agent role vocabulary, factoring test, front-matter schema, role table.

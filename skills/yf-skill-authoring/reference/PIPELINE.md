@@ -76,9 +76,9 @@ For multi-agent or pipeline-shaped skills:
 2. Create one agent file per role in `agents/` — each with Purpose, Context, Context Isolation (with reasons), Tools, Instructions, inlined Constraints
 3. Inline all constraints into each agent — no separate rule files
 4. Write SKILL.md as pure orchestration (prerequisites → scope → plan → dispatch → handoff)
-5. Add `SKILL_DIR` resolution block per [[PORTABILITY|PORTABILITY.md]] and verify all internal paths use it (pipeline skills always reference agent files, so this always applies)
+5. Add `SKILL_DIR` resolution block per [PORTABILITY.md](PORTABILITY.md) and verify all internal paths use it (pipeline skills always reference agent files, so this always applies)
 6. Put shared scripts in `scripts/`
-7. Run the portability validation checklist ([[PORTABILITY|PORTABILITY.md]]) before shipping
+7. Run the portability validation checklist ([PORTABILITY.md](PORTABILITY.md)) before shipping
 8. Optionally write `specs/SPEC.md` if design rationale is non-obvious
 
 For beads-backed orchestration (a skill with `.formula.toml` files, gates, and a coordinator loop), this project uses `bd` (beads) directly — see the `beads` skill (routine CLI loop) and `beads-extra` (direct-CLI gotchas: gate semantics, dependency-edge mutation, defensive JSON, `bd batch`, `bd mol pour` output shape). The `beads-authoring` skill is the meta-reviewer that adds beads-specific authoring rules on top of this skill-authoring baseline.

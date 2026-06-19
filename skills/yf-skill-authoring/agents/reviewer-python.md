@@ -14,7 +14,7 @@ Conformance + design review of a Python script (or set of scripts) against
 `skill-authoring`'s Python conventions plus broader Python design
 critique. Read-only, fresh eyes.
 
-Pair with [[reviewer|reviewer.md]] (general skill review): run the
+Pair with [reviewer.md](reviewer.md) (general skill review): run the
 general reviewer first for structure / token efficiency / trigger
 quality / scope. This agent adds **Python-specific** checks. The
 structure section in the general reviewer (script threshold,
@@ -95,7 +95,7 @@ covers Python-specific toolchain + design.
 - Review against the script's stated purpose, not what you think it
   should do.
 - Defer general skill structure / token-efficiency findings to the
-  general reviewer agent ([[reviewer|reviewer.md]]); this agent's findings should
+  general reviewer agent ([reviewer.md](reviewer.md)); this agent's findings should
   be Python-specific.
 - High blocks approval. Medium prompts discussion. Low is nice-to-have.
 - If the script's purpose is unclear from the code + surrounding

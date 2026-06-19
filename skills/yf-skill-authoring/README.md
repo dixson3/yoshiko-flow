@@ -6,12 +6,12 @@ tags: []
 
 # skill-authoring
 
-Conventions for Claude Code skills, agents, and instruction files. Read by humans authoring skills; loaded by agents via [[SKILL]] at the moment of need.
+Conventions for Claude Code skills, agents, and instruction files. Read by humans authoring skills; loaded by agents via [SKILL](SKILL.md) at the moment of need.
 
 ## What this skill covers
 
 - **Structure.** Where skill files live, when to extract a script or module, what the directory layout looks like.
-- **Skill Surface Convention.** How skills install companion rules, store config and state, register hooks, and run preflight. Seven elements, adopt as a contract. Full spec in [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
+- **Skill Surface Convention.** How skills install companion rules, store config and state, register hooks, and run preflight. Seven elements, adopt as a contract. Full spec in [reference/SURFACE_CONVENTION.md](reference/SURFACE_CONVENTION.md).
 - **Token efficiency.** What to cut and what to keep so always-loaded context stays tight. This
   is the single source of truth for the token-efficiency ruleset; `optimal-instructions` cites it.
 - **Python helpers.** `uv run` discipline, PEP 723 inline deps, argument parsers, runtime-cache rules.
@@ -30,12 +30,12 @@ Conventions for Claude Code skills, agents, and instruction files. Read by human
 
 ## When to read what
 
-- Authoring a new skill from scratch → read [[SKILL]] start to finish, then [[SURFACE_CONVENTION|reference/SURFACE_CONVENTION.md]].
-- Adding a helper script → [[SKILL]] § Python helpers (or sibling-language equivalent).
-- Writing an agent file inside a multi-agent skill → [[PIPELINE|reference/PIPELINE.md]].
-- Referencing skill-internal files from a script → [[PORTABILITY|reference/PORTABILITY.md]].
-- Reviewing an existing skill → see § Review sequence in [[SKILL]].
-- Trimming a skill-dir instruction file → dispatch the [[reviewer-tokens|agents/reviewer-tokens.md]] agent. For a project-root instruction file, use the `optimal-instructions` skill.
+- Authoring a new skill from scratch → read [SKILL](SKILL.md) start to finish, then [reference/SURFACE_CONVENTION.md](reference/SURFACE_CONVENTION.md).
+- Adding a helper script → [SKILL](SKILL.md) § Python helpers (or sibling-language equivalent).
+- Writing an agent file inside a multi-agent skill → [reference/PIPELINE.md](reference/PIPELINE.md).
+- Referencing skill-internal files from a script → [reference/PORTABILITY.md](reference/PORTABILITY.md).
+- Reviewing an existing skill → see § Review sequence in [SKILL](SKILL.md).
+- Trimming a skill-dir instruction file → dispatch the [agents/reviewer-tokens.md](agents/reviewer-tokens.md) agent. For a project-root instruction file, use the `optimal-instructions` skill.
 
 ## Layout shipped by this skill
 

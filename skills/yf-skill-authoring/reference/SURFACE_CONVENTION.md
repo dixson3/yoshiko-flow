@@ -88,7 +88,7 @@ Per-skill state and cache at `.state/<skill>/`. The whole `.state/` dir is gitig
 
 Skill scripts that write runtime cache files **must** write under `.state/<skill>/`. Never under the skill's source directory, never under `.{claude,agents}/`. The skill's source dir is read-only at runtime; any file the skill writes is per-checkout state and belongs in `.state/`.
 
-This rule extends to the Python helper convention in [[SKILL]] § Python helpers — runtime caches written by helper scripts go under `.state/<skill>/`, not adjacent to the script.
+This rule extends to the Python helper convention in [SKILL](../SKILL.md) § Python helpers — runtime caches written by helper scripts go under `.state/<skill>/`, not adjacent to the script.
 
 ## 5. Hook installation
 

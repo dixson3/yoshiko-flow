@@ -33,7 +33,7 @@ preflight:
 Active, on-write optimizer for project instruction files (`CLAUDE.md`, `AGENTS.md`,
 `AGENTS/*`, repo-root `.{claude,agents}/rules/*`). Reads the changed file, auto-applies
 token-efficiency cuts, proposes structural relocation, and reports what changed.
-Background: see [[README]].
+Background: see [README](README.md).
 
 ## SKILL_DIR
 
@@ -49,7 +49,7 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
   extract scripts). Single source of truth: **yf-skill-authoring `SKILL.md` "Token efficiency"
   §**. This skill cites that anchor and never restates the ruleset.
 - **K2 — instruction-file structure** (AGENTS.md primary; CLAUDE.md a thin `@-include`
-  index; behavioral rules in the project's rules surface). Owned here, in [[spec|spec/]].
+  index; behavioral rules in the project's rules surface). Owned here, in [spec/](spec/).
 
 ## Scope vs yf-skill-authoring
 
@@ -121,7 +121,7 @@ its own output on the next write.
 - Detect and normalize to the project's existing rules surface; do not impose one.
 - This skill edits `CLAUDE.md` / `AGENTS/*` at **runtime via its apply agent** — distinct
   from the Surface Convention §1 *installer* prohibition, which governs install-time writes.
-  See [[spec|spec/]].
+  See [spec/](spec/).
 
 ## Companion rule
 
@@ -133,6 +133,6 @@ best-effort `description` trigger. `scripts/manifest_update.py` maintains `proto
 
 ## Reference
 
-- [[README]] — what this skill is, when it fires, accepted limitations.
-- [[spec|spec/]] — K2 structure, split-apply contract, idempotency, surface detection, the
+- [README](README.md) — what this skill is, when it fires, accepted limitations.
+- [spec/](spec/) — K2 structure, split-apply contract, idempotency, surface detection, the
   runtime carve-out, and the no-duplication boundary with yf-skill-authoring.
