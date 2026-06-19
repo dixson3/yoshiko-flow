@@ -43,7 +43,7 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
 When building scripts that call external APIs, enforce these limits:
 
 | Service | Requests/Minute | Requests/Day | Burst | Notes |
-|---------|----------------|-------------|-------|-------|
+|:--------|:---------------|:------------|:------|:------|
 | Tavily Search | 10 | 1000 | 3 | Free tier: 1000/month |
 | Perplexity API | 5 | 50 | 2 | Conservative; actual limit may be higher |
 | Generic HTTP (WebFetch) | 2 | 20 | 1 | Per-domain limit |

@@ -8,7 +8,7 @@ optional `FileChanged` hook.
 ## Prerequisites
 
 | Tool | Version | Purpose | Install |
-|------|---------|---------|---------|
+|:-----|:--------|:--------|:--------|
 | `uv` | any | Runs the linter scripts (PEP 723) | https://docs.astral.sh/uv/ |
 
 Mirrors SKILL.md frontmatter `depends-on-tool: [uv]`. No `init` step, no config,

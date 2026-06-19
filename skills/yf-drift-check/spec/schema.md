@@ -41,7 +41,7 @@ judgment frame (exp-001 rec 4); the probe (`.1.3`) showed it expresses a structu
 distinct (OpenAPI) graph with no extension. Verification: every §3 `Contract` value is one of:
 
 | Term | Meaning |
-|---|---|
+|:--|:--|
 | `path-resolves` | a path/reference in the derived node resolves to a real target in the source node |
 | `identifier-matches` | a named identifier (subcommand, flag, symbol) in the derived node matches the source's spelling exactly |
 | `value-equal` | a value duplicated across nodes is byte-identical (URLs, versions, status strings) |

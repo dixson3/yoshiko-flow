@@ -362,7 +362,7 @@ bd gate list --json    # filter to gates whose parent epic was poured from yf-re
 ```
 
 | Open gates | Action |
-|-----------|--------|
+|:----------|:-------|
 | 0 | Check for a resumable epic (see *Resume* below) **before** exiting — a crashed run's gate is already resolved, so 0 open gates may mean "resume," not "nothing to do." |
 | 1 | Auto-select, resolve, begin. |
 | N | Present each gate's parent-epic topic via AskUserQuestion; resolve the selected gate, begin. |
@@ -442,4 +442,4 @@ Every markdown artifact this skill writes (`Summary.md`, `sources.md`, `artifact
 anchor) — see `agents/synthesizer.md` and `scripts/link_normalizer.py`. Use GFM tables with
 explicit alignment markers (`:--` left, `:-:` center, `--:` right) and variable, content-sized
 column widths (never fixed-width padding). Lint each generated `.md` with the `yf-markdown-lint`
-authoring subset (`ML001,ML002,ML005,ML006,ML007`) and resolve any violation before handoff.
+authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve any violation before handoff.

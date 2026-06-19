@@ -87,7 +87,7 @@ reads these to compute groups and resolve dependencies — no installer edit is 
 added or regrouped.
 
 | Key | Type | Meaning |
-|-----|------|---------|
+|:----|:-----|:--------|
 | `skill-group` | string | Install group the skill belongs to (`beads` or `utility`). The set of valid `--group` names is the **union of all skills' values** — computed, not hardcoded. |
 | `depends-on-tool` | list | Binaries the skill needs at runtime (e.g. `[bd, uv, git]`). Probed on `PATH` at install: missing → warning, **install still proceeds (exit 0)**; `--strict` makes it a hard failure. |
 | `depends-on-skill` | list | **Bare** in-repo skill names this skill needs. The install set is closed over these (transitive pull). A name not found under `skills/*` is warned as external / assumed-provided and skipped. |
@@ -110,7 +110,7 @@ skill — that keeps `--group utility` provably beads-free.
 ## Skills
 
 | Skill | Invocable | Description |
-|-------|-----------|-------------|
+|:------|:----------|:------------|
 | [yf-plan](skills/yf-plan/README.md) | `/yf-plan` | Structured planning with beads-tracked execution and upstream issue reconciliation |
 | [yf-research](skills/yf-research/) | `/yf-research` | Multi-phase, beads-tracked deep research producing citation-backed, resumable reports |
 | [yf-incubator](skills/yf-incubator/README.md) | `/yf-incubator` | Create, fork, bookmark, resume, and triage research topics ("incubators") under `Incubator/` |

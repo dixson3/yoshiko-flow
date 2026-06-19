@@ -15,7 +15,7 @@ its name and front-matter alone.
 Every agent maps to **exactly one** role.
 
 | Role | Operation |
-|------|-----------|
+|:-----|:----------|
 | **GATHER** | Acquire raw inputs the pipeline doesn't yet have (run an experiment, retrieve sources). |
 | **PRODUCE** | Generate a new primary or intermediate artifact (a plan, a synthesis, validated scripts, an analytical intermediate). |
 | **EVALUATE** | Assess the primary artifact and emit a verdict (conformance or adversarial). |
@@ -103,7 +103,7 @@ verbatim — no role is decided ad hoc. "Valid `role`" means "matches this table
 are **post-rename** (the canonical names).
 
 | Skill | Agent | role | stance | Notes |
-|-------|-------|------|--------|-------|
+|:------|:------|:-----|:-------|:------|
 | yf-plan | coordinator | orchestrate | — | |
 | yf-plan | investigator | gather | — | |
 | yf-plan | planner | produce | — | |

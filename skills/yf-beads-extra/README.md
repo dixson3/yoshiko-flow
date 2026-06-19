@@ -9,7 +9,7 @@ This is a **reference skill** — it documents only the parts of `bd` that bite 
 ## Prerequisites
 
 | Tool | Version | Install |
-|------|---------|---------|
+|:-----|:--------|:--------|
 | `bd` | 1.0.5 | https://github.com/gastownhall/beads |
 
 The gotchas are pinned to 1.0.5 behavior — re-verify against your installed `bd version` if it differs. No `init` step: this skill ships no `protocols/` rule and writes no config or state.

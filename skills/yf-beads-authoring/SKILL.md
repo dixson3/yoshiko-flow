@@ -316,7 +316,7 @@ With no identifier, query `bd gate list --json` for open gates parented to epics
 from this skill's formula:
 
 | Open gates | Action |
-|-----------|--------|
+|:----------|:-------|
 | 0 | Warn and exit — no pending work |
 | 1 | Auto-select, resolve, and begin |
 | N | Present options via `AskUserQuestion`, resolve the selected gate, begin |

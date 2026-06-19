@@ -9,7 +9,7 @@ This is a **reference skill** — design rules consumed while authoring other be
 The conventions assume the tooling every beads-backed skill needs:
 
 | Tool | Version | Install |
-|------|---------|---------|
+|:-----|:--------|:--------|
 | `bd` | >= 1.0.5 | https://github.com/gastownhall/beads |
 | `uv` | any | https://docs.astral.sh/uv/ |
 | `git` | any | system package manager |

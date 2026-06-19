@@ -59,7 +59,7 @@ Each skill's `protocols/` directory contains `manifest.json`:
 Preflight compares the installed rule file's sha256 (in the install surface's rules dir — `.claude/rules/<NAME>.md` or `.agents/rules/<NAME>.md`) to the manifest entry. The six outcomes:
 
 | Condition | Verdict | Operator action |
-|---|---|---|
+|:--|:--|:--|
 | installed hash == `sha256` | OK | none |
 | installed hash matches a `previous_versions[]` entry | update available | `install.sh --force` |
 | installed hash matches neither | drift | resolve manually or `install.sh --force` |

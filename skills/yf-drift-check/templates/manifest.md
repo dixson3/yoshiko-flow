@@ -18,7 +18,7 @@ manifest does not drive enforcement.
 `Kind` ∈ {source, doc, spec}. `Authority` ∈ {fixed, derived}. `Reachability` ∈ {required, optional}.
 
 | Node ID | Glob | Kind | Authority | Reachability |
-|---------|------|------|-----------|--------------|
+|:--------|:-----|:-----|:----------|:-------------|
 | `<id>`  | `<glob>` | source\|doc\|spec | fixed\|derived | required\|optional |
 
 ## 2. Source-of-Truth Edges
@@ -26,7 +26,7 @@ manifest does not drive enforcement.
 `Check Category` ∈ {cross-ref, contract, behavioral, required-section}.
 
 | Edge ID | Source Node | Derived Node | Check Category |
-|---------|-------------|--------------|----------------|
+|:--------|:------------|:-------------|:---------------|
 | `<edge-id>` | `<node-id>` | `<node-id>` | cross-ref\|contract\|behavioral\|required-section |
 
 ## 3. Per-Edge Contracts
@@ -36,7 +36,7 @@ field-set-subset | field-set-equal | section-present`. `Verification` is the pro
 grep, or read) the verifier runs to gather evidence.
 
 | Edge ID | Contract | Verification |
-|---------|----------|--------------|
+|:--------|:---------|:-------------|
 | `<edge-id>` | `<term>` | `<probe — what to read/grep/run and what agreement to confirm>` |
 
 ## 4. Referencers (orphan check)
@@ -44,7 +44,7 @@ grep, or read) the verifier runs to gather evidence.
 For each `required` node, what counts as a live reference.
 
 | Required Node | Valid Referencers |
-|---------------|-------------------|
+|:--------------|:------------------|
 | `<node-id>` | `<where a live reference may appear>` |
 
 ## 5. Required-Section Contracts
@@ -52,7 +52,7 @@ For each `required` node, what counts as a live reference.
 Sections a `doc` node must contain, and the source node that makes each mandatory.
 
 | Required Section | Source Node | Source detail |
-|------------------|-------------|---------------|
+|:-----------------|:------------|:--------------|
 | `<section heading>` | `<node-id>` | `<what in the source makes this section required>` |
 
 ## 6. Trigger Scope
@@ -61,7 +61,7 @@ Maps a changed path to the edges (or nodes) a check is scoped to. A source-node 
 out to every derived edge it feeds.
 
 | Changed-Path Glob | Scopes To |
-|-------------------|-----------|
+|:------------------|:----------|
 | `<glob>` | `<edge-id>[, <edge-id> …]` |
 
 ## 7. Fixed-Authority Conflict Policy

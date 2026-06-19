@@ -65,7 +65,7 @@ Two distinct trigger classes, deliberately routed to two different surfaces:
 ## Backends
 
 | Backend  | Config namespace                         | Status      |
-|----------|------------------------------------------|-------------|
+|:---------|:-----------------------------------------|:------------|
 | `github` | `github.owner` / `github.repo` / token   | implemented, dry-run-tested |
 | `gitlab` | `gitlab.*`                               | config-only stub (unverified) |
 | `jira`   | `jira.*`                                 | config-only stub (unverified; field model differs) |
@@ -263,7 +263,7 @@ All three backends expose `push` / `pull` / `status` / `sync` subcommands. Scope
 translation (verified against `bd <backend> sync --help` on 1.0.5):
 
 | Step          | GitHub                              | GitLab                              | Jira (unverified)                          |
-|---------------|-------------------------------------|-------------------------------------|--------------------------------------------|
+|:--------------|:------------------------------------|:------------------------------------|:-------------------------------------------|
 | Config        | `github.owner` / `github.repo`      | `gitlab.*` (+ `--project` group id) | `jira.*`                                    |
 | Scoped push   | `bd github push <ids>`              | `bd gitlab push <ids>`              | `bd jira push <ids>`                        |
 | ≡ sync form   | `sync --push-only --issues <ids>`   | `sync --push-only --issues <ids>`   | `sync --push --issues <ids>` ⚠             |

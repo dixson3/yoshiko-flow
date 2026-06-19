@@ -20,6 +20,7 @@ Rules:
   ML005  Malformed GFM table (row column count != delimiter row)
   ML006  Empty link destination ``[text]()``
   ML007  Malformed table delimiter / alignment marker (e.g. ``:-:-``)
+  ML008  Table column lacks an explicit alignment marker (use ``:---`` / ``:--:`` / ``---:``)
 
 Usage:
     uv run markdown_lint.py [<path> ...] [--rules ML001,...] [--format text|json]
@@ -42,7 +43,7 @@ INLINE_CODE_RE = re.compile(r"`+(?:.*?)`+")
 # [text](dest) — dest captured up to first unescaped ) ; text allows nested brackets minimally
 MDLINK_RE = re.compile(r"!?\[(?P<text>[^\]]*)\]\((?P<dest>[^)]*)\)")
 URL_SCHEME_RE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//|#|mailto:)", re.I)
-ALL_RULES = ["ML001", "ML002", "ML003", "ML004", "ML005", "ML006", "ML007"]
+ALL_RULES = ["ML001", "ML002", "ML003", "ML004", "ML005", "ML006", "ML007", "ML008"]
 
 
 def gfm_slug(text: str) -> str:
@@ -229,6 +230,21 @@ class Linter:
                 if "-" in s and re.fullmatch(r"[\s:|-]+", s) and not is_delim_row(line):
                     out.append((lineno, "ML007",
                                 f"malformed table delimiter / alignment marker: {s}"))
+
+            # ML008 — every table delimiter column must carry an explicit
+            # alignment marker (`:---` left, `:--:` center, `---:` right). A bare
+            # `---` column (no colon) is flagged. Per-column dash COUNTS are
+            # intentionally left free: variable widths are allowed (the
+            # yf-markdown-pdf skill tunes PDF column widths from those counts).
+            if ("ML008" in self.rules and is_delim_row(line)
+                    and "|" in prev_code and prev_line.strip()):
+                cells = re.split(r"(?<!\\)\|", line.strip().strip("|"))
+                bare = [str(idx) for idx, c in enumerate(cells, 1) if ":" not in c]
+                if bare:
+                    plural = "s" if len(bare) > 1 else ""
+                    out.append((lineno, "ML008",
+                                f"table column{plural} {', '.join(bare)} lack an explicit "
+                                f"alignment marker (use :--- / :--: / ---:): {line.strip()}"))
 
             prev_line = line
             prev_code = code

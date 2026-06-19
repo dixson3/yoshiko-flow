@@ -4,7 +4,7 @@ role: evaluate
 stance: reviewer
 model:
 description: Conformance/completeness check of a plan before approval (PASS|INCOMPLETE).
----
+:--
 
 # Reviewer
 

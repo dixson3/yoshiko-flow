@@ -8,7 +8,7 @@ beside every `.png` render. d2 is the single, local, offline diagram engine for 
 ## Prerequisites
 
 | Tool | Version | Purpose | Install |
-|------|---------|---------|---------|
+|:-----|:--------|:--------|:--------|
 | `d2` | >= 0.7 | Diagram compiler/renderer (`.d2` → `.png`, theme 0, elk) | `brew install d2` |
 
 Mirrors SKILL.md frontmatter `depends-on-tool: [d2]`. The first PNG render fetches a one-time

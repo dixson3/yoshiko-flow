@@ -52,7 +52,7 @@ Need full content from result URLs?
 **Fallback chain** (when exa MCP is unavailable or errors):
 
 | Priority | Provider | When to use |
-|----------|----------|-------------|
+|:---------|:---------|:------------|
 | 1 | `search_api.py --provider tavily` | General search fallback |
 | 2 | `search_api.py --provider perplexity` | Conversational/synthesis queries |
 | 3 | WebSearch / WebFetch | Last resort |
@@ -112,7 +112,7 @@ Use when you need any of: category filters, text constraints, date ranges, domai
 Available exa categories: `company`, `research paper`, `news`, `pdf`, `github`, `personal site`, `people`, `financial report`
 
 | Cluster type | Tool | Exa category | Search type | Notes |
-|-------------|------|-------------|-------------|-------|
+|:------------|:-----|:------------|:------------|:------|
 | academic | advanced | `"research paper"` | `"neural"` | Use `"pdf"` for preprints/whitepapers |
 | industry | basic or advanced | — | `"auto"` | Use basic unless domain filtering needed |
 | community | basic | — | `"auto"` | `includeDomains` on basic is sufficient |
@@ -171,7 +171,7 @@ If a task involves exploring multiple pages on a single domain, do NOT fetch the
 ### API-First for Known Platforms
 
 | Platform | Approach | Never Do |
-|----------|----------|----------|
+|:---------|:---------|:---------|
 | Reddit | Exa search or Perplexity API | Scrape reddit.com HTML |
 | HackerNews | Exa search or Algolia HN API | Walk comment threads |
 | StackOverflow | Exa search with `includeDomains: ["stackoverflow.com"]` | Scrape question pages |
@@ -208,7 +208,7 @@ If data cannot be obtained via search APIs (e.g., behind authentication, real-ti
 ## Constraints: Rate Limiting
 
 | Service | Requests/Minute | Requests/Day | Burst |
-|---------|----------------|-------------|-------|
+|:--------|:---------------|:------------|:------|
 | Exa MCP (any tool) | 20 | 1000 | 5 |
 | Tavily Search | 10 | 1000 | 3 |
 | Perplexity API | 5 | 50 | 2 |

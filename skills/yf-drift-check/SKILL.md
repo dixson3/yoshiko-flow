@@ -44,7 +44,7 @@ sub-agent over the scoped edges, and acts on the returned findings.
 The contract is split in two — fixed engine, per-repo config:
 
 | Fixed (this skill) | Per-repo (`DRIFT-CHECK.md`) |
-|---|---|
+|:--|:--|
 | `SKILL.md` (this file), `spec/`, `agents/drift-verifier.md`, the firing rule | the artifact graph: nodes, edges, contracts, trigger globs, fixed-authority policy |
 
 Authoritative behavior lives in `spec/` — `schema.md` (the 7-section manifest schema +
@@ -160,7 +160,7 @@ yf-drift-check shares the skill-dir file surface with `yf-skill-authoring` and i
 `yf-optimal-instructions`, but on orthogonal axes:
 
 | Concern | Owner |
-|---------|-------|
+|:--------|:------|
 | Does an already-written artifact AGREE with its declared source of truth? | **yf-drift-check** |
 | Is a skill-dir instruction file written to authoring conventions / token-efficient? | yf-skill-authoring |
 | Is a project-root CLAUDE.md / AGENTS.md structured and token-efficient? | yf-optimal-instructions |

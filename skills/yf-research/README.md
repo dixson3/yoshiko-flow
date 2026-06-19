@@ -9,7 +9,7 @@ Prefer this over the built-in deep-research harness when the result should be tr
 Checked at runtime by `scripts/research_manager.py check`:
 
 | Tool | Version | Install |
-|------|---------|---------|
+|:-----|:--------|:--------|
 | `bd` | >= 1.0.5 | https://github.com/gastownhall/beads |
 | `uv` | any | https://docs.astral.sh/uv/ |
 | `git` | any | system package manager |

@@ -46,7 +46,7 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
 ### Domain Authority (35% weight)
 
 | Tier | Score Range | Examples |
-|------|-------------|---------|
+|:-----|:------------|:--------|
 | Tier 1 (Authoritative) | 85-100 | Peer-reviewed journals, .gov, IEEE, ACM, Nature, Science, established textbooks |
 | Tier 2 (Reliable) | 70-84 | Major news outlets (Reuters, AP, NYT), official docs, established encyclopedias |
 | Tier 3 (Credible) | 55-69 | Industry publications, reputable tech blogs, conference proceedings |
@@ -56,7 +56,7 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
 ### Currency (20% weight)
 
 | Age | Score |
-|-----|-------|
+|:----|:------|
 | < 1 year | 90-100 |
 | 1-2 years | 70-89 |
 | 2-5 years | 50-69 |
@@ -68,7 +68,7 @@ Pass `--evergreen` for historical/foundational topics to disable currency penalt
 ### Expertise (25% weight)
 
 | Level | Score | Indicators |
-|-------|-------|-----------|
+|:------|:------|:----------|
 | Domain expert | 85-100 | PhD in field, professor, principal researcher, recognized practitioner |
 | Practitioner | 65-84 | Working professional, published author |
 | Informed | 45-64 | Adjacent expertise, journalist covering the beat |
@@ -78,7 +78,7 @@ Pass `--evergreen` for historical/foundational topics to disable currency penalt
 ### Bias Neutrality (20% weight)
 
 | Level | Score | Indicators |
-|-------|-------|-----------|
+|:------|:------|:----------|
 | Neutral | 85-100 | Balanced perspectives, acknowledges limitations, cites counter-evidence |
 | Mostly neutral | 65-84 | Slight framing bias but factually accurate |
 | Some bias | 45-64 | Clear perspective but still informative |
@@ -88,7 +88,7 @@ Pass `--evergreen` for historical/foundational topics to disable currency penalt
 ### Output Categories
 
 | Category | Score Range | Action |
-|----------|-------------|--------|
+|:---------|:------------|:-------|
 | `high_trust` | 80-100 | Cite freely |
 | `verify` | 60-79 | Cite with cross-reference from another source |
 | `questionable` | 40-59 | Use only if corroborated by 2+ independent sources |

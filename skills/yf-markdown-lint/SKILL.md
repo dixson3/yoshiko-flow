@@ -39,7 +39,7 @@ Exit 1 if any violation is found; report each and explain the rule.
 ## Rules
 
 | ID | Description |
-|----|-------------|
+|:---|:------------|
 | ML001 | Obsidian wiki-link `[[...]]` (use a `[text](path)` link) |
 | ML002 | Obsidian embed `![[...]]` (use `![alt](path)`) |
 | ML003 | Broken relative link (destination file does not exist) |
@@ -47,6 +47,7 @@ Exit 1 if any violation is found; report each and explain the rule.
 | ML005 | Malformed GFM table (row column count ≠ delimiter row) |
 | ML006 | Empty link destination `[text]()` |
 | ML007 | Malformed table delimiter / alignment marker (e.g. `:-:-`) |
+| ML008 | Table column lacks an explicit alignment marker (use `:---` / `:--:` / `---:`) |
 
 Frontmatter, fenced code blocks, and inline code spans are exempt from the
 link/wiki-link checks (so docs that *describe* wiki-link syntax aren't flagged).
@@ -61,7 +62,9 @@ switching format.
 
 - **Alignment:** `:--` left, `:-:` center, `--:` right — supported by GFM,
   Obsidian, and pandoc. Right-align numerics, center short categorical/flag
-  columns, left for text.
+  columns, left for text. **ML008 requires an explicit marker on every column** —
+  a bare `---` (no colon) is flagged. Per-column dash *counts* stay free (variable
+  widths), so the PDF width-tuning below survives.
 - **In-cell line breaks:** use `<br>` for intentional wrapping inside a cell
   (renders in GFM, Obsidian, and pandoc). A literal newline can't occur inside a
   pipe-table row, so `<br>` is the only portable break.
@@ -104,7 +107,7 @@ marker file at its root; with the marker present, the agent lints each changed
 `.claude/settings.json`:
 
 ```bash
-uv run .claude/skills/yf-markdown-lint/scripts/markdown_lint.py "$CLAUDE_FILE_PATHS" --rules ML001,ML002,ML005,ML006,ML007
+uv run .claude/skills/yf-markdown-lint/scripts/markdown_lint.py "$CLAUDE_FILE_PATHS" --rules ML001,ML002,ML005,ML006,ML007,ML008
 ```
 
 This hook is not managed by the installer — edit `settings.json` to add, change,

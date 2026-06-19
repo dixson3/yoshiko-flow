@@ -27,7 +27,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 `Kind` ∈ {source, doc, spec}. `Authority` ∈ {fixed, derived}. `Reachability` ∈ {required, optional}.
 
 | Node ID | Glob | Kind | Authority | Reachability |
-|---------|------|------|-----------|--------------|
+|:--------|:-----|:-----|:----------|:-------------|
 | `spec` | `skills/*/spec/*.md` | spec | fixed | optional |
 | `skill-md` | `skills/*/SKILL.md` | source | derived | required |
 | `frontmatter-contract` | `skills/*/SKILL.md` (frontmatter `skill-group` / `depends-on-tool` / `depends-on-skill`) | source | derived | required |
@@ -48,7 +48,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 `Check Category` ∈ {cross-ref, contract, behavioral, required-section}.
 
 | Edge ID | Source Node | Derived Node | Check Category |
-|---------|-------------|--------------|----------------|
+|:--------|:------------|:-------------|:---------------|
 | `e-spec-compliance` | `spec` | `skill-md` | contract |
 | `e-skill-script-cli` | `script` | `skill-md` | cross-ref |
 | `e-formula-name` | `formula` | `skill-md` | cross-ref |
@@ -78,7 +78,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 `Contract` ∈ {path-resolves, identifier-matches, value-equal, field-set-subset, field-set-equal, section-present}.
 
 | Edge ID | Contract | Verification |
-|---------|----------|--------------|
+|:--------|:---------|:-------------|
 | `e-spec-compliance` | `field-set-subset` | for a skill with `spec/`, the SKILL.md behavior does not violate any REQ-* statement; read each spec file and the SKILL.md, compare. A fixed-authority conflict (spec wrong) is a CONFLICT, not a FAIL. |
 | `e-skill-script-cli` | `identifier-matches` | every script subcommand/flag SKILL.md invokes matches the script's actual CLI — read **all** `@cli.command` decorators / argparse subparsers and compare names+flags character-for-character. |
 | `e-formula-name` | `identifier-matches` | every `bd mol pour <name>` / `bd mol wisp <name>` in SKILL.md matches a `*.formula.toml` filename in the skill's `formulas/`. |
@@ -106,7 +106,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 ## 4. Referencers (orphan check)
 
 | Required Node | Valid Referencers |
-|---------------|-------------------|
+|:--------------|:------------------|
 | `skill-md` | every `skills/*/` dir must contain one `SKILL.md` |
 | `script` | referenced by the skill's SKILL.md, an agent, or another script |
 | `agent` | referenced by the skill's SKILL.md or another agent |
@@ -120,7 +120,7 @@ Sections a `doc` node must contain (from `DOCUMENTATION.md`'s README requirement
 source that makes each mandatory.
 
 | Required Section | Source Node | Source detail |
-|------------------|-------------|---------------|
+|:-----------------|:------------|:--------------|
 | One-line description | `skill-readme` | SKILL.md `description` |
 | Prerequisites | `skill-readme` | SKILL.md frontmatter `depends-on-tool` + SKILL.md checks |
 | Install | `skill-readme` | repo-level `install.sh` reference |
@@ -139,7 +139,7 @@ coverage** (yf-drift-check fires on skill-dir edits alongside yf-skill-authoring
 content-agreement axis).
 
 | Changed-Path Glob | Scopes To |
-|-------------------|-----------|
+|:------------------|:----------|
 | `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd` |
 | `skills/*/spec/*.md` | `e-spec-compliance` |
 | `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values` |

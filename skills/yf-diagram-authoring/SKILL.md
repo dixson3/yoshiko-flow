@@ -47,7 +47,7 @@ Every diagram keeps its `.d2` source beside the `.png` render — never temp-and
 ## Output location (caller-supplied; the skill hardcodes nothing)
 
 | Consumer | Location | Referenced from |
-|----------|----------|-----------------|
+|:---------|:---------|:----------------|
 | yf-plan (plans) | `<plan_dir>/diagrams/<slug>.{d2,png}` | `plan.md` |
 | yf-research (reports) | `<research_dir>/diagrams/<slug>.{d2,png}` | report body / `_index.md` |
 | yf-skill-authoring (specs) | co-resident in `skills/<name>/spec/<slug>.{d2,png}` (no subfolder) | skill `README.md` |

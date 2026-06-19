@@ -1,7 +1,7 @@
 # Markdown Lint-on-Edit Trigger Protocol
 
 Always-loaded firing surface for the `yf-markdown-lint` skill. The linter procedure,
-the rule list (ML001–ML007), and the table conventions live in the skill's
+the rule list (ML001–ML008), and the table conventions live in the skill's
 `SKILL.md`; this rule binds only the on-edit trigger a `description` cannot
 reliably fire. It is the **portable, cross-harness** equivalent of the optional
 Claude-Code `FileChanged` hook documented in `SKILL.md` — use one, not both.
@@ -14,11 +14,12 @@ After any create or modify of a `**/*.md` file, **if the repo has opted in** (a
 the same pass:
 
 ```bash
-uv run <skill-dir>/scripts/markdown_lint.py "<changed.md>" --rules ML001,ML002,ML005,ML006,ML007
+uv run <skill-dir>/scripts/markdown_lint.py "<changed.md>" --rules ML001,ML002,ML005,ML006,ML007,ML008
 ```
 
 The subset is the fast authoring rules — wiki-links (ML001), embeds (ML002),
-malformed tables (ML005), empty links (ML006), bad delimiters (ML007). It
+malformed tables (ML005), empty links (ML006), bad delimiters (ML007), and table
+columns missing alignment markers (ML008). It
 deliberately skips link/anchor resolution (ML003/ML004): those are a full link
 audit (`/yf-markdown-lint` with no `--rules`), not an every-edit check. A non-empty
 marker file may override the rule set (`--rules …` on its own line) or list

@@ -6,7 +6,7 @@ relative image paths. See [SKILL.md](SKILL.md) for the full contract.
 ## Prerequisites
 
 | Tool | Version | Purpose | Install |
-|------|---------|---------|---------|
+|:-----|:--------|:--------|:--------|
 | `uv` | any | Runs the wrapper script (PEP 723) | https://docs.astral.sh/uv/ |
 | `pandoc` | any | Markdown → PDF converter | https://pandoc.org/installing.html |
 | `xelatex` | any | PDF engine (from a LaTeX distribution) | TeX Live / MacTeX |
