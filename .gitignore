@@ -21,3 +21,7 @@ __pycache__/
 /.agent-shell/
 
 /.worktrees/
+
+# Skill runtime state + local config (bdplan; Surface Convention §6)
+/.bdplan.local.json
+/.state/
