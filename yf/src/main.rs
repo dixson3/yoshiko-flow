@@ -11,6 +11,7 @@ mod cmd;
 mod coverage;
 mod dest;
 mod embed;
+mod flow;
 mod frontmatter;
 mod marker;
 #[cfg(test)]

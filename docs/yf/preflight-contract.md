@@ -82,6 +82,18 @@ members the legacy code emits are precisely:
 
 There are no other `manifest_*` strings in the legacy source.
 
+**Where the installed rule content is read from (REQ-YF-FLOW-005).** The `yf` kernel
+no longer reads a standalone `<rules_dir>/<RULE>.md` file. The companion ruleset is
+surfaced as a single aggregated `YOSHIKO_FLOW.md`; the rule-hash axis reads the
+protocol's **section body** out of that aggregate (the body is the protocol file
+verbatim, so its sha256 equals the `manifest.json` file sha256, and every outcome
+above is computed exactly as before). A **legacy standalone fallback** applies only
+when `YOSHIKO_FLOW.md` is absent (one transition release); once the aggregate exists
+it is authoritative. The reported `rule.path` is the `YOSHIKO_FLOW.md` file (or the
+legacy standalone, under fallback). All seven outcomes — including `update_available`
+(a section body matching a `previous_versions[].sha256`) and `deprecated` — are
+preserved; the aggregation changes only the byte source, never the verdict logic.
+
 ### 2.1 When each status is returned, and what accompanies it
 
 Evaluation order in `_check_prerequisites()` (short-circuits top to bottom):

@@ -41,18 +41,18 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     }
 
     let mut installed: Vec<String> = Vec::new();
-    let mut rules_written: Vec<String> = Vec::new();
-    let mut rules_kept: Vec<String> = Vec::new();
 
     if !args.dry_run {
         for name in &install {
             common::deploy_skill(name, &skills_dir, /*prune=*/ false)?;
             installed.push(name.clone());
-            let (written, kept) = common::install_rules(name, &rules_dir, args.force)?;
-            rules_written.extend(written);
-            rules_kept.extend(kept);
         }
     }
+    // S3: companion rules surface as one aggregated YOSHIKO_FLOW.md. Upsert the
+    // acted-on skills' sections, fold in any legacy standalones, then
+    // reconcile-prune. There is no force/kept gate (S3: always rewrite). On
+    // --dry-run the same projection is computed but nothing is written (C3).
+    let flow = common::install_rules_aggregate(&install, &rules_dir, args.dry_run)?;
 
     if args.json {
         let out = serde_json::json!({
@@ -60,10 +60,12 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
             "status": if args.dry_run { "dry_run" } else { "ok" },
             "skills_dir": skills_dir,
             "rules_dir": rules_dir,
+            "flow_file": flow.flow_file,
             "selected": install,
             "installed": installed,
-            "rules_written": rules_written,
-            "rules_kept": rules_kept,
+            "rules_upserted": flow.upserted,
+            "rules_pruned": flow.pruned,
+            "rules_migrated": flow.migrated,
             "missing_tools": missing,
             "warnings": sel.log,
         });
@@ -90,12 +92,21 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
                 "  would install {name} -> {}",
                 skills_dir.join(name).display()
             );
-            for (base, _) in common::embedded_rules(name) {
-                println!(
-                    "      would surface rule {base} -> {}",
-                    rules_dir.join(&base).display()
-                );
-            }
+        }
+        for base in &flow.upserted {
+            println!(
+                "      would surface rule section {base} -> {}",
+                flow.flow_file.display()
+            );
+        }
+        for base in &flow.migrated {
+            println!(
+                "      would migrate standalone {base} -> {}",
+                flow.flow_file.display()
+            );
+        }
+        for base in &flow.pruned {
+            println!("      would prune section {base}");
         }
         return Ok(());
     }
@@ -103,11 +114,17 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     for name in &installed {
         println!("  OK: {name} -> {}", skills_dir.join(name).display());
     }
-    for base in &rules_written {
-        println!("      rule {base} -> {}", rules_dir.join(base).display());
+    for base in &flow.upserted {
+        println!("      rule section {base} -> {}", flow.flow_file.display());
     }
-    for base in &rules_kept {
-        println!("      rule {base}: kept (exists; --force to overwrite)");
+    for base in &flow.migrated {
+        println!(
+            "      migrated standalone {base} -> {}",
+            flow.flow_file.display()
+        );
+    }
+    for base in &flow.pruned {
+        println!("      pruned section {base} (no longer embedded)");
     }
     println!();
     println!(

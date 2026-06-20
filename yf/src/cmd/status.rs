@@ -73,7 +73,7 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
 
     let mut upgraded = Vec::new();
     let mut pruned: Vec<String> = Vec::new();
-    let mut rules_written: Vec<String> = Vec::new();
+    let acted: Vec<String> = sel.install.iter().cloned().collect();
 
     for name in &sel.install {
         let extras = common::extra_deployed_files(name, &skills_dir)?;
@@ -88,11 +88,14 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
         for e in &extras {
             pruned.push(format!("{name}/{e}"));
         }
-        // Upgrade refreshes companion rules too (force, since they are owned).
-        let (written, _kept) = common::install_rules(name, &rules_dir, /*force=*/ true)?;
-        rules_written.extend(written);
         upgraded.push(name.clone());
     }
+
+    // S3: rules surface as one aggregated YOSHIKO_FLOW.md. Upgrade always
+    // rewrites the acted-on sections to embedded, folds legacy standalones, and
+    // reconcile-prunes (authoritative over the whole file). --dry-run projects
+    // the same change set without writing (C3).
+    let flow = common::install_rules_aggregate(&acted, &rules_dir, args.dry_run)?;
 
     if args.json {
         let out = serde_json::json!({
@@ -100,9 +103,12 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
             "status": if args.dry_run { "dry_run" } else { "ok" },
             "skills_dir": skills_dir,
             "rules_dir": rules_dir,
+            "flow_file": flow.flow_file,
             "upgraded": upgraded,
             "pruned": pruned,
-            "rules_written": rules_written,
+            "rules_upserted": flow.upserted,
+            "rules_pruned": flow.pruned,
+            "rules_migrated": flow.migrated,
         });
         println!("{}", serde_json::to_string(&out)?);
         return Ok(());
@@ -125,28 +131,40 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
         println!("      {pv} {p}");
     }
     if !args.dry_run {
-        for base in &rules_written {
-            println!("      rule {base} -> {}", rules_dir.join(base).display());
+        for base in &flow.upserted {
+            println!("      rule section {base} -> {}", flow.flow_file.display());
+        }
+        for base in &flow.migrated {
+            println!(
+                "      migrated standalone {base} -> {}",
+                flow.flow_file.display()
+            );
+        }
+        for base in &flow.pruned {
+            println!("      pruned section {base}");
         }
     }
     Ok(())
 }
 
-/// `yf skills remove` — delete deployed skill dirs (and owned rules).
+/// `yf skills remove` — delete deployed skill dirs and drop the named skills'
+/// sections from the aggregate `YOSHIKO_FLOW.md`.
 ///
-/// Rule-removal policy (documented decision): a companion rule is removed only
-/// when its on-disk bytes are byte-identical to the embedded source — i.e. it is
-/// unambiguously `yf`-owned and unmodified. A hand-edited or absent rule is left
-/// in place. install.py never removed rules at all; this is the conservative
-/// extension that still honors GR-008 (touch only own, unmodified surfaces).
+/// Rule-removal policy (C5, supersedes the old byte-match guard): a section is
+/// `yf`-owned, so the named skills' sections are dropped **unconditionally** —
+/// even a drifted (hand-edited) section is still `yf`'s and is removed (S3: no
+/// hand-edit tolerance). "Empty" is evaluated **after** pruning those sections;
+/// when no sections remain, `YOSHIKO_FLOW.md` is deleted (S6). Any legacy
+/// standalone files for the removed protocols are cleaned up too (transition).
+/// Non-`yf` rule files are never touched.
 pub fn remove(args: &SkillsArgs) -> Result<()> {
     let skills = frontmatter::load_skills();
     let sel = common::resolve_selection(&skills, &args.names, args.group.as_deref())?;
     let (skills_dir, rules_dir) = common::dirs_for(args);
 
     let mut removed = Vec::new();
-    let mut rules_removed = Vec::new();
-    let mut rules_kept = Vec::new();
+    let mut rules_removed: Vec<String> = Vec::new();
+    let mut sections = common::read_flow_sections(&rules_dir);
 
     for name in &sel.install {
         let skill_root = skills_dir.join(name);
@@ -156,22 +174,32 @@ pub fn remove(args: &SkillsArgs) -> Result<()> {
             }
             removed.push(name.clone());
         }
-        for (base, bytes) in common::embedded_rules(name) {
-            let target = rules_dir.join(&base);
-            if !target.exists() {
-                continue;
+        // Drop every protocol this skill owns — unconditionally (C5).
+        for section in common::embedded_rule_sections(name) {
+            let proto = section.protocol;
+            let in_aggregate = sections.iter().any(|s| s.protocol == proto);
+            let standalone = rules_dir.join(&proto);
+            let legacy = standalone.is_file();
+            if !in_aggregate && !legacy {
+                continue; // nothing installed for this protocol
             }
-            let on_disk = std::fs::read(&target).unwrap_or_default();
-            if on_disk == bytes {
-                if !args.dry_run {
-                    std::fs::remove_file(&target)?;
+            if !args.dry_run {
+                crate::flow::remove_section(&mut sections, &proto);
+                if legacy {
+                    std::fs::remove_file(&standalone)?;
                 }
-                rules_removed.push(base);
-            } else {
-                rules_kept.push(base); // modified / not owned → preserve
             }
+            rules_removed.push(proto);
         }
     }
+
+    // Write the pruned aggregate (deletes the file when no sections remain, S6).
+    let flow_deleted = if args.dry_run {
+        sections.is_empty()
+    } else {
+        common::write_flow(&rules_dir, &sections)?
+    };
+    let flow_file = common::flow_path(&rules_dir);
 
     if args.json {
         let out = serde_json::json!({
@@ -179,9 +207,10 @@ pub fn remove(args: &SkillsArgs) -> Result<()> {
             "status": if args.dry_run { "dry_run" } else { "ok" },
             "skills_dir": skills_dir,
             "rules_dir": rules_dir,
+            "flow_file": flow_file,
             "removed": removed,
             "rules_removed": rules_removed,
-            "rules_kept": rules_kept,
+            "flow_deleted": flow_deleted,
         });
         println!("{}", serde_json::to_string(&out)?);
         return Ok(());
@@ -196,10 +225,10 @@ pub fn remove(args: &SkillsArgs) -> Result<()> {
         println!("  {verb} {name} -> {}", skills_dir.join(name).display());
     }
     for base in &rules_removed {
-        println!("      {verb} rule {base}");
+        println!("      {verb} rule section {base}");
     }
-    for base in &rules_kept {
-        println!("      rule {base}: kept (modified/unowned — not removed)");
+    if flow_deleted {
+        println!("      {verb} {} (no sections remain)", flow_file.display());
     }
     if removed.is_empty() {
         println!("  (nothing installed to remove)");
@@ -297,13 +326,14 @@ mod tests {
         assert!(h.unmodified && h.up_to_date && h.complete);
     }
 
-    // REQ-YF-INSTALL-006: an existing companion rule is preserved without --force.
+    // REQ-YF-FLOW-004 (S3, supersedes REQ-YF-INSTALL-006): the aggregate is a fully
+    // yf-managed artifact — re-install ALWAYS rewrites the acted-on section to the
+    // embedded source, with no --force needed (no hand-edit tolerance).
     #[test]
-    fn rule_preserved_without_force() {
+    fn rule_section_always_regenerated() {
         let tmp = tempfile::tempdir().unwrap();
         let skills_dir = tmp.path().join("skills");
-        // Pick a skill that ships a companion rule.
-        let mut args = SkillsArgs {
+        let args = SkillsArgs {
             names: vec!["yf-beads-init".to_string()],
             scope: Scope::User,
             surface: Surface::Claude,
@@ -317,20 +347,43 @@ mod tests {
         let rules_dir = skills_dir.parent().unwrap().join("rules");
         super::super::install::run(&args).unwrap();
 
-        let rules = common::embedded_rules("yf-beads-init");
-        assert!(!rules.is_empty(), "yf-beads-init ships a companion rule");
-        let (base, _) = &rules[0];
-        let rule_path = rules_dir.join(base);
-        std::fs::write(&rule_path, b"HAND EDIT\n").unwrap();
+        // No standalone rule files — the rule lives only in YOSHIKO_FLOW.md.
+        let flow_file = rules_dir.join(crate::flow::FLOW_FILENAME);
+        assert!(flow_file.is_file(), "aggregate rule file must exist");
+        assert!(
+            !rules_dir.join("BEADS_INIT.md").exists(),
+            "no standalone rule"
+        );
 
-        // Re-install without --force: the hand edit survives.
-        super::super::install::run(&args).unwrap();
-        assert_eq!(std::fs::read(&rule_path).unwrap(), b"HAND EDIT\n");
+        // Hand-edit the aggregate file (mangle the section body).
+        let mangled = std::fs::read_to_string(&flow_file)
+            .unwrap()
+            .replace("# Beads", "# HAND EDIT");
+        std::fs::write(&flow_file, &mangled).unwrap();
 
-        // With --force, it is overwritten back to the embedded source.
-        args.force = true;
+        // Re-install WITHOUT --force: the section is regenerated to embedded (S3).
         super::super::install::run(&args).unwrap();
-        assert_ne!(std::fs::read(&rule_path).unwrap(), b"HAND EDIT\n");
+        let after = std::fs::read_to_string(&flow_file).unwrap();
+        let sections = crate::flow::parse(&after);
+        let body = &sections
+            .iter()
+            .find(|s| s.protocol == "BEADS_INIT.md")
+            .unwrap()
+            .body;
+        let embedded = common::embedded_rules("yf-beads-init")
+            .into_iter()
+            .find(|(p, _)| p == "BEADS_INIT.md")
+            .unwrap()
+            .1;
+        assert_eq!(
+            body.as_bytes(),
+            embedded.as_slice(),
+            "section restored to embedded"
+        );
+        assert!(
+            !after.contains("# HAND EDIT"),
+            "hand edit overwritten without --force"
+        );
     }
 
     // REQ-YF-INSTALL-004: install applies the transitive depends-on-skill closure.
@@ -353,14 +406,15 @@ mod tests {
         );
     }
 
-    // remove deletes the deployed dir and the owned (unmodified) rule, but keeps
-    // a hand-edited rule.
+    // REQ-YF-FLOW (C5): remove drops the named skill's section UNCONDITIONALLY —
+    // even a drifted (hand-edited) section — and deletes YOSHIKO_FLOW.md once its
+    // last section is gone (S6).
     #[test]
-    fn remove_deletes_dir_keeps_modified_rule() {
+    fn remove_drops_section_unconditionally_and_deletes_empty_file() {
         let tmp = tempfile::tempdir().unwrap();
         let skills_dir = tmp.path().join("skills");
         let rules_dir = skills_dir.parent().unwrap().join("rules");
-        let mut args = SkillsArgs {
+        let args = SkillsArgs {
             names: vec!["yf-beads-init".to_string()],
             scope: Scope::User,
             surface: Surface::Claude,
@@ -372,21 +426,57 @@ mod tests {
             json: true,
         };
         super::super::install::run(&args).unwrap();
-        let (base, _) = &common::embedded_rules("yf-beads-init")[0];
-        let rule_path = rules_dir.join(base);
-        assert!(rule_path.exists());
+        let flow_file = rules_dir.join(crate::flow::FLOW_FILENAME);
+        assert!(flow_file.is_file());
 
-        // Hand-edit the rule so remove must preserve it.
-        std::fs::write(&rule_path, b"CUSTOM\n").unwrap();
-        remove(&args).unwrap();
-        assert!(!skills_dir.join("yf-beads-init").exists(), "dir removed");
-        assert!(rule_path.exists(), "modified rule preserved");
+        // Drift the section (hand edit) — remove must drop it anyway.
+        let mangled = std::fs::read_to_string(&flow_file)
+            .unwrap()
+            .replace("Protocol", "DRIFT");
+        std::fs::write(&flow_file, mangled).unwrap();
 
-        // Re-install (force) then remove: now the rule is owned and removed.
-        args.force = true;
-        super::super::install::run(&args).unwrap();
         remove(&args).unwrap();
-        assert!(!rule_path.exists(), "owned rule removed");
+        assert!(
+            !skills_dir.join("yf-beads-init").exists(),
+            "skill dir removed"
+        );
+        // yf-beads-init was the only rule-bearing skill installed → file deleted.
+        assert!(!flow_file.exists(), "empty aggregate deleted (S6)");
+    }
+
+    // REQ-YF-FLOW (C5/S6): removing one of several skills drops only its section;
+    // the file survives with the remaining sections.
+    #[test]
+    fn remove_one_keeps_others() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        let rules_dir = skills_dir.parent().unwrap().join("rules");
+        let base_args = |names: Vec<String>| SkillsArgs {
+            names,
+            scope: Scope::User,
+            surface: Surface::Claude,
+            target: Some(skills_dir.clone()),
+            group: None,
+            strict: false,
+            force: false,
+            dry_run: false,
+            json: true,
+        };
+        // Install two rule-bearing skills.
+        super::super::install::run(&base_args(vec![
+            "yf-beads-init".to_string(),
+            "yf-plan".to_string(),
+        ]))
+        .unwrap();
+        let flow_file = rules_dir.join(crate::flow::FLOW_FILENAME);
+
+        // Remove only yf-plan.
+        remove(&base_args(vec!["yf-plan".to_string()])).unwrap();
+        assert!(flow_file.is_file(), "file survives with remaining section");
+        let sections = crate::flow::parse(&std::fs::read_to_string(&flow_file).unwrap());
+        let protos: Vec<&str> = sections.iter().map(|s| s.protocol.as_str()).collect();
+        assert!(protos.contains(&"BEADS_INIT.md"), "other section kept");
+        assert!(!protos.contains(&"PLANS.md"), "removed section dropped");
     }
 
     // Sanity: a freshly written SKILL.md carries a parseable marker.

@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 
 use crate::cli::{Scope, SkillsArgs};
+use crate::flow::{self, FlowSection};
 use crate::{dest, embed, frontmatter, marker};
 
 /// Resolved selection plus the closure diagnostics to surface to the operator.
@@ -186,31 +187,236 @@ pub fn extra_deployed_files(name: &str, skills_dir: &Path) -> Result<Vec<String>
         .collect())
 }
 
-/// Install a skill's companion rules (`protocols/*.md`) into `rules_dir`.
+/// Outcome of an aggregate `YOSHIKO_FLOW.md` write (REQ-YF-FLOW-*). Fields feed
+/// the `install`/`upgrade`/`remove` `--json` reporting (Issue 2.4).
+#[derive(Debug, Default)]
+pub struct FlowWriteResult {
+    /// The single aggregate target path (`<rules_dir>/YOSHIKO_FLOW.md`).
+    pub flow_file: PathBuf,
+    /// Protocols whose section was (re)written from the embedded source.
+    pub upserted: Vec<String>,
+    /// Protocols whose section reconcile pruned (no longer embedded / deprecated).
+    pub pruned: Vec<String>,
+    /// Protocols folded in from a now-deleted standalone rule file (migration).
+    pub migrated: Vec<String>,
+}
+
+/// Path of the aggregate ruleset file within `rules_dir`.
+pub fn flow_path(rules_dir: &Path) -> PathBuf {
+    rules_dir.join(flow::FLOW_FILENAME)
+}
+
+/// Parse the on-disk `YOSHIKO_FLOW.md` in `rules_dir` into its sections (empty if
+/// the file is absent or unreadable).
+pub fn read_flow_sections(rules_dir: &Path) -> Vec<FlowSection> {
+    std::fs::read_to_string(flow_path(rules_dir))
+        .ok()
+        .map(|t| flow::parse(&t))
+        .unwrap_or_default()
+}
+
+/// Write `sections` to `rules_dir/YOSHIKO_FLOW.md`, or delete the file when
+/// `sections` is empty (S6: the last section removed deletes the file). Returns
+/// `true` when the file was deleted. The serialized form carries the banner and
+/// the deterministic `yf`-version generated-on note.
+pub fn write_flow(rules_dir: &Path, sections: &[FlowSection]) -> Result<bool> {
+    let path = flow_path(rules_dir);
+    if sections.is_empty() {
+        if path.exists() {
+            std::fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
+            return Ok(true);
+        }
+        return Ok(false);
+    }
+    std::fs::create_dir_all(rules_dir)
+        .with_context(|| format!("creating {}", rules_dir.display()))?;
+    let text = flow::serialize(sections, crate::VERSION);
+    std::fs::write(&path, text).with_context(|| format!("writing {}", path.display()))?;
+    Ok(false)
+}
+
+/// Install/refresh the acted-on skills' protocol sections into the aggregate,
+/// reconcile-prune invalid sections, then write (REQ-YF-FLOW-*, S3).
 ///
-/// Mirrors `install.py`'s `install_rules`: each `protocols/*.md` lands at
-/// `rules_dir/<basename>`. Without `force`, an existing rule is preserved
-/// (REQ-YF-INSTALL-006); with `force`, it is overwritten. Returns the basenames
-/// of rules written and the basenames kept (skipped because present).
-pub fn install_rules(
-    name: &str,
+/// S3 — no hand-edit tolerance: acted-on sections are **always** rewritten to the
+/// embedded version (there is no `force`/`kept` gate). Reconcile prunes any
+/// section whose protocol is no longer embedded or is `deprecated:true`; a
+/// section for a skill merely not named this run is retained. Migration of
+/// standalone files (Issue 2.2) is folded in by [`fold_standalone_rules`] before
+/// the upsert.
+/// When `dry_run` is set, the projection is computed (upserts, prunes,
+/// migrations) but nothing is written or deleted — so `--dry-run --json` reports
+/// exactly what a real run would do (Issue 2.4, C3).
+pub fn install_rules_aggregate(
+    acted_skills: &[String],
     rules_dir: &Path,
-    force: bool,
-) -> Result<(Vec<String>, Vec<String>)> {
-    let mut written = Vec::new();
-    let mut kept = Vec::new();
-    for (basename, bytes) in embedded_rules(name) {
-        let target = rules_dir.join(&basename);
-        if target.exists() && !force {
-            kept.push(basename);
+    dry_run: bool,
+) -> Result<FlowWriteResult> {
+    let mut sections = read_flow_sections(rules_dir);
+    let migrated = fold_standalone_rules(&mut sections, rules_dir, dry_run)?;
+
+    let mut upserted = Vec::new();
+    for skill in acted_skills {
+        for section in embedded_rule_sections(skill) {
+            upserted.push(section.protocol.clone());
+            flow::upsert_section(&mut sections, section);
+        }
+    }
+    upserted.sort();
+    upserted.dedup();
+
+    let valid = embedded_valid_set();
+    let (kept, pruned_sections) = flow::reconcile(sections, &valid);
+    let mut pruned: Vec<String> = pruned_sections.into_iter().map(|s| s.protocol).collect();
+    pruned.sort();
+
+    if !dry_run {
+        write_flow(rules_dir, &kept)?;
+    }
+    Ok(FlowWriteResult {
+        flow_file: flow_path(rules_dir),
+        upserted,
+        pruned,
+        migrated,
+    })
+}
+
+/// Fold every `yf`-owned standalone rule file present in `rules_dir` into
+/// `sections` and delete the standalone (Issue 2.2 migration, C4 option (a)).
+///
+/// On **any** install/upgrade write, every standalone whose basename matches a
+/// `yf`-owned protocol — including protocols for skills **not** named in this run
+/// — is folded into the aggregate and its standalone file deleted, so
+/// `YOSHIKO_FLOW.md` becomes the sole `yf` ruleset. The folded section preserves
+/// the **standalone's** bytes (not the embedded source), so a not-yet-upgraded
+/// skill keeps its installed content and `preflight`/`doctor` verdicts are
+/// identical before and after migration (M3). When the aggregate already carries
+/// the section (authoritative, R4), the redundant standalone is simply deleted.
+/// Non-`yf` files (e.g. `BEADS.md` from `bd init`) never match and are untouched.
+/// Idempotent: a second run finds no standalones and is a no-op.
+fn fold_standalone_rules(
+    sections: &mut Vec<FlowSection>,
+    rules_dir: &Path,
+    dry_run: bool,
+) -> Result<Vec<String>> {
+    let owned = owned_protocol_index();
+    let mut migrated = Vec::new();
+    for (protocol, (skill, version)) in &owned {
+        let standalone = rules_dir.join(protocol);
+        if !standalone.is_file() {
             continue;
         }
-        std::fs::create_dir_all(rules_dir)
-            .with_context(|| format!("creating {}", rules_dir.display()))?;
-        std::fs::write(&target, &bytes).with_context(|| format!("writing {}", target.display()))?;
-        written.push(basename);
+        let bytes = std::fs::read(&standalone)
+            .with_context(|| format!("reading {}", standalone.display()))?;
+        // Only fold when the aggregate does not already own this section (R4).
+        if !sections.iter().any(|s| &s.protocol == protocol) {
+            let body = String::from_utf8_lossy(&bytes).into_owned();
+            flow::upsert_section(
+                sections,
+                FlowSection::new(skill, protocol, version.clone(), body),
+            );
+        }
+        if !dry_run {
+            std::fs::remove_file(&standalone)
+                .with_context(|| format!("removing standalone {}", standalone.display()))?;
+        }
+        migrated.push(protocol.clone());
     }
-    Ok((written, kept))
+    migrated.sort();
+    migrated.dedup();
+    Ok(migrated)
+}
+
+/// Map every `yf`-owned protocol basename to its `(skill, version)` across the
+/// embedded tree. The key set is exactly the standalone basenames migration may
+/// fold; a file whose name is not a key is never `yf`-owned.
+fn owned_protocol_index() -> BTreeMap<String, (String, Option<String>)> {
+    let mut index = BTreeMap::new();
+    for skill in embed::skill_names() {
+        let manifest = embedded_manifest(&skill);
+        for (protocol, _bytes) in embedded_rules(&skill) {
+            let version = manifest_version(manifest.as_ref(), &protocol);
+            index.insert(protocol, (skill.clone(), version));
+        }
+    }
+    index
+}
+
+/// The [`FlowSection`]s a skill contributes — one per `protocols/*.md`, with
+/// `version` taken from the skill's `protocols/manifest.json` entry when present
+/// (the two manifest-less protocols carry `None`).
+pub fn embedded_rule_sections(skill: &str) -> Vec<FlowSection> {
+    let manifest = embedded_manifest(skill);
+    embedded_rules(skill)
+        .into_iter()
+        .map(|(protocol, bytes)| {
+            let body = String::from_utf8_lossy(&bytes).into_owned();
+            let version = manifest_version(manifest.as_ref(), &protocol);
+            FlowSection::new(skill, &protocol, version, body)
+        })
+        .collect()
+}
+
+/// The set of `(skill, protocol)` pairs that are embedded AND not
+/// `deprecated:true` — reconcile's authoritative valid set (S1+). Manifest-less
+/// protocols are valid (not deprecated, just version-less).
+pub fn embedded_valid_set() -> BTreeSet<(String, String)> {
+    let mut set = BTreeSet::new();
+    for skill in embed::skill_names() {
+        let manifest = embedded_manifest(&skill);
+        for (protocol, _bytes) in embedded_rules(&skill) {
+            if !manifest_deprecated(manifest.as_ref(), &protocol) {
+                set.insert((skill.clone(), protocol));
+            }
+        }
+    }
+    set
+}
+
+/// The installed bytes of a protocol's rule content in `dir`: the aggregate
+/// section body when `YOSHIKO_FLOW.md` is present (authoritative), else the
+/// legacy standalone `dir/<protocol>` file (transition-release fallback, S5).
+/// Returns the bytes and the source path. `None` when neither is present, or the
+/// aggregate exists but lacks the section (pruned → treated as missing).
+pub fn installed_rule_source(dir: &Path, protocol: &str) -> Option<(Vec<u8>, PathBuf)> {
+    let flow_file = flow_path(dir);
+    if flow_file.is_file() {
+        let text = std::fs::read_to_string(&flow_file).ok()?;
+        let body = flow::parse(&text)
+            .into_iter()
+            .find(|s| s.protocol == protocol)?
+            .body;
+        return Some((body.into_bytes(), flow_file));
+    }
+    let legacy = dir.join(protocol);
+    let bytes = std::fs::read(&legacy).ok()?;
+    Some((bytes, legacy))
+}
+
+/// Read an embedded skill's `protocols/manifest.json` as JSON (if present/valid).
+fn embedded_manifest(skill: &str) -> Option<serde_json::Value> {
+    embed::read_file(&format!("{skill}/protocols/manifest.json"))
+        .and_then(|b| serde_json::from_slice(&b).ok())
+}
+
+/// The manifest `version` for a protocol basename, if the entry exists.
+fn manifest_version(manifest: Option<&serde_json::Value>, protocol: &str) -> Option<String> {
+    manifest?
+        .get("files")?
+        .get(protocol)?
+        .get("version")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string)
+}
+
+/// Whether the manifest marks a protocol `deprecated:true`.
+fn manifest_deprecated(manifest: Option<&serde_json::Value>, protocol: &str) -> bool {
+    manifest
+        .and_then(|m| m.get("files"))
+        .and_then(|f| f.get(protocol))
+        .and_then(|e| e.get("deprecated"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 /// `(basename, bytes)` for every `protocols/*.md` companion rule of `skill`.
@@ -382,4 +588,144 @@ fn remove_empty_dirs(root: &Path) -> Result<()> {
         recurse(root)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod flow_tests {
+    use super::*;
+
+    // REQ-YF-FLOW (S3/2.1): installing rule-bearing skills writes ONE aggregate
+    // YOSHIKO_FLOW.md with their sections — no standalone rule files — and each
+    // section body equals the embedded protocol verbatim.
+    #[test]
+    fn aggregate_install_writes_single_flow_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rules = tmp.path().join("rules");
+        let res = install_rules_aggregate(
+            &["yf-beads-init".to_string(), "yf-plan".to_string()],
+            &rules,
+            false,
+        )
+        .unwrap();
+
+        let flow_file = rules.join(flow::FLOW_FILENAME);
+        assert!(flow_file.is_file(), "aggregate file must be written");
+        assert!(
+            !rules.join("BEADS_INIT.md").exists(),
+            "no standalone rule file"
+        );
+        assert!(!rules.join("PLANS.md").exists(), "no standalone rule file");
+
+        let text = std::fs::read_to_string(&flow_file).unwrap();
+        let sections = flow::parse(&text);
+        let protos: Vec<&str> = sections.iter().map(|s| s.protocol.as_str()).collect();
+        assert!(protos.contains(&"BEADS_INIT.md"));
+        assert!(protos.contains(&"PLANS.md"));
+        assert!(res.upserted.contains(&"BEADS_INIT.md".to_string()));
+
+        let section = sections
+            .iter()
+            .find(|s| s.protocol == "BEADS_INIT.md")
+            .unwrap();
+        let embedded = embedded_rules("yf-beads-init")
+            .into_iter()
+            .find(|(p, _)| p == "BEADS_INIT.md")
+            .unwrap()
+            .1;
+        assert_eq!(section.body.as_bytes(), embedded.as_slice());
+    }
+
+    // REQ-YF-FLOW (R3/2.1): re-installing the same skill is byte-stable.
+    #[test]
+    fn aggregate_reinstall_is_byte_stable() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rules = tmp.path().join("rules");
+        install_rules_aggregate(&["yf-plan".to_string()], &rules, false).unwrap();
+        let first = std::fs::read_to_string(rules.join(flow::FLOW_FILENAME)).unwrap();
+        install_rules_aggregate(&["yf-plan".to_string()], &rules, false).unwrap();
+        let second = std::fs::read_to_string(rules.join(flow::FLOW_FILENAME)).unwrap();
+        assert_eq!(first, second, "re-install must be byte-stable");
+    }
+
+    // REQ-YF-FLOW-003 (2.2/C4a): migration folds EVERY yf-owned standalone present —
+    // including one for a skill NOT named this run — into the aggregate, deletes
+    // each standalone, preserves the standalone's bytes, and leaves non-yf files
+    // (BEADS.md) untouched.
+    #[test]
+    fn migration_folds_all_standalones_keeps_foreign() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rules = tmp.path().join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+
+        // Pre-seed standalones: PLANS.md (will be acted on) + RESEARCH.md (NOT
+        // acted on this run) with custom bytes, plus a foreign BEADS.md.
+        std::fs::write(rules.join("PLANS.md"), b"OLD PLANS BYTES\n").unwrap();
+        std::fs::write(rules.join("RESEARCH.md"), b"OLD RESEARCH BYTES\n").unwrap();
+        std::fs::write(rules.join("BEADS.md"), b"from bd init\n").unwrap();
+
+        // Install only yf-plan.
+        let res = install_rules_aggregate(&["yf-plan".to_string()], &rules, false).unwrap();
+
+        // All yf-owned standalones gone; the aggregate exists; foreign file kept.
+        assert!(!rules.join("PLANS.md").exists());
+        assert!(!rules.join("RESEARCH.md").exists());
+        assert!(rules.join("BEADS.md").exists(), "foreign rule untouched");
+        assert!(res.migrated.contains(&"RESEARCH.md".to_string()));
+
+        let text = std::fs::read_to_string(rules.join(flow::FLOW_FILENAME)).unwrap();
+        let sections = flow::parse(&text);
+        // RESEARCH.md (not acted on) folded with its OLD standalone bytes preserved.
+        let research = sections
+            .iter()
+            .find(|s| s.protocol == "RESEARCH.md")
+            .unwrap();
+        assert_eq!(research.body, "OLD RESEARCH BYTES\n");
+        // PLANS.md (acted on) rewritten to the embedded source.
+        let plans = sections.iter().find(|s| s.protocol == "PLANS.md").unwrap();
+        let embedded = embedded_rules("yf-plan")
+            .into_iter()
+            .find(|(p, _)| p == "PLANS.md")
+            .unwrap()
+            .1;
+        assert_eq!(plans.body.as_bytes(), embedded.as_slice());
+    }
+
+    // REQ-YF-FLOW (2.4/C3): a dry-run projects the change set (upserts/migrations)
+    // but writes nothing and deletes no standalone.
+    #[test]
+    fn dry_run_projects_without_writing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rules = tmp.path().join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        std::fs::write(rules.join("RESEARCH.md"), b"OLD\n").unwrap();
+
+        let res =
+            install_rules_aggregate(&["yf-plan".to_string()], &rules, /*dry_run=*/ true).unwrap();
+
+        // Projection populated...
+        assert!(res.upserted.contains(&"PLANS.md".to_string()));
+        assert!(res.migrated.contains(&"RESEARCH.md".to_string()));
+        // ...but nothing on disk changed.
+        assert!(
+            !rules.join(flow::FLOW_FILENAME).exists(),
+            "no aggregate written"
+        );
+        assert!(rules.join("RESEARCH.md").exists(), "standalone not deleted");
+    }
+
+    // REQ-YF-FLOW (2.2): migration is idempotent — a second run finds no
+    // standalones and the aggregate is unchanged.
+    #[test]
+    fn migration_is_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rules = tmp.path().join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        std::fs::write(rules.join("RESEARCH.md"), b"OLD\n").unwrap();
+        install_rules_aggregate(&["yf-plan".to_string()], &rules, false).unwrap();
+        let first = std::fs::read_to_string(rules.join(flow::FLOW_FILENAME)).unwrap();
+        let res2 = install_rules_aggregate(&["yf-plan".to_string()], &rules, false).unwrap();
+        let second = std::fs::read_to_string(rules.join(flow::FLOW_FILENAME)).unwrap();
+        assert_eq!(first, second, "second run is a no-op on the file");
+        assert!(res2.migrated.is_empty(), "no standalones left to migrate");
+    }
 }

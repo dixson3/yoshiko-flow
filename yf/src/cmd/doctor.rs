@@ -219,6 +219,12 @@ fn parse_semver(text: &str) -> Option<(u64, u64, u64)> {
 /// per-rule manifest semver axis is REQ-YF-PRE-003's domain; doctor's rule axis
 /// is presence + content-hash against the embedded source, which is the
 /// authoritative bytes the manifest's sha256 also pins.)
+///
+/// The installed rule content is read from the aggregate `YOSHIKO_FLOW.md`
+/// section body when present (authoritative), with a legacy standalone
+/// `<rules_dir>/<protocol>` fallback during the transition release (C2/S5).
+/// Doctor's axis stays presence + content-hash; it never acquires preflight's
+/// `update_available`/`deprecated` manifest outcomes.
 fn check_rules(name: &str, rules_dir: &Path) -> Option<Axis> {
     let rules = common::embedded_rules(name);
     if rules.is_empty() {
@@ -227,10 +233,9 @@ fn check_rules(name: &str, rules_dir: &Path) -> Option<Axis> {
     let mut missing = Vec::new();
     let mut drift = Vec::new();
     for (base, bytes) in &rules {
-        let target = rules_dir.join(base);
-        match std::fs::read(&target) {
-            Err(_) => missing.push(base.clone()),
-            Ok(on_disk) => {
+        match common::installed_rule_source(rules_dir, base) {
+            None => missing.push(base.clone()),
+            Some((on_disk, _path)) => {
                 if &on_disk != bytes {
                     drift.push(base.clone());
                 }
@@ -308,9 +313,70 @@ mod tests {
         assert!(axis.ok, "rule present + current must pass: {}", axis.detail);
     }
 
+    // REQ-YF-FLOW-005 (3.1/C2): doctor reads the rule body from the aggregate
+    // YOSHIKO_FLOW.md and reports ok when the section matches embedded.
+    #[test]
+    fn rule_axis_ok_from_aggregate() {
+        let tmp = tempfile::tempdir().unwrap();
+        common::install_rules_aggregate(&["yf-beads-init".to_string()], tmp.path(), false).unwrap();
+        // No standalone file — only the aggregate is present.
+        assert!(!tmp.path().join("BEADS_INIT.md").exists());
+        let axis = check_rules("yf-beads-init", tmp.path()).expect("ships a rule");
+        assert!(axis.ok, "aggregate section must read ok: {}", axis.detail);
+    }
+
+    // REQ-YF-FLOW (3.1/C2): a drifted aggregate section is flagged rule_drift.
+    #[test]
+    fn rule_axis_drift_from_aggregate() {
+        let tmp = tempfile::tempdir().unwrap();
+        common::install_rules_aggregate(&["yf-beads-init".to_string()], tmp.path(), false).unwrap();
+        let flow_file = tmp.path().join(crate::flow::FLOW_FILENAME);
+        let mangled = std::fs::read_to_string(&flow_file)
+            .unwrap()
+            .replace("Protocol", "DRIFT");
+        std::fs::write(&flow_file, mangled).unwrap();
+        let axis = check_rules("yf-beads-init", tmp.path()).expect("ships a rule");
+        assert!(!axis.ok);
+        assert!(axis.detail.contains("rule_drift"), "{}", axis.detail);
+    }
+
     // sanity: embedded skill list is what doctor iterates.
     #[test]
     fn doctor_iterates_embedded_skills() {
         assert!(!crate::embed::skill_names().is_empty());
+    }
+
+    // REQ-YF-FLOW-005 (5.1/M3): doctor's verdict is IDENTICAL before and after a
+    // migration that folds a non-acted skill's standalone into the aggregate —
+    // the fold preserves the standalone's bytes, so a drifted RESEARCH.md reads
+    // `rule_drift` both as a legacy standalone and as a folded section. Named with
+    // the `flow_install_e2e` prefix so the gate's `cargo test flow_install_e2e`
+    // covers it.
+    #[test]
+    fn flow_install_e2e_doctor_verdict_parity() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rules = tmp.path();
+        // Legacy standalone, drifted (not the embedded bytes).
+        std::fs::write(rules.join("RESEARCH.md"), b"drifted research rule\n").unwrap();
+        let before = check_rules("yf-research", rules).expect("ships a rule");
+        assert!(!before.ok && before.detail.contains("rule_drift"));
+
+        // Migrate by acting on a DIFFERENT skill — RESEARCH.md is folded, its
+        // bytes preserved (not regenerated, since yf-research is not acted on).
+        common::install_rules_aggregate(&["yf-plan".to_string()], rules, false).unwrap();
+        assert!(
+            !rules.join("RESEARCH.md").exists(),
+            "standalone folded away"
+        );
+
+        let after = check_rules("yf-research", rules).expect("ships a rule");
+        assert_eq!(
+            before.ok, after.ok,
+            "verdict ok-ness identical across migration"
+        );
+        assert!(
+            after.detail.contains("rule_drift"),
+            "still drift via aggregate"
+        );
     }
 }

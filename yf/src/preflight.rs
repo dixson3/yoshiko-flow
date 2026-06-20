@@ -28,7 +28,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 
 use crate::embed;
 use crate::frontmatter::{self, Preflight};
@@ -709,18 +708,20 @@ fn check_rule(skill_dir: &str, rule_name: &str, env: &Env) -> RuleVerdict {
         })
         .unwrap_or_default();
 
-    let outcome_for = |path: &Path| -> &'static str {
+    // `installed_sha` is the sha256 over the installed rule body — the aggregate
+    // section body (== protocol file verbatim) when YOSHIKO_FLOW.md is present,
+    // else the legacy standalone file (C1/S5). It is fed through the SAME
+    // outcome machinery so all seven outcomes survive: a body matching a
+    // `previous_versions[].sha256` still yields `update_available`, etc.
+    let outcome_for = |installed_sha: &str| -> &'static str {
         if deprecated {
             return "deprecated";
         }
-        let installed = sha256_file(path);
-        if installed.as_deref() == cur_sha {
+        if Some(installed_sha) == cur_sha {
             return "ok";
         }
-        if let Some(h) = &installed {
-            if prev_shas.iter().any(|p| p == h) {
-                return "update_available";
-            }
+        if prev_shas.contains(&installed_sha) {
+            return "update_available";
         }
         "drift"
     };
@@ -735,14 +736,17 @@ fn check_rule(skill_dir: &str, rule_name: &str, env: &Env) -> RuleVerdict {
     let mut best: Option<&'static str> = None;
     let mut best_path: Option<PathBuf> = None;
     for dir in &env.rule_dirs {
-        let path = dir.join(rule_name);
-        if !path.exists() {
+        // Section body from the aggregate (authoritative) or the legacy
+        // standalone fallback; absent in this dir → skip.
+        let Some((bytes, source)) = crate::cmd::common::installed_rule_source(dir, rule_name)
+        else {
             continue;
-        }
-        let oc = outcome_for(&path);
+        };
+        let installed_sha = crate::flow::section_body_sha256(&bytes);
+        let oc = outcome_for(&installed_sha);
         if best.is_none() || rank(oc) < rank(best.unwrap()) {
             best = Some(oc);
-            best_path = Some(path);
+            best_path = Some(source);
             if oc == "ok" {
                 break;
             }
@@ -769,18 +773,6 @@ fn check_rule(skill_dir: &str, rule_name: &str, env: &Env) -> RuleVerdict {
             schema_version: None,
         },
     }
-}
-
-fn sha256_file(path: &Path) -> Option<String> {
-    let bytes = std::fs::read(path).ok()?;
-    let mut h = Sha256::new();
-    h.update(&bytes);
-    let digest = h.finalize();
-    let mut s = String::with_capacity(64);
-    for b in digest {
-        s.push_str(&format!("{b:02x}"));
-    }
-    Some(s)
 }
 
 /// The legacy `_RULE_INSTRUCTIONS` remediation strings, parameterized by rule and
@@ -1046,6 +1038,115 @@ mod tests {
         assert_eq!(rule.outcome, "ok");
         assert!(rule.version.is_some(), "ok carries the manifest version");
         assert!(out.scaffold_added.is_some(), "ok carries scaffold_added");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-FLOW (3.2/C1): a section body in YOSHIKO_FLOW.md that equals a
+    // `previous_versions` release yields `update_available` (NOT drift) — the
+    // section body is the protocol verbatim, so it feeds the same semver
+    // machinery. Path points at the aggregate; version is the current manifest
+    // version. Exercised directly through `check_rule` to isolate the rule axis.
+    #[test]
+    fn aggregate_previous_version_yields_update_available() {
+        let tmp = unique_tmp("update-agg");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+
+        // The committed v1.0.0 BEADS_INIT.md — its sha256 matches the manifest's
+        // previous_versions[0] entry.
+        let old_body = include_str!("testdata/flow/BEADS_INIT.v1.0.0.md");
+        let section = crate::flow::FlowSection::new(
+            "yf-beads-init",
+            "BEADS_INIT.md",
+            Some("1.0.0".to_string()),
+            old_body,
+        );
+        let text = crate::flow::serialize(std::slice::from_ref(&section), crate::VERSION);
+        std::fs::write(rules.join(crate::flow::FLOW_FILENAME), text).unwrap();
+
+        let env = test_env(&repo, &rules);
+        let verdict = check_rule("yf-beads-init", "BEADS_INIT.md", &env);
+        assert_eq!(
+            verdict.outcome, "update_available",
+            "aggregate body == a previous version → update_available, not drift"
+        );
+        assert!(
+            verdict
+                .path
+                .as_deref()
+                .unwrap()
+                .ends_with("YOSHIKO_FLOW.md"),
+            "winning path is the aggregate file: {:?}",
+            verdict.path
+        );
+        assert_eq!(
+            verdict.version.as_deref(),
+            Some("1.0.1"),
+            "update_available carries the current manifest version"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-FLOW (3.2/C1): an aggregate section equal to the CURRENT embedded
+    // body yields `ok` with the manifest version.
+    #[test]
+    fn aggregate_current_version_yields_ok() {
+        let tmp = unique_tmp("ok-agg");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        crate::cmd::common::install_rules_aggregate(&["yf-beads-init".to_string()], &rules, false)
+            .unwrap();
+
+        let env = test_env(&repo, &rules);
+        let verdict = check_rule("yf-beads-init", "BEADS_INIT.md", &env);
+        assert_eq!(verdict.outcome, "ok");
+        assert_eq!(verdict.version.as_deref(), Some("1.0.1"));
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-FLOW-005 (5.1/M3): preflight's outcome is IDENTICAL before and after
+    // a migration that folds a non-acted skill's standalone — a v1.0.0
+    // BEADS_INIT.md reads `update_available` both as a legacy standalone and as a
+    // folded aggregate section (the fold preserves its bytes). Prefixed
+    // `flow_install_e2e` so the gate covers it.
+    #[test]
+    fn flow_install_e2e_preflight_verdict_parity() {
+        let tmp = unique_tmp("parity-pre");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+
+        // Legacy standalone whose bytes are the v1.0.0 release.
+        let old_body = include_str!("testdata/flow/BEADS_INIT.v1.0.0.md");
+        std::fs::write(rules.join("BEADS_INIT.md"), old_body).unwrap();
+
+        let env = test_env(&repo, &rules);
+        let before = check_rule("yf-beads-init", "BEADS_INIT.md", &env);
+        assert_eq!(
+            before.outcome, "update_available",
+            "legacy standalone outcome"
+        );
+
+        // Migrate by acting on a DIFFERENT skill — BEADS_INIT.md is folded with
+        // its v1.0.0 bytes preserved (yf-beads-init is not acted on).
+        crate::cmd::common::install_rules_aggregate(&["yf-plan".to_string()], &rules, false)
+            .unwrap();
+        assert!(
+            !rules.join("BEADS_INIT.md").exists(),
+            "standalone folded away"
+        );
+
+        let after = check_rule("yf-beads-init", "BEADS_INIT.md", &env);
+        assert_eq!(
+            before.outcome, after.outcome,
+            "preflight outcome identical before/after migration"
+        );
+        assert!(
+            after.path.as_deref().unwrap().ends_with("YOSHIKO_FLOW.md"),
+            "now sourced from the aggregate"
+        );
         std::fs::remove_dir_all(&tmp).ok();
     }
 

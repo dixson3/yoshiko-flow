@@ -58,7 +58,9 @@ requirement lives only in code (GUARDRAILS GR-010).
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 
 - **REQ-YF-INSTALL-001** *(testable)* `yf skills install` shall copy a skill's tree to the resolved
-  destination and copy its companion rules (`protocols/*.md`) to the sibling `rules/` surface.
+  destination and surface its companion rules (`protocols/*.md`) into the sibling `rules/` surface
+  as a **single aggregated `YOSHIKO_FLOW.md`** (one fenced section per protocol), not as per-file
+  standalone rules (see `REQ-YF-FLOW-001`).
 - **REQ-YF-INSTALL-002** *(testable)* destination resolution shall match: `--target` wins; else
   `<anchor>/.<surface>/skills`, anchor = `$HOME` (user) or git-root/cwd (project); rules →
   `<anchor>/.<surface>/rules`.
@@ -67,10 +69,49 @@ requirement lives only in code (GUARDRAILS GR-010).
   `skill-group` (current: `beads`, `utility`, `markdown`).
 - **REQ-YF-INSTALL-004** *(testable)* installing a skill shall transitively include its
   `depends-on-skill` closure; unresolved/external deps shall be logged, not fatal.
-- **REQ-YF-INSTALL-005** *(testable)* `--group <g>`, explicit positional skill names, `--strict`
-  (fail on missing `depends-on-tool`), and `--force` (overwrite existing rules) shall behave as in
-  the retired `install.py`.
-- **REQ-YF-INSTALL-006** companion-rule install shall preserve an existing rule unless `--force`.
+- **REQ-YF-INSTALL-005** *(testable)* `--group <g>`, explicit positional skill names, and `--strict`
+  (fail on missing `depends-on-tool`) shall behave as in the retired `install.py`. `--force` shall
+  **no longer overwrite rule content**: the aggregated ruleset is a fully `yf`-managed artifact whose
+  acted-on sections are **always** regenerated to the embedded source (`REQ-YF-FLOW-004`), so
+  `--force` is inert on the rule axis (M2; supersedes the old "overwrite existing rules" behavior).
+- **REQ-YF-INSTALL-006** *(superseded by `REQ-YF-FLOW-004`)* the legacy "companion-rule install shall
+  preserve an existing rule unless `--force`" no longer holds: under the aggregated ruleset there is
+  no hand-edit tolerance (S3) — acted-on sections are always rewritten to the embedded source.
+
+### 3.3.1 Aggregated ruleset (`REQ-YF-FLOW`)
+
+`yf` surfaces every rule-bearing skill's companion protocol as **one** operator-facing file in the
+rules dir, `YOSHIKO_FLOW.md`, instead of a scatter of standalone `*.md` files. The format is owned
+end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
+
+- **REQ-YF-FLOW-001** *(testable)* the aggregate file shall carry a fixed do-not-edit banner, a
+  deterministic `yf`-version generated-on note (never a wall-clock timestamp), and one HTML-comment
+  fenced section per protocol — `<!-- yf-flow: skill=… protocol=… version=… sha256=… -->` … body …
+  `<!-- yf-flow:end protocol=… -->` — ordered alphabetically by `protocol`. Each section body is the
+  protocol file **verbatim**, so its `sha256` equals the `manifest.json` file sha256. `version` is
+  omitted for a manifest-less protocol.
+- **REQ-YF-FLOW-002** *(testable)* every write shall **reconcile-prune**: a section whose
+  `(skill, protocol)` is no longer embedded, or whose manifest entry is `deprecated:true`, is dropped;
+  a section for a skill merely **not selected** this run is retained (reconcile keys on the embedded
+  set, never on the invocation selection).
+- **REQ-YF-FLOW-003** *(testable)* on **any** install/upgrade write, every `yf`-owned standalone rule
+  file present in the rules dir — including protocols for skills **not** named this run — shall be
+  folded into `YOSHIKO_FLOW.md` and the standalone deleted (C4a migration); non-`yf` files are never
+  touched; the fold is idempotent and preserves a folded standalone's bytes.
+- **REQ-YF-FLOW-004** *(testable)* the aggregate is a fully `yf`-managed artifact (S3, no hand-edit
+  tolerance): acted-on sections are **always** rewritten to the embedded source (no `--force` gate);
+  `remove` drops the named skills' sections **unconditionally** (even a drifted section) and deletes
+  `YOSHIKO_FLOW.md` when its last section is removed (S6).
+- **REQ-YF-FLOW-005** *(testable)* `doctor` and `preflight` shall read a protocol's installed content
+  from the aggregate **section body** when `YOSHIKO_FLOW.md` is present (authoritative), falling back
+  to a legacy standalone file only when the aggregate is absent (transition release, S5). `doctor`'s
+  axis stays presence + content-hash vs embedded (`rule_missing`/`rule_drift`/ok); `preflight`'s axis
+  preserves **all seven** outcomes (`ok | update_available | drift | deprecated | missing |
+  manifest_schema_unknown | manifest_missing`) by feeding the section body through the unchanged
+  `manifest.json` semver machinery.
+- **REQ-YF-FLOW-006** *(testable)* serialization shall be deterministic: `serialize → parse →
+  serialize` is byte-stable (the generated-on note carries the `yf` version, not a timestamp), and
+  section sha256 is over the body only, so header churn never perturbs a doctor/preflight verdict.
 
 ### 3.4 Integrity marker & up-to-date detection (`REQ-YF-MARK`)
 
@@ -94,8 +135,13 @@ requirement lives only in code (GUARDRAILS GR-010).
 - **REQ-YF-PRE-002** *(testable)* the kernel shall detect required tools and enforce a minimum `bd`
   version (≥ 1.0.5).
 - **REQ-YF-PRE-003** *(testable)* the kernel shall verify a companion rule against the skill's
-  embedded `manifest.json` (sha256 + semver), yielding `rule_missing`/`rule_drift`/`rule_deprecated`.
-  This per-rule axis is **distinct** from the §3.4 whole-tree marker.
+  embedded `manifest.json` (sha256 + semver). The installed content is read from the aggregate
+  `YOSHIKO_FLOW.md` **section body** when present, with a legacy standalone fallback when it is absent
+  (`REQ-YF-FLOW-005`). All seven outcomes are preserved — `ok | update_available | drift | deprecated |
+  missing | manifest_schema_unknown | manifest_missing` — so a section body matching a
+  `previous_versions[].sha256` still yields `update_available`, a `deprecated:true` entry yields
+  `deprecated`, and an unknown `schema_version` yields `manifest_schema_unknown`. This per-rule axis is
+  **distinct** from the §3.4 whole-tree marker.
 - **REQ-YF-PRE-004** *(testable)* the kernel shall read per-skill config `.yf-<skill>.local.json`
   (including `ignore-skill`) and maintain runtime state under `.yf/<skill>/`.
 - **REQ-YF-PRE-005** *(testable)* the kernel shall scaffold gitignore anchors (`/.yf/`) idempotently.
