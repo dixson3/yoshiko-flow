@@ -37,7 +37,14 @@ Users who already have the old skills installed should reinstall:
 yf skills install
 ```
 
-This installs the renamed skill directories plus their companion rules.
+This installs the renamed skill directories plus their companion rules. Companion
+rules are now surfaced as a single aggregated `YOSHIKO_FLOW.md` in the rules dir
+(one hash-bearing section per protocol) instead of separate `*.md` files. On this
+first reinstall, any pre-existing standalone `yf`-owned rule file (`BEADS_INIT.md`,
+`PLANS.md`, `RESEARCH.md`, …) is **folded into `YOSHIKO_FLOW.md` and deleted**;
+non-`yf` rule files such as `BEADS.md` (from `bd init`) are left untouched. Because
+the aggregate is fully `yf`-managed, any hand-edit to a folded rule is replaced by
+the embedded source — copy out customizations you want to keep before reinstalling.
 
 Personal instruction files — your `~/.claude/CLAUDE.md` or `AGENTS.md` — may still
 reference `/bdplan` or `/bdresearch`. These files are **operator-owned**: `yf` does

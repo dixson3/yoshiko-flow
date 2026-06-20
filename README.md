@@ -46,15 +46,22 @@ yf doctor
 
 `yf skills install` selectors: `--group <name>` (group computed from `skill-group`
 frontmatter), `--scope user|project`, `--surface claude|agents`, `--target <path>`,
-`--force` (overwrite an existing companion rule; default keeps hand-edits), `--strict`
-(abort if a required tool is missing; default warns and installs anyway), and `--dry-run`.
+`--strict` (abort if a required tool is missing; default warns and installs anyway), and
+`--dry-run`. `--force` no longer affects the companion ruleset — the aggregated
+`YOSHIKO_FLOW.md` is a fully `yf`-managed artifact whose sections are always regenerated to
+the embedded source (there is no hand-edit tolerance), so it is inert on the rule axis.
 A named subset (`yf skills install yf-plan yf-research`) pulls each skill's in-repo
 dependencies transitively.
 
-Each skill installs **with its companion rules** (`protocols/*.md`) copied into the matching
-`<scope>/.<surface>/rules/` dir. Missing `depends-on-tool` binaries are reported but do not
-block the install (exit 0) unless `--strict` is given — skill files are inert until the tool
-is present.
+Each skill installs **with its companion rules** (`protocols/*.md`), surfaced into the matching
+`<scope>/.<surface>/rules/` dir as a **single aggregated `YOSHIKO_FLOW.md`** — one
+HTML-comment-fenced, hash-bearing section per protocol, ordered alphabetically and headed by a
+`managed by yf` banner — rather than a scatter of standalone `*.md` rule files. Any pre-existing
+standalone `yf`-owned rule file is folded into `YOSHIKO_FLOW.md` and removed on the next
+install/upgrade write; non-`yf` rule files (e.g. `BEADS.md` from `bd init`) are never touched.
+`yf skills remove` drops the named skills' sections and deletes `YOSHIKO_FLOW.md` once its last
+section is gone. Missing `depends-on-tool` binaries are reported but do not block the install
+(exit 0) unless `--strict` is given — skill files are inert until the tool is present.
 
 ## Operating & health
 
