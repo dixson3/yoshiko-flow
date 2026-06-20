@@ -3,7 +3,7 @@
 **ID:** plan-011-james-dixson-dd21e3
 **Author:** james-dixson
 **Created:** 2026-06-19
-**Status:** reconciling
+**Status:** complete
 **Epic:** beads-skills-mol-r8z
 **Phase log:**
 - 2026-06-19 scoping: initial scope captured
@@ -14,6 +14,7 @@
 - 2026-06-20 intake: epic beads-skills-mol-r8z poured
 - 2026-06-20 executing: start gate resolved
 - 2026-06-20 reconciling: post-execution reconciliation
+- 2026-06-20 complete: plan complete; merged + validated green
 
 ## Objective
 Consolidate per-skill protocol rule install into a single aggregated YOSHIKO_FLOW.md rule file with per-protocol hash-bearing HTML-comment fences for selective version update/removal
