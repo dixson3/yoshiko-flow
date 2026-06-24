@@ -3,6 +3,7 @@
   "skill_group": {
     "yf-beads-authoring": "beads",
     "yf-beads-extra": "beads",
+    "yf-beads-hygiene": "beads",
     "yf-beads-init": "beads",
     "yf-beads-upstream": "beads",
     "yf-diagram-authoring": "utility",
@@ -24,6 +25,7 @@
     "beads": [
       "yf-beads-authoring",
       "yf-beads-extra",
+      "yf-beads-hygiene",
       "yf-beads-init",
       "yf-beads-upstream",
       "yf-incubator",
@@ -45,6 +47,7 @@
     "group:beads": [
       "yf-beads-authoring",
       "yf-beads-extra",
+      "yf-beads-hygiene",
       "yf-beads-init",
       "yf-beads-upstream",
       "yf-incubator",

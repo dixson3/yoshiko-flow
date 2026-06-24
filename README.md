@@ -81,6 +81,12 @@ ensures the gitignore scaffold. Its `--json` output is the machine-readable verd
 `status` enum; parse the field, not the exit code). See
 [docs/yf/preflight-contract.md](docs/yf/preflight-contract.md) for the full contract.
 
+Several skill contracts assume you have turned off competing Claude Code built-ins
+(native workflows, the TodoWrite task feature, native memory). See
+[docs/recommended-settings.md](docs/recommended-settings.md) for a recommended
+`settings.json` baseline that ties each key to the rule/contract it supports —
+`disableWorkflows` and `todoFeatureEnabled: false` are the highest-impact.
+
 Per-skill runtime state lives under `.yf/<skill>/` and operator config under
 `.yf-<skill>.local.json`. If you are coming from the pre-`yf` skills (`bdplan`/`bdresearch`
 and the `.state/` layout), run `yf migrate` once — it idempotently moves legacy state/config

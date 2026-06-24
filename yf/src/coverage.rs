@@ -46,14 +46,14 @@ const ALLOWLIST: &[(&str, &str)] = &[
     ("REQ-YF-DIST-002", "covered by CI: the release workflow publishes/updates the dixson3/homebrew-tap formula (depends_on beads/uv); not unit-testable in-crate"),
     // doctor --json + non-zero exit is the same exit-code mechanism as CLI-003;
     // doctor's unit tests tag DOCTOR-001 (axis logic), not the exit/json wiring.
-    ("REQ-YF-DOCTOR-002", "covered by the doctor exit-code/--json wiring (cmd/doctor.rs run) shared with REQ-YF-CLI-003; doctor unit tests tag the axis logic (DOCTOR-001), not the exit path"),
+    ("REQ-YF-DOCTOR-002", "covered by the doctor exit-code/--json wiring (cmd/doctor/mod.rs run) shared with REQ-YF-CLI-003; doctor unit tests tag the axis logic (DOCTOR-001), not the exit path"),
     // Flag behaviors layered on the install closure; the parity golden tags
     // INSTALL-003/004 (groups + closure), not the --strict/--force/--group flags.
     ("REQ-YF-INSTALL-005", "covered by the install front-door flag wiring (cmd/install.rs: --group/--strict/--force) atop the parity-tested closure (INSTALL-003/004); no dedicated flag-behavior unit test"),
     // bd min-version detection: the comparison logic is exercised by the
     // DOCTOR-001-tagged version tests; the PRE-002 kernel surface is not
     // separately tagged.
-    ("REQ-YF-PRE-002", "covered indirectly by the bd min-version comparison tested under DOCTOR-001 (cmd/doctor.rs) which shares the >=1.0.5 threshold; the preflight kernel surface is not separately tagged"),
+    ("REQ-YF-PRE-002", "covered indirectly by the bd min-version comparison tested under DOCTOR-001 (cmd/doctor/checks.rs) which shares the >=1.0.5 threshold; the preflight kernel surface is not separately tagged"),
     // Rename cleanliness is a repo-wide drift concern verified by the
     // drift-check gate, not by an in-crate test.
     ("REQ-YF-RENAME-003", "covered by the drift-check gate (no stale bdplan/bdresearch reference post-rename); repo-wide drift, not unit-testable in-crate"),

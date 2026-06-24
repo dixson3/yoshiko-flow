@@ -69,14 +69,59 @@ Two distinct trigger classes, deliberately routed to two different surfaces:
 | `github` | `github.owner` / `github.repo` / token   | implemented, dry-run-tested |
 | `gitlab` | `gitlab.*`                               | config-only stub (unverified) |
 | `jira`   | `jira.*`                                 | config-only stub (unverified; field model differs) |
-| `none`   | `custom.upstream.enabled=false`          | first-class: upstream tracking fully disabled |
+| `none`   | `custom.upstream.enabled` ≠ `true`       | first-class **default**: upstream tracking disabled |
+
+**Default-deny.** Upstream is enabled only when `custom.upstream.enabled` is the literal string
+`true`. Anything else — key **absent/empty** (unconfigured), `false`, or `none` — resolves to
+disabled. So a repo that never ran `init` (no `custom.upstream.*` keys) fails **closed**, and a
+repo initialized before this default existed still fails closed. The explicit `none` marker
+(`custom.upstream.backend none`) is **disambiguation only** — it records a deliberate opt-out so
+the preflight offer (init §0) stays silent; it is never required for the disabled short-circuit.
 
 Auth is always passed **inline, never persisted**: `TOKEN=$(...) bd <backend> sync …`.
 
 ## `/yf-beads-upstream init`
 
 Configure the backend only. `init` does **not** write any rule file into the project — the
-trigger contract ships as this skill's companion rule (installed by `install.sh`).
+trigger contract ships as this skill's companion rule (installed by `yf skills install`).
+
+### 0 — Preflight detect-and-offer (gated, one-shot)
+
+This is the **procedure** behind the gated trigger declared in `protocols/UPSTREAM_TRACKING.md`.
+It fires at most once, and only when **both** gates hold:
+
+1. **Origin is github/gitlab.** `git config --get remote.origin.url` matches `github.com` or a
+   `gitlab.*` host. (A non-github/gitlab origin — or no origin — never offers.)
+2. **Upstream is unconfigured.** The **same key/precedence as the §0 push short-circuit**:
+   `bd config get custom.upstream.enabled` is neither `true` (already enabled) nor a value the
+   operator already chose. "Unconfigured" means the key is **absent/empty** — no
+   `custom.upstream.enabled` and no explicit `none` marker (`custom.upstream.backend`). An
+   explicit `false`/`none` is a *recorded decision*, not unconfigured: do **not** offer.
+
+```bash
+ENABLED=$(bd config get custom.upstream.enabled 2>/dev/null)
+BACKEND=$(bd config get custom.upstream.backend 2>/dev/null)
+# Offer ONLY when both are empty (truly unconfigured). Any non-empty value = decision already made.
+[ -z "$ENABLED" ] && [ -z "$BACKEND" ]   # ⇒ candidate for the one-shot offer
+```
+
+**Interactive-context guard.** Offer **only** in a context that can persist the decision (can run
+`AskUserQuestion` *and* write config). In a read-only preflight that cannot write a marker, do
+**not** offer — an un-persisted decline would re-fire next time, becoming a nag. When it cannot
+persist, silently fall through to the disabled default.
+
+When both gates hold and the context can persist, `AskUserQuestion`:
+
+- **Configure now** → run the rest of this `init` flow (§1–§4). The backend keys written in §3
+  are the durable marker.
+- **Decline** → write the explicit `none` marker immediately (§3 `none` block:
+  `custom.upstream.enabled false` + `custom.upstream.backend none`). This is the durable marker
+  that makes the offer a **silent no-op forever** — gate (2) now fails (non-empty values), so a
+  second preflight produces **zero** prompts.
+
+Either outcome writes a durable marker, so the offer never fires twice. Both gates read the same
+config key as F.1's push/status short-circuit, so an already-enabled or already-declined repo is
+never re-offered.
 
 ### 1 — Detect the remote and propose a backend
 
@@ -90,7 +135,9 @@ REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null)
 ### 2 — Confirm with the operator
 
 Use `AskUserQuestion`: backend = `github` | `gitlab` | `jira` | `none` (detected default first).
-`none` is a first-class choice — upstream tracking fully disabled.
+`none` is a first-class choice — upstream tracking fully disabled. Declining without writing any
+key also resolves to disabled (default-deny), but prefer writing the explicit `none` marker (§3)
+so the gated offer (§0) stays silent thereafter.
 
 ### 3 — Write config
 
@@ -105,8 +152,10 @@ bd config set custom.upstream.backend github
 
 Never write a token to config. Auth is inline at call time: `GITHUB_TOKEN=$(gh auth token) bd github …`.
 
-**`none`** — write an explicit *opted-out* marker (not merely unconfigured), so push/status
-no-op and the close-time rule trigger stays silent; re-running `init` can re-enable:
+**`none`** — write an explicit *opted-out* marker. Default-deny already makes an unconfigured repo
+disabled, so this marker is **not** what disables sync — it records a *deliberate* opt-out so the
+gated preflight offer (§0) recognizes the decision and stays silent forever. Re-running `init` can
+re-enable:
 
 ```bash
 bd config set custom.upstream.enabled false
@@ -133,12 +182,16 @@ as the session/plan closes. Closed beads are never pushed.
 
 ### 0 — Disabled short-circuit (first, always)
 
+**Default-deny:** enabled only when the value is exactly `true`; treat empty/unset/`false`/`none`
+as disabled.
+
 ```bash
-bd config get custom.upstream.enabled
+[ "$(bd config get custom.upstream.enabled 2>/dev/null)" = "true" ] || {
+  echo "upstream tracking disabled"; exit 0; }
 ```
 
-If `false` / backend `none`: report "upstream tracking disabled" and **exit 0**. No enumeration,
-no prompt, no upstream call.
+If the value is anything other than the literal `true` (unconfigured, `false`, or `none`): report
+"upstream tracking disabled" and **exit 0**. No enumeration, no prompt, no upstream call.
 
 ### 1 — Auth pre-flight
 
@@ -233,11 +286,16 @@ the prior text survives in the upstream issue body and can be recovered from the
 
 ## Status / pull
 
-First read the config (`bd config get custom.upstream.enabled`).
+First read the config and apply the **default-deny** test — enabled only when the value is
+exactly `true`:
 
-**Disabled (`none` / `enabled=false`):** report "upstream tracking disabled" and fall back to
-the local worklist — `bd ready` (unblocked) then `bd list --status open` (full inventory). No
-upstream calls.
+```bash
+[ "$(bd config get custom.upstream.enabled 2>/dev/null)" = "true" ]   # true ⇒ enabled, else disabled
+```
+
+**Disabled (anything ≠ `true` — unconfigured, `false`, or `none`):** report "upstream tracking
+disabled" and fall back to the local worklist — `bd ready` (unblocked) then
+`bd list --status open` (full inventory). No upstream calls.
 
 **Enabled:** the upstream tracker is the authoritative worklist (the local bead set may be
 stale). Enumerate open upstream issues, ordered by labels/priority:

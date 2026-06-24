@@ -43,3 +43,18 @@ installed binary; re-verify on a `bd version` bump.
 - **REQ-CLI-008:** Bulk edge intake uses `bd batch` (one dolt transaction, atomic rollback);
   creates are not batchable (each needs its returned ID). — *Rationale:* avoids write
   amplification and partial-failure graphs. — *Verify:* `bd batch --help`; SKILL.md "Bulk intake" §.
+
+- **REQ-CLI-009:** `bd list` (and `bd list --all`) **hides `gate`-type beads** and **truncates
+  at 50 rows** by default; it is unsafe as the "which beads exist" source of truth. A graph
+  audit must build the full universe from `bd list --all` **plus** `bd list --all --type gate`
+  (or `bd gate list`) and resolve individual edge targets with `bd show <id>` (which sees
+  gates), never by membership in a `bd list` dump. — *Rationale:* both traps caused a
+  destructive false positive (11 valid live-gate edges flagged "dangling"); `yf-beads-hygiene`
+  encodes the safe discipline. — *Verify:* SKILL.md "`bd list` hides gate beads AND truncates
+  at 50 rows" §; isolated-DB probe: a `-t gate` bead is absent from `bd list --all`, present in
+  `bd list --all --type gate` and `bd show <gate-id>`.
+
+- **REQ-CLI-010:** `bd dep cycles` reports circular `blocks` chains; it is read-only and is the
+  mandated post-mutation integrity check after any `bd dep add`/`bd dep remove`. — *Rationale:*
+  a cycle silently wedges readiness (no bead in the loop ever becomes `ready`). — *Verify:*
+  `bd dep cycles --help`; SKILL.md "Detecting dependency cycles" §.

@@ -26,7 +26,8 @@ pub enum Command {
         #[command(subcommand)]
         command: SkillsCommand,
     },
-    /// Diagnose the local environment and skill installs.
+    /// Diagnose the local environment and skill installs (read-only; pass
+    /// `--repair` to apply the beads-init repair sequence).
     Doctor(DoctorArgs),
     /// Run a skill's preflight checks.
     Preflight(PreflightArgs),
@@ -109,8 +110,9 @@ pub struct DoctorArgs {
     #[arg(long)]
     pub json: bool,
 
-    /// Apply the `yf-beads-init` repair sequence to a broken beads config
-    /// (REQ-YF-PRE-007). Without `--repair`, doctor is read-only.
+    /// Opt in to mutation: apply the `yf-beads-init` repair sequence to a broken
+    /// beads config (REQ-YF-PRE-007). Default (no `--repair`) is read-only —
+    /// doctor only reports, never modifies the repo (DEC-1).
     #[arg(long)]
     pub repair: bool,
 

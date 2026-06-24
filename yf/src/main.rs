@@ -20,6 +20,7 @@ mod migrate;
 #[cfg(test)]
 mod parity;
 mod preflight;
+mod tool;
 
 use anyhow::Result;
 use clap::Parser;
@@ -52,7 +53,9 @@ fn run() -> Result<std::process::ExitCode> {
         Command::Skills { command } => {
             cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
         }
-        Command::Doctor(args) => cmd::doctor::run(&args).map(|()| std::process::ExitCode::SUCCESS),
+        // Doctor owns its exit code (like preflight): a failing required check is
+        // a verdict, not an error.
+        Command::Doctor(args) => cmd::doctor::run(&args),
         // Preflight owns its exit code (REQ-YF-CLI-003: non-zero on a failing status).
         Command::Preflight(args) => preflight::run(&args.skill, args.json),
         Command::Migrate(args) => migrate::run(args.path, args.dry_run, args.json)

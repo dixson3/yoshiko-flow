@@ -74,7 +74,8 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
 1. **Verify.** Run `yf preflight yf-beads-init --json`. Branch on the beads `status`:
    - `ok` — nothing to do.
    - `deps_missing` — install the listed tools (`bd` ≥ 1.0.5, `uv`, `git`); stop.
-   - `not_initialized` — no usable `.beads/`. Confirm intent, then `bd init`, then go to step 3.
+   - `not_initialized` — no usable `.beads/`. Confirm intent, then `yf doctor --repair` runs
+     `bd init --skip-hooks --skip-agents` (cruft-suppressed init, see below), then go to step 3.
    - `corrupted` — initialized but wedged/broken; go to step 2.
 2. **Diagnose & repair.** Run `yf doctor --repair` (add `--local-only` to also assert no Dolt
    remote). The standard repairs, in order:
@@ -83,18 +84,47 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
      bare `bd migrate` updates the DB metadata version. *Do not* try `bd vc commit` first —
      it cannot open the wedged DB (chicken-and-egg).
    - **Permissions:** `chmod 700 .beads` (bd warns at `0750`).
-   - **Outdated git hooks:** `bd hooks install --force`.
+   - **Git hooks:** repair **never installs** beads git hooks. The former
+     `bd hooks install --force` step was removed (#31) — it contradicted cruft suppression
+     and re-dirtied a clean repo. Repair only ever *removes* hooks (next bullet).
    - **Gitignore drift:** `bd doctor --fix`, then top up any patterns it misses (the engine
      adds them): `.beads/.gitignore` ← `.env, export-state.json, embeddeddolt/, proxieddb/,
      dolt-server.activity, daemon.*, *.lock, *.corrupt.backup/, .beads-credential-key,
      proxied_server_client_info.json`; project `.gitignore` ← `.beads-credential-key,
      .beads/proxieddb/`.
    - **Portable record:** `bd export -o .beads/issues.jsonl` (ensure it is **not** gitignored).
+   - **Cruft cleanup (#31, idempotent — no-op on a clean repo):** `bd hooks uninstall` +
+     reset `core.hooksPath` to the git default; `bd setup claude --remove` (CLAUDE.md managed
+     block + the entry-scoped `.claude/settings.json` hook); `bd setup codex --remove`
+     (`.agents/skills/beads/`, the codex AGENTS.md block, `.codex/`); `rm -rf
+     .agents/skills/beads/` (residual); a **marker-scoped** strip of the
+     `<!-- BEGIN/END BEADS INTEGRATION -->` / `BEADS CODEX SETUP` blocks from CLAUDE.md &
+     AGENTS.md; and an **entry-scoped** `.claude/settings.json` prune (deleted **only if it
+     becomes empty** — never wholesale, so it can't clobber a recommended-settings baseline).
 3. **Re-verify.** Run `yf preflight yf-beads-init --json` again; expect `ok`. Then `bd doctor` — 0 errors. Classify
    remaining warnings: *accepted by design* vs *actionable*. `Remote Consistency: No remotes
    configured` is **accepted** when the repo is intentionally local-only (resolving it would
    add a Dolt remote); `Dolt Status` / `Git Working Tree` warnings are transient (clear on
    commit).
+
+## Cruft suppression & cleanup (#31)
+
+`bd init`'s defaults inject boilerplate that fights our conventions (AGENTS.md hand-authored;
+manual `bd dolt push`; no beads git hooks). yf-beads-init suppresses it at init time and cleans
+it on repair:
+
+- **Init-time suppression** (`not_initialized` path): `bd init --skip-hooks --skip-agents`
+  suppresses all four cruft classes in one shot — beads git hooks; the CLAUDE.md/AGENTS.md
+  managed blocks; `.codex/`; `.agents/skills/beads/`; and the `.claude/settings.json`
+  SessionStart hook. Then `bd config set dolt.local-only true` (no Dolt remote) and
+  `bd config set doctor.suppress.git-hooks true` (silence the doctor warning now that hooks
+  are intentionally absent).
+- **Repair-time cleanup** (already-dirtied repos): the idempotent, bd-native removers listed in
+  step 2's "Cruft cleanup" bullet. Every remover is a no-op on a clean repo, so re-running
+  repair never churns and never re-installs hooks.
+- **Reference target:** this repo is the "correct" end state — `core.hooksPath` at the git
+  default, no `.codex/`, no `.agents/skills/beads/`, no beads `.claude/settings.json` hook, and
+  AGENTS.md hand-authored (no beads managed block).
 
 ## Local-only repositories
 
@@ -112,7 +142,12 @@ This skill is the home for "is bd usable here?". A beads skill's preflight shoul
    JSON), route the operator to `/yf-beads-init` (or run `yf preflight yf-beads-init --json`
    / `yf doctor --repair`) rather than re-deriving the repair steps. The always-loaded companion rule
    `protocols/BEADS_INIT.md` carries this trigger so it fires regardless of which skill is
-   active.
+   active. It also folds in two general bd-usage mandates (use-bd-for-all-tracking;
+   non-interactive shell-flag safety) consolidated from the now-retired orphan rule
+   `~/.claude/rules/BEADS.md` — an unowned user-scoped rule no skill installed or upgraded.
+   That orphan is retired by a manual `rm -f ~/.claude/rules/BEADS.md` after install (it is
+   not repo-tracked; CLI detail routed to `yf-beads-extra`, the land-the-plane push stays in
+   `yf-beads-upstream`'s `UPSTREAM_TRACKING.md`).
 
 ## Reference skills
 

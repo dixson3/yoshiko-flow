@@ -4,7 +4,8 @@ Always-loaded trigger contract for the `yf-beads-init` skill. The procedure (ver
 engine, the wedged-migration fix, gitignore/hooks/permissions hardening, local-only config)
 lives in the skill's `SKILL.md`; this rule binds only the triggers a description cannot
 reliably catch. It is the shared **dependency-verification home** for every beads-backed
-skill.
+skill, and — as the sole skill-owned always-loaded beads surface — also carries the two
+general bd-usage mandates below.
 
 ## Preflight trigger (all beads skills)
 
@@ -40,6 +41,23 @@ the latter would wrongly send the operator to `bd init` and risk clobbering real
 When `beads_init.py verify` returns `ok`, this trigger is a **silent no-op** — do not prompt,
 nag, or re-run repairs. Bootstrap/repair is offered only on an actual failure or explicit
 `/yf-beads-init` invocation.
+
+## General bd-usage mandates
+
+Always-needed bd invariants with no other skill-owned home (folded from the retired orphan
+rule `~/.claude/rules/BEADS.md`):
+
+- **Use `bd` for ALL task tracking.** Never markdown TODOs, `TodoWrite`, or inline task lists.
+  Issue-type/priority semantics and `bd create`/`bd dep`/`--json` mechanics route to the
+  `yf-beads-extra` skill; the routine `bd ready` → `--claim` → `bd close` loop is the canonical
+  `beads` skill.
+- **Use non-interactive shell flags** so an `-i` alias can't hang on a confirmation prompt:
+  `rm -f` / `rm -rf`, `cp -f`, `mv -f`; `ssh`/`scp -o BatchMode=yes`; `apt-get -y`;
+  `HOMEBREW_NO_AUTO_UPDATE=1` for `brew`.
+
+For the close-time / land-the-plane push (push open + deferred beads upstream before a session
+or plan closes), see the `yf-beads-upstream` skill's companion rule `UPSTREAM_TRACKING.md` —
+do not restate the sequence here.
 
 For the verify/repair engine, the full repair sequence, and local-only setup, see the
 `yf-beads-init` `SKILL.md`.

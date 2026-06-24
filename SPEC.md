@@ -198,6 +198,7 @@ The macro spec composes these. `REQ-<KEY>-*` ids live in each skill's `SPEC.md`.
 | yf-beads-authoring      | beads-authoring      | beads    | BAUTH    | `skills/yf-beads-authoring/SPEC.md`      |
 | yf-beads-extra          | beads-extra          | beads    | BEXTRA   | `skills/yf-beads-extra/SPEC.md`          |
 | yf-beads-init           | beads-init           | beads    | BINIT    | `skills/yf-beads-init/SPEC.md`           |
+| yf-beads-hygiene        | _(new, #29)_         | beads    | HYG      | `skills/yf-beads-hygiene/SPEC.md`        |
 | yf-beads-upstream       | beads-upstream       | beads    | BUP      | `skills/yf-beads-upstream/SPEC.md`       |
 | yf-incubator            | incubator            | beads    | INCUB    | `skills/yf-incubator/SPEC.md`            |
 | yf-diagram-authoring    | diagram-authoring    | utility  | DIAG     | `skills/yf-diagram-authoring/SPEC.md`    |

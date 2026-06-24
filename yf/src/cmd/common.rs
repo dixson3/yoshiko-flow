@@ -85,26 +85,7 @@ pub fn missing_tools(
 
 /// Whether `tool` resolves on the current `PATH` (a `which`-equivalent).
 pub fn tool_on_path(tool: &str) -> bool {
-    let Some(path) = std::env::var_os("PATH") else {
-        return false;
-    };
-    std::env::split_paths(&path).any(|dir| {
-        let cand = dir.join(tool);
-        cand.is_file() && is_executable(&cand)
-    })
-}
-
-#[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(path)
-        .map(|m| m.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(_path: &Path) -> bool {
-    true
+    crate::tool::tool_on_path(tool)
 }
 
 /// Deploy one embedded skill into `skills_dir/<name>`, injecting the integrity

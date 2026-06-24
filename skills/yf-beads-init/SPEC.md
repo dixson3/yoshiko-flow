@@ -51,12 +51,28 @@ storage (that is `bd`).
   `bd dolt stop` → `bd migrate schema` → `bd migrate`, and shall **not** attempt `bd vc commit`
   first (it cannot open the wedged DB — chicken-and-egg). (Macro `REQ-YF-PRE-007`.)
 - **REQ-BINIT-012** *(testable)* repair hardening shall be idempotent and safe to re-run:
-  permissions (`chmod 700 .beads`), git hooks (`bd hooks install --force`), gitignore drift
-  (`bd doctor --fix` plus the engine's top-up patterns for `.beads/.gitignore` and project
-  `.gitignore`), and a portable JSONL export (`bd export -o .beads/issues.jsonl`, not itself
-  gitignored).
-- **REQ-BINIT-013** `not_initialized` repair shall confirm intent before `bd init`, then harden;
+  permissions (`chmod 700 .beads`), gitignore drift (`bd doctor --fix` plus the engine's top-up
+  patterns for `.beads/.gitignore` and project `.gitignore`), and a portable JSONL export
+  (`bd export -o .beads/issues.jsonl`, not itself gitignored). Repair shall **not** install beads
+  git hooks: the former `bd hooks install --force` step is removed (#31) — it is the inverse of
+  the init-time `--skip-hooks` suppression and would re-dirty a clean repo.
+- **REQ-BINIT-013** `not_initialized` repair shall confirm intent before init, then run
+  `bd init --skip-hooks --skip-agents` (cruft-suppressed init, REQ-BINIT-015) and harden;
   `deps_missing` shall stop with the install list (no destructive action on a deps gap).
+- **REQ-BINIT-015** *(testable, #31)* repair shall **suppress and clean** the cruft `bd init`
+  injects so a fresh/repaired repo matches conventions automatically:
+  - **Init-time:** the `not_initialized` path shall init with `--skip-hooks --skip-agents`
+    (suppressing all four cruft classes: beads git hooks, the CLAUDE.md/AGENTS.md managed blocks,
+    `.codex/`, `.agents/skills/beads/`, and the `.claude/settings.json` SessionStart hook), then
+    assert `dolt.local-only true` and `doctor.suppress.git-hooks true`.
+  - **Repair-time:** for an already-dirtied repo, repair shall run the idempotent, bd-native
+    removers — `bd hooks uninstall` + reset `core.hooksPath` to the git default;
+    `bd setup claude --remove`; `bd setup codex --remove`; `rm -rf .agents/skills/beads/`; a
+    marker-scoped strip of the `<!-- BEGIN/END BEADS INTEGRATION -->` / `BEADS CODEX SETUP`
+    blocks from CLAUDE.md & AGENTS.md — and shall prune `.claude/settings.json` **entry-scoped**,
+    deleting the file **only when it becomes empty** (never wholesale, so a recommended-settings
+    baseline, #30, is never clobbered). Every remover shall be a no-op on a clean repo
+    (re-running repair never churns).
 - **REQ-BINIT-014** *(testable)* `repair` shall re-verify after applying and report the resulting
   status; the operator runs `bd doctor` expecting 0 errors, with `Remote Consistency: No remotes
   configured` accepted by design on a local-only repo and `Dolt Status` / `Git Working Tree`
@@ -110,6 +126,11 @@ storage (that is `bd`).
 - **GR-BINIT-004** *Drift:* nagging or re-running repairs on a healthy repo. *Rule:* on
   `verify == ok` the preflight trigger is a silent no-op (REQ-BINIT-022). *Why:* repair is offered
   only on failure or explicit invocation.
+- **GR-BINIT-005** *Drift:* (re-)installing beads git hooks during repair, or wholesale-deleting
+  `.claude/settings.json` during cruft cleanup. *Rule:* repair never runs `bd hooks install`
+  (only `bd hooks uninstall`); settings.json cleanup is entry-scoped and deletes the file only
+  when empty (REQ-BINIT-015). *Why:* installing hooks inverts cruft suppression and re-dirties a
+  clean repo; a wholesale settings.json delete would clobber a #30 recommended-settings baseline.
 
 ## 5. Verification
 

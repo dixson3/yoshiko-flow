@@ -35,6 +35,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `script` | `skills/*/scripts/*.{sh,py}` | source | derived | optional |
 | `formula` | `skills/*/formulas/*.toml` | source | derived | optional |
 | `template` | `skills/*/templates/*` | source | derived | optional |
+| `protocol-rule` | `skills/*/protocols/*.md` | source | derived | optional |
 | `skill-readme` | `skills/*/README.md` | doc | derived | required |
 | `project-readme` | `README.md` | doc | derived | required |
 | `macro-spec` | `SPEC.md` | spec | fixed | required |
@@ -54,6 +55,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-formula-name` | `formula` | `skill-md` | cross-ref |
 | `e-agent-ref` | `agent` | `skill-md` | cross-ref |
 | `e-template-ref` | `template` | `skill-md` | cross-ref |
+| `e-protocol-rule` | `protocol-rule` | `skill-md` | behavioral |
 | `e-json-contract` | `script` | `skill-md` | contract |
 | `e-status-values` | `skill-md` | `agent` | contract |
 | `e-formula-vars` | `skill-md` | `formula` | contract |
@@ -84,6 +86,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-formula-name` | `identifier-matches` | every `bd mol pour <name>` / `bd mol wisp <name>` in SKILL.md matches a `*.formula.toml` filename in the skill's `formulas/`. |
 | `e-agent-ref` | `path-resolves` | every `${SKILL_DIR}/agents/<name>.md` referenced in SKILL.md resolves to a file in the skill's `agents/`. |
 | `e-template-ref` | `path-resolves` | every template path referenced in SKILL.md (init flows) resolves to a file under the skill's `templates/`. |
+| `e-protocol-rule` | `field-set-subset` | every trigger/gate/invariant the always-loaded companion rule (`skills/*/protocols/*.md`) binds is consistent with — and does not contradict — the procedure in the SKILL.md it points to. The rule carries trigger + gate condition + a pointer only (procedure lives in SKILL.md); the SKILL.md and the rule must **agree** on the gate condition and the disabled/no-op semantics. For `yf-beads-upstream`: the default-deny disabled test (`custom.upstream.enabled` ≠ `true`) and the gated one-shot preflight detect-and-offer (gate = github/gitlab origin + unconfigured upstream; durable marker on either outcome) must read identically in `UPSTREAM_TRACKING.md` and `SKILL.md` init §0. The rule is the trigger surface (derived from SKILL.md procedure); a rule that overstates/contradicts the procedure is the rule drifting (FAIL on the rule). |
 | `e-json-contract` | `field-set-subset` | the JSON keys SKILL.md parses from a script's `--json` output are a subset of the keys the script actually emits; read the script's output construction and list them. |
 | `e-status-values` | `field-set-subset` | status values used in `update-status` calls / agent prompts are a subset of those declared in the SKILL.md Phase Model. |
 | `e-formula-vars` | `field-set-equal` | the `--var` names SKILL.md passes to `bd mol pour` equal the variables the `.formula.toml` declares. |
@@ -112,6 +115,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `agent` | referenced by the skill's SKILL.md or another agent |
 | `formula` | referenced by the skill's SKILL.md |
 | `template` | referenced by the skill's SKILL.md or a script |
+| `protocol-rule` | referenced by the skill's SKILL.md (the SKILL points to its companion rule; the rule points back to the SKILL procedure) |
 | `skill-readme` | every `skills/*/` dir must contain one `README.md` |
 
 ## 5. Required-Section Contracts
@@ -140,12 +144,13 @@ content-agreement axis).
 
 | Changed-Path Glob | Scopes To |
 |:------------------|:----------|
-| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd` |
+| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd`, `e-protocol-rule` |
 | `skills/*/spec/*.md` | `e-spec-compliance` |
 | `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values` |
 | `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
 | `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars` |
 | `skills/*/templates/*` | `e-template-ref` |
+| `skills/*/protocols/*.md` | `e-protocol-rule` |
 | `skills/*/README.md` | `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table`, `e-index-desc`, `e-prereqs-union`, `e-skill-diagram-ref` |
 | `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref`, `e-spec-readme`, `e-guardrails-readme` |
 | `SPEC.md` | `e-spec-guardrails`, `e-spec-readme` |
