@@ -6,6 +6,29 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ## Unreleased
 
+### `_shared/` package — retire the duplicated active-set classifier (plan-014, #15)
+
+- **`_shared/`** — new top-level package (outside the `skills/` embed root, so `yf` never
+  treats it as a skill) holding canonical Python helpers shared across skills. Ships **zero**
+  `yf` Rust changes: the vendored copies live inside each consuming script and install copies
+  them verbatim.
+  - `_shared/active_set.py` — the single canonical active-set classifier (`classify_active` +
+    `Edge`, `ActiveSetReport`, helpers, and the `ACTIVE_*`/`PARENT_CHILD`/`OPEN`/`IN_PROGRESS`/
+    `CLOSED_STATUSES`/`GATE_TYPE` constants), delimited by `BEGIN`/`END` region markers.
+  - `_shared/sync.py` — repo-time sync tool that **regenerates the marker-fenced classifier
+    region in-place** in each consumer from canonical (no sibling `import`, no new file — each
+    script stays self-contained); `--check` mode exits non-zero on divergence (CI/manual backstop).
+  - `_shared/README.md` — documents the regenerate-the-fenced-region (vendoring shape (b)) pattern
+    and the enforcement point.
+- **yf-beads-hygiene / yf-beads-upstream** — the active-set classifier is now a **generated**,
+  marker-fenced region in both `beads_hygiene.py` and `upstream.py`, regenerated from
+  `_shared/active_set.py`. The plan-013 "do NOT edit one without the other" hand-maintenance
+  banner is **gone**; both test suites stay green and the single-file test loaders are untouched.
+- **DRIFT-CHECK.md** — migrated the classifier edges: `classifier-canonical` re-pointed to
+  `_shared/active_set.py` (fixed authority); the old pairwise `e-classifier-copy` replaced by two
+  derived `value-equal` region edges (`e-active-set-copy-hygiene`, `e-active-set-copy-upstream`).
+  A tampered region now FAILs the **copy**, never the canonical.
+
 ### Reconcile policy: local beads = active work only (plan-013, #38 + #17)
 
 - **yf-beads-upstream** — implements `custom.upstream.granularity` (`coarse`|`granular`,
