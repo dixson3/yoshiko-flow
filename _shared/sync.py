@@ -91,9 +91,13 @@ def replace_region(text: str, body: str) -> str:
     return "".join(new_lines)
 
 
-def canonical_body(canonical_path: Path = CANONICAL) -> str:
-    """Extract the canonical region body from `_shared/active_set.py`."""
-    return extract_region(canonical_path.read_text())
+def canonical_body(canonical_path: Path | None = None) -> str:
+    """Extract the canonical region body from `_shared/active_set.py`.
+
+    `canonical_path` defaults to the module-level `CANONICAL`, resolved at call time so a
+    test (or alternate layout) can rebind it.
+    """
+    return extract_region((canonical_path or CANONICAL).read_text())
 
 
 def sync_file(path: Path, body: str, *, check: bool) -> bool:
