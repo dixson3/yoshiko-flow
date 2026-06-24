@@ -64,6 +64,10 @@ target the worktree, never the primary checkout:
   a disposable, auto-cleaned `.claude/worktrees/` tree (wrong lifecycle). The plan worktree
   is an explicit, persistent `git worktree` that survives until §6.2 teardown.
   (`isolation="worktree"` is reserved for INVESTIGATE-phase experiments.)
+- **`uv` inside the worktree:** prefix `uv run …` with `env -u VIRTUAL_ENV` so uv resolves the
+  worktree's environment, not an inherited primary `VIRTUAL_ENV`. Do **NOT** follow uv's
+  `--active` suggestion inside a worktree — it targets the active (primary) venv, the wrong
+  address space.
 
 In **fallback (in-place) mode** there is no worktree: all edits land in the primary checkout
 as before.
