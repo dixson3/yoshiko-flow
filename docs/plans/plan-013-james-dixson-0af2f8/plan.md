@@ -3,7 +3,7 @@
 **ID:** plan-013-james-dixson-0af2f8
 **Author:** james-dixson
 **Created:** 2026-06-24
-**Status:** approved
+**Status:** reconciling
 **Epic:** beads-skills-mol-glo
 **Phase log:**
 - 2026-06-24 scoping: initial scope captured
@@ -14,6 +14,8 @@
 - 2026-06-24 review: v2 red-team APPROVE (2 low polish notes folded into C.7/D.1)
 - 2026-06-24 approved: operator approved
 - 2026-06-24 intake: epic beads-skills-mol-glo poured
+- 2026-06-24 executing: start gate resolved
+- 2026-06-24 reconciling: post-execution reconciliation
 
 ## Objective
 

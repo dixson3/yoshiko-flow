@@ -38,6 +38,36 @@ User-invocable (`/beads-upstream`). Operations:
 The **close-time / land-the-plane push trigger** is not invoked by intent language; it is bound
 by the always-loaded companion rule `protocols/UPSTREAM_TRACKING.md`.
 
+### Hoist / land-the-plane / un-hoist
+
+At land-the-plane, follow-on beads can be **hoisted** upstream and removed locally so the local DB
+stays "active work only." The `scripts/upstream.py` helper exposes:
+
+- `hoist --issues <ids> --dest <d> [--apply]` — ensure an upstream issue per granularity
+  (create-or-map via the bd `External:` mapping), dry-run the push first, then `bd close -r` each
+  bead with a destination-recording reason — a **reversible tombstone**, never `bd delete`.
+- `land --parent <id> --intake <ts> --dest <d> [--apply]` — detect follow-ons under a plan subtree
+  and hoist them. **Default = propose-with-confirm** (emit the batch, require `--apply`). The
+  **no-prompt** path runs only when `custom.upstream.auto_hoist_followons=true` and is restricted to
+  the **narrow** signal (`discovered-from` into the subtree AND non-active). The **broad** signal
+  (created-after-intake) may catch a bead still being worked, so it is never auto-hoisted.
+- `unhoist (--issues <ids> | --record <file>) [--apply]` — reopen a wrongly-hoisted bead from its
+  tombstone (`bd update <id> --status open`); the upstream issue stays.
+
+Preserved safety invariants: never a bare `bd <backend> sync` (scoped `--issues`, dry-run first);
+auth is inline-only, never persisted; removal is `bd close -r`, never `bd delete`.
+
+### Config knobs
+
+- `custom.upstream.granularity` — `coarse` (default) files one tracking issue per plan-scale effort;
+  `granular` files one per hoisted bead. Unset/unrecognized → `coarse`. **`coarse` is the tested
+  happy path**; `granular` is implemented but not the tested-happy-path. They **coexist**: flipping
+  `coarse`→`granular` leaves existing coarse trackers intact, since hoist is create-or-map via the
+  `External:` dedup (an already-mapped bead updates in place, not re-created).
+- `custom.upstream.auto_hoist_followons` — **default-deny** (enabled only on literal `true`,
+  mirroring `custom.upstream.enabled`); opt-in for the unattended no-prompt land-the-plane path,
+  restricted to the narrow signal. Inspect both via `upstream.py config --json`.
+
 ## Behavior model
 
 No phase model (utility skill). Three independent operations, each honoring the disabled (`none`) flag:
@@ -46,10 +76,14 @@ No phase model (utility skill). Three independent operations, each honoring the 
 init     → detect remote → propose backend → bd config set <backend>.* (or custom.upstream.enabled=false)
 push     → read config → disabled? no-op : enumerate open/deferred → --dry-run scoped push → confirm → push → record External: map
 status   → read config → disabled? local bd ready/list : enumerate upstream issues as worklist
+hoist    → ensure issue per granularity (create-or-map via External:) → --dry-run push → push → bd close -r (reversible)
+land     → detect follow-ons (narrow vs broad) → propose-with-confirm (default) | narrow-only no-prompt (opt-in) → hoist
+unhoist  → reopen wrongly-hoisted bead from close_reason tombstone (upstream issue stays)
 ```
 
 Safety invariant (everywhere): never a bare `bd <backend> sync`; always `--push-only` + scoped
-`--issues`/`--parent` + `--dry-run` first. Auth is inline-only, never persisted.
+`--issues`/`--parent` + `--dry-run` first. Auth is inline-only, never persisted. Removal is
+`bd close -r` (reversible tombstone), never `bd delete`.
 
 ## Layout
 

@@ -7,11 +7,21 @@
 ## 1. Purpose & scope
 
 `yf-beads-hygiene` audits and cleans the **content** of an already-healthy beads dependency
-graph: it finds orphaned beads and dangling dependency edges and classifies gate-typed edges by
-status so live gates are never mistaken for dangling. It is read-only by default; destructive
-repair is confirmation-gated and reversible. It is the canonical trigger for any "clean up
-beads" / "are there orphaned beads" request. It does **not** verify or repair beads config/DB
-health — a wedged/corrupted or uninitialized DB routes to `yf-beads-init`.
+graph along **two axes**:
+
+- **Graph-content audit** (`audit`/`repair`/`restore`) — finds orphaned beads and dangling
+  dependency *edges* and classifies gate-typed edges by status so live gates are never mistaken
+  for dangling.
+- **Reconcile** (`reconcile`) — the local↔upstream **active-vs-parked boundary**: classifies the
+  local active set, lists **non-active** beads as hoist candidates (they belong upstream until a
+  plan pulls them back), and flags **obsolete** upstream tracking issues.
+
+It is read-only by default; destructive repair and the gated hoist are confirmation-gated and
+reversible. Per the cross-skill **carve, hygiene PROPOSES and `yf-beads-upstream` EXECUTES**:
+`reconcile --apply` never pushes or closes beads itself — it delegates each hoist to
+`yf-beads-upstream`. It is the canonical trigger for any "clean up beads" / "are there orphaned
+beads" request. It does **not** verify or repair beads config/DB health — a wedged/corrupted or
+uninitialized DB routes to `yf-beads-init`.
 
 ## 2. Requirements (`REQ-HYG-NNN`)
 
@@ -50,12 +60,50 @@ health — a wedged/corrupted or uninitialized DB routes to `yf-beads-init`.
   false-negative invariant: `bd status --json` may return error JSON with exit 0; an
   initialized-but-wedged repo is classified wedged (route to init), not uninitialized.
 
+### 2.4 Reconcile (local↔upstream boundary — read-only-first)
+
+The reconcile axis is distinct from the graph-content audit (§2.1–2.3): the audit classifies
+dependency **edges**; reconcile classifies **beads** against the local↔upstream active-vs-parked
+boundary. It reuses the same read-only-first discipline and the same `db_wedged` routing.
+
+- **REQ-HYG-011** *(testable)* The `reconcile` subcommand shall be **read-only by default** — it
+  shall list findings without mutating the DB or any upstream issue. Mutation is reached only
+  through the gated `--apply` path (REQ-HYG-015).
+- **REQ-HYG-012** *(testable)* The **active set** shall be the single definition: a non-closed
+  bead is **active** iff `status == in_progress`, OR (`status == open` AND `owner` non-empty,
+  i.e. claimed), OR it is an **open** parent-chain ancestor (epic/molecule, walked to a fixed
+  point) of an active bead. Every other non-closed bead (open-unclaimed, blocked, deferred) is
+  **non-active**. Closed beads are excluded from both buckets. The classifier consumes the
+  normalized `dep_type` field, so it is agnostic to the `dependency_type`/`type` source
+  divergence (gotcha owned by `yf-beads-extra`).
+- **REQ-HYG-013** *(testable)* **Non-active** beads shall be listed as **hoist candidates** (they
+  belong upstream until a plan pulls them back); **active** beads shall never be listed for hoist.
+- **REQ-HYG-014** *(testable)* An open upstream issue shall be classified **obsolete** only on a
+  **mechanical delivered signal** — its linked plan's `plan.md` carries `Status: complete`, OR
+  its tracking PR is merged. When neither signal is resolvable the issue shall be **flagged for
+  human review**, never classified obsolete. Obsolete findings are **proposal-only**; reconcile
+  shall **never auto-close** an upstream issue.
+- **REQ-HYG-015** *(testable)* The gated `--apply` (with `--yes` to skip the prompt, `--record`
+  to write a round-trip record) shall **delegate** each non-active hoist to `yf-beads-upstream`
+  (`upstream.py hoist --issues <id> --dest <dest> --apply`) — the carve: hygiene proposes,
+  upstream executes. Reconcile shall **never** push beads upstream or `bd close` them itself.
+  The `--record` file is the reversal handle (`upstream.py unhoist --record <file>`).
+- **REQ-HYG-016** *(testable)* On a **wedged/corrupted** DB `reconcile` shall route to
+  `yf-beads-init` (status `db_wedged`) identically to the audit (REQ-HYG-010) — it reuses the
+  same `db_is_wedged` check and `_route_to_init` exit-2 path, never cleaning a broken store.
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/beads_hygiene.py` (PEP 723, `uv run`) — subcommands `audit`
-  (`--json`), `repair` (`--apply`, `--yes`, `--record <file>`), `restore` (`--record <file>`,
-  `--apply`). `audit --json` emits `{edges_total, counts, findings, removable_count}`. Exit 2 =
-  `db_wedged` (route to `yf-beads-init`).
+  (`--json`), `reconcile` (`--json`, `--apply`, `--yes`, `--record <file>`), `repair`
+  (`--apply`, `--yes`, `--record <file>`), `restore` (`--record <file>`, `--apply`). `audit
+  --json` emits `{edges_total, counts, findings, removable_count}`. `reconcile --json` emits
+  `{active_count, non_active_count, counts, findings}` where `findings` carries
+  `hoist_candidates`, `obsolete_upstream`, and `flag_for_review`. Exit 2 = `db_wedged` (route to
+  `yf-beads-init`).
+- **Cross-skill delegation (carve):** `reconcile --apply` shells the hoist to
+  `yf-beads-upstream`'s `scripts/upstream.py` (resolved as a sibling under `skills/`); it never
+  pushes or closes beads itself.
 - **Companion rule:** none — `user-invocable: true`, no always-loaded trigger rule; the trigger
   contract lives in the `SKILL.md` description.
 - **Config / state:** none beyond the operator-named `--record` file for round-trip restore.
@@ -74,6 +122,15 @@ health — a wedged/corrupted or uninitialized DB routes to `yf-beads-init`.
 - **GR-HYG-004** *Drift:* restating `yf-beads-extra`'s CLI gotchas. *Rule:* gate semantics,
   `bd show` vs `bd list`, edge mutation, defensive JSON, and `bd dep cycles` are **referenced**
   from `yf-beads-extra`, not restated. *Why:* one source of truth per fact.
+- **GR-HYG-005** *Drift:* hygiene pushing beads upstream or closing them itself. *Rule:* the
+  reconcile carve is absolute — hygiene **proposes** (lists hoist candidates / obsolete issues);
+  `yf-beads-upstream` **executes** (push + reversible `bd close`). `reconcile --apply` delegates
+  every hoist to `upstream.py` and never auto-closes an upstream issue. *Why:* one owner for the
+  push/close mechanics keeps the active-set definition single-sourced and the boundary auditable.
+- **GR-HYG-006** *Drift:* flagging an upstream issue obsolete on a heuristic. *Rule:* obsolete
+  requires a **mechanical** delivered signal (linked plan `Status: complete` or merged PR);
+  otherwise flag-for-review, never auto-close. *Why:* a false obsolete flag that closed live work
+  is the same drift failure the skill exists to remove.
 
 ## 5. Verification
 
@@ -84,10 +141,18 @@ and the **#29 11-live-gate regression** (REQ-HYG-005), removable = truly-danglin
 resolver path (REQ-HYG-002/003). The live `bd` layer (`load_universe`, `collect_edges`,
 `db_is_wedged`) is exercised end-to-end against an isolated probe DB.
 
+For the reconcile axis the same harness drives the pure cores with fixtures: `classify_active`
+over each active/non-active case incl. the open-ancestor walk (REQ-HYG-012/013),
+`find_obsolete_upstream` over plan-complete / PR-merged / unresolvable signals (REQ-HYG-014), and
+the gated `--apply` delegating via an injected `runner`/`script` so the hoist shell-out to
+`yf-beads-upstream` is asserted without a live push (REQ-HYG-015).
+
 ## 6. References
 
 - `skills/yf-beads-hygiene/SKILL.md`; `skills/yf-beads-hygiene/scripts/beads_hygiene.py`.
 - `skills/yf-beads-extra/SKILL.md` (gate/edge/JSON gotchas; `bd list` truncation; `bd dep cycles`).
 - `skills/yf-beads-init/SKILL.md` + `protocols/BEADS_INIT.md` (DB health, false-negative invariant).
-- Upstream #29 (`docs/plans/plan-012-james-dixson-a99822/references/upstream-29.md`).
+- `skills/yf-beads-upstream/SKILL.md` (the hoist/unhoist executor; the carve's execution side).
+- Upstream #29 (`docs/plans/plan-012-james-dixson-a99822/references/upstream-29.md`); #38/#17
+  (`docs/plans/plan-013-james-dixson-0af2f8/plan.md` — the reconcile-policy plan).
 - Root `SPEC.md` and `GUARDRAILS.md`.
