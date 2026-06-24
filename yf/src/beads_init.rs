@@ -533,26 +533,7 @@ fn first_json_doc(text: &str) -> Option<serde_json::Map<String, serde_json::Valu
 /// Run `bd version` and parse its version tuple, or `None` if bd is absent /
 /// unparseable. Mirrors the Python `_parse_bd_version`.
 fn parse_bd_version() -> Option<(u32, u32, u32)> {
-    which("bd")?;
-    let (_, out, _) = run_in(&["bd", "version"], 60, Path::new("."));
-    for tok in out.replace(['(', ')'], " ").split_whitespace() {
-        let parts: Vec<&str> = tok.split('.').collect();
-        if parts.len() >= 2
-            && parts[..2]
-                .iter()
-                .all(|p| p.chars().all(|c| c.is_ascii_digit()))
-        {
-            let nums: Vec<u32> = parts
-                .iter()
-                .filter(|p| p.chars().all(|c| c.is_ascii_digit()) && !p.is_empty())
-                .filter_map(|p| p.parse().ok())
-                .collect();
-            if nums.len() >= 2 {
-                return Some((nums[0], nums[1], nums.get(2).copied().unwrap_or(0)));
-            }
-        }
-    }
-    None
+    crate::tool::tool_version(None, "bd", "version")
 }
 
 /// Run a command in `dir`; returns `(rc, stdout, stderr)`. Mirrors the Python
@@ -579,27 +560,7 @@ fn run_in(cmd: &[&str], _timeout: u64, dir: &Path) -> (i32, String, String) {
 
 /// `which`-style PATH lookup using std only (GR-011: no extra dep).
 fn which(bin: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(bin);
-        if is_executable(&candidate) {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-#[cfg(unix)]
-fn is_executable(p: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(p)
-        .map(|m| m.is_file() && (m.permissions().mode() & 0o111 != 0))
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(p: &Path) -> bool {
-    p.is_file()
+    crate::tool::resolve_tool(bin)
 }
 
 #[cfg(unix)]

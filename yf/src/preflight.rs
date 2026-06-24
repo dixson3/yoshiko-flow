@@ -470,8 +470,7 @@ fn ver_str(v: (u32, u32, u32)) -> String {
 
 /// Parse a `major.minor[.patch]` semver string into a 3-tuple (patch defaults 0).
 fn parse_semver(s: &str) -> Option<(u32, u32, u32)> {
-    let nums = extract_version_tuple(s)?;
-    Some(nums)
+    crate::tool::extract_version_tuple(s)
 }
 
 /// Run `bd --version` and parse the first `\d+.\d+(.\d+)?` it finds (legacy
@@ -480,90 +479,14 @@ fn parse_semver(s: &str) -> Option<(u32, u32, u32)> {
 /// and treated as absent if not found there — so a test pointing at an empty dir
 /// deterministically yields `None` without invoking the host's real `bd`.
 fn parse_bd_version(path_override: Option<&std::ffi::OsStr>) -> Option<(u32, u32, u32)> {
-    if path_override.is_some() && which_in(path_override, "bd").is_none() {
-        return None;
-    }
-    let out = Command::new("bd").arg("--version").output().ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
-    extract_version_tuple(&text)
-}
-
-/// Find the first `\d+.\d+(.\d+)?` in `text` and return it as a 3-tuple.
-fn extract_version_tuple(text: &str) -> Option<(u32, u32, u32)> {
-    let bytes = text.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i].is_ascii_digit() {
-            // Read up to three dot-separated number groups.
-            let mut nums: Vec<u32> = Vec::new();
-            let mut j = i;
-            loop {
-                let start = j;
-                while j < bytes.len() && bytes[j].is_ascii_digit() {
-                    j += 1;
-                }
-                if start == j {
-                    break;
-                }
-                let n: u32 = text[start..j].parse().ok()?;
-                nums.push(n);
-                if nums.len() == 3 {
-                    break;
-                }
-                // Continue only if a '.' immediately follows another digit group.
-                if j < bytes.len()
-                    && bytes[j] == b'.'
-                    && j + 1 < bytes.len()
-                    && bytes[j + 1].is_ascii_digit()
-                {
-                    j += 1;
-                } else {
-                    break;
-                }
-            }
-            if nums.len() >= 2 {
-                let major = nums[0];
-                let minor = nums[1];
-                let patch = nums.get(2).copied().unwrap_or(0);
-                return Some((major, minor, patch));
-            }
-        }
-        i += 1;
-    }
-    None
+    crate::tool::tool_version(path_override, "bd", "--version")
 }
 
 /// `which`-style lookup against an explicit PATH (`path_override`), or the live
 /// process PATH when `None`. The `Some` arm is the test-only seam ([`Env`]'s
-/// `path_override`); the `None` arm is identical to the previous `which`.
+/// `path_override`); the `None` arm is the plain `which`.
 fn which_in(path_override: Option<&std::ffi::OsStr>, bin: &str) -> Option<PathBuf> {
-    let path = match path_override {
-        Some(p) => p.to_os_string(),
-        None => std::env::var_os("PATH")?,
-    };
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(bin);
-        if is_executable(&candidate) {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-#[cfg(unix)]
-fn is_executable(p: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(p)
-        .map(|m| m.is_file() && (m.permissions().mode() & 0o111 != 0))
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(p: &Path) -> bool {
-    p.is_file()
+    crate::tool::resolve_tool_in(path_override, bin)
 }
 
 // ---------------------------------------------------------------------------
@@ -1213,6 +1136,7 @@ mod tests {
     // REQ-YF-PRE-003: version-tuple parsing matches the legacy regex behavior.
     #[test]
     fn version_tuple_parsing() {
+        use crate::tool::extract_version_tuple;
         assert_eq!(extract_version_tuple("bd version 1.0.5"), Some((1, 0, 5)));
         assert_eq!(extract_version_tuple("v1.2"), Some((1, 2, 0)));
         assert_eq!(extract_version_tuple("1.0.5-rc1"), Some((1, 0, 5)));
