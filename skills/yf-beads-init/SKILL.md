@@ -99,8 +99,11 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
      (`.agents/skills/beads/`, the codex AGENTS.md block, `.codex/`); `rm -rf
      .agents/skills/beads/` (residual); a **marker-scoped** strip of the
      `<!-- BEGIN/END BEADS INTEGRATION -->` / `BEADS CODEX SETUP` blocks from CLAUDE.md &
-     AGENTS.md; and an **entry-scoped** `.claude/settings.json` prune (deleted **only if it
-     becomes empty** — never wholesale, so it can't clobber a recommended-settings baseline).
+     AGENTS.md; an **entry-scoped** `.claude/settings.json` prune (deleted **only if it
+     becomes empty** — never wholesale, so it can't clobber a recommended-settings baseline);
+     and a `.codex/config.toml` prune (deleted **only if effectively empty** — the bare
+     `[features]` residual `bd setup codex --remove` leaves behind once it strips `hooks =
+     true`; never a config that still holds a real key).
 3. **Re-verify.** Run `yf preflight yf-beads-init --json` again; expect `ok`. Then `bd doctor` — 0 errors. Classify
    remaining warnings: *accepted by design* vs *actionable*. `Remote Consistency: No remotes
    configured` is **accepted** when the repo is intentionally local-only (resolving it would

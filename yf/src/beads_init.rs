@@ -458,6 +458,10 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
         "prune empty beads-injected .claude/settings.json (delete only if empty)",
         &["prune-settings"],
     ));
+    plan.push(native_step(
+        "prune empty beads-injected .codex/config.toml (delete only if empty)",
+        &["prune-codex"],
+    ));
 
     // Native filesystem hardening steps (deterministic, no bd).
     plan.push(native_step(
@@ -588,6 +592,14 @@ fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Opt
             Ok(()) => (0, None),
             Err(e) => (1, Some(e.to_string())),
         },
+        // B.4: delete `.codex/config.toml` ONLY if it is effectively empty — the
+        // bare `[features]` table `bd setup codex --remove` leaves behind once it
+        // strips `hooks = true`. Never wholesale-deletes a hand-authored config
+        // with real keys. Prune a now-empty `.codex/` too.
+        Some("prune-codex") => match prune_empty_codex(repo_root) {
+            Ok(()) => (0, None),
+            Err(e) => (1, Some(e.to_string())),
+        },
         _ => (0, None),
     }
 }
@@ -683,6 +695,41 @@ fn json_is_effectively_empty(v: &serde_json::Value) -> bool {
         serde_json::Value::Object(m) => m.values().all(json_is_effectively_empty),
         serde_json::Value::Bool(_) | serde_json::Value::Number(_) => false,
     }
+}
+
+/// Delete `.codex/config.toml` only if it is effectively empty (the bare
+/// `[features]` residual `bd setup codex --remove` leaves once it strips
+/// `hooks = true`), then prune a now-empty `.codex/`. A missing or unparseable
+/// file is a no-op (never risk data loss). Mirrors `prune_empty_settings`.
+fn prune_empty_codex(repo_root: &Path) -> std::io::Result<()> {
+    let codex_dir = repo_root.join(".codex");
+    let config = codex_dir.join("config.toml");
+    let Ok(text) = std::fs::read_to_string(&config) else {
+        return Ok(()); // absent — no-op.
+    };
+    if toml_is_effectively_empty(&text) {
+        std::fs::remove_file(&config)?;
+        remove_dir_if_empty(&codex_dir);
+    }
+    Ok(())
+}
+
+/// True when TOML text carries no meaningful content: every non-blank line is a
+/// comment (`#…`) or a bare table header (`[…]` / `[[…]]`) — i.e. no `key = value`
+/// assignment anywhere. So `[features]\n` (the codex-remove residual) and an
+/// all-comments file qualify, while any real key leaves the file in place. A
+/// deliberately conservative substitute for a full TOML parser: it only ever
+/// classifies as empty a file with zero assignments, so it can never delete a
+/// config that holds a value.
+fn toml_is_effectively_empty(text: &str) -> bool {
+    for line in text.lines() {
+        let t = line.trim();
+        if t.is_empty() || t.starts_with('#') || t.starts_with('[') {
+            continue;
+        }
+        return false; // any other non-blank line implies a key/value assignment.
+    }
+    true
 }
 
 /// Idempotently append any missing `patterns` to a gitignore file (legacy
@@ -1025,6 +1072,63 @@ mod tests {
         for s in full {
             let v: serde_json::Value = serde_json::from_str(s).unwrap();
             assert!(!json_is_effectively_empty(&v), "{s} is NOT empty");
+        }
+    }
+
+    // dqo: prune-codex deletes the bare `[features]` residual (and the dir) but
+    // NEVER a config.toml carrying a real key.
+    #[test]
+    fn prune_codex_deletes_only_when_empty() {
+        // Residual / empty-ish → deleted.
+        for content in ["[features]\n", "[features]", "", "# just a comment\n"] {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path().join(".codex");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("config.toml"), content).unwrap();
+            prune_empty_codex(tmp.path()).unwrap();
+            assert!(
+                !dir.join("config.toml").exists(),
+                "empty config.toml deleted: {content:?}"
+            );
+            assert!(!dir.exists(), "empty .codex pruned: {content:?}");
+        }
+
+        // Meaningful config → preserved.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join(".codex");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.toml"), "[features]\nhooks = true\n").unwrap();
+        prune_empty_codex(tmp.path()).unwrap();
+        assert!(
+            dir.join("config.toml").exists(),
+            "config with a real key preserved"
+        );
+
+        // A .codex/ holding other files is preserved even when config is empty.
+        let tmp2 = tempfile::tempdir().unwrap();
+        let dir2 = tmp2.path().join(".codex");
+        std::fs::create_dir_all(&dir2).unwrap();
+        std::fs::write(dir2.join("config.toml"), "[features]\n").unwrap();
+        std::fs::write(dir2.join("other.toml"), "x = 1\n").unwrap();
+        prune_empty_codex(tmp2.path()).unwrap();
+        assert!(!dir2.join("config.toml").exists(), "empty config deleted");
+        assert!(dir2.exists(), ".codex with other files kept");
+
+        // Absent file → no-op (no panic).
+        let tmp3 = tempfile::tempdir().unwrap();
+        prune_empty_codex(tmp3.path()).unwrap();
+    }
+
+    // dqo: toml_is_effectively_empty classification.
+    #[test]
+    fn toml_empty_classification() {
+        let empty = ["[features]\n", "[features]", "", "  \n# c\n[a.b]\n"];
+        for s in empty {
+            assert!(toml_is_effectively_empty(s), "{s:?} is empty");
+        }
+        let full = ["hooks = true", "[features]\nhooks = true\n", "x = 1"];
+        for s in full {
+            assert!(!toml_is_effectively_empty(s), "{s:?} is NOT empty");
         }
     }
 

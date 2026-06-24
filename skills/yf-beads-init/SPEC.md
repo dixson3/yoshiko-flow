@@ -71,8 +71,10 @@ storage (that is `bd`).
     marker-scoped strip of the `<!-- BEGIN/END BEADS INTEGRATION -->` / `BEADS CODEX SETUP`
     blocks from CLAUDE.md & AGENTS.md — and shall prune `.claude/settings.json` **entry-scoped**,
     deleting the file **only when it becomes empty** (never wholesale, so a recommended-settings
-    baseline, #30, is never clobbered). Every remover shall be a no-op on a clean repo
-    (re-running repair never churns).
+    baseline, #30, is never clobbered). It shall likewise prune `.codex/config.toml`, deleting it
+    **only when effectively empty** — the bare `[features]` residual `bd setup codex --remove`
+    leaves once it strips `hooks = true`; a config holding any real key is preserved (dqo). Every
+    remover shall be a no-op on a clean repo (re-running repair never churns).
 - **REQ-BINIT-014** *(testable)* `repair` shall re-verify after applying and report the resulting
   status; the operator runs `bd doctor` expecting 0 errors, with `Remote Consistency: No remotes
   configured` accepted by design on a local-only repo and `Dolt Status` / `Git Working Tree`
