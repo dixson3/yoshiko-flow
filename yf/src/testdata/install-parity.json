@@ -6,6 +6,7 @@
     "yf-beads-hygiene": "beads",
     "yf-beads-init": "beads",
     "yf-beads-upstream": "beads",
+    "yf-change-validation": "utility",
     "yf-diagram-authoring": "utility",
     "yf-drift-check": "utility",
     "yf-incubator": "beads",
@@ -37,6 +38,7 @@
       "yf-markdown-pdf"
     ],
     "utility": [
+      "yf-change-validation",
       "yf-diagram-authoring",
       "yf-drift-check",
       "yf-optimal-instructions",
@@ -59,6 +61,7 @@
       "yf-markdown-pdf"
     ],
     "group:utility": [
+      "yf-change-validation",
       "yf-diagram-authoring",
       "yf-drift-check",
       "yf-optimal-instructions",

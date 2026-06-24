@@ -876,11 +876,15 @@ def record_epic(plan_dir: str, epic_id: str):
 # EXTRACTION TRIGGERS (record, do not act early — plan-009 INV-5):
 #   * `worktree` skill — extract this verb cluster ONLY on a committed SECOND consumer
 #     (yf-plan execute is the only one today; one consumer ≈2x's v1 surface for zero reuse).
-#   * `acceptance` skill — extract the validate-merged / validate-cmd seam (below) ONLY when
-#     a second skill needs merged-state/regression validation.
-#   When extracted, the consumer keeps a PROSE soft-dep (present → worktree flow; absent →
-#   in-place), like diagram-authoring. NEVER add `worktree`/`acceptance` to a SKILL.md
-#   frontmatter `depends-on-skill` edge — that is force-install, the wrong coupling
+#   * acceptance skill — REALIZED as `yf-change-validation` (plan-015 D.1). The
+#     validate-merged / validate-cmd seam below now delegates, when present, to that
+#     skill's engine (skills/yf-change-validation/scripts/change_validation.py) over the
+#     merged tree. There is NO separate `acceptance` skill — do not hunt for one.
+#   When extracted, the consumer keeps a PROSE soft-dep (present → delegate/worktree flow;
+#   absent → fallback/in-place), like diagram-authoring. The yf-change-validation tie-in is
+#   detect-at-runtime (approved CHANGE-VALIDATION.md + resolvable script), NOT a frontmatter
+#   edge. NEVER add `worktree`/`yf-change-validation` to a SKILL.md frontmatter
+#   `depends-on-skill` edge — that is force-install, the wrong coupling
 #   (plan-008 EXP-002 mitigation pattern).
 #
 # Placement (INV-1): a gitignored top-level `.worktrees/<plan-id>`, branch = plan-id
@@ -1313,33 +1317,135 @@ def _run_shell(cmd: str, cwd: Path | None = None) -> dict:
             "output_tail": tail[-2000:]}
 
 
+# yf-change-validation soft-dep (plan-015 D.1). Prose soft-dep ONLY — detect the
+# engine at RUNTIME (approved manifest present + script resolvable). NO frontmatter
+# `depends-on-skill` edge. Absent/unapproved/unresolvable → graceful fallback to
+# the validate-cmd tier (and then the not-checked notice).
+CHANGE_VALIDATION_MANIFEST = "CHANGE-VALIDATION.md"
+
+
+def _repo_root() -> Path:
+    """Repo top-level via git, falling back to cwd (mirrors the engine's repo_root)."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True, timeout=2)
+        if r.returncode == 0 and r.stdout.strip():
+            return Path(r.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return Path.cwd()
+
+
+def _change_validation_script(repo_root: Path) -> Path | None:
+    """Resolve the yf-change-validation engine in THIS repo, or None if absent.
+
+    Detect-at-runtime soft-dep: returns the script path only when it exists on disk.
+    """
+    script = repo_root / "skills" / "yf-change-validation" / "scripts" / "change_validation.py"
+    return script if script.exists() else None
+
+
+def _approved_manifest_present(repo_root: Path) -> bool:
+    """True iff a repo-root CHANGE-VALIDATION.md exists with §0 `approved: yes`.
+
+    Cheap gate before delegating; the engine itself also refuses cleanly when
+    unapproved, so this is an optimization, not the sole guard.
+    """
+    p = repo_root / CHANGE_VALIDATION_MANIFEST
+    if not p.exists():
+        return False
+    try:
+        text = p.read_text()
+    except OSError:
+        return False
+    return bool(re.search(r"approved:\s*yes", text, re.IGNORECASE))
+
+
+def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
+    """Delegate to the engine's `run --tier full --json` over the merged tree.
+
+    Returns the engine's parsed JSON payload, or None if the invocation could not
+    be parsed (caller then falls back). A clean `refused` payload (manifest present
+    but `§0 approved: no`) is returned as-is so the caller can fall through, NOT
+    treated as a failure.
+    """
+    try:
+        r = subprocess.run(
+            ["uv", "run", str(script), "run", "--tier", "full", "--json"],
+            cwd=str(repo_root), capture_output=True, text=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    try:
+        return json.loads(r.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 def _validate_merged(plan_dir: Path) -> dict:
     """Validate the merged tree before push (Issue 3.2; runs PRIMARY-side, post-merge).
 
-    Layer (b) — the configured project `validate-cmd` — is the real cross-plan safety
-    net. When it is UNSET, this runs no project suite and emits a prominent
-    cross-plan-not-checked notice (never a bare green). Layer (a) — the plan's own Gate
-    `Test:` commands — is run by the coordinator/operator against the merged tree (it
-    cannot reliably catch class-(b) regressions; see plan-009 §Approach), so this verb
-    owns layer (b) + the honesty notice, and the SKILL §6.1.5 prose drives layer (a).
+    Three-tier precedence for the cross-plan safety net (plan-015 D.1):
+
+      1. yf-change-validation engine — an APPROVED repo-root `CHANGE-VALIDATION.md`
+         plus a resolvable engine script → delegate to `change_validation.py run
+         --tier full --json` over the merged tree. A clean `refused` payload
+         (manifest present but `§0 approved: no`) falls THROUGH to tier 2 (NOT a
+         failure). An absent/unresolvable engine also falls through.
+      2. configured `validate-cmd` — `.yf-plan.local.json` `validate-cmd` (the prior
+         layer-(b) behavior).
+      3. neither — runs no project suite and emits the verbatim cross-plan-not-checked
+         notice (never a bare green).
+
+    Layer (a) — the plan's own Gate `Test:` commands — is run by the coordinator/
+    operator against the merged tree (it cannot reliably catch class-(b) regressions;
+    see plan-009 §Approach), so this verb owns layer (b) + the honesty notice, and the
+    SKILL §6.1.5 prose drives layer (a).
+
+    The output schema `{plan_dir, validate_cmd_configured, layer_b, notice, status}` is
+    preserved; an `engine` discriminator ("change-validation"|"validate-cmd"|"none") is
+    ADDED so SKILL prose / downstream can surface which tier ran. The exit-3-on-non-pass
+    contract lives in the Click wrapper and is unchanged.
     """
     validate_cmd = _resolve_validate_cmd()
     result: dict = {
         "plan_dir": str(plan_dir),
         "validate_cmd_configured": validate_cmd is not None,
+        "engine": "none",
         "layer_b": None,
         "notice": None,
     }
-    if validate_cmd is None:
-        result["status"] = "pass"
-        result["notice"] = (
-            "MERGED-STATE VALIDATION RAN PLAN GATES ONLY; no project `validate-cmd` "
-            "configured in .yf-plan.local.json — CROSS-PLAN REGRESSIONS NOT CHECKED. "
-            "This is NOT integration-safe; configure validate-cmd for real safety.")
+
+    # Tier 1: yf-change-validation engine (approved manifest + resolvable script).
+    repo_root = _repo_root()
+    if _approved_manifest_present(repo_root):
+        script = _change_validation_script(repo_root)
+        if script is not None:
+            payload = _run_change_validation(script, repo_root)
+            # None → unparseable invocation; `refused` → unapproved at engine read.
+            # Both fall through to the next tier (refusal is NOT a failure).
+            if payload is not None and payload.get("status") != "refused":
+                eng_status = payload.get("status")
+                result["engine"] = "change-validation"
+                result["layer_b"] = payload
+                # Engine PASS → pass; FAIL/INCONCLUSIVE/anything else → fail (exit 3).
+                result["status"] = "pass" if eng_status == "pass" else "fail"
+                return result
+
+    # Tier 2: configured validate-cmd (prior layer-(b) behavior).
+    if validate_cmd is not None:
+        layer_b = _run_shell(validate_cmd)
+        result["engine"] = "validate-cmd"
+        result["layer_b"] = layer_b
+        result["status"] = "pass" if layer_b["ok"] else "fail"
         return result
-    layer_b = _run_shell(validate_cmd)
-    result["layer_b"] = layer_b
-    result["status"] = "pass" if layer_b["ok"] else "fail"
+
+    # Tier 3: neither configured — verbatim cross-plan-not-checked notice.
+    result["status"] = "pass"
+    result["notice"] = (
+        "MERGED-STATE VALIDATION RAN PLAN GATES ONLY; no project `validate-cmd` "
+        "configured in .yf-plan.local.json — CROSS-PLAN REGRESSIONS NOT CHECKED. "
+        "This is NOT integration-safe; configure validate-cmd for real safety.")
     return result
 
 

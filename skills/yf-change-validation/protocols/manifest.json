@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "files": {
+    "CHANGE-VALIDATION-TRIGGER.md": {
+      "sha256": "01ae5b0ff78c8d39479574b4a1781a90ef54ccaf77e76d8787c958cf8f6c04cc",
+      "version": "1.0.0",
+      "deprecated": false,
+      "previous_versions": []
+    }
+  }
+}

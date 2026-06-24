@@ -722,6 +722,12 @@ accumulate on the plan branch.** The coordinator never `cd`s into the worktree. 
 fallback (in-place) mode there is one address space — the primary — and all edits land
 there as today.
 
+**`uv` inside the worktree.** When running `uv run …` with cwd in `.worktrees/<plan-id>`,
+prefix it with `env -u VIRTUAL_ENV` (e.g. `env -u VIRTUAL_ENV uv run …`) so uv resolves the
+worktree's own environment instead of an inherited `VIRTUAL_ENV` from the primary checkout.
+Do **NOT** follow uv's `--active` suggestion inside a worktree — `--active` targets the
+active (primary) venv, the wrong address space.
+
 ### 5.5 — Blocked gates
 
 Drain all unblocked work first. Only report blocked gates when no other work can proceed. Include gate condition, test result, and unblock instructions.
@@ -767,14 +773,29 @@ merge-backs across concurrent plans on this machine.
 
 ### 6.1.5 — Validate the merged state
 
-Before any push, validate the merged tree — **layer (a)** the plan's own Gate `Test:`
-commands run against the merged checkout (as in the §5.4 loop), **plus layer (b)** the
-configured project suite:
+Before any push, validate the merged tree. **Layer (a)** — the plan's own Gate `Test:`
+commands — runs against the merged checkout in the §5.4 coordinator loop, not here.
+This step owns **layer (b)**, the cross-plan safety net, via a 3-tier precedence:
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py validate-merged "${plan_dir}" --json
-# layer (b) runs `validate-cmd` from .yf-plan.local.json (Issue 3.3). status fail → halt.
+# layer (b) precedence (the `engine` key reports which tier ran). status fail → halt.
 ```
+
+**Layer-(b) precedence** (first match wins):
+
+1. **`yf-change-validation` engine** — an **approved** repo-root `CHANGE-VALIDATION.md`
+   plus a resolvable engine → delegates to `change_validation.py run --tier full` over
+   the merged tree (`engine: "change-validation"`). An absent/unresolvable engine, or a
+   manifest with `§0 approved: no` (clean `refused`), falls THROUGH to tier 2 — not a fail.
+2. **else `validate-cmd`** — the static `validate-cmd` from `.yf-plan.local.json` (Issue
+   3.3) as the thin middle fallback (`engine: "validate-cmd"`).
+3. **else** — no project suite runs; emit the verbatim cross-plan-not-checked notice
+   (`engine: "none"`).
+
+This is a **prose soft-dep**: present → delegate, absent → fallback. NEVER add
+`yf-change-validation` to this skill's frontmatter `depends-on-skill` — that is
+force-install, the wrong coupling.
 
 - **Fail** → halt with the lock **still held** (so the operator fixes under serialization),
   report the failing command. Do not push.
@@ -786,10 +807,12 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py validate-merged "${plan_dir}" --json
   uv run ${SKILL_DIR}/scripts/plan_manager.py landing-lock release "${plan_id}" --json
   ```
 
-**Honest scope (plan-009 C2).** When `validate-cmd` is **unset**, `validate-merged` runs
-layer (a) only and emits a **prominent cross-plan-not-checked notice** — surface it
-verbatim; never present a bare green as integration-safe. The configured `validate-cmd`
-is the real cross-plan safety net; layer (a) alone cannot catch class-(b) regressions.
+**Honest scope (plan-009 C2).** When **neither** the engine nor `validate-cmd` is
+configured (tier 3), `validate-merged` runs **no** layer-(b) suite at all and emits a
+**prominent cross-plan-not-checked notice** — surface it verbatim; never present a bare
+green as integration-safe. Layer (a) (the plan's own Gate `Test:` commands, run in the
+§5.4 loop) alone cannot catch class-(b) regressions; the engine or `validate-cmd` is the
+real cross-plan safety net.
 
 ### 6.2 — Push handoff (conservative) + teardown
 

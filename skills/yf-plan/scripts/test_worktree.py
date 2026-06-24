@@ -265,5 +265,156 @@ def test_worktree_opt_out_config(lock_cwd):
     assert r["reason"] == "opted-out"
 
 
+# ---------------------------------------------------------------------------
+# validate-merged 3-tier delegation (plan-015 D.1 / D.3)
+#
+# Tier 1 (yf-change-validation engine) → Tier 2 (validate-cmd) → Tier 3 (notice).
+# The `engine` discriminator ("change-validation"|"validate-cmd"|"none") plus the
+# preserved schema keys are asserted across all tiers; the exit-3-on-non-pass
+# contract is exercised through the Click `validate-merged` command.
+# ---------------------------------------------------------------------------
+
+# The real engine script, resolvable on disk; tier-1 tests point the runtime
+# soft-dep resolver here so delegation runs the actual engine over the fixture repo.
+_ENGINE_SCRIPT = (
+    Path(__file__).resolve().parents[2]
+    / "yf-change-validation" / "scripts" / "change_validation.py"
+)
+
+# Schema keys preserved across every tier (the additive `engine` is checked separately).
+_VALIDATE_MERGED_KEYS = {
+    "plan_dir", "validate_cmd_configured", "layer_b", "notice", "status",
+}
+
+
+def _write_manifest(repo: Path, *, approved: bool, full_cmd: str) -> None:
+    """Write a minimal CHANGE-VALIDATION.md with a single trivial FULL-tier row.
+
+    `full_cmd` is a shell command (`true` → pass, `false` → fail) so the engine's
+    `run --tier full` resolves deterministically with no real toolchain.
+    """
+    status = "yes" if approved else "no"
+    (repo / pm.CHANGE_VALIDATION_MANIFEST).write_text(
+        "# CHANGE-VALIDATION.md\n\n"
+        "## 0. Status\n\n"
+        f"approved: {status}\n\n"
+        "## 1. Tiers\n\n"
+        "### fast\n\n"
+        "| id | cmd | cwd | timeout |\n"
+        "|:--|:--|:--|--:|\n"
+        "| | | | |\n\n"
+        "### full\n\n"
+        "| id | cmd | cwd | timeout |\n"
+        "|:--|:--|:--|--:|\n"
+        f"|  | `{full_cmd}` |  |  |\n\n"
+        "## 2. Signal Fingerprint\n\n"
+        "| source-path | parsed-value-or-hash |\n"
+        "|:--|:--|\n"
+        "| | |\n\n"
+        "## 3. Trigger Scope\n\n"
+        "| changed-path glob | scopes to (FAST ids) |\n"
+        "|:--|:--|\n"
+        "| | |\n"
+    )
+
+
+@pytest.fixture
+def cv_repo(git_repo, monkeypatch):
+    """A git repo (from `git_repo`) wired so the change-validation soft-dep resolves.
+
+    `_repo_root()` (git from cwd) already returns the fixture repo, so the engine
+    runs there and finds the repo-root manifest. We only redirect the script
+    resolver to the real engine on disk (the fixture has no skills/ tree).
+    """
+    monkeypatch.setattr(pm, "_change_validation_script", lambda _root: _ENGINE_SCRIPT)
+    return git_repo
+
+
+# --- Tier 1: approved manifest → delegate to the engine ---------------------
+
+def test_validate_merged_tier1_delegates_pass(cv_repo):
+    _write_manifest(cv_repo, approved=True, full_cmd="true")
+    r = pm._validate_merged(Path("docs/plans/plan-x"))
+    assert r["engine"] == "change-validation"
+    assert r["status"] == "pass"
+    # The engine's parsed payload is surfaced under layer_b.
+    assert r["layer_b"]["status"] == "pass"
+    assert _VALIDATE_MERGED_KEYS <= set(r)
+
+
+def test_validate_merged_tier1_delegates_fail(cv_repo):
+    _write_manifest(cv_repo, approved=True, full_cmd="false")
+    r = pm._validate_merged(Path("docs/plans/plan-x"))
+    assert r["engine"] == "change-validation"
+    assert r["status"] == "fail"
+    assert r["layer_b"]["status"] == "fail"
+
+
+def test_validate_merged_tier1_fail_exits_3(cv_repo):
+    # The Click wrapper's exit-3-on-non-pass contract over a failing delegation.
+    # In-process via CliRunner so the cv_repo monkeypatch (engine-script resolver)
+    # is honored — a subprocess would not see it and would fall through to tier 3.
+    from click.testing import CliRunner
+
+    _write_manifest(cv_repo, approved=True, full_cmd="false")
+    plan_dir = cv_repo / "docs" / "plans" / "plan-x"
+    plan_dir.mkdir(parents=True)
+    result = CliRunner().invoke(
+        pm.cli, ["validate-merged", str(plan_dir), "--json"],
+    )
+    assert result.exit_code == 3
+    payload = json.loads(result.output)
+    assert payload["engine"] == "change-validation"
+    assert payload["status"] == "fail"
+
+
+def test_validate_merged_tier3_exits_0(git_repo):
+    # The pass side of the exit contract: tier-3 notice still exits 0.
+    from click.testing import CliRunner
+
+    plan_dir = git_repo / "docs" / "plans" / "plan-x"
+    plan_dir.mkdir(parents=True)
+    result = CliRunner().invoke(
+        pm.cli, ["validate-merged", str(plan_dir), "--json"],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["engine"] == "none"
+    assert payload["status"] == "pass"
+
+
+# --- Tier 2: unapproved/absent manifest → validate-cmd fallback -------------
+
+def test_validate_merged_tier2_unapproved_manifest_falls_through(cv_repo):
+    # Manifest present but `approved: no` → engine refuses cleanly → fall through
+    # to the configured validate-cmd (engine == validate-cmd, NOT a failure).
+    _write_manifest(cv_repo, approved=False, full_cmd="false")
+    (cv_repo / ".yf-plan.local.json").write_text(json.dumps({"validate-cmd": "true"}))
+    r = pm._validate_merged(Path("docs/plans/plan-x"))
+    assert r["engine"] == "validate-cmd"
+    assert r["status"] == "pass"
+    assert r["validate_cmd_configured"] is True
+    assert _VALIDATE_MERGED_KEYS <= set(r)
+
+
+def test_validate_merged_tier2_no_manifest_runs_validate_cmd(cv_repo):
+    (cv_repo / ".yf-plan.local.json").write_text(json.dumps({"validate-cmd": "false"}))
+    r = pm._validate_merged(Path("docs/plans/plan-x"))
+    assert r["engine"] == "validate-cmd"
+    assert r["status"] == "fail"
+
+
+# --- Tier 3: neither manifest nor validate-cmd → notice ---------------------
+
+def test_validate_merged_tier3_notice(git_repo):
+    # No approved manifest, no validate-cmd → verbatim cross-plan-not-checked notice.
+    r = pm._validate_merged(Path("docs/plans/plan-x"))
+    assert r["engine"] == "none"
+    assert r["status"] == "pass"
+    assert r["validate_cmd_configured"] is False
+    assert "CROSS-PLAN REGRESSIONS NOT CHECKED" in r["notice"]
+    assert _VALIDATE_MERGED_KEYS <= set(r)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

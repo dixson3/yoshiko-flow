@@ -6,6 +6,37 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ## Unreleased
 
+### New: `yf-change-validation` — per-repo change-set validation engine (plan-015, #27 + #25)
+
+- **`yf-change-validation`** — new skill that validates a change set against a per-repo,
+  operator-approved `CHANGE-VALIDATION.md` manifest: declared check tiers (`fast`/`full`),
+  a changed-path → check-id trigger scope, and a signal fingerprint that detects when the
+  manifest itself has gone stale relative to the repo's real test/build surface.
+  - `scripts/change_validation.py` — the engine: `infer` (bootstrap a manifest by scanning
+    CI workflows, `Cargo.toml`, `test_*.py`, build configs), `run` (execute the tier or
+    the trigger-scoped affected subset for a changed path; fail-closed), and `check-drift`
+    (re-propose the manifest
+    when the signal fingerprint diverges). Self-maintaining: a stale manifest re-proposes
+    itself rather than silently passing.
+  - `spec/{schema,engine,inference}.md` + `SPEC.md` — the manifest schema, the
+    validate/trigger-scope engine, and the inference/bootstrap heuristics.
+  - `templates/manifest.md` — the seed `CHANGE-VALIDATION.md` template.
+  - `protocols/CHANGE-VALIDATION-TRIGGER.md` — always-loaded companion rule binding the
+    on-change trigger a `description` cannot fire (silent no-op unless the repo has an
+    **approved** `CHANGE-VALIDATION.md`).
+- **yf-plan** — §6.1.5 layer (b) now **delegates** change-set validation to
+  `yf-change-validation` when an approved manifest exists; the static `validate-cmd`
+  becomes the thin middle fallback and the not-checked notice the floor (3-tier
+  precedence, output schema + exit-3 contract preserved).
+- **CHANGE-VALIDATION.md** — dogfood manifest for this repo (approved): `fast`/`full` tiers
+  wiring the cargo + per-skill `uv`/pytest suites and `_shared/sync.py --check`, with the
+  `website` build rows trimmed (deploy-only, not a validation gate) and `yf-drift-check`
+  excluded (prose/LLM trigger, not a runnable command).
+- **Docs (#25):** added worktree-uv guidance to yf-plan's worktree address-space docs —
+  prefix `uv run …` with `env -u VIRTUAL_ENV` inside a plan worktree so uv resolves the
+  worktree's own environment, and do not follow uv's `--active` suggestion (it targets the
+  primary venv, the wrong address space).
+
 ### `_shared/` package — retire the duplicated active-set classifier (plan-014, #15)
 
 - **`_shared/`** — new top-level package (outside the `skills/` embed root, so `yf` never
