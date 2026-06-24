@@ -106,6 +106,32 @@ closes freely. Do not assume close-ordering is enforced for you; close in depend
 order (or audit afterwards with `bd dep list` / `bd blocked`) if downstream beads must
 not be stranded.
 
+### Detecting dependency cycles — `bd dep cycles`
+
+`bd dep cycles` reports any circular `blocks` chains in the graph. Run it after **any**
+edge mutation (add or remove) as a post-mutation integrity check — a cycle silently wedges
+readiness (every bead in the loop blocks itself, so none is ever `ready`). It is read-only
+and cheap; make it the last step of any script that calls `bd dep add`/`bd dep remove`.
+
+## `bd list` hides gate beads AND truncates at 50 rows
+
+Two independent traps make `bd list` **unsafe as the source of truth for "which beads
+exist"** — and both have caused a destructive false positive (see `yf-beads-hygiene`):
+
+- **It hides `gate`-type beads.** `gate` beads do not appear in `bd list` / `bd list --all`
+  output at all. An audit that resolves dependency-edge targets by membership in `bd list`
+  will flag **every edge pointing at a gate as "dangling,"** even though the gate exists and
+  the edge is valid. Add `--type gate` (or sweep `bd gate list`) to see them.
+- **It truncates at 50 rows by default.** Molecule roots and children past the 50th row look
+  "missing"/orphaned when they are present. Always pass `--all` (or an explicit status sweep)
+  for any audit; never trust the default truncated list.
+
+**Rule for any graph audit:** build the full universe from `bd list --all` **plus**
+`bd list --all --type gate` (or `bd gate list`), and resolve every individual edge target
+with `bd show <id>` — which *does* see gates — never by presence in a `bd list` dump. The
+`yf-beads-hygiene` skill encodes this discipline; reference it for orphan/dangling-edge
+cleanup rather than re-deriving the audit.
+
 ## `--json` is not always a single JSON document
 
 **First: for a status report or eyeballing state, do NOT use `--json`.** `bd show <id>`,

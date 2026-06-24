@@ -55,6 +55,13 @@ skill); authoring beads-backed skills — formulas, coordinator loops, the `coor
 - **REQ-BEXTRA-CLI-008** *(testable)* bulk edge intake shall use `bd batch` (one dolt transaction,
   atomic rollback on any error); creates are **not** batchable — each needs its returned ID
   captured before reference, and an empty create result is a stop-and-fix. (REQ-CLI-008.)
+- **REQ-BEXTRA-CLI-009** *(testable)* `bd list`/`bd list --all` shall be documented as **hiding
+  `gate`-type beads** and **truncating at 50 rows** by default — unsafe as the "which beads exist"
+  source of truth; a graph audit shall build the full universe from `bd list --all` **plus**
+  `bd list --all --type gate` and resolve edge targets via `bd show` (which sees gates), never by
+  `bd list` membership. (REQ-CLI-009; `yf-beads-hygiene` encodes the discipline.)
+- **REQ-BEXTRA-CLI-010** `bd dep cycles` shall be documented as the read-only post-mutation
+  integrity check run after any `bd dep add`/`bd dep remove`. (REQ-CLI-010.)
 
 ### 2.2 Defensive JSON parsing & scope (see `spec/json-and-scope.md`)
 
