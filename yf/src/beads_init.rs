@@ -43,6 +43,25 @@ const BEADS_GITIGNORE: &[&str] = &[
 /// Project-root `.gitignore` patterns beads needs (legacy `_PROJECT_GITIGNORE`).
 const PROJECT_GITIGNORE: &[&str] = &[".beads-credential-key", ".beads/proxieddb/"];
 
+/// Marker-fenced "managed block" spans that `bd init` injects into instruction
+/// files (`CLAUDE.md` / `AGENTS.md`). Each pair is `(begin-prefix, end-marker)`;
+/// the begin marker carries a trailing `v:/profile:/hash:` suffix so we match on a
+/// prefix. Used by [`strip_managed_blocks`] for the repair-time marker-scoped strip
+/// (#31, B.3). `bd setup claude --remove` owns the CLAUDE.md + settings.json hook,
+/// but the generic `BEADS INTEGRATION` block can also land in `AGENTS.md` (the
+/// `--skip-agents`/agents-profile block), which no `bd setup … --remove` strips —
+/// so this is the marker-owned fallback for both files.
+const MANAGED_BLOCKS: &[(&str, &str)] = &[
+    (
+        "<!-- BEGIN BEADS INTEGRATION",
+        "<!-- END BEADS INTEGRATION -->",
+    ),
+    (
+        "<!-- BEGIN BEADS CODEX SETUP",
+        "<!-- END BEADS CODEX SETUP -->",
+    ),
+];
+
 // ---------------------------------------------------------------------------
 // Verify
 // ---------------------------------------------------------------------------
@@ -325,9 +344,38 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
         rc: None,
         err: None,
     };
+    // A native (Rust `std::fs`) step. `verb` is the dispatch key consumed by
+    // [`apply_native`] (`cmd[1]`); a synthetic `<native>` argv keeps the plan
+    // shape uniform with shelled steps.
+    let native_step = |why: &str, verb: &[&str]| RepairStep {
+        why: why.to_string(),
+        cmd: std::iter::once("<native>".to_string())
+            .chain(verb.iter().map(|s| s.to_string()))
+            .collect(),
+        native: true,
+        rc: None,
+        err: None,
+    };
 
     if before.status == VerifyStatus::NotInitialized {
-        plan.push(shelled("initialize beads", &["bd", "init"]));
+        // B.1 — init-time cruft suppression (#31). `--skip-hooks` suppresses the
+        // beads git-hooks class; `--skip-agents` suppresses the AGENTS.md /
+        // CLAUDE.md managed blocks, `.codex/`, `.agents/skills/beads/`, and the
+        // `.claude/settings.json` SessionStart hook in one flag. Then assert
+        // `dolt.local-only` (no Dolt remote) and silence the doctor "Git Hooks"
+        // warning now that hooks are intentionally absent.
+        plan.push(shelled(
+            "initialize beads (suppress hooks + agents cruft)",
+            &["bd", "init", "--skip-hooks", "--skip-agents"],
+        ));
+        plan.push(shelled(
+            "assert local-only Dolt (no remote wired at init)",
+            &["bd", "config", "set", "dolt.local-only", "true"],
+        ));
+        plan.push(shelled(
+            "suppress doctor git-hooks warning (hooks intentionally absent)",
+            &["bd", "config", "set", "doctor.suppress.git-hooks", "true"],
+        ));
     }
 
     // Wedged-migration repair: flush in-memory working set, THEN migrate.
@@ -344,10 +392,12 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
     }
 
     // Hardening (idempotent) — runs whenever .beads/ exists or after init.
-    plan.push(shelled(
-        "update git hooks",
-        &["bd", "hooks", "install", "--force"],
-    ));
+    //
+    // B.2 (#31): the former `bd hooks install --force` step is intentionally
+    // GONE. Repair must NEVER (re-)install beads git hooks — that is the inverse
+    // of #31's init-time `--skip-hooks` suppression and would re-dirty a repo the
+    // cleanup steps below are trying to clean. Removing it (rather than gating it)
+    // makes repair monotone with respect to hooks: it only ever removes them.
     plan.push(shelled(
         "repair gitignore/config",
         &["bd", "doctor", "--fix"],
@@ -364,37 +414,64 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
         &["bd", "export", "-o", ".beads/issues.jsonl"],
     ));
 
+    // ---- B.3/B.4 (#31): repair-time cruft cleanup for already-dirtied repos ----
+    // Every step is idempotent and bd-native where bd owns the artifact. On a
+    // clean repo (this repo's reference state) each is a no-op, so re-running
+    // repair never churns. These run on EVERY repair (not gated on a dirty
+    // detection) precisely because they are idempotent no-ops when clean.
+
+    // (c) git hooks: uninstall beads hooks + reset core.hooksPath to the git
+    // default. `bd hooks uninstall` clears both; the native reset below is a belt
+    // for any stray `core.hooksPath` bd did not own.
+    plan.push(shelled(
+        "uninstall beads git hooks (never re-install)",
+        &["bd", "hooks", "uninstall"],
+    ));
+    // (a)+(b) Claude: removes the CLAUDE.md managed block AND the entry-scoped
+    // `.claude/settings.json` SessionStart hook (B.4 — never wholesale-deletes the
+    // file; leaves `{"hooks": {}}`). bd owns this marker.
+    plan.push(shelled(
+        "remove beads Claude integration (CLAUDE.md block + settings.json hook)",
+        &["bd", "setup", "claude", "--remove"],
+    ));
+    // (b) Codex: removes `.agents/skills/beads/`, the codex AGENTS.md block, and
+    // the `.codex/` native-hooks setup.
+    plan.push(shelled(
+        "remove beads Codex integration (.agents/skills/beads, .codex, AGENTS.md block)",
+        &["bd", "setup", "codex", "--remove"],
+    ));
+
+    // Native cleanup steps (deterministic, no bd) — see `apply_native`.
+    plan.push(native_step(
+        "reset core.hooksPath to git default",
+        &["hookspath-reset"],
+    ));
+    plan.push(native_step(
+        "remove residual .agents/skills/beads/ dir",
+        &["rmdir-beads-skill"],
+    ));
+    plan.push(native_step(
+        "strip beads managed blocks from CLAUDE.md/AGENTS.md (marker-scoped)",
+        &["strip-managed-blocks"],
+    ));
+    plan.push(native_step(
+        "prune empty beads-injected .claude/settings.json (delete only if empty)",
+        &["prune-settings"],
+    ));
+
     // Native filesystem hardening steps (deterministic, no bd).
-    plan.push(RepairStep {
-        why: "tighten .beads perms (chmod 700)".to_string(),
-        cmd: vec![
-            "<native>".into(),
-            "chmod".into(),
-            "700".into(),
-            ".beads".into(),
-        ],
-        native: true,
-        rc: None,
-        err: None,
-    });
-    plan.push(RepairStep {
-        why: "ensure .beads/.gitignore exclusions".to_string(),
-        cmd: vec![
-            "<native>".into(),
-            "gitignore".into(),
-            ".beads/.gitignore".into(),
-        ],
-        native: true,
-        rc: None,
-        err: None,
-    });
-    plan.push(RepairStep {
-        why: "ensure project .gitignore exclusions".to_string(),
-        cmd: vec!["<native>".into(), "gitignore".into(), ".gitignore".into()],
-        native: true,
-        rc: None,
-        err: None,
-    });
+    plan.push(native_step(
+        "tighten .beads perms (chmod 700)",
+        &["chmod", "700", ".beads"],
+    ));
+    plan.push(native_step(
+        "ensure .beads/.gitignore exclusions",
+        &["gitignore", ".beads/.gitignore"],
+    ));
+    plan.push(native_step(
+        "ensure project .gitignore exclusions",
+        &["gitignore", ".gitignore"],
+    ));
 
     if !apply {
         return Ok(RepairResult {
@@ -428,8 +505,10 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
     })
 }
 
-/// Execute a native (Rust `std::fs`) repair step. `cmd[1]` is the verb
-/// (`chmod`/`gitignore`). Returns `(rc, optional-error-string)`; idempotent.
+/// Execute a native (Rust `std::fs`) repair step. `cmd[1]` is the verb. Returns
+/// `(rc, optional-error-string)`; every arm is idempotent (a no-op on a clean
+/// repo). Verbs: `chmod`, `gitignore` (hardening); `hookspath-reset`,
+/// `rmdir-beads-skill`, `strip-managed-blocks`, `prune-settings` (B.3/B.4 cleanup).
 fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Option<String>) {
     match cmd.get(1).map(String::as_str) {
         Some("chmod") => {
@@ -455,7 +534,154 @@ fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Opt
                 (0, None) // parent dir absent (e.g. no .beads/) — no-op.
             }
         }
+        // B.3: reset core.hooksPath to the git default (unset). `bd hooks
+        // uninstall` already clears the beads-owned value; this belt handles a
+        // stray value bd did not own. `git config --unset` of an absent key exits
+        // 5 — treated as a no-op (already at default).
+        Some("hookspath-reset") => {
+            let (rc, _out, _err) = run_in(
+                &["git", "config", "--local", "--unset", "core.hooksPath"],
+                30,
+                repo_root,
+            );
+            // 0 = unset something; 5 = key absent (already default). Either is OK.
+            if rc == 0 || rc == 5 {
+                (0, None)
+            } else {
+                (
+                    rc,
+                    Some(format!("git config --unset core.hooksPath exit {rc}")),
+                )
+            }
+        }
+        // B.3: remove a residual `.agents/skills/beads/` dir (`bd setup codex
+        // --remove` normally owns this, but rm it directly as a fallback). Prune
+        // now-empty `.agents/skills` and `.agents` parents, never touching a
+        // hand-authored `.agents/` with other content.
+        Some("rmdir-beads-skill") => {
+            let skill = repo_root.join(".agents").join("skills").join("beads");
+            if skill.is_dir() {
+                if let Err(e) = std::fs::remove_dir_all(&skill) {
+                    return (1, Some(e.to_string()));
+                }
+            }
+            remove_dir_if_empty(&repo_root.join(".agents").join("skills"));
+            remove_dir_if_empty(&repo_root.join(".agents"));
+            (0, None)
+        }
+        // B.3: marker-scoped strip of the beads managed blocks from CLAUDE.md and
+        // AGENTS.md (the fallback for the `BEADS INTEGRATION` block that lands in
+        // AGENTS.md and that no `bd setup … --remove` strips).
+        Some("strip-managed-blocks") => {
+            for name in ["CLAUDE.md", "AGENTS.md"] {
+                if let Err(e) = strip_managed_blocks(&repo_root.join(name)) {
+                    return (1, Some(format!("{name}: {e}")));
+                }
+            }
+            (0, None)
+        }
+        // B.4: delete `.claude/settings.json` ONLY if it is empty (`{}` /
+        // `{"hooks": {}}`) after bd's entry-scoped removal — never wholesale, so a
+        // #30 baseline at project scope is never clobbered. Prune a now-empty
+        // `.claude/` too.
+        Some("prune-settings") => match prune_empty_settings(repo_root) {
+            Ok(()) => (0, None),
+            Err(e) => (1, Some(e.to_string())),
+        },
         _ => (0, None),
+    }
+}
+
+/// Remove `dir` only if it exists and is empty. Idempotent; ignores errors (a
+/// non-empty dir or a race just leaves it in place).
+fn remove_dir_if_empty(dir: &Path) {
+    if dir.is_dir()
+        && std::fs::read_dir(dir)
+            .map(|mut it| it.next().is_none())
+            .unwrap_or(false)
+    {
+        let _ = std::fs::remove_dir(dir);
+    }
+}
+
+/// Strip every `MANAGED_BLOCKS` marker-fenced span from `path` (idempotent). A
+/// missing file or a file with no managed block is a no-op (no write). Matches the
+/// begin marker by prefix (it carries a `v:/profile:/hash:` suffix) and the end
+/// marker exactly, removing the fenced span inclusive of both marker lines plus a
+/// single trailing blank line if present, to avoid accreting blank lines.
+fn strip_managed_blocks(path: &Path) -> std::io::Result<()> {
+    let Ok(original) = std::fs::read_to_string(path) else {
+        return Ok(()); // absent / unreadable — nothing to strip.
+    };
+    let lines: Vec<&str> = original.lines().collect();
+    let mut out: Vec<&str> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    let mut changed = false;
+    while i < lines.len() {
+        let trimmed = lines[i].trim_start();
+        if let Some((_, end)) = MANAGED_BLOCKS
+            .iter()
+            .find(|(begin, _)| trimmed.starts_with(begin))
+        {
+            // Skip until (and including) the matching end marker.
+            let mut j = i + 1;
+            while j < lines.len() && lines[j].trim_start() != *end {
+                j += 1;
+            }
+            // j is the end-marker line (or EOF if unterminated — strip to EOF).
+            i = if j < lines.len() { j + 1 } else { j };
+            // Swallow one trailing blank line so blocks don't leave a gap.
+            if i < lines.len() && lines[i].trim().is_empty() {
+                i += 1;
+            }
+            changed = true;
+            continue;
+        }
+        out.push(lines[i]);
+        i += 1;
+    }
+    if !changed {
+        return Ok(());
+    }
+    let mut text = out.join("\n");
+    // Preserve a single trailing newline if the original had one.
+    if original.ends_with('\n') && !text.is_empty() {
+        text.push('\n');
+    }
+    std::fs::write(path, text)
+}
+
+/// Delete `.claude/settings.json` only when it carries no meaningful content after
+/// bd's entry-scoped hook removal — i.e. it parses to an object with no non-empty
+/// values (`{}`, `{"hooks": {}}`). Otherwise leave it untouched (never clobber a
+/// recommended-settings baseline, #30). Prunes a now-empty `.claude/`. Idempotent.
+fn prune_empty_settings(repo_root: &Path) -> std::io::Result<()> {
+    let claude_dir = repo_root.join(".claude");
+    let settings = claude_dir.join("settings.json");
+    let Ok(text) = std::fs::read_to_string(&settings) else {
+        return Ok(()); // absent — no-op.
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return Ok(()); // unparseable — leave it; do not risk data loss.
+    };
+    if json_is_effectively_empty(&value) {
+        std::fs::remove_file(&settings)?;
+        remove_dir_if_empty(&claude_dir);
+    }
+    Ok(())
+}
+
+/// True when a JSON value carries no meaningful content: `null`, an empty
+/// string/array, or an object all of whose values are themselves effectively
+/// empty (so `{}` and `{"hooks": {}}` both qualify). Non-empty scalars (numbers,
+/// bools, non-empty strings/arrays/objects) are meaningful.
+fn json_is_effectively_empty(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Null => true,
+        serde_json::Value::String(s) => s.is_empty(),
+        serde_json::Value::Array(a) => a.is_empty(),
+        serde_json::Value::Object(m) => m.values().all(json_is_effectively_empty),
+        serde_json::Value::Bool(_) | serde_json::Value::Number(_) => false,
     }
 }
 
@@ -709,6 +935,127 @@ mod tests {
                 "update db metadata version"
             ]
         );
+    }
+
+    // #31 B.3: strip removes the marker-fenced managed block (and a trailing
+    // blank), leaves surrounding hand-authored content, and is idempotent.
+    #[test]
+    fn strip_managed_blocks_removes_block_and_is_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let f = tmp.path().join("AGENTS.md");
+        let body = "# My Agents\n\nKeep this.\n\n\
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:abc -->\n\
+## Beads\nremove me\n\
+<!-- END BEADS INTEGRATION -->\n\n\
+## Tail\nkeep this too.\n";
+        std::fs::write(&f, body).unwrap();
+
+        strip_managed_blocks(&f).unwrap();
+        let after = std::fs::read_to_string(&f).unwrap();
+        assert!(!after.contains("BEGIN BEADS"), "marker block removed");
+        assert!(!after.contains("remove me"));
+        assert!(after.contains("Keep this."));
+        assert!(after.contains("## Tail"));
+        assert!(after.ends_with('\n'));
+
+        // Re-run: no further change.
+        strip_managed_blocks(&f).unwrap();
+        assert_eq!(std::fs::read_to_string(&f).unwrap(), after);
+    }
+
+    // #31 B.3: a file with no managed block is untouched; a missing file is a no-op.
+    #[test]
+    fn strip_managed_blocks_noop_when_clean() {
+        let tmp = tempfile::tempdir().unwrap();
+        let f = tmp.path().join("CLAUDE.md");
+        std::fs::write(&f, "# beads-skills\n\n@AGENTS.md\n").unwrap();
+        strip_managed_blocks(&f).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&f).unwrap(),
+            "# beads-skills\n\n@AGENTS.md\n"
+        );
+        // Absent file: Ok, no panic.
+        strip_managed_blocks(&tmp.path().join("nope.md")).unwrap();
+    }
+
+    // #31 B.4: prune deletes an empty/hook-only settings.json (and the dir) but
+    // NEVER a settings.json carrying a real key (a #30 baseline).
+    #[test]
+    fn prune_settings_deletes_only_when_empty() {
+        // Empty-ish → deleted.
+        for content in ["{}", r#"{"hooks": {}}"#, r#"{"hooks": {"x": []}}"#] {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path().join(".claude");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("settings.json"), content).unwrap();
+            prune_empty_settings(tmp.path()).unwrap();
+            assert!(
+                !dir.join("settings.json").exists(),
+                "empty settings.json deleted: {content}"
+            );
+            assert!(!dir.exists(), "empty .claude pruned: {content}");
+        }
+
+        // Meaningful baseline → preserved.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join(".claude");
+        std::fs::create_dir_all(&dir).unwrap();
+        let baseline = r#"{"todoFeatureEnabled": false}"#;
+        std::fs::write(dir.join("settings.json"), baseline).unwrap();
+        prune_empty_settings(tmp.path()).unwrap();
+        assert!(
+            dir.join("settings.json").exists(),
+            "baseline settings.json preserved"
+        );
+
+        // Absent file → no-op (no panic).
+        let tmp2 = tempfile::tempdir().unwrap();
+        prune_empty_settings(tmp2.path()).unwrap();
+    }
+
+    // #31 B.4: json_is_effectively_empty classification.
+    #[test]
+    fn json_empty_classification() {
+        let empty = ["{}", r#"{"hooks": {}}"#, "[]", r#""""#, "null"];
+        for s in empty {
+            let v: serde_json::Value = serde_json::from_str(s).unwrap();
+            assert!(json_is_effectively_empty(&v), "{s} is empty");
+        }
+        let full = [r#"{"a": 1}"#, "true", "0", r#"["x"]"#, r#"{"k": {"n": 1}}"#];
+        for s in full {
+            let v: serde_json::Value = serde_json::from_str(s).unwrap();
+            assert!(!json_is_effectively_empty(&v), "{s} is NOT empty");
+        }
+    }
+
+    // #31 B.3: rmdir-beads-skill removes the dir and prunes empty parents, but
+    // leaves a `.agents/` that holds other content. Idempotent.
+    #[test]
+    fn rmdir_beads_skill_prunes_and_is_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skill = tmp.path().join(".agents/skills/beads");
+        std::fs::create_dir_all(&skill).unwrap();
+        std::fs::write(skill.join("SKILL.md"), "x").unwrap();
+        let cmd: Vec<String> = ["<native>", "rmdir-beads-skill"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let (rc, err) = apply_native(&cmd, tmp.path(), &tmp.path().join(".beads"));
+        assert_eq!(rc, 0);
+        assert!(err.is_none());
+        assert!(!tmp.path().join(".agents").exists(), "empty .agents pruned");
+
+        // Re-run on a clean tree: still rc 0.
+        let (rc2, _) = apply_native(&cmd, tmp.path(), &tmp.path().join(".beads"));
+        assert_eq!(rc2, 0);
+
+        // A .agents/ with other content is preserved.
+        let tmp2 = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp2.path().join(".agents/skills/beads")).unwrap();
+        std::fs::create_dir_all(tmp2.path().join(".agents/rules")).unwrap();
+        apply_native(&cmd, tmp2.path(), &tmp2.path().join(".beads"));
+        assert!(!tmp2.path().join(".agents/skills/beads").exists());
+        assert!(tmp2.path().join(".agents/rules").exists(), ".agents kept");
     }
 
     // REQ-YF-PRE-007: native chmod step is a no-op (rc 0) when .beads/ is absent.
