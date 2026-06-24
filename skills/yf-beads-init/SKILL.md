@@ -142,7 +142,12 @@ This skill is the home for "is bd usable here?". A beads skill's preflight shoul
    JSON), route the operator to `/yf-beads-init` (or run `yf preflight yf-beads-init --json`
    / `yf doctor --repair`) rather than re-deriving the repair steps. The always-loaded companion rule
    `protocols/BEADS_INIT.md` carries this trigger so it fires regardless of which skill is
-   active.
+   active. It also folds in two general bd-usage mandates (use-bd-for-all-tracking;
+   non-interactive shell-flag safety) consolidated from the now-retired orphan rule
+   `~/.claude/rules/BEADS.md` — an unowned user-scoped rule no skill installed or upgraded.
+   That orphan is retired by a manual `rm -f ~/.claude/rules/BEADS.md` after install (it is
+   not repo-tracked; CLI detail routed to `yf-beads-extra`, the land-the-plane push stays in
+   `yf-beads-upstream`'s `UPSTREAM_TRACKING.md`).
 
 ## Reference skills
 

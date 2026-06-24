@@ -41,7 +41,18 @@ portable `issues.jsonl` export.
 
 Ships `protocols/BEADS_INIT.md` (installed to the rules surface). It carries the always-loaded
 trigger contract — verify-before-use, the false-negative invariant, and repair-safety
-invariants — so the preflight check fires regardless of which beads skill is active.
+invariants — so the preflight check fires regardless of which beads skill is active. It also
+carries two general bd-usage mandates (use-bd-for-all-tracking; non-interactive shell-flag
+safety) folded in from the retired orphan rule.
+
+### Retirement of `~/.claude/rules/BEADS.md`
+
+`protocols/BEADS_INIT.md` consolidates the keep-worthy content of the legacy, unowned
+user-scoped rule `~/.claude/rules/BEADS.md` (which no skill installed, upgraded, or carried
+across machines). CLI/issue-type detail routed to `yf-beads-extra`; the land-the-plane push
+is owned by `yf-beads-upstream`'s `UPSTREAM_TRACKING.md`. After installing this skill
+(`yf skills install`), **delete the orphan rule manually**: `rm -f ~/.claude/rules/BEADS.md`.
+It is not a repo-tracked file, so retirement is a documented manual step, not a repo change.
 
 ## Layout
 
