@@ -24,9 +24,11 @@ allowed-tools:
 
 # yf-beads-hygiene
 
-Audit and clean up the **content** of a beads dependency graph — orphaned beads and dangling
-edges — without un-gating live work. Distinct from `yf-beads-init`, which verifies and repairs
-beads **config and DB health**: hygiene assumes an already-healthy DB and operates on the graph.
+Audit and clean up the **content** of a beads dependency graph — without un-gating live work —
+along two axes: a **graph-content audit** (`audit`/`repair`/`restore`: orphaned beads and
+dangling edges) and a **reconcile** pass (the local↔upstream active-vs-parked boundary). Distinct
+from `yf-beads-init`, which verifies and repairs beads **config and DB health**: hygiene assumes
+an already-healthy DB and operates on the graph.
 
 This skill exists because an ad-hoc "cleanup orphaned beads" pass produced a **dangerous false
 positive** — 11 valid live-gate edges flagged "dangling" because `bd list` hides gate beads and
@@ -78,6 +80,38 @@ enumerates every dependency edge via `bd show` on each bead, resolves each edge 
 
 A live-gate edge is **never** reported as dangling — that invariant is the whole point of #29.
 
+## Reconcile (the second axis: local↔upstream boundary, read-only-first)
+
+`audit` works on dependency **edges** (orphaned / dangling within the local graph). `reconcile`
+works on a different axis — the **local↔upstream active-vs-parked boundary**, classifying
+**beads** (not edges): which local beads are actively worked vs which are parked work that
+belongs upstream until a plan pulls them back.
+
+```bash
+uv run "$SKILL_DIR/scripts/beads_hygiene.py" reconcile          # read-only proposal
+uv run "$SKILL_DIR/scripts/beads_hygiene.py" reconcile --json   # machine-readable
+uv run "$SKILL_DIR/scripts/beads_hygiene.py" reconcile --apply --record hoist.json   # delegate hoists (prompts)
+```
+
+The engine computes the **active set** — a bead is active iff `status == in_progress`, OR
+(`status == open` AND claimed, i.e. `owner` non-empty), OR it is an **open** parent-chain
+ancestor of an active bead (walked to a fixed point). Everything else non-closed (open-unclaimed,
+blocked, deferred) is **non-active**. It then reports:
+
+- **Hoist candidates** — the non-active beads; they belong upstream until pulled back.
+- **Obsolete upstream issues** — open tracking issues with a **mechanical** delivered signal
+  (linked plan's `plan.md` shows `Status: complete`, or a merged PR). Proposal-only — reconcile
+  **never** auto-closes an upstream issue.
+- **Flagged for human review** — open issues with no resolvable delivered signal (never flagged
+  obsolete on a guess).
+
+**The carve — hygiene proposes, `yf-beads-upstream` executes.** `reconcile` is read-only by
+default. The gated `--apply` (with `--yes` to skip the prompt, `--record` for the round-trip
+record) does **not** push or close beads itself — it **delegates** each non-active hoist to
+`yf-beads-upstream` (`upstream.py hoist`, which dry-runs then `bd close`s a reversible tombstone).
+A wrong hoist is reversible via `upstream.py unhoist --record <file>`. On a wedged/corrupted DB
+`reconcile` routes to `yf-beads-init` exactly like the audit.
+
 ## Repair (gated; only after the audit)
 
 ```bash
@@ -110,4 +144,7 @@ that a one-command round trip.
   `bd list`, edge mutation, defensive JSON parsing, `bd dep cycles`). Referenced, not restated.
 - **`yf-beads-init`** — verify/repair beads **config & DB health**; hygiene routes here on a
   wedged/corrupted DB.
+- **`yf-beads-upstream`** — the **execution** side of the reconcile carve: hygiene proposes hoist
+  candidates / obsolete issues; `yf-beads-upstream` executes the push and reversible `bd close`
+  (`upstream.py hoist`/`unhoist`). Reconcile never pushes or closes beads itself.
 - **`beads`** — the canonical routine loop (`bd ready`/`bd show`/`bd close`).

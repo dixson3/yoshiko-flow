@@ -43,6 +43,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `per-skill-spec` | `skills/*/SPEC.md` | spec | fixed | optional |
 | `skill-diagram-png` | `skills/*/spec/*.png` | source | derived | optional |
 | `docs-diagram-png` | `docs/diagrams/*.png` | source | derived | optional |
+| `classifier-canonical` | `skills/yf-beads-hygiene/scripts/beads_hygiene.py` (the `classify_active` core) | source | fixed | required |
+| `classifier-copy` | `skills/yf-beads-upstream/scripts/upstream.py` (the `# --- CANONICAL …VERBATIM COPY` region) | source | derived | required |
 
 ## 2. Source-of-Truth Edges
 
@@ -74,6 +76,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-spec-readme` | `macro-spec` | `project-readme` | behavioral |
 | `e-guardrails-readme` | `guardrails` | `project-readme` | cross-ref |
 | `e-skillspec-skillmd` | `per-skill-spec` | `skill-md` | contract |
+| `e-classifier-copy` | `classifier-canonical` | `classifier-copy` | contract |
 
 ## 3. Per-Edge Contracts
 
@@ -105,6 +108,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. (The REQ-YF-PRE-004 config-path typo was operator-ratified and corrected in SPEC — SPEC/README/impl now agree on `.yf-<skill>.local.json`.) |
 | `e-guardrails-readme` | `field-set-subset` | any guardrail (`GUARDRAILS.md` GR-*) that constrains user-facing behavior README documents (e.g. operator-owned files `yf` must not edit, install/migration behavior) is reflected, not contradicted, in `README.md`. |
 | `e-skillspec-skillmd` | `field-set-subset` | for a skill carrying a `SPEC.md`, the `SKILL.md` behavior does not violate any REQ-* statement in that spec; read each and compare. A fixed-authority conflict (the spec is stale) is a CONFLICT, not a FAIL (§7). |
+| `e-classifier-copy` | `value-equal` | the active-set classifier is authored once in `yf-beads-hygiene` and carried as a verbatim copy in `yf-beads-upstream` (plan-013 deliberate duplication for install independence). The functions `classify_active`, `_directly_active`, `_has_owner`, `_is_closed`, the `ActiveSetReport` dataclass, and the `Edge`/`ACTIVE_*`/`PARENT_CHILD`/`OPEN`/`IN_PROGRESS`/`CLOSED_STATUSES` constants they depend on must be **identical** between `beads_hygiene.py` and the fenced `# --- CANONICAL …VERBATIM COPY` region of `upstream.py` (compare body-for-body; surrounding banner/whitespace excluded). The hygiene copy is fixed authority — a divergent upstream copy is the copy drifting (FAIL on `classifier-copy`). |
 
 ## 4. Referencers (orphan check)
 
@@ -148,6 +152,8 @@ content-agreement axis).
 | `skills/*/spec/*.md` | `e-spec-compliance` |
 | `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values` |
 | `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
+| `skills/yf-beads-hygiene/scripts/beads_hygiene.py` | `e-skill-script-cli`, `e-json-contract`, `e-classifier-copy` |
+| `skills/yf-beads-upstream/scripts/upstream.py` | `e-skill-script-cli`, `e-json-contract`, `e-classifier-copy` |
 | `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars` |
 | `skills/*/templates/*` | `e-template-ref` |
 | `skills/*/protocols/*.md` | `e-protocol-rule` |

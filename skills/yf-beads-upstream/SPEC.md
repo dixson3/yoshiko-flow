@@ -91,23 +91,58 @@ companion rule.
   beads upstream") shall live in the SKILL `description`; the procedural close-time /
   land-the-plane push trigger shall live **only** in the always-loaded companion rule, never in
   the description.
-- **REQ-BUP-043** the granularity of upstream pushes shall be operator-configurable
-  (`coarse` | `granular`); under the project default (`coarse`) one tracking issue is filed per
-  plan-scale effort, not one per execution bead.
+- **REQ-BUP-043** *(implemented)* the granularity of upstream pushes shall be
+  operator-configurable via `custom.upstream.granularity` (`coarse` | `granular`); unset or any
+  unrecognized value defaults to `coarse`. Under `coarse` (the formalized existing default) one
+  tracking issue is filed per plan-scale effort; under `granular` one issue is filed per hoisted
+  bead. Read inspects the config text for the `(not set)` sentinel — never the exit code
+  (false-negative invariant). `coarse` is the **tested happy path**; `granular` is implemented but
+  not the tested-happy-path. The two coexist: flipping `coarse`→`granular` leaves existing coarse
+  trackers intact, because hoist is create-or-map via the bd `External:` dedup mapping — already-
+  mapped beads update their tracker in place rather than re-creating (`upstream.py` `granularity`,
+  `hoist_issue_count`).
+- **REQ-BUP-044** *(testable)* the unattended land-the-plane no-prompt hoist path shall be
+  gated by `custom.upstream.auto_hoist_followons` (default-deny: enabled only on the literal
+  string `true`; unset/empty/`false`/any other value resolves disabled, mirroring the
+  `custom.upstream.enabled` short-circuit). When disabled, land-the-plane follow-on hoist is
+  propose-with-confirm only (`upstream.py` `auto_hoist_followons`).
+- **REQ-BUP-045** *(testable)* the `hoist` operation shall ensure an upstream issue per
+  granularity (create-or-map via `External:`), **dry-run the push first** (REQ-BUP-013 /
+  REQ-SAFE-001), then remove the bead locally with `bd close -r "<destination>"` — a reversible
+  tombstone recording the upstream destination, **never** `bd delete`. Hoist honors the
+  never-bare-sync (scoped `--issues`) and inline-auth invariants (`upstream.py` `plan_hoist`,
+  `cmd_hoist`).
+- **REQ-BUP-046** *(testable)* land-the-plane follow-on detection shall distinguish a **narrow**
+  signal (a `discovered-from` edge into the plan subtree **AND** non-active status — auto-eligible)
+  from a **broad** signal (created under the subtree after intake — gated-proposal-only, since it
+  may catch a bead still being worked). The no-prompt path (REQ-BUP-044) is restricted to the
+  narrow set; the broad set is never auto-hoisted (`upstream.py` `detect_followons`,
+  `plan_land_hoist`).
+- **REQ-BUP-047** *(testable)* a wrongly-hoisted bead shall be restorable via `un-hoist`:
+  `bd update <id> --status open` reopens it from its `close_reason` tombstone (the upstream issue
+  stays); a `--record` file supports batch round-trip (`upstream.py` `plan_unhoist`, `cmd_unhoist`).
 
 ## 3. Interfaces
 
-- **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (open/blocked/deferred push
-  candidates, flagging those already carrying an `External:` mapping; defensive `--json` parse
-  per `yf-beads-extra`) and `mappings --issues <csv> [--json]` (report each bead's `External:` URL
-  or null). `scripts/manifest_update.py` restamps the companion-rule manifest hash. Upstream
-  pushes use bd's first-class `bd github|gitlab|jira push <ids>` (≡ scoped `sync --push-only`).
+- **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (non-active push candidates via
+  the shared active-set classifier, flagging those already carrying an `External:` mapping;
+  defensive `--json` parse per `yf-beads-extra`), `mappings --issues <csv> [--json]` (report each
+  bead's `External:` URL or null), `granularity`/`config [--json]` (report the
+  `custom.upstream.granularity` and `custom.upstream.auto_hoist_followons` knobs),
+  `followons --parent <id> --intake <ts> [--json]` (narrow vs broad follow-on detection),
+  `hoist --issues <csv> --dest <d> [--apply]` (ensure issue per granularity → reversible
+  `bd close -r`, dry-run-first), `land --parent <id> --intake <ts> --dest <d> [--apply]`
+  (land-the-plane follow-on hoist; propose-with-confirm default), and
+  `unhoist (--issues <csv> | --record <file>) [--apply]` (reopen from tombstone).
+  `scripts/manifest_update.py` restamps the companion-rule manifest hash. Upstream pushes use bd's
+  first-class `bd github|gitlab|jira push <ids>` (≡ scoped `sync --push-only`).
 - **Companion rule:** `protocols/UPSTREAM_TRACKING.md` (+ `protocols/manifest.json`,
   sha256 + semver `1.0.0`) — the always-loaded close-time/land-the-plane trigger contract,
   carrying the silent-no-op-when-disabled clause and the safety invariant. After editing the
   rule, restamp via `manifest_update.py`.
-- **Config / state:** beads config under `custom.upstream.*` and `github.*`/`gitlab.*`/`jira.*`
-  (no token); `dolt.local-only`. Per-skill operator config moves to `.yf-beads-upstream.local.json`
+- **Config / state:** beads config under `custom.upstream.*` (`enabled`, `backend`,
+  `granularity` [coarse|granular, REQ-BUP-043], `auto_hoist_followons` [default-deny, REQ-BUP-044])
+  and `github.*`/`gitlab.*`/`jira.*` (no token); `dolt.local-only`. Per-skill operator config moves to `.yf-beads-upstream.local.json`
   and runtime state to `.yf/yf-beads-upstream/` under the macro preflight kernel; legacy
   `.beads-upstream.local.json` / `.state/beads-upstream/` migrate via macro `REQ-YF-MIGRATE-001`.
   Preflight/config moves to `yf` per macro `REQ-YF-PRE-*`.

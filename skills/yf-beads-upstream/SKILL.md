@@ -175,6 +175,29 @@ bd dolt remote list                    # any configured remote?
 If a dolt remote **is** configured, confirm with the operator before `bd config set dolt.local-only true`.
 If none, set it. Skip the flip entirely for backend `none`.
 
+### 5 — Optional policy knobs (granularity, auto-hoist)
+
+Two optional `custom.upstream.*` keys tune hoist behavior. Both are read by inspecting the config
+text for the `(not set)` sentinel — never the exit code (false-negative invariant).
+
+```bash
+bd config set custom.upstream.granularity coarse        # coarse (default) | granular
+bd config set custom.upstream.auto_hoist_followons true  # opt-in unattended hoist (default-deny)
+```
+
+- **`custom.upstream.granularity`** — `coarse` (default; the formalized existing operative default)
+  files **one tracking issue per plan-scale effort**; `granular` files **one issue per hoisted
+  bead**. Unset or any unrecognized value → `coarse`. `coarse` is the **tested happy path**;
+  `granular` is implemented but not the tested-happy-path. The two **coexist** — flipping
+  `coarse`→`granular` leaves existing coarse trackers intact, because hoist is create-or-map via the
+  bd `External:` dedup mapping: an already-mapped bead updates its tracker in place rather than
+  re-creating. Inspect with `uv run ${SKILL_DIR}/scripts/upstream.py config --json`.
+- **`custom.upstream.auto_hoist_followons`** — **default-deny**, enabled only on the literal string
+  `true` (unset/empty/`false`/anything else = disabled), mirroring `custom.upstream.enabled`. When
+  enabled it permits the **unattended no-prompt** land-the-plane hoist path (restricted to the
+  narrow signal — see Push step §7). When disabled (the default), land-the-plane follow-on hoist is
+  **propose-with-confirm** only.
+
 ## Push step (land-the-plane)
 
 Push **open + deferred** beads (blocked, descoped, discovered-but-not-done, follow-ups) upstream
@@ -306,7 +329,36 @@ uv run ${SKILL_DIR}/scripts/upstream.py land --parent <plan-molecule-id> \
 
 The hoist itself reuses the Push step machinery (dry-run push first, scoped `--issues`, inline
 auth, reversible close). Narrow vs broad detection is `followons`; the gating decision is pure
-(`plan_land_hoist`, fixture-tested). To reverse a wrong hoist, see un-hoist (`unhoist`).
+(`plan_land_hoist`, fixture-tested). To reverse a wrong hoist, see un-hoist below.
+
+### 8 — Standalone hoist & un-hoist
+
+Beyond the land-the-plane `land` wrapper, two lower-level operations are available directly.
+
+**`hoist`** — ensure an upstream issue for explicit bead(s) per the configured granularity
+(`coarse` → one tracker for the set; `granular` → one per bead), via create-or-map on the bd
+`External:` mapping, then remove each bead locally:
+
+```bash
+uv run ${SKILL_DIR}/scripts/upstream.py hoist --issues <id1>,<id2> --dest <plan-id-or-url> [--apply]
+```
+
+The emitted sequence always **dry-runs the push first** (REQ-SAFE-001), then the real scoped push,
+then `bd close -r "hoisted upstream to <dest> …"` per bead — a **reversible tombstone**, never
+`bd delete`. Dry-run/plan-only by default; `--apply` executes. Already-mapped beads update their
+existing tracker in place (the `External:` dedup), so re-hoisting is safe and a `coarse`→`granular`
+flip never re-creates a tracker that already exists.
+
+**`un-hoist`** — reopen a wrongly-hoisted bead from its `close_reason` tombstone (the upstream
+issue stays put):
+
+```bash
+uv run ${SKILL_DIR}/scripts/upstream.py unhoist --issues <id1>,<id2> [--apply]
+uv run ${SKILL_DIR}/scripts/upstream.py unhoist --record <file-of-ids> [--apply]   # batch round-trip
+```
+
+This runs `bd update <id> --status open` per bead. Dry-run by default; `--apply` executes. The
+`--record` file (one bead ID per line) supports the gated reconcile batch round-trip.
 
 ## Status / pull
 
@@ -373,6 +425,11 @@ The `--issues` / `--parent` / `--dry-run` flags are confirmed present on backend
 - **Only `description` syncs upstream.** Content that must reach the issue body goes in the bead's
   `description`, not `notes`/`design`; `bd update --description` replaces (never appends), and
   `bd show --json` is a list — see Push step §6.
+- **Hoist removes reversibly, never destructively.** Hoist closes a bead with `bd close -r`
+  (a tombstone recording the upstream destination), **never** `bd delete`; the dry-run push still
+  runs first and the push stays scoped to `--issues`. Un-hoist reopens it from that tombstone.
+  The unattended no-prompt hoist is opt-in (`custom.upstream.auto_hoist_followons`, default-deny)
+  and narrow-signal-only — an in-progress bead is never auto-hoisted.
 
 ## See also
 
