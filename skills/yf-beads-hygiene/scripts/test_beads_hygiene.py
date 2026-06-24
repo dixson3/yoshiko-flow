@@ -154,3 +154,124 @@ def test_parse_bd_json_handles_warning_prefix_and_array():
 def test_parse_bd_json_empty_is_none():
     assert bh.parse_bd_json("") is None
     assert bh.parse_bd_json("   ") is None
+
+
+# --- REQ-HYG-011: classify_active (the canonical active-set core, plan-013 B.1) ---
+
+def _bead(id_, status="open", owner="", issue_type="task"):
+    return {"id": id_, "status": status, "owner": owner, "issue_type": issue_type}
+
+
+def _pc_edge(child, parent):
+    """A parent-child edge as collect_edges produces it: blocked=child depends-on blocker=parent."""
+    return bh.Edge(blocked=child, blocker=parent, dep_type="parent-child", target=None)
+
+
+def test_classify_active_in_progress_is_active():
+    beads = {"a": _bead("a", status="in_progress")}
+    rep = bh.classify_active(beads, [])
+    assert rep.active == ["a"]
+    assert rep.non_active == []
+    assert rep.reasons["a"] == bh.ACTIVE_IN_PROGRESS
+
+
+def test_classify_active_open_and_claimed_is_active():
+    beads = {"a": _bead("a", status="open", owner="user@example.com")}
+    rep = bh.classify_active(beads, [])
+    assert rep.active == ["a"]
+    assert rep.reasons["a"] == bh.ACTIVE_CLAIMED
+
+
+def test_classify_active_open_ancestor_of_active_child_is_active():
+    """An OPEN parent-chain ancestor (walk parent-child edges) of an active bead is active."""
+    beads = {
+        "epic": _bead("epic", status="open", issue_type="epic"),
+        "mol": _bead("mol", status="open", issue_type="molecule"),
+        "task": _bead("task", status="in_progress"),  # the active leaf
+    }
+    edges = [_pc_edge("task", "mol"), _pc_edge("mol", "epic")]  # task -> mol -> epic
+    rep = bh.classify_active(beads, edges)
+    assert set(rep.active) == {"task", "mol", "epic"}
+    assert rep.reasons["mol"] == bh.ACTIVE_ANCESTOR
+    assert rep.reasons["epic"] == bh.ACTIVE_ANCESTOR
+    assert rep.non_active == []
+
+
+def test_classify_active_open_unclaimed_is_non_active():
+    beads = {"a": _bead("a", status="open", owner="")}
+    rep = bh.classify_active(beads, [])
+    assert rep.non_active == ["a"]
+    assert rep.active == []
+
+
+def test_classify_active_blocked_is_non_active():
+    beads = {"a": _bead("a", status="blocked", owner="user@example.com")}
+    rep = bh.classify_active(beads, [])
+    # blocked is never active even when claimed (only in_progress / open+owner / open-ancestor).
+    assert rep.non_active == ["a"]
+    assert rep.active == []
+
+
+def test_classify_active_deferred_is_non_active():
+    beads = {"a": _bead("a", status="deferred")}
+    rep = bh.classify_active(beads, [])
+    assert rep.non_active == ["a"]
+
+
+def test_classify_active_closed_excluded_from_both_buckets():
+    beads = {
+        "live": _bead("live", status="in_progress"),
+        "done": _bead("done", status="closed"),
+    }
+    rep = bh.classify_active(beads, [])
+    assert rep.active == ["live"]
+    assert rep.non_active == []
+    assert "done" not in rep.reasons
+
+
+def test_classify_active_closed_ancestor_not_promoted():
+    """A closed ancestor of an active bead is NOT promoted (closed beads are excluded)."""
+    beads = {
+        "epic": _bead("epic", status="closed", issue_type="epic"),
+        "task": _bead("task", status="in_progress"),
+    }
+    edges = [_pc_edge("task", "epic")]
+    rep = bh.classify_active(beads, edges)
+    assert rep.active == ["task"]
+    assert "epic" not in rep.reasons
+
+
+# --- REQ-HYG-011: find_obsolete_upstream (delivered-signal classifier, plan-013 B.1) ---
+
+def test_find_obsolete_complete_plan_is_obsolete():
+    issues = [{"number": 35, "title": "track", "plan": "plan-012"}]
+    out = bh.find_obsolete_upstream(issues, plan_status_lookup=lambda r: "complete")
+    assert len(out[bh.OBSOLETE]) == 1
+    assert out[bh.OBSOLETE][0]["signal"] == bh.OBSOLETE_PLAN_COMPLETE
+    assert out[bh.FLAG_FOR_REVIEW] == []
+
+
+def test_find_obsolete_incomplete_plan_is_not_obsolete():
+    issues = [{"number": 38, "title": "track", "plan": "plan-013"}]
+    out = bh.find_obsolete_upstream(issues, plan_status_lookup=lambda r: "approved")
+    assert out[bh.OBSOLETE] == []
+    assert len(out[bh.FLAG_FOR_REVIEW]) == 1
+    assert out[bh.FLAG_FOR_REVIEW][0]["signal"] == "unresolvable"
+
+
+def test_find_obsolete_unresolvable_is_flag_for_review_never_obsolete():
+    issues = [{"number": 99, "title": "no linked plan"}]
+    out = bh.find_obsolete_upstream(issues, plan_status_lookup=lambda r: None)
+    assert out[bh.OBSOLETE] == []
+    assert len(out[bh.FLAG_FOR_REVIEW]) == 1
+
+
+def test_find_obsolete_merged_pr_signal_is_obsolete():
+    issues = [{"number": 40, "title": "track", "plan": "plan-013"}]
+    out = bh.find_obsolete_upstream(
+        issues,
+        plan_status_lookup=lambda r: "approved",     # plan not complete
+        pr_merged_lookup=lambda i: True,              # but linked PR merged
+    )
+    assert len(out[bh.OBSOLETE]) == 1
+    assert out[bh.OBSOLETE][0]["signal"] == bh.OBSOLETE_PR_MERGED
