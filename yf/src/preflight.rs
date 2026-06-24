@@ -1005,7 +1005,7 @@ mod tests {
         );
         assert_eq!(
             verdict.version.as_deref(),
-            Some("1.0.1"),
+            Some("1.0.2"),
             "update_available carries the current manifest version"
         );
         std::fs::remove_dir_all(&tmp).ok();
@@ -1025,7 +1025,7 @@ mod tests {
         let env = test_env(&repo, &rules);
         let verdict = check_rule("yf-beads-init", "BEADS_INIT.md", &env);
         assert_eq!(verdict.outcome, "ok");
-        assert_eq!(verdict.version.as_deref(), Some("1.0.1"));
+        assert_eq!(verdict.version.as_deref(), Some("1.0.2"));
         std::fs::remove_dir_all(&tmp).ok();
     }
 
