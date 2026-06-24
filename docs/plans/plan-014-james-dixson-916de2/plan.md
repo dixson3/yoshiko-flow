@@ -3,7 +3,7 @@
 **ID:** plan-014-james-dixson-916de2
 **Author:** james-dixson
 **Created:** 2026-06-24
-**Status:** approved
+**Status:** reconciling
 **Epic:** beads-skills-mol-mqa
 **Phase log:**
 - 2026-06-24 scoping: initial scope captured
@@ -15,6 +15,8 @@
 - 2026-06-24 drafting: v3 — pinned shape (b) regenerate-fenced-block; folded N2/N3/Missing
 - 2026-06-24 approved: operator approved
 - 2026-06-24 intake: epic beads-skills-mol-mqa poured
+- 2026-06-24 executing: start gate resolved
+- 2026-06-24 reconciling: execution complete; entering merge-back
 
 ## Objective
 
