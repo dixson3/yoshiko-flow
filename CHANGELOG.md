@@ -4,6 +4,31 @@ All notable changes to Yoshiko Flow (`yf`) are documented here. The version sour
 of truth is the `yf` crate version in `yf/Cargo.toml`; releases are cut by pushing a
 matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release).
 
+## Unreleased
+
+### Reconcile policy: local beads = active work only (plan-013, #38 + #17)
+
+- **yf-beads-upstream** — implements `custom.upstream.granularity` (`coarse`|`granular`,
+  default `coarse`; fills the previously-unimplemented REQ-BUP-043) and a default-deny
+  `custom.upstream.auto_hoist_followons` knob. Adds a `hoist` operation (per-granularity
+  create-or-map via `External:`, dry-run-first, reversible `bd close -r` — never `bd delete`),
+  narrow-vs-broad follow-on detection, an `un-hoist`/restore path, and a land-the-plane flow
+  that **proposes follow-on hoists with a single confirm by default** (no-prompt only under
+  the opt-in key, narrow signal only). `enumerate` now uses the shared active-set definition.
+  Companion rule `UPSTREAM_TRACKING.md` 1.0.2 → 1.1.0.
+- **yf-beads-hygiene** — new read-only-first `reconcile` pass: classifies the active set
+  (in_progress / claimed-open / open ancestors) and lists non-active local beads as hoist
+  candidates plus obsolete upstream issues (mechanical delivered signal; flag-for-review
+  fallback, never auto-close). Gated `--apply`/`--yes`/`--record` **delegates** the hoist to
+  yf-beads-upstream (the carve: hygiene proposes, upstream executes).
+- **DRIFT-CHECK.md** — new `e-classifier-copy` edge asserting the active-set classifier
+  (authored once in yf-beads-hygiene, copied verbatim into yf-beads-upstream for install
+  independence) stays identical across both.
+
+#### yf-beads-init — prune empty `.codex/config.toml` residual (dqo)
+- Repair now removes the bare `[features]` residual `bd setup codex --remove` leaves behind,
+  deleting `.codex/config.toml` only when effectively empty (then pruning an empty `.codex/`).
+
 ## v0.2.0 — 2026-06-24
 
 Hardens the yf/beads runtime, adds a beads-graph hygiene skill, and consolidates the
