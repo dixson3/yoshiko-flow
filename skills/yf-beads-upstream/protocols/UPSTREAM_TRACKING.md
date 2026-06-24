@@ -14,6 +14,15 @@ upstream before the session ends.
 unconfigured, `false`, or backend `none`), in which case this trigger is a **silent no-op** — do
 not enumerate, prompt, or nag.
 
+**Follow-on hoist (close-time).** At land-the-plane, follow-on beads are hoisted upstream and
+removed locally (reversible `bd close -r` tombstone). **Default = propose-with-confirm**: emit the
+follow-on batch and require explicit confirmation (matches the confirm-required push contract — no
+auto-close). The **no-prompt** unattended path runs **only** when
+`custom.upstream.auto_hoist_followons` is `true`, and even then is restricted to the **narrow
+signal** (`discovered-from` into the plan subtree AND non-active). The broad signal
+(created-after-intake) and any non-follow-on reconcile stay **gated**. Procedure: SKILL.md "Push
+step → Follow-on hoist".
+
 ## Preflight detect-and-offer trigger (gated, one-shot)
 
 On a beads preflight in an **interactive context that can persist a decision** (can write config),

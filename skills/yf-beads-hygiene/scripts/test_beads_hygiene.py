@@ -275,3 +275,140 @@ def test_find_obsolete_merged_pr_signal_is_obsolete():
     )
     assert len(out[bh.OBSOLETE]) == 1
     assert out[bh.OBSOLETE][0]["signal"] == bh.OBSOLETE_PR_MERGED
+
+
+# --- B.3: gated reconcile --apply delegates hoist to yf-beads-upstream --------
+
+import json as _json
+import types
+
+
+class _Args:
+    """Minimal argparse.Namespace stand-in for cmd_reconcile."""
+    def __init__(self, **kw):
+        self.json = kw.get("json", False)
+        self.apply = kw.get("apply", False)
+        self.yes = kw.get("yes", False)
+        self.record = kw.get("record", None)
+
+
+def _stub_reconcile_env(monkeypatch, beads, *, gh_issues=None, plan_status=None):
+    """Stub every live-DB / shell touchpoint so cmd_reconcile runs purely on fixtures.
+
+    `beads` is {id: bead-dict}. No `bd`, no `gh`, no plan-disk read, no real shell-out.
+    """
+    monkeypatch.setattr(bh, "db_is_wedged", lambda: (False, ""))
+    monkeypatch.setattr(bh, "load_universe", lambda: beads)
+    # collect_edges drives off bd show; with no parent-child edges the active set is
+    # decided directly. Return [] so classify_active uses status/owner only.
+    monkeypatch.setattr(bh, "collect_edges", lambda universe, resolver=bh.show: [])
+    monkeypatch.setattr(bh, "gh_issue_list", lambda: list(gh_issues or []))
+    monkeypatch.setattr(bh, "_plan_status_from_disk", lambda ref: plan_status)
+
+
+def test_reconcile_default_is_read_only_no_delegation(monkeypatch, capsys):
+    """Default reconcile (no --apply) never delegates a hoist."""
+    beads = {"a": _bead("a", status="open", owner="")}  # non-active => candidate
+    _stub_reconcile_env(monkeypatch, beads)
+    calls = []
+    rc = bh.cmd_reconcile(_Args(apply=False), runner=lambda cmd: calls.append(cmd))
+    assert rc == 0
+    assert calls == []  # nothing delegated without --apply
+    assert "Dry run" in capsys.readouterr().out
+
+
+def test_reconcile_apply_yes_delegates_each_non_active_bead(monkeypatch, capsys):
+    """--apply --yes delegates ONE upstream hoist per non-active bead, unattended."""
+    beads = {
+        "a": _bead("a", status="open", owner=""),                 # non-active
+        "b": _bead("b", status="in_progress"),                    # active -> NOT hoisted
+        "c": _bead("c", status="deferred"),                       # non-active
+    }
+    _stub_reconcile_env(monkeypatch, beads)
+    calls = []
+    rc = bh.cmd_reconcile(
+        _Args(apply=True, yes=True), runner=lambda cmd: calls.append(cmd), script="/x/upstream.py"
+    )
+    assert rc == 0
+    hoisted_ids = {cmd[cmd.index("--issues") + 1] for cmd in calls}
+    assert hoisted_ids == {"a", "c"}          # active "b" not hoisted
+    for cmd in calls:
+        assert cmd[:4] == ["uv", "run", "/x/upstream.py", "hoist"]
+        assert cmd[-1] == "--apply"
+        assert "--dest" in cmd
+
+
+def test_reconcile_apply_without_yes_requires_confirm(monkeypatch):
+    """--apply without --yes calls _confirm(); a declined confirm makes NO delegation."""
+    beads = {"a": _bead("a", status="open", owner="")}
+    _stub_reconcile_env(monkeypatch, beads)
+    monkeypatch.setattr(bh, "_confirm", lambda prompt: False)  # operator declines
+    calls = []
+    rc = bh.cmd_reconcile(_Args(apply=True, yes=False), runner=lambda cmd: calls.append(cmd))
+    assert rc == 1
+    assert calls == []
+
+
+def test_reconcile_apply_confirm_accepted_delegates(monkeypatch):
+    beads = {"a": _bead("a", status="open", owner="")}
+    _stub_reconcile_env(monkeypatch, beads)
+    monkeypatch.setattr(bh, "_confirm", lambda prompt: True)
+    calls = []
+    rc = bh.cmd_reconcile(_Args(apply=True, yes=False),
+                          runner=lambda cmd: calls.append(cmd), script="/x/upstream.py")
+    assert rc == 0
+    assert len(calls) == 1
+    assert calls[0][calls[0].index("--issues") + 1] == "a"
+
+
+def test_reconcile_record_writes_round_trip_json(monkeypatch, tmp_path):
+    """--record writes a JSON record reversible via upstream.py unhoist --record."""
+    beads = {"a": _bead("a", status="open", owner="")}
+    _stub_reconcile_env(monkeypatch, beads)
+    rec = tmp_path / "hoist-record.json"
+    rc = bh.cmd_reconcile(
+        _Args(apply=True, yes=True, record=str(rec)),
+        runner=lambda cmd: None, script="/x/upstream.py",
+    )
+    assert rc == 0
+    data = _json.loads(rec.read_text())
+    assert [h["id"] for h in data["hoisted"]] == ["a"]
+    entry = data["hoisted"][0]
+    assert "dest" in entry and "command" in entry
+    assert entry["command"][:4] == ["uv", "run", "/x/upstream.py", "hoist"]
+
+
+def test_reconcile_obsolete_upstream_never_auto_closed(monkeypatch):
+    """Obsolete-upstream findings are proposal-only: --apply delegates hoists but the only
+    runner calls are upstream HOISTS — no close of any upstream issue."""
+    beads = {"a": _bead("a", status="open", owner="")}
+    # An upstream issue whose linked plan is complete => classified OBSOLETE.
+    gh_issues = [{"number": 35, "title": "track plan-012", "plan_ref": "plan-012"}]
+    _stub_reconcile_env(monkeypatch, beads, gh_issues=gh_issues, plan_status="complete")
+    calls = []
+    rc = bh.cmd_reconcile(
+        _Args(apply=True, yes=True), runner=lambda cmd: calls.append(cmd), script="/x/upstream.py"
+    )
+    assert rc == 0
+    # Every delegated command is a hoist; none references the obsolete issue / a close.
+    assert all(cmd[3] == "hoist" for cmd in calls)
+    assert not any("close" in c or "35" in c for cmd in calls for c in cmd)
+    # The hoist is for the local non-active bead only.
+    assert {cmd[cmd.index("--issues") + 1] for cmd in calls} == {"a"}
+
+
+def test_reconcile_apply_no_candidates_no_delegation(monkeypatch, capsys):
+    """--apply with only active beads delegates nothing."""
+    beads = {"b": _bead("b", status="in_progress")}
+    _stub_reconcile_env(monkeypatch, beads)
+    calls = []
+    rc = bh.cmd_reconcile(_Args(apply=True, yes=True), runner=lambda cmd: calls.append(cmd))
+    assert rc == 0
+    assert calls == []
+    assert "Nothing to hoist" in capsys.readouterr().out
+
+
+def test_dest_for_uses_plan_ref_then_falls_back_to_id():
+    assert bh._dest_for({"id": "x-1", "plan": "plan-013"}) == "plan-013"
+    assert bh._dest_for({"id": "x-2", "title": "fix for plan-009 thing"}) == "plan-009"
+    assert bh._dest_for({"id": "x-3", "title": "no ref"}) == "x-3"

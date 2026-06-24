@@ -6,9 +6,11 @@
 Subcommands:
   audit              Read-only. Build the full universe, resolve every dependency edge via
                      `bd show`, classify each edge, and report. Never mutates.
-  reconcile          Read-only. Classify the local active set, list NON-ACTIVE beads as
+  reconcile          Read-only-first. Classify the local active set, list NON-ACTIVE beads as
                      hoist candidates (belong upstream), and flag obsolete upstream issues
-                     (delivered work). Never mutates (the gated --apply hoist is a later bead).
+                     (delivered work). Read-only by default; a GATED --apply DELEGATES each
+                     non-active hoist to yf-beads-upstream (never pushes itself). Obsolete
+                     upstream findings are proposal-only (never auto-closed).
   repair             Gated repair. Re-run the audit, propose ONLY truly-dangling edge
                      removals, require confirmation, mutate, then verify with `bd dep cycles`.
   restore            Round-trip: re-add edges from a removal record produced by `repair`.
@@ -31,14 +33,23 @@ Direct-CLI gotchas (gate semantics, `bd show` vs `bd list`, edge mutation, defen
 parsing, `bd dep cycles`) live in the `yf-beads-extra` skill — referenced, not restated.
 
 Run:  uv run beads_hygiene.py audit [--json]
+      uv run beads_hygiene.py reconcile [--json] [--apply] [--yes] [--record <file>]
       uv run beads_hygiene.py repair [--apply] [--yes] [--record <file>]
       uv run beads_hygiene.py restore --record <file> [--apply]
 Tests: uv run --with pytest python3 -m pytest test_beads_hygiene.py -q
+
+The reconcile carve (plan-013 Epic B): hygiene PROPOSES, yf-beads-upstream EXECUTES. A gated
+`reconcile --apply` does NOT push beads itself — it delegates each non-active hoist candidate to
+the upstream skill's `upstream.py hoist --issues <id> --dest <dest> --apply` op (which dry-runs
+first, then `bd close -r` a reversible tombstone). Obsolete-upstream findings are PROPOSAL-ONLY:
+reconcile never auto-closes an upstream issue. The `--record` file is the round-trip record so a
+wrong hoist is reversible via `upstream.py unhoist --record <file>`.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -528,11 +539,56 @@ def _plan_status_from_disk(plan_ref: str) -> str | None:
     return None
 
 
-def cmd_reconcile(args) -> int:
-    """Read-only reconcile pass: local non-active beads (hoist candidates) + obsolete upstream.
+# --- the hygiene<->upstream carve: hygiene PROPOSES, upstream EXECUTES (B.3) ---
 
-    Mirrors cmd_audit's preflight + --json shape. Mutation (--apply) is intentionally NOT
-    implemented here (bead B.3); the code is structured so B.3 can add a gated apply path.
+def _upstream_script() -> str:
+    """Absolute path to the yf-beads-upstream `upstream.py` (the hoist executor).
+
+    The carve forbids hygiene from duplicating push logic: the actual hoist is shelled to the
+    upstream skill's script. Both skills live side-by-side under skills/, so resolve relative
+    to this file: skills/yf-beads-hygiene/scripts/ -> skills/yf-beads-upstream/scripts/.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    skills = os.path.dirname(os.path.dirname(here))  # .../skills
+    return os.path.join(skills, "yf-beads-upstream", "scripts", "upstream.py")
+
+
+def _dest_for(bead: dict) -> str:
+    """The `--dest` recorded in the hoist's close reason: the bead's linked plan, else its id.
+
+    A non-active bead that belongs upstream is most usefully tracked against its plan. We parse
+    a `plan-NNN` ref from explicit fields then title/description; absent any, the bead id is a
+    safe, unambiguous fallback destination.
+    """
+    explicit = bead.get("plan") or bead.get("plan_id") or bead.get("plan_ref")
+    if explicit:
+        return str(explicit)
+    ref = _plan_ref_from_text(f"{bead.get('title') or ''}\n{bead.get('description') or ''}")
+    return ref or str(bead.get("id"))
+
+
+def delegate_hoist(bead_id: str, dest: str, *, script: str, runner) -> list[str]:
+    """Delegate ONE bead's hoist to yf-beads-upstream (never push from hygiene).
+
+    Builds and runs `uv run <upstream.py> hoist --issues <id> --dest <dest> --apply`. The
+    upstream `hoist` op dry-runs the push first, then `bd close -r` a reversible tombstone.
+    `runner` is injected (subprocess.run by default) so tests stub the shell-out entirely.
+    Returns the exact argv that was (or would be) run, for the round-trip record.
+    """
+    cmd = ["uv", "run", script, "hoist", "--issues", bead_id, "--dest", dest, "--apply"]
+    runner(cmd)
+    return cmd
+
+
+def cmd_reconcile(args, *, runner=None, script=None) -> int:
+    """Read-only-first reconcile: non-active beads (hoist candidates) + obsolete upstream.
+
+    Mirrors cmd_repair's gating EXACTLY: read-only proposal by default; --apply without --yes
+    confirms interactively; --apply --yes proceeds unattended; --record writes a round-trip
+    record. On apply, each non-active hoist candidate is DELEGATED to yf-beads-upstream (the
+    carve). Obsolete-upstream findings are PROPOSAL-ONLY — listed, never auto-closed.
+
+    `runner`/`script` are injected for tests (no live shell-out / bd).
     """
     wedged, why = db_is_wedged()
     if wedged:
@@ -549,6 +605,7 @@ def cmd_reconcile(args) -> int:
             "status": universe[bid].get("status"),
             "title": universe[bid].get("title"),
             "issue_type": universe[bid].get("issue_type"),
+            "dest": _dest_for(universe[bid]),
         }
         for bid in active.non_active
     ]
@@ -583,7 +640,60 @@ def cmd_reconcile(args) -> int:
         ))
     else:
         _print_reconcile(active, hoist_candidates, obsolete_upstream, flag_for_review)
+
+    # --- gating (mirrors cmd_repair) -----------------------------------------
+    if not getattr(args, "apply", False):
+        if not args.json:
+            print("\nDry run. Re-run with --apply (and --yes to skip the prompt) to hoist "
+                  "non-active beads via yf-beads-upstream.")
+        return 0
+    if not hoist_candidates:
+        if not args.json:
+            print("\nNothing to hoist (no non-active beads).")
+        return 0
+    if not getattr(args, "yes", False) and not _confirm(
+        f"Hoist {len(hoist_candidates)} non-active bead(s) via yf-beads-upstream?"
+    ):
+        print("Aborted — no changes made.")
+        return 1
+
+    # --- apply: DELEGATE each non-active hoist to yf-beads-upstream ----------
+    # The carve: hygiene proposes, upstream executes. Obsolete-upstream findings are NOT acted
+    # on here — they remain proposal-only (never auto-closed by reconcile --apply).
+    runner = runner or (lambda cmd: run_cmd(cmd))
+    script = script or _upstream_script()
+    hoisted = []
+    for c in hoist_candidates:
+        cmd = delegate_hoist(c["id"], c["dest"], script=script, runner=runner)
+        hoisted.append({"id": c["id"], "dest": c["dest"], "command": cmd})
+
+    record = {"hoisted": hoisted}
+    if args.record:
+        with open(args.record, "w", encoding="utf-8") as fh:
+            json.dump(record, fh, indent=2)
+        print(f"\nHoist record written to {args.record} "
+              f"(reverse a wrong hoist with: upstream.py unhoist --record {args.record}).")
+
+    print(f"\nDelegated {len(hoisted)} hoist(s) to yf-beads-upstream. "
+          "Obsolete upstream issues were NOT closed (proposal-only).")
+    print(
+        "\nMutated. Land the plane: bd dolt commit && bd dolt push && git push "
+        "(keeps the graph + audit trail consistent)."
+    )
     return 0
+
+
+def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Run a delegated command (the upstream hoist shell-out). Raises BdError on failure."""
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except FileNotFoundError as e:
+        raise BdError(f"{cmd[0]} not on PATH") from e
+    if proc.returncode != 0:
+        raise BdError(f"{' '.join(cmd)} failed: {proc.stderr.strip()}")
+    if proc.stdout.strip():
+        print(proc.stdout.strip())
+    return proc
 
 
 def _print_reconcile(active, hoist_candidates, obsolete_upstream, flag_for_review) -> None:
@@ -592,16 +702,16 @@ def _print_reconcile(active, hoist_candidates, obsolete_upstream, flag_for_revie
     if hoist_candidates:
         print("\nHoist candidates (non-active local beads — belong upstream until pulled back):")
         for c in hoist_candidates:
-            print(f"  {c['id']} [{c['status']}] {c.get('title') or ''}")
+            print(f"  {c['id']} [{c['status']}] -> {c['dest']}  {c.get('title') or ''}")
     if obsolete_upstream:
-        print(f"\nObsolete upstream issues ({len(obsolete_upstream)}) — delivered, proposable for close:")
+        print(f"\nObsolete upstream issues ({len(obsolete_upstream)}) — delivered, "
+              "proposal-only (reconcile --apply never closes them):")
         for o in obsolete_upstream:
             print(f"  #{o['number']} {o.get('title') or ''} ({o['signal']})")
     if flag_for_review:
         print(f"\nFlagged for human review ({len(flag_for_review)}) — no mechanical delivered signal:")
         for o in flag_for_review:
             print(f"  #{o['number']} {o.get('title') or ''}")
-    print("\nRead-only. (Gated --apply hoist delegates to yf-beads-upstream — not yet implemented.)")
 
 
 def cmd_repair(args) -> int:
@@ -721,9 +831,14 @@ def main(argv=None) -> int:
 
     p_reconcile = sub.add_parser(
         "reconcile",
-        help="Read-only: list non-active local beads (hoist candidates) + obsolete upstream issues.",
+        help="Read-only-first: list non-active beads (hoist candidates) + obsolete upstream; "
+             "gated --apply delegates each hoist to yf-beads-upstream.",
     )
     p_reconcile.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    p_reconcile.add_argument("--apply", action="store_true",
+                             help="Delegate non-active hoists to yf-beads-upstream (default: dry run).")
+    p_reconcile.add_argument("--yes", action="store_true", help="Skip the confirmation prompt.")
+    p_reconcile.add_argument("--record", help="Write a round-trip hoist record (reverse via unhoist).")
     p_reconcile.set_defaults(func=cmd_reconcile)
 
     p_repair = sub.add_parser("repair", help="Gated removal of truly-dangling edges only.")

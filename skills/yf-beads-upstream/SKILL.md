@@ -284,6 +284,30 @@ empty string, and `bd update --description "$empty"` **silently clobbers the exi
 (`bd update` replaces, never appends). Read → verify non-empty → append → write; if you do clobber,
 the prior text survives in the upstream issue body and can be recovered from there.
 
+### 7 — Follow-on hoist (land-the-plane)
+
+At land-the-plane, follow-on beads created during the session are hoisted upstream and removed
+locally (reversible `bd close -r` tombstone — never `bd delete`). The `land` subcommand detects
+follow-ons under the plan subtree and decides what to hoist:
+
+```bash
+uv run ${SKILL_DIR}/scripts/upstream.py land --parent <plan-molecule-id> \
+  --intake <epic-intake-rfc3339> --dest <plan-id-or-url> [--apply]
+```
+
+- **Default = propose-with-confirm.** With no `--apply`, the whole detected batch is emitted as a
+  proposal requiring a single explicit confirmation (matches the confirm-required push contract);
+  nothing is closed. Re-run with `--apply` to execute.
+- **No-prompt path (opt-in).** Only when `custom.upstream.auto_hoist_followons` is the literal
+  `true` does the unattended path hoist without a prompt — and even then **only the narrow signal**
+  (`discovered-from` into the subtree AND non-active). The **broad signal** (created-after-intake)
+  may catch a bead still being worked, so it is **never** auto-hoisted; it stays in the gated
+  proposal. Non-follow-on reconcile is always gated.
+
+The hoist itself reuses the Push step machinery (dry-run push first, scoped `--issues`, inline
+auth, reversible close). Narrow vs broad detection is `followons`; the gating decision is pure
+(`plan_land_hoist`, fixture-tested). To reverse a wrong hoist, see un-hoist (`unhoist`).
+
 ## Status / pull
 
 First read the config and apply the **default-deny** test — enabled only when the value is

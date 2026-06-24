@@ -260,3 +260,153 @@ def test_is_nonactive_classification():
     assert up.is_nonactive({"status": "blocked"}) is True
     assert up.is_nonactive({"status": "deferred"}) is True
     assert up.is_nonactive({"status": "closed"}) is False
+
+
+# --- C.7 ported classifier (verbatim copy) ------------------------------------
+
+def test_classify_active_matches_glossary():
+    beads = {
+        "ip": {"status": "in_progress"},
+        "claimed": {"status": "open", "owner": "alice"},
+        "open_unclaimed": {"status": "open"},
+        "blocked": {"status": "blocked"},
+        "closed": {"status": "closed"},
+    }
+    rep = up.classify_active(beads, [])
+    assert set(rep.active) == {"ip", "claimed"}
+    assert set(rep.non_active) == {"open_unclaimed", "blocked"}
+    # closed is excluded from both buckets
+    assert "closed" not in rep.active and "closed" not in rep.non_active
+
+
+def test_classify_active_open_ancestor_of_active_is_active():
+    # epic (open, unclaimed) is the parent of an in_progress task -> epic is ACTIVE.
+    beads = {
+        "epic": {"status": "open"},
+        "task": {"status": "in_progress"},
+    }
+    edges = [up.Edge(blocked="task", blocker="epic", dep_type="parent-child", target=beads["epic"])]
+    rep = up.classify_active(beads, edges)
+    assert "epic" in rep.active
+    assert rep.reasons["epic"] == up.ACTIVE_ANCESTOR
+
+
+# --- C.7 ENUMERATE-PARITY regression -----------------------------------------
+#
+# The refactored enumerate computes candidates as the NON-ACTIVE set from the single
+# active-set classifier instead of the old status-only CANDIDATE_STATUSES slice. The
+# ONLY intended behavior change vs the old status-only filter is the owner/ancestor
+# refinement: a claimed-open bead (owner set) and an open ANCESTOR of an active bead
+# are now correctly EXCLUDED from the candidate set (they are active work, not parked
+# push candidates). All other statuses partition exactly as before. Container types
+# (epic/molecule/gate) are still dropped. This test pins that behavior with no live bd.
+
+def make_enumerate_universe():
+    """A fixture universe spanning every relevant case.
+
+      t_open       open, unclaimed, task        -> NON-ACTIVE candidate (unchanged)
+      t_blocked    blocked, task                 -> NON-ACTIVE candidate (unchanged)
+      t_deferred   deferred, task                -> NON-ACTIVE candidate (unchanged)
+      t_claimed    open + owner, task            -> EXCLUDED now (owner refinement)
+      t_ip         in_progress, task             -> EXCLUDED (active, unchanged)
+      t_closed     closed, task                  -> EXCLUDED (not a candidate, unchanged)
+      epic_anc     open epic, parent of t_ip     -> EXCLUDED now (open ancestor of active)
+      epic_parked  open epic, parent of t_open   -> dropped as a container type anyway
+    """
+    beads = {
+        "t_open": {"id": "t_open", "status": "open", "issue_type": "task"},
+        "t_blocked": {"id": "t_blocked", "status": "blocked", "issue_type": "task"},
+        "t_deferred": {"id": "t_deferred", "status": "deferred", "issue_type": "task"},
+        "t_claimed": {"id": "t_claimed", "status": "open", "owner": "alice", "issue_type": "task"},
+        "t_ip": {"id": "t_ip", "status": "in_progress", "issue_type": "task"},
+        "t_closed": {"id": "t_closed", "status": "closed", "issue_type": "task"},
+        "epic_anc": {"id": "epic_anc", "status": "open", "issue_type": "epic"},
+        "epic_parked": {"id": "epic_parked", "status": "open", "issue_type": "epic"},
+    }
+    edges = [
+        up.Edge(blocked="t_ip", blocker="epic_anc", dep_type="parent-child", target=beads["epic_anc"]),
+        up.Edge(blocked="t_open", blocker="epic_parked", dep_type="parent-child", target=beads["epic_parked"]),
+    ]
+    return beads, edges
+
+
+def test_enumerate_parity_nonactive_set():
+    beads, edges = make_enumerate_universe()
+    candidates = {r["id"] for r in up.enumerate_candidates(beads, edges)}
+    # The three plain non-active work items survive (parity with the old filter).
+    assert candidates == {"t_open", "t_blocked", "t_deferred"}
+    # Owner/ancestor refinement: claimed-open and the active bead's open ancestor are gone.
+    assert "t_claimed" not in candidates   # claimed-open -> active now
+    assert "epic_anc" not in candidates    # open ancestor of active in_progress -> active now
+    # Unchanged exclusions: in_progress, closed, and container types.
+    assert "t_ip" not in candidates
+    assert "t_closed" not in candidates
+    assert "epic_parked" not in candidates  # dropped as container (and is itself non-active)
+
+
+# --- C.3 land-the-plane hoist -------------------------------------------------
+
+def test_land_default_proposes_whole_batch_requires_confirm():
+    followons = {"narrow": ["t1"], "broad": ["t1", "t2"]}
+    d = up.plan_land_hoist(followons, auto=False)
+    # default: nothing auto-eligible; whole de-duped batch needs a single confirm.
+    assert d["auto_eligible"] == []
+    assert set(d["requires_confirm"]) == {"t1", "t2"}
+    assert d["mode"] == "propose"
+
+
+def test_land_auto_hoists_narrow_only_broad_excluded():
+    followons = {"narrow": ["t1"], "broad": ["t1", "t2"]}
+    d = up.plan_land_hoist(followons, auto=True)
+    # no-prompt: ONLY narrow is auto-eligible; broad-only stays gated.
+    assert d["auto_eligible"] == ["t1"]
+    assert d["requires_confirm"] == ["t2"]   # t2 is broad-only -> never auto
+    assert "t2" not in d["auto_eligible"]
+    assert d["mode"] == "auto"
+
+
+def test_land_non_followon_never_auto_hoisted():
+    # A bead that is not a detected follow-on (absent from narrow AND broad) can never
+    # appear in auto_eligible — even under auto. plan_land_hoist only ever surfaces
+    # ids that detect_followons classified.
+    followons = {"narrow": ["t1"], "broad": []}
+    d = up.plan_land_hoist(followons, auto=True)
+    assert "x_unrelated" not in d["auto_eligible"]
+    assert "x_unrelated" not in d["proposed"]
+    assert d["auto_eligible"] == ["t1"]
+
+
+def test_cmd_land_default_dry_run_no_apply(monkeypatch, capsys):
+    # Default path (auto_hoist disabled): emits a proposal + Dry run, never executes.
+    monkeypatch.setattr(up, "auto_hoist_followons", lambda *a, **k: False)
+    monkeypatch.setattr(up, "granularity", lambda *a, **k: "coarse")
+    monkeypatch.setattr(
+        up, "detect_followons",
+        lambda *a, **k: {"narrow": ["t1"], "broad": ["t1", "t2"]},
+    )
+    executed = []
+    monkeypatch.setattr(up, "run", lambda cmd: executed.append(cmd) or "[]")
+    rc = up.cmd_land("m", "2026-06-24T00:00:00Z", "plan-013", "github", apply=False)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "single confirm required" in out
+    assert "Dry run" in out
+    # NOTHING was hoisted (no bash -c executed) without --apply.
+    assert not any(c[:2] == ["bash", "-c"] for c in executed)
+
+
+def test_cmd_land_auto_path_narrow_only(monkeypatch, capsys):
+    # auto_hoist enabled: the narrow set is auto-eligible (no prompt) while broad-only
+    # stays gated. Still dry-run here (apply=False) so nothing executes.
+    monkeypatch.setattr(up, "auto_hoist_followons", lambda *a, **k: True)
+    monkeypatch.setattr(up, "granularity", lambda *a, **k: "coarse")
+    monkeypatch.setattr(
+        up, "detect_followons",
+        lambda *a, **k: {"narrow": ["t1"], "broad": ["t1", "t2"]},
+    )
+    monkeypatch.setattr(up, "run", lambda cmd: "[]")
+    rc = up.cmd_land("m", "2026-06-24T00:00:00Z", "plan-013", "github", apply=False)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "NO-PROMPT auto-hoist (narrow only): ['t1']" in out
+    assert "Still gated (broad" in out and "t2" in out
