@@ -1,0 +1,731 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>plan.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<link rel="stylesheet" type="text/css" media="all" href="/Users/james/.emacs.d/straight/build/markdown-xwidget/resources/github_css/light.css"  />
+<link rel="stylesheet" type="text/css" media="all" href="/Users/james/.emacs.d/straight/build/markdown-xwidget/resources/highlight_css/atelier-dune-light.css"  /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+  body {
+    box-sizing: border-box;
+    min-width: 200px;
+    max-width: 980px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 45px;
+  }
+</style>
+
+<script
+  type="text/javascript"
+  id="MathJax-script"
+  src="/Users/james/.emacs.d/straight/build/markdown-xwidget/resources/tex-mml-chtml.js"
+></script>
+
+<script type="text/javascript" src="/Users/james/.emacs.d/straight/build/markdown-xwidget/resources/highlight.min.js"></script>
+
+<script type="text/javascript" src="/Users/james/.emacs.d/straight/build/markdown-xwidget/resources/mermaid.min.js"></script>
+
+<script type="text/javascript">
+  // Use highlight.js for syntax highlighting on non-mermaid code blocks.
+  hljs.configure({ noHighlightRe: /^mermaid$/i });
+  hljs.highlightAll();
+</script>
+
+<script type="text/javascript">
+  mermaid.initialize({
+    theme: "default",
+    startOnLoad: true,
+  });
+</script>
+
+<script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", () => {
+    // Add a "markdown-body" class attribute to the body. We must do this because
+    // the GitHub CSS only applies to a div with the "markdown-body" class.
+    document.body.classList.add("markdown-body");
+
+    // If there's a stored scroll location, scroll to that location. Otherwise,
+    // the document resets to the top of the page every time it is refreshed.
+    let prevScroll = sessionStorage.getItem("scrollY");
+    if (prevScroll) window.scroll(0, prevScroll);
+  });
+
+  // Save new scroll locations on scroll.
+  // See: https://developer.mozilla.org/en-US/docs/Web/API/Document/scroll_event
+  let ticking = false;
+  document.addEventListener("scroll", (event) => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        sessionStorage.setItem("scrollY", window.scrollY);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+</script>
+
+<style>
+/*
+ * preview.css — sepia/parchment overrides for the markdown-xwidget live preview.
+ *
+ * Injected (NOT linked from straight/) by init.el's markdown-xwidget block via a
+ * :filter-return advice on `markdown-xwidget-header-html`, which appends this file's
+ * contents as a <style> block. markdown-mode emits the GitHub theme <link>s first and the
+ * header content after (markdown-add-xhtml-header-and-footer), so these rules load LAST and
+ * win the cascade by source order — no !important needed.
+ *
+ * The GitHub light theme (resources/github_css/light.css) is variable-driven: redefining
+ * its custom properties on `.markdown-body` recolors everything that references them
+ * (page, zebra rows, code surfaces, borders). Explicit rules below handle the few places
+ * the theme hardcodes, plus tables, blockquotes, images, and the frontmatter block emitted
+ * by pandoc/markdown-blocks.lua. Every selector is scoped under `.markdown-body` to match
+ * (and override) the theme it layers on. The github theme is deliberately left at "light"
+ * in init.el — it is the base layer these overrides cascade over.
+ *
+ * Palette (operator-chosen sepia/parchment):
+ *   page   #f4ecd8   ink     #5b4636   muted  #7a6a55
+ *   panel  #ece0c4   rule    #d8c8a8   link   #1565c0   accent #8a6d3b
+ */
+
+.markdown-body {
+  /* Recolor the GitHub theme's variables to the sepia palette. */
+  --color-canvas-default: #f4ecd8;   /* page background */
+  --color-canvas-subtle: #ece0c4;    /* zebra rows, code/pre surfaces */
+  --color-fg-default: #5b4636;       /* body ink */
+  --color-fg-muted: #7a6a55;         /* muted text */
+  --color-fg-subtle: #948063;        /* subtle text */
+  --color-border-default: #d8c8a8;   /* table/cell borders */
+  --color-border-muted: #e0d3b4;     /* row separators */
+  --color-neutral-muted: rgba(138, 109, 59, 0.14); /* inline code fill */
+  --color-accent-fg: #1565c0;        /* links */
+  --color-accent-emphasis: #1565c0;
+  --color-attention-subtle: #f6e7b8; /* highlight (e.g. mark) */
+
+  background-color: var(--color-canvas-default);
+  color: var(--color-fg-default);
+}
+
+/* Page chrome: comfortable reading measure + margins (header.html caps width at 980px;
+   keep a slightly narrower text column for long-form readability). */
+.markdown-body {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 56px;
+  line-height: 1.7;
+}
+
+/* Headings: warm accent rule under the top two levels (the theme already underlines h1/h2,
+   recolor it to the sepia rule rather than GitHub grey). */
+.markdown-body h1,
+.markdown-body h2 {
+  border-bottom-color: var(--color-border-default);
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: #4a382b;
+}
+
+/* Links */
+.markdown-body a {
+  color: var(--color-accent-fg);
+  text-decoration: none;
+}
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+/* Tables: stronger borders, filled header, zebra rows. The theme drives zebra off
+   --color-canvas-subtle (set above); reinforce the header fill + border weight here. */
+.markdown-body table {
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  border-collapse: collapse;
+  overflow: hidden;
+}
+.markdown-body table th,
+.markdown-body table td {
+  border: 1px solid var(--color-border-default);
+  padding: 8px 14px;
+}
+.markdown-body table th {
+  background-color: #e4d4ad;       /* header fill, a shade deeper than the zebra panel */
+  color: #4a382b;
+  font-weight: 600;
+  text-align: left;
+}
+.markdown-body table tr {
+  background-color: var(--color-canvas-default);
+  border-top: 1px solid var(--color-border-muted);
+}
+.markdown-body table tr:nth-child(2n) {
+  background-color: var(--color-canvas-subtle);
+}
+
+/* Blockquotes: warm accent bar + muted ink. */
+.markdown-body blockquote {
+  color: var(--color-fg-muted);
+  border-left: 4px solid var(--color-accent-fg);
+  background-color: rgba(138, 109, 59, 0.06);
+  padding: 2px 1em;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Code surfaces. Inline code gets a warm fill; the syntax-highlight theme
+   (atelier-dune-light, set in init.el) colors fenced-block tokens, so only soften the
+   container here. */
+.markdown-body code,
+.markdown-body tt {
+  background-color: var(--color-neutral-muted);
+  border-radius: 4px;
+}
+.markdown-body pre {
+  background-color: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+}
+.markdown-body pre code,
+.markdown-body pre tt {
+  background-color: transparent;
+  border: 0;
+}
+
+/* Inline images: never overflow the reading column; round the corners slightly. Paths
+   already resolve (the preview HTML is written beside the source .md), so this is purely
+   sizing. */
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+/* Horizontal rules in the sepia rule color. */
+.markdown-body hr {
+  background-color: var(--color-border-default);
+}
+
+/*
+ * YAML frontmatter block — emitted by pandoc/markdown-blocks.lua as
+ *   <div class="frontmatter"> ... </div>
+ * wrapping the parsed metadata. Pandoc consumes the --- block under gfm and emits nothing
+ * by default, so without that filter the metadata vanishes; this styles the recovered
+ * block as a calm, inset masthead card (a definition list of key → value).
+ */
+.markdown-body .frontmatter {
+  margin: 0 0 28px;
+  padding: 14px 20px;
+  background-color: #efe4ca;
+  border: 1px solid var(--color-border-default);
+  border-left: 4px solid var(--color-accent, #8a6d3b);
+  border-radius: 6px;
+  font-size: 90%;
+  color: var(--color-fg-muted);
+}
+.markdown-body .frontmatter dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
+  row-gap: 4px;
+  margin: 0;
+}
+.markdown-body .frontmatter dt {
+  font-weight: 600;
+  color: #8a6d3b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 85%;
+  padding: 0;
+}
+.markdown-body .frontmatter dd {
+  margin: 0;
+  color: var(--color-fg-default);
+}
+.markdown-body .frontmatter dd:empty::after {
+  content: "\2014";          /* em dash for empty values */
+  color: var(--color-fg-subtle);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1
+id="plan-yfbeads-health--hygiene-yf-doctor-subcommand-32-suppress-bd-init-cruft-in-yf-beads-init-31-and-new-yf-beads-hygiene-skill-29">Plan:
+yf/beads health &amp; hygiene: yf doctor subcommand (#32), suppress
+bd-init cruft in yf-beads-init (#31), and new yf-beads-hygiene skill
+(#29)</h1>
+<p><strong>ID:</strong> plan-012-james-dixson-a99822
+<strong>Author:</strong> james-dixson <strong>Created:</strong>
+2026-06-23 <strong>Status:</strong> review <strong>Phase
+log:</strong></p>
+<ul>
+<li>2026-06-23 scoping: initial scope captured</li>
+<li>2026-06-23 investigating: 3 experiments identified (INV-1 yf CLI,
+INV-2 bd-init cruft, INV-3 hygiene vs sweep)</li>
+<li>2026-06-23 drafting: 3 findings synthesized; drafting plan v1</li>
+<li>2026-06-23 review: plan v1 presented</li>
+</ul>
+<h2 id="objective">Objective</h2>
+<p>A coherent "yf/beads health, hygiene, and operator-alignment" plan
+delivering four upstream issues that share the beads/yf
+runtime-integrity surface:</p>
+<ul>
+<li><strong>#32</strong> — a <code>yf doctor</code> subcommand that
+validates <code>yf</code>'s runtime prerequisites (<code>beads</code>,
+<code>uv</code>), built on a small <strong>extensible check
+framework</strong> so future prereqs drop in.</li>
+<li><strong>#31</strong> — extend <code>yf-beads-init</code> to
+<strong>suppress/clean the cruft <code>bd init</code> injects</strong>
+(instruction-file boilerplate, harness hook dirs, git hooks) so a
+fresh/repaired repo matches our conventions automatically.</li>
+<li><strong>#29</strong> — a new
+<strong><code>yf-beads-hygiene</code></strong> skill: safe,
+read-only-first audit and gated repair of orphaned beads and dangling
+dependency edges, correctly classifying gate-typed edges.</li>
+<li><strong>#30</strong> — document a recommended Claude
+<code>settings.json</code> baseline, tying each key to the skill
+contract / rule it supports (shares the
+<code>.claude/settings.json</code> surface with #31).</li>
+</ul>
+<p><strong>Out of scope (operator decision):</strong> the version bump +
+tag <strong>release</strong> is a separate land-the-plane step triggered
+after this plan lands — not an epic here.</p>
+<h2 id="motivation">Motivation</h2>
+<p>Each issue closes a gap where the yf/beads runtime can silently
+diverge from our conventions or corrupt real state:</p>
+<ul>
+<li><strong>#32:</strong> the Homebrew formula dropped hard
+<code>depends_on "beads"</code>/<code>"uv"</code> (a brew
+<code>uv</code> was shadowing the vendor copy and breaking
+<code>uv self update</code>). Nothing now guarantees the two runtime
+deps are present and usable; <code>yf</code> needs a read-only
+self-check that also surfaces a shadowed/duplicate install.</li>
+<li><strong>#31:</strong> <code>bd init</code> injects instruction-file
+boilerplate, <code>.agents/skills/beads/</code>, <code>.codex/</code>, a
+<code>.claude/settings.json</code> hook, and activates beads git hooks —
+all of which fight our conventions (AGENTS.md hand-authored primary;
+user-scoped <code>~/.claude/rules/BEADS.md</code>; manual
+<code>bd dolt push</code>, no beads git hooks). Today every fresh repo
+needs manual cleanup.</li>
+<li><strong>#29:</strong> a real ad-hoc "cleanup orphaned beads" session
+produced a <strong>dangerous false positive</strong> — 11 valid
+live-gate edges flagged as "dangling" because <code>bd list</code> hides
+gate beads and truncates at 50 rows. Blindly removing them would have
+un-gated 7 live beads. The safe audit/repair discipline must be encoded
+once.</li>
+<li><strong>#30:</strong> several skill contracts assume the operator
+disabled competing built-ins (Workflows, TodoWrite, native memory). That
+assumption lives only in <code>rules/*.md</code> prose; unset, the model
+can still reach for the disallowed mechanism and skill invariants
+leak.</li>
+</ul>
+<h2 id="upstream-issues">Upstream Issues</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Issue</th>
+<th style="text-align: left;">Title</th>
+<th style="text-align: left;">Disposition</th>
+<th style="text-align: left;">Notes</th>
+<th style="text-align: left;">Resolved By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a
+href="references/upstream-32.md">#32</a></td>
+<td style="text-align: left;"><code>yf doctor</code> subcommand
+(validate beads/uv)</td>
+<td style="text-align: left;">include</td>
+<td style="text-align: left;">yf Rust CLI; extensible check
+framework</td>
+<td style="text-align: left;">Epic A</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a
+href="references/upstream-31.md">#31</a></td>
+<td style="text-align: left;">yf-beads-init: suppress bd-init cruft</td>
+<td style="text-align: left;">include</td>
+<td style="text-align: left;">direct edits to
+<code>yf/src/beads_init.rs</code></td>
+<td style="text-align: left;">Epic B</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a
+href="references/upstream-29.md">#29</a></td>
+<td style="text-align: left;">yf-beads-hygiene skill (orphan/edge
+cleanup)</td>
+<td style="text-align: left;">include</td>
+<td style="text-align: left;">net-new standalone skill (INV-3
+verdict)</td>
+<td style="text-align: left;">Epic C</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a
+href="references/upstream-30.md">#30</a></td>
+<td style="text-align: left;">Recommended Claude settings.json baseline
+docs</td>
+<td style="text-align: left;">include</td>
+<td style="text-align: left;">docs; shares settings.json surface with
+#31</td>
+<td style="text-align: left;">Epic D</td>
+</tr>
+</tbody>
+</table>
+<h2 id="scoping-decisions">Scoping Decisions</h2>
+<ul>
+<li><strong>Release scope:</strong> release (bump
+<code>yf/Cargo.toml</code> + tag) is <strong>separate</strong> — not an
+epic in this plan. Plan delivers #29/#30/#31/#32; release is triggered
+afterward.</li>
+<li><strong>#32 <code>yf doctor</code> breadth:</strong>
+<strong>extensible check framework</strong> — a small check registry so
+future prereqs (git, gh, dolt) drop in, not a one-off beads+uv
+hardcode.</li>
+<li><strong>#29 hygiene reuse:</strong> <strong>investigate then
+decide</strong> — compare the existing yf-plan coordinator resume-sweep
+classification logic to #29's audit before building, to reuse rather
+than duplicate (experiment INV-3).</li>
+<li><strong>Plan root:</strong> vault-default <code>docs/plans/</code>
+(standalone repo, no <code>Incubator/</code>).</li>
+</ul>
+<h2 id="investigation-findings">Investigation Findings</h2>
+<p>Three experiments completed; full writeups in <code>findings/</code>.
+Two surprises reshaped the plan.</p>
+<ul>
+<li><strong><a href="findings/exp-001-yf-cli-structure.md">exp-001 — yf
+CLI structure</a>:</strong> <strong><code>yf doctor</code> already
+exists</strong> (<code>yf/src/cmd/doctor.rs</code>, hardcoded axes
+version/bd/uv/git/skills/rules <strong>+ a <code>--repair</code>
+mode</strong>). So #32 is a <strong>refactor to an extensible
+<code>Check</code> registry</strong>, not greenfield. The existing
+<code>Axis</code> struct + <code>Vec</code> push is ~80% of a registry.
+Recommended shape: a <code>Check</code> trait +
+<code>CheckResult { name, ok, required, detail, remediation }</code> + a
+data-driven registry (<code>BinCheck</code>) so git/gh/dolt become
+one-line adds. Concrete bundled win: consolidate <strong>3 duplicate
+<code>which</code> impls + 2 version parsers</strong>; add the missing
+"resolved-path + version in one call" helper (needed for path reporting
+<strong>and</strong> the homebrew-shadow warning). Switch the exit idiom
+from <code>anyhow::bail!</code> to preflight's
+<code>Result&lt;ExitCode&gt;</code>. New need: a <code>required</code>
+vs warning severity (homebrew-shadow must warn, not fail). <strong>Open
+decision → DEC-1</strong> (<code>--repair</code> vs #32's read-only
+mandate).</li>
+<li><strong><a href="findings/exp-002-bd-init-cruft.md">exp-002 —
+bd-init cruft</a>:</strong>
+<code>bd init --skip-hooks --skip-agents</code> suppresses <strong>all
+four cruft classes at init time</strong> (cleanest path). The
+yf-beads-init <strong>Python engine is retired</strong> — the live
+engine is the Rust source <strong><code>yf/src/beads_init.rs</code>
+(present and editable in this repo)</strong>: <code>repair()</code> at
+line 309, the contradictory <code>bd hooks install --force</code> at
+line 349. (exp-002's "not readable here" caveat was wrong — corrected in
+the finding.) #31's work is direct Rust edits to
+<code>beads_init.rs</code> plus the skill's init branch, not
+<code>beads_init.py</code>. <strong>Direct conflict:</strong> repair
+step <code>bd hooks install --force</code>
+(<code>beads_init.rs:349</code>) is the inverse of #31 and must be made
+conditional. Repair-time removers are bd-native + idempotent
+(<code>bd hooks uninstall</code>,
+<code>bd setup claude/codex --remove</code>,
+<code>rm -rf .agents/skills/beads/</code>, marker-scoped CLAUDE.md
+strip). This repo is the reference "correct" target. <strong>#30
+coupling:</strong> #31's settings.json cleanup must be
+<strong>entry-scoped</strong> (prefer
+<code>bd setup claude --remove</code>), never wholesale-delete, so it
+can't clobber a #30 baseline.</li>
+<li><strong><a href="findings/exp-003-hygiene-vs-sweep.md">exp-003 —
+hygiene vs sweep</a>:</strong> <strong>VERDICT: standalone
+skill.</strong> yf-plan's coordinator sweep computes only
+<code>stuck</code> (by status) over a parent subtree and never resolves
+dependency edges — none of #29's four classifications exist to reuse.
+Build <code>yf-beads-hygiene</code> independently;
+<strong>reference</strong> yf-beads-extra for gate/edge/JSON gotchas
+(don't restate); optionally copy (not import) the ~12-line
+universe-builder pattern. Two doc gaps to close under #29: add the
+"<code>bd list</code> hides gates + truncates at 50" gotcha and
+<code>bd dep cycles</code> to yf-beads-extra.</li>
+</ul>
+<h3 id="pre-investigation-checkpoint">Pre-investigation checkpoint</h3>
+<p>Experiments (independent, run in parallel):</p>
+<ul>
+<li><strong>INV-1 — yf CLI structure:</strong> How is the
+<code>yf</code> Rust CLI organized (clap subcommand wiring, where
+<code>preflight</code>/kernel logic lives, error/exit-code + output
+conventions)? Where does a new <code>doctor</code> subcommand slot in,
+and what's the cleanest shape for an extensible check registry?
+<em>Feeds #32.</em></li>
+<li><strong>INV-2 — bd-init cruft surface:</strong> What does
+<code>bd init</code> actually create (the four cruft classes in #31),
+and what does <code>yf-beads-init</code>/<code>beads_init.py</code>
+already verify/repair? Where would suppress-at-init vs clean-on-repair
+hook in, and is there a <code>hooks.install</code> knob? <em>Feeds
+#31.</em></li>
+<li><strong>INV-3 — hygiene vs coordinator sweep:</strong> Compare
+yf-plan's coordinator resume orphan-sweep classification (stuck/orphan
+detection, gate-edge handling) to #29's audit spec. What is reusable
+(shared classifier/helper) vs genuinely skill-specific? <em>Feeds #29;
+drives the reuse-vs-standalone decision.</em></li>
+</ul>
+<h2 id="approach">Approach</h2>
+<p>Four independent deliverables, sequenced by coupling rather than hard
+dependency. The only real ordering constraint is the <strong>#31 ↔︎ #30
+settings.json surface</strong>: #31's cleanup must be entry-scoped
+before #30 documents a project-scope baseline, so Epic B (#31) lands
+before Epic D (#30). #32 (Rust) and #29 (new skill) are fully parallel
+to each other and to B/D.</p>
+<ul>
+<li><strong>#32 (Rust):</strong> refactor the existing
+<code>yf doctor</code> into a <code>Check</code>-trait registry,
+consolidate the duplicated <code>which</code>/version helpers into one
+resolver returning path+version, add the homebrew-shadow warning with a
+<code>required</code> vs warning severity, and switch to
+<code>Result&lt;ExitCode&gt;</code>.</li>
+<li><strong>#31 (kernel + skill):</strong> make hook/agents install
+opt-out, add repair-time cruft cleanup (bd-native removers), neutralize
+the contradictory <code>bd hooks install --force</code> repair step, and
+update the yf-beads-init skill docs.</li>
+<li><strong>#29 (new skill):</strong> author
+<code>yf-beads-hygiene</code> standalone (read-only audit → gated
+repair), cross-referencing yf-beads-extra; close the two yf-beads-extra
+doc gaps.</li>
+<li><strong>#30 (docs):</strong> a
+<code>docs/recommended-settings.md</code> page (or README section) tying
+each key to the rule/contract it supports, user-scope default +
+project-scope guidance.</li>
+</ul>
+<h3
+id="dec-1--yf-doctor---repair-vs-the-read-only-mandate-operator-decision">DEC-1
+— <code>yf doctor --repair</code> vs the read-only mandate (operator
+decision)</h3>
+<p>#32 says doctor must be read-only; the existing command already has a
+<code>--repair</code> mode that delegates to
+<code>beads_init::repair</code>. <strong>Recommendation:</strong> keep
+<code>--repair</code> as an <strong>explicit opt-in flag</strong> with
+read-only as the default — this satisfies #32 (default verifies, never
+mutates) without removing working repair functionality (and #31's
+cleanup naturally extends that same <code>--repair</code> path).
+Surfaced for red-team / operator confirmation; not blocking the
+draft.</p>
+<h2 id="epics">Epics</h2>
+<h3 id="epic-a-yf-doctor-extensible-check-framework-32">Epic A:
+<code>yf doctor</code> extensible check framework (#32)</h3>
+<ul>
+<li>A.1: Extract a shared tool-resolution helper — one
+<code>resolve_tool(bin) -&gt; Option&lt;PathBuf&gt;</code> (from
+<code>preflight.rs::which_in</code>) + <code>tool_version</code>
+(reusing <code>extract_version_tuple</code>); replace the 3 duplicate
+<code>which</code> impls (<code>beads_init.rs:581</code>,
+<code>preflight.rs:542</code>, <code>common.rs::tool_on_path</code>) and
+2 version parsers. <strong>Acceptance (C2):</strong> the existing
+<code>preflight</code> and <code>beads_init</code> test suites must pass
+post-consolidation (not just new helper unit tests); resolution
+semantics (symlink/PATHEXT) preserved 1:1 per call site; migrate one
+call site at a time behind the shared helper rather than a big-bang
+swap, since <code>yf preflight</code> gates other skills. Unit tests for
+PATH-override + version parse.</li>
+<li>A.2: Define the check abstraction — <code>Check</code> trait +
+<code>CheckResult { name, ok, required, detail, remediation }</code>;
+generalize <code>Axis</code>. depends-on: A.1</li>
+<li>A.3: Implement <code>BinCheck</code> (present + version + resolved
+path + min-version) and port bd/uv to it with remediation strings;
+implement <code>HomebrewShadowCheck</code> (warning severity) for uv.
+depends-on: A.2</li>
+<li>A.4: Port skills/rules axes to <code>Check</code> impls delegating
+to <code>cmd/common.rs</code>; build the registry <code>checks()</code>;
+wire <code>required</code> → exit code; switch doctor body to
+<code>Result&lt;ExitCode&gt;</code>. depends-on: A.3</li>
+<li>A.5: Resolve DEC-1 — keep <code>--repair</code> as explicit opt-in,
+default read-only; update help text. <strong>Exit-idiom split
+(C4):</strong> only the read-only check path adopts
+<code>Result&lt;ExitCode&gt;</code>; <code>run_repair</code>
+(<code>doctor.rs:120</code>) deliberately stays on
+<code>anyhow::bail!</code> (a repair <em>failure</em> is a genuine
+error, unlike a read-only check verdict). depends-on: A.4</li>
+<li>A.6: Update human + <code>--json</code> rendering for the new shape
+(severity, path, remediation); update/extend doctor tests. depends-on:
+A.4</li>
+<li>resolves-upstream: #32 (include)</li>
+</ul>
+<h3 id="epic-b-suppress-bd-init-cruft-in-yf-beads-init-31">Epic B:
+Suppress bd-init cruft in yf-beads-init (#31)</h3>
+<blockquote>
+<p>Engine confirmed editable here: <code>yf/src/beads_init.rs</code>
+(C1). B.1–B.3 are direct Rust edits to that file — no "confirm engine
+location" step needed.</p>
+</blockquote>
+<ul>
+<li>B.1: Init-time suppression — wire the <code>not_initialized</code>
+path to <code>bd init --skip-hooks --skip-agents</code> (+
+<code>dolt.local-only</code>,
+<code>doctor.suppress.git-hooks true</code>).</li>
+<li>B.2: Neutralize the contradiction — make the repair engine's
+<code>bd hooks install --force</code> step
+(<code>beads_init.rs:349</code>) conditional/removed so repair never
+re-installs hooks. depends-on: B.1</li>
+<li>B.3: Repair-time cleanup (idempotent, bd-native) for already-dirtied
+repos: <code>bd hooks uninstall</code> + reset
+<code>core.hooksPath</code>; <code>bd setup claude --remove</code> +
+<code>bd setup codex --remove</code>;
+<code>rm -rf .agents/skills/beads/</code>; marker-scoped
+CLAUDE.md/AGENTS.md block strip. depends-on: B.2</li>
+<li>B.4: Entry-scoped settings.json cleanup (never wholesale-delete;
+delete file only if empty) to stay compatible with #30. depends-on:
+B.3</li>
+<li>B.5: Update yf-beads-init SKILL.md/SPEC.md to document suppression +
+cleanup; refresh manifest hash. depends-on: B.4</li>
+<li>resolves-upstream: #31 (include)</li>
+</ul>
+<h3 id="epic-c-yf-beads-hygiene-skill-29">Epic C:
+<code>yf-beads-hygiene</code> skill (#29)</h3>
+<ul>
+<li>C.1: Close <strong>yf-beads-extra</strong> doc gaps (note: this
+edits a <em>different</em> skill than the epic delivers, so it is
+subject to yf-beads-extra's authoring/manifest conventions) — add the
+"<code>bd list</code> hides gate beads + truncates at 50" gotcha and
+<code>bd dep cycles</code>. Close criteria include the manifest-hash
+refresh.</li>
+<li>C.2: Scaffold <code>yf-beads-hygiene</code> skill (SKILL.md trigger
+contract, SPEC.md) per yf-skill-authoring; route to yf-beads-init on
+wedged/corrupted DB. depends-on: C.1</li>
+<li>C.3: Read-only audit engine — resolve edge targets via
+<code>bd show</code> (never <code>bd list</code>), full universe
+(<code>--all</code> + <code>--type gate</code>); classify true-orphan /
+truly-dangling / satisfied-gate / live-gate. depends-on: C.2</li>
+<li>C.4: Gated repair — propose only truly-dangling removals, require
+confirmation, never touch live-gate edges; post-mutation
+<code>bd dep cycles</code> + land-the-plane push; round-trip restore.
+depends-on: C.3</li>
+<li>C.5: Tests/fixtures for the four classifications incl. the live-gate
+false-positive regression from #29. depends-on: C.4</li>
+<li>resolves-upstream: #29 (include)</li>
+</ul>
+<h3 id="epic-d-recommended-settingsjson-baseline-docs-30">Epic D:
+Recommended settings.json baseline docs (#30)</h3>
+<ul>
+<li>D.1: Author <code>docs/recommended-settings.md</code> — the
+reference config with each key tied to its rule/contract; call out
+<code>disableWorkflows</code> + <code>todoFeatureEnabled:false</code> as
+highest-impact; user-scope default vs project-scope guidance.
+depends-on: B.4 — <strong>insurance only (C3):</strong> #31's cleanup
+(project-scope hook) and #30's baseline (user-scope keys) are disjoint
+surfaces, so D.1 blocks only on B.4's entry-scoped-cleanup <em>decision
+being recorded</em>, not on B.4 implementation.</li>
+<li>D.2: Link it from README; lint as GFM. depends-on: D.1</li>
+<li>resolves-upstream: #30 (include)</li>
+</ul>
+<h2 id="gates">Gates</h2>
+<h3 id="start-gate-mandatory">Start Gate (mandatory)</h3>
+<ul>
+<li>Type: human</li>
+<li>Approvers: operator</li>
+</ul>
+<h3 id="verification-gate--rust-epics-m1">Verification Gate — Rust epics
+(M1)</h3>
+<ul>
+<li>Type: auto</li>
+<li>Condition:
+<code>cd yf &amp;&amp; cargo test &amp;&amp; cargo build</code> green;
+<code>cargo clippy --all-targets -- -D warnings &amp;&amp; cargo fmt --check</code>
+clean (matches <code>.bdplan.local.json</code>
+<code>validate-cmd</code>)</li>
+<li>Blocks: Epic A and Epic B completion (an epic is not "complete"
+until the build/tests are green)</li>
+</ul>
+<h3 id="reconcile-gate-upstream-incorporated">Reconcile Gate (upstream
+incorporated)</h3>
+<ul>
+<li>Type: auto (all execution beads closed)</li>
+<li>Condition: Epics A–D complete (A/B tests-green per Verification
+Gate; C manifest-valid); #29/#30/#31/#32 verified resolved</li>
+<li>Blocks: reconcile step</li>
+</ul>
+<h2 id="risks--mitigations">Risks &amp; Mitigations</h2>
+<ul>
+<li><strong>#32 is a refactor of a shipped command</strong> — regressing
+existing doctor axes (skills/rules/ git) or the <code>--repair</code>
+path. <em>Mitigation:</em> A.6 extends existing tests; port axes 1:1
+before adding registry sugar; DEC-1 keeps <code>--repair</code>
+behavior.</li>
+<li><strong>#31 engine is Rust, not <code>beads_init.py</code></strong>
+— Epic B is direct Rust edits, not skill-doc-only. <em>Resolved
+(C1):</em> the engine is <code>yf/src/beads_init.rs</code>, present and
+editable in this repo (<code>repair()</code> line 309,
+<code>bd hooks install --force</code> line 349). No "confirm engine
+location" step needed; B.1–B.3 target that file directly. Net: the
+earlier "may widen Epic B" risk is retired.</li>
+<li><strong>#31 settings.json cleanup clobbering a #30
+baseline.</strong> <em>Mitigation:</em> B.4 entry-scoped cleanup + D.1
+sequenced after B.4; never wholesale-delete.</li>
+<li><strong>yf-beads-hygiene reproducing the original false
+positive</strong> (un-gating live work). <em>Mitigation:</em> C.3
+resolves via <code>bd show</code>; C.5 regression test on the
+11-live-gate-edge case; C.4 confirmation-gated, never auto-removes
+live-gate edges.</li>
+<li><strong>CLAUDE.md END-marker convention unconfirmed</strong>
+(exp-002 caveat). <em>Mitigation:</em> B.3 verifies against a real
+<code>bd init</code> in a throwaway dir before implementing the strip;
+prefer <code>bd setup claude --remove</code> over manual sed.</li>
+</ul>
+<h2 id="success-criteria">Success Criteria</h2>
+<ul>
+<li><code>yf doctor</code> runs read-only by default, reports bd+uv
+presence/version/resolved-path, warns (non-fatal) on a homebrew-shadowed
+uv, exits non-zero with remediation when a required dep is missing;
+adding a new prereq check is a one-line registry edit; duplicate
+which/version helpers consolidated; existing axes + tests still pass.
+(#32)</li>
+<li>A fresh <code>bd init</code> via yf-beads-init produces no
+instruction-file boilerplate, no <code>.codex/</code>, no
+<code>.agents/skills/beads/</code>, no beads
+<code>.claude/settings.json</code> hook, and leaves
+<code>core.hooksPath</code> at the git default; repair cleans an
+already-dirtied repo idempotently and no longer force-installs hooks.
+(#31)</li>
+<li><code>yf-beads-hygiene</code> exists with the trigger contract;
+audit resolves edge targets via <code>bd show</code> over the full
+universe, classifies gate edges by status, never reports live-gate edges
+as dangling; destructive repair is confirmation-gated + followed by
+<code>bd dep cycles</code> and push; routes to yf-beads-init on a wedged
+DB; the #29 false-positive case is a passing test. (#29)</li>
+<li><code>docs/recommended-settings.md</code> exists, ties each key to
+its rule/contract, flags the two highest-impact keys, covers user vs
+project scope, linked from README, valid GFM. (#30)</li>
+<li>Rust epics A and B land with
+<code>cargo test</code>/<code>cargo build</code> green and clippy/fmt
+clean (M1 Verification Gate); no regression to existing
+<code>yf preflight</code> / <code>yf doctor</code> axes.</li>
+<li>All four upstream issues reconciled (closed with disposition
+notes).</li>
+</ul>
+<h3 id="reconcile-mechanics-m2-m3">Reconcile mechanics (M2, M3)</h3>
+<ul>
+<li><strong>Closing #29–#32 (M2):</strong> these are
+<strong>pre-existing discrete upstream issues</strong>, each closed on
+its own merits with a disposition note. This is consistent with the
+repo's coarse upstream-tracking rule (AGENTS.md) — that rule governs
+<em>creating new</em> tracking issues (one coarse issue per plan), not
+closing issues that already exist. No new plan-level tracking issue is
+created.</li>
+<li><strong>Release handoff (M3):</strong> at reconcile, file a release
+bead (<code>discovered-from</code> this plan's epic) capturing "bump
+<code>yf/Cargo.toml</code> + tag to ship #31/#32 (and the rest)" so the
+out-of-scope release is tracked, not stranded in prose. Release is
+<strong>not</strong> executed by this plan.</li>
+</ul>
+
+</body>
+</html>
