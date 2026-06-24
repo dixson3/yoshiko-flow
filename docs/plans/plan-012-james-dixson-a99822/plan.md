@@ -3,7 +3,7 @@
 **ID:** plan-012-james-dixson-a99822
 **Author:** james-dixson
 **Created:** 2026-06-23
-**Status:** approved
+**Status:** reconciling
 **Epic:** beads-skills-mol-2bi
 **Phase log:**
 - 2026-06-23 scoping: initial scope captured
@@ -13,6 +13,8 @@
 - 2026-06-23 review: operator added two beads-init/upstream-surface scope items — Epic E (fold orphan `~/.claude/rules/BEADS.md` into skill-owned `BEADS_INIT.md`) and Epic F (yf-beads-upstream default `none` + preflight detect-and-offer); re-review pending
 - 2026-06-23 approved: operator approved
 - 2026-06-23 intake: epic beads-skills-mol-2bi poured
+- 2026-06-23 executing: start gate resolved
+- 2026-06-23 reconciling: all 6 epics complete; branch green; entering merge-back
 
 ## Objective
 A coherent "yf/beads health, hygiene, and operator-alignment" plan delivering four
