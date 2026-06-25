@@ -704,18 +704,48 @@ pub fn tracked_canonicalization_drift(repo_root: &Path) -> (bool, bool) {
     (untracked_drift, shim_drift)
 }
 
+/// Read a bd config value via `bd config get <key> --json`, returning the
+/// `value` field as a string. `None` when the command fails or its output
+/// can't be parsed; an *unset* key yields `Some("")` (bd emits `"value": ""`).
+///
+/// The plain-text `bd config get <key>` form prints a `<key> (not set in
+/// config.yaml)` sentinel to stdout at **exit 0** for an unset key — non-empty
+/// output that a naive `!stdout.is_empty()` check misreads as a configured
+/// value (#43). The `--json` form is the unambiguous shape: an empty string
+/// means unset, a non-empty string means configured.
+fn bd_config_value(repo_root: &Path, key: &str) -> Option<String> {
+    let (rc, out, _) = run_in(&["bd", "config", "get", key, "--json"], 30, repo_root);
+    if rc != 0 {
+        return None;
+    }
+    parse_bd_config_value(&out)
+}
+
+/// Pure parser for `bd config get --json` output: the `value` field as a
+/// string. `None` on unparseable JSON; an unset key (`"value": ""`) yields
+/// `Some("")`. Split out from [`bd_config_value`] so the #43 regression — the
+/// `(not set …)` sentinel must NOT be read as a configured value — is testable
+/// without a live `bd`.
+fn parse_bd_config_value(out: &str) -> Option<String> {
+    let v = serde_json::from_str::<serde_json::Value>(out).ok()?;
+    Some(match v.get("value") {
+        Some(serde_json::Value::String(s)) => s.clone(),
+        None | Some(serde_json::Value::Null) => String::new(),
+        Some(other) => other.to_string(),
+    })
+}
+
 /// READ-ONLY detection (#39 B.2, for preflight): whether a non-empty Dolt
 /// `sync.remote` is configured AND the repo is in local-only context
 /// (`dolt.local-only` is true). Pure inspection: never mutates. This is the
 /// drift the `--remove-remote` opt-in clears.
 pub fn has_local_only_remote(repo_root: &Path) -> bool {
-    let (lrc, lout, _) = run_in(&["bd", "config", "get", "dolt.local-only"], 30, repo_root);
-    let local_only = lrc == 0 && lout.trim().eq_ignore_ascii_case("true");
+    let local_only = bd_config_value(repo_root, "dolt.local-only")
+        .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"));
     if !local_only {
         return false;
     }
-    let (rrc, rout, _) = run_in(&["bd", "config", "get", "sync.remote"], 30, repo_root);
-    rrc == 0 && !rout.trim().is_empty()
+    bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty())
 }
 
 /// `git ls-files` for the repo, returning the tracked paths (repo-relative,
@@ -825,9 +855,10 @@ fn remove_hook_shims(repo_root: &Path) -> std::io::Result<()> {
 /// unsets it via `bd config unset sync.remote`. Idempotent: a no-op when no remote
 /// is set. This is the one repair step that *clears* a remote (it never adds one).
 fn remove_dolt_remote(repo_root: &Path) -> std::io::Result<()> {
-    let (rc, out, _err) = run_in(&["bd", "config", "get", "sync.remote"], 30, repo_root);
-    // No remote configured (non-zero or empty value) → clean no-op.
-    if rc != 0 || out.trim().is_empty() {
+    // No remote configured (unparseable or empty value) → clean no-op. Uses the
+    // `--json` reader so the `(not set …)` sentinel isn't misread as a value (#43).
+    let configured = bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty());
+    if !configured {
         return Ok(());
     }
     let (urc, _out, uerr) = run_in(&["bd", "config", "unset", "sync.remote"], 30, repo_root);
@@ -1309,6 +1340,25 @@ mod tests {
             let v: serde_json::Value = serde_json::from_str(s).unwrap();
             assert!(!json_is_effectively_empty(&v), "{s} is NOT empty");
         }
+    }
+
+    // #43: parse_bd_config_value reads the `value` field, and an unset key
+    // (`"value": ""` — the JSON shape of the plain-text `(not set …)` sentinel)
+    // is the empty string, NOT a configured value. This is the regression that
+    // made preflight perpetually flag a bogus "Dolt remote under local-only".
+    #[test]
+    fn bd_config_value_unset_is_empty() {
+        // Unset key — must parse to "" (not the sentinel, not None).
+        let unset = r#"{"key":"sync.remote","location":"config.yaml","value":""}"#;
+        assert_eq!(parse_bd_config_value(unset), Some(String::new()));
+        // Set key — the configured value.
+        let set = r#"{"key":"dolt.local-only","location":"config.yaml","value":"true"}"#;
+        assert_eq!(parse_bd_config_value(set), Some("true".to_string()));
+        // Missing/null value field → empty string (treated as unset).
+        assert_eq!(parse_bd_config_value(r#"{"key":"x"}"#), Some(String::new()));
+        assert_eq!(parse_bd_config_value(r#"{"value":null}"#), Some(String::new()));
+        // Unparseable (e.g. the plain-text sentinel itself) → None.
+        assert_eq!(parse_bd_config_value("sync.remote (not set in config.yaml)"), None);
     }
 
     // dqo: prune-codex deletes the bare `[features]` residual (and the dir) but

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pillow>=10"]
 # ///
 """Convert Markdown to PDF via the pandoc + xelatex pipeline.
 
@@ -9,6 +9,12 @@ A validated pandoc + xelatex pipeline: xelatex engine, a broad-coverage Unicode
 main font on macOS (so glyphs like →, ≤, ≈ render), 1in margins, blue links, and
 a resource-path anchored to the source file's directory so relative image
 references (`![](diagrams/foo.png)`) resolve.
+
+Raster normalization: 16-bit-per-channel and/or alpha PNGs embed but render
+*blank* under xelatex. Before rendering, such referenced PNGs are flattened to
+8-bit RGB (alpha composited onto white) in a run-scoped temp dir, which is
+prepended to --resource-path so the normalized copy is used; the source images
+are never modified. Disable with --no-normalize-images.
 
 Table handling (the usual pain point for wide tables):
   * --table-font shrinks all table text (default footnotesize) so dense, many-
@@ -37,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -75,6 +82,94 @@ def check_deps() -> None:
         )
 
 
+# Image references: Markdown inline `![alt](path)` and raw HTML `<img src=...>`.
+# Reference-style images (`![alt][id]`) are not resolved — uncommon for local
+# rasters and out of scope for this normalizer.
+_MD_IMG_RE = re.compile(r"!\[[^\]]*\]\(\s*<?([^)>\s]+)>?", re.MULTILINE)
+_HTML_IMG_RE = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+
+
+def _referenced_images(md_text: str) -> set[str]:
+    """Local image targets referenced by the Markdown (inline + raw <img>)."""
+    refs: set[str] = set()
+    for rx in (_MD_IMG_RE, _HTML_IMG_RE):
+        for m in rx.finditer(md_text):
+            refs.add(m.group(1))
+    return refs
+
+
+def _png_needs_flatten(path: Path) -> bool:
+    """True when `path` is a PNG that xelatex renders blank: 16-bit-per-channel
+    depth and/or an alpha channel (#44). Reads only the 26-byte IHDR — pure
+    stdlib, no decode. Non-PNG rasters (jpeg/etc.) are 8-bit and opaque, so they
+    return False and are left untouched."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(26)
+    except OSError:
+        return False
+    if len(head) < 26 or head[:8] != b"\x89PNG\r\n\x1a\n":
+        return False
+    bit_depth = head[24]
+    color_type = head[25]  # 4 = gray+alpha, 6 = RGBA
+    return bit_depth == 16 or color_type in (4, 6)
+
+
+def _flatten_png(src_path: Path, dest_path: Path) -> bool:
+    """Write an 8-bit RGB copy of `src_path` to `dest_path`, compositing any
+    alpha onto white. Returns False (and writes nothing) if Pillow is absent or
+    the image can't be read — the caller then leaves the original in place."""
+    try:
+        from PIL import Image
+    except Exception:
+        return False
+    try:
+        with Image.open(src_path) as im:
+            im.load()
+            if "A" in im.mode or (im.mode == "P" and "transparency" in im.info):
+                rgba = im.convert("RGBA")
+                out = Image.new("RGB", rgba.size, (255, 255, 255))
+                out.paste(rgba, mask=rgba.split()[-1])
+            else:
+                out = im.convert("RGB")  # also collapses 16-bit -> 8-bit
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            out.save(dest_path, format="PNG")  # 8-bit RGB, no alpha
+        return True
+    except Exception:
+        return False
+
+
+def normalize_images(src: Path, tmp_root: str) -> Path | None:
+    """Flatten 16-bit / alpha PNGs referenced by `src` into 8-bit RGB copies
+    under a run-scoped mirror dir, preserving each image's path relative to the
+    source dir. Returns the mirror dir to PREPEND to pandoc's --resource-path (so
+    the normalized copy is found before the original), or None when nothing
+    needed flattening. Degrades to None (originals used) if Pillow is absent."""
+    try:
+        text = src.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    src_dir = src.parent.resolve()
+    mirror = Path(tmp_root) / src.stem
+    made_any = False
+    for ref in _referenced_images(text):
+        if ref.startswith(("http://", "https://", "data:")) or os.path.isabs(ref):
+            continue
+        rel = Path(ref)
+        resolved = (src.parent / rel).resolve()
+        # Only mirror images that live under the source dir — the resource-path
+        # trick relies on a clean relative path (a `../` escape can't be mirrored).
+        try:
+            resolved.relative_to(src_dir)
+        except ValueError:
+            continue
+        if not resolved.is_file() or not _png_needs_flatten(resolved):
+            continue
+        if _flatten_png(resolved, mirror / rel):
+            made_any = True
+    return mirror if made_any else None
+
+
 def build_header(table_font: str, landscape: bool) -> str:
     """LaTeX preamble: shrink table fonts, and load pdflscape when needed."""
     parts = []
@@ -90,7 +185,7 @@ def build_header(table_font: str, landscape: bool) -> str:
 
 def convert(src: Path, out: Path, mainfont: str | None, monofont: str | None,
             margin: str, pre_args: list[str], passthrough: list[str],
-            env: dict[str, str]) -> None:
+            env: dict[str, str], resource_path: str) -> None:
     cmd = [
         "pandoc", str(src), "-o", str(out),
         "--pdf-engine=xelatex",
@@ -104,7 +199,7 @@ def convert(src: Path, out: Path, mainfont: str | None, monofont: str | None,
     if monofont:
         cmd += ["-V", f"monofont={monofont}"]
     cmd += [
-        f"--resource-path={src.parent}",
+        f"--resource-path={resource_path}",
         *pre_args,
         *passthrough,
     ]
@@ -146,6 +241,10 @@ def main() -> int:
                     help="keep ```d2```/```csv``` fences verbatim instead of "
                          "rendering them to PDF (default: render via blocks.lua). "
                          "Use when documenting d2/csv syntax itself.")
+    ap.add_argument("--no-normalize-images", action="store_true",
+                    help="skip flattening 16-bit / alpha PNGs to 8-bit RGB "
+                         "(default: normalize, so they don't render blank under "
+                         "xelatex). Originals are never modified in place.")
     args, passthrough = ap.parse_known_args()
     # argparse leaves a leading "--" in the remainder; drop it.
     if passthrough and passthrough[0] == "--":
@@ -178,6 +277,12 @@ def main() -> int:
     render_fences = not args.no_render_fences
     fence_tmpdir: str | None = None
 
+    # Raster normalization (#44): 16-bit / alpha PNGs render blank under xelatex,
+    # so flatten them to 8-bit RGB copies in a run-scoped dir and prepend that dir
+    # to --resource-path. Originals are never touched; reaped with the dir below.
+    normalize = not args.no_normalize_images
+    img_tmpdir: str | None = None
+
     header = build_header(args.table_font, landscape)
     header_path: Path | None = None
     try:
@@ -185,6 +290,9 @@ def main() -> int:
             fence_tmpdir = tempfile.mkdtemp(prefix="md2pdf-fence-")
             env["MD2PDF_FENCE_TMPDIR"] = fence_tmpdir
             pre_args += ["--lua-filter", str(BLOCKS_FILTER)]
+
+        if normalize:
+            img_tmpdir = tempfile.mkdtemp(prefix="md2pdf-img-")
 
         if header:
             fd, name = tempfile.mkstemp(suffix=".tex", prefix="md2pdf-hdr-")
@@ -197,13 +305,20 @@ def main() -> int:
             if not src.is_file():
                 sys.exit(f"error: not a file: {src}")
             out = args.output if args.output else src.with_suffix(".pdf")
+            rpaths = [str(src.parent)]
+            if normalize and img_tmpdir is not None:
+                mirror = normalize_images(src, img_tmpdir)
+                if mirror is not None:
+                    rpaths.insert(0, str(mirror))  # normalized copy wins
             convert(src, out, args.mainfont, args.monofont, args.margin,
-                    pre_args, passthrough, env)
+                    pre_args, passthrough, env, os.pathsep.join(rpaths))
     finally:
         if header_path is not None:
             header_path.unlink(missing_ok=True)
         if fence_tmpdir is not None:
             shutil.rmtree(fence_tmpdir, ignore_errors=True)
+        if img_tmpdir is not None:
+            shutil.rmtree(img_tmpdir, ignore_errors=True)
     return 0
 
 

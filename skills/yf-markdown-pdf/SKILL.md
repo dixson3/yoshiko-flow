@@ -101,6 +101,12 @@ The script runs `pandoc --pdf-engine=xelatex` with: `geometry:margin=1in`,
   missing *glyph* (font present, glyph absent) only warns.
 - **Relative images resolve from the source dir** via `--resource-path`. Keep
   referenced images present, or pandoc errors.
+- **16-bit / alpha PNGs are auto-flattened.** A 16-bit-per-channel and/or
+  alpha-channel PNG embeds but renders **blank** under xelatex. The script
+  detects such referenced PNGs (by their IHDR) and renders an 8-bit RGB copy
+  (alpha composited onto white) into a run-scoped temp dir prepended to
+  `--resource-path`; source files are never modified. Disable with
+  `--no-normalize-images`.
 
 ## Tables
 

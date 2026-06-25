@@ -28,6 +28,13 @@ this skill only renders them.
   `-V geometry:margin=<margin>` (default `1in`) and `-V linkcolor=blue`.
 - **REQ-MDPDF-002** *(testable)* it shall set `--resource-path=<dir of the source .md>` so a
   relative image reference resolves against the source file's directory.
+- **REQ-MDPDF-003a** *(testable)* by default it shall **normalize** referenced PNGs that are
+  16-bit-per-channel and/or carry an alpha channel (which embed but render **blank** under
+  xelatex) — detected via the PNG IHDR — by writing an 8-bit RGB copy (alpha composited onto
+  white) into a run-scoped temp dir prepended to `--resource-path`, so the normalized copy is
+  used. Source files shall **not** be modified; the run-scoped dir shall be reaped after render;
+  `--no-normalize-images` shall disable it; and absence of the imaging library shall degrade
+  gracefully (originals used, build still succeeds).
 - **REQ-MDPDF-003** *(testable)* it shall verify `pandoc` and `xelatex` are on PATH and exit with
   a clear message naming the missing tool(s) if either is absent.
 - **REQ-MDPDF-004** *(testable)* on pandoc non-zero exit the script shall surface stderr and exit

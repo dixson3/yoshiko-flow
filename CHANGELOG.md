@@ -6,6 +6,24 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ## Unreleased
 
+## v0.3.2 — 2026-06-24
+
+### Fixes
+
+- **yf-beads-init: stop flagging a phantom "Dolt remote under local-only" (#43).**
+  The canonicalization-drift detector read `bd config get sync.remote`'s plain-text
+  output, which prints a non-empty `sync.remote (not set in config.yaml)` sentinel at
+  **exit 0** for an *unset* key — misclassified as a configured remote, so preflight
+  reported an unactionable drift instruction that `--remove-remote` (a clean no-op)
+  could never clear. Detection and repair now read the unambiguous `--json` shape
+  (`"value": ""` = unset) via a shared `bd_config_value()` helper.
+- **yf-markdown-pdf: 16-bit / alpha PNGs no longer render blank (#44).** Such PNGs
+  embed but render white under xelatex. The pipeline now detects them by their PNG
+  IHDR and renders an 8-bit RGB copy (alpha composited onto white) into a run-scoped
+  temp dir prepended to `--resource-path`; source images are never modified.
+  `--no-normalize-images` opts out, and absence of the imaging library degrades
+  gracefully (originals used, build still succeeds).
+
 ## v0.3.1 — 2026-06-24
 
 ### Packaging
