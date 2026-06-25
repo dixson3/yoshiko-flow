@@ -11,6 +11,14 @@ bumps the semver. Writes back atomically.
 
 Per the Skill Surface Convention
 (skill-authoring/reference/SURFACE_CONVENTION.md § 2 "Hash manifest").
+
+**Vendored (plan-016 `_shared/`).** This file is authored once as
+`_shared/manifest_update.py` (canonical) and copied **verbatim, whole-file** into
+each consuming skill's `scripts/` dir by `_shared/sync.py`. The copies are 100%
+shared (no per-skill divergence), so they carry no in-band markers — every copy is
+byte-identical to this canonical, this banner included. Do **not** hand-edit a
+copy; edit the canonical and run `uv run _shared/sync.py` (`--check` reports
+divergence). Policed by the DRIFT-CHECK.md `e-manifest-update-copy-*` edges.
 """
 
 from __future__ import annotations

@@ -277,6 +277,21 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
         );
     }
 
+    // #39 B.2: canonicalization-drift OFFER. Computed once here (read-only — it
+    // only inspects tracked state + bd config, never mutates) and folded into the
+    // `ok`-path instructions below. The preflight kernel performs NO canonicalizing
+    // mutation; the only sanctioned preflight write remains `ensure_scaffold`. The
+    // offer is an instruction string the operator acts on by explicitly running
+    // `yf doctor --repair`. This is reached only on the `ok` (beads-healthy) paths
+    // — every beads skill converges through this single kernel, so this one wiring
+    // covers #39's entry points (`yf-plan`, `yf-research`, `yf-beads-*`, the `beads`
+    // loop all flow through `run_with_env`).
+    let drift_offer = if needs_bd {
+        detect_canonicalization_drift(&env.repo_root)
+    } else {
+        vec![]
+    };
+
     // 4. Rule hash/semver (REQ-YF-PRE-003) — checked every run (cheap).
     let Some(rule_name) = rule_name else {
         // A skill with no companion rule in its descriptor: nothing to hash. Treat
@@ -287,7 +302,7 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
             missing: vec![],
             rule: None,
             scaffold_added: Some(scaffold_added),
-            instructions: vec![],
+            instructions: drift_offer,
         };
     };
 
@@ -296,7 +311,7 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
     match outcome.as_str() {
         "ok" | "update_available" => {
             let scaffold_added = ensure_scaffold(env, &short, config_basename.as_deref());
-            let instructions = if outcome == "ok" {
+            let mut instructions = if outcome == "ok" {
                 vec![]
             } else {
                 vec![format!(
@@ -304,6 +319,7 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
                      (or `yf skills install --force`) to update"
                 )]
             };
+            instructions.extend(drift_offer);
             Outcome {
                 status: "ok".into(),
                 missing: vec![],
@@ -536,6 +552,44 @@ fn bd_init_status(env: &Env) -> Option<Outcome> {
             },
         }),
     }
+}
+
+/// READ-ONLY detection of canonicalization drift (#39 B.2): inspects tracked git
+/// state and bd config for the three canonicalization gaps and, when any is
+/// present, returns an `instructions` offer to run `yf doctor --repair` (the offer
+/// is just a string — preflight performs NO mutation; the operator opts in by
+/// running doctor). Returns an empty Vec when the repo is already canonical.
+///
+/// Detected drift (mirrors the three `repair()` native steps):
+/// 1. tracked runtime `.beads/` artifacts (e.g. `.beads/interactions.jsonl`) —
+///    matched against the same `BEADS_UNTRACK` set repair untracks;
+/// 2. tracked `.beads/hooks/*` bd shims (content carries the `bd hooks run`
+///    signature);
+/// 3. a configured Dolt `sync.remote` under local-only context — surfaced with the
+///    `--remove-remote` form of the offer.
+fn detect_canonicalization_drift(repo_root: &Path) -> Vec<String> {
+    let mut out = vec![];
+
+    // Gaps 1 + 2: tracked runtime artifacts / tracked hook shims.
+    let (untracked_drift, shim_drift) =
+        crate::beads_init::tracked_canonicalization_drift(repo_root);
+    if untracked_drift || shim_drift {
+        out.push(
+            "Canonicalization drift: tracked .beads/ runtime artifacts or bd hook shims — \
+             run `yf doctor --repair` to untrack them (working files are kept)"
+                .to_string(),
+        );
+    }
+
+    // Gap 3: a Dolt remote under local-only — surface the --remove-remote form.
+    if crate::beads_init::has_local_only_remote(repo_root) {
+        out.push(
+            "Canonicalization drift: a Dolt remote is configured under local-only — \
+             run `yf doctor --repair --remove-remote` to clear it"
+                .to_string(),
+        );
+    }
+    out
 }
 
 /// Coarse legacy beads check (REQ-YF-PRE-006 parity): `bd status --json`; if it

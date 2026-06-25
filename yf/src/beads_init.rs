@@ -43,6 +43,31 @@ const BEADS_GITIGNORE: &[&str] = &[
 /// Project-root `.gitignore` patterns beads needs (legacy `_PROJECT_GITIGNORE`).
 const PROJECT_GITIGNORE: &[&str] = &[".beads-credential-key", ".beads/proxieddb/"];
 
+/// The pinned set of runtime/derived `.beads/` paths that must never be tracked
+/// by git (#39, Epic B.1). The `untrack-runtime` native verb `git rm --cached`s
+/// exactly these — restricted to paths CURRENTLY TRACKED, so it is a clean no-op
+/// when nothing is tracked, and keeps the working-tree copy. Each entry is matched
+/// against `git ls-files`:
+///
+/// - a trailing-slash entry (`embeddeddolt/`, `backup/`) untracks any tracked path
+///   UNDER that directory;
+/// - a trailing-`.*` entry (`dolt-server.*`) is a glob expanded against tracked
+///   files (NOT passed literally to `git rm`);
+/// - any other entry is an exact tracked-path match.
+const BEADS_UNTRACK: &[&str] = &[
+    ".beads/interactions.jsonl",
+    ".beads/embeddeddolt/",
+    ".beads/backup/",
+    ".beads/export-state.json",
+    ".beads/push-state.json",
+    ".beads/dolt-server.*",
+];
+
+/// The shim signature: a tracked `.beads/hooks/*` file is a bd-generated shim (and
+/// therefore safe to remove via `remove-hook-shims`) ONLY if its content invokes
+/// `bd hooks run`. A hand-edited hook lacking this substring is NEVER removed.
+const HOOK_SHIM_SIGNATURE: &str = "bd hooks run";
+
 /// Marker-fenced "managed block" spans that `bd init` injects into instruction
 /// files (`CLAUDE.md` / `AGENTS.md`). Each pair is `(begin-prefix, end-marker)`;
 /// the begin marker carries a trailing `v:/profile:/hash:` suffix so we match on a
@@ -316,8 +341,9 @@ pub struct RepairResult {
 ///   (THAT order; never `bd vc commit` first) — shelled.
 /// - hardening `bd hooks install --force`, `bd doctor --fix`, `bd migrate`,
 ///   `bd export -o .beads/issues.jsonl` — shelled.
-/// - local-only assertion `bd config set dolt.local-only true` — shelled (never
-///   adds a Dolt remote).
+/// - local-only assertion `bd config set dolt.local-only true` — shelled. Repair
+///   never *adds* a Dolt remote; the opt-in `remove_remote` (below) is the one
+///   step that *clears* an existing remote under local-only context (#39, B.1).
 ///
 /// Simple deterministic filesystem hardening is NATIVE Rust (no bd needed; pure
 /// `std::fs`): `.beads` perms (chmod 700) and the gitignore top-ups
@@ -325,7 +351,17 @@ pub struct RepairResult {
 /// tail of `repair`.
 ///
 /// `local_only` adds the local-only assertion step (Surface §: local-only repos).
-pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result<RepairResult> {
+///
+/// `remove_remote` (#39, B.1) is an explicit opt-in: when `true` AND `local_only`,
+/// repair clears any configured Dolt `sync.remote`. Off by default — the
+/// `--remove-remote` doctor flag is the only way to reach it, because it inverts
+/// the otherwise-conservative "never touch the remote" boundary above.
+pub fn repair(
+    repo_root: &Path,
+    apply: bool,
+    local_only: bool,
+    remove_remote: bool,
+) -> anyhow::Result<RepairResult> {
     let before = verify(repo_root);
     let beads_dir = repo_root.join(".beads");
 
@@ -463,6 +499,23 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
         &["prune-codex"],
     ));
 
+    // #39 B.1 — untrack/remote-removal cleanup (the canonicalization axis). Each
+    // is idempotent and tracked-state-gated: a no-op when nothing is tracked.
+    plan.push(native_step(
+        "untrack runtime .beads/ artifacts (git rm --cached; keep working files)",
+        &["untrack-runtime"],
+    ));
+    plan.push(native_step(
+        "remove tracked .beads/hooks/* bd shims (content-guarded; never hand-edited)",
+        &["remove-hook-shims"],
+    ));
+    if remove_remote && local_only {
+        plan.push(native_step(
+            "clear Dolt sync.remote under local-only (--remove-remote)",
+            &["remove-remote"],
+        ));
+    }
+
     // Native filesystem hardening steps (deterministic, no bd).
     plan.push(native_step(
         "tighten .beads perms (chmod 700)",
@@ -512,7 +565,9 @@ pub fn repair(repo_root: &Path, apply: bool, local_only: bool) -> anyhow::Result
 /// Execute a native (Rust `std::fs`) repair step. `cmd[1]` is the verb. Returns
 /// `(rc, optional-error-string)`; every arm is idempotent (a no-op on a clean
 /// repo). Verbs: `chmod`, `gitignore` (hardening); `hookspath-reset`,
-/// `rmdir-beads-skill`, `strip-managed-blocks`, `prune-settings` (B.3/B.4 cleanup).
+/// `rmdir-beads-skill`, `strip-managed-blocks`, `prune-settings`, `prune-codex`
+/// (B.3/B.4 cleanup); `untrack-runtime`, `remove-hook-shims`, `remove-remote`
+/// (#39 B.1 canonicalization).
 fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Option<String>) {
     match cmd.get(1).map(String::as_str) {
         Some("chmod") => {
@@ -600,8 +655,189 @@ fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Opt
             Ok(()) => (0, None),
             Err(e) => (1, Some(e.to_string())),
         },
+        // #39 B.1: `git rm --cached` the pinned BEADS_UNTRACK set, restricted to
+        // tracked paths (clean no-op when nothing is tracked; keeps the working
+        // file). The `dolt-server.*` glob is expanded against `git ls-files`.
+        Some("untrack-runtime") => match untrack_runtime(repo_root) {
+            Ok(()) => (0, None),
+            Err(e) => (1, Some(e.to_string())),
+        },
+        // #39 B.1: remove tracked `.beads/hooks/*` files whose content carries the
+        // `bd hooks run` shim signature — never a hand-edited hook.
+        Some("remove-hook-shims") => match remove_hook_shims(repo_root) {
+            Ok(()) => (0, None),
+            Err(e) => (1, Some(e.to_string())),
+        },
+        // #39 B.1 (gated): clear the Dolt `sync.remote` config under local-only.
+        // Only ever reached when the plan included it (`remove_remote && local_only`).
+        Some("remove-remote") => match remove_dolt_remote(repo_root) {
+            Ok(()) => (0, None),
+            Err(e) => (1, Some(e.to_string())),
+        },
         _ => (0, None),
     }
+}
+
+/// READ-ONLY detection (#39 B.2, for preflight): returns `(untracked_drift,
+/// shim_drift)` — whether any [`BEADS_UNTRACK`] path is currently tracked, and
+/// whether any tracked `.beads/hooks/*` carries the [`HOOK_SHIM_SIGNATURE`]. Pure
+/// inspection: never mutates the repo. Mirrors the match logic of
+/// [`untrack_runtime`] / [`remove_hook_shims`] without invoking `git rm`.
+pub fn tracked_canonicalization_drift(repo_root: &Path) -> (bool, bool) {
+    let tracked = tracked_files(repo_root);
+    let untracked_drift = tracked.iter().any(|p| {
+        BEADS_UNTRACK
+            .iter()
+            .any(|pat| untrack_pattern_matches(pat, p))
+    });
+    let shim_drift = tracked.iter().any(|p| {
+        let Some(rest) = p.strip_prefix(".beads/hooks/") else {
+            return false;
+        };
+        if rest.contains('/') {
+            return false;
+        }
+        std::fs::read_to_string(repo_root.join(p))
+            .map(|b| b.contains(HOOK_SHIM_SIGNATURE))
+            .unwrap_or(false)
+    });
+    (untracked_drift, shim_drift)
+}
+
+/// READ-ONLY detection (#39 B.2, for preflight): whether a non-empty Dolt
+/// `sync.remote` is configured AND the repo is in local-only context
+/// (`dolt.local-only` is true). Pure inspection: never mutates. This is the
+/// drift the `--remove-remote` opt-in clears.
+pub fn has_local_only_remote(repo_root: &Path) -> bool {
+    let (lrc, lout, _) = run_in(&["bd", "config", "get", "dolt.local-only"], 30, repo_root);
+    let local_only = lrc == 0 && lout.trim().eq_ignore_ascii_case("true");
+    if !local_only {
+        return false;
+    }
+    let (rrc, rout, _) = run_in(&["bd", "config", "get", "sync.remote"], 30, repo_root);
+    rrc == 0 && !rout.trim().is_empty()
+}
+
+/// `git ls-files` for the repo, returning the tracked paths (repo-relative,
+/// forward-slash). Empty on any error (treated as "nothing tracked").
+fn tracked_files(repo_root: &Path) -> Vec<String> {
+    let (rc, out, _err) = run_in(&["git", "ls-files", "-z"], 60, repo_root);
+    if rc != 0 {
+        return vec![];
+    }
+    out.split('\0')
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+/// True when tracked path `p` is matched by untrack pattern `pat` (see
+/// [`BEADS_UNTRACK`] semantics): a `dir/` prefix-under match, a `prefix.*` glob,
+/// or an exact path.
+fn untrack_pattern_matches(pat: &str, p: &str) -> bool {
+    if let Some(dir) = pat.strip_suffix('/') {
+        // Directory: any tracked path under it.
+        p.starts_with(dir) && p[dir.len()..].starts_with('/')
+    } else if let Some(prefix) = pat.strip_suffix(".*") {
+        // Glob `prefix.*`: a basename starting with `prefix.` in the same dir.
+        // The pattern's parent dir must match, and the remainder must start
+        // with `prefix.` (so `.beads/dolt-server.foo` matches, `.beads/x` not).
+        if let Some(rest) = p.strip_prefix(prefix) {
+            rest.starts_with('.')
+        } else {
+            false
+        }
+    } else {
+        p == pat
+    }
+}
+
+/// `git rm --cached` the tracked subset of [`BEADS_UNTRACK`] (#39 B.1). Idempotent:
+/// computes the tracked matches first, so an empty match set is a clean no-op (no
+/// `git rm` invoked). `--cached` keeps the working-tree file.
+fn untrack_runtime(repo_root: &Path) -> std::io::Result<()> {
+    let tracked = tracked_files(repo_root);
+    if tracked.is_empty() {
+        return Ok(());
+    }
+    let mut to_untrack: Vec<&str> = Vec::new();
+    for p in &tracked {
+        if BEADS_UNTRACK
+            .iter()
+            .any(|pat| untrack_pattern_matches(pat, p))
+        {
+            to_untrack.push(p.as_str());
+        }
+    }
+    if to_untrack.is_empty() {
+        return Ok(());
+    }
+    let mut argv: Vec<&str> = vec!["git", "rm", "--cached", "--quiet", "--ignore-unmatch"];
+    argv.extend_from_slice(&to_untrack);
+    let (rc, _out, err) = run_in(&argv, 60, repo_root);
+    if rc != 0 {
+        return Err(std::io::Error::other(format!(
+            "git rm --cached exit {rc}: {}",
+            err.trim()
+        )));
+    }
+    Ok(())
+}
+
+/// Remove tracked `.beads/hooks/*` files whose content carries the
+/// [`HOOK_SHIM_SIGNATURE`] (`bd hooks run`) — dead bd-generated shims (#39 B.1).
+/// Content-guarded: a hook lacking the signature (hand-edited) is preserved.
+/// `git rm` removes both the index entry and the working-tree copy (correct for a
+/// dead shim). Idempotent: a no-op when no matching tracked shim exists.
+fn remove_hook_shims(repo_root: &Path) -> std::io::Result<()> {
+    let tracked = tracked_files(repo_root);
+    let mut shims: Vec<&str> = Vec::new();
+    for p in &tracked {
+        // Tracked files directly under `.beads/hooks/`.
+        let Some(rest) = p.strip_prefix(".beads/hooks/") else {
+            continue;
+        };
+        if rest.contains('/') {
+            continue; // nested dir — not a hook shim file.
+        }
+        let body = std::fs::read_to_string(repo_root.join(p)).unwrap_or_default();
+        if body.contains(HOOK_SHIM_SIGNATURE) {
+            shims.push(p.as_str());
+        }
+    }
+    if shims.is_empty() {
+        return Ok(());
+    }
+    let mut argv: Vec<&str> = vec!["git", "rm", "--quiet", "--ignore-unmatch"];
+    argv.extend_from_slice(&shims);
+    let (rc, _out, err) = run_in(&argv, 60, repo_root);
+    if rc != 0 {
+        return Err(std::io::Error::other(format!(
+            "git rm exit {rc}: {}",
+            err.trim()
+        )));
+    }
+    Ok(())
+}
+
+/// Clear the Dolt `sync.remote` config under local-only (#39 B.1, `--remove-remote`).
+/// Inspects `bd config get sync.remote`; when a non-empty remote is configured,
+/// unsets it via `bd config unset sync.remote`. Idempotent: a no-op when no remote
+/// is set. This is the one repair step that *clears* a remote (it never adds one).
+fn remove_dolt_remote(repo_root: &Path) -> std::io::Result<()> {
+    let (rc, out, _err) = run_in(&["bd", "config", "get", "sync.remote"], 30, repo_root);
+    // No remote configured (non-zero or empty value) → clean no-op.
+    if rc != 0 || out.trim().is_empty() {
+        return Ok(());
+    }
+    let (urc, _out, uerr) = run_in(&["bd", "config", "unset", "sync.remote"], 30, repo_root);
+    if urc != 0 {
+        return Err(std::io::Error::other(format!(
+            "bd config unset sync.remote exit {urc}: {}",
+            uerr.trim()
+        )));
+    }
+    Ok(())
 }
 
 /// Remove `dir` only if it exists and is empty. Idempotent; ignores errors (a
@@ -1160,6 +1396,226 @@ mod tests {
         apply_native(&cmd, tmp2.path(), &tmp2.path().join(".beads"));
         assert!(!tmp2.path().join(".agents/skills/beads").exists());
         assert!(tmp2.path().join(".agents/rules").exists(), ".agents kept");
+    }
+
+    // ---- #39 B.1/B.3: canonicalization cleanup tests ----
+
+    /// Init a git repo in `dir` (quiet, with a deterministic identity) so
+    /// `git ls-files` / `git rm` work. Returns whether init succeeded (skip the
+    /// test body cleanly on a host with no git).
+    fn git_init(dir: &Path) -> bool {
+        if which("git").is_none() {
+            return false;
+        }
+        for argv in [
+            vec!["git", "init", "--quiet"],
+            vec!["git", "config", "user.email", "t@example.com"],
+            vec!["git", "config", "user.name", "t"],
+            vec!["git", "config", "commit.gpgsign", "false"],
+        ] {
+            let (rc, _o, _e) = run_in(&argv, 30, dir);
+            if rc != 0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn git_add_commit(dir: &Path) {
+        run_in(&["git", "add", "-A"], 30, dir);
+        run_in(&["git", "commit", "-m", "seed", "--quiet"], 30, dir);
+    }
+
+    fn is_tracked(dir: &Path, rel: &str) -> bool {
+        let (rc, out, _e) = run_in(&["git", "ls-files", "--", rel], 30, dir);
+        rc == 0 && !out.trim().is_empty()
+    }
+
+    // The pattern matcher: dir-prefix, `.*` glob, and exact-path semantics.
+    #[test]
+    fn untrack_pattern_match_semantics() {
+        assert!(untrack_pattern_matches(
+            ".beads/interactions.jsonl",
+            ".beads/interactions.jsonl"
+        ));
+        assert!(!untrack_pattern_matches(
+            ".beads/interactions.jsonl",
+            ".beads/interactions.jsonl.bak"
+        ));
+        // Directory prefix.
+        assert!(untrack_pattern_matches(
+            ".beads/embeddeddolt/",
+            ".beads/embeddeddolt/x/y"
+        ));
+        assert!(!untrack_pattern_matches(
+            ".beads/embeddeddolt/",
+            ".beads/embeddeddolt"
+        ));
+        // dolt-server.* glob.
+        assert!(untrack_pattern_matches(
+            ".beads/dolt-server.*",
+            ".beads/dolt-server.pid"
+        ));
+        assert!(untrack_pattern_matches(
+            ".beads/dolt-server.*",
+            ".beads/dolt-server.activity"
+        ));
+        assert!(!untrack_pattern_matches(
+            ".beads/dolt-server.*",
+            ".beads/dolt-serverX"
+        ));
+        assert!(!untrack_pattern_matches(
+            ".beads/dolt-server.*",
+            ".beads/other"
+        ));
+    }
+
+    // #39 B.3: untrack idempotency — no-op when nothing tracked; untracks a tracked
+    // interactions.jsonl while leaving the working file in place.
+    #[test]
+    fn untrack_runtime_idempotent_and_keeps_working_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        if !git_init(root) {
+            return; // no git on host — skip.
+        }
+        let beads = root.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Case A: NONE of the set tracked → untrack is a clean no-op.
+        std::fs::write(root.join("README"), "x").unwrap();
+        git_add_commit(root);
+        untrack_runtime(root).unwrap();
+        assert!(root.join("README").exists());
+
+        // Case B: track interactions.jsonl, then untrack.
+        std::fs::write(beads.join("interactions.jsonl"), "log\n").unwrap();
+        run_in(&["git", "add", "-f", ".beads/interactions.jsonl"], 30, root);
+        git_add_commit(root);
+        assert!(
+            is_tracked(root, ".beads/interactions.jsonl"),
+            "precondition"
+        );
+
+        untrack_runtime(root).unwrap();
+        assert!(
+            !is_tracked(root, ".beads/interactions.jsonl"),
+            "untracked from index"
+        );
+        assert!(
+            beads.join("interactions.jsonl").exists(),
+            "working file kept (--cached)"
+        );
+
+        // Idempotent re-run: still a no-op, file still present.
+        untrack_runtime(root).unwrap();
+        assert!(beads.join("interactions.jsonl").exists());
+    }
+
+    // #39 B.3: shim content-guard — a hook carrying `bd hooks run` is removed; a
+    // hand-edited hook (no signature) is preserved (index + working tree).
+    #[test]
+    fn remove_hook_shims_content_guarded() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        if !git_init(root) {
+            return;
+        }
+        let hooks = root.join(".beads").join("hooks");
+        std::fs::create_dir_all(&hooks).unwrap();
+        std::fs::write(
+            hooks.join("pre-commit"),
+            "#!/bin/sh\nexec bd hooks run pre-commit \"$@\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            hooks.join("custom"),
+            "#!/bin/sh\n# hand-edited, no signature\necho hi\n",
+        )
+        .unwrap();
+        run_in(&["git", "add", "-f", ".beads/hooks"], 30, root);
+        git_add_commit(root);
+        assert!(is_tracked(root, ".beads/hooks/pre-commit"));
+        assert!(is_tracked(root, ".beads/hooks/custom"));
+
+        remove_hook_shims(root).unwrap();
+
+        assert!(
+            !is_tracked(root, ".beads/hooks/pre-commit"),
+            "shim untracked"
+        );
+        assert!(
+            !hooks.join("pre-commit").exists(),
+            "shim working file removed (dead shim)"
+        );
+        assert!(
+            is_tracked(root, ".beads/hooks/custom"),
+            "hand-edited hook preserved"
+        );
+        assert!(hooks.join("custom").exists());
+
+        // Idempotent re-run.
+        remove_hook_shims(root).unwrap();
+        assert!(is_tracked(root, ".beads/hooks/custom"));
+    }
+
+    // #39 B.3: the `remove-remote` plan step is GATED — present only when both
+    // `remove_remote` and `local_only` are true; absent otherwise. Dry-run avoids
+    // invoking bd, so this pins the gate logic deterministically.
+    #[test]
+    fn remove_remote_step_is_gated() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        // No .beads/ → NotInitialized branch; dry-run still emits the full plan.
+        let has = |r: &RepairResult| {
+            r.plan
+                .iter()
+                .any(|s| s.cmd.iter().any(|c| c == "remove-remote"))
+        };
+
+        let off1 = repair(
+            root, false, /*local_only*/ false, /*remove*/ false,
+        )
+        .unwrap();
+        assert!(!has(&off1), "absent when both false");
+        let off2 = repair(root, false, /*local_only*/ true, /*remove*/ false).unwrap();
+        assert!(!has(&off2), "absent when remove_remote false");
+        let off3 = repair(root, false, /*local_only*/ false, /*remove*/ true).unwrap();
+        assert!(!has(&off3), "absent when local_only false");
+        let on = repair(root, false, /*local_only*/ true, /*remove*/ true).unwrap();
+        assert!(has(&on), "present when both true");
+    }
+
+    // #39 B.2: the read-only drift detector flags a tracked runtime artifact and a
+    // tracked hook shim, and is silent on a clean repo. (Remote drift needs bd, not
+    // covered here.)
+    #[test]
+    fn tracked_drift_detector() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        if !git_init(root) {
+            return;
+        }
+        // Clean repo: no drift.
+        std::fs::write(root.join("README"), "x").unwrap();
+        git_add_commit(root);
+        assert_eq!(tracked_canonicalization_drift(root), (false, false));
+
+        // Track a runtime artifact + a hook shim.
+        let beads = root.join(".beads");
+        std::fs::create_dir_all(beads.join("hooks")).unwrap();
+        std::fs::write(beads.join("interactions.jsonl"), "l\n").unwrap();
+        std::fs::write(
+            beads.join("hooks").join("pre-commit"),
+            "exec bd hooks run pre-commit\n",
+        )
+        .unwrap();
+        run_in(&["git", "add", "-f", ".beads"], 30, root);
+        git_add_commit(root);
+
+        let (untracked, shim) = tracked_canonicalization_drift(root);
+        assert!(untracked, "tracked interactions.jsonl flagged");
+        assert!(shim, "tracked shim flagged");
     }
 
     // REQ-YF-PRE-007: native chmod step is a no-op (rc 0) when .beads/ is absent.

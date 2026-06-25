@@ -119,6 +119,12 @@ pub struct DoctorArgs {
     /// With `--repair`, also assert local-only Dolt (no remote).
     #[arg(long)]
     pub local_only: bool,
+
+    /// With `--repair` under local-only context, also CLEAR any configured Dolt
+    /// remote / `sync.remote` (#39, Epic B). Off by default; this is the one
+    /// repair step that touches remote config, so it is an explicit opt-in.
+    #[arg(long)]
+    pub remove_remote: bool,
 }
 
 #[derive(Debug, Args)]
