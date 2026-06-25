@@ -22,8 +22,11 @@ lto = "thin"
 # release semver from that tag. The crate version and the tag must agree.
 #
 # Bead 4.2 finalizes the Homebrew side (REQ-YF-DIST-002/003): the `dixson3/homebrew-tap`
-# tap target, the `homebrew` publish job, and the formula's runtime `depends_on "beads"` /
-# `depends_on "uv"` declarations (via `[workspace.metadata.dist.dependencies.homebrew]`).
+# tap target and the `homebrew` publish job. The formula declares NO runtime
+# `depends_on` lines — `beads` (`bd`) and `uv` are intentionally NOT Homebrew
+# dependencies of `yf` (they are provisioned out-of-band, e.g. vendor installers /
+# the dotfiles bootstrap), so the `[workspace.metadata.dist.dependencies.homebrew]`
+# block is deliberately omitted.
 [workspace.metadata.dist]
 # Pinned to match the `dist` installed at G3 prep (user-scope ~/.cargo/bin/dist).
 cargo-dist-version = "0.32.0"
@@ -49,18 +52,9 @@ checksum = "sha256"
 # Publish a GitHub Release with the artifacts attached.
 pr-run-mode = "plan"
 
-# Homebrew runtime dependencies (REQ-YF-DIST-002).
-#
-# cargo-dist's system-dependency mechanism (`[workspace.metadata.dist.dependencies.homebrew]`)
-# declares packages installed via Homebrew. The default stage is `build` only — which does NOT
-# render a `depends_on` line. `beads`/`uv` are RUNTIME deps (yf shells to `bd`/`uv` at runtime,
-# not at build), so each is declared `stage = ["run"]` to emit a `depends_on "<name>"` in the
-# generated formula (verified with `dist build --artifacts=global`, dist 0.32.0). `bd` ships as
-# the homebrew-core formula `beads`; `uv` ships as `uv` — both in core, no extra tap needed.
-#
-# Result in the generated formula:
-#     depends_on "beads"
-#     depends_on "uv"
-[workspace.metadata.dist.dependencies.homebrew]
-beads = { version = "*", stage = ["run"] }
-uv = { version = "*", stage = ["run"] }
+# NOTE: no `[workspace.metadata.dist.dependencies.homebrew]` block.
+# `yf` intentionally declares NO Homebrew runtime dependencies. Although yf
+# shells out to `bd` (beads) and `uv` at runtime, these are provisioned
+# out-of-band (vendor curl installers / the dotfiles bootstrap), NOT pulled in
+# as `depends_on` lines in the generated formula. Re-adding a `stage = ["run"]`
+# dependency here would reintroduce `depends_on "beads"` / `depends_on "uv"`.

@@ -6,6 +6,16 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ## Unreleased
 
+## v0.3.1 — 2026-06-24
+
+### Packaging
+
+- **Homebrew formula no longer declares runtime dependencies.** Dropped the
+  `[workspace.metadata.dist.dependencies.homebrew]` block (`beads`, `uv`), so the
+  generated `dixson3/homebrew-tap` formula emits no `depends_on` lines. `bd` (beads)
+  and `uv` are provisioned out-of-band (vendor installers / dotfiles bootstrap)
+  rather than pulled in as Homebrew dependencies of `yf`.
+
 ## v0.3.0 — 2026-06-24
 
 Adds a renderable-fenced-block pipeline (d2/csv compile-checked in lint and rendered in
