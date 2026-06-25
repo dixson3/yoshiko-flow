@@ -416,5 +416,62 @@ def test_validate_merged_tier3_notice(git_repo):
     assert _VALIDATE_MERGED_KEYS <= set(r)
 
 
+# ---------------------------------------------------------------------------
+# audit --json-output control-char serialization (#36 regression)
+#
+# #36 reported `audit --json-output` emitting INVALID JSON when a finding string
+# carried a raw control char (tab/newline) — `json.load` failed with
+# "Invalid control character at line 20". The current `audit` command serializes
+# via `json.dumps` (plan_manager.py audit()), which escapes control chars, so the
+# bug is already absent. This test PINS that invariant: a finding `detail`/`report`
+# carrying a literal tab and newline must round-trip `json.dumps`→`json.loads`
+# with the control chars preserved. A regression to manual string assembly would
+# fail here.
+# ---------------------------------------------------------------------------
+
+def test_audit_json_output_handles_control_chars(tmp_path, monkeypatch):
+    """`audit --json-output` must emit JSON-escaped control chars (#36).
+
+    Pins the `json.dumps` invariant in the `audit` command: a finding detail
+    containing a raw tab (`\t`) and newline (`\n`) must produce valid JSON that
+    `json.loads` parses, with the control characters preserved verbatim. Manual
+    string assembly (the original #36 bug) would emit invalid JSON here.
+    """
+    from click.testing import CliRunner
+
+    # A plan dir that exists so the click.Path(exists=True) argument validates;
+    # _audit_plan is stubbed to return a finding carrying raw control chars, the
+    # cleanest way to drive a control char through the real serialization path.
+    plan_dir = tmp_path / "docs" / "plans" / "plan-x"
+    plan_dir.mkdir(parents=True)
+
+    control_detail = "line-one\tafter-tab\nline-two"
+    control_report = "Portability audit\n\twith control chars"
+
+    def _stub_audit(_pd):
+        return {
+            "status": "fail",
+            "findings": [pm._audit_finding("ctrl", "fail", control_detail)],
+            "report": control_report,
+            "grandfathered": False,
+        }
+
+    monkeypatch.setattr(pm, "_audit_plan", _stub_audit)
+
+    result = CliRunner().invoke(pm.cli, ["audit", str(plan_dir), "--json-output"])
+    # status=fail → exit 1, but stdout must still be a complete, valid JSON doc.
+    assert result.exit_code == 1
+
+    # The raw control chars must NOT appear unescaped in the wire output (that was
+    # the #36 bug); json.dumps escapes them as \t / \n.
+    assert "\\t" in result.output
+    assert "\\n" in result.output
+
+    # Round-trip: parsing succeeds (no JSONDecodeError) and control chars survive.
+    payload = json.loads(result.output)
+    assert payload["findings"][0]["detail"] == control_detail
+    assert payload["report"] == control_report
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

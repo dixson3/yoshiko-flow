@@ -47,7 +47,8 @@ The verify/repair engine moved into the `yf` kernel (plan-010); invoke it via `y
 ```bash
 yf preflight yf-beads-init --json     # READ-ONLY health check (canonical "is bd usable?")
 yf doctor --repair                    # apply the standard repairs
-yf doctor --repair --local-only       # also assert no Dolt remote
+yf doctor --repair --local-only       # also assert local-only Dolt
+yf doctor --repair --local-only --remove-remote  # also CLEAR any configured Dolt remote
 yf doctor                             # one-line human status
 ```
 
@@ -77,8 +78,9 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
    - `not_initialized` — no usable `.beads/`. Confirm intent, then `yf doctor --repair` runs
      `bd init --skip-hooks --skip-agents` (cruft-suppressed init, see below), then go to step 3.
    - `corrupted` — initialized but wedged/broken; go to step 2.
-2. **Diagnose & repair.** Run `yf doctor --repair` (add `--local-only` to also assert no Dolt
-   remote). The standard repairs, in order:
+2. **Diagnose & repair.** Run `yf doctor --repair` (add `--local-only` to also assert local-only
+   Dolt; add `--remove-remote` to additionally CLEAR a configured remote — see below). The
+   standard repairs, in order:
    - **Wedged schema migration** (the common case): `bd dolt stop` flushes and clears the
      in-memory Dolt working set; then `bd migrate schema` applies pending migrations; then
      bare `bd migrate` updates the DB metadata version. *Do not* try `bd vc commit` first —
@@ -104,6 +106,13 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
      and a `.codex/config.toml` prune (deleted **only if effectively empty** — the bare
      `[features]` residual `bd setup codex --remove` leaves behind once it strips `hooks =
      true`; never a config that still holds a real key).
+   - **Canonicalization cleanup (#39, idempotent — no-op when nothing is tracked):** `git rm
+     --cached` the pinned runtime/derived `.beads/` set so it is never committed (working files
+     are kept): `.beads/interactions.jsonl`, `.beads/embeddeddolt/`, `.beads/backup/`,
+     `.beads/export-state.json`, `.beads/push-state.json`, and any tracked `.beads/dolt-server.*`.
+     Remove tracked `.beads/hooks/*` files **only** when their content carries the `bd hooks run`
+     shim signature (a hand-edited hook is never removed). And — **only** under
+     `--local-only --remove-remote` — clear the Dolt `sync.remote` config (see below).
 3. **Re-verify.** Run `yf preflight yf-beads-init --json` again; expect `ok`. Then `bd doctor` — 0 errors. Classify
    remaining warnings: *accepted by design* vs *actionable*. `Remote Consistency: No remotes
    configured` is **accepted** when the repo is intentionally local-only (resolving it would
@@ -133,8 +142,14 @@ it on repair:
 
 When beads is intentionally local-only (issues live upstream, e.g. GitHub, not in a Dolt
 remote): `bd config set dolt.local-only true`, keep `bd dolt remote list` empty, and never
-`bd dolt push`. `yf doctor --repair --local-only` sets the flag. Upstream issue tracking is the
-`yf-beads-upstream` skill's job.
+`bd dolt push`. `yf doctor --repair --local-only` sets the flag.
+
+Repair never *adds* a Dolt remote. The opt-in `--remove-remote` flag (valid only alongside
+`--local-only`) is the one repair step that *clears* an existing remote: when a non-empty
+`sync.remote` is configured under local-only, `yf doctor --repair --local-only --remove-remote`
+unsets it (a no-op when no remote is set). It is OFF by default — without `--remove-remote`,
+repair leaves any configured remote untouched. Upstream issue tracking is the `yf-beads-upstream`
+skill's job.
 
 ## As a preflight dependency for other beads skills
 

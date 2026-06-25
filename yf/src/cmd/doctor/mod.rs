@@ -121,7 +121,12 @@ fn severity(r: &CheckResult) -> &'static str {
 /// reach a healthy state is a genuine error, not a read-only verdict.
 fn run_repair(args: &DoctorArgs) -> Result<()> {
     let repo = crate::dest::git_root_or_cwd();
-    let result = crate::beads_init::repair(&repo, /* apply */ true, args.local_only)?;
+    let result = crate::beads_init::repair(
+        &repo,
+        /* apply */ true,
+        args.local_only,
+        args.remove_remote,
+    )?;
 
     if args.json {
         println!("{}", serde_json::to_string_pretty(&result)?);

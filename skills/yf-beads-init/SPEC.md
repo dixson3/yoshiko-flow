@@ -83,8 +83,19 @@ storage (that is `bd`).
 ### 2.3 Local-only & preflight routing
 
 - **REQ-BINIT-020** *(testable)* `repair --apply --local-only` shall assert
-  `bd config set dolt.local-only true`, keep `bd dolt remote list` empty, and never `bd dolt push`;
-  upstream issue tracking is `yf-beads-upstream`'s job.
+  `bd config set dolt.local-only true` and never `bd dolt push`; upstream issue tracking is
+  `yf-beads-upstream`'s job. Repair never *adds* a Dolt remote. With the additional opt-in
+  `--remove-remote` (valid only alongside `--local-only`), repair shall *clear* a configured
+  `sync.remote` (a no-op when none is set); without `--remove-remote` any configured remote is
+  left untouched.
+- **REQ-BINIT-023** *(testable, #39)* repair shall include three idempotent canonicalization
+  steps that are clean no-ops when nothing is tracked: (a) `git rm --cached` the pinned runtime
+  set (`.beads/interactions.jsonl`, `.beads/embeddeddolt/`, `.beads/backup/`,
+  `.beads/export-state.json`, `.beads/push-state.json`, `.beads/dolt-server.*`), keeping working
+  files; (b) remove tracked `.beads/hooks/*` files **only** when content carries the `bd hooks run`
+  shim signature (never a hand-edited hook); (c) the `--remove-remote` remote clear of (020). The
+  preflight kernel shall additionally OFFER `yf doctor --repair` (read-only) when it detects this
+  drift, performing no mutation itself.
 - **REQ-BINIT-021** as a preflight dependency, another beads skill shall run its own
   system-deps/rule checks first, then on a beads-config failure (`bd_not_initialized`, a corrupted
   DB, or a `bd status` error JSON) route to `/yf-beads-init` / `beads_init.py verify`+`repair` rather
@@ -99,8 +110,10 @@ storage (that is `bd`).
 - **CLI / scripts:** `scripts/beads_init.py` (run via `uv`), subcommands:
   - `verify [--json-output]` — read-only health check returning
     `ok|deps_missing|not_initialized|corrupted` (REQ-BINIT-001/002/003).
-  - `repair [--apply] [--local-only] [--json-output]` — dry-run plan by default; `--apply` runs the
-    standard repairs; `--local-only` also asserts no Dolt remote (REQ-BINIT-010–014, REQ-BINIT-020).
+  - `repair [--apply] [--local-only] [--remove-remote] [--json-output]` — dry-run plan by default;
+    `--apply` runs the standard repairs; `--local-only` asserts local-only Dolt; `--remove-remote`
+    (with `--local-only`) additionally CLEARS a configured remote
+    (REQ-BINIT-010–014, REQ-BINIT-020, REQ-BINIT-023).
   - `status` — one-line human status (`initialized`/`functional` flags).
   Under macro `REQ-YF-PRE-006`/`REQ-YF-PRE-007` the verify/repair engine ports into the `yf` binary
   (`yf preflight` kernel); the skill's Python script remains the reference for the engine semantics.
@@ -123,8 +136,10 @@ storage (that is `bd`).
   DB (REQ-BINIT-011). *Why:* it deadlocks the repair.
 - **GR-BINIT-003** *Drift:* adding a Dolt remote / `bd dolt push` to "fix" a local-only repo's
   `No remotes configured` warning. *Rule:* on local-only, assert `dolt.local-only true`, keep
-  remotes empty, route upstream tracking to `yf-beads-upstream` (REQ-BINIT-020). *Why:* the warning
-  is accepted by design; adding a remote changes the repo's storage model.
+  remotes empty, route upstream tracking to `yf-beads-upstream` (REQ-BINIT-020). Repair only ever
+  *clears* a remote, and only under the explicit `--remove-remote` opt-in (REQ-BINIT-023) — it never
+  *adds* one. *Why:* the warning is accepted by design; adding a remote changes the repo's storage
+  model.
 - **GR-BINIT-004** *Drift:* nagging or re-running repairs on a healthy repo. *Rule:* on
   `verify == ok` the preflight trigger is a silent no-op (REQ-BINIT-022). *Why:* repair is offered
   only on failure or explicit invocation.
