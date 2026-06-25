@@ -3,7 +3,7 @@
 **ID:** plan-016-james-dixson-041b2f
 **Author:** james-dixson
 **Created:** 2026-06-24
-**Status:** approved
+**Status:** complete
 **Epic:** beads-skills-mol-3ee
 **Phase log:**
 - 2026-06-24 scoping: initial scope captured
@@ -12,6 +12,9 @@
 - 2026-06-24 review: plan v1 presented
 - 2026-06-24 approved: operator approved; portability audit pass
 - 2026-06-24 intake: epic beads-skills-mol-3ee poured
+- 2026-06-24 executing: start gate resolved
+- 2026-06-24 reconciling: execution complete; entering reconcile
+- 2026-06-24 complete: plan complete; #15/#36/#39 closed; merged b1b38a1; pushed
 
 ## Objective
 Bundle: PEP-723 shared-helper consolidation (#15), bdplan audit invalid-JSON-on-control-chars fix (#36), beads auto-canonicalize yf projects on preflight/init (#39)
