@@ -3,7 +3,7 @@
 **ID:** plan-017-james-dixson-9ac898
 **Author:** james-dixson
 **Created:** 2026-06-24
-**Status:** reconciling
+**Status:** complete
 **Epic:** beads-skills-mol-806
 **Phase log:**
 - 2026-06-24 scoping: initial scope captured
@@ -15,6 +15,7 @@
 - 2026-06-24 intake: epic beads-skills-mol-806 poured
 - 2026-06-24 executing: start gate resolved
 - 2026-06-24 reconciling: all execution beads closed; entering Phase 6
+- 2026-06-24 complete: plan complete — merged, validated, pushed, upstream reconciled
 
 ## Objective
 Renderable fenced blocks: d2/csv embed convention across yf-diagram-authoring/yf-markdown-pdf/yf-markdown-lint (#33, #34) + bdresearch record-epic helper (#37)
