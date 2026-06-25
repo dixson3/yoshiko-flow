@@ -37,7 +37,51 @@ uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py a.md b.md
 uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --mainfont "STIX Two Text" -- --toc
 # no table shrink; rotate any table with >8 columns to landscape
 uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --table-font normalsize --landscape-cols 8
+# keep ```d2```/```csv``` fences verbatim instead of rendering them
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --no-render-fences
 ```
+
+## Renderable fences (d2, csv)
+
+By default md2pdf **renders** the source inside certain fenced blocks instead of
+showing it verbatim, so a diagram or table can live **inline** in the Markdown and
+still produce a real figure/table in the PDF (near-parity with the
+`markdown-xwidget` preview). The renderable set is the shared
+`_shared/renderable_fences.py` registry — the same source of truth
+[`yf-markdown-lint`](../yf-markdown-lint/SKILL.md) (ML009) and
+[`yf-diagram-authoring`](../yf-diagram-authoring/SKILL.md) (`embed`/`lift`) use, so
+the three skills cannot drift.
+
+| Fence | Rendered as | Tool |
+|:------|:------------|:-----|
+| ` ```d2 ` | a vector diagram embedded as a PDF figure | `d2` |
+| ` ```csv ` | a native LaTeX table | pandoc (no extra tool) |
+
+- **d2 → PDF, not SVG.** The `markdown-xwidget` HTML preview embeds d2 as inline
+  SVG; under xelatex that does not work, so md2pdf renders `d2 <in> <out>.pdf` and
+  embeds the **PDF** (vector — sharper and smaller than a PNG) at an absolute temp
+  path. This is a deliberate divergence from the HTML filter, not a bug.
+- **Graceful degrade.** If `d2` is absent or a block fails to compile, that fence
+  is left as a **verbatim code listing** and the build still exits 0. The same
+  holds for malformed csv.
+- **No temp leak.** Rendered d2 PDFs go in one run-scoped temp dir that md2pdf
+  reaps after pandoc finishes — nothing accumulates across renders.
+- **`--no-render-fences`** keeps ` ```d2 ` / ` ```csv ` fences verbatim — use it
+  when you are *documenting* d2/csv syntax itself.
+
+## Glyph coverage (color emoji)
+
+xelatex cannot use color-bitmap (emoji) fonts, so a codepoint like ✅ (U+2705)
+renders as nothing with a "Missing character" warning. **On macOS** md2pdf includes
+a `glyph-fallback.tex` header that remaps ✅ onto the monochrome ✔ (U+2714, which
+Arial Unicode MS supplies) via `newunicodechar` — zero missing-character warnings,
+a legible check-mark. This is **macOS best-effort**: it relies on `newunicodechar.sty`
+(MacTeX) and Arial Unicode MS. **Off macOS** the header is skipped and ✅ degrades to
+an xelatex warning — never a hard fail. Color emoji remain unsupported under xelatex
+(an accepted, documented limitation); the remap is a monochrome substitute, not
+color parity. A portable monochrome-symbol font fallback if Arial Unicode MS is
+absent: `brew install --cask font-symbola` (or install Noto Sans Symbols 2) and pass
+it via `--mainfont`.
 
 ## Pipeline defaults
 

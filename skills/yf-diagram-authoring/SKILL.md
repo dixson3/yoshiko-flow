@@ -30,7 +30,8 @@ diagram engine: cleaner syntax than mermaid, stronger auto-layout (elk), fully l
 Every diagram keeps its `.d2` source beside the `.png` render — never temp-and-discard.
 
 `scripts/render.py` (run via `uv run`) wraps every d2 call: `preflight`, `render <file.d2>`,
-`render-dir <dir>`, `check-dir <dir>`. Defaults: `--theme 0` (light), `--layout elk`.
+`render-dir <dir>`, `check-dir <dir>`, plus the inline-source round-trip `embed`/`lift`/`inline`.
+Defaults: `--theme 0` (light), `--layout elk`.
 
 ## Workflow
 
@@ -74,6 +75,37 @@ A `.d2` edited without re-rendering leaves a stale `.png`. Before committing, ru
 authoritative on missing renders (exit 1 on any `.d2` with no `.png`), advisory on staleness
 (WARN when a `.d2` is newer than its `.png` in the same tree; cross-clone freshness can't be
 enforced because git normalizes mtimes).
+
+## Inline d2 source vs standalone render (embed / lift / inline)
+
+A d2 diagram can live in a markdown doc two ways. Pick per the trade-off below; `embed`/`lift`/
+`inline` move a diagram between them, and the pair round-trips (source survives unchanged).
+
+| Representation | What it is | Pro | Con |
+|:---------------|:-----------|:----|:----|
+| Inline fence | a ```` ```d2 ```` block carrying the source verbatim, rendered at preview/PDF time by yf-markdown-pdf | one file, no committed binary, edit source in place | needs a render step to view; no plain-image preview |
+| Standalone | a committed `.d2` + rendered `.png`, referenced by `![alt](slug.png)` | the `.png` previews anywhere with no render step | a committed binary + regeneration discipline (`check-dir`) |
+
+```bash
+uv run scripts/render.py embed <src.d2> <tgt.md>   # insert source as an inline ```d2 fence
+uv run scripts/render.py embed - <tgt.md>          #   (or read d2 source from stdin)
+uv run scripts/render.py embed <src.d2> <tgt.md> --anchor "<text>"  # insert after a marker line
+uv run scripts/render.py lift <tgt.md>             # inline ```d2 -> standalone .d2 + .png, link
+uv run scripts/render.py inline <tgt.md>           # standalone .png link -> inline ```d2 fence
+```
+
+- **embed** — inserts a ```` ```d2 ```` fence into `<tgt.md>`. Appends to end of file by default;
+  `--anchor <text>` inserts after the first line containing `<text>`. Source from a `.d2` file or
+  stdin (`-`).
+- **lift** — extracts the **first** inline ```` ```d2 ```` block to a standalone `.d2`
+  (`<target-stem>.d2` beside the `.md` by default, or `--out`), renders its sibling `.png` (reusing
+  the `render` path; if `d2` is absent the `.d2` is still written and the fence still replaced — the
+  `.png` is just skipped), and replaces the fence with `![<stem>](<slug>.png)` (`--alt` overrides).
+- **inline** — the inverse: replaces the **first** `![](*.png)` link whose sibling `.png`-named
+  `.d2` exists with an inline ```` ```d2 ```` fence carrying that source. `--d2 <path>` supplies the
+  source explicitly.
+- **Round-trip guarantee:** `embed` → `lift` → `inline` (or `lift` → `inline`) returns the d2
+  source unchanged.
 
 ## When to diagram
 

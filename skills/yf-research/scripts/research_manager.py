@@ -14,7 +14,9 @@ credibility_scorer.py.
 """
 
 import json
+import re
 import sys
+from pathlib import Path
 
 import click
 
@@ -96,6 +98,66 @@ def json_get(keys: tuple[str, ...]):
         click.echo(json.dumps(data, indent=2))
     else:
         click.echo(data)
+
+
+@cli.command("record-epic")
+@click.argument("research_dir", type=click.Path(exists=True))
+@click.argument("epic_id")
+def record_epic(research_dir: str, epic_id: str):
+    """Persist the research<->epic linkage in plan.yaml at pour (Phase 3).
+
+    Writes/updates a top-level `epic: <id>` line in the research dir's
+    `plan.yaml` — the durable resume pointer a crashed `coordinate` session reads
+    to recover after the start gate is already resolved (REQ-ORCH-008).
+
+    yf-research's data model is a flat `plan.yaml` (not yf-plan's plan.md with a
+    `**Epic:**` header + phase log), so the port collapses to the single `epic:`
+    key: if absent, append it; if present, replace it in place.
+
+    Idempotent: re-running for the same epic leaves plan.yaml byte-identical (no
+    duplicate `epic:` line).
+    """
+    plan_yaml = Path(research_dir) / "plan.yaml"
+    if not plan_yaml.exists():
+        click.echo("ERROR: plan.yaml not found", err=True)
+        sys.exit(1)
+
+    epic_line = f"epic: {epic_id}"
+    # Matches a live `epic: <id>` line OR the commented placeholder template the
+    # plan.yaml ships with (`# epic: <id>  # ...`), so the first record-epic call
+    # replaces the placeholder in place rather than appending a second line.
+    epic_re = re.compile(r"^#?\s*epic:")
+    lines = plan_yaml.read_text().splitlines()
+    new_lines: list[str] = []
+    epic_written = False
+    for line in lines:
+        if epic_re.match(line):
+            # Replace the first matching `epic:`/placeholder line in place; drop
+            # any further matches (defensive de-dup → idempotent output).
+            if not epic_written:
+                new_lines.append(epic_line)
+                epic_written = True
+        else:
+            new_lines.append(line)
+
+    if not epic_written:
+        # No existing/placeholder line: append the pointer at end of doc.
+        if new_lines and new_lines[-1].strip() != "":
+            new_lines.append(epic_line)
+        else:
+            # collapse onto a single trailing blank, then add the pointer
+            while new_lines and new_lines[-1].strip() == "":
+                new_lines.pop()
+            new_lines.append(epic_line)
+        epic_field = "appended"
+    else:
+        epic_field = "written"
+
+    plan_yaml.write_text("\n".join(new_lines) + "\n")
+    click.echo(json.dumps({
+        "epic_id": epic_id,
+        "epic_field": epic_field,
+    }))
 
 
 if __name__ == "__main__":

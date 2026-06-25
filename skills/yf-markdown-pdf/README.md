@@ -31,11 +31,21 @@ uv run .claude/skills/markdown-pdf/scripts/md2pdf.py <input.md> [-o OUT.pdf]
 # batch; override font; rotate wide tables to landscape
 uv run .claude/skills/markdown-pdf/scripts/md2pdf.py a.md b.md
 uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --mainfont "STIX Two Text" --table-font normalsize --landscape-cols 8
+# keep ```d2```/```csv``` fences verbatim instead of rendering them
+uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --no-render-fences
 ```
 
 Output defaults to `<input>.pdf` beside the source. Pipeline defaults, font
 notes, and the PDF table levers (`--table-font`, dash-width tuning,
 `--landscape-cols`, `--columns`) are documented in [SKILL.md](SKILL.md).
+
+**Renderable fences.** By default md2pdf renders a ` ```d2 ` fence to an embedded
+vector diagram and a ` ```csv ` fence to a native table (so the source travels
+inline in the Markdown), degrading to a verbatim listing if `d2` is absent or a
+block fails. **Glyph fallback:** on macOS a `glyph-fallback.tex` header remaps ✅
+onto a monochrome ✔ (macOS best-effort; off macOS it degrades to a warning, never a
+hard fail). The renderable-fence set is the shared `_shared/renderable_fences.py`
+registry. See [SKILL.md](SKILL.md#renderable-fences-d2-csv).
 
 ## Phase model
 
@@ -50,6 +60,9 @@ markdown-pdf/
   scripts/
     md2pdf.py                  pandoc/xelatex wrapper (PEP 723, argparse)
     landscape_wide_tables.lua  render-time filter: rotate wide tables to landscape
+    blocks.lua                 render-time filter: d2 fences -> PDF, csv -> table
+    glyph-fallback.tex         macOS -H header: remap ✅ color emoji -> monochrome ✔
+    test_md2pdf.py             pytest: fence render, no-leak, glyph degrade
 ```
 
 Requirements (`pandoc` + `xelatex`) and the platform-aware font defaults (macOS

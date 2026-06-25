@@ -22,13 +22,21 @@ GFM is the enforced convention).
 - **REQ-MDLINT-003** *(testable)* it shall flag malformed GFM tables — row column count ≠ delimiter
   row (ML005) — and malformed delimiter/alignment markers, e.g. `:-:-` (ML007).
 - **REQ-MDLINT-004** *(testable)* it shall flag empty link destinations `[text]()` (ML006).
+- **REQ-MDLINT-005** *(testable)* it shall provide an **opt-in** rule (ML009) that compile-checks the
+  interior of a *renderable fence* whose class exposes a validate path — the renderable-fence set is
+  the shared `_shared/renderable_fences.py` registry (currently ` ```d2 ` compile-checkable;
+  ` ```csv ` renderable but not compile-checkable). ML009 shells out to the renderer and shall
+  **degrade to a clean pass** (no finding) when the renderer binary (e.g. `d2`) is absent; it is
+  **excluded from the authoring-time subset** (REQ-MDLINT-011). The vendored registry region is the
+  single source of truth ML009 consumes.
 
 ### 2.2 Invocation & output
 
 - **REQ-MDLINT-010** *(testable)* it shall accept one or more paths and a `--rules ML001,…` subset
   (default: all) and a `--format text|json`.
-- **REQ-MDLINT-011** *(testable)* the **authoring-time subset** (ML001, ML002, ML005, ML006, ML007)
-  shall skip link/anchor resolution (ML003/ML004) so it is fast enough for on-edit use.
+- **REQ-MDLINT-011** *(testable)* the **authoring-time subset** (ML001, ML002, ML005, ML006, ML007,
+  ML008) shall skip link/anchor resolution (ML003/ML004) and the shell-out compile check (ML009) so
+  it is fast enough for on-edit use.
 - **REQ-MDLINT-012** *(testable)* a clean run shall report `markdown-lint: clean` and exit zero; any
   violation shall exit non-zero.
 
@@ -56,12 +64,15 @@ GFM is the enforced convention).
 
 ## 5. Verification
 
-- A fixture corpus with one file per rule (ML001–ML007) asserting the expected violation; a clean
+- A fixture corpus with one file per rule (ML001–ML008) asserting the expected violation; a clean
   fixture asserting `clean` + exit 0. The authoring-subset speed/skip behavior (REQ-MDLINT-011)
-  asserted by running with `--rules` and confirming ML003/ML004 are not evaluated.
+  asserted by running with `--rules` and confirming ML003/ML004 are not evaluated. ML009 (opt-in,
+  shell-out) is verified separately: a broken ` ```d2 ` fence is flagged when `d2` is present, a
+  valid one passes, and the rule degrades to clean when `d2` is monkeypatched absent.
 
 ## 6. References
 
-- `skills/yf-markdown-lint/SKILL.md` (rule table ML001–ML007, table conventions).
+- `skills/yf-markdown-lint/SKILL.md` (rule table ML001–ML009, table conventions).
+- `_shared/renderable_fences.py` (canonical renderable-fence registry consumed by ML009).
 - `protocols/MARKDOWN_LINT.md` (on-edit trigger).
 - Root `SPEC.md` §4 (MDLINT) and `GUARDRAILS.md` (GR-004).

@@ -62,6 +62,8 @@ TABLE_FONT_SIZES = (
     "normalsize", "large", "Large",
 )
 LANDSCAPE_FILTER = Path(__file__).parent / "landscape_wide_tables.lua"
+BLOCKS_FILTER = Path(__file__).parent / "blocks.lua"
+GLYPH_FALLBACK = Path(__file__).parent / "glyph-fallback.tex"
 
 
 def check_deps() -> None:
@@ -140,6 +142,10 @@ def main() -> int:
                     help="pandoc --columns (default 72). Dash-count column-width "
                          "tuning only engages once a table's separator row is "
                          "wider than this; lower it to tune narrower tables.")
+    ap.add_argument("--no-render-fences", action="store_true",
+                    help="keep ```d2```/```csv``` fences verbatim instead of "
+                         "rendering them to PDF (default: render via blocks.lua). "
+                         "Use when documenting d2/csv syntax itself.")
     args, passthrough = ap.parse_known_args()
     # argparse leaves a leading "--" in the remainder; drop it.
     if passthrough and passthrough[0] == "--":
@@ -158,9 +164,28 @@ def main() -> int:
         pre_args += ["--lua-filter", str(LANDSCAPE_FILTER)]
         env["LANDSCAPE_COLS"] = str(args.landscape_cols)
 
+    # Glyph fallback (macOS best-effort): remap color-emoji xelatex cannot render
+    # (e.g. ✅) onto a monochrome symbol. Skipped off macOS — newunicodechar.sty and
+    # Arial Unicode MS are MacTeX-guaranteed; elsewhere a missing glyph merely warns
+    # (never a hard fail), so we do not risk loading a package that may be absent.
+    if _IS_MACOS and GLYPH_FALLBACK.is_file():
+        pre_args += ["--include-in-header", str(GLYPH_FALLBACK)]
+
+    # Renderable fences (d2 -> PDF image, csv -> table) are rendered by default via
+    # blocks.lua. The filter writes per-run d2 PDFs into MD2PDF_FENCE_TMPDIR, which
+    # we own and reap in `finally` AFTER pandoc/xelatex have embedded them (so a
+    # rendered diagram outlives the filter pass with no temp leak).
+    render_fences = not args.no_render_fences
+    fence_tmpdir: str | None = None
+
     header = build_header(args.table_font, landscape)
     header_path: Path | None = None
     try:
+        if render_fences:
+            fence_tmpdir = tempfile.mkdtemp(prefix="md2pdf-fence-")
+            env["MD2PDF_FENCE_TMPDIR"] = fence_tmpdir
+            pre_args += ["--lua-filter", str(BLOCKS_FILTER)]
+
         if header:
             fd, name = tempfile.mkstemp(suffix=".tex", prefix="md2pdf-hdr-")
             header_path = Path(name)
@@ -177,6 +202,8 @@ def main() -> int:
     finally:
         if header_path is not None:
             header_path.unlink(missing_ok=True)
+        if fence_tmpdir is not None:
+            shutil.rmtree(fence_tmpdir, ignore_errors=True)
     return 0
 
 

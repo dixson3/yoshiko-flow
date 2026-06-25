@@ -29,13 +29,22 @@ uv run scripts/render.py preflight                 # OS-independent `command -v 
 uv run scripts/render.py render <slug>.d2          # one .d2 -> sibling .png (theme 0, elk)
 uv run scripts/render.py render-dir <dir>          # (re)render every .d2 under <dir>
 uv run scripts/render.py check-dir <dir>           # every .d2 has a .png (+ advisory staleness)
+uv run scripts/render.py embed <src.d2> <tgt.md>   # insert source as an inline ```d2 fence
+uv run scripts/render.py lift <tgt.md>             # inline ```d2 -> standalone .d2 + .png + link
+uv run scripts/render.py inline <tgt.md>           # standalone .png link -> inline ```d2 fence
 ```
 
 Write `.d2` source into the caller's diagrams location, render, then `Read` the PNG to verify
 (white background, legible labels). Reference a render from docs with relative markdown image
 syntax — `![alt](spec/<slug>.png)` from a skill README, `![alt](docs/diagrams/<slug>.png)` from
-the project README. See SKILL.md for the full workflow, location conventions, and d2 authoring
-notes.
+the project README.
+
+**Inline source vs standalone render.** A diagram can travel **inline** as a ```` ```d2 ```` fence
+(rendered at preview/PDF time by `yf-markdown-pdf` — one file, no committed binary) or as a
+**standalone** committed `.d2` + `.png` referenced by an image link (previews anywhere, but adds a
+binary + a regeneration discipline). `embed` inserts inline source, `lift` converts inline →
+standalone, `inline` converts standalone → inline; the pair round-trips (source unchanged). See
+SKILL.md for the full workflow, the trade-off table, location conventions, and d2 authoring notes.
 
 ## Layout
 
@@ -44,5 +53,6 @@ skills/diagram-authoring/
 ├── SKILL.md             # the d2 workflow, location conventions, when-to-diagram, d2 authoring notes
 ├── README.md            # this file
 └── scripts/
-    └── render.py        # PEP 723 helper: preflight / render / render-dir / check-dir
+    ├── render.py        # PEP 723 helper: preflight / render / render-dir / check-dir / embed / lift / inline
+    └── test_render.py   # pytest: embed/lift/inline parsing + the round-trip guarantee
 ```

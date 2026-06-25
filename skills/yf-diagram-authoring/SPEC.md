@@ -12,7 +12,8 @@ standardizes d2 — **not mermaid** — as the single, local, offline diagram en
 render contract (theme 0 light, elk layout) and a write → render → verify-by-Read workflow.
 
 **In scope:** the d2 render wrapper (`preflight`, `render`, `render-dir`, `check-dir`), the
-source-beside-render invariant, and the regeneration/orphan discipline.
+source-beside-render invariant, the regeneration/orphan discipline, and the inline-source ↔
+standalone-render round-trip (`embed`/`lift`/`inline`) over the `d2` renderable fence.
 
 **Out of scope:** non-diagram image work; mermaid-specific workflows; choosing where output goes
 — the skill is **location-agnostic**, and consumers (e.g. `yf-plan`, `yf-research`,
@@ -54,7 +55,28 @@ skill `spec/` co-resident, `docs/diagrams`).
   background, legible labels, correct structure) and fix the `.d2` and re-render on any problem —
   never hand-edit the `.png`.
 
-### 2.4 Invocation & output
+### 2.4 Inline-source round-trip (`embed` / `lift` / `inline`)
+
+A d2 diagram has two representations in markdown: an **inline** ```` ```d2 ```` fence (source
+rendered at preview/PDF time by `yf-markdown-pdf`) or a **standalone** committed `.d2` + `.png`
+referenced by an `![alt](slug.png)` image link. The `d2` fence class is the canonical
+renderable fence (`_shared/renderable_fences.py`).
+
+- **REQ-DIAG-040** *(testable)* `embed <src.d2|-> <tgt.md>` shall insert a ```` ```d2 ```` fenced
+  block carrying the d2 source verbatim into `<tgt.md>` — appended by default, or after the first
+  line matching `--anchor <text>` — reading source from a `.d2` file or stdin (`-`).
+- **REQ-DIAG-041** *(testable)* `lift <tgt.md>` shall extract the **first** inline ```` ```d2 ````
+  block to a standalone `.d2` (sibling `<stem>.d2` by default, or `--out`), render its sibling
+  `.png` via the `render` path, and replace the fence with an `![<alt>](<slug>.png)` image link.
+  When `d2` is absent it shall still write the `.d2` and replace the fence (the `.png` is skipped,
+  not a hard failure).
+- **REQ-DIAG-042** *(testable)* `inline <tgt.md>` shall be the inverse — replace the **first**
+  `![](*.png)` image link whose sibling `.d2` exists (or the `--d2 <path>` source) with an inline
+  ```` ```d2 ```` fence carrying that source.
+- **REQ-DIAG-043** *(testable)* the pair shall **round-trip**: `embed` → `lift` → `inline` (and
+  `lift` → `inline`) returns the d2 source unchanged.
+
+### 2.5 Invocation & output
 
 - **REQ-DIAG-030** *(testable)* every subcommand (`preflight`, `render`, `render-dir`,
   `check-dir`) shall accept `--json` for machine-readable output; `render`/`render-dir` shall
@@ -65,8 +87,10 @@ skill `spec/` co-resident, `docs/diagrams`).
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/render.py` (run via `uv run`) — subcommands `preflight`, `render
-  <file.d2>`, `render-dir <dir>`, `check-dir <dir>`; flags `--theme` (default `0`), `--layout`
-  (default `elk`), `--json`. **External tool:** the script shells to **d2** (`depends-on-tool:
+  <file.d2>`, `render-dir <dir>`, `check-dir <dir>`, `embed <src.d2|-> <tgt.md>`, `lift <tgt.md>`,
+  `inline <tgt.md>`; flags `--theme` (default `0`), `--layout` (default `elk`), `--json`, plus
+  `embed --anchor`, `lift --out/--alt`, `inline --d2`. **External tool:** the script shells to
+  **d2** (`depends-on-tool:
   [d2]`). This is a skill that shells to an external renderer, consistent with macro GUARDRAILS
   GR-004 (rendering lives in the skill, not in `yf`) and GR-011 (`yf` shells to `d2`, never vendors
   it).
@@ -98,6 +122,11 @@ skill `spec/` co-resident, `docs/diagrams`).
   with an `ORPHAN` line; a `.d2` newer than an existing `.png` yields a WARN line and exit 0.
 - `--json` shape (REQ-DIAG-030) asserted per subcommand. Forward coverage per plan-010 Epic 6
   (tests naming the REQ id).
+- `embed`/`lift`/`inline` (REQ-DIAG-040..043) are checkable with d2-binary-free fixtures: `embed`
+  inserts a valid ```` ```d2 ```` fence (append + `--anchor`); `lift` extracts to `.d2` and
+  replaces the fence with an image link (rendering the `.png` only when `d2` is on PATH); the
+  `embed` → `lift` → `inline` round-trip preserves the source. See
+  `scripts/test_render.py`.
 
 ## 6. References
 
