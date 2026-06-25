@@ -857,7 +857,8 @@ fn remove_hook_shims(repo_root: &Path) -> std::io::Result<()> {
 fn remove_dolt_remote(repo_root: &Path) -> std::io::Result<()> {
     // No remote configured (unparseable or empty value) → clean no-op. Uses the
     // `--json` reader so the `(not set …)` sentinel isn't misread as a value (#43).
-    let configured = bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty());
+    let configured =
+        bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty());
     if !configured {
         return Ok(());
     }
@@ -1356,9 +1357,15 @@ mod tests {
         assert_eq!(parse_bd_config_value(set), Some("true".to_string()));
         // Missing/null value field → empty string (treated as unset).
         assert_eq!(parse_bd_config_value(r#"{"key":"x"}"#), Some(String::new()));
-        assert_eq!(parse_bd_config_value(r#"{"value":null}"#), Some(String::new()));
+        assert_eq!(
+            parse_bd_config_value(r#"{"value":null}"#),
+            Some(String::new())
+        );
         // Unparseable (e.g. the plain-text sentinel itself) → None.
-        assert_eq!(parse_bd_config_value("sync.remote (not set in config.yaml)"), None);
+        assert_eq!(
+            parse_bd_config_value("sync.remote (not set in config.yaml)"),
+            None
+        );
     }
 
     // dqo: prune-codex deletes the bare `[features]` residual (and the dir) but
