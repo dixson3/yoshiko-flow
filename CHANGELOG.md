@@ -6,6 +6,39 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ## Unreleased
 
+## v0.3.0 — 2026-06-24
+
+Adds a renderable-fenced-block pipeline (d2/csv compile-checked in lint and rendered in
+PDF), a per-repo change-set validation engine, consolidates shared Python helpers into a
+`_shared/` package, and extends `yf-beads-init` repair with native runtime/hook/remote
+cleanup.
+
+### Renderable fenced blocks: d2 + csv (plan-017, #33 + #34 + #37)
+
+- **`_shared/renderable_fences.py`** — new canonical registry of renderable fenced-block
+  kinds (d2, csv) shared across the lint, PDF, and diagram skills.
+- **yf-markdown-lint** — new **ML009** rule: d2 fenced blocks are compile-checked (caught
+  malformed diagram source at authoring time, not render time).
+- **yf-markdown-pdf** — `scripts/blocks.lua` renders fenced blocks during the PDF pipeline
+  (d2 → embedded diagram, csv → table) with a `glyph-fallback.tex` for broad Unicode
+  coverage; `--no-render-fences` opts out. `_shared/sync.py` gains a Python→Lua emitter
+  that keeps `blocks.lua` mirrored from the canonical registry (DRIFT-CHECK edges enforce it).
+- **yf-diagram-authoring** — embed/lift/inline round-trip between a `.d2` source file and an
+  inline fenced block.
+- **yf-research** — new `record-epic` subcommand and the CLI-spec realignment that goes with it.
+
+### Helper consolidation + `yf-beads-init` native cleanup (plan-016, #15 + #39 + #36)
+
+- **`_shared/`** — two-helper vendoring sweep: `manifest_update.py` (whole-file, byte-identical
+  copies across five skills) and `json_extract.py` (defensive JSON extractor, region-vendored
+  into `plan_manager.py` + `research_manager.py`; `json-get` gains list int-indexing). New
+  DRIFT-CHECK edges and `test_sync.py` coverage. Zero `yf` Rust change for this epic.
+- **yf-beads-init** — `repair()` native cleanup: untrack-runtime, content-guarded
+  remove-hook-shims, and a confirm-gated remove-remote (`--remove-remote`), wired into
+  preflight-converge (the read-only invariant is preserved). Rust tests + SKILL/SPEC docs.
+- **audit** — regression test pinning the `audit --json-output` `json.dumps` invariant (bug
+  already absent; no production change).
+
 ### New: `yf-change-validation` — per-repo change-set validation engine (plan-015, #27 + #25)
 
 - **`yf-change-validation`** — new skill that validates a change set against a per-repo,
