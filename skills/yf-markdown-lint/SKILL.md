@@ -48,6 +48,16 @@ Exit 1 if any violation is found; report each and explain the rule.
 | ML006 | Empty link destination `[text]()` |
 | ML007 | Malformed table delimiter / alignment marker (e.g. `:-:-`) |
 | ML008 | Table column lacks an explicit alignment marker (use `:---` / `:--:` / `---:`) |
+| ML009 | Embedded renderable-fence source does not compile (e.g. a broken ` ```d2 ` block) |
+
+**ML009 is opt-in (full-audit only).** It compile-checks the *interior* of a
+renderable fence whose class has a validate path — currently ` ```d2 ` (the set is
+the shared `_shared/renderable_fences.py` registry). It **shells out** to the
+renderer, so it is **excluded from the authoring-time subset** and degrades to a
+clean pass when the `d2` binary is absent. ` ```csv ` is renderable but not
+compile-checkable, so it is never flagged. See the
+[`yf-markdown-pdf`](../yf-markdown-pdf/SKILL.md) skill, which *renders* these same
+fences.
 
 Frontmatter, fenced code blocks, and inline code spans are exempt from the
 link/wiki-link checks (so docs that *describe* wiki-link syntax aren't flagged).

@@ -1,0 +1,15 @@
+% Monochrome fallback for color-emoji glyphs xelatex cannot render.
+%
+% xelatex/fontspec cannot use color-bitmap (emoji) fonts, so codepoints like
+% ✅ U+2705 emit a "Missing character" warning and render as nothing. newunicodechar
+% (shipped with MacTeX / texlive-latex-recommended) remaps such a codepoint to a
+% MONOCHROME symbol already present in the active Unicode mainfont. ✔ U+2714 and
+% ✖ U+2716 render fine under Arial Unicode MS (the macOS mainfont default), so the
+% color check-mark is remapped onto the monochrome one.
+%
+% Scope: macOS best-effort. Included by md2pdf.py only on macOS, where MacTeX
+% guarantees newunicodechar.sty and Arial Unicode MS supplies ✔. Color emoji remain
+% unsupported under xelatex (an accepted, documented limitation) — this provides a
+% legible monochrome substitute, not full color-emoji parity.
+\usepackage{newunicodechar}
+\newunicodechar{✅}{\symbol{"2714}}

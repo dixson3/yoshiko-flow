@@ -1,7 +1,7 @@
 # Markdown Lint-on-Edit Trigger Protocol
 
 Always-loaded firing surface for the `yf-markdown-lint` skill. The linter procedure,
-the rule list (ML001–ML008), and the table conventions live in the skill's
+the rule list (ML001–ML009), and the table conventions live in the skill's
 `SKILL.md`; this rule binds only the on-edit trigger a `description` cannot
 reliably fire. It is the **portable, cross-harness** equivalent of the optional
 Claude-Code `FileChanged` hook documented in `SKILL.md` — use one, not both.

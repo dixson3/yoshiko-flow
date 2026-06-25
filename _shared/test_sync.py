@@ -59,7 +59,18 @@ def test_real_assets_registered():
     whole_names = {a.name for a in sync.WHOLE_FILE_ASSETS}
     assert "active-set classifier" in region_names
     assert "defensive json extractor" in region_names
+    assert "renderable-fence registry" in region_names
     assert "manifest_update.py" in whole_names
+
+
+def test_canonical_body_renderable_fences():
+    asset = next(a for a in sync.REGION_ASSETS if a.name == "renderable-fence registry")
+    body = sync.canonical_region_body(asset)
+    assert "RENDERABLE_FENCES = {" in body
+    assert "def renderable_fence_classes" in body
+    assert "def compile_checkable_fence_classes" in body
+    # the registry's canonical fence classes travel inside the region body
+    assert '"d2"' in body and '"csv"' in body
 
 
 def test_canonical_body_active_set():
@@ -231,6 +242,7 @@ def fake_repo(tmp_path, monkeypatch):
     monkeypatch.setattr(sync, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(sync, "REGION_ASSETS", [region_asset])
     monkeypatch.setattr(sync, "WHOLE_FILE_ASSETS", [whole_asset])
+    monkeypatch.setattr(sync, "EMITTED_ASSETS", [])  # neutralize the real Lua mirror
     return tmp_path, region_canon, c1, c2, whole_canon, w1
 
 
@@ -266,6 +278,56 @@ def test_main_missing_whole_file_canonical_exit_2(fake_repo, monkeypatch):
     monkeypatch.setattr(sync, "WHOLE_FILE_ASSETS", [missing])
     monkeypatch.setattr(sync, "REGION_ASSETS", [])
     assert sync.main(["--check"]) == 2           # canonical missing -> error exit
+
+
+# --- emitted assets (generated cross-language region: Python registry -> Lua) ----
+
+def test_emitted_asset_registered():
+    names = {a.name for a in sync.EMITTED_ASSETS}
+    assert "renderable-fence Lua mirror" in names
+
+
+def test_emit_lua_fence_list_format():
+    body = sync.emit_lua_fence_list()
+    # one line, sorted class names, real registry classes present
+    assert body == 'local RENDERABLE_FENCES = { "csv", "d2" }\n'
+
+
+def test_blocks_lua_region_matches_emitter():
+    """The committed blocks.lua region must equal the freshly emitted body."""
+    asset = next(a for a in sync.EMITTED_ASSETS if a.name == "renderable-fence Lua mirror")
+    current = sync.extract_region(asset.consumer.read_text(), asset.begin_re, asset.end_re)
+    assert current == asset.emit()
+
+
+def test_main_emitted_regenerates_then_idempotent(tmp_path, monkeypatch):
+    lua = tmp_path / "blocks.lua"
+    lua.write_text(
+        "-- prelude\n"
+        "-- >>> BEGIN renderable-fence registry (generated) >>>\n"
+        'local RENDERABLE_FENCES = { "stale" }\n'
+        "-- <<< END renderable-fence registry <<<\n"
+        "-- tail\n"
+    )
+    asset = sync.EmittedRegionAsset(
+        name="t-emit",
+        begin=">>> BEGIN renderable-fence registry",
+        end="<<< END renderable-fence registry",
+        consumer=lua,
+        emit=lambda: 'local RENDERABLE_FENCES = { "csv", "d2" }\n',
+    )
+    monkeypatch.setattr(sync, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sync, "REGION_ASSETS", [])
+    monkeypatch.setattr(sync, "WHOLE_FILE_ASSETS", [])
+    monkeypatch.setattr(sync, "EMITTED_ASSETS", [asset])
+
+    assert sync.main(["--check"]) == 1          # stale -> divergence reported
+    assert "stale" in lua.read_text()           # check mode did not rewrite
+    assert sync.main([]) == 0                    # regenerate
+    assert 'local RENDERABLE_FENCES = { "csv", "d2" }' in lua.read_text()
+    assert "stale" not in lua.read_text()
+    assert "-- prelude" in lua.read_text() and "-- tail" in lua.read_text()
+    assert sync.main(["--check"]) == 0          # now clean / idempotent
 
 
 if __name__ == "__main__":

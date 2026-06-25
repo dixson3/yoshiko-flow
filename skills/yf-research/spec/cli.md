@@ -19,23 +19,23 @@ Verification: SKILL.md frontmatter `SKIP` line; `protocols/RESEARCH.md` Routing 
 
 ## Pre-flight
 
-REQ-CLI-004: Every invocation except `init` runs `research_manager.py check` and stops (directing to `init`) on any non-`ok`/`ignored` status.
-Rationale: Running the pipeline without prerequisites — or against a drifted/missing rule — produces confusing failures.
-Verification: SKILL.md Pre-flight section; `_check_prerequisites()` status branches.
+REQ-CLI-004: Every invocation except `init` runs `yf preflight yf-research --json` and stops (directing to `init`) on any non-`ok`/`ignored` status.
+Rationale: Running the pipeline without prerequisites — or against a drifted/missing rule — produces confusing failures. The preflight (config gating, state caching, installed-rule hash) moved out of `research_manager.py` into the `yf preflight` kernel in plan-010; the JSON contract is a superset of the legacy schema (same status values).
+Verification: SKILL.md Pre-flight section (the `yf preflight yf-research --json` invocation and its status branches).
 
 REQ-CLI-005: If `.yf-research.local.json` (repo root) contains `"ignore-skill": true`, the skill exits silently.
 Rationale: Projects that can't satisfy prerequisites need a clean opt-out without repeated errors.
-Verification: SKILL.md Pre-flight bullet 1; `_check_prerequisites()` returns `{"status": "ignored"}`.
+Verification: SKILL.md Pre-flight `ignored` branch; the `yf preflight` kernel returns `{"status": "ignored"}` for that config.
 
 ## research_manager.py CLI
 
-REQ-CLI-006: `research_manager.py` exposes exactly 2 subcommands: `check`, `json-get`.
-Rationale: The manager is deliberately narrow — preflight (which locates and hash-checks the installed rule via `_rule_candidates()`/`_check_rule()`) and a defensive `json-get`. The companion rule is installed by the repo installer (`install.sh`), not by `init`, so no `rules-dir` subcommand is needed. Research-directory and `_index.md` state stays in `index_manager.py`; citation/report tooling in `link_normalizer.py` and `credibility_scorer.py`.
+REQ-CLI-006: `research_manager.py` exposes exactly 2 subcommands: `json-get`, `record-epic`.
+Rationale: The manager is deliberately narrow. Preflight moved to the `yf preflight` kernel (plan-010), so the manager carries only a defensive `json-get` plus `record-epic` (the idempotent epic-pointer writer, ported from `plan_manager.py`). Research-directory and `_index.md` state stays in `index_manager.py`; citation/report tooling in `link_normalizer.py` and `credibility_scorer.py`.
 Verification: `grep -c '@cli.command' scripts/research_manager.py` == 2.
 
-REQ-CLI-007: `research_manager.py check --json-output` emits a JSON object with keys `status` (`ignored|ok|system_deps_missing|bd_not_initialized|rule_missing|rule_drift|rule_deprecated|manifest_schema_unknown|manifest_missing`), `missing`, `instructions`, `warnings`, and `rule` (the installed-rule outcome object, null when deps/bd are missing). On the `ok` path it additionally carries `scaffold_added` (list of dirs/gitignore anchors preflight created this run, usually empty).
-Rationale: SKILL.md `init` parses this to decide ready/halt, relay advisory warnings, surface rule drift, and report scaffold additions.
-Verification: return shape of `_check_prerequisites()` (the `ok` branch includes `rule` + `scaffold_added`; non-ok rule branches set the `rule_*`/`manifest_*` status).
+REQ-CLI-007: `research_manager.py record-epic <research_dir> <epic_id>` writes/updates a single top-level `epic: <id>` line in `<research_dir>/plan.yaml` (replacing the commented `# epic: <id>` placeholder or an existing `epic:` line in place, else appending) and emits a JSON object with keys `epic_id` and `epic_field` (`written` when a line was replaced, `appended` when none existed). It is idempotent — re-running for the same epic leaves `plan.yaml` byte-identical.
+Rationale: SKILL.md Phase 3 calls this to persist the durable resume pointer (REQ-ORCH-008) a crashed `coordinate` session reads to recover after the start gate is already resolved. Hand-writing the line risks a duplicate `epic:` key; the helper guarantees idempotency. (The legacy `check --json-output` schema this requirement formerly anchored moved with preflight to the `yf preflight` kernel in plan-010 — see docs/yf/preflight-contract.md — and is no longer a `research_manager.py` surface.)
+Verification: the `record_epic` command in `scripts/research_manager.py`; its JSON echo (`epic_id`, `epic_field`); SKILL.md Phase 3 `record-epic` invocation.
 
 REQ-CLI-008: `research_manager.py json-get` parses defensively — it extracts the first balanced JSON value (tolerating a warning prefix or a concatenated/array document such as `bd show --json`) and supports numeric keys as list indices.
 Rationale: `bd` output is not always a single clean JSON document; naive `json.load` breaks on arrays/prefixes.

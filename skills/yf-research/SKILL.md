@@ -285,7 +285,8 @@ gate is already resolved (yf-beads-authoring REQ-ORCH-008). Two writes keyed on 
 
 ```bash
 bd update ${EPIC} --metadata "$(jq -nc --arg d "${research_dir}" '{research_dir:$d}')" -q
-# Add/replace the `epic: ${EPIC}` line in ${research_dir}/plan.yaml (idempotent).
+# Add/replace the `epic: ${EPIC}` line in plan.yaml (idempotent helper).
+uv run ${SKILL_DIR}/scripts/research_manager.py record-epic "${research_dir}" "${EPIC}"
 ```
 
 4. **Attach agent metadata to each step** (`agent` path is relative to `${SKILL_DIR}`):

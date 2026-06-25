@@ -12,7 +12,9 @@ broad-coverage Unicode font renders glyphs (arrows, `≤`, `≈`) the LaTeX defa
 the source file's directory.
 
 **In scope:** the single/batch `.md → .pdf` render, the platform-aware font policy, relative-image
-resolution, and the table-fit levers (font shrink, dash-width tuning, landscape rotation).
+resolution, the table-fit levers (font shrink, dash-width tuning, landscape rotation), rendering
+**renderable fences** (` ```d2 ` → PDF figure, ` ```csv ` → table) inline, and a macOS glyph
+fallback for color emoji.
 
 **Out of scope:** slide decks; HTML or any non-PDF output; **linting** markdown (that is
 `yf-markdown-lint`). Portable pipe-table *authoring* conventions also live in `yf-markdown-lint`;
@@ -63,12 +65,38 @@ this skill only renders them.
 - **REQ-MDPDF-032** `--columns N` (default 72) shall control when pandoc's separator-dash-count
   column-width tuning engages (it engages once a table's separator row is wider than `--columns`).
 
+### 2.5 Renderable fences & glyph fallback
+
+- **REQ-MDPDF-040** *(testable)* by default the script shall render **renderable fences** via the
+  `scripts/blocks.lua` pandoc filter: ` ```d2 ` → `d2 <in> <out>.pdf` embedded as a `pandoc.Image`
+  at an absolute path (vector PDF, **not** SVG — a deliberate divergence from the HTML preview);
+  ` ```csv ` → a native LaTeX table via `pandoc.read(text,"csv")`. The renderable-fence class set
+  shall be the shared `_shared/renderable_fences.py` registry, mirrored into `blocks.lua` by
+  `_shared/sync.py` (generated, drift-guarded).
+- **REQ-MDPDF-041** *(testable)* rendering shall **degrade gracefully**: if `d2` is absent or a
+  fence fails to compile/parse, that fence shall be left as a verbatim code listing and the build
+  shall still exit 0 (`pcall` in the filter). Exec shall be arg-vector only (`pandoc.pipe`), never
+  a shell string with concatenated paths.
+- **REQ-MDPDF-042** *(testable)* rendered d2 artifacts shall be written into a single **run-scoped**
+  temp dir (`MD2PDF_FENCE_TMPDIR`) that the script reaps in `finally` after pandoc completes — no
+  temp artifact shall survive a render, and repeated renders shall not accumulate temp dirs.
+- **REQ-MDPDF-043** *(testable)* `--no-render-fences` shall keep ` ```d2 `/` ```csv ` fences
+  verbatim (rendering is default-on).
+- **REQ-MDPDF-044** *(testable)* **on macOS** the script shall include `scripts/glyph-fallback.tex`
+  (`-H`), remapping ✅ (U+2705) onto a monochrome ✔ (U+2714) via `newunicodechar` so the
+  fixture renders with **zero** missing-character warnings; **off macOS** the header shall be
+  skipped and the glyph shall degrade to an xelatex warning — **never a hard fail**. Color emoji
+  remain unsupported (accepted limitation); the portable fallback font is `font-symbola` / Noto
+  Sans Symbols 2 via `--mainfont`.
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/md2pdf.py` (run via `uv run`) — positional `.md` input(s); flags
   `-o/--output`, `--mainfont`, `--monofont`, `--margin`, `--table-font`, `--landscape-cols`,
-  `--columns`, and `--` passthrough. Helper: `scripts/landscape_wide_tables.lua` (the
-  landscape-rotation filter). **External tools:** the script shells to **pandoc** and **xelatex**
+  `--columns`, `--no-render-fences`, and `--` passthrough. Helpers:
+  `scripts/landscape_wide_tables.lua` (landscape-rotation filter), `scripts/blocks.lua`
+  (renderable-fence renderer; reads the `MD2PDF_FENCE_TMPDIR` env var), `scripts/glyph-fallback.tex`
+  (macOS color-emoji remap header). **External tools:** the script shells to **pandoc** and **xelatex**
   (`depends-on-tool: [uv, pandoc, xelatex]`). This is a skill that shells to external tools,
   consistent with macro GUARDRAILS GR-004 (PDF rendering lives in the skill, not in `yf`) and
   GR-011 (`yf` shells to `pandoc`, never vendors it).
@@ -101,7 +129,11 @@ this skill only renders them.
 
 ## 6. References
 
-- `skills/yf-markdown-pdf/SKILL.md` (pipeline defaults, font policy, table levers).
-- `skills/yf-markdown-pdf/scripts/md2pdf.py` and `scripts/landscape_wide_tables.lua`.
-- `skills/yf-markdown-lint/SKILL.md` (portable pipe-table authoring — the lint axis).
+- `skills/yf-markdown-pdf/SKILL.md` (pipeline defaults, font policy, table levers, renderable
+  fences, glyph fallback).
+- `skills/yf-markdown-pdf/scripts/md2pdf.py`, `scripts/landscape_wide_tables.lua`,
+  `scripts/blocks.lua`, `scripts/glyph-fallback.tex`.
+- `_shared/renderable_fences.py` (canonical renderable-fence registry mirrored into `blocks.lua`).
+- `skills/yf-markdown-lint/SKILL.md` (portable pipe-table authoring + ML009 d2 compile-check — the
+  lint axis on the same registry).
 - Root `SPEC.md` §4 (MDPDF) and `GUARDRAILS.md` (GR-004, GR-011).

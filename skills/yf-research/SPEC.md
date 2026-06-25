@@ -25,8 +25,8 @@ is `bd`), and build planning (that is `yf-plan`).
 
 - **REQ-RESEARCH-001** *(testable)* a research project shall decompose into a DAG of subtasks across
   the phases retrieve → triangulate → synthesize → critique → refine → package.
-- **REQ-RESEARCH-002** *(testable)* every invocation except `init` shall run the preflight (`check`)
-  and branch on `ok | ignored | system_deps_missing | bd_not_initialized | rule_*`.
+- **REQ-RESEARCH-002** *(testable)* every invocation except `init` shall run the preflight
+  (`yf preflight yf-research`) and branch on `ok | ignored | system_deps_missing | bd_not_initialized | rule_*`.
 - **REQ-RESEARCH-003** the pipeline shall be resumable across sessions via the `coordinate`
   subcommand with gate auto-detection.
 
@@ -62,7 +62,7 @@ is `bd`), and build planning (that is `yf-plan`).
 
 ## 3. Interfaces
 
-- **CLI / scripts:** `scripts/research_manager.py` (preflight `check`, project lifecycle),
+- **CLI / scripts:** `scripts/research_manager.py` (defensive `json-get`, `record-epic`),
   `index_manager.py`, `credibility_scorer.py`, `link_normalizer.py`, `search_api.py`. Surface in
   `spec/cli.md`; data shapes in `spec/data.md`. **Preflight/config moves to `yf`** per macro
   `REQ-YF-PRE-*`; domain logic stays in Python.

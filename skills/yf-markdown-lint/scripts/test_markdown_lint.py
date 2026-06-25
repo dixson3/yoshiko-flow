@@ -75,5 +75,71 @@ def test_ml008_registered_in_all_rules():
     assert "ML008" in ml.ALL_RULES
 
 
+# --- ML009: optional compile-check of renderable embedded source (d2) ---
+
+import shutil  # noqa: E402  (local to the ML009 d2-dependent tests)
+
+_HAS_D2 = shutil.which("d2") is not None
+
+
+def test_ml009_registered_in_all_rules():
+    assert "ML009" in ml.ALL_RULES
+
+
+def test_ml009_not_in_authoring_subset():
+    # The on-edit authoring subset (SKILL.md / MARKDOWN_LINT.md) must not shell out.
+    subset = {"ML001", "ML002", "ML005", "ML006", "ML007", "ML008"}
+    assert "ML009" not in subset
+
+
+def test_fence_info_class_parsing():
+    assert ml.fence_info_class("```d2") == "d2"
+    assert ml.fence_info_class("   ~~~CSV") == "csv"
+    assert ml.fence_info_class("```python {.numberLines}") == "python"
+    assert ml.fence_info_class("```") == ""
+
+
+def test_vendored_registry_consumed_by_rule():
+    # The vendored region is live: the rule's compile-checkable set comes from it.
+    assert ml.compile_checkable_fence_classes() == ["d2"]
+    assert "d2" in ml.renderable_fence_classes()
+    assert "csv" in ml.renderable_fence_classes()
+
+
+def test_fence_compile_error_degrades_for_non_checkable_class():
+    # csv is renderable but not compile_checkable -> never flagged, no shell-out.
+    assert ml.fence_compile_error("csv", "x,y\n1,2\n") is None
+    assert ml.fence_compile_error("python", "import os\n") is None
+
+
+def test_ml009_clean_when_no_renderable_fence(tmp_path):
+    text = "# t\n\n```python\nprint(1)\n```\n\n```csv\nx,y\n1,2\n```\n"
+    assert lint(tmp_path, text, ["ML009"]) == []
+
+
+@pytest.mark.skipif(not _HAS_D2, reason="d2 binary not installed")
+def test_ml009_flags_broken_d2(tmp_path):
+    text = "# t\n\n```d2\na -> -> )(\n```\n"
+    out = lint(tmp_path, text, ["ML009"])
+    assert len(out) == 1
+    lineno, rule, msg = out[0]
+    assert rule == "ML009"
+    assert lineno == 3            # reported at the fence-open line
+    assert "does not compile" in msg
+
+
+@pytest.mark.skipif(not _HAS_D2, reason="d2 binary not installed")
+def test_ml009_passes_valid_d2(tmp_path):
+    text = "# t\n\n```d2\na -> b\n```\n"
+    assert lint(tmp_path, text, ["ML009"]) == []
+
+
+def test_ml009_degrades_without_d2(tmp_path, monkeypatch):
+    # With d2 unavailable the rule must produce no findings (graceful degrade).
+    monkeypatch.setattr(ml.shutil, "which", lambda _name: None)
+    text = "# t\n\n```d2\na -> -> )(\n```\n"
+    assert lint(tmp_path, text, ["ML009"]) == []
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
