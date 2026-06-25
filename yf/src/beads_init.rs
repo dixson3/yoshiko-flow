@@ -1617,10 +1617,15 @@ mod tests {
     }
 
     // #39 B.3: the `remove-remote` plan step is GATED — present only when both
-    // `remove_remote` and `local_only` are true; absent otherwise. Dry-run avoids
-    // invoking bd, so this pins the gate logic deterministically.
+    // `remove_remote` and `local_only` are true; absent otherwise. Dry-run
+    // (`apply=false`) only builds the plan, but `repair` still calls `verify`
+    // first — which bails `DepsMissing` if bd/git are absent — so the test skips
+    // cleanly on a host without them (e.g. CI that doesn't install bd).
     #[test]
     fn remove_remote_step_is_gated() {
+        if which("bd").is_none() || which("git").is_none() {
+            return; // verify() would report DepsMissing → repair bails; nothing to pin.
+        }
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path();
         // No .beads/ → NotInitialized branch; dry-run still emits the full plan.
