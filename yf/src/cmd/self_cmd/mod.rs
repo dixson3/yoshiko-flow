@@ -21,6 +21,7 @@ use crate::cli::SelfCommand;
 
 pub mod install;
 pub mod receipt;
+pub mod source;
 pub mod uninstall;
 pub mod update;
 
