@@ -201,6 +201,7 @@ mod tests {
         })
     }
 
+    // REQ-YF-SELF-001: install-receipt contract (~/.config/yf/yf-receipt.json + from-build marker).
     #[test]
     fn missing_receipt_is_none() {
         let tmp = tempfile::tempdir().unwrap();

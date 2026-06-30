@@ -134,6 +134,7 @@ fn write_cache(path: &Path, cache: &CheckCache) -> std::io::Result<()> {
 mod tests {
     use super::*;
 
+    // REQ-YF-SELF-006: throttled, fail-open, vendor-only upgrade nudge with opt-out.
     #[test]
     fn suppressed_by_optout_or_ci() {
         assert!(suppressed(|k| k == "YF_NO_UPDATE_CHECK"));

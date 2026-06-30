@@ -225,6 +225,7 @@ fn report(json: bool, dst: &Path, version: &str, profile: Profile, marker: &Path
 mod tests {
     use super::*;
 
+    // REQ-YF-SELF-004: yf self install --from-build promotes local build + from-build marker.
     #[test]
     fn profile_paths() {
         let root = Path::new("/ws");

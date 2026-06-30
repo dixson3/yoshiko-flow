@@ -167,6 +167,7 @@ pub fn refusal_guidance(source: Source) -> &'static str {
 mod tests {
     use super::*;
 
+    // REQ-YF-SELF-003: path-primary install-source classification (Homebrew refuse / vendor / from-build).
     #[test]
     fn homebrew_cellar_is_detected() {
         // A real path under a Cellar component. We build it inside a temp dir so

@@ -646,6 +646,7 @@ mod tests {
     /// Full pipeline against a local fixture (the acceptance path): a bumped
     /// manifest + a real `.tar.gz` + a correct `.sha256` drive
     /// select→download→verify→extract→swap with no network and no clobbering.
+    // REQ-YF-SELF-002: manifest fetch -> select -> sha256 verify -> extract -> atomic swap.
     #[test]
     fn full_update_pipeline_against_fixture() {
         // Only meaningful on the supported host triples (HOST_TRIPLE non-empty).
@@ -806,6 +807,7 @@ mod tests {
         MapFetcher(map)
     }
 
+    // REQ-YF-SELF-005: post-update skills/rules refresh via swap-destination exec, fail-soft.
     #[test]
     fn refresh_runs_after_swap_with_install_target_not_post_swap_exe() {
         if HOST_TRIPLE.is_empty() {

@@ -43,7 +43,7 @@ const ALLOWLIST: &[(&str, &str)] = &[
     ("REQ-YF-CLI-003", "covered by the --json flags on every clap subcommand (cli.rs) and the non-zero exit path (REQ-YF-DOCTOR-002 / preflight exit semantics); no dedicated structural unit test"),
     // Distribution is a release-pipeline concern, not in-crate behavior.
     ("REQ-YF-DIST-001", "covered by CI: cargo-dist release workflow (.github/workflows/release.yml) builds the {darwin,linux}x{amd64,arm64} matrix; not unit-testable in-crate"),
-    ("REQ-YF-DIST-002", "covered by CI: the release workflow publishes/updates the dixson3/homebrew-tap formula (depends_on beads/uv); not unit-testable in-crate"),
+    ("REQ-YF-DIST-002", "covered by CI: the release workflow publishes/updates the dixson3/homebrew-tap formula (no runtime depends_on since v0.3.1); not unit-testable in-crate"),
     // doctor --json + non-zero exit is the same exit-code mechanism as CLI-003;
     // doctor's unit tests tag DOCTOR-001 (axis logic), not the exit/json wiring.
     ("REQ-YF-DOCTOR-002", "covered by the doctor exit-code/--json wiring (cmd/doctor/mod.rs run) shared with REQ-YF-CLI-003; doctor unit tests tag the axis logic (DOCTOR-001), not the exit path"),

@@ -198,6 +198,7 @@ mod tests {
         move |k: &str| map.get(k).cloned()
     }
 
+    // REQ-YF-DIRS-001: XDG config/cache/data/bin resolution, XDG_* overrides, macOS-uses-XDG.
     #[test]
     fn defaults_from_home() {
         let d = resolve(env(&[("HOME", "/home/alice")]));

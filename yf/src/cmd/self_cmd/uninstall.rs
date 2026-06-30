@@ -235,6 +235,7 @@ mod tests {
         crate::dirs::resolve(move |k| (k == "HOME").then(|| home.clone().into_os_string()))
     }
 
+    // REQ-YF-SELF-004: yf self uninstall removes binary + yf-owned dirs, never touches skills.
     #[test]
     fn strips_only_the_env_source_line() {
         let variants = vec!["$HOME/.local/bin/env".to_string()];
