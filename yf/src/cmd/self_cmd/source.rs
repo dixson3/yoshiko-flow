@@ -172,7 +172,12 @@ mod tests {
         // A real path under a Cellar component. We build it inside a temp dir so
         // canonicalize succeeds.
         let tmp = tempfile::tempdir().unwrap();
-        let cellar = tmp.path().join("Cellar").join("yf").join("0.3.2").join("bin");
+        let cellar = tmp
+            .path()
+            .join("Cellar")
+            .join("yf")
+            .join("0.3.2")
+            .join("bin");
         std::fs::create_dir_all(&cellar).unwrap();
         let exe = cellar.join("yf");
         std::fs::write(&exe, b"").unwrap();

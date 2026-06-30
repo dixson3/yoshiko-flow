@@ -286,7 +286,13 @@ mod tests {
     #[test]
     fn self_install_from_build_flags_parse() {
         let cli = Cli::try_parse_from([
-            "yf", "self", "install", "--from-build", "--debug", "--build", "--json",
+            "yf",
+            "self",
+            "install",
+            "--from-build",
+            "--debug",
+            "--build",
+            "--json",
         ])
         .unwrap();
         let Command::SelfCmd {
@@ -301,9 +307,7 @@ mod tests {
     #[test]
     fn self_install_release_and_debug_conflict() {
         // --release and --debug are mutually exclusive.
-        assert!(
-            Cli::try_parse_from(["yf", "self", "install", "--release", "--debug"]).is_err()
-        );
+        assert!(Cli::try_parse_from(["yf", "self", "install", "--release", "--debug"]).is_err());
     }
 
     #[test]

@@ -37,7 +37,10 @@ pub fn extract_binary<R: Read>(reader: R, binary_name: &str, dest_dir: &Path) ->
     for entry in archive.entries().context("reading tar entries")? {
         let mut entry = entry.context("reading tar entry")?;
         let is_file = entry.header().entry_type().is_file();
-        let path = entry.path().context("decoding tar entry path")?.into_owned();
+        let path = entry
+            .path()
+            .context("decoding tar entry path")?
+            .into_owned();
         let matches = path
             .file_name()
             .map(|n| n == std::ffi::OsStr::new(binary_name))

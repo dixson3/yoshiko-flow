@@ -234,7 +234,10 @@ mod tests {
 
     #[test]
     fn partial_xdg_override_only_affects_named_dir() {
-        let d = resolve(env(&[("HOME", "/home/carol"), ("XDG_CACHE_HOME", "/fast/cache")]));
+        let d = resolve(env(&[
+            ("HOME", "/home/carol"),
+            ("XDG_CACHE_HOME", "/fast/cache"),
+        ]));
         assert_eq!(d.cache_dir(), Path::new("/fast/cache/yf"));
         // The others still derive from HOME.
         assert_eq!(d.config_dir(), Path::new("/home/carol/.config/yf"));
@@ -245,7 +248,10 @@ mod tests {
     fn relative_xdg_value_is_ignored() {
         // XDG Base Dir spec: a non-absolute $XDG_* value must be ignored, falling
         // back to the $HOME default.
-        let d = resolve(env(&[("HOME", "/home/dave"), ("XDG_CONFIG_HOME", "relative/cfg")]));
+        let d = resolve(env(&[
+            ("HOME", "/home/dave"),
+            ("XDG_CONFIG_HOME", "relative/cfg"),
+        ]));
         assert_eq!(d.config_dir(), Path::new("/home/dave/.config/yf"));
     }
 

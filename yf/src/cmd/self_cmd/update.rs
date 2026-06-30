@@ -80,7 +80,8 @@ impl Fetcher for HttpFetcher {
             .call()
             .with_context(|| format!("GET {url}"))?;
         let mut buf = Vec::new();
-        std::io::copy(&mut resp.into_reader(), &mut buf).with_context(|| format!("reading {url}"))?;
+        std::io::copy(&mut resp.into_reader(), &mut buf)
+            .with_context(|| format!("reading {url}"))?;
         Ok(buf)
     }
 }
@@ -121,9 +122,10 @@ pub fn select_artifact(manifest: &DistManifest, triple: &str) -> Option<Selected
     if triple.is_empty() {
         return None;
     }
-    let art = manifest.artifacts.values().find(|a| {
-        a.kind == "executable-zip" && a.target_triples.iter().any(|t| t == triple)
-    })?;
+    let art = manifest
+        .artifacts
+        .values()
+        .find(|a| a.kind == "executable-zip" && a.target_triples.iter().any(|t| t == triple))?;
     let checksum_name = art.checksum.clone()?;
     Some(Selected {
         archive_name: art.name.clone(),
@@ -304,9 +306,8 @@ pub fn run(args: &SelfUpdateArgs) -> Result<ExitCode> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     // Real refresh: exec the updated binary at its install path per present surface.
-    let refresh = |install_target: &Path| -> RefreshReport {
-        refresh_user_skills(install_target, &home)
-    };
+    let refresh =
+        |install_target: &Path| -> RefreshReport { refresh_user_skills(install_target, &home) };
     run_inner(args, &dirs, &fetcher, &swap, &refresh)
 }
 
@@ -658,7 +659,10 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("dist-manifest.json".to_string(), manifest.into_bytes());
         map.insert(format!("yf-{HOST_TRIPLE}.tar.gz"), archive);
-        map.insert(format!("yf-{HOST_TRIPLE}.tar.gz.sha256"), checksum.into_bytes());
+        map.insert(
+            format!("yf-{HOST_TRIPLE}.tar.gz.sha256"),
+            checksum.into_bytes(),
+        );
         let fetcher = MapFetcher(map);
 
         // Swap target: a temp "installed binary" we can assert on.
@@ -702,7 +706,10 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("dist-manifest.json".to_string(), manifest.into_bytes());
         map.insert(format!("yf-{HOST_TRIPLE}.tar.gz"), archive);
-        map.insert(format!("yf-{HOST_TRIPLE}.tar.gz.sha256"), checksum.into_bytes());
+        map.insert(
+            format!("yf-{HOST_TRIPLE}.tar.gz.sha256"),
+            checksum.into_bytes(),
+        );
         let fetcher = MapFetcher(map);
 
         let swapped = std::cell::Cell::new(false);
@@ -773,7 +780,14 @@ mod tests {
     fn upgrade_args_are_user_scoped_per_surface() {
         assert_eq!(
             upgrade_args("agents"),
-            ["skills", "upgrade", "--scope", "user", "--surface", "agents"]
+            [
+                "skills",
+                "upgrade",
+                "--scope",
+                "user",
+                "--surface",
+                "agents"
+            ]
         );
     }
 
@@ -785,7 +799,10 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("dist-manifest.json".to_string(), manifest.into_bytes());
         map.insert(format!("yf-{HOST_TRIPLE}.tar.gz"), archive);
-        map.insert(format!("yf-{HOST_TRIPLE}.tar.gz.sha256"), checksum.into_bytes());
+        map.insert(
+            format!("yf-{HOST_TRIPLE}.tar.gz.sha256"),
+            checksum.into_bytes(),
+        );
         MapFetcher(map)
     }
 
