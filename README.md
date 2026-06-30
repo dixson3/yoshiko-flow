@@ -9,11 +9,12 @@ and install into either the `.claude` or `.agents` surface, at user or project s
 
 ## Prerequisites
 
-With the **recommended Homebrew install** (below), `yf`'s formula pulls **`bd` (beads)** and
-**`uv`** in automatically — you don't install those separately. `git` is assumed already present.
-The toolchain `yf` and the skills rely on:
+`yf` is a single self-contained binary. **Installing it does not pull in `bd` or `uv`** —
+neither the `curl | sh` installer nor the Homebrew formula declares them as dependencies, so
+install those separately. `git` is assumed already present. The toolchain `yf` and the skills
+rely on:
 
-| Tool  | Version  | Purpose                                            | Manual install (only if **not** using Homebrew)             |
+| Tool  | Version  | Purpose                                            | Install                                                     |
 | :---- | :------- | :------------------------------------------------- | :---------------------------------------------------------- |
 | `bd`  | >= 1.0.5 | Task tracking (beads)                              | `brew install beads` — https://github.com/gastownhall/beads |
 | `uv`  | any      | Python env & script runner (skill helper scripts) | `brew install uv` — https://docs.astral.sh/uv/              |
@@ -27,21 +28,55 @@ Optional (detected at runtime):
 
 ## Install
 
-**Recommended: Homebrew + the `yf` CLI.** Install the [Yoshiko Flow](https://github.com/dixson3/yoshiko-flow)
-CLI via the tap — the formula's `depends_on` transitively pulls `beads` (the `bd` CLI) and `uv`, so you
-do not install those separately:
+**Recommended: the `curl | sh` vendor installer.** Downloads a prebuilt `yf` to `~/.local/bin`,
+adds that dir to `PATH`, and writes an install receipt under `~/.config/yf` — the uv-style
+self-contained model:
 
 ```bash
-brew install dixson3/tap/yf      # also installs beads (bd) + uv
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/dixson3/yoshiko-flow/releases/latest/download/yf-installer.sh | sh
+```
 
-# Deploy the skills + companion rules into a scope/surface
+`yf` then manages **itself** (distinct from `yf skills upgrade`, which manages the embedded
+skills):
+
+```bash
+yf self update            # check GitHub Releases + swap the binary in place (vendor installs)
+yf self update --check    # report whether a newer release exists; do not swap
+yf self uninstall         # remove the binary + yf-owned dirs (installed skills untouched)
+```
+
+`yf version` / `yf doctor` print a throttled, vendor-only nudge when a newer release exists
+(silence it with `YF_NO_UPDATE_CHECK=1`).
+
+**Alternative: Homebrew (secondary).** The tap still ships a working `yf`. Direct brew users
+upgrade with `brew upgrade` — `yf self update` deliberately **refuses** on a Homebrew (Cellar)
+copy and points you back to brew:
+
+```bash
+brew install dixson3/tap/yf
+```
+
+Neither path installs `bd` / `uv` — see [Prerequisites](#prerequisites).
+
+**Developing on this repo?** Promote your local build to `~/.local/bin` instead of a release:
+
+```bash
+yf self install --from-build                   # copy target/release/yf → ~/.local/bin/yf
+yf self install --from-build --debug --build   # build the debug profile first, then promote
+```
+
+A from-build install suppresses the upgrade nudge; `yf self update --force` round-trips back to
+a vendor release.
+
+### Deploy the skills
+
+```bash
 yf skills install                # all skills → ~/.claude/{skills,rules}/
 yf skills install --group beads  # only the beads-dependent skills
 yf skills install --scope project --surface agents  # <git-root>/.agents/{skills,rules}/
 yf skills install --dry-run      # preview without writing
-
-# Verify the toolchain + skill-install health
-yf doctor
+yf doctor                        # verify the toolchain + skill-install health
 ```
 
 `yf skills install` selectors: `--group <name>` (group computed from `skill-group`
@@ -52,6 +87,26 @@ frontmatter), `--scope user|project`, `--surface claude|agents`, `--target <path
 the embedded source (there is no hand-edit tolerance), so it is inert on the rule axis.
 A named subset (`yf skills install yf-plan yf-research`) pulls each skill's in-repo
 dependencies transitively.
+
+### Files and directories (XDG)
+
+`yf` resolves its own directories via the XDG layout on **both** Linux and macOS (not macOS's
+`~/Library`), honoring `XDG_*` overrides:
+
+| Path                  | Contents                                                       |
+| :-------------------- | :------------------------------------------------------------- |
+| `~/.local/bin/yf`     | the binary (the vendor install target)                         |
+| `~/.config/yf/`       | install receipt (`yf-receipt.json`) + the from-build marker    |
+| `~/.cache/yf/`        | the update-check throttle cache (`update-check.json`)          |
+| `~/.local/share/yf/`  | reserved for future on-disk content (planned)                  |
+
+Environment overrides: `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` / `XDG_DATA_HOME` / `XDG_BIN_HOME`
+relocate the respective dirs; `YF_NO_UPDATE_CHECK=1` silences the upgrade nudge; `YF_VERSION`
+overrides the version `yf self update` compares against (useful for testing).
+
+**macOS note:** binaries installed by `curl | sh` or `yf self update` are **not** quarantined.
+Only a release archive downloaded **through a browser** is quarantined by Gatekeeper — clear it
+with `xattr -d com.apple.quarantine ~/.local/bin/yf`.
 
 Each skill installs **with its companion rules** (`protocols/*.md`), surfaced into the matching
 `<scope>/.<surface>/rules/` dir as a **single aggregated `YOSHIKO_FLOW.md`** — one
