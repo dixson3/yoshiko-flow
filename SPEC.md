@@ -39,7 +39,9 @@ requirement lives only in code (GUARDRAILS GR-010).
 ### 3.1 CLI surface (`REQ-YF-CLI`)
 
 - **REQ-YF-CLI-001** *(testable)* `yf` shall expose subcommands `skills` (with
-  `install|upgrade|remove|status`), `doctor`, `preflight`, and `version`.
+  `install|upgrade|remove|status`), `self` (with `update|install|uninstall`), `doctor`,
+  `preflight`, and `version`. The `self` namespace manages the **binary** lifecycle and is
+  distinct from `skills`, which manages the embedded skills/rules.
 - **REQ-YF-CLI-002** *(testable)* `skills` subcommands shall accept `--scope {user,project}`
   (default `user`), `--surface {claude,agents}` (default `claude`), `--target <path>`, and
   `--dry-run`.
@@ -162,15 +164,70 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
 ### 3.7 Distribution (`REQ-YF-DIST`)
 
 - **REQ-YF-DIST-001** *(testable)* `yf` shall be released via cargo-dist for `{darwin,linux} ×
-  {amd64,arm64}` with checksums and semver derived from git tags.
+  {amd64,arm64}` with sha256 checksums and semver derived from git tags. The generated `curl|sh`
+  installer shall target `~/.local/bin` (XDG, `REQ-YF-DIRS-001`) and unix archives shall be
+  `.tar.gz` (so the self-update consumer extracts with a pure-Rust gzip+tar decoder —
+  `REQ-YF-SELF-003`). Linux targets build on native `ubuntu-22.04`/`ubuntu-22.04-arm` runners
+  (glibc 2.35 floor; aarch64 is NOT cross-compiled).
 - **REQ-YF-DIST-002** *(testable)* the release shall publish/update a Homebrew formula in
-  `dixson3/homebrew-tap` that declares `depends_on "beads"` and `depends_on "uv"`.
+  `dixson3/homebrew-tap`. The formula declares **no** runtime `depends_on` lines: `bd` (beads) and
+  `uv` are intentionally **not** Homebrew dependencies of `yf` (provisioned out-of-band via vendor
+  installers / the dotfiles bootstrap), so neither the `curl|sh` installer nor the formula installs
+  them. *(Revised — the original `depends_on "beads"`/`"uv"` block was dropped in v0.3.1.)*
 - **REQ-YF-DIST-003** *(WAIVED — operator-ratified 2026-06-16)* the cargo-dist-generated Homebrew
   formula carries **no** `test do` block: cargo-dist (`dist` 0.32.0) emits a minimal formula and
   exposes no test-block knob, so `brew test yf` is not provided. `yf`'s behavior is verified
   instead by the crate test suite and the G1 install round-trip (build + `yf skills install` +
   `yf skills status`). Adding a test block would require a post-publish formula patch, intentionally
   not adopted (keeps the formula fully cargo-dist-managed).
+
+### 3.7.1 XDG directories (`REQ-YF-DIRS`)
+
+- **REQ-YF-DIRS-001** *(testable)* `yf` shall resolve its own directories via an **XDG** layout on
+  **both** Unix and macOS (deliberately NOT macOS's `~/Library`), routed through one dirs module:
+  config → `~/.config/yf`, cache → `~/.cache/yf`, data → `~/.local/share/yf`, bin → `~/.local/bin`.
+  Resolution shall honor `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` / `XDG_DATA_HOME` / `XDG_BIN_HOME`
+  (ignoring non-absolute values per the XDG Base Directory spec), be total (a missing `$HOME` falls
+  back, never panics), and expose a stubbed Windows arm (Windows is a follow-on target). These are
+  **home-scoped** dirs, distinct from git-root-anchored **project** state; `yf` keeps no
+  self-contained `~/.yf` home.
+
+### 3.7.2 Vendor install & self-update (`REQ-YF-SELF`)
+
+- **REQ-YF-SELF-001** *(testable)* `yf self` shall expose `update`, `install`, and `uninstall`, each
+  supporting `--json`. The `curl|sh` installer shall write an install receipt to
+  `~/.config/yf/yf-receipt.json` (cargo-dist's fixed schema; the load-bearing field is
+  `install_prefix`).
+- **REQ-YF-SELF-002** *(testable)* `yf self update` shall fetch the latest release's
+  `dist-manifest.json`, compare the announcement tag to the running version, select the host
+  triple's `executable-zip` (`yf-<triple>.tar.gz`) and its `checksum` artifact (format-driven),
+  download the archive + `.sha256`, **verify the sha256** against the manifest checksum, **extract**
+  the inner binary with a pure-Rust gzip+tar decoder (no system `tar`/`xz`), and **atomically
+  replace** the running binary. `--check` shall report availability without downloading or swapping.
+- **REQ-YF-SELF-003** *(testable)* install-source classification shall be **path-primary** on the
+  canonicalized `current_exe()` (canonicalizing **both** the exe and the receipt-derived vendor
+  prefix before the containment test, so a symlinked install dir does not false-refuse): a Homebrew
+  (Cellar) copy shall be **refused** (directing to `brew upgrade`) and never updated even with
+  `--force`; a from-build or unknown copy shall be refused unless `--force`; a vendor copy shall
+  proceed. Classification shall survive a missing/`INSTALL_UPDATER=0` receipt (the canonicalized path
+  is authoritative; the receipt only corroborates and its `source` field is a repo descriptor, not a
+  classifier).
+- **REQ-YF-SELF-004** *(testable)* `yf self install --from-build [--release|--debug] [--build]
+  [--force]` shall promote the local `cargo build` output to `~/.local/bin/yf` and write a
+  yf-authored from-build marker (`~/.config/yf/yf-from-build.json`) that suppresses the upgrade nudge;
+  `yf self update --force` shall round-trip back to a vendor release. `yf self uninstall` shall remove
+  the binary, the yf-owned XDG dirs, and the installer's `PATH` line, and shall **never** touch
+  installed skills/rules (`~/.claude`, `~/.agents`).
+- **REQ-YF-SELF-005** *(testable)* after a successful vendor update — unless `--binary-only` — `yf`
+  shall re-deploy user-scope skills/rules by exec'ing the **swap-destination** binary (the path
+  captured before the swap, NOT a post-swap `current_exe()`) once per **present** surface
+  (`--surface claude` / `--surface agents`). A refresh failure shall be **fail-soft**: reported with
+  the manual re-run command, exiting non-zero on the refresh alone, **never** rolling back the
+  (successful) swap. A from-build install shall NOT auto-refresh.
+- **REQ-YF-SELF-006** *(testable)* `yf version` and `yf doctor` shall emit a **throttled** (24h),
+  **fail-open** (short timeout, errors swallowed), **vendor-only** upgrade nudge to stderr after the
+  real output, cached in `~/.cache/yf/update-check.json`, suppressed by `YF_NO_UPDATE_CHECK=1` and
+  auto-skipped under `CI`. The nudge is notify-only — it never downloads or swaps.
 
 ### 3.8 Rename invariants (`REQ-YF-RENAME`)
 

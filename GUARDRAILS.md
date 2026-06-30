@@ -51,8 +51,11 @@ not become*. They are made enforceable by the `SPEC.md ↔ GUARDRAILS.md ↔ REA
   but in no spec. *Rule:* the macro spec is composed from per-skill specs; new behavior lands in a
   `REQ-…` first (or alongside). *Why:* tests anchor to the spec, not the code.
 - **GR-011 — the binary is small and dependency-light.** *Drift:* bundling heavy runtimes, an
-  embedded Python, or a plugin VM. *Rule:* `yf` shells out to `bd`/`uv`/`git`/`pandoc`/`d2` (declared
-  Homebrew deps); it does not vendor them. *Why:* maintainability + transitive Homebrew install.
+  embedded Python, a plugin VM, or an **async** HTTP stack (reqwest/tokio). *Rule:* `yf` shells out
+  to `bd`/`uv`/`git`/`pandoc`/`d2` and does not vendor them; these are provisioned out-of-band, NOT
+  as Homebrew `depends_on` (`REQ-YF-DIST-002`). The self-update path (`REQ-YF-SELF-*`) adds only
+  minimal **synchronous** pure-Rust crates (`ureq`/rustls, `self-replace`, `flate2`+`tar`) — a
+  deliberately-scoped exception, no async runtime. *Why:* maintainability + a small binary.
 
 ## Per-skill guardrails
 
