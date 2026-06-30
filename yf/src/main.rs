@@ -61,6 +61,9 @@ fn run() -> Result<std::process::ExitCode> {
         Command::Preflight(args) => preflight::run(&args.skill, args.json),
         Command::Migrate(args) => migrate::run(args.path, args.dry_run, args.json)
             .map(|()| std::process::ExitCode::SUCCESS),
+        // `self` owns its exit code: a refusal (e.g. a Homebrew copy) is a verdict,
+        // and a failed post-update refresh exits non-zero without rolling back.
+        Command::SelfCmd { command } => cmd::self_cmd::run(&command),
     }
 }
 

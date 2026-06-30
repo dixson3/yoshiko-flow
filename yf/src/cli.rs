@@ -33,8 +33,91 @@ pub enum Command {
     Preflight(PreflightArgs),
     /// Migrate legacy `.state/<old>/` + `.<old>.local.json` to the `.yf/` layout.
     Migrate(MigrateArgs),
+    /// Manage the `yf` binary itself: self-update, dev install, uninstall.
+    ///
+    /// This is the **binary** lifecycle — distinct from `yf skills upgrade`, which
+    /// re-deploys the embedded **skills/rules**. `yf self update` swaps the binary
+    /// in place from a GitHub release; `yf skills upgrade` does not touch the binary.
+    #[command(name = "self")]
+    SelfCmd {
+        #[command(subcommand)]
+        command: SelfCommand,
+    },
     /// Print the `yf` version and build metadata.
     Version(VersionArgs),
+}
+
+/// `yf self …` subcommands (plan-018 Epic 3).
+#[derive(Debug, Subcommand)]
+pub enum SelfCommand {
+    /// Update the `yf` binary in place from the latest GitHub release.
+    ///
+    /// Vendor installs only: refuses on a Homebrew copy (use `brew upgrade`) and
+    /// no-nags a `--from-build` dev copy. Verifies the downloaded archive's sha256
+    /// against the release manifest before an atomic swap.
+    Update(SelfUpdateArgs),
+    /// Install a locally-built `yf` to `~/.local/bin` (dev workflow).
+    Install(SelfInstallArgs),
+    /// Remove the `yf` binary and yf-owned XDG dirs (never touches installed skills).
+    Uninstall(SelfUninstallArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SelfUpdateArgs {
+    /// Check for a newer release and report, but do not download or swap.
+    #[arg(long)]
+    pub check: bool,
+
+    /// Proceed even when the source can't be confirmed as a vendor install
+    /// (e.g. an `unknown`/from-build copy). Never overrides a Homebrew refusal.
+    #[arg(long)]
+    pub force: bool,
+
+    /// Skip the post-update skills/rules refresh (3.7); swap the binary only.
+    #[arg(long)]
+    pub binary_only: bool,
+
+    /// Emit machine-readable JSON (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct SelfInstallArgs {
+    /// Promote the local build to `~/.local/bin` (the only supported mode today).
+    #[arg(long)]
+    pub from_build: bool,
+
+    /// Promote the `release` profile build (default).
+    #[arg(long, conflicts_with = "debug")]
+    pub release: bool,
+
+    /// Promote the `debug` profile build instead of `release`.
+    #[arg(long)]
+    pub debug: bool,
+
+    /// Run `cargo build` (for the chosen profile) before promoting.
+    #[arg(long)]
+    pub build: bool,
+
+    /// Overwrite an existing `~/.local/bin/yf`.
+    #[arg(long)]
+    pub force: bool,
+
+    /// Emit machine-readable JSON (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct SelfUninstallArgs {
+    /// Proceed without the interactive confirmation.
+    #[arg(long)]
+    pub force: bool,
+
+    /// Emit machine-readable JSON (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -157,4 +240,81 @@ pub struct VersionArgs {
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
     pub json: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn cli_is_well_formed() {
+        // clap's own internal consistency check (catches conflicting args, bad
+        // defaults, duplicate flags).
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn self_command_is_named_self_not_self_cmd() {
+        // The variant is `SelfCmd` (Self is reserved) but the subcommand the user
+        // types must be `self`.
+        let cli = Cli::try_parse_from(["yf", "self", "update"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::SelfCmd {
+                command: SelfCommand::Update(_)
+            }
+        ));
+        // `self-cmd` must NOT be accepted.
+        assert!(Cli::try_parse_from(["yf", "self-cmd", "update"]).is_err());
+    }
+
+    #[test]
+    fn self_update_flags_parse() {
+        let cli =
+            Cli::try_parse_from(["yf", "self", "update", "--check", "--json", "--binary-only"])
+                .unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Update(a),
+        } = cli.command
+        else {
+            panic!("expected self update");
+        };
+        assert!(a.check && a.json && a.binary_only && !a.force);
+    }
+
+    #[test]
+    fn self_install_from_build_flags_parse() {
+        let cli = Cli::try_parse_from([
+            "yf", "self", "install", "--from-build", "--debug", "--build", "--json",
+        ])
+        .unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Install(a),
+        } = cli.command
+        else {
+            panic!("expected self install");
+        };
+        assert!(a.from_build && a.debug && a.build && a.json && !a.release);
+    }
+
+    #[test]
+    fn self_install_release_and_debug_conflict() {
+        // --release and --debug are mutually exclusive.
+        assert!(
+            Cli::try_parse_from(["yf", "self", "install", "--release", "--debug"]).is_err()
+        );
+    }
+
+    #[test]
+    fn self_uninstall_json_parses() {
+        let cli = Cli::try_parse_from(["yf", "self", "uninstall", "--json", "--force"]).unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Uninstall(a),
+        } = cli.command
+        else {
+            panic!("expected self uninstall");
+        };
+        assert!(a.json && a.force);
+    }
 }
