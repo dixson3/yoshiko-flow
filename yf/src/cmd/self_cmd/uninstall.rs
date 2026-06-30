@@ -99,7 +99,7 @@ fn run_with(args: &SelfUninstallArgs, dirs: &Dirs, home: &Path) -> Result<ExitCo
     // never block on a prompt in a script context.
     if !args.force {
         if args.json {
-            return Ok(refuse_needs_force_json(&plan)?);
+            return refuse_needs_force_json(&plan);
         }
         eprintln!("This will remove:");
         for f in &plan.files {

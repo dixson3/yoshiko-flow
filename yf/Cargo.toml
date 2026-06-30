@@ -20,6 +20,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 tar = "0.4"
+# Minimal synchronous HTTP for `yf self update` (plan-018 3.4). ureq + rustls — no
+# async runtime (decision 6: NOT reqwest/tokio), keeping the binary small (GR-011).
+ureq = { version = "2", features = ["tls"], default-features = false }
+# Atomic in-place replacement of the running binary (3.4).
+self-replace = "1"
 
 [dev-dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
