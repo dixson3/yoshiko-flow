@@ -5,23 +5,83 @@ sidebar_position: 2
 
 # Install
 
-## Homebrew (recommended)
+## curl | sh (recommended)
+
+The vendor installer downloads a prebuilt `yf` to `~/.local/bin`, adds it to
+`PATH`, and writes an install receipt under `~/.config/yf` — the uv-style
+self-contained model (REQ-YF-DIST-001):
 
 ```bash
-brew install dixson3/tap/yf
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/dixson3/yoshiko-flow/releases/latest/download/yf-installer.sh | sh
 ```
 
-The Homebrew formula declares its dependencies, so Homebrew pulls in
+`yf` is distributed for `{darwin,linux} × {amd64,arm64}` with sha256 checksums.
+**Installing `yf` does not install `bd` or `uv`** — install
 [`beads`](https://github.com/gastownhall/beads) (the `bd` issue tracker) and
 [`uv`](https://docs.astral.sh/uv/) (the Python runner several skills use)
-transitively (REQ-YF-DIST-002). `yf` itself is distributed for
-`{darwin,linux} × {amd64,arm64}` with checksums (REQ-YF-DIST-001).
+separately (e.g. `brew install beads uv`).
 
 Verify the binary:
 
 ```bash
 yf version
 ```
+
+### Keeping `yf` up to date
+
+`yf` manages its **own** binary (distinct from `yf skills upgrade`, which manages
+the embedded skills):
+
+```bash
+yf self update            # check GitHub Releases + swap the binary in place
+yf self update --check    # report whether a newer release exists; do not swap
+yf self uninstall         # remove the binary + yf-owned dirs (skills untouched)
+```
+
+`yf version` / `yf doctor` show a throttled, vendor-only nudge when a newer
+release exists (silence with `YF_NO_UPDATE_CHECK=1`).
+
+### Files and directories (XDG)
+
+`yf` uses the XDG layout on Linux **and** macOS (honoring `XDG_*` overrides):
+
+| Path                 | Contents                                              |
+| :------------------- | :---------------------------------------------------- |
+| `~/.local/bin/yf`    | the binary (vendor install target)                    |
+| `~/.config/yf/`      | install receipt + from-build marker                   |
+| `~/.cache/yf/`       | update-check throttle cache                           |
+| `~/.local/share/yf/` | reserved for future on-disk content                   |
+
+`YF_NO_UPDATE_CHECK=1` silences the upgrade nudge; `YF_VERSION` overrides the
+version `yf self update` compares against.
+
+On macOS, `curl | sh`- and `self update`-installed binaries are **not**
+quarantined; only a browser-downloaded archive is — clear it with
+`xattr -d com.apple.quarantine ~/.local/bin/yf`.
+
+## Homebrew (secondary)
+
+The tap still ships a working `yf`:
+
+```bash
+brew install dixson3/tap/yf
+```
+
+Direct brew users upgrade with `brew upgrade` — `yf self update` refuses on a
+Homebrew (Cellar) copy and points back to brew. The formula declares **no**
+runtime dependencies, so it does not pull in `bd` / `uv` (install those
+separately, as above).
+
+## Developer install (from a local build)
+
+```bash
+yf self install --from-build                   # copy target/release/yf → ~/.local/bin/yf
+yf self install --from-build --debug --build   # build the debug profile first, then promote
+```
+
+A from-build install suppresses the upgrade nudge; `yf self update --force`
+switches back to a vendor release.
 
 ## Install the skills
 
