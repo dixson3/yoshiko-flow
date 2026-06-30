@@ -10,6 +10,7 @@ mod cmd;
 #[cfg(test)]
 mod coverage;
 mod dest;
+mod dirs;
 mod embed;
 mod flow;
 mod frontmatter;
