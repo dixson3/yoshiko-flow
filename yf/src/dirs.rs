@@ -206,4 +206,83 @@ mod tests {
         assert_eq!(d.data_dir(), Path::new("/home/alice/.local/share/yf"));
         assert_eq!(d.bin_dir(), Path::new("/home/alice/.local/bin"));
     }
+
+    #[test]
+    fn macos_uses_xdg_not_library() {
+        // Decision 3: on macOS we deliberately use the XDG layout, never
+        // ~/Library/Application Support. Resolution is platform-uniform on unix.
+        let d = resolve(env(&[("HOME", "/Users/alice")]));
+        assert_eq!(d.config_dir(), Path::new("/Users/alice/.config/yf"));
+        assert!(!d.config_dir().starts_with("/Users/alice/Library"));
+    }
+
+    #[test]
+    fn xdg_overrides_are_honored() {
+        let d = resolve(env(&[
+            ("HOME", "/home/bob"),
+            ("XDG_CONFIG_HOME", "/cfg"),
+            ("XDG_CACHE_HOME", "/cache"),
+            ("XDG_DATA_HOME", "/data"),
+            ("XDG_BIN_HOME", "/bin"),
+        ]));
+        assert_eq!(d.config_dir(), Path::new("/cfg/yf"));
+        assert_eq!(d.cache_dir(), Path::new("/cache/yf"));
+        assert_eq!(d.data_dir(), Path::new("/data/yf"));
+        // bin has no `yf/` leaf — the binary file is named `yf`.
+        assert_eq!(d.bin_dir(), Path::new("/bin"));
+    }
+
+    #[test]
+    fn partial_xdg_override_only_affects_named_dir() {
+        let d = resolve(env(&[("HOME", "/home/carol"), ("XDG_CACHE_HOME", "/fast/cache")]));
+        assert_eq!(d.cache_dir(), Path::new("/fast/cache/yf"));
+        // The others still derive from HOME.
+        assert_eq!(d.config_dir(), Path::new("/home/carol/.config/yf"));
+        assert_eq!(d.data_dir(), Path::new("/home/carol/.local/share/yf"));
+    }
+
+    #[test]
+    fn relative_xdg_value_is_ignored() {
+        // XDG Base Dir spec: a non-absolute $XDG_* value must be ignored, falling
+        // back to the $HOME default.
+        let d = resolve(env(&[("HOME", "/home/dave"), ("XDG_CONFIG_HOME", "relative/cfg")]));
+        assert_eq!(d.config_dir(), Path::new("/home/dave/.config/yf"));
+    }
+
+    #[test]
+    fn empty_xdg_value_is_ignored() {
+        // An empty value is not absolute → ignored → HOME default.
+        let d = resolve(env(&[("HOME", "/home/erin"), ("XDG_DATA_HOME", "")]));
+        assert_eq!(d.data_dir(), Path::new("/home/erin/.local/share/yf"));
+    }
+
+    #[test]
+    fn empty_home_falls_back_to_cwd_total_resolution() {
+        // Resolution is total: an empty HOME never panics — it falls back to the
+        // current dir (mirrors dest.rs). We can't assert the exact cwd, but the
+        // relative leaf must still be appended.
+        let d = resolve(env(&[("HOME", "")]));
+        assert!(d.config_dir().ends_with(".config/yf"));
+        assert!(d.bin_dir().ends_with(".local/bin"));
+    }
+
+    #[test]
+    fn from_env_does_not_panic() {
+        // Smoke: the real-env entry point resolves to absolute-ish paths.
+        let _ = Dirs::from_env();
+    }
 }
+
+// ## Home-vs-project `~/.yf` distinction (Issue 2.2)
+//
+// The dirs above are **home-scoped** (per-user, `$HOME`-anchored XDG paths for
+// `yf`'s own config/cache/data + the `~/.local/bin` install target). They are
+// distinct from **project state**, which is **git-root-anchored** and resolved by
+// `dest.rs` (`git_root_or_cwd` / `Scope::Project`): per-repo skill installs land in
+// `<git-root>/.claude/{skills,rules}` etc., and per-repo config like
+// `.yf-plan.local.json` sits at the repo root. plan-018 decision 3 deliberately
+// **dropped** a self-contained `~/.yf` home: `yf` does NOT keep a single `~/.yf`
+// tree. There is therefore no `~/.yf` directory to confuse with project state —
+// home state is the XDG split here; project state stays at the git root. The one
+// home path that anchors future on-disk content is `data_dir()` →
+// `~/.local/share/yf` (the deferred materialization seam, decision 7).
