@@ -3,7 +3,7 @@
 **ID:** plan-018-james-dixson-1d39eb
 **Author:** james-dixson
 **Created:** 2026-06-30
-**Status:** approved
+**Status:** reconciling
 **Epic:** yf-mol-uiw
 **Phase log:**
 - 2026-06-30 scoping: initial scope captured
@@ -14,6 +14,8 @@
 - 2026-06-30 review: pass-2 red-team presented; v3 revisions applied (unix-archive→.tar.gz, 3.7 re-exec+surfaces, 3.3 canonicalize)
 - 2026-06-30 approved: operator approved (after 2 red-team passes + portability audit)
 - 2026-06-30 intake: epic yf-mol-uiw poured
+- 2026-06-30 executing: start gate resolved
+- 2026-06-30 reconciling: post-execution reconciliation
 
 ## Objective
 Move yf off Homebrew to a self-contained vendor-install model with upgrade detection and self-update (#55)
