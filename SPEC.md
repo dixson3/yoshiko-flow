@@ -1,9 +1,24 @@
 # SPEC — Yoshiko Flow (`yf`)
 
-> **Status: SEALED — Gate G0 (2026-06-14, operator).** Macro spec for `yf`, frozen at plan-010
-> INTAKE; changes require a new PLAN revision (no in-execution edits). Requirements use RFC-2119
-> "shall". The per-skill `skills/<skill>/SPEC.md` it composes remain DRAFT until finalized by
-> plan-010 Issue 3.8.
+> **Living spec.** Originally sealed at Gate G0 (2026-06-14, operator) from plan-010 INTAKE; it now
+> **evolves by amendment** — each substantive change lands alongside the plan (or release) that
+> makes it and is recorded in the amendment log below. Requirements use RFC-2119 "shall". Per-skill
+> `skills/<skill>/SPEC.md` carry their own `REQ-<KEY>-*`.
+>
+> **Amendment log:**
+> - **2026-06-14 — G0 seal** (plan-010 intake): initial macro spec.
+> - **plan-010 follow-ups:** `REQ-YF-PRE-004` config-path typo ratified; `REQ-YF-DIST-003` waived
+>   (no Homebrew `test do` block — cargo-dist limitation).
+> - **plan-011:** aggregated ruleset `YOSHIKO_FLOW.md` (`REQ-YF-FLOW-001..006`); `REQ-YF-INSTALL-005`
+>   revised and `-006` superseded (no hand-edit tolerance).
+> - **plan-012 (#29):** `yf-beads-hygiene` added to the skill catalog.
+> - **v0.3.1:** Homebrew formula dropped its runtime `depends_on` (the SPEC `REQ-YF-DIST-002` text
+>   was not updated until plan-018 — the lag this audit corrected).
+> - **plan-018 (2026-06-30, #55):** vendor install + self-update — added `REQ-YF-DIRS-001`,
+>   `REQ-YF-SELF-001..006`; revised `REQ-YF-CLI-001` (+`self`, +`migrate`), `REQ-YF-DIST-001`
+>   (XDG `~/.local/bin` + `.tar.gz`), `REQ-YF-DIST-002` (no `depends_on`), `REQ-YF-DOCTOR-001`
+>   (the `--repair` mutation surface + homebrew-shadow axis), `REQ-YF-PRE-002` (per-skill
+>   `min-bd-version`), and `GUARDRAILS` GR-007 (update-check carve-out) / GR-011 (self-update deps).
 
 ## 1. Purpose & scope
 
@@ -40,8 +55,8 @@ requirement lives only in code (GUARDRAILS GR-010).
 
 - **REQ-YF-CLI-001** *(testable)* `yf` shall expose subcommands `skills` (with
   `install|upgrade|remove|status`), `self` (with `update|install|uninstall`), `doctor`,
-  `preflight`, and `version`. The `self` namespace manages the **binary** lifecycle and is
-  distinct from `skills`, which manages the embedded skills/rules.
+  `preflight`, `migrate` (`REQ-YF-MIGRATE-001`), and `version`. The `self` namespace manages the
+  **binary** lifecycle and is distinct from `skills`, which manages the embedded skills/rules.
 - **REQ-YF-CLI-002** *(testable)* `skills` subcommands shall accept `--scope {user,project}`
   (default `user`), `--surface {claude,agents}` (default `claude`), `--target <path>`, and
   `--dry-run`.
@@ -135,7 +150,8 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   rule_drift | rule_deprecated | manifest_*`, plus `scaffold_added` and `instructions`, matching the
   legacy per-skill Python `check` output.
 - **REQ-YF-PRE-002** *(testable)* the kernel shall detect required tools and enforce a minimum `bd`
-  version (≥ 1.0.5).
+  version read from each skill's `min-bd-version` frontmatter (the per-skill threshold, currently
+  `1.0.5` across beads skills); a skill without that field imposes no `bd` floor.
 - **REQ-YF-PRE-003** *(testable)* the kernel shall verify a companion rule against the skill's
   embedded `manifest.json` (sha256 + semver). The installed content is read from the aggregate
   `YOSHIKO_FLOW.md` **section body** when present, with a legacy standalone fallback when it is absent
@@ -156,10 +172,17 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
 ### 3.6 Doctor (`REQ-YF-DOCTOR`)
 
 - **REQ-YF-DOCTOR-001** *(testable)* `yf doctor` shall check, per axis: `version`, `bd`
-  (present + ≥ 1.0.5), `uv`, `git`, each `skills:<name>` (via §3.4 marker comparison →
-  `not installed`/`outdated`/`incomplete`/`modified`), and companion-rule presence/hash.
+  (present + ≥ 1.0.5), `uv`, `git`, a **homebrew-shadow** warning (a tool on `PATH` shadowed by a
+  Homebrew copy), each `skills:<name>` (via §3.4 marker comparison →
+  `not installed`/`outdated`/`incomplete`/`modified`), and companion-rule presence/hash
+  (`rules:<name>`).
 - **REQ-YF-DOCTOR-002** *(testable)* `yf doctor` shall support `--json` and exit non-zero if any
   axis fails.
+- **REQ-YF-DOCTOR-003** the read-only axes are the default; `yf doctor --repair` (explicit opt-in)
+  shall **short-circuit** the read-only axes and instead apply the `yf-beads-init` repair sequence
+  (`REQ-YF-PRE-007`) against the cwd repo, with `--local-only` (assert local-only Dolt) and
+  `--remove-remote` (clear a configured Dolt remote) as opt-in modifiers. This is the one `doctor`
+  path that mutates; without `--repair`, `doctor` never modifies the repo.
 
 ### 3.7 Distribution (`REQ-YF-DIST`)
 

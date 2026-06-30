@@ -1,7 +1,8 @@
 # GUARDRAILS — Yoshiko Flow (`yf`)
 
-> **Status: SEALED — Gate G0 (2026-06-14, operator).** Frozen at plan-010 INTAKE; changes require a
-> new PLAN revision (no in-execution edits).
+> **Living document.** Originally sealed at Gate G0 (2026-06-14, operator) from plan-010 INTAKE;
+> it now evolves by amendment alongside the SPEC — see the **amendment log in `SPEC.md`** for the
+> change history (e.g. plan-018 amended GR-007 and GR-011).
 
 Guardrails are **counterfactuals**: the boundaries that keep this project from drifting into
 adjacent domains it must not absorb. Each entry names the **tempting drift**, the **rule** that
@@ -35,10 +36,14 @@ not become*. They are made enforceable by the `SPEC.md ↔ GUARDRAILS.md ↔ REA
   behavior or a single hard-coded surface. *Rule:* install targets both `.claude` and `.agents`
   surfaces and both user/project scopes (REQ-YF-INSTALL-002); no Claude-only persistence is required
   for a skill to function. *Why:* portability is the founding constraint of Yoshiko Flow.
-- **GR-007 — no hidden network or telemetry.** *Drift:* phone-home, usage analytics, background
-  fetches. *Rule:* `yf` performs no network I/O except the explicit, user-initiated distribution
-  path (Homebrew/release) and whatever a skill's own tool does; no telemetry. *Why:* trust + offline
-  install.
+- **GR-007 — no hidden network or telemetry.** *Drift:* phone-home, usage analytics. *Rule:* `yf`
+  performs no network I/O and sends **no** data except: (a) the explicit, user-initiated
+  distribution/self-update path (`curl|sh` / Homebrew / `yf self update` — `REQ-YF-SELF-002`); (b) a
+  **sanctioned update-check exception** — the upgrade nudge (`REQ-YF-SELF-006`) may perform a
+  throttled (24h), fail-open, **opt-out** (`YF_NO_UPDATE_CHECK`, auto-skipped under `CI`) GET of the
+  latest release manifest; it transmits **no** usage data (a one-way version check, not telemetry);
+  and (c) whatever a skill's own tool does. No other background fetch is permitted. *Why:* trust +
+  offline install, with a single transparent, suppressible "is there a newer yf?" check.
 - **GR-008 — `yf` touches only its own surfaces.** *Drift:* editing arbitrary user files/repos.
   *Rule:* `yf` writes only the skill install dirs, the `rules/` surface, `.yf/<skill>/` state, and
   `.<skill>.local.json` config; user `CLAUDE.md`/content edits are surfaced for the operator, never
