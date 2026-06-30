@@ -19,6 +19,10 @@
 >   (XDG `~/.local/bin` + `.tar.gz`), `REQ-YF-DIST-002` (no `depends_on`), `REQ-YF-DOCTOR-001`
 >   (the `--repair` mutation surface + homebrew-shadow axis), `REQ-YF-PRE-002` (per-skill
 >   `min-bd-version`), and `GUARDRAILS` GR-007 (update-check carve-out) / GR-011 (self-update deps).
+> - **plan-018 audit pass (2026-06-30):** added `yf-change-validation` to the §4 catalog (was
+>   missing); swept the stale `DRAFT (primed)`/"renamed by plan-010" banner from all per-skill SPECs;
+>   per-skill drift fixes (notably `yf-beads-init` — the engine moved to the `yf` kernel, the Python
+>   script is a retired shim).
 
 ## 1. Purpose & scope
 
@@ -281,6 +285,7 @@ The macro spec composes these. `REQ-<KEY>-*` ids live in each skill's `SPEC.md`.
 | yf-beads-hygiene        | _(new, #29)_         | beads    | HYG      | `skills/yf-beads-hygiene/SPEC.md`        |
 | yf-beads-upstream       | beads-upstream       | beads    | BUP      | `skills/yf-beads-upstream/SPEC.md`       |
 | yf-incubator            | incubator            | beads    | INCUB    | `skills/yf-incubator/SPEC.md`            |
+| yf-change-validation    | _(new)_              | utility  | CHGVAL   | `skills/yf-change-validation/SPEC.md`    |
 | yf-diagram-authoring    | diagram-authoring    | utility  | DIAG     | `skills/yf-diagram-authoring/SPEC.md`    |
 | yf-drift-check          | drift-check          | utility  | DRIFT    | `skills/yf-drift-check/SPEC.md`          |
 | yf-optimal-instructions | optimal-instructions | utility  | OPTINST  | `skills/yf-optimal-instructions/SPEC.md` |

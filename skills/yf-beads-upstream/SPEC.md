@@ -1,10 +1,8 @@
 # SPEC — Beads Upstream (`yf-beads-upstream`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the upstream-tracking skill (currently
-> `beads-upstream`, renamed to `yf-beads-upstream` per root `SPEC.md` §3.8). Operator to
-> review/edit. Composed by the root macro `SPEC.md` §4 under spec key **BUP**. This is the
-> requirement-numbered layer; it **references** the existing topical design docs under
-> `spec/*.md` (`operations.md`, `backends.md`, `safety.md`) rather than restating them.
+> **Status: Active.** Per-skill SPEC for the upstream-tracking skill. The `yf-beads-upstream` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 

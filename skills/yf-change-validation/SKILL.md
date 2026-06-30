@@ -82,12 +82,12 @@ an unapproved draft (`approved: no`) both count as **no approved manifest**.
 
 | Subcommand | Purpose |
 |:--|:--|
-| `init` (bootstrap) | infer a draft `CHANGE-VALIDATION.md` from the toolchain, present it, await operator approval (infer → approve → enforce) |
+| `infer` (bootstrap) | infer a draft `CHANGE-VALIDATION.md` from the toolchain, present it, await operator approval (infer → approve → enforce); `--write` writes the draft to the repo root instead of stdout |
 | `run --tier fast\|full [--changed <paths>]` | parse the **approved** manifest, execute a tier (affected-scoped when `--changed`), report PASS / FAIL / INCONCLUSIVE + first failure |
 | `check-drift` | re-read toolchain signals, diff against the recorded §2 fingerprint, emit a JSON re-proposal — never rewrites the manifest |
 
 All three route to `scripts/change_validation.py` (below). `run` is the enforcement surface;
-`init` and `check-drift` are the operator-gated inference surfaces.
+`infer` and `check-drift` are the operator-gated inference surfaces.
 
 ## When this runs
 

@@ -1,10 +1,8 @@
 # SPEC — Skill Authoring (`yf-skill-authoring`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the skill-authoring conventions (currently
-> `skill-authoring`, renamed to `yf-skill-authoring` by the plan-010 rename step). Operator to
-> review/edit. Composed by the root macro `SPEC.md` §4 under spec key **SKAUTH**. This is the
-> requirement-numbered layer; it **references** the existing reference docs under `reference/*.md`
-> rather than restating them.
+> **Status: Active.** Per-skill SPEC for the skill-authoring conventions. The `yf-skill-authoring` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -87,6 +85,12 @@ is `yf-drift-check`'s axis.
   tool, the caller applying fixes: `reviewer` (general), `reviewer-tokens` (skill-dir
   instruction-file token efficiency), `red-team` (adversarial); for Python helpers, also
   `reviewer-python`.
+- **REQ-SKAUTH-042** *(testable)* every markdown file a skill ships (`SKILL.md`, `agents/*.md`,
+  `README.md`, `spec/*.md`, `reference/*.md`) shall be plain **GFM** — never Obsidian
+  `[[wikilinks]]` or `![[embeds]]`, GFM links and tables (explicit alignment markers) only — and
+  every authored/edited `.md` shall be linted with the `yf-markdown-lint` authoring subset
+  (`ML001,ML002,ML005,ML006,ML007,ML008`) with all violations resolved before the skill is
+  considered done; this lint gate is part of the review sequence (REQ-SKAUTH-041), not optional.
 
 ### 2.6 Spec diagrams (conditional)
 

@@ -1,8 +1,6 @@
 # SPEC — Markdown Lint (`yf-markdown-lint`)
 
-> **Status: DRAFT (primed exemplar).** Worked example of the per-skill SPEC schema
-> (`skills/SPEC-TEMPLATE.md`). Operator to review/edit. Composed by the root macro `SPEC.md` §4
-> under spec key **MDLINT**.
+> **Status: Active (reference exemplar).** Worked example of the per-skill SPEC schema for the `yf-markdown-lint` skill (shipped). Requirements use RFC-2119 "shall".
 
 ## 1. Purpose & scope
 
@@ -21,6 +19,9 @@ GFM is the enforced convention).
   anchors with no matching heading (ML004).
 - **REQ-MDLINT-003** *(testable)* it shall flag malformed GFM tables — row column count ≠ delimiter
   row (ML005) — and malformed delimiter/alignment markers, e.g. `:-:-` (ML007).
+- **REQ-MDLINT-003a** *(testable)* it shall flag a table delimiter-row column that lacks an explicit
+  alignment marker — i.e. a bare `---` cell with no leading/trailing `:` (ML008) — so every column
+  declares its alignment.
 - **REQ-MDLINT-004** *(testable)* it shall flag empty link destinations `[text]()` (ML006).
 - **REQ-MDLINT-005** *(testable)* it shall provide an **opt-in** rule (ML009) that compile-checks the
   interior of a *renderable fence* whose class exposes a validate path — the renderable-fence set is

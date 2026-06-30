@@ -1,9 +1,8 @@
 # SPEC — Incubator (`yf-incubator`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the incubator skill (currently `incubator`,
-> renamed to `yf-incubator` per root `SPEC.md` §3.8). Operator to review/edit. Composed by the
-> root macro `SPEC.md` §4 under spec key **INCUB**. The output contracts (frontmatter, body
-> sections) live verbatim in `SKILL.md`; this layer references them rather than restating them.
+> **Status: Active.** Per-skill SPEC for the incubator skill. The `yf-incubator` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -76,6 +75,10 @@ edits with no park/resume intent.
   beads skills (`bd create`, deps via `bd dep add` per `yf-beads-extra`) or to `yf-plan` for a
   full plan/execute DAG; the stubs stay human-readable until then. This skill `depends-on-skill:
   beads-extra`.
+- **REQ-INCUB-032** `new` and `fork` shall, when the optional `obsidian-lint` skill is present,
+  run its frontmatter autofix (`obsidian-autofix.py`) over the freshly created incubator as a
+  guarded, best-effort normalization step; when the skill is absent the step is skipped without
+  error.
 
 ## 3. Interfaces
 

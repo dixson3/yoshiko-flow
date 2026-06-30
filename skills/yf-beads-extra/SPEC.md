@@ -1,10 +1,8 @@
 # SPEC — Beads Extra (`yf-beads-extra`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the advanced/gotcha `bd`-CLI layer (currently
-> `beads-extra`, renamed to `yf-beads-extra` by the plan-010 rename). Operator to review/edit.
-> Composed by the root macro `SPEC.md` §4 under spec key **BEXTRA**. This is the
-> requirement-numbered layer; it **references** the existing topical design docs under `spec/*.md`
-> rather than restating them.
+> **Status: Active.** Per-skill SPEC for the advanced/gotcha `bd`-CLI layer. The `yf-beads-extra` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 

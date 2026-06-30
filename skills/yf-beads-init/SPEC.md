@@ -1,11 +1,8 @@
 # SPEC — Beads Init (`yf-beads-init`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the beads verify/initialize/repair skill
-> (currently `beads-init`, renamed to `yf-beads-init` by the plan-010 rename). Operator to
-> review/edit. Composed by the root macro `SPEC.md` §4 under spec key **BINIT**. This skill's
-> verify/repair engine is exactly what macro `REQ-YF-PRE-006` / `REQ-YF-PRE-007` port into the
-> compiled `yf` binary; those macro requirements are authoritative for the ported kernel, and the
-> requirements below are authoritative for the skill's current Python engine and behavior.
+> **Status: Active.** Per-skill SPEC for the beads verify/initialize/repair skill. The `yf-beads-init` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -13,6 +10,12 @@
 repository, and is the shared **dependency-verification home** that every other beads-backed
 skill's preflight routes to when its own preflight reports missing deps, an uninitialized repo, or
 a corrupted DB. It is also invoked directly (`/yf-beads-init`) when standing up beads in a new repo.
+
+The verify/repair/status engine lives in the compiled `yf` kernel — `yf preflight yf-beads-init
+--json` (verify) and `yf doctor --repair [--local-only] [--remove-remote]` (repair). **The `yf`
+kernel is the reference implementation**; the `REQ-BINIT-*` requirements below describe that kernel
+behavior. `scripts/beads_init.py` is a **retired shim** kept only for back-compat (it prints the new
+`yf` invocation and exits non-zero), not a live engine.
 
 **In scope:** the `verify`/`repair`/`status` engine; the false-negative classification (parse
 `bd status --json` for an `error` **key**, not the exit code); the standard repair sequence for a
@@ -98,8 +101,8 @@ storage (that is `bd`).
   drift, performing no mutation itself.
 - **REQ-BINIT-021** as a preflight dependency, another beads skill shall run its own
   system-deps/rule checks first, then on a beads-config failure (`bd_not_initialized`, a corrupted
-  DB, or a `bd status` error JSON) route to `/yf-beads-init` / `beads_init.py verify`+`repair` rather
-  than re-deriving the repair steps; the companion rule `protocols/BEADS_INIT.md` carries this
+  DB, or a `bd status` error JSON) route to `/yf-beads-init` / `yf preflight yf-beads-init --json`
+  + `yf doctor --repair` rather than re-deriving the repair steps; the companion rule `protocols/BEADS_INIT.md` carries this
   trigger so it fires regardless of the active skill.
 - **REQ-BINIT-022** when `verify` returns `ok`, the preflight trigger shall be a **silent no-op** —
   no prompt, nag, or re-run; bootstrap/repair is offered only on an actual failure or explicit
@@ -107,16 +110,18 @@ storage (that is `bd`).
 
 ## 3. Interfaces
 
-- **CLI / scripts:** `scripts/beads_init.py` (run via `uv`), subcommands:
-  - `verify [--json-output]` — read-only health check returning
-    `ok|deps_missing|not_initialized|corrupted` (REQ-BINIT-001/002/003).
-  - `repair [--apply] [--local-only] [--remove-remote] [--json-output]` — dry-run plan by default;
-    `--apply` runs the standard repairs; `--local-only` asserts local-only Dolt; `--remove-remote`
-    (with `--local-only`) additionally CLEARS a configured remote
-    (REQ-BINIT-010–014, REQ-BINIT-020, REQ-BINIT-023).
-  - `status` — one-line human status (`initialized`/`functional` flags).
-  Under macro `REQ-YF-PRE-006`/`REQ-YF-PRE-007` the verify/repair engine ports into the `yf` binary
-  (`yf preflight` kernel); the skill's Python script remains the reference for the engine semantics.
+- **CLI / kernel:** the verify/repair/status engine is the compiled `yf` kernel
+  (`REQ-YF-PRE-006`/`REQ-YF-PRE-007`), invoked as:
+  - `yf preflight yf-beads-init --json` — read-only health check returning
+    `ok|deps_missing|not_initialized|corrupted` with `diagnostics`/`remediations`
+    (REQ-BINIT-001/002/003).
+  - `yf doctor --repair [--local-only] [--remove-remote]` — applies the standard repairs;
+    `--local-only` asserts local-only Dolt; `--remove-remote` (with `--local-only`) additionally
+    CLEARS a configured remote (REQ-BINIT-010–014, REQ-BINIT-020, REQ-BINIT-023).
+  - `yf doctor` — one-line human status (`initialized`/`functional` flags).
+  The `yf` kernel is the **reference implementation** for these requirements.
+  `scripts/beads_init.py` is a retired back-compat shim that points stale callers at the `yf`
+  commands above and exits non-zero — it is not a live engine.
 - **Companion rule:** `protocols/BEADS_INIT.md` — the always-loaded preflight-routing + safety
   trigger — with `protocols/manifest.json` (sha256 + semver; current `BEADS_INIT.md` v1.0.0).
   Verified against the macro per-rule hash axis (`REQ-YF-PRE-003`).

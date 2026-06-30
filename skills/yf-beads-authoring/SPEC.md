@@ -1,10 +1,8 @@
 # SPEC — Beads Authoring (`yf-beads-authoring`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the beads-skill authoring conventions
-> (currently `beads-authoring`, renamed to `yf-beads-authoring` by the plan-010 rename). Operator
-> to review/edit. Composed by the root macro `SPEC.md` §4 under spec key **BAUTH**. This is the
-> requirement-numbered layer; it **references** the existing topical design docs under `spec/*.md`
-> rather than restating them.
+> **Status: Active.** Per-skill SPEC for the beads-skill authoring conventions. The `yf-beads-authoring` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 

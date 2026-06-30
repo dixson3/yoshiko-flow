@@ -1,8 +1,8 @@
 # SPEC — Diagram Authoring (`yf-diagram-authoring`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the diagram skill (currently `diagram-authoring`,
-> renamed to `yf-diagram-authoring` by plan-010 Issue 3.7 / `REQ-YF-RENAME-001`). Operator to
-> review/edit. Composed by the root macro `SPEC.md` §4 under spec key **DIAG**.
+> **Status: Active.** Per-skill SPEC for d2 diagram authoring and rendering. The `yf-diagram-authoring` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 

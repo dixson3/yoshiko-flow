@@ -1,10 +1,8 @@
 # SPEC — Optimal Instructions (`yf-optimal-instructions`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the project-root instruction-file optimizer
-> (currently `optimal-instructions`, renamed to `yf-optimal-instructions` by the plan-010 rename
-> step). Operator to review/edit. Composed by the root macro `SPEC.md` §4 under spec key
-> **OPTINST**. This is the requirement-numbered layer; it **references** the existing topical
-> design docs under `spec/*.md` rather than restating them.
+> **Status: Active.** Per-skill SPEC for the project-root instruction-file optimizer. The `yf-optimal-instructions` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -92,8 +90,10 @@ by `yf-skill-authoring` and is referenced here, never restated.
 - **Companion rule:** `protocols/INSTRUCTIONS.md` (+ `protocols/manifest.json`, sha256 + semver) —
   the always-loaded thin token-efficiency backstop pointing to `yf-skill-authoring`'s ruleset; the
   always-loaded backstop for the best-effort `description` trigger.
-- **Config / state:** none (`.local.json` / `.yf/` state not used; the skill is stateless per
-  invocation).
+- **Config / state:** supports a `.yf-optimal-instructions.local.json` local config (named by the
+  SKILL.md frontmatter `preflight: config-basename`), read by the preflight kernel for
+  `ignore-skill` / config — as with other yf skills. No `.yf/` runtime state; the skill is
+  otherwise stateless per invocation.
 
 ## 4. Guardrails (`GR-OPTINST-NNN`)
 

@@ -1,9 +1,8 @@
 # SPEC — Research (`yf-research`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the research skill (currently `bdresearch`, renamed
-> to `yf-research` by plan-010). Operator to review/edit. Composed by the root macro `SPEC.md` §4
-> under spec key **RESEARCH**. Requirement-numbered layer that **references** the topical design
-> docs under `spec/*.md` rather than restating them.
+> **Status: Active.** Per-skill SPEC for the research skill. The `yf-research` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -63,7 +62,10 @@ is `bd`), and build planning (that is `yf-plan`).
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/research_manager.py` (defensive `json-get`, `record-epic`),
-  `index_manager.py`, `credibility_scorer.py`, `link_normalizer.py`, `search_api.py`. Surface in
+  `index_manager.py`, `credibility_scorer.py`, `link_normalizer.py`. Retrieval at the SKILL surface
+  is driven by the exa MCP tools (`mcp__exa__*`); `search_api.py` is an agent-internal retrieval
+  helper (a rate-limited fallback used only inside `agents/retriever.md` and `agents/refiner.md`
+  when exa MCP is unavailable), not a SKILL-surface command. Surface in
   `spec/cli.md`; data shapes in `spec/data.md`. **Preflight/config moves to `yf`** per macro
   `REQ-YF-PRE-*`; domain logic stays in Python.
 - **Companion rule:** `protocols/RESEARCH.md` (+ `protocols/manifest.json`, sha256+semver) — the

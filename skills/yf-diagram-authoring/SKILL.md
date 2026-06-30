@@ -119,9 +119,10 @@ for any non-trivial artifact; yf-skill-authoring is conditional ("if it aids the
 - **Line breaks in labels:** d2 renders `\n` inside a quoted label as a newline —
   `node: "First line\nSecond line"` (mermaid's `<br/>` equivalent; do not use `<br/>`).
 - **Rich labels:** markdown blocks — `node: |md **Bold**\n- point |` — for multi-line/styled text.
-- **Sizing:** d2 auto-layouts; no fixed width/height like mermaid's `-w/-H`. Tune with `--scale`
-  (sharper/larger) and `--pad`; prefer `elk` for dense/nested graphs, `--layout dagre` for simple
-  left-to-right flows. `direction: right|down|left|up` sets flow direction.
+- **Sizing:** d2 auto-layouts; no fixed width/height like mermaid's `-w/-H`. Prefer `elk` for
+  dense/nested graphs, `--layout dagre` for simple left-to-right flows. `direction:
+  right|down|left|up` sets flow direction. (`--scale`/`--pad` are *raw d2* knobs, not flags the
+  `render.py` wrapper accepts — the wrapper exposes only `--theme/--layout/--json`.)
 - **Theme/background:** theme `0` is light with a white background (guaranteed opaque) — keep it.
 
 ## Diagram types by domain

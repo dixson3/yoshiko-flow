@@ -1,9 +1,7 @@
 # SPEC — Change Validation (`yf-change-validation`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the change-validation engine. Operator to
-> review/edit. Composed by the root macro `SPEC.md` §4 under spec key **CHGVAL**. This is the
-> requirement-numbered layer; it **references** the topical design docs under `spec/*.md` rather
-> than restating them.
+> **Status: Active.** Per-skill SPEC for the change-validation engine; shipped. Requirements use
+> RFC-2119 "shall"; composed by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -104,8 +102,9 @@ of scope — the engine routes **as a skill** (crate GR-005 kernel/skill boundar
 
 - **CLI / scripts:** `scripts/change_validation.py` (PEP-723 `uv run --script`) with three
   subcommands:
-  - `infer` — read toolchain signals, emit a **draft** `CHANGE-VALIDATION.md` (two tiers +
-    fingerprint), seeding FULL from `validate-cmd` when present.
+  - `infer [--write]` — read toolchain signals, emit a **draft** `CHANGE-VALIDATION.md` (two tiers +
+    fingerprint), seeding FULL from `validate-cmd` when present; `--write` writes the draft to the
+    repo root (default prints to stdout).
   - `run --tier fast|full [--changed <paths>] [--json]` — parse the **approved** manifest, execute a
     tier (affected-scoped when `--changed`), return `{tier, status: pass|fail|inconclusive,
     commands:[{id, cmd, ok, returncode, output_tail}], first_failure}`; exit non-zero on FAIL;

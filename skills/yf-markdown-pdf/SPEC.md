@@ -1,8 +1,8 @@
 # SPEC — Markdown PDF (`yf-markdown-pdf`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the PDF skill (currently `markdown-pdf`, renamed
-> to `yf-markdown-pdf` by plan-010 Issue 3.7 / `REQ-YF-RENAME-001`). Operator to review/edit.
-> Composed by the root macro `SPEC.md` §4 under spec key **MDPDF**.
+> **Status: Active.** Per-skill SPEC for Markdown-to-PDF rendering. The `yf-markdown-pdf` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -100,7 +100,8 @@ this skill only renders them.
 
 - **CLI / scripts:** `scripts/md2pdf.py` (run via `uv run`) — positional `.md` input(s); flags
   `-o/--output`, `--mainfont`, `--monofont`, `--margin`, `--table-font`, `--landscape-cols`,
-  `--columns`, `--no-render-fences`, and `--` passthrough. Helpers:
+  `--columns`, `--no-render-fences`, `--no-normalize-images` (disable 16-bit/alpha PNG
+  normalization; see REQ-MDPDF-003a), and `--` passthrough. Helpers:
   `scripts/landscape_wide_tables.lua` (landscape-rotation filter), `scripts/blocks.lua`
   (renderable-fence renderer; reads the `MD2PDF_FENCE_TMPDIR` env var), `scripts/glyph-fallback.tex`
   (macOS color-emoji remap header). **External tools:** the script shells to **pandoc** and **xelatex**

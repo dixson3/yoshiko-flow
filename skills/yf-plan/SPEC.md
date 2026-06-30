@@ -1,9 +1,8 @@
 # SPEC — Plan (`yf-plan`)
 
-> **Status: DRAFT (primed).** Per-skill SPEC for the planning skill (currently `bdplan`, renamed to
-> `yf-plan` by plan-010 Issue 3.7). Operator to review/edit. Composed by the root macro `SPEC.md` §4
-> under spec key **PLAN**. This is the requirement-numbered layer; it **references** the existing
-> topical design docs under `spec/*.md` rather than restating them.
+> **Status: Active.** Per-skill SPEC for the planning skill. The `yf-plan` rename is complete and the
+> skill is shipped; this SPEC tracks the live behavior. Requirements use RFC-2119 "shall"; composed
+> by the root `SPEC.md` macro spec.
 
 ## 1. Purpose & scope
 
@@ -29,7 +28,7 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 - **REQ-PLAN-002** the phase machine shall be `UPSTREAM → SCOPE ↔ INVESTIGATE → PLAN → INTAKE →
   (session boundary) → EXECUTE → RECONCILE → COMPLETE`; there is **no EXECUTE→PLAN transition**.
 - **REQ-PLAN-003** *(testable)* every invocation except `init` shall run the preflight
-  (`check`) and branch on `ok | ignored | system_deps_missing | bd_not_initialized | rule_*`.
+  (`yf preflight yf-plan`) and branch on `ok | ignored | system_deps_missing | bd_not_initialized | rule_*`.
 
 ### 2.2 Plan folder & portability (see `spec/portability.md`, `spec/data.md`)
 
@@ -108,9 +107,10 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 
 ## 3. Interfaces
 
-- **CLI / scripts:** `scripts/plan_manager.py` — preflight (`check`), `init`, `scope`, `triage`,
-  `update-status`, `record-epic`, `resume-scan`, `audit`, `worktree {ensure,teardown}`,
-  `landing-lock {acquire,release}`, `validate-merged`, `json-get`; `manifest_update.py`. Full
+- **CLI / scripts:** preflight is `yf preflight yf-plan` (the `yf` kernel, not `plan_manager.py`);
+  `scripts/plan_manager.py` — `init`, `scope`, `triage`, `update-status`, `record-epic`,
+  `resume-scan`, `audit`, `worktree {ensure,path,teardown}`,
+  `landing-lock {acquire,release,status}`, `validate-merged`, `json-get`; `manifest_update.py`. Full
   surface in `spec/cli.md`; data shapes in `spec/data.md`. **Preflight/config moves to `yf`** per
   macro `REQ-YF-PRE-*`; the domain subcommands stay in Python.
 - **Companion rule:** `protocols/PLANS.md` (+ `protocols/manifest.json`, sha256+semver) — the
