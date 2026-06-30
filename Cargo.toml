@@ -51,6 +51,15 @@ targets = [
 checksum = "sha256"
 # Publish a GitHub Release with the artifacts attached.
 pr-run-mode = "plan"
+# Vendor-install layout (plan-018 Issue 1.2). The generated curl|sh installer writes
+# the binary to ~/.local/bin (XDG-aligned, decision 3) instead of the cargo-dist default
+# ~/.cargo/bin, and emits its receipt at ~/.config/yf/yf-receipt.json. The vendor prefix
+# `yf self update` keys on (3.1/3.3) is the canonicalized install_prefix from that receipt.
+install-path = "~/.local/bin"
+# Flip the unix archive from the default .tar.xz to .tar.gz (plan-018 Issue 1.2) so the
+# `yf self update` consumer (3.4a) extracts with pure-Rust flate2+tar — no C xz codec and
+# no GNU-tar-needs-xz-userland failure on minimal Linux/Alpine/container hosts.
+unix-archive = ".tar.gz"
 
 # NOTE: no `[workspace.metadata.dist.dependencies.homebrew]` block.
 # `yf` intentionally declares NO Homebrew runtime dependencies. Although yf
