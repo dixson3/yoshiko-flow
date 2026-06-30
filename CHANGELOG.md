@@ -6,6 +6,44 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ## Unreleased
 
+### Added
+
+- **Self-contained vendor install + `yf self` lifecycle (#55).** `yf` is now
+  primarily distributed via the `curl | sh` installer to `~/.local/bin` (uv-style),
+  with Homebrew kept as a secondary path. New `yf self` command surface:
+  - `yf self update` — checks the latest GitHub release, downloads the host's
+    `yf-<triple>.tar.gz`, verifies its sha256 against the release manifest, extracts
+    it (pure-Rust `flate2`+`tar`), and atomically replaces the running binary
+    (`self-replace`). **Vendor installs only**: it refuses on a Homebrew (Cellar) copy
+    (directing you to `brew upgrade`) and on a from-build/unknown copy unless
+    `--force`. `--check` reports availability without swapping.
+  - `yf self install --from-build [--release|--debug] [--build] [--force]` — promotes
+    a local `cargo build` to `~/.local/bin/yf` for development (suppresses the upgrade
+    nudge; `yf self update --force` round-trips back to a vendor release).
+  - `yf self uninstall` — removes the binary, the yf-owned XDG dirs, and the
+    installer's `PATH` line, never touching installed skills/rules.
+- **Post-update skills/rules refresh.** After a successful `yf self update`, the new
+  binary re-deploys user-scope skills/rules once per present surface (`~/.claude`,
+  `~/.agents`); `--binary-only` skips it. Fail-soft — a refresh failure never rolls
+  back the binary swap.
+- **Upgrade-detection nudge.** `yf version` / `yf doctor` print a throttled (24h),
+  fail-open, **vendor-only** notice when a newer release exists. Opt out with
+  `YF_NO_UPDATE_CHECK=1`; auto-skipped under `CI`.
+- **XDG directory layout.** `yf` resolves config/cache/data/bin via an XDG layout on
+  both Linux and macOS (honoring `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` /
+  `XDG_DATA_HOME` / `XDG_BIN_HOME`): receipt → `~/.config/yf`, update-check cache →
+  `~/.cache/yf`, binary → `~/.local/bin`.
+
+### Changed
+
+- **cargo-dist installer retargeted to `~/.local/bin` + `.tar.gz`.** `install-path`
+  moved from `~/.cargo/bin` to `~/.local/bin` (XDG), and `unix-archive` flipped from
+  `.tar.xz` to `.tar.gz` so `yf self update` extracts with pure-Rust `flate2` — no
+  system `tar`/`xz` dependency on minimal Linux/container hosts.
+- **Install docs re-sequenced (#54, partial).** README and the website install page
+  now lead with `curl | sh` (Homebrew secondary) and document `yf self …`, the XDG
+  dirs + env overrides, and the macOS browser-download `xattr` note.
+
 ## v0.3.2 — 2026-06-24
 
 ### Fixes
