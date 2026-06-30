@@ -276,7 +276,7 @@ fn refresh_user_skills(install_target: &Path, home: &Path) -> RefreshReport {
 
 // ---- URL construction -------------------------------------------------------
 
-fn manifest_latest_url() -> String {
+pub fn manifest_latest_url() -> String {
     format!(
         "{}/releases/latest/download/dist-manifest.json",
         REPO_URL.trim_end_matches('/')

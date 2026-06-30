@@ -50,10 +50,6 @@ impl Source {
     }
 
     /// Whether the upgrade-check nag (4.1) should be shown. Vendor-only.
-    ///
-    /// `allow(dead_code)`: first consumer is the upgrade-detection UX (Issue 4.1,
-    /// depends on this bead); the allow is removed when 4.1 wires it in.
-    #[allow(dead_code)]
     pub fn nag_eligible(self) -> bool {
         matches!(self, Source::Vendor)
     }

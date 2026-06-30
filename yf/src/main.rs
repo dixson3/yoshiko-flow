@@ -50,13 +50,23 @@ fn run() -> Result<std::process::ExitCode> {
     let cli = Cli::parse();
     match cli.command {
         // Most subcommands either succeed or return an Err; map Ok(()) → SUCCESS.
-        Command::Version(args) => cmd_version(&args).map(|()| std::process::ExitCode::SUCCESS),
+        Command::Version(args) => {
+            let r = cmd_version(&args);
+            // Throttled, fail-open, vendor-only upgrade nudge — AFTER the real
+            // output (stderr; never pollutes `--json` stdout). REQ 4.1.
+            cmd::self_cmd::nag::maybe_notify(&dirs::Dirs::from_env());
+            r.map(|()| std::process::ExitCode::SUCCESS)
+        }
         Command::Skills { command } => {
             cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
         }
         // Doctor owns its exit code (like preflight): a failing required check is
         // a verdict, not an error.
-        Command::Doctor(args) => cmd::doctor::run(&args),
+        Command::Doctor(args) => {
+            let code = cmd::doctor::run(&args)?;
+            cmd::self_cmd::nag::maybe_notify(&dirs::Dirs::from_env());
+            Ok(code)
+        }
         // Preflight owns its exit code (REQ-YF-CLI-003: non-zero on a failing status).
         Command::Preflight(args) => preflight::run(&args.skill, args.json),
         Command::Migrate(args) => migrate::run(args.path, args.dry_run, args.json)

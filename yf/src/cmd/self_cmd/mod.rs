@@ -22,6 +22,7 @@ use crate::cli::SelfCommand;
 pub mod archive;
 pub mod fsutil;
 pub mod install;
+pub mod nag;
 pub mod receipt;
 pub mod source;
 pub mod uninstall;
