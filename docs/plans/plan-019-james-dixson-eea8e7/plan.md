@@ -13,6 +13,7 @@
 - 2026-07-02 drafting: plan v2: red-team C1-C6 resolved
 - 2026-07-02 approved: operator approved
 - 2026-07-02 intake: epic yf-mol-99w poured
+- 2026-07-02 approved: post-approval scope add — dirty-build bypass (Issue 3.5 + REQ-YF-PRE-009 amend), operator-directed
 
 ## Objective
 
@@ -120,6 +121,14 @@ makes invalidation automatic and location-independent.
 **Nudge surfaces supplement, not replace** (operator decision): the `version`/`doctor`
 notify-only nudge stays; preflight adds the actionable offer.
 
+**Dirty builds bypass the offer.** A `yf` built from a dirty working tree carries a `dirty`
+build marker (`YF_GIT_DIRTY`, surfaced as a `-dirty` suffix in the version line). `dirty` means
+the operator is actively developing/managing `yf` locally, so the preflight self-update offer is
+**unconditionally suppressed** — the dirty check is the first short-circuit in
+`detect_self_update_offer`, ahead of the vendor/suppressed/cache checks. This is defense-in-depth
+alongside the vendor-only (`nag_eligible`) gate: a dirty local build should never nag its own
+author to "update."
+
 ## Epics
 
 **SPEC-first ordering (AGENTS.md).** The normative SPEC/contract edits are Epic 1 and land
@@ -133,8 +142,9 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
 ### Epic 1: SPEC + contract requirements (SPEC-first)
 
 - Issue 1.1: **SPEC.md** — allocate and write `REQ-YF-PRE-008` (generating-version stamp +
-  full-reset invalidation), `REQ-YF-PRE-009` (cache-only, vendor-only, offer-only self-update
-  offer in preflight instructions), and `REQ-YF-SELF-007` (`yf self update` invalidates preflight
+  full-reset invalidation), `REQ-YF-PRE-009` (cache-only, vendor-only, **dirty-build-bypassed**,
+  offer-only self-update offer in preflight instructions — a `dirty` build unconditionally
+  suppresses the offer), and `REQ-YF-SELF-007` (`yf self update` invalidates preflight
   caches *by virtue of* the version stamp — the new binary's `VERSION` differs → next preflight
   is a cache miss; no explicit clear in `update.rs`). Add the living-amendment-log entry. Each
   new testable REQ names the test tag its implementation epic must provide. **SELF-007 coverage
@@ -179,12 +189,14 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
   - depends-on: 1.1
 - Issue 3.2: `detect_self_update_offer` in `preflight.rs` built on **testable seams (red-team
   C2)**: it takes an injectable cache path, a resolved `Source` (from the pure `source::classify`,
-  not `source::detect`), and the pure `suppressed(present)` closure. Returns an offer
-  `instructions` string when **all** hold: not suppressed, `Source` is vendor
-  (`nag_eligible()`), and the **cache-only** read yields `VersionCmp::UpdateAvailable`. The
-  string offers `yf self update` (noting it also refreshes skill definitions/rules) and that the
-  operator likely needs to `/reload-skills` afterward. **No network.**
-  - depends-on: 3.1
+  not `source::detect`), an injectable **dirty-build flag**, and the pure `suppressed(present)`
+  closure. Returns an offer `instructions` string when **all** hold: **build is not dirty**, not
+  suppressed, `Source` is vendor (`nag_eligible()`), and the **cache-only** read yields
+  `VersionCmp::UpdateAvailable`. The **dirty check is the first short-circuit** (a `dirty` build
+  means the operator is actively managing `yf` locally — never offer). The string offers
+  `yf self update` (noting it also refreshes skill definitions/rules) and that the operator likely
+  needs to `/reload-skills` afterward. **No network.**
+  - depends-on: 3.1, 3.5
 - Issue 3.3: Add the three live seams to `Env` (`Dirs` + resolved `Source` + suppression),
   wired in `Env::live()`. Fold the offer into **both** `ok`-path return points of `run_with_env`
   — the no-companion-rule early return **and** the rule ok/update_available arm (red-team C5) —
@@ -193,10 +205,20 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
   - depends-on: 3.2
   - soft-order-after: 2.2 (same `run_with_env` region — sequence to reduce churn)
 - Issue 3.4: Tests (tagged per REQ-YF-PRE-009), driven via the injected seams — newer cached tag
-  + vendor `Source` + no-suppress → offer present (on **both** ok returns); same/older/empty
-  cache → none; non-vendor `Source` → none; suppression predicate true → none; and an assertion
+  + vendor `Source` + not-dirty + no-suppress → offer present (on **both** ok returns);
+  same/older/empty cache → none; non-vendor `Source` → none; suppression predicate true → none;
+  **dirty flag true → none even with a newer cached tag + vendor `Source`**; and an assertion
   that **no network call** occurs (cache-only). Exercise through `run_with_env` on the `ok` path.
   - depends-on: 3.3
+- Issue 3.5: **build-time dirty capture.** Extend `yf/build.rs` to detect an unclean working tree
+  at build (e.g. `git status --porcelain` non-empty, or `git describe --dirty`) and expose a
+  compile-time `YF_GIT_DIRTY` flag; degrade gracefully to **not-dirty** when git is unavailable or
+  the build is outside a checkout (matches the existing "when available" `YF_GIT_HASH` stance —
+  a release archive built in CI from a clean checkout is never dirty). Append `-dirty` to the
+  `VERSION_LINE` hash for visibility (`0.3.2 (ac0e2b8-dirty)`), leave `VERSION` (the compare key)
+  as `CARGO_PKG_VERSION`. Add a pure `is_dirty_build()` predicate reading `YF_GIT_DIRTY`, wired
+  into `Env::live()` as the dirty seam for 3.2.
+  - depends-on: 1.1
 
 ### Epic 4: Coverage gate + user docs
 
@@ -228,6 +250,8 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
 | Offer computation adds a small per-invocation filesystem cost (red-team C6) | Not a network call — `source::classify` on the exe path + one cache read; cheap and fail-open. The claim is "no network latency," not literally zero cost. |
 | Version stamp churns `preflight.json` on every yf release, re-probing deps needlessly | Intended — a new binary should re-validate its own prerequisites once; the probe is cheap and cached again immediately after. |
 | Offer fires for non-vendor (Homebrew/from-build) installs that can't `yf self update` | Reuse `nag_eligible()` — identical vendor-only gate as the existing nudge. |
+| Offer nags an operator who is locally developing `yf` | A `dirty` build (`YF_GIT_DIRTY`) is the first short-circuit — the offer is unconditionally suppressed. `dirty` = active local dev / operator-managed versions. Defense-in-depth over the vendor-only gate. |
+| `build.rs` dirty probe fails/absent (no git, release-archive build) | Degrades to **not-dirty** (same graceful-degradation stance as `YF_GIT_HASH`); a clean CI release build is correctly non-dirty and eligible. |
 | Full reset re-runs the scaffold ensure | Scaffold ensure is idempotent/additive; a re-run is a no-op when anchors already present. |
 
 ## Success Criteria
@@ -235,7 +259,8 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
 - Preflight on a vendor install with a cached newer tag emits a `yf self update` offer in
   `instructions` (mentioning skill-def refresh + `/reload-skills`), with **no network call** and
   no mutation beyond scaffold.
-- Preflight on a non-vendor install, a suppressed env, or an up-to-date cache emits **no** offer.
+- Preflight on a non-vendor install, a suppressed env, an up-to-date cache, or a **`dirty` build**
+  emits **no** offer (dirty is the first short-circuit).
 - A `preflight.json` written by an older `yf-version` forces a full re-validation (deps re-probed,
   scaffold re-ensured, stamp updated) on the next run; a matching stamp honors the cache.
 - `REQ-YF-PRE-008`, `REQ-YF-PRE-009`, `REQ-YF-SELF-007` are in SPEC.md, each covered by a tagged
