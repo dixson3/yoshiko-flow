@@ -14,6 +14,8 @@
 - 2026-07-02 approved: operator approved
 - 2026-07-02 intake: epic yf-mol-99w poured
 - 2026-07-02 approved: post-approval scope add — dirty-build bypass (Issue 3.5 + REQ-YF-PRE-009 amend), operator-directed
+- 2026-07-02 review: red-team pass 2: REVISE (1 med, 3 low) — dirty-build focus
+- 2026-07-02 approved: plan v4: red-team pass 2 C7-C10 resolved
 
 ## Objective
 
@@ -81,15 +83,16 @@ are small and self-contained):
   cached keys. `run_with_env` short-circuits top-to-bottom; the `ok`-path already folds a
   `drift_offer: Vec<String>` into `instructions` — the new self-update offer folds in exactly
   the same way. `crate::VERSION` is the generating-version source.
-- **`Env` seams — three injection points, not one (red-team C2).** `source::detect` reads
+- **`Env` seams — four injection points, not one (red-team C2 + C8).** `source::detect` reads
   `std::env::current_exe()` with no seam, and `suppressed()` keys on `CI` (which CI runners set),
   so the positive-offer path is **untestable** if built on `source::detect` + `suppressed()`
   directly. `detect_self_update_offer` must instead take (1) an injectable **cache path**, (2) a
-  resolved **`Source`** (via the pure `source::classify`, injecting the exe path), and (3) the
-  pure **`suppressed(present)`** closure. `Env::live()` wires the live values (`Dirs`,
-  `source::detect`, real env); test constructors inject a vendor `Source` + a seeded cache + a
-  no-suppression predicate to drive the positive case, and default to a none-yielding cache so
-  existing tests emit no offer.
+  resolved **`Source`** (via the pure `source::classify`, injecting the exe path), (3) the pure
+  **`suppressed(present)`** closure, and (4) an injectable **dirty-build flag** (`bool`, from
+  `is_dirty_build()` — Issue 3.5). `Env::live()` wires the live values (`Dirs`, `source::detect`,
+  real env, `is_dirty_build()`); test constructors inject a vendor `Source` + a seeded cache + a
+  no-suppression predicate + a not-dirty flag to drive the positive case, and default to a
+  none-yielding cache so existing tests emit no offer.
 
 ## Approach
 
@@ -116,7 +119,12 @@ logic runs — never a `write_state_key` *merge* that preserves the stale bool/i
 `prereqs-present: true` flag is (re)persisted **only after** a successful probe on this run, so an
 early `system_deps_missing` return leaves the cache correctly empty (re-probes next run) rather
 than stamping a new version over a stale-true flag. Nothing in `update.rs` changes — the stamp
-makes invalidation automatic and location-independent.
+makes invalidation automatic and location-independent. **Stamp excludes dirtiness (red-team C9):**
+the stamp is pure `CARGO_PKG_VERSION` — the `-dirty` marker is deliberately kept OUT of it (and
+the git hash out of it entirely) to avoid per-rebuild thrash. Consequence: a dirty dev `0.3.2` and
+a clean release `0.3.2` write an identical stamp, so a same-`CARGO_PKG_VERSION` clean↔dirty
+transition does **not** invalidate the cache — an accepted dev-only edge (a dev who bumps
+`min-bd-version` in a dirty tree without bumping the crate version must clear the cache manually).
 
 **Nudge surfaces supplement, not replace** (operator decision): the `version`/`doctor`
 notify-only nudge stays; preflight adds the actionable offer.
@@ -144,7 +152,8 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
 - Issue 1.1: **SPEC.md** — allocate and write `REQ-YF-PRE-008` (generating-version stamp +
   full-reset invalidation), `REQ-YF-PRE-009` (cache-only, vendor-only, **dirty-build-bypassed**,
   offer-only self-update offer in preflight instructions — a `dirty` build unconditionally
-  suppresses the offer), and `REQ-YF-SELF-007` (`yf self update` invalidates preflight
+  suppresses the offer; normative dirty probe is **`git status --porcelain`** (whole-repo incl.
+  untracked, best-effort per red-team C7)), and `REQ-YF-SELF-007` (`yf self update` invalidates preflight
   caches *by virtue of* the version stamp — the new binary's `VERSION` differs → next preflight
   is a cache miss; no explicit clear in `update.rs`). Add the living-amendment-log entry. Each
   new testable REQ names the test tag its implementation epic must provide. **SELF-007 coverage
@@ -197,8 +206,8 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
   `yf self update` (noting it also refreshes skill definitions/rules) and that the operator likely
   needs to `/reload-skills` afterward. **No network.**
   - depends-on: 3.1, 3.5
-- Issue 3.3: Add the three live seams to `Env` (`Dirs` + resolved `Source` + suppression),
-  wired in `Env::live()`. Fold the offer into **both** `ok`-path return points of `run_with_env`
+- Issue 3.3: Add the **four** live seams to `Env` (`Dirs` + resolved `Source` + suppression +
+  dirty-build flag), wired in `Env::live()`. Fold the offer into **both** `ok`-path return points of `run_with_env`
   — the no-companion-rule early return **and** the rule ok/update_available arm (red-team C5) —
   alongside `drift_offer`. Test constructors default to a none-yielding cache so existing tests
   emit no offer.
@@ -210,14 +219,23 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
   **dirty flag true → none even with a newer cached tag + vendor `Source`**; and an assertion
   that **no network call** occurs (cache-only). Exercise through `run_with_env` on the `ok` path.
   - depends-on: 3.3
-- Issue 3.5: **build-time dirty capture.** Extend `yf/build.rs` to detect an unclean working tree
-  at build (e.g. `git status --porcelain` non-empty, or `git describe --dirty`) and expose a
-  compile-time `YF_GIT_DIRTY` flag; degrade gracefully to **not-dirty** when git is unavailable or
-  the build is outside a checkout (matches the existing "when available" `YF_GIT_HASH` stance —
-  a release archive built in CI from a clean checkout is never dirty). Append `-dirty` to the
-  `VERSION_LINE` hash for visibility (`0.3.2 (ac0e2b8-dirty)`), leave `VERSION` (the compare key)
-  as `CARGO_PKG_VERSION`. Add a pure `is_dirty_build()` predicate reading `YF_GIT_DIRTY`, wired
-  into `Env::live()` as the dirty seam for 3.2.
+- Issue 3.5: **build-time dirty capture (best-effort — red-team C7).** Extend `yf/build.rs` to
+  detect an unclean working tree via `git status --porcelain` (the **normative** probe:
+  whole-repo, **includes untracked files** — chosen over `git describe --dirty`, which is
+  tracked-only and needs a tag) and expose a compile-time `YF_GIT_DIRTY` flag. Degrade gracefully
+  to **not-dirty** when git is unavailable or the build is outside a checkout (matches the
+  existing "when available" `YF_GIT_HASH` stance). **Reliability is best-effort, not exact:**
+  `YF_GIT_DIRTY` is authoritative for the clean CI/release build (the only shipped artifact — it
+  is reliably not-dirty and stays nag-eligible) but **stale-prone on the incremental local dev
+  loop** — cargo caches the build-script output, and today's narrowing `rerun-if-changed=.git/HEAD`
+  / `.git/refs` means an edit to a tracked source file (which moves neither) would not re-run
+  `build.rs`. **Drop that narrowing** so `build.rs` re-runs on any package change (best dev-loop
+  accuracy achievable; it still cannot observe repo-wide changes outside the `yf/` package —
+  document this limit, do not over-promise). Append `-dirty` to the `VERSION_LINE` hash for
+  visibility (`0.3.2 (ac0e2b8-dirty)`); leave `VERSION` (the compare/stamp key) as
+  `CARGO_PKG_VERSION` (see the C9 stamp note). Add a pure `is_dirty_build()` predicate reading
+  `YF_GIT_DIRTY`, wired into `Env::live()` as the dirty seam for 3.2. Its env read is itself
+  **coverage-exempt** (same as `YF_GIT_HASH`); the tested surface is 3.2's injected `bool`.
   - depends-on: 1.1
 
 ### Epic 4: Coverage gate + user docs
@@ -250,7 +268,7 @@ per-PR gate would fail on Epic 1's REQ text before its tags exist — this match
 | Offer computation adds a small per-invocation filesystem cost (red-team C6) | Not a network call — `source::classify` on the exe path + one cache read; cheap and fail-open. The claim is "no network latency," not literally zero cost. |
 | Version stamp churns `preflight.json` on every yf release, re-probing deps needlessly | Intended — a new binary should re-validate its own prerequisites once; the probe is cheap and cached again immediately after. |
 | Offer fires for non-vendor (Homebrew/from-build) installs that can't `yf self update` | Reuse `nag_eligible()` — identical vendor-only gate as the existing nudge. |
-| Offer nags an operator who is locally developing `yf` | A `dirty` build (`YF_GIT_DIRTY`) is the first short-circuit — the offer is unconditionally suppressed. `dirty` = active local dev / operator-managed versions. Defense-in-depth over the vendor-only gate. |
+| Offer nags an operator who is locally developing `yf` | A `dirty` build (`YF_GIT_DIRTY`) is the first short-circuit — the offer is unconditionally suppressed. `dirty` = active local dev / operator-managed versions. Defense-in-depth over the vendor-only gate; the residual case it uniquely catches (red-team C10) is narrow — a *dirty* binary copied over a receipted vendor prefix (e.g. `cp target/release/yf ~/.local/bin/yf` atop a prior `curl\|sh` receipt) → classifies `Vendor` **and** dirty. Other local-dev shapes are already `Unknown`/`FromBuild`. |
 | `build.rs` dirty probe fails/absent (no git, release-archive build) | Degrades to **not-dirty** (same graceful-degradation stance as `YF_GIT_HASH`); a clean CI release build is correctly non-dirty and eligible. |
 | Full reset re-runs the scaffold ensure | Scaffold ensure is idempotent/additive; a re-run is a no-op when anchors already present. |
 
