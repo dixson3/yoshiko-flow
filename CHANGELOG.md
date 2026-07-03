@@ -59,6 +59,19 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 - **Install docs re-sequenced (#54, partial).** README and the website install page
   now lead with `curl | sh` (Homebrew secondary) and document `yf self …`, the XDG
   dirs + env overrides, and the macOS browser-download `xattr` note.
+- **Mode-aware `yf-beads-init` wedged-migration repair (plan-020, #56).** The
+  wedged-schema-migration fix is now mode-aware. Server mode is unchanged
+  (`bd dolt stop` → `bd migrate schema` → `bd migrate`); for **embedded** storage
+  (`.beads/embeddeddolt/`, no Dolt server — where `bd dolt stop` errors and
+  `bd migrate schema` fails against the dirty on-disk working set) repair now commits
+  the working set first via a **data-preserving** native step (raw `dolt add -A && dolt
+  commit` in the derived Dolt-repo dir; never `reset --hard`/`--allow-empty`; a clean
+  tree is a no-op; falls back to `bd dolt commit` when `dolt` is absent). Mode is
+  detected from `.beads/metadata.json` (`dolt_mode`, with a `dolt-server.*` filesystem
+  fallback); the Dolt-repo path is **derived** (unique `.dolt/`-parent, guarded against
+  zero/multiple candidates), never hardcoded. The `verify` remediation string is
+  likewise mode-aware. SPEC: `REQ-BINIT-011`/`REQ-BINIT-016`, `REQ-YF-PRE-007`;
+  `BEADS_INIT.md` rule → v1.0.3.
 
 ## v0.3.2 — 2026-06-24
 

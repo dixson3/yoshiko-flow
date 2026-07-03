@@ -278,9 +278,14 @@ dirty Dolt working set). So:
   but wedged — the false-negative case the exit-code-only check would mislabel).
 - parse OK, no `error` → functional (`ok`).
 
-The repair sequence (**REQ-YF-PRE-007**, in `beads_init.py repair`): for
-`corrupted`, `bd dolt stop → bd migrate schema → bd migrate`; plus idempotent
-gitignore/hooks/perms/JSONL hardening and the local-only assertion.
+The repair sequence (**REQ-YF-PRE-007**, in the `yf` kernel `beads_init::repair`): for
+`corrupted`, a **mode-aware** working-set flush → `bd migrate schema → bd migrate`. The flush is
+`bd dolt stop` in **server** mode; in **embedded** storage (`.beads/embeddeddolt/`, no Dolt server)
+it is a data-preserving raw-`dolt add -A && dolt commit` in the derived Dolt-repo cwd (a
+`dolt-commit-embedded` native step) — `bd dolt stop` is not used there, as it errors with no
+server. Plus idempotent gitignore/hooks/perms/JSONL hardening and the local-only assertion. Mode is
+detected from `.beads/metadata.json` (`dolt_mode`, with a `dolt-server.*` filesystem fallback), per
+`REQ-BINIT-016`.
 
 Kernel responsibility: `yf preflight`'s coarse `bd_not_initialized` status MUST be
 preserved for parity, but the kernel SHOULD route a failing beads check through
@@ -351,7 +356,8 @@ moves the files, the kernel reads only the new paths.
 - **REQ-YF-PRE-004** — config `.yf-<skill>.local.json` + state `.yf/<skill>/`, §2.1/§7.
 - **REQ-YF-PRE-005** — gitignore scaffold `/.yf/`, §3/§4/§7.
 - **REQ-YF-PRE-006** — beads-init verify, `error`-key parse not exit code, §5.
-- **REQ-YF-PRE-007** — beads-init repair sequence, §5.
+- **REQ-YF-PRE-007** — beads-init **mode-aware** repair sequence (server `bd dolt stop` vs embedded
+  data-preserving `dolt` commit), §5. Detail in `REQ-BINIT-011`/`REQ-BINIT-016`.
 - **REQ-YF-PRE-008** — `yf-version` stamp + full-reset cache invalidation, §2.1.
 - **REQ-YF-PRE-009** — cache-only, vendor-only, dirty-bypassed self-update offer on `ok`, §2.1.
 - **REQ-YF-SELF-007** — `yf self update` invalidates preflight via the PRE-008 stamp, §2.1.

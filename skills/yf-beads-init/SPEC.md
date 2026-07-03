@@ -18,8 +18,9 @@ behavior. `scripts/beads_init.py` is a **retired shim** kept only for back-compa
 `yf` invocation and exits non-zero), not a live engine.
 
 **In scope:** the `verify`/`repair`/`status` engine; the false-negative classification (parse
-`bd status --json` for an `error` **key**, not the exit code); the standard repair sequence for a
-wedged schema migration; idempotent gitignore/hooks/permissions/JSONL hardening; the local-only
+`bd status --json` for an `error` **key**, not the exit code); the **mode-aware** repair sequence
+for a wedged schema migration (server vs embedded storage); idempotent
+gitignore/hooks/permissions/JSONL hardening; the local-only
 assertion; and the preflight-routing contract carried by the companion rule.
 
 **Out of scope:** routine issue operations once bd is healthy (the `beads` skill); direct-CLI
@@ -50,9 +51,40 @@ storage (that is `bd`).
 - **REQ-BINIT-010** *(testable)* `repair` shall default to a **dry-run** that prints the fix plan;
   `repair --apply` shall apply the standard repairs; exit is zero only when the post-repair
   re-verify returns `ok`.
-- **REQ-BINIT-011** *(testable)* the wedged-schema-migration fix shall be, in order,
-  `bd dolt stop` → `bd migrate schema` → `bd migrate`, and shall **not** attempt `bd vc commit`
-  first (it cannot open the wedged DB — chicken-and-egg). (Macro `REQ-YF-PRE-007`.)
+- **REQ-BINIT-011** *(testable)* the wedged-schema-migration fix shall be **mode-aware**. In both
+  modes the migration tail is `bd migrate schema` → `bd migrate`; they differ only in the
+  working-set flush that precedes it:
+  - **server mode:** `bd dolt stop` (flush the in-memory working set) → `bd migrate schema` →
+    `bd migrate` (byte-for-byte the prior sequence).
+  - **embedded mode** (`.beads/embeddeddolt/`, no Dolt server): a data-preserving working-set
+    commit (REQ-BINIT-016) → `bd migrate schema` → `bd migrate`. `bd dolt stop` shall **not** be
+    used — it errors in embedded mode (`not supported in embedded mode (no Dolt server)`) and
+    `bd migrate schema` then fails against the dirty on-disk working set.
+
+  Neither mode shall attempt `bd vc commit` first (it cannot open the wedged DB — chicken-and-egg).
+  (Macro `REQ-YF-PRE-007`.)
+- **REQ-BINIT-016** *(testable)* for the **embedded-storage** layout, repair shall detect mode from
+  the filesystem and clear the dirty working set with a **data-preserving commit** before
+  `bd migrate schema`:
+  - **Mode detection.** Read `.beads/metadata.json` and treat `dolt_mode == "embedded"` as
+    embedded. When the key is missing/empty (a stale pre-`dolt_mode` metadata — plausible on the
+    very upgrade that triggers the wedge), fall back to a filesystem probe: absence of
+    `.beads/dolt-server.{pid,port}` ⇒ embedded. Mode shall **not** be inferred from a `bd` exit
+    code, and a keyless repo shall **never** default to the server path (that is the path that
+    fails).
+  - **Path derivation.** Derive the Dolt-repo root as the unique directory under `.beads/`
+    containing a `.dolt/` child (fallback: `metadata.json.dolt_database` under the data-dir base).
+    On zero or more-than-one candidate the step shall **not guess** — it returns a non-zero rc with
+    a "manual repair needed" message.
+  - **Data-preserving commit.** In the derived cwd it shall run raw `dolt add -A`, then
+    `dolt commit` **only if the working set is dirty** (a clean tree is a success no-op). It shall
+    **never** `reset --hard` and **never** `--allow-empty`. When `dolt` is absent from PATH it shall
+    attempt `bd dolt commit` as a last resort before hard-failing with a remediation ("install dolt
+    or commit the embedded working set manually").
+  - **Partial-failure outcome.** If the commit succeeds but `bd migrate schema` still fails, repair
+    shall report **FAIL / `corrupted`** with the working set **committed (recoverable)** and a
+    manual-repair remediation — an acceptable, data-safe outcome (the genuine wedge is
+    unreproducible, so this is the most likely real-world non-happy path).
 - **REQ-BINIT-012** *(testable)* repair hardening shall be idempotent and safe to re-run:
   permissions (`chmod 700 .beads`), gitignore drift (`bd doctor --fix` plus the engine's top-up
   patterns for `.beads/.gitignore` and project `.gitignore`), and a portable JSONL export
@@ -123,7 +155,7 @@ storage (that is `bd`).
   `scripts/beads_init.py` is a retired back-compat shim that points stale callers at the `yf`
   commands above and exits non-zero — it is not a live engine.
 - **Companion rule:** `protocols/BEADS_INIT.md` — the always-loaded preflight-routing + safety
-  trigger — with `protocols/manifest.json` (sha256 + semver; current `BEADS_INIT.md` v1.0.0).
+  trigger — with `protocols/manifest.json` (sha256 + semver; current `BEADS_INIT.md` v1.0.3).
   Verified against the macro per-rule hash axis (`REQ-YF-PRE-003`).
 - **Config / state:** none of its own today (the engine operates on `.beads/` and repo gitignore).
   After the rename, any per-repo config/runtime state would live at `.yf-beads-init.local.json` /
@@ -137,8 +169,13 @@ storage (that is `bd`).
   repo is `corrupted`, repaired in place — never re-initialized (REQ-BINIT-002). *Why:* `bd init`
   on real data risks clobbering it.
 - **GR-BINIT-002** *Drift:* `bd vc commit` before clearing the wedged migration. *Rule:* the fix
-  order is `bd dolt stop → bd migrate schema → bd migrate`; `bd vc commit` cannot open the wedged
-  DB (REQ-BINIT-011). *Why:* it deadlocks the repair.
+  order is a **mode-aware** working-set flush — server: `bd dolt stop`; embedded: a data-preserving
+  raw `dolt add -A && dolt commit` in the derived Dolt-repo cwd (REQ-BINIT-016) — then
+  `bd migrate schema → bd migrate`; `bd vc commit` cannot open the wedged DB (REQ-BINIT-011).
+  *Why:* it deadlocks the repair. **The embedded escape hatch is distinct from `bd vc commit`:** it
+  commits via **raw `dolt`** (or, only if `dolt` is absent, `bd dolt commit`), structurally
+  bypassing bd's wedged migration gate rather than routing through it — it is not a licence to
+  attempt the forbidden `bd vc commit`.
 - **GR-BINIT-003** *Drift:* adding a Dolt remote / `bd dolt push` to "fix" a local-only repo's
   `No remotes configured` warning. *Rule:* on local-only, assert `dolt.local-only true`, keep
   remotes empty, route upstream tracking to `yf-beads-upstream` (REQ-BINIT-020). Repair only ever
@@ -161,7 +198,12 @@ storage (that is `bd`).
   `bd ready`/`bd list` work → `corrupted` (the false-negative regression); a repo with no `.beads/`
   → `not_initialized`; a missing tool → `deps_missing`. `repair`'s idempotence (REQ-BINIT-012) is
   verifiable by applying twice and asserting no second-pass change; the wedged-migration sequence
-  (REQ-BINIT-011) by asserting the three-command order and that re-verify returns `ok`. The
+  (REQ-BINIT-011) by asserting the mode-aware command order — server plans carry `bd dolt stop`,
+  embedded plans carry the `dolt-commit-embedded` native step (never `bd dolt stop`) with a
+  **derived** (not hardcoded) path — ahead of `bd migrate schema` → `bd migrate`, and that
+  re-verify returns `ok`. The embedded native step's data-preserving commit + clean-tree no-op +
+  mode detection (REQ-BINIT-016) is verifiable against a real `bd init` embedded repo with a
+  synthetically-dirtied working set. The
   companion-rule hash (REQ-BINIT-021) is verified against `protocols/manifest.json`. These map to
   the macro spec's preflight three-state fixtures (`REQ-YF-PRE-006`, plan-010 Epic 6) once the
   engine ports to `yf`.

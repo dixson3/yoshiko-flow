@@ -81,10 +81,19 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
 2. **Diagnose & repair.** Run `yf doctor --repair` (add `--local-only` to also assert local-only
    Dolt; add `--remove-remote` to additionally CLEAR a configured remote — see below). The
    standard repairs, in order:
-   - **Wedged schema migration** (the common case): `bd dolt stop` flushes and clears the
-     in-memory Dolt working set; then `bd migrate schema` applies pending migrations; then
-     bare `bd migrate` updates the DB metadata version. *Do not* try `bd vc commit` first —
-     it cannot open the wedged DB (chicken-and-egg).
+   - **Wedged schema migration** (the common case) — **mode-aware** flush, then
+     `bd migrate schema` (applies pending migrations) → bare `bd migrate` (updates the DB
+     metadata version):
+     - **server mode:** `bd dolt stop` flushes and clears the in-memory Dolt working set.
+     - **embedded storage** (`.beads/embeddeddolt/`, no Dolt server): there is no server to
+       stop (`bd dolt stop` errors, and `bd migrate schema` then fails against the dirty
+       on-disk set), so repair commits the working set directly — raw `dolt add -A && dolt
+       commit` in the derived Dolt-repo dir (a **data-preserving** commit, never `reset
+       --hard`; a clean tree is a no-op). Mode is detected from `.beads/metadata.json`
+       (`dolt_mode`, with a `dolt-server.*` filesystem fallback).
+
+     *Do not* try `bd vc commit` first — it cannot open the wedged DB (chicken-and-egg). The
+     embedded raw-`dolt` commit is a distinct escape hatch, not `bd vc commit`.
    - **Permissions:** `chmod 700 .beads` (bd warns at `0750`).
    - **Git hooks:** repair **never installs** beads git hooks. The former
      `bd hooks install --force` step was removed (#31) — it contradicted cruft suppression

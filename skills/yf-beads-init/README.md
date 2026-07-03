@@ -33,9 +33,10 @@ uv run scripts/beads_init.py repair --apply --local-only   # also assert no Dolt
 ```
 
 `verify` returns `status ∈ {ok, deps_missing, not_initialized, corrupted}` with diagnostics
-and remediations. `repair` fixes a wedged schema migration (`bd dolt stop` → `bd migrate
-schema` → `bd migrate`), permissions, outdated hooks, gitignore drift, stale metadata, and the
-portable `issues.jsonl` export.
+and remediations. `repair` fixes a wedged schema migration with a **mode-aware** flush before
+`bd migrate schema` → `bd migrate` — `bd dolt stop` in server mode, or a data-preserving raw-`dolt`
+working-set commit for embedded storage (no server to stop) — plus permissions, outdated hooks,
+gitignore drift, stale metadata, and the portable `issues.jsonl` export.
 
 ## Companion rule
 
