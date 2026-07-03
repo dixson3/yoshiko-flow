@@ -758,12 +758,16 @@ def list_plans(as_json: bool):
                 if line.startswith("**Status:**"):
                     status = line.split("**Status:**")[1].strip()
 
+            # Advisory stale-approved flag (REQ-PORT-041): only meaningful once a
+            # fingerprint is stored (review/approved onward). Non-fatal in list/status.
+            stale = _fingerprint_status(d).get("stale_approved", False)
             plans.append({
                 "id": d.name,
                 "objective": objective,
                 "status": status,
                 "incubator": incubator,
                 "path": str(d),
+                "stale_approved": stale,
             })
     plans.sort(key=lambda p: p["id"])
 
@@ -790,9 +794,10 @@ def list_plans(as_json: bool):
         click.echo("Plans:")
         for p in plans:
             scope = p["incubator"] or "docs"
+            stale_tag = "  ⚠ STALE-APPROVED (re-review before execute)" if p.get("stale_approved") else ""
             click.echo(
                 f"  {p['id']:<35} [{scope:<18}] "
-                f"{p['objective']:<40} status: {p['status']}"
+                f"{p['objective']:<40} status: {p['status']}{stale_tag}"
             )
 
     if research:
