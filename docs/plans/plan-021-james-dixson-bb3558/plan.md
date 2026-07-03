@@ -3,7 +3,7 @@
 **ID:** plan-021-james-dixson-bb3558
 **Author:** james-dixson
 **Created:** 2026-07-02
-**Status:** approved
+**Status:** executing
 **Epic:** yf-mol-al2
 **Phase log:**
 - 2026-07-02 scoping: initial scope captured; #62 deferred, #47 full-model chosen
@@ -15,6 +15,7 @@
 - 2026-07-02 review: pass-2 red-team REVISE → 1 high (resolver-shadow) + 1 med (promotion) + 1 low resolved in-place
 - 2026-07-02 approved: operator approved (pass-2)
 - 2026-07-02 intake: epic yf-mol-al2 poured
+- 2026-07-02 executing: start gate resolved
 
 ## Objective
 Rework the yf-plan lifecycle for a **predictable, worktree-default** git model with **intake deferred
