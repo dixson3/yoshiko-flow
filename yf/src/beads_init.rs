@@ -248,10 +248,22 @@ pub fn verify(repo_root: &Path) -> VerifyResult {
                             "Signature: pending schema migration blocked by a dirty Dolt working set."
                                 .to_string(),
                         );
-                        r.remediations.push(
-                            "Flush + migrate: `bd dolt stop` then `bd migrate schema` then `bd migrate`."
-                                .to_string(),
-                        );
+                        // Mode-aware remediation (RT-1): `bd dolt stop` ERRORS in
+                        // embedded storage (no server), so advise the
+                        // data-preserving embedded commit there instead.
+                        if is_embedded_mode(&beads_dir) {
+                            r.remediations.push(
+                                "Embedded storage: run `yf doctor --repair --apply` — it commits the \
+                                 embedded Dolt working set (data-preserving), then `bd migrate schema` \
+                                 then `bd migrate`. (`bd dolt stop` does not apply — there is no server.)"
+                                    .to_string(),
+                            );
+                        } else {
+                            r.remediations.push(
+                                "Flush + migrate: `bd dolt stop` then `bd migrate schema` then `bd migrate`."
+                                    .to_string(),
+                            );
+                        }
                     } else {
                         r.remediations.push(
                             "Run `yf doctor --repair` to attempt standard repairs.".to_string(),
@@ -327,8 +339,41 @@ pub struct RepairResult {
     pub after: Option<VerifyResult>,
 }
 
+/// The mode-aware wedged-migration step descriptors (REQ-BINIT-011/016) as
+/// ordered `(why, native, args)` tuples — split out from [`repair`] so the plan
+/// shape is unit-testable without a live wedged repo. Embedded storage gets the
+/// NATIVE `dolt-commit-embedded` step (its cwd is DERIVED at apply time — no
+/// hardcoded path in the plan); server mode gets the shelled `bd dolt stop`.
+/// Both share the `bd migrate schema` → `bd migrate` tail. `args` is the verb
+/// slice for a native step, or the full argv for a shelled one.
+fn wedged_migration_steps(embedded: bool) -> Vec<(&'static str, bool, Vec<&'static str>)> {
+    let flush = if embedded {
+        (
+            "commit embedded Dolt working set (data-preserving; no server to stop)",
+            true,
+            vec!["dolt-commit-embedded"],
+        )
+    } else {
+        (
+            "stop dolt server (flush working set)",
+            false,
+            vec!["bd", "dolt", "stop"],
+        )
+    };
+    vec![
+        flush,
+        (
+            "apply schema migrations",
+            false,
+            vec!["bd", "migrate", "schema"],
+        ),
+        ("update db metadata version", false, vec!["bd", "migrate"]),
+    ]
+}
+
 /// Diagnose and (when `apply`) fix a non-existent / incorrect / corrupted beads
-/// config — the idempotent sequence from `beads_init.py repair` (REQ-YF-PRE-007).
+/// config — the idempotent repair sequence (REQ-YF-PRE-007). This `yf` kernel is
+/// the reference implementation; `scripts/beads_init.py` is a retired shim.
 ///
 /// ## Native vs shelled, per step (R5 bounded-fallback rationale, GR-011)
 ///
@@ -337,8 +382,11 @@ pub struct RepairResult {
 /// migration/hook logic and drift):
 ///
 /// - `bd init` (not_initialized) — shelled.
-/// - wedged-migration fix `bd dolt stop` → `bd migrate schema` → `bd migrate`
-///   (THAT order; never `bd vc commit` first) — shelled.
+/// - wedged-migration fix (REQ-BINIT-011/016): the working-set flush is
+///   MODE-AWARE — server mode shells `bd dolt stop`; embedded storage has no
+///   server, so it runs the NATIVE `dolt-commit-embedded` step (raw `dolt` in the
+///   derived cwd) instead — then `bd migrate schema` → `bd migrate` (shelled).
+///   Never `bd vc commit` first (it cannot open the wedged DB).
 /// - hardening `bd hooks install --force`, `bd doctor --fix`, `bd migrate`,
 ///   `bd export -o .beads/issues.jsonl` — shelled.
 /// - local-only assertion `bd config set dolt.local-only true` — shelled. Repair
@@ -414,17 +462,20 @@ pub fn repair(
         ));
     }
 
-    // Wedged-migration repair: flush in-memory working set, THEN migrate.
+    // Wedged-migration repair (REQ-BINIT-011/016): clear the dirty working set,
+    // THEN migrate. The flush is MODE-AWARE — server mode stops the Dolt server;
+    // embedded storage has no server (`bd dolt stop` errors there), so it commits
+    // the on-disk working set via a data-preserving raw-`dolt` native step first.
+    // The ordered step descriptors live in the pure [`wedged_migration_steps`] so
+    // the plan shape is unit-testable without a live wedged repo.
     if before.status == VerifyStatus::Corrupted {
-        plan.push(shelled(
-            "stop dolt server (flush working set)",
-            &["bd", "dolt", "stop"],
-        ));
-        plan.push(shelled(
-            "apply schema migrations",
-            &["bd", "migrate", "schema"],
-        ));
-        plan.push(shelled("update db metadata version", &["bd", "migrate"]));
+        for (why, native, args) in wedged_migration_steps(is_embedded_mode(&beads_dir)) {
+            plan.push(if native {
+                native_step(why, &args)
+            } else {
+                shelled(why, &args)
+            });
+        }
     }
 
     // Hardening (idempotent) — runs whenever .beads/ exists or after init.
@@ -562,12 +613,198 @@ pub fn repair(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Embedded-mode detection + Dolt-repo-path derivation (REQ-BINIT-016)
+// ---------------------------------------------------------------------------
+
+/// Pure mode decision for the wedged-migration flush (REQ-BINIT-016), split out
+/// so it is testable without a live `.beads/`. `meta` is the raw
+/// `.beads/metadata.json` (None if unreadable/absent); `server_files_present` is
+/// whether `.beads/dolt-server.{pid,port}` exist. Returns `true` for embedded.
+///
+/// Precedence: an explicit `dolt_mode` of `"embedded"`/`"server"` wins; a
+/// missing/empty/unknown value falls back to the filesystem probe (absence of
+/// the server files ⇒ embedded). A keyless repo therefore NEVER defaults to the
+/// server path — that is the path that fails in embedded storage (RT-3). Mode is
+/// never inferred from a `bd` exit code.
+fn decide_embedded(meta: Option<&str>, server_files_present: bool) -> bool {
+    if let Some(text) = meta {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
+            match v.get("dolt_mode").and_then(|m| m.as_str()).map(str::trim) {
+                Some("embedded") => return true,
+                Some("server") => return false,
+                _ => {} // missing / empty / unknown → filesystem probe
+            }
+        }
+    }
+    !server_files_present
+}
+
+/// Detect embedded Dolt storage for `beads_dir` (reads `metadata.json` +
+/// probes for `dolt-server.{pid,port}`), delegating the decision to
+/// [`decide_embedded`]. (REQ-BINIT-016.)
+fn is_embedded_mode(beads_dir: &Path) -> bool {
+    let meta = std::fs::read_to_string(beads_dir.join("metadata.json")).ok();
+    let server_files_present =
+        beads_dir.join("dolt-server.pid").exists() || beads_dir.join("dolt-server.port").exists();
+    decide_embedded(meta.as_deref(), server_files_present)
+}
+
+/// Read `metadata.json.dolt_database` (trimmed, non-empty), the fallback used to
+/// locate the Dolt-repo root when the `.dolt/`-parent search finds nothing.
+fn read_dolt_database(beads_dir: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(beads_dir.join("metadata.json")).ok()?;
+    let v = serde_json::from_str::<serde_json::Value>(&text).ok()?;
+    v.get("dolt_database")
+        .and_then(|d| d.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Recursively find directories under `beads_dir` that contain a `.dolt/` child,
+/// returning those PARENT dirs (the Dolt-repo roots). Bounded depth; never
+/// descends into a `.dolt/` itself, nor into known non-live snapshot dirs
+/// (`backup`, `*.corrupt.backup`) — those hold gitignored copies, not the live
+/// working repo, so counting them would defeat the derivation.
+fn find_dolt_dirs(beads_dir: &Path) -> Vec<PathBuf> {
+    fn walk(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+        if depth > 5 {
+            return;
+        }
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for e in entries.flatten() {
+            let p = e.path();
+            if !p.is_dir() {
+                continue;
+            }
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name == ".dolt" {
+                if let Some(parent) = p.parent() {
+                    out.push(parent.to_path_buf());
+                }
+                continue; // do not descend into a .dolt/ store
+            }
+            if name == "backup" || name.ends_with(".corrupt.backup") {
+                continue; // non-live snapshot dir — skip
+            }
+            walk(&p, depth + 1, out);
+        }
+    }
+    let mut out = Vec::new();
+    walk(beads_dir, 0, &mut out);
+    out
+}
+
+/// Derive the live Dolt-repo root under `beads_dir`: the UNIQUE dir containing a
+/// `.dolt/` child (fallback: `metadata.json.dolt_database` joined under
+/// `embeddeddolt/`). On zero or more-than-one live candidate it does NOT guess —
+/// it returns an `Err` with a "manual repair needed" message. (REQ-BINIT-016.)
+fn derive_dolt_repo_root(beads_dir: &Path) -> Result<PathBuf, String> {
+    let candidates = find_dolt_dirs(beads_dir);
+    match candidates.len() {
+        1 => Ok(candidates.into_iter().next().unwrap()),
+        0 => {
+            if let Some(db) = read_dolt_database(beads_dir) {
+                let cand = beads_dir.join("embeddeddolt").join(&db);
+                if cand.join(".dolt").is_dir() {
+                    return Ok(cand);
+                }
+            }
+            Err(
+                "no live Dolt working directory found under .beads/ (no unique .dolt/ dir); \
+                 manual repair needed"
+                    .to_string(),
+            )
+        }
+        n => Err(format!(
+            "ambiguous Dolt working directory: {n} candidates with a .dolt/ child under .beads/ \
+             — refusing to guess; manual repair needed"
+        )),
+    }
+}
+
+/// The commit message stamped on the embedded working-set commit — a marker so
+/// the operator can see why the commit exists.
+const EMBEDDED_COMMIT_MARKER: &str =
+    "yf-beads-init: commit embedded Dolt working set before wedged-migration repair (REQ-BINIT-016)";
+
+/// REQ-BINIT-016 data-preserving embedded working-set commit. Self-guards to a
+/// no-op unless the repo is embedded (a server repo is handled by the
+/// `bd dolt stop` step). Derives the Dolt-repo cwd, then commits the dirty
+/// working set via raw `dolt` (`add -A`; `commit` only when dirty) — NEVER
+/// `reset --hard`, NEVER `--allow-empty`; a clean tree is a success no-op. When
+/// `dolt` is absent from PATH it attempts `bd dolt commit` as a last resort
+/// (RT-2) before failing with a remediation.
+fn dolt_commit_embedded(repo_root: &Path, beads_dir: &Path) -> (i32, Option<String>) {
+    // Self-guard: server-mode repos are cleared by the `bd dolt stop` step.
+    if !is_embedded_mode(beads_dir) {
+        return (0, None);
+    }
+    let dolt_root = match derive_dolt_repo_root(beads_dir) {
+        Ok(p) => p,
+        Err(e) => return (1, Some(e)),
+    };
+
+    // Prefer raw `dolt` — it structurally bypasses bd's wedged migration gate and,
+    // in embedded mode (no server), faces no lock contention.
+    if which("dolt").is_some() {
+        let (rc, _o, err) = run_in(&["dolt", "add", "-A"], 120, &dolt_root);
+        if rc != 0 {
+            return (
+                rc.max(1),
+                Some(format!("dolt add -A failed: {}", err.trim())),
+            );
+        }
+        // Commit only if dirty (a clean tree is a success no-op; never --allow-empty).
+        let (_rc, status_out, _serr) = run_in(&["dolt", "status"], 60, &dolt_root);
+        let lower = status_out.to_lowercase();
+        if lower.contains("working tree clean") || lower.contains("nothing to commit") {
+            return (0, None);
+        }
+        let (crc, _co, cerr) = run_in(
+            &["dolt", "commit", "-m", EMBEDDED_COMMIT_MARKER],
+            120,
+            &dolt_root,
+        );
+        if crc == 0 {
+            return (0, None);
+        }
+        // Tolerate a clean-tree race (tree became clean between status and commit).
+        let cl = cerr.to_lowercase();
+        if cl.contains("nothing to commit") || cl.contains("no changes added") {
+            return (0, None);
+        }
+        return (
+            crc.max(1),
+            Some(format!("dolt commit failed: {}", cerr.trim())),
+        );
+    }
+
+    // `dolt` absent — last-resort `bd dolt commit` (may share the wedge; worst
+    // case it fails identically to today, best case it recovers the repo).
+    let (rc, _o, err) = run_in(&["bd", "dolt", "commit"], 120, repo_root);
+    if rc == 0 {
+        return (0, None);
+    }
+    (
+        rc.max(1),
+        Some(format!(
+            "dolt not on PATH and `bd dolt commit` fallback failed ({}); \
+             install dolt or commit the embedded working set manually",
+            err.trim()
+        )),
+    )
+}
+
 /// Execute a native (Rust `std::fs`) repair step. `cmd[1]` is the verb. Returns
 /// `(rc, optional-error-string)`; every arm is idempotent (a no-op on a clean
 /// repo). Verbs: `chmod`, `gitignore` (hardening); `hookspath-reset`,
 /// `rmdir-beads-skill`, `strip-managed-blocks`, `prune-settings`, `prune-codex`
 /// (B.3/B.4 cleanup); `untrack-runtime`, `remove-hook-shims`, `remove-remote`
-/// (#39 B.1 canonicalization).
+/// (#39 B.1 canonicalization); `dolt-commit-embedded` (REQ-BINIT-016
+/// data-preserving embedded working-set commit).
 fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Option<String>) {
     match cmd.get(1).map(String::as_str) {
         Some("chmod") => {
@@ -674,6 +911,10 @@ fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Opt
             Ok(()) => (0, None),
             Err(e) => (1, Some(e.to_string())),
         },
+        // REQ-BINIT-016: data-preserving embedded working-set commit (the
+        // embedded-mode replacement for `bd dolt stop`). Runs raw `dolt` in the
+        // derived Dolt-repo cwd; see [`dolt_commit_embedded`].
+        Some("dolt-commit-embedded") => dolt_commit_embedded(repo_root, beads_dir),
         _ => (0, None),
     }
 }
@@ -1225,31 +1466,204 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&gi).unwrap(), text);
     }
 
-    // REQ-YF-PRE-007: the repair PLAN (dry-run) carries the wedged-migration
-    // sequence in the correct order for a corrupted repo — and never `bd vc commit`.
+    // REQ-YF-PRE-007 / REQ-BINIT-011: the SERVER-mode wedged-migration plan is
+    // `bd dolt stop` → `bd migrate schema` → `bd migrate` (unchanged) — never
+    // `bd vc commit`, and no native embedded step.
     #[test]
     fn corrupted_plan_has_migration_order() {
-        // Build a plan as repair() would for a corrupted verdict, without invoking
-        // bd: assert the ordering logic by constructing the corrupted-branch steps.
-        let before = VerifyResult {
-            status: VerifyStatus::Corrupted,
-            ..VerifyResult::base()
-        };
-        // Mirror repair()'s plan construction for the corrupted branch.
-        let mut whys: Vec<&str> = vec![];
-        if before.status == VerifyStatus::Corrupted {
-            whys.push("stop dolt server (flush working set)");
-            whys.push("apply schema migrations");
-            whys.push("update db metadata version");
-        }
+        let steps = wedged_migration_steps(/* embedded */ false);
+        let argvs: Vec<Vec<&str>> = steps.iter().map(|(_, _, a)| a.clone()).collect();
         assert_eq!(
-            whys,
+            argvs,
             vec![
-                "stop dolt server (flush working set)",
-                "apply schema migrations",
-                "update db metadata version"
+                vec!["bd", "dolt", "stop"],
+                vec!["bd", "migrate", "schema"],
+                vec!["bd", "migrate"],
             ]
         );
+        // No native step in server mode; never `bd vc commit`.
+        assert!(steps.iter().all(|(_, native, _)| !native));
+        assert!(!steps.iter().any(|(_, _, a)| a.contains(&"vc")));
+    }
+
+    // REQ-BINIT-016: the EMBEDDED-mode wedged-migration plan replaces `bd dolt
+    // stop` with the NATIVE `dolt-commit-embedded` step (carrying NO hardcoded
+    // path — the cwd is derived at apply time), then the same migrate tail.
+    #[test]
+    fn corrupted_embedded_plan_uses_native_commit_not_dolt_stop() {
+        let steps = wedged_migration_steps(/* embedded */ true);
+        // First step: native, verb `dolt-commit-embedded`.
+        let (why0, native0, args0) = &steps[0];
+        assert!(native0, "embedded flush step is native");
+        assert_eq!(args0, &vec!["dolt-commit-embedded"]);
+        assert!(why0.contains("data-preserving"));
+        // No `bd dolt stop` anywhere; no hardcoded embeddeddolt path in the plan.
+        assert!(!steps.iter().any(|(_, _, a)| a.contains(&"stop")));
+        assert!(
+            !steps
+                .iter()
+                .any(|(_, _, a)| a.iter().any(|s| s.contains("embeddeddolt"))),
+            "path is derived at apply time, never hardcoded in the plan"
+        );
+        // Migrate tail is preserved and shelled.
+        let tail: Vec<Vec<&str>> = steps[1..].iter().map(|(_, _, a)| a.clone()).collect();
+        assert_eq!(
+            tail,
+            vec![vec!["bd", "migrate", "schema"], vec!["bd", "migrate"]]
+        );
+        assert!(steps[1..].iter().all(|(_, native, _)| !native));
+    }
+
+    // REQ-BINIT-016: pure mode decision. Explicit `dolt_mode` wins; a
+    // missing/empty/unknown key falls back to the server-file probe; a keyless
+    // repo with no server files is embedded (never defaults to the server path).
+    #[test]
+    fn decide_embedded_precedence() {
+        // Explicit values win regardless of server-file presence.
+        assert!(decide_embedded(Some(r#"{"dolt_mode":"embedded"}"#), true));
+        assert!(!decide_embedded(Some(r#"{"dolt_mode":"server"}"#), false));
+        // Missing/empty/unknown → filesystem probe.
+        assert!(decide_embedded(Some(r#"{"dolt_mode":""}"#), false)); // no server files → embedded
+        assert!(!decide_embedded(Some(r#"{"dolt_mode":""}"#), true)); // server files → server
+        assert!(decide_embedded(Some(r#"{"other":1}"#), false)); // keyless → probe → embedded
+        assert!(decide_embedded(Some("not json"), false)); // unparseable → probe → embedded
+        assert!(decide_embedded(None, false)); // no metadata → probe → embedded
+        assert!(!decide_embedded(None, true)); // no metadata but server files → server
+    }
+
+    // REQ-BINIT-016: derive the Dolt-repo root as the unique `.dolt/`-parent; the
+    // zero/>1-candidate guard refuses to guess; backup snapshot dirs are skipped.
+    #[test]
+    fn derive_dolt_repo_root_unique_and_guarded() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        // Zero candidates → Err (manual repair).
+        std::fs::create_dir_all(&beads).unwrap();
+        assert!(derive_dolt_repo_root(&beads).is_err());
+
+        // One live candidate → derived (never hardcoded).
+        let live = beads.join("embeddeddolt").join("dolt");
+        std::fs::create_dir_all(live.join(".dolt")).unwrap();
+        assert_eq!(derive_dolt_repo_root(&beads).unwrap(), live);
+
+        // A `.dolt/` under a `backup/` snapshot is ignored (still unique).
+        std::fs::create_dir_all(beads.join("backup").join("db").join(".dolt")).unwrap();
+        assert_eq!(derive_dolt_repo_root(&beads).unwrap(), live);
+
+        // A second LIVE candidate → ambiguous → Err (refuse to guess).
+        std::fs::create_dir_all(beads.join("other").join(".dolt")).unwrap();
+        assert!(derive_dolt_repo_root(&beads).is_err());
+    }
+
+    // REQ-BINIT-016: is_embedded_mode reads metadata.json from a real .beads/.
+    #[test]
+    fn is_embedded_mode_reads_metadata() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"embedded"}"#).unwrap();
+        assert!(is_embedded_mode(&beads));
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"server"}"#).unwrap();
+        assert!(!is_embedded_mode(&beads));
+        // Keyless + a server pid file present → server.
+        std::fs::write(beads.join("metadata.json"), r#"{}"#).unwrap();
+        std::fs::write(beads.join("dolt-server.pid"), "123").unwrap();
+        assert!(!is_embedded_mode(&beads));
+    }
+
+    // REQ-BINIT-016 (integration): native-step idempotency + data preservation
+    // against a real embedded repo. Dirties the derived Dolt working set, runs
+    // the verb, asserts the set is committed (clean) with data preserved, then
+    // re-runs to assert a safe no-op. Skips cleanly when `bd`/`dolt` are absent
+    // (CI without the toolchain) or the environment does not yield an embedded
+    // repo — never a hard failure on a missing dependency.
+    #[test]
+    fn dolt_commit_embedded_idempotent_and_preserves_data() {
+        if which("bd").is_none() || which("dolt").is_none() {
+            eprintln!("skip: bd/dolt not on PATH");
+            return;
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let _ = run_in(&["git", "init", "-q"], 60, root);
+        let (rc, _o, e) = run_in(&["bd", "init", "--skip-hooks", "--skip-agents"], 180, root);
+        if rc != 0 {
+            eprintln!("skip: bd init failed: {}", e.trim());
+            return;
+        }
+        let beads = root.join(".beads");
+        // Neutralize any auto-started server so we exercise the embedded path.
+        let _ = run_in(&["bd", "dolt", "stop"], 60, root);
+        let _ = std::fs::remove_file(beads.join("dolt-server.pid"));
+        let _ = std::fs::remove_file(beads.join("dolt-server.port"));
+        // Mode detection reads metadata.json and must see embedded here.
+        assert!(
+            beads.join("metadata.json").is_file(),
+            "metadata.json present"
+        );
+        if !is_embedded_mode(&beads) {
+            eprintln!("skip: environment produced a server-mode repo");
+            return;
+        }
+        let dolt_root = match derive_dolt_repo_root(&beads) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("skip: could not derive dolt root: {e}");
+                return;
+            }
+        };
+        // Ensure a commit identity exists (best-effort; bd usually sets it).
+        let _ = run_in(
+            &["dolt", "config", "--local", "--add", "user.name", "yf-test"],
+            30,
+            &dolt_root,
+        );
+        let _ = run_in(
+            &[
+                "dolt",
+                "config",
+                "--local",
+                "--add",
+                "user.email",
+                "yf-test@example.com",
+            ],
+            30,
+            &dolt_root,
+        );
+        // Dirty the on-disk working set with a probe table.
+        let (drc, _o, de) = run_in(
+            &[
+                "dolt",
+                "sql",
+                "-q",
+                "CREATE TABLE _yf_probe (id INT PRIMARY KEY)",
+            ],
+            120,
+            &dolt_root,
+        );
+        if drc != 0 {
+            eprintln!("skip: dolt sql could not dirty the set: {}", de.trim());
+            return;
+        }
+        // Verb commits the dirty set (data-preserving).
+        let (crc, cerr) = dolt_commit_embedded(root, &beads);
+        assert_eq!(crc, 0, "verb succeeds: {cerr:?}");
+        // Working set is now clean.
+        let (_r, st, _e) = run_in(&["dolt", "status"], 60, &dolt_root);
+        let stl = st.to_lowercase();
+        assert!(
+            stl.contains("clean") || stl.contains("nothing to commit"),
+            "committed (clean tree): {st}"
+        );
+        // Data preserved: the probe table survived the commit.
+        let (_r2, tables, _e2) = run_in(&["dolt", "sql", "-q", "SHOW TABLES"], 60, &dolt_root);
+        assert!(
+            tables.contains("_yf_probe"),
+            "probe table preserved: {tables}"
+        );
+        // Re-run on the clean tree: safe no-op.
+        let (crc2, cerr2) = dolt_commit_embedded(root, &beads);
+        assert_eq!(crc2, 0, "no-op on clean tree: {cerr2:?}");
     }
 
     // #31 B.3: strip removes the marker-fenced managed block (and a trailing

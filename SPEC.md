@@ -30,6 +30,16 @@
 >   explicit clear). Added build-time `YF_GIT_DIRTY` capture (`git status --porcelain`, best-effort)
 >   surfaced as a `-dirty` suffix on `VERSION_LINE`; `VERSION` stays `CARGO_PKG_VERSION`. SELF-007 is
 >   a non-action REQ covered by the shared PRE-008 stamp-mismatch test.
+> - **plan-020 (2026-07-02, #56):** mode-aware wedged-migration repair — revised `REQ-YF-PRE-007`
+>   and `REQ-BINIT-011` to a **mode-aware** working-set flush (server `bd dolt stop` unchanged;
+>   embedded storage uses a data-preserving raw-`dolt add -A && dolt commit` in the derived
+>   Dolt-repo cwd, since `bd dolt stop` errors with no server); added `REQ-BINIT-016` (embedded-mode
+>   detection via `metadata.json.dolt_mode` with a `dolt-server.*` filesystem fallback, derived
+>   dolt-repo path with a zero/>1-candidate guard, clean-tree no-op, never `reset --hard`/
+>   `--allow-empty`, and the commit-ok-migrate-fail partial-failure outcome); clarified
+>   `GR-BINIT-002` that the embedded raw-`dolt` escape hatch is distinct from the forbidden
+>   `bd vc commit`. Engine: `yf/src/beads_init.rs` gains a `dolt-commit-embedded` native
+>   `apply_native` verb + mode-aware `Corrupted`-branch wiring.
 
 ## 1. Purpose & scope
 
@@ -177,8 +187,11 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
 - **REQ-YF-PRE-006** *(testable)* beads-init **verify** shall classify a repo by parsing
   `bd status --json` for an `error` **key** (not exit code), distinguishing `not_initialized` from a
   wedged-but-initialized `corrupted` repo.
-- **REQ-YF-PRE-007** beads-init **repair** shall apply the idempotent sequence (`bd dolt stop →
-  bd migrate schema → bd migrate`; gitignore/hooks/perms/JSONL hardening; local-only assertion).
+- **REQ-YF-PRE-007** beads-init **repair** shall apply the idempotent sequence with a **mode-aware**
+  working-set flush (server: `bd dolt stop`; embedded storage: a data-preserving raw-`dolt`
+  working-set commit — never `bd dolt stop`, which errors with no server) → `bd migrate schema →
+  bd migrate`; gitignore/hooks/perms/JSONL hardening; local-only assertion. The per-skill
+  `REQ-BINIT-011`/`REQ-BINIT-016` carry the mode-detection and data-preserving-commit detail.
 - **REQ-YF-PRE-008** *(testable)* the kernel shall stamp each `.yf/<skill>/preflight.json` with the
   **generating `yf` version** (`yf-version`, the running `crate::VERSION` / `CARGO_PKG_VERSION` —
   the git hash and the `-dirty` marker are deliberately excluded, so a same-`CARGO_PKG_VERSION`
