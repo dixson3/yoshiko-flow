@@ -29,6 +29,8 @@ use std::process::Command;
 
 use serde::Serialize;
 
+use crate::cmd::self_cmd::source::{self, Source};
+use crate::cmd::self_cmd::{nag, update_check};
 use crate::embed;
 use crate::frontmatter::{self, Preflight};
 
@@ -46,6 +48,12 @@ const SCAFFOLD_VERSION: i64 = 1;
 /// The single gitignore anchor under the new `.yf/` tree (REQ-YF-PRE-005). The
 /// per-skill `config-basename` anchor is added alongside it (legacy parity).
 const YF_ANCHOR: &str = "/.yf/";
+
+/// State key stamping the generating `yf` version onto `preflight.json`
+/// (REQ-YF-PRE-008). The value is the pure `crate::VERSION` (`CARGO_PKG_VERSION`) —
+/// the git hash and `-dirty` marker are excluded so a same-version clean↔dirty
+/// transition does not churn the cache. A mismatch/absence is a full cache miss.
+const YF_VERSION_KEY: &str = "yf-version";
 
 // ---------------------------------------------------------------------------
 // Output schema (docs/yf/preflight-contract.md §3)
@@ -148,6 +156,19 @@ pub struct Env {
     /// without mutating the global process environment (which would race other
     /// tests). It never changes any non-test code path.
     pub path_override: Option<std::ffi::OsString>,
+    /// REQ-YF-PRE-009 self-update-offer seams, resolved in [`Env::live`] and
+    /// injected by tests. `update_cache_path` defaults to `None` so a test Env
+    /// (and thus every existing preflight test) emits **no** offer; the positive
+    /// path seeds a temp cache + vendor `Source` + not-dirty + no-suppression.
+    /// Path to the shared `update-check.json` cache (`None` → no offer).
+    pub update_cache_path: Option<PathBuf>,
+    /// Resolved install source (`source::detect` at live; `None` → no offer).
+    pub update_source: Option<Source>,
+    /// Build-time dirty flag (`is_dirty_build()`); `true` unconditionally
+    /// suppresses the offer — the first short-circuit.
+    pub update_dirty: bool,
+    /// Resolved `nag::suppressed` verdict (`YF_NO_UPDATE_CHECK` / `CI`).
+    pub update_suppressed: bool,
 }
 
 impl Env {
@@ -169,10 +190,19 @@ impl Env {
         }
         push(repo_root.join(".agents").join("rules"), &mut rule_dirs);
         push(repo_root.join(".claude").join("rules"), &mut rule_dirs);
+        // REQ-YF-PRE-009 self-update-offer seams, resolved from the live env. The
+        // Source is `source::detect` (reads current_exe + receipt); the cache path
+        // is the shared update-check.json; suppression is the pure nag predicate
+        // over the real env; dirty is the build-time flag.
+        let dirs = crate::dirs::Dirs::from_env();
         Env {
             repo_root,
             rule_dirs,
             path_override: None,
+            update_cache_path: Some(update_check::cache_path(&dirs)),
+            update_source: Some(source::detect(&dirs)),
+            update_dirty: crate::is_dirty_build(),
+            update_suppressed: nag::suppressed(|k| std::env::var_os(k).is_some()),
         }
     }
 }
@@ -235,6 +265,16 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
         };
     }
 
+    // 1.5. Version-stamp invalidation (REQ-YF-PRE-008 / SELF-007). Before any
+    //      cached value (`prereqs-present`, `scaffold-ensured`) is read, compare the
+    //      state file's `yf-version` stamp to the running `crate::VERSION`. A
+    //      mismatch or absent stamp is a FULL cache miss: overwrite the state to
+    //      drop the stale cache, so the cold logic below re-probes deps + bd and
+    //      re-runs the scaffold ensure. This is the mechanism by which `yf self
+    //      update` invalidates preflight — the swapped binary reports a new VERSION,
+    //      so the next run finds a stale stamp (no explicit clear in update.rs).
+    maybe_reset_stale_cache(env, &short);
+
     // 2. System deps (REQ-YF-PRE-002) — checked once, then cached in state.
     let needs_bd = descriptor
         .as_ref()
@@ -292,17 +332,34 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
         vec![]
     };
 
+    // REQ-YF-PRE-009: cache-only self-update OFFER, computed once here and folded
+    // into BOTH `ok`-path returns below (red-team C5) alongside `drift_offer`. Like
+    // `drift_offer` it is an instruction string — preflight performs NO network and
+    // NO mutation. The seams (cache path / Source / dirty / suppression) are
+    // resolved in `Env::live`; a test Env defaults `update_cache_path: None` → no
+    // offer. `update_suppressed` is the resolved nag verdict; wrap it as a constant
+    // predicate for the pure `nag::suppressed` gate inside `detect_self_update_offer`.
+    let suppressed = env.update_suppressed;
+    let self_update_offer = detect_self_update_offer(
+        env.update_cache_path.as_deref(),
+        env.update_source,
+        env.update_dirty,
+        |_| suppressed,
+    );
+
     // 4. Rule hash/semver (REQ-YF-PRE-003) — checked every run (cheap).
     let Some(rule_name) = rule_name else {
         // A skill with no companion rule in its descriptor: nothing to hash. Treat
         // as ok (deps already satisfied). Scaffold still runs.
         let scaffold_added = ensure_scaffold(env, &short, config_basename.as_deref());
+        let mut instructions = drift_offer;
+        instructions.extend(self_update_offer); // REQ-YF-PRE-009 (ok return #1, C5)
         return Outcome {
             status: "ok".into(),
             missing: vec![],
             rule: None,
             scaffold_added: Some(scaffold_added),
-            instructions: drift_offer,
+            instructions,
         };
     };
 
@@ -320,6 +377,7 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
                 )]
             };
             instructions.extend(drift_offer);
+            instructions.extend(self_update_offer); // REQ-YF-PRE-009 (ok return #2, C5)
             Outcome {
                 status: "ok".into(),
                 missing: vec![],
@@ -396,6 +454,42 @@ fn state_path(env: &Env, short: &str) -> PathBuf {
 
 fn read_state(env: &Env, short: &str) -> serde_json::Map<String, serde_json::Value> {
     read_json_obj(&state_path(env, short)).unwrap_or_default()
+}
+
+/// REQ-YF-PRE-008: if the state file's `yf-version` stamp differs from the running
+/// `crate::VERSION` (or is absent — a fresh file), OVERWRITE the state to drop the
+/// stale `prereqs-present` / `scaffold-ensured` before any cached value is read.
+/// Called once at the top of [`run_with_env`], ahead of the cached-deps read.
+fn maybe_reset_stale_cache(env: &Env, short: &str) {
+    let stamp_matches = read_state(env, short)
+        .get(YF_VERSION_KEY)
+        .and_then(serde_json::Value::as_str)
+        == Some(crate::VERSION);
+    if !stamp_matches {
+        reset_stale_cache(env, short);
+    }
+}
+
+/// The **overwrite** half of REQ-YF-PRE-008 (red-team C1): replace the whole state
+/// file with exactly `{"yf-version": <VERSION>}`, so the stale `prereqs-present`
+/// (bool) and `scaffold-ensured` (int) are DROPPED — **never** a `write_state_key`
+/// merge that would preserve them. `prereqs-present: true` is re-persisted only
+/// after a successful probe this run (so an early `system_deps_missing` return
+/// leaves it absent → re-probes next run); `scaffold-ensured` only after the
+/// idempotent scaffold re-runs.
+fn reset_stale_cache(env: &Env, short: &str) {
+    let mut state = serde_json::Map::new();
+    state.insert(
+        YF_VERSION_KEY.to_string(),
+        serde_json::Value::String(crate::VERSION.to_string()),
+    );
+    let path = state_path(env, short);
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(text) = serde_json::to_string_pretty(&serde_json::Value::Object(state)) {
+        let _ = std::fs::write(&path, text + "\n");
+    }
 }
 
 /// Merge one key into runtime state (never clobber sibling keys), best-effort.
@@ -552,6 +646,51 @@ fn bd_init_status(env: &Env) -> Option<Outcome> {
             },
         }),
     }
+}
+
+/// READ-ONLY, **cache-only** detection of a self-update offer (REQ-YF-PRE-009),
+/// built on injectable seams so the positive path is unit-testable without
+/// depending on `current_exe()` or the ambient `CI` env (red-team C2 / C8):
+///
+/// - `cache_path` — the shared `update-check.json` (`update_check::cache_path`);
+/// - `source` — the resolved install [`Source`] (from `source::classify`, not the
+///   `current_exe`-reading `source::detect`);
+/// - `dirty` — the build-time dirty flag (`is_dirty_build()`);
+/// - `suppressed` — the pure `nag::suppressed(present)` predicate.
+///
+/// Returns an offer string iff **all** hold, checked in this order:
+/// 1. the build is **not dirty** — the FIRST short-circuit (red-team C2/C10): a
+///    dirty build means the operator is actively managing `yf` locally; never nag;
+/// 2. the update check is not suppressed (`YF_NO_UPDATE_CHECK` / `CI`);
+/// 3. the install `Source` is vendor (`nag_eligible()`) — non-vendor can't
+///    `yf self update`;
+/// 4. a **cache-only** read of `update-check.json` yields a strictly newer tag.
+///
+/// **No network** — preflight is a pure reader of the cache the throttled
+/// `yf version`/`yf doctor` nudge writes, so the offer is eventually consistent.
+fn detect_self_update_offer(
+    cache_path: Option<&Path>,
+    source: Option<Source>,
+    dirty: bool,
+    suppressed: impl Fn(&str) -> bool,
+) -> Option<String> {
+    if dirty {
+        return None;
+    }
+    if nag::suppressed(suppressed) {
+        return None;
+    }
+    if !source?.nag_eligible() {
+        return None;
+    }
+    let cache = update_check::read_cache(cache_path?)?;
+    let newer = update_check::newer_tag(crate::VERSION, &cache.latest_tag)?;
+    Some(format!(
+        "a newer yf ({newer}) is available (you have {}) — run `yf self update` to \
+         upgrade; it also refreshes installed skill definitions/rules, so you likely \
+         need to `/reload-skills` afterward (set YF_NO_UPDATE_CHECK=1 to silence)",
+        crate::VERSION
+    ))
 }
 
 /// READ-ONLY detection of canonicalization drift (#39 B.2): inspects tracked git
@@ -892,6 +1031,12 @@ mod tests {
             repo_root: repo.to_path_buf(),
             rule_dirs: vec![rules.to_path_buf()],
             path_override: None,
+            // Default: no cache path → no self-update offer, so existing tests are
+            // unaffected (REQ-YF-PRE-009). The positive-path test overrides these.
+            update_cache_path: None,
+            update_source: None,
+            update_dirty: false,
+            update_suppressed: false,
         }
     }
 
@@ -902,6 +1047,10 @@ mod tests {
             repo_root: repo.to_path_buf(),
             rule_dirs: vec![rules.to_path_buf()],
             path_override: Some(path.as_os_str().to_os_string()),
+            update_cache_path: None,
+            update_source: None,
+            update_dirty: false,
+            update_suppressed: false,
         }
     }
 
@@ -969,7 +1118,10 @@ mod tests {
         std::fs::create_dir_all(&state_dir).unwrap();
         std::fs::write(
             state_dir.join("preflight.json"),
-            r#"{"prereqs-present": true, "scaffold-ensured": 1}"#,
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true, "scaffold-ensured": 1}}"#,
+                crate::VERSION
+            ),
         )
         .unwrap();
         // Install a PLANS.md whose bytes match neither current nor previous sha.
@@ -1001,7 +1153,12 @@ mod tests {
         std::fs::create_dir_all(&state_dir).unwrap();
         std::fs::write(
             state_dir.join("preflight.json"),
-            r#"{"prereqs-present": true}"#,
+            // Warm cache carries the current version stamp (REQ-YF-PRE-008), else
+            // the top-of-run invalidation would drop `prereqs-present` and re-probe.
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
         )
         .unwrap();
         // Materialize the EMBEDDED PLANS.md so its sha256 matches the manifest.
@@ -1139,7 +1296,12 @@ mod tests {
         std::fs::create_dir_all(&state_dir).unwrap();
         std::fs::write(
             state_dir.join("preflight.json"),
-            r#"{"prereqs-present": true}"#,
+            // Warm cache carries the current version stamp (REQ-YF-PRE-008), else
+            // the top-of-run invalidation would drop `prereqs-present` and re-probe.
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
         )
         .unwrap();
 
@@ -1164,7 +1326,12 @@ mod tests {
         std::fs::create_dir_all(&state_dir).unwrap();
         std::fs::write(
             state_dir.join("preflight.json"),
-            r#"{"prereqs-present": true}"#,
+            // Warm cache carries the current version stamp (REQ-YF-PRE-008), else
+            // the top-of-run invalidation would drop `prereqs-present` and re-probe.
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
         )
         .unwrap();
         let embedded = embed::read_file("yf-plan/protocols/PLANS.md").unwrap();
@@ -1315,7 +1482,12 @@ mod tests {
         std::fs::create_dir_all(&state_dir).unwrap();
         std::fs::write(
             state_dir.join("preflight.json"),
-            r#"{"prereqs-present": true}"#,
+            // Warm cache carries the current version stamp (REQ-YF-PRE-008), else
+            // the top-of-run invalidation would drop `prereqs-present` and re-probe.
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
         )
         .unwrap();
         // Materialize the EMBEDDED PLANS.md so its sha256 equals the manifest's.
@@ -1418,7 +1590,10 @@ mod tests {
         std::fs::create_dir_all(&state_dir).unwrap();
         std::fs::write(
             state_dir.join("preflight.json"),
-            r#"{"prereqs-present": true, "scaffold-ensured": 1}"#,
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true, "scaffold-ensured": 1}}"#,
+                crate::VERSION
+            ),
         )
         .unwrap();
         // Tampered PLANS.md: diverges from both current and previous shas.
@@ -1484,5 +1659,326 @@ mod tests {
             VerifyStatus::NotInitialized | VerifyStatus::Corrupted => Some("bd_not_initialized"),
         };
         assert_eq!(mapped, Some("bd_not_initialized"));
+    }
+
+    // -----------------------------------------------------------------------
+    // REQ-YF-PRE-008 / REQ-YF-SELF-007: version-stamp cache invalidation.
+    //
+    // SELF-007 is a non-action REQ — `yf self update` invalidates preflight
+    // *by virtue of* the running binary reporting a new VERSION, so the next
+    // preflight finds a stale stamp; there is no explicit clear in update.rs.
+    // It is covered by tagging it on this shared PRE-008 stamp-mismatch test
+    // (the coverage gate matches a REQ id wherever it is named in a .rs source).
+    // -----------------------------------------------------------------------
+
+    // REQ-YF-PRE-008: a matching stamp HONORS the cache — the system-deps block is
+    // skipped even with an empty PATH (a re-probe would have failed system_deps).
+    #[test]
+    fn stamp_matching_honors_cache() {
+        let tmp = unique_tmp("stamp-match");
+        let repo = tmp.join("repo");
+        let empty = tmp.join("empty-path");
+        std::fs::create_dir_all(&empty).unwrap();
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
+        )
+        .unwrap();
+        // No PLANS.md installed → rule_missing. The point: NOT system_deps_missing,
+        // which would prove the empty PATH was (wrongly) re-probed.
+        let env = test_env_with_path(&repo, &tmp.join("rules"), &empty);
+        let out = run_with_env("plan", &env);
+        assert_eq!(
+            out.status, "rule_missing",
+            "matching stamp must honor the cached prereqs-present (no deps re-probe)"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-008 / REQ-YF-SELF-007: a MISMATCHED stamp forces a full re-probe,
+    // and — red-team C1 regression — a run that then fails `system_deps_missing`
+    // leaves `prereqs-present` ABSENT (re-probes next run), never stamped `true`,
+    // while the fresh VERSION stamp IS persisted.
+    #[test]
+    fn stamp_mismatch_reprobes_and_leaves_prereqs_absent() {
+        // REQ-YF-SELF-007: `yf self update` invalidates preflight *via* this same
+        // PRE-008 stamp mismatch (a new binary reports a new VERSION); no explicit
+        // clear in update.rs. This shared test is its coverage tag.
+        let tmp = unique_tmp("stamp-mismatch");
+        let repo = tmp.join("repo");
+        let empty = tmp.join("empty-path");
+        std::fs::create_dir_all(&empty).unwrap();
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        // Stale stamp + a (now-untrustworthy) cached prereqs-present:true.
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            r#"{"yf-version": "0.0.0-stale", "prereqs-present": true, "scaffold-ensured": 1}"#,
+        )
+        .unwrap();
+        let env = test_env_with_path(&repo, &tmp.join("rules"), &empty);
+        let out = run_with_env("plan", &env);
+        assert_eq!(
+            out.status, "system_deps_missing",
+            "mismatched stamp must DROP prereqs-present and re-probe (empty PATH → missing)"
+        );
+        // C1: after the early system_deps_missing return, the cache is empty of the
+        // stale flag (re-probes next run) but carries the fresh version stamp.
+        let state = read_state(&env, "plan");
+        assert!(
+            !state.contains_key("prereqs-present"),
+            "prereqs-present must be ABSENT after a re-probe that failed (never re-stamped true)"
+        );
+        assert_eq!(
+            state.get("yf-version").and_then(|v| v.as_str()),
+            Some(crate::VERSION),
+            "the fresh generating-version stamp is persisted"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-008: the reset OVERWRITES (never merges) — it drops both the stale
+    // `prereqs-present` AND `scaffold-ensured` so the cold path re-probes deps and
+    // re-runs the idempotent scaffold, while stamping the current VERSION.
+    #[test]
+    fn reset_stale_cache_overwrites_dropping_cached_keys() {
+        let tmp = unique_tmp("stamp-reset");
+        let repo = tmp.join("repo");
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            r#"{"yf-version": "0.0.0-stale", "prereqs-present": true, "scaffold-ensured": 1}"#,
+        )
+        .unwrap();
+        let env = test_env(&repo, &tmp.join("rules"));
+        maybe_reset_stale_cache(&env, "plan");
+        let state = read_state(&env, "plan");
+        assert_eq!(
+            state.get("yf-version").and_then(|v| v.as_str()),
+            Some(crate::VERSION)
+        );
+        assert!(!state.contains_key("prereqs-present"), "stale bool dropped");
+        assert!(!state.contains_key("scaffold-ensured"), "stale int dropped");
+        // A matching stamp is a no-op (idempotent — no reset, keys preserved).
+        write_state_key(
+            &env,
+            "plan",
+            "prereqs-present",
+            serde_json::Value::Bool(true),
+        );
+        maybe_reset_stale_cache(&env, "plan");
+        assert!(
+            read_state(&env, "plan").contains_key("prereqs-present"),
+            "a matching stamp must NOT reset the cache"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // -----------------------------------------------------------------------
+    // REQ-YF-PRE-009: cache-only, vendor-only, dirty-bypassed self-update offer.
+    // -----------------------------------------------------------------------
+
+    /// Write an `update-check.json` with `latest_tag` (cache-only; NO network).
+    fn seed_update_cache(path: &Path, latest_tag: &str) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            path,
+            format!(r#"{{"last_check_epoch": 1, "latest_tag": "{latest_tag}"}}"#),
+        )
+        .unwrap();
+    }
+
+    // REQ-YF-PRE-009: all conditions hold (not dirty, not suppressed, vendor, a
+    // strictly-newer cached tag) → an offer naming `yf self update` + `/reload-skills`.
+    // The read is cache-only: the function only ever touches the temp cache path.
+    #[test]
+    fn offer_present_when_all_conditions_hold() {
+        let tmp = unique_tmp("offer-yes");
+        let cache = tmp.join("cache").join("update-check.json");
+        seed_update_cache(&cache, "v99.0.0");
+        let offer = detect_self_update_offer(Some(&cache), Some(Source::Vendor), false, |_| false)
+            .expect("offer expected");
+        assert!(offer.contains("yf self update"), "offer: {offer}");
+        assert!(offer.contains("/reload-skills"), "offer: {offer}");
+        assert!(
+            offer.contains("99.0.0"),
+            "offer names the newer tag: {offer}"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-009: dirty build is the FIRST short-circuit — no offer even with a
+    // newer tag + vendor Source (an operator actively managing yf locally).
+    #[test]
+    fn offer_none_when_dirty() {
+        let tmp = unique_tmp("offer-dirty");
+        let cache = tmp.join("cache").join("update-check.json");
+        seed_update_cache(&cache, "v99.0.0");
+        assert!(
+            detect_self_update_offer(Some(&cache), Some(Source::Vendor), true, |_| false).is_none(),
+            "a dirty build must never be offered an update"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-009: suppression (YF_NO_UPDATE_CHECK / CI) → no offer.
+    #[test]
+    fn offer_none_when_suppressed() {
+        let tmp = unique_tmp("offer-suppressed");
+        let cache = tmp.join("cache").join("update-check.json");
+        seed_update_cache(&cache, "v99.0.0");
+        assert!(
+            detect_self_update_offer(Some(&cache), Some(Source::Vendor), false, |_| true).is_none(),
+            "blanket suppression → no offer"
+        );
+        // The real nag predicate keys on YF_NO_UPDATE_CHECK / CI.
+        assert!(
+            detect_self_update_offer(Some(&cache), Some(Source::Vendor), false, |k| k == "CI")
+                .is_none()
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-009: non-vendor Source (can't `yf self update`) → no offer.
+    #[test]
+    fn offer_none_for_non_vendor_source() {
+        let tmp = unique_tmp("offer-nonvendor");
+        let cache = tmp.join("cache").join("update-check.json");
+        seed_update_cache(&cache, "v99.0.0");
+        for src in [Source::Homebrew, Source::FromBuild, Source::Unknown] {
+            assert!(
+                detect_self_update_offer(Some(&cache), Some(src), false, |_| false).is_none(),
+                "non-vendor source {src:?} must not be offered a self update"
+            );
+        }
+        // A missing source seam also yields no offer.
+        assert!(detect_self_update_offer(Some(&cache), None, false, |_| false).is_none());
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-009: same / older / empty cache, or no cache path → no offer.
+    #[test]
+    fn offer_none_when_cache_not_newer() {
+        let tmp = unique_tmp("offer-notnewer");
+        let same = tmp.join("same.json");
+        seed_update_cache(&same, crate::VERSION); // exactly current → not newer
+        assert!(
+            detect_self_update_offer(Some(&same), Some(Source::Vendor), false, |_| false).is_none()
+        );
+        let older = tmp.join("older.json");
+        seed_update_cache(&older, "v0.0.1");
+        assert!(
+            detect_self_update_offer(Some(&older), Some(Source::Vendor), false, |_| false)
+                .is_none()
+        );
+        let empty = tmp.join("empty.json");
+        seed_update_cache(&empty, "");
+        assert!(
+            detect_self_update_offer(Some(&empty), Some(Source::Vendor), false, |_| false)
+                .is_none()
+        );
+        // No cache path at all (the test-Env default) → no offer.
+        assert!(detect_self_update_offer(None, Some(Source::Vendor), false, |_| false).is_none());
+        // A missing cache file → no offer (never a network fallback).
+        assert!(detect_self_update_offer(
+            Some(&tmp.join("absent.json")),
+            Some(Source::Vendor),
+            false,
+            |_| false
+        )
+        .is_none());
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    /// An ok-path Env with the self-update seams populated (vendor, not dirty, not
+    /// suppressed) pointing at `cache`. Deps are seeded via `prereqs-present` so the
+    /// run reaches an `ok` verdict without touching the host toolchain.
+    fn offer_env(repo: &Path, rules: &Path, cache: &Path) -> Env {
+        Env {
+            repo_root: repo.to_path_buf(),
+            rule_dirs: vec![rules.to_path_buf()],
+            path_override: None,
+            update_cache_path: Some(cache.to_path_buf()),
+            update_source: Some(Source::Vendor),
+            update_dirty: false,
+            update_suppressed: false,
+        }
+    }
+
+    // REQ-YF-PRE-009: the offer folds into ok-return #2 (the rule ok/update_available
+    // arm) — exercised end-to-end through `run_with_env`.
+    #[test]
+    fn offer_folds_into_ok_with_companion_rule() {
+        let tmp = unique_tmp("offer-ret2");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
+        )
+        .unwrap();
+        let embedded = embed::read_file("yf-plan/protocols/PLANS.md").expect("embedded PLANS.md");
+        std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
+        let cache = tmp.join("cache").join("update-check.json");
+        seed_update_cache(&cache, "v99.0.0");
+
+        let env = offer_env(&repo, &rules, &cache);
+        let out = run_with_env("plan", &env);
+        assert_eq!(out.status, "ok");
+        assert!(
+            out.instructions
+                .iter()
+                .any(|i| i.contains("yf self update")),
+            "the self-update offer must fold into ok instructions: {:?}",
+            out.instructions
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-009: the offer also folds into ok-return #1 (the no-companion-rule
+    // early return) — a skill arg with no embedded descriptor takes that path.
+    #[test]
+    fn offer_folds_into_ok_without_companion_rule() {
+        let tmp = unique_tmp("offer-ret1");
+        let repo = tmp.join("repo");
+        // A skill arg that resolves to no embedded descriptor → rule_name None →
+        // ok-return #1. Seed prereqs so deps are skipped (needs_bd is false here).
+        let state_dir = repo.join(".yf").join("noskill");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
+        )
+        .unwrap();
+        let cache = tmp.join("cache").join("update-check.json");
+        seed_update_cache(&cache, "v99.0.0");
+
+        let env = offer_env(&repo, &tmp.join("rules"), &cache);
+        let out = run_with_env("noskill", &env);
+        assert_eq!(out.status, "ok", "no-rule skill still reaches ok");
+        assert!(out.rule.is_none(), "return #1 has no rule object");
+        assert!(
+            out.instructions
+                .iter()
+                .any(|i| i.contains("yf self update")),
+            "the offer must fold into the no-companion-rule ok return too: {:?}",
+            out.instructions
+        );
+        std::fs::remove_dir_all(&tmp).ok();
     }
 }

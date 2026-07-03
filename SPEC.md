@@ -23,6 +23,13 @@
 >   missing); swept the stale `DRAFT (primed)`/"renamed by plan-010" banner from all per-skill SPECs;
 >   per-skill drift fixes (notably `yf-beads-init` — the engine moved to the `yf` kernel, the Python
 >   script is a retired shim).
+> - **plan-019 (2026-07-02, #62-adjacent):** preflight self-update offer + cache version-invalidation
+>   — added `REQ-YF-PRE-008` (generating-version stamp + full-reset invalidation), `REQ-YF-PRE-009`
+>   (cache-only, vendor-only, dirty-build-bypassed self-update offer on the `ok` path), and
+>   `REQ-YF-SELF-007` (`yf self update` invalidates preflight caches *via* the PRE-008 stamp — no
+>   explicit clear). Added build-time `YF_GIT_DIRTY` capture (`git status --porcelain`, best-effort)
+>   surfaced as a `-dirty` suffix on `VERSION_LINE`; `VERSION` stays `CARGO_PKG_VERSION`. SELF-007 is
+>   a non-action REQ covered by the shared PRE-008 stamp-mismatch test.
 
 ## 1. Purpose & scope
 
@@ -172,6 +179,30 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   wedged-but-initialized `corrupted` repo.
 - **REQ-YF-PRE-007** beads-init **repair** shall apply the idempotent sequence (`bd dolt stop →
   bd migrate schema → bd migrate`; gitignore/hooks/perms/JSONL hardening; local-only assertion).
+- **REQ-YF-PRE-008** *(testable)* the kernel shall stamp each `.yf/<skill>/preflight.json` with the
+  **generating `yf` version** (`yf-version`, the running `crate::VERSION` / `CARGO_PKG_VERSION` —
+  the git hash and the `-dirty` marker are deliberately excluded, so a same-`CARGO_PKG_VERSION`
+  clean↔dirty transition does not churn the cache). At the top of a preflight run, a stamped
+  version differing from the running `crate::VERSION` (or an absent stamp) shall be treated as a
+  **full cache miss**: the kernel shall **overwrite** the state file to drop `prereqs-present` and
+  `scaffold-ensured` **before** the cold logic runs (never a merge that preserves the stale
+  bool/int), then re-probe system deps + bd and re-run the idempotent scaffold ensure.
+  `prereqs-present: true` shall be (re)persisted **only after** a successful probe on that run, so
+  an early `system_deps_missing` return leaves the cache empty (re-probes next run) rather than
+  stamping a new version over a stale-true flag. Verified by a test tagged `REQ-YF-PRE-008`.
+- **REQ-YF-PRE-009** *(testable)* on an `ok` verdict, the kernel shall fold a **self-update offer**
+  string into `instructions` when **all** hold: the running build is **not dirty**, the update check
+  is not suppressed (`YF_NO_UPDATE_CHECK` / `CI` per `REQ-YF-SELF-006`), the install `Source` is
+  **vendor** (`nag_eligible()`), and a **cache-only** read of `~/.cache/yf/update-check.json` yields
+  `UpdateAvailable`. The **dirty-build check shall be the first short-circuit** — a `dirty` build
+  (`YF_GIT_DIRTY`, whose normative probe is **`git status --porcelain`**: whole-repo, includes
+  untracked files, best-effort/degrades to not-dirty when git is unavailable) unconditionally
+  suppresses the offer, since it signals an operator actively managing `yf` locally. The offer is
+  **cache-only** — preflight performs **no** network call (the offer is eventually consistent,
+  appearing once the throttled `yf version`/`yf doctor` path refreshes the shared cache) and **no**
+  mutation beyond the gitignore scaffold. The offer names `yf self update` (noting it also refreshes
+  skill definitions/rules) and that the operator likely needs `/reload-skills` afterward. Verified by
+  a test tagged `REQ-YF-PRE-009`.
 
 ### 3.6 Doctor (`REQ-YF-DOCTOR`)
 
@@ -255,6 +286,15 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   **fail-open** (short timeout, errors swallowed), **vendor-only** upgrade nudge to stderr after the
   real output, cached in `~/.cache/yf/update-check.json`, suppressed by `YF_NO_UPDATE_CHECK=1` and
   auto-skipped under `CI`. The nudge is notify-only — it never downloads or swaps.
+- **REQ-YF-SELF-007** *(testable)* `yf self update` shall invalidate stale preflight caches **by
+  virtue of the `REQ-YF-PRE-008` version stamp** — the swapped-in binary reports a new
+  `crate::VERSION`, so the next preflight run in any repo finds a mismatched (or, across the swap,
+  differing) `yf-version` stamp and performs a full re-validation. There is **no** explicit
+  cache-clear in `update.rs` (correct, since `yf self update` runs from an arbitrary cwd, not
+  necessarily inside a beads repo). This is a **non-action** requirement (it asserts `update.rs`
+  does nothing special); it is covered by the shared `REQ-YF-PRE-008` stamp-mismatch test — the
+  coverage gate matches a REQ id wherever it is named in a `.rs` source, so a single test may tag
+  both `REQ-YF-PRE-008` and `REQ-YF-SELF-007`.
 
 ### 3.8 Rename invariants (`REQ-YF-RENAME`)
 

@@ -27,6 +27,7 @@ pub mod receipt;
 pub mod source;
 pub mod uninstall;
 pub mod update;
+pub mod update_check;
 
 /// Dispatch `yf self <sub>`. Each body owns its exit code (a refusal is a verdict,
 /// not an error), so this returns [`ExitCode`] directly.

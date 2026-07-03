@@ -33,6 +33,22 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
   both Linux and macOS (honoring `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` /
   `XDG_DATA_HOME` / `XDG_BIN_HOME`): receipt → `~/.config/yf`, update-check cache →
   `~/.cache/yf`, binary → `~/.local/bin`.
+- **Preflight self-update offer (REQ-YF-PRE-009).** On an `ok` verdict, `yf preflight`
+  now folds a `yf self update` offer into `instructions` when a newer release is
+  already known — vendor installs only, **cache-only** (it reads the shared
+  `~/.cache/yf/update-check.json` the throttled `yf version`/`yf doctor` nudge writes,
+  so it adds **no** network latency to a skill invocation and is eventually
+  consistent). The offer notes that `yf self update` also refreshes installed skill
+  definitions/rules and that you likely need `/reload-skills` afterward. A build from
+  a **dirty** working tree (surfaced as a `-dirty` suffix on `yf version`) is the
+  first short-circuit and is never offered an update — it signals active local `yf`
+  development.
+- **Preflight cache version-invalidation (REQ-YF-PRE-008, REQ-YF-SELF-007).** Each
+  `.yf/<skill>/preflight.json` is stamped with the generating `yf` version; a mismatch
+  (or absent stamp) is a full cache miss that re-probes system deps + `bd` and re-runs
+  the scaffold ensure. This is how `yf self update` invalidates preflight — the swapped
+  binary reports a new version, so the next preflight re-validates from scratch with no
+  explicit cache-clear.
 
 ### Changed
 

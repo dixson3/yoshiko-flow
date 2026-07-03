@@ -15,11 +15,9 @@
 //!
 //! Notify-ONLY: it never downloads or swaps — that is `yf self update`.
 
-use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::{Deserialize, Serialize};
-
+use super::update_check::{self, read_cache, write_cache};
 use super::{source, update};
 use crate::dirs::Dirs;
 
@@ -27,16 +25,6 @@ use crate::dirs::Dirs;
 const THROTTLE_SECS: u64 = 24 * 60 * 60;
 /// Short timeout for the background-ish check (fail-open).
 const CHECK_TIMEOUT_SECS: u64 = 2;
-const CACHE_BASENAME: &str = "update-check.json";
-
-/// Persisted throttle state: when we last checked and the latest tag we saw.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-struct CheckCache {
-    #[serde(default)]
-    last_check_epoch: u64,
-    #[serde(default)]
-    latest_tag: String,
-}
 
 /// Entry point: print an upgrade nudge if warranted. Best-effort and **fail-open**
 /// — any error is swallowed so a `yf version`/`doctor` run is never affected.
@@ -54,7 +42,7 @@ fn try_notify(dirs: &Dirs) -> Option<()> {
     }
 
     let now = epoch_now();
-    let cache_path = dirs.cache_dir().join(CACHE_BASENAME);
+    let cache_path = update_check::cache_path(dirs);
     let mut cache = read_cache(&cache_path).unwrap_or_default();
 
     if should_query(now, cache.last_check_epoch) {
@@ -83,18 +71,14 @@ pub fn should_query(now: u64, last_check: u64) -> bool {
 }
 
 /// The nudge line if `latest` is strictly newer than `current`, else `None`. Pure.
+/// Builds on the shared `update_check::newer_tag` availability gate (Issue 3.1) so
+/// the nudge and the preflight offer never diverge on *when* an update is offered.
 pub fn nudge_line(current: &str, latest_tag: &str) -> Option<String> {
-    if latest_tag.is_empty() {
-        return None;
-    }
-    match update::compare_versions(current, latest_tag) {
-        update::VersionCmp::UpdateAvailable => Some(format!(
-            "note: yf {} is available (you have {current}) — run `yf self update` \
-             (set YF_NO_UPDATE_CHECK=1 to silence)",
-            latest_tag.trim_start_matches('v')
-        )),
-        _ => None,
-    }
+    let newer = update_check::newer_tag(current, latest_tag)?;
+    Some(format!(
+        "note: yf {newer} is available (you have {current}) — run `yf self update` \
+         (set YF_NO_UPDATE_CHECK=1 to silence)"
+    ))
 }
 
 /// Fetch just the latest release tag, with a short timeout. Fail-open → `None`.
@@ -115,19 +99,6 @@ fn epoch_now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
-}
-
-fn read_cache(path: &Path) -> Option<CheckCache> {
-    let s = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&s).ok()
-}
-
-fn write_cache(path: &Path, cache: &CheckCache) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string_pretty(cache).unwrap_or_default();
-    std::fs::write(path, json)
 }
 
 #[cfg(test)]
@@ -159,19 +130,7 @@ mod tests {
         assert!(nudge_line("0.3.2", "").is_none()); // no cached tag
     }
 
-    #[test]
-    fn cache_round_trips() {
-        let tmp = tempfile::tempdir().unwrap();
-        let path = tmp.path().join("sub").join(CACHE_BASENAME);
-        let c = CheckCache {
-            last_check_epoch: 12345,
-            latest_tag: "v0.4.0".to_string(),
-        };
-        write_cache(&path, &c).unwrap();
-        let back = read_cache(&path).unwrap();
-        assert_eq!(back.last_check_epoch, 12345);
-        assert_eq!(back.latest_tag, "v0.4.0");
-    }
+    // cache round-trip now lives with the shared helpers (update_check::tests).
 
     #[test]
     fn non_vendor_source_is_not_notified() {
