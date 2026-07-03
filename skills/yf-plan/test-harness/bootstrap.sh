@@ -54,9 +54,22 @@ echo ">> sandbox HOME:  ${YF_SANDBOX_HOME}"
 echo ">> cargo build (re-embedding ${REPO_ROOT}/skills) ..."
 HOME="${YF_SANDBOX_HOME}" cargo build --manifest-path "${MANIFEST}"
 
-YF_SANDBOX_BIN="${REPO_ROOT}/yf/target/debug/yf"
-if [ ! -x "${YF_SANDBOX_BIN}" ]; then
-  echo "ERROR: built yf binary not found/executable at ${YF_SANDBOX_BIN}" >&2
+# Resolve the built binary. This is a cargo WORKSPACE (root Cargo.toml has
+# [workspace]), so the binary lands in the workspace-root target dir
+# (${REPO_ROOT}/target/debug/yf), NOT the crate-local yf/target/debug/yf. Ask cargo
+# for the target dir rather than hardcoding, then fall back to the known candidates.
+TARGET_DIR="$(HOME="${YF_SANDBOX_HOME}" cargo metadata --no-deps --format-version 1 \
+  --manifest-path "${MANIFEST}" 2>/dev/null \
+  | sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p')"
+YF_SANDBOX_BIN=""
+for cand in "${TARGET_DIR:+${TARGET_DIR}/debug/yf}" \
+            "${REPO_ROOT}/target/debug/yf" \
+            "${REPO_ROOT}/yf/target/debug/yf"; do
+  [ -n "${cand}" ] && [ -x "${cand}" ] && { YF_SANDBOX_BIN="${cand}"; break; }
+done
+if [ -z "${YF_SANDBOX_BIN}" ]; then
+  echo "ERROR: built yf binary not found/executable (looked in workspace target dir" >&2
+  echo "       '${TARGET_DIR:-?}', ${REPO_ROOT}/target/debug, ${REPO_ROOT}/yf/target/debug)" >&2
   exit 1
 fi
 echo ">> built yf:      ${YF_SANDBOX_BIN}"
