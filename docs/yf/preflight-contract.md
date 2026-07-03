@@ -108,13 +108,39 @@ Evaluation order in `_check_prerequisites()` (short-circuits top to bottom):
 | `rule_deprecated` | rule outcome `deprecated` — manifest entry has `deprecated: true` | `_check_rule()` (**REQ-YF-PRE-003**) | `missing: []`, `instructions: [..]`, `rule: {outcome:"deprecated", rule, path}` |
 | `manifest_schema_unknown` | manifest `schema_version` != `MANIFEST_SCHEMA` | `_check_rule()` (**REQ-YF-PRE-003**) | `instructions: [..]`, `rule: {outcome:"manifest_schema_unknown", rule, schema_version}` |
 | `manifest_missing` | `protocols/manifest.json` absent | `_check_rule()` (**REQ-YF-PRE-003**) | `instructions: [..]`, `rule: {outcome:"manifest_missing", rule}` |
-| `ok` | tools OK, bd initialized, rule outcome `ok` or `update_available`; scaffold ensured | full pass (**REQ-YF-PRE-003/005**) | `missing: []`, `rule: {outcome:"ok"\|"update_available", ...}`, `scaffold_added: [..]`, `instructions: []` or update-available note |
+| `ok` | tools OK, bd initialized, rule outcome `ok` or `update_available`; scaffold ensured | full pass (**REQ-YF-PRE-003/005**) | `missing: []`, `rule: {outcome:"ok"\|"update_available", ...}`, `scaffold_added: [..]`, `instructions: []`, an update-available note, a canonicalization-drift offer, and/or a **self-update offer** (**REQ-YF-PRE-009**) |
 
 `prereqs-present` caching: the system-deps + `bd status` block runs only when
 `state["prereqs-present"]` is unset. Once it passes, `prereqs-present: true` is
 written to state and that block is skipped on subsequent runs — so a warm repo
 goes straight to the rule-hash check. The rule-hash check runs **every** time
 (cheap). (**REQ-YF-PRE-004** — state under `.yf/<skill>/`.)
+
+`yf-version` stamp + full-reset invalidation (**REQ-YF-PRE-008**): each
+`.yf/<skill>/preflight.json` is stamped with the generating `yf` version (the
+running `crate::VERSION` / `CARGO_PKG_VERSION` — the git hash and the `-dirty`
+marker are excluded, so a same-`CARGO_PKG_VERSION` clean↔dirty transition does
+not churn the cache). At the **top** of a run, a stamped `yf-version` differing
+from the running `crate::VERSION` (or an absent stamp) is a **full cache miss**:
+the state file is **overwritten** to drop `prereqs-present` and `scaffold-ensured`
+*before* the cold logic runs (never a merge that preserves the stale bool/int),
+then deps + bd are re-probed and the idempotent scaffold re-ensured.
+`prereqs-present: true` is re-persisted **only after** a successful probe, so an
+early `system_deps_missing` return leaves the cache empty (re-probes next run).
+This is the mechanism by which `yf self update` invalidates preflight
+(**REQ-YF-SELF-007**): the swapped binary reports a new `VERSION`, so the next
+run finds a stale stamp — no explicit cache-clear in `update.rs`.
+
+Self-update offer (**REQ-YF-PRE-009**): on the `ok` path the kernel folds a
+`yf self update` offer into `instructions` when **all** hold — the build is
+**not dirty** (the first short-circuit; `YF_GIT_DIRTY`, probed at build time via
+`git status --porcelain`), the check is not suppressed (`YF_NO_UPDATE_CHECK` /
+`CI`), the install `Source` is **vendor** (`nag_eligible()`), and a **cache-only**
+read of `~/.cache/yf/update-check.json` yields `UpdateAvailable`. Preflight makes
+**no** network call (the offer is eventually consistent — it appears once the
+throttled `yf version`/`yf doctor` path has refreshed the shared cache) and no
+mutation beyond the scaffold. The offer names `yf self update` (which also
+refreshes skill definitions/rules) and the likely need to `/reload-skills`.
 
 ## 3. JSON object schema
 
@@ -125,7 +151,7 @@ in §2.1; the schema below is the union.
 | :-- | :-- | :-- |
 | `status` | string (enum §2) | The verdict. Authoritative in JSON mode. |
 | `missing` | array of string | Missing/outdated system deps. Non-empty only for `system_deps_missing` (e.g. `"git"`, `"uv"`, `"bd"`, `"bd>=1.0.5"`). Empty (`[]`) for every other status. |
-| `instructions` | array of string | Human-readable remediation lines. Empty for `ok` (unless `update_available`) and `ignored`; one or more lines for every failing status. |
+| `instructions` | array of string | Human-readable remediation lines. Empty for `ok` unless it carries an update-available note, a canonicalization-drift offer, and/or a self-update offer (**REQ-YF-PRE-009**); empty for `ignored`; one or more lines for every failing status. |
 | `rule` | object \| null | The companion-rule verdict (see §3.1). `null` for `ignored`, `system_deps_missing`, `bd_not_initialized`. Always an object for `ok` and all `rule_*`/`manifest_*` statuses. |
 | `scaffold_added` | array of string | Idempotent scaffold actions taken this run (e.g. `"gitignore /.yf/"`). **Present only when `status == "ok"`** (the scaffold runs only on an otherwise-ready project). Empty `[]` when nothing was added. |
 | `warnings` | array of string | **bdresearch only** (see §6). Advisory, non-blocking search-provider notes. **Absent from bdplan output.** |
@@ -326,6 +352,9 @@ moves the files, the kernel reads only the new paths.
 - **REQ-YF-PRE-005** — gitignore scaffold `/.yf/`, §3/§4/§7.
 - **REQ-YF-PRE-006** — beads-init verify, `error`-key parse not exit code, §5.
 - **REQ-YF-PRE-007** — beads-init repair sequence, §5.
+- **REQ-YF-PRE-008** — `yf-version` stamp + full-reset cache invalidation, §2.1.
+- **REQ-YF-PRE-009** — cache-only, vendor-only, dirty-bypassed self-update offer on `ok`, §2.1.
+- **REQ-YF-SELF-007** — `yf self update` invalidates preflight via the PRE-008 stamp, §2.1.
 - **REQ-YF-CLI-003** — every subcommand `--json` + non-zero on failure, §1.
 - **REQ-YF-MIGRATE-001** — idempotent legacy→`.yf/` migration, §7.
 - **GR-005** — shared mechanism, not skill domain logic, §0/§6.

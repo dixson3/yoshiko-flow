@@ -32,9 +32,27 @@ use cli::{Cli, Command, SkillsCommand, VersionArgs};
 const GIT_HASH: &str = env!("YF_GIT_HASH");
 /// Semver from Cargo (REQ-YF-CLI-004).
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-/// Human-readable version line, e.g. `0.1.0 (abc1234)`. clap prepends `yf `, so
-/// `yf --version` / `-V` print `yf 0.1.0 (abc1234)`, matching `yf version`.
-pub const VERSION_LINE: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("YF_GIT_HASH"), ")");
+/// Human-readable version line, e.g. `0.1.0 (abc1234)` — or `0.1.0 (abc1234-dirty)`
+/// when built from an unclean working tree. clap prepends `yf `, so `yf --version`
+/// / `-V` print `yf 0.1.0 (abc1234)`, matching `yf version`. The `-dirty` suffix is
+/// cosmetic (REQ-YF-PRE-009); `VERSION` — the compare/stamp key — stays pure semver.
+pub const VERSION_LINE: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (",
+    env!("YF_GIT_HASH"),
+    env!("YF_GIT_DIRTY_SUFFIX"),
+    ")"
+);
+
+/// Whether this `yf` was built from a dirty (unclean) git working tree, captured at
+/// build time by `build.rs` via `git status --porcelain` (REQ-YF-PRE-009). A dirty
+/// build signals an operator actively developing/managing `yf` locally and is the
+/// first short-circuit that suppresses the preflight self-update offer. Its env read
+/// is coverage-exempt (same stance as `YF_GIT_HASH`); the tested surface is the
+/// injected `bool` seam in `preflight::detect_self_update_offer`.
+pub fn is_dirty_build() -> bool {
+    env!("YF_GIT_DIRTY") == "1"
+}
 
 fn main() -> std::process::ExitCode {
     match run() {
