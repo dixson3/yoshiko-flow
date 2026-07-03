@@ -52,6 +52,30 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
 
 ### Changed
 
+- **`yf-plan` lifecycle rework — intake-at-execute (plan-021, #47 + #63 + #64).** A
+  predictable, worktree-default git model:
+  - **Intake-at-execute (#47).** The `plan-execute` molecule is no longer poured at
+    INTAKE; INTAKE now writes a content **fingerprint**, auto-commits the plan, and
+    lands it. The pour moves to EXECUTE start, where one `resume-scan`-driven
+    **pour-once/resume gate** replaces the old duplicate-pour + resume guards (epic
+    absent → pour + atomic `record-epic`; present → resume).
+  - **Base-pinned named branches (#47).** Planning runs in `<plan-id>-development`,
+    execution in `<plan-id>-execute` cut from a **pinned base** (never ambient HEAD),
+    with a `landing-strategy` config switch (`main` default | `feature-branch`) that
+    drives both the execute base and the §6.1 merge target. Teardown deletes only
+    `<plan-id>-execute`, preserving the feature branch under `feature-branch`.
+  - **Auto-commit at the plan→execute boundary (#63).** New `commit-plan` verb makes a
+    scoped, **local-only** commit (never pushes, refuses the default branch / detached
+    HEAD fail-closed) — a `GR-PLAN-003` carve-out so a fresh execute session inherits a
+    committed base.
+  - **Content-fingerprint re-review gate (#64).** Approval writes a `**Fingerprint:**`
+    over the plan's content sections (excluding header fields, phase-log, `reviews/`,
+    and `## Upstream Issues`); editing reviewed content marks the plan **stale-approved**
+    and blocks execute until re-review (or logged `--force`).
+  - SPEC-first: `REQ-PHASE-002`/`REQ-RESUME-001`/`REQ-RESUME-004`, `REQ-BRANCH-001..004`,
+    `REQ-PLAN-034/040/054/055/064/065`, `REQ-PORT-040/041`. A scratch-project Tier-2 test
+    harness (`skills/yf-plan/test-harness/`) validates the modified skill; the installed
+    copy is promoted (`cargo build` → `yf skills install`) only after the scratch smoke.
 - **cargo-dist installer retargeted to `~/.local/bin` + `.tar.gz`.** `install-path`
   moved from `~/.cargo/bin` to `~/.local/bin` (XDG), and `unix-archive` flipped from
   `.tar.xz` to `.tar.gz` so `yf self update` extracts with pure-Rust `flate2` — no

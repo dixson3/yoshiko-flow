@@ -1,7 +1,7 @@
 direction: down
 
 title: |md
-  # yf-plan execute — worktree lifecycle (plan-009)
+  # yf-plan execute — worktree lifecycle (plan-009 / plan-021 intake-at-execute)
   Two address spaces: PRIMARY checkout (bd + plan_dir) vs WORKTREE (code only)
 | {
   near: top-center
@@ -25,11 +25,11 @@ primary: "PRIMARY checkout (repo root)\ncwd never changes" {
   }
 }
 
-worktree: ".worktrees/<plan-id>  (gitignored)\nbranch <plan>  — code only" {
+worktree: ".worktrees/<plan-id>  (gitignored)\nbranch <plan-id>-execute (PINNED base) — code only" {
   style.fill: "#eafaf0"
   style.stroke: "#2e9e5b"
 
-  code: "project code / build artifacts\ncommits accumulate on <plan>" {
+  code: "project code / build artifacts\ncommits accumulate on <plan-id>-execute" {
     shape: page
     style.fill: "#d5f3e1"
   }
@@ -40,17 +40,18 @@ flow: "Phase flow" {
   style.stroke: "#cc9a06"
   direction: down
 
-  s52: "§5.2 resume guard\nworktree ensure (re-attach, no -b)\n+ dirty-state check"
-  s53: "§5.3 resolve start gate (fresh)\nworktree ensure (create -b <plan>)\n+ viability check"
-  s54: "§5.4 coordinator loop\ncode edits via git -C / sub-agent cwd\n(NO isolation)"
-  s61: "§6.1 acquire landing lock\nbase current; git merge --no-ff <plan>"
+  s52: "§5.2 pour-once/resume gate (resume-scan)\nabsent -> pour + atomic record-epic; present -> resume\nstale-approved plan refused (fingerprint drift)"
+  s53: "§5.2a pour + resolve start gate (fresh)\nworktree ensure (create -b <plan-id>-execute\nfrom PINNED base) + viability check"
+  s54: "§5.3 coordinator loop\ncode edits via git -C / sub-agent cwd\n(NO isolation)"
+  s61: "§6.1 acquire landing lock; base current\ngit merge --no-ff <plan-id>-execute\ninto PINNED target (main | feature <plan-id>)"
   s615: "§6.1.5 VALIDATE merged state\n(a) plan gates [in §5.4 loop]; (b) net:\nchange-validation -> validate-cmd -> notice\nfail: halt (lock held)  pass: release lock"
-  s62: "§6.2 push handoff (separate step)\nconservative: report; on reject\npull --rebase + re-validate; teardown"
+  s62: "§6.2 push handoff (separate step)\nconservative: report; on reject pull --rebase\n+ re-validate; teardown (del -execute, keep feature)"
   done: "COMPLETE" {style.fill: "#d5f3e1"}
 
   s52 -> s53 -> s54 -> s61 -> s615 -> s62 -> done
 }
 
+flow.s52 -> primary.beads: "pour molecule (found=false)" {style.stroke: "#3366cc"}
 flow.s54 -> worktree.code: "code commits" {style.stroke: "#2e9e5b"}
 flow.s54 -> primary.beads: "bd claim/close" {style.stroke: "#3366cc"}
 flow.s54 -> primary.plandir: "status/findings" {style.stroke: "#3366cc"}

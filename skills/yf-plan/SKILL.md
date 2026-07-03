@@ -193,6 +193,12 @@ On subsequent plans, read existing config. Re-validate if remote URL changed.
 
 ## Phase 1: SCOPE
 
+Planning runs in the `<plan-id>-development` worktree (the planning worktree — the first of
+the three named per-phase branches, alongside feature `<plan-id>` and `<plan-id>-execute`).
+The plan folder itself stays **primary-side** (under `docs/plans/` or `Incubator/<slug>/plans/`),
+so the plan artifacts are readable from the primary checkout while drafting proceeds on the
+development branch.
+
 ### 1.1 — Check for existing plans
 
 ```bash
@@ -448,7 +454,11 @@ On audit pass, transition to INTAKE. On audit fail, stay in PLAN — the operato
 
 ## Phase 4: INTAKE
 
-On operator approval:
+On operator approval. **INTAKE does not pour the molecule** (REQ-PLAN-040): the pour and the
+whole bead DAG are deferred to EXECUTE start (Phase 5). INTAKE's job is to freeze the approved
+content, commit it locally, land it per the landing strategy, and file the upstream tracking
+issue. Execution eligibility across the session boundary is carried by the plan's
+`**Fingerprint:**`, not by a pre-poured epic (REQ-PHASE-002).
 
 ### 4.1 — Set status `approved`
 
@@ -456,21 +466,145 @@ On operator approval:
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "approved" -m "operator approved"
 ```
 
-### 4.2 — Pour molecule
+### 4.2 — Write the content fingerprint
 
-**Duplicate-pour guard.** Before pouring, confirm this plan has no epic already
-(re-running intake on an already-intaken plan would pour a second epic — the failure
-#2 guards against):
+Approval binds to *reviewed content*. Write a `**Fingerprint:**` header field over the plan's
+content sections — the `##` bodies from **Objective** through **Success Criteria**, excluding
+the self-trigger set (all `**Field:**` header lines, the phase log, `reviews/`, the Operator
+Resolutions tables, and the entire `## Upstream Issues` section) so review/pour bookkeeping
+cannot flip the hash mid-execution (REQ-PLAN-034, `spec/portability.md` REQ-PORT-040):
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py fingerprint write "${plan_dir}" --json
+```
+
+This is the **stale-approved gate**: a later content edit makes the stored fingerprint no
+longer match, and `resume-scan` blocks EXECUTE until a fresh conformance → red-team →
+portability cycle re-approves (re-writing the fingerprint), or the operator passes `--force`
+(REQ-PORT-041). No `bd mol pour` happens here — the fingerprint is the execution-eligibility
+token.
+
+### 4.3 — Auto-commit the plan locally
+
+Commit the approved plan **locally** so a fresh execute session (or a fresh clone after a
+crash) inherits a committed base (REQ-PLAN-064). `commit-plan` does a scoped
+`git add -- "${plan_dir}" .beads/` (explicit pathspec, never `git add -A`), a local commit
+(message `plan-NNN: <phase> — <objective>`), and **never a push**:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py commit-plan "${plan_dir}" --json
+```
+
+`commit-plan` **refuses on the repository's default branch** (`main`/`master`) and fail-closed
+on a detached HEAD or empty branch name (REQ-PLAN-065) — the refusal is a JSON verdict, not a
+warning. This is the only automated commit yf-plan makes; the remote push stays conservative
+and authorized-only (GR-PLAN-003).
+
+### 4.4 — Land per landing strategy
+
+Land the committed plan per the project's `landing-strategy` switch (resolved by
+`_resolve_landing_strategy`, from `.yf-plan.local.json`, `main` default):
+
+- **`main` (default)** — merge the plan commit to `main`; plans integrate trunk-based.
+- **`feature-branch`** — push/keep the feature `<plan-id>` branch (preserved for later
+  operator integration); do **not** merge to `main`.
+
+The landing strategy chosen here also pins the EXECUTE worktree base and the §6.1 merge target
+(REQ-PLAN-055) — the two must agree.
+
+### 4.5 — Create the upstream tracking issue
+
+File the single coarse tracking issue for this plan-scale effort — title
+`Complete execution of <plan-id>` — linking the plan folder and (once poured) its epic, with
+any `resolves-upstream` dependency links from the plan's Upstream Issues. Per the project
+Upstream Tracking convention (AGENTS.md), file ONE issue per plan, not one per execution bead.
+
+### 4.6 — Handoff
+
+**No pour happened at intake.** Report: the plan is fingerprinted, committed locally, and
+landed per the landing strategy; the upstream tracking issue is filed. Instruct the operator to
+run `/yf-plan execute <plan-id>` **in a new session** — the `plan-execute` pour, the bead DAG,
+and the start-gate resolution all happen there (Phase 5), across the session boundary. Restore
+the primary checkout to a known branch before ending the session (never leave it on a plan
+branch — REQ-BRANCH-004).
+
+---
+
+## Phase 5: EXECUTE
+
+By default, EXECUTE runs the plan in an isolated git worktree (`.worktrees/<plan-id>`,
+branch `<plan-id>-execute`, cut from a **pinned base**) and lands it via merge-back +
+merged-state re-validation in Phase 6. The two address spaces (primary checkout vs. worktree)
+and the §5.3→§6.2 flow:
+
+![yf-plan worktree execution lifecycle](spec/worktree-execute-lifecycle.png)
+
+**EXECUTE start owns the pour.** Under the intake-at-execute model the `plan-execute` molecule
+is poured here, not at INTAKE. There is exactly **one** pour-once/resume decision point (§5.2),
+driven by `resume-scan`: an absent epic is the normal first execution (pour), a present epic is
+a resume (do not pour). This single gate replaces the two historically separate guards — the
+old INTAKE duplicate-pour guard and the EXECUTE resume guard (REQ-RESUME-004).
+
+On `/yf-plan execute [<plan-id>]` in a new session:
+
+### 5.1 — Select plan
+
+If no ID given:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py list --json-output
+```
+
+Filter for plans with status `approved` and a **fresh (non-stale) fingerprint** — a
+stale-approved plan (stored `**Fingerprint:**` no longer matches its content) **cannot
+execute** until re-approved or `--force` (REQ-PORT-041). No pre-poured epic is required — the
+fingerprint, not a poured start gate, is the eligibility token. A plan already in `executing`
+(a prior, possibly crashed, session already poured and resolved its start gate) is also a valid
+`/yf-plan execute` target — it routes through the resume branch of the gate below.
+
+### 5.2 — Pour-once / resume gate
+
+This section is yf-plan's implementation of the yf-beads-authoring resilience contract
+(REQ-ORCH-008 resume detection, REQ-ORCH-009 stuck-bead sweep) **and** the relocated INTAKE
+pour. One scan drives the whole decision — pour-once when the epic is absent, resume when it is
+present:
 
 ```bash
 SCAN=$(uv run ${SKILL_DIR}/scripts/plan_manager.py resume-scan "${plan_dir}" --json)
-if [ "$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get found)" = "True" ]; then
-  echo "An epic already exists for this plan: $(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get epic_id)"
-  echo "Skip the pour and go to /yf-plan execute (the resume guard at §5.2 will take over)."
-fi
+FOUND=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get found)
+STALE=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get stale_approved)
 ```
 
-If an epic exists, do **not** pour — proceed to `/yf-plan execute`. Otherwise pour:
+`resume-scan` reads the epic from plan.md's `**Epic:**` field (persisted by `record-epic` at
+the pour, below), falling back to the `metadata.plan_dir` stamp for plans poured before that
+field existed. It reports descendant bead counts, the `stuck` list (`in_progress`/claimed beads
+a crash left behind), and `stale_approved`.
+
+**Stale-approved hard gate (REQ-PORT-041).** If `STALE` is `true`, the plan's content changed
+since approval (stored `**Fingerprint:**` no longer matches). **Refuse to pour/execute** and
+route the operator back through a fresh conformance → red-team → portability cycle (which
+re-writes the fingerprint at re-approval). The only bypass is an explicit `/yf-plan execute
+--force`, which proceeds **and logs the override** as a phase-log line:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "${current_status}" \
+  -m "stale-approval overridden (--force) — reasoning: <operator reason>"
+```
+
+- **`found` is `false`** — no epic yet. Under intake-at-execute this is the **normal first
+  execution**: pour the molecule and create the beads (§5.2a).
+- **`found` is `true`** — an epic already exists (a prior, possibly crashed, execute session).
+  Do **not** pour or create a second epic (the duplicate-epic failure #2 guards against).
+  Prompt the operator with `AskUserQuestion`: **Resume** the existing epic (recommended) or
+  treat as **New**. On **New**, stop and tell the operator a fresh run requires a fresh pour —
+  execute cannot fabricate a second epic. On **Resume**, run the resume path (§5.2b).
+
+#### 5.2a — Pour + create beads (found = false)
+
+**Pour the molecule.** The gate-type formula step yields TWO beads: a task wrapper (key
+`plan-execute.start-gate`, what downstream TASK `--deps` reference — never an epic) and the
+real gate (key `plan-execute.gate-start-gate`, what `bd gate resolve` must target). See
+`yf-beads-authoring` → *Formula gate steps*.
 
 ```bash
 cp -f "${SKILL_DIR}/formulas/plan-execute.formula.toml" .beads/formulas/
@@ -478,10 +612,6 @@ RESULT=$(bd mol pour plan-execute --var objective="${objective}" --var plan_dir=
 rm -f .beads/formulas/plan-execute.formula.toml
 
 EPIC=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new_epic_id)
-# A gate-type formula step yields TWO beads: a task wrapper (key "plan-execute.start-gate",
-# what downstream TASK --deps reference — never an epic, §4.3) and the real gate
-# (key "plan-execute.gate-start-gate", what `bd gate resolve` must target).
-# See yf-beads-authoring → Formula gate steps.
 START_GATE=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.start-gate")
 START_GATE_BEAD=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.gate-start-gate")
 ```
@@ -489,15 +619,16 @@ START_GATE_BEAD=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py j
 `new_epic_id` and `id_mapping` are the pour result keys — see `yf-beads-extra` →
 *`bd mol pour` output shape*. `json-get` is yf-plan's hardened defensive JSON parser
 (`bd` output may be a multi-document array; see `yf-beads-extra` → *`--json` is not always a
-single JSON document*). Use `${START_GATE}` for entry-issue `--deps` wiring (§4.3 — tasks
-only, never epics) and `${START_GATE_BEAD}` for `bd gate resolve` (§5.3).
+single JSON document*). Use `${START_GATE}` for entry-issue `--deps` wiring (tasks only, never
+epics) and `${START_GATE_BEAD}` for `bd gate resolve` (below).
 
-**Persist the plan↔epic linkage immediately** (so a crashed execute session can be resumed
-deterministically — Phase 5 resume-guard). Two writes, both keyed on `${EPIC}`:
+**Write the epic↔plan linkage ATOMICALLY, immediately after the pour** (REQ-RESUME-004) — a
+crash between the pour and this write must never orphan the epic, so it is the very next step.
+Two writes, both keyed on `${EPIC}`:
 
 ```bash
-# (a) Stamp the epic with its plan_dir so a plan with no **Epic:** field
-#     (intaken before this feature) is still findable by resume-scan.
+# (a) Stamp the epic with its plan_dir so a plan with no **Epic:** field is still
+#     findable by resume-scan on a resumed session.
 bd update ${EPIC} --metadata "$(jq -nc --arg d "${plan_dir}" '{plan_dir:$d}')" -q
 
 # (b) Record the epic ID in plan.md: an **Epic:** header field plus an inert
@@ -506,13 +637,12 @@ bd update ${EPIC} --metadata "$(jq -nc --arg d "${plan_dir}" '{plan_dir:$d}')" -
 uv run ${SKILL_DIR}/scripts/plan_manager.py record-epic "${plan_dir}" "${EPIC}"
 ```
 
-### 4.3 — Create beads from plan.md
-
-**Never block a child epic on the start gate.** `${START_GATE}` is a task, and bd rejects a
-task blocking an epic (`epics can only block other epics, not tasks` — see `yf-beads-extra` →
-*Epic blocking rule*). Child epics are containers: create them with `--parent` only. Gate the
-epic's **entry leaf issues** (those with no intra-plan predecessor) on `${START_GATE}`;
-downstream issues depend on their predecessors and inherit the gate transitively.
+**Create beads from plan.md.** Never block a child epic on the start gate: `${START_GATE}` is a
+task, and bd rejects a task blocking an epic (`epics can only block other epics, not tasks` —
+see `yf-beads-extra` → *Epic blocking rule*). Child epics are containers: create them with
+`--parent` only. Gate the epic's **entry leaf issues** (those with no intra-plan predecessor)
+on `${START_GATE}`; downstream issues depend on their predecessors and inherit the gate
+transitively.
 
 ```bash
 # Child epic — parent only, NO start-gate dep (task→epic block is rejected).
@@ -534,17 +664,15 @@ ISSUE_BEAD=$(bd create "${issue_description}" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
 
-### 4.4 — Attach upstream metadata
+**Attach upstream metadata** to issues that resolve an upstream issue:
 
 ```bash
 bd update ${ISSUE_BEAD} --metadata '{"upstream":"#142","disposition":"include"}' -q
 ```
 
-### 4.5 — Create capability gates (if any)
-
-Gates are first-class beads (`-t gate`); resolve with `bd gate resolve`. See
-`yf-beads-extra` → *Gates*. Create each gate individually (creates need IDs, cannot be
-batched):
+**Create capability gates (if any).** Gates are first-class beads (`-t gate`); resolve with
+`bd gate resolve`. See `yf-beads-extra` → *Gates*. Create each gate individually (creates need
+IDs, cannot be batched):
 
 ```bash
 CAP_GATE=$(bd create "Gate: ${gate_name}" \
@@ -566,9 +694,8 @@ printf '%b' "${DEP_OPS}" | bd batch -m "plan-${plan_id} dep wiring"
 
 **Rule:** Never call `bd dep add A B` as individual shell commands — always accumulate into `DEP_OPS` and pipe once through `bd batch`. An empty `DEP_OPS` is a no-op (skip the printf). For why (single dolt transaction, atomic rollback) see `yf-beads-extra` → *Bulk intake*.
 
-### 4.6 — Create reconcile gate and step
-
-Only when upstream issues incorporated (any non-exclude disposition):
+**Create the reconcile gate and step** — only when upstream issues are incorporated (any
+non-exclude disposition):
 
 ```bash
 RECONCILE_GATE=$(bd create "Gate: Reconcile upstream" \
@@ -583,124 +710,77 @@ RECONCILE_STEP=$(bd create "Reconcile: update upstream issues" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
 
-### 4.7 — Burn investigation wisp
+**Burn the investigation wisp** (captured in §2 as `INVESTIGATION_WISP_ID`):
 
 ```bash
 bd mol burn ${INVESTIGATION_WISP_ID} 2>/dev/null || true
 ```
 
-### 4.8 — Handoff
-
-Print plan ID, epic ID, start gate ID. Instruct operator to run `/yf-plan execute <plan-id>` in a new session. Start gate can only be released in a new session.
-
----
-
-## Phase 5: EXECUTE
-
-By default, EXECUTE runs the plan in an isolated git worktree (`.worktrees/<plan-id>`,
-branch `<plan-id>`) and lands it via merge-back + merged-state re-validation in Phase 6.
-The two address spaces (primary checkout vs. worktree) and the §5.2→§6.2 flow:
-
-![yf-plan worktree execution lifecycle](spec/worktree-execute-lifecycle.png)
-
-On `/yf-plan execute [<plan-id>]` in a new session:
-
-### 5.1 — Select plan
-
-If no ID given:
-
-```bash
-uv run ${SKILL_DIR}/scripts/plan_manager.py list --json-output
-```
-
-Filter for plans with status `approved` and open start gates. A plan already in
-`executing` (its start gate resolved by a prior, possibly crashed, session) is also
-a valid `/yf-plan execute` target — it routes through the resume guard below.
-
-### 5.2 — Resume guard
-
-This section is yf-plan's implementation of the yf-beads-authoring resilience contract
-(REQ-ORCH-008 resume detection, REQ-ORCH-009 stuck-bead sweep). A prior `yf-plan execute`
-session can die mid-run (OOM, timeout, abort). Before resolving the start gate or entering
-the coordinator loop, detect whether this plan's epic already exists and carries prior
-progress:
-
-```bash
-SCAN=$(uv run ${SKILL_DIR}/scripts/plan_manager.py resume-scan "${plan_dir}" --json)
-FOUND=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get found)
-```
-
-`resume-scan` reads the epic from plan.md's `**Epic:**` field (persisted at intake,
-§4.2), falling back to the `metadata.plan_dir` stamp for plans intaken before that
-field existed. It reports descendant bead counts and the `stuck` list
-(`in_progress`/claimed beads a crash left behind).
-
-- **`found` is `false`** — no existing epic. This is a fresh first execution:
-  proceed to §5.3 (resolve start gate) normally.
-- **`found` is `true`** — an epic already exists for this plan. Do **not** pour or
-  create a second epic (the duplicate-epic failure #2 guards against). Prompt the
-  operator with `AskUserQuestion`: **Resume** the existing epic (recommended) or
-  treat as **New**. On **New**, stop and tell the operator a fresh run requires
-  re-intake (a new pour) — execute cannot fabricate a second epic. On **Resume**,
-  run the orphan sweep below, then continue at §5.4 (the start gate is already
-  resolved from the prior session — do **not** re-resolve it).
-
-**Worktree re-attach (resume only).** On **Resume**, before the orphan sweep,
-re-attach the plan's worktree (idempotent — it never creates a second worktree) and
-**surface** any dirty prior state without resolving it:
-
-```bash
-WT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py worktree ensure "${plan_dir}" --json)
-# viable=true → action "reattached-worktree"; dirty=true means a crashed session left
-# uncommitted changes. Report dirty_files to the operator; never auto-stash/discard.
-# viable=false → run in-place this resume (the §5.3 fallback rationale applies).
-```
-
-If the verdict is `dirty`, report the `dirty_files` list and pause for the operator
-(the *crashed-worktree* mitigation in plan-009 §Risks) — do not auto-resolve. A
-non-viable verdict means this resume runs in-place (worktree mode off for the session).
-
-**Orphan sweep (resume only).** Run it **strictly before the ready loop and before
-any reconcile-trigger evaluation** — resetting beads keeps the epic non-terminal, so
-reconcile cannot fire on a resumed-but-incomplete plan. Follow the procedure in
-`agents/coordinator.md` → *Resume orphan sweep*: **reset** each `stuck` bead from the
-scan (`bd update <id> --status open`, making it re-workable) and **report** — never
-auto-close — any bead the sweep cannot positively classify, leaving the close
-decision to the operator. No bead is auto-closed: there is no reliable bd-state
-signal separating disposable scratch from real `discovered-from` work.
-
-Resume order is therefore **re-attach → sweep → loop**.
-
-### 5.3 — Resolve start gate + create worktree
-
-Fresh runs only (skip on a resume — §5.2 already confirmed the gate is resolved and
-re-attached the worktree):
+**Resolve the start gate and set status `executing`** (this is a new session — the human start
+gate can only be released here, REQ-SESSION-001):
 
 ```bash
 bd gate resolve ${START_GATE_BEAD}   # the gate-* bead, not the wrapper task ${START_GATE}
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "executing" -m "start gate resolved"
 ```
 
-**Create the execution worktree (default-on, D2).** After the gate resolves, create the
-plan's isolated worktree. This is the **viability check + opt-out gate** (Issue 2.4):
+**Create the execution worktree (default-on, D2).** This is the **viability check + opt-out
+gate**:
 
 ```bash
 WT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py worktree ensure "${plan_dir}" --json)
 VIABLE=$(echo "$WT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get viable)
+BASE=$(echo "$WT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get base)
 ```
 
 - **`viable` is `true`** — `worktree ensure` created `.worktrees/<plan-id>` on branch
-  `<plan-id>` (and ensured `/.worktrees/` is gitignored). The coordinator now runs in
-  worktree mode (§5.4): **code edits target the worktree**, while bead tracking and the
-  plan folder stay primary-side (see the address-space model below).
-- **`viable` is `false`** — a **safe in-place fallback**. Print a one-line reason from
-  the verdict (`reason` ∈ `opted-out`, `not-a-git-repo`, `beads-not-initialized`,
-  `dirty-locked`, `bd-db-unresolved`) and run the coordinator **in-place exactly as
-  before** — no regression in fallback mode. `opted-out` is the operator's
-  `"execute.worktree": false` in `.yf-plan.local.json`; the rest are environment
-  conditions (`bd-db-unresolved` is the INV-2 runtime fallback, M4).
+  `<plan-id>-execute`, cut from the **pinned base** it reports in `base` (`main` under the
+  default strategy, feature `<plan-id>` under `feature-branch` — never ambient HEAD,
+  REQ-BRANCH-002), and ensured `/.worktrees/` is gitignored. Surface `base` so the operator
+  sees the pinned start-point. The coordinator now runs in worktree mode (§5.3): **code edits
+  target the worktree**, while bead tracking and the plan folder stay primary-side (see the
+  address-space model below).
+- **`viable` is `false`** — a **safe in-place fallback**. Print a one-line reason from the
+  verdict (`reason` ∈ `opted-out`, `not-a-git-repo`, `beads-not-initialized`, `dirty-locked`,
+  `base-unresolved`, `bd-db-unresolved`) and run the coordinator **in-place exactly as before**
+  — no regression in fallback mode. `opted-out` is the operator's `"execute.worktree": false`
+  in `.yf-plan.local.json`; `base-unresolved` means the pinned base could not be resolved
+  (missing feature branch / indeterminate default); the rest are environment conditions
+  (`bd-db-unresolved` is the INV-2 runtime fallback, M4).
 
-### 5.4 — Run coordinator
+Proceed to §5.3 (run coordinator).
+
+#### 5.2b — Resume (found = true)
+
+Do **not** pour or re-resolve the start gate (the prior session already did both). Run the
+resume path in order: **re-attach → sweep → loop**.
+
+**Worktree re-attach.** Re-attach the plan's `<plan-id>-execute` worktree (idempotent — it
+never creates a second worktree) and **surface** any dirty prior state without resolving it:
+
+```bash
+WT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py worktree ensure "${plan_dir}" --json)
+# viable=true → action "reattached-worktree"/"reattached-branch"; dirty=true means a crashed
+# session left uncommitted changes. Report dirty_files to the operator; never auto-stash/discard.
+# viable=false → run in-place this resume (the §5.2a fallback rationale applies).
+```
+
+If the verdict is `dirty`, report the `dirty_files` list and pause for the operator (the
+*crashed-worktree* mitigation in plan-009 §Risks) — do not auto-resolve. A non-viable verdict
+means this resume runs in-place (worktree mode off for the session). On re-attach the `base`
+field is `null` — the base was pinned when the branch was first created.
+
+**Orphan sweep.** Run it **strictly before the ready loop and before any reconcile-trigger
+evaluation** — resetting beads keeps the epic non-terminal, so reconcile cannot fire on a
+resumed-but-incomplete plan. Follow the procedure in `agents/coordinator.md` → *Resume orphan
+sweep*: **reset** each `stuck` bead from the scan (`bd update <id> --status open`, making it
+re-workable) and **report** — never auto-close — any bead the sweep cannot positively classify,
+leaving the close decision to the operator. No bead is auto-closed: there is no reliable
+bd-state signal separating disposable scratch from real `discovered-from` work.
+
+Then proceed to §5.3 (run coordinator).
+
+### 5.3 — Run coordinator
 
 Read `${SKILL_DIR}/agents/coordinator.md` and follow its execution loop. The coordinator
 drives the bead DAG to completion, handles capability gates, and triggers reconciliation.
@@ -713,9 +793,9 @@ operations are explicitly routed (resolves plan-009 red-team C1/M1):
   (`plan.md`, `reviews/`, phase-log, `findings/`), every `plan_manager.py <verb>
   "${plan_dir}"` call (`plan_dir` is relative to cwd), and all **`bd`** calls (INV-2: the
   shared Dolt DB lives in the primary's `.beads/` and is reached from anywhere).
-- **Worktree (`.worktrees/<plan-id>`, branch `<plan-id>`).** Only **project code/build
+- **Worktree (`.worktrees/<plan-id>`, branch `<plan-id>-execute`).** Only **project code/build
   artifacts** the plan edits. Reach it via `git -C .worktrees/<plan-id>` or by giving an
-  agent-backed bead that worktree as its **cwd**. Only these commits land on `<plan-id>`.
+  agent-backed bead that worktree as its **cwd**. Only these commits land on `<plan-id>-execute`.
 
 So **bead tracking and plan-folder bookkeeping happen primary-side; only code changes
 accumulate on the plan branch.** The coordinator never `cd`s into the worktree. In
@@ -728,11 +808,11 @@ worktree's own environment instead of an inherited `VIRTUAL_ENV` from the primar
 Do **NOT** follow uv's `--active` suggestion inside a worktree — `--active` targets the
 active (primary) venv, the wrong address space.
 
-### 5.5 — Blocked gates
+### 5.4 — Blocked gates
 
 Drain all unblocked work first. Only report blocked gates when no other work can proceed. Include gate condition, test result, and unblock instructions.
 
-### 5.6 — Reconcile gate
+### 5.5 — Reconcile gate
 
 Auto-resolves when all execution beads close. Proceed to Phase 6.
 
@@ -748,33 +828,45 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "reconci
 state, then push.** The old order validated pre-merge, which cannot catch class-(b)
 integration regressions (each change individually green, broken when integrated). All
 Phase-6 steps run **primary-side** (you cannot check out the base branch in two
-worktrees at once — §5.4 address-space model).
+worktrees at once — §5.3 address-space model).
 
-**In-place (fallback) mode skips the merge.** If §5.3 fell back to in-place, there is no
-plan branch to merge — changes are already on the base. Skip §6.1's merge; §6.1.5 still
+**In-place (fallback) mode skips the merge.** If §5.2a fell back to in-place, there is no
+execute branch to merge — changes are already on the base. Skip §6.1's merge; §6.1.5 still
 validates the working tree before the §6.2 handoff.
 
 ### 6.1 — Merge-back (worktree mode)
 
-Acquire the single-machine landing lock, bring the base current, and merge the plan
-branch into it from the **primary checkout**:
+The merge target is **pinned per landing strategy** (REQ-PLAN-055 / REQ-BRANCH-002), resolved
+by `_resolve_landing_strategy` — the same strategy that pinned the §5.2a execute base, so the
+two always agree:
+
+- **`main` (default)** — the merge target is `main`; `<plan-id>-execute` lands on trunk.
+- **`feature-branch`** — the merge target is the feature `<plan-id>` branch (preserved by
+  teardown for later operator integration); `<plan-id>-execute` merges into it, not into `main`.
+
+Acquire the single-machine landing lock, check out the pinned target from the **primary
+checkout**, bring it current, and merge the execute branch into it:
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py landing-lock acquire "${plan_id}" --json
 # exit 3 → held; report the holder and wait. Stale same-host locks self-reclaim.
-git pull --rebase                 # bring local base current (other plans may have landed)
-git merge --no-ff "${plan_id}"    # --no-ff: auditable merge commit, clean revert (M2)
+# MERGE_TARGET = _resolve_landing_strategy():  main → "main";  feature-branch → "${plan_id}"
+git checkout "${MERGE_TARGET}"              # restore the primary to the pinned target branch
+git pull --rebase                           # bring the target current (other plans may have landed)
+git merge --no-ff "${plan_id}-execute"      # --no-ff: auditable merge commit, clean revert (M2)
 # defer committing the merge until §6.1.5 validates it (merge leaves it staged/in-progress)
 ```
 
 `--no-ff` defines the merged tree §6.1.5 validates and keeps the landing as one
 revertable commit. The first changes land before any push, so the lock serializes
-merge-backs across concurrent plans on this machine.
+merge-backs across concurrent plans on this machine. Between phases the primary checkout is
+restored to a known branch (the pinned target above) — never left on a plan branch
+(REQ-BRANCH-004).
 
 ### 6.1.5 — Validate the merged state
 
 Before any push, validate the merged tree. **Layer (a)** — the plan's own Gate `Test:`
-commands — runs against the merged checkout in the §5.4 coordinator loop, not here.
+commands — runs against the merged checkout in the §5.3 coordinator loop, not here.
 This step owns **layer (b)**, the cross-plan safety net, via a 3-tier precedence:
 
 ```bash
@@ -811,7 +903,7 @@ force-install, the wrong coupling.
 configured (tier 3), `validate-merged` runs **no** layer-(b) suite at all and emits a
 **prominent cross-plan-not-checked notice** — surface it verbatim; never present a bare
 green as integration-safe. Layer (a) (the plan's own Gate `Test:` commands, run in the
-§5.4 loop) alone cannot catch class-(b) regressions; the engine or `validate-cmd` is the
+§5.3 loop) alone cannot catch class-(b) regressions; the engine or `validate-cmd` is the
 real cross-plan safety net.
 
 ### 6.2 — Push handoff (conservative) + teardown
@@ -833,8 +925,10 @@ rebase. After the push is authorized and completed, tear the worktree down:
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py worktree teardown "${plan_dir}" --json
-# remove worktree + delete the now-merged branch (-d) + prune. Refuses on a dirty tree
-# without --force (INV-1); a clean merged plan tears down cleanly.
+# remove worktree + delete the now-merged `<plan-id>-execute` branch (-d) + prune. Refuses on
+# a dirty tree without --force (INV-1); a clean merged plan tears down cleanly. Teardown
+# targets ONLY `<plan-id>-execute`; under the feature-branch strategy it PRESERVES the feature
+# `<plan-id>` branch for later operator integration (REQ-BRANCH-004).
 ```
 
 > **Full-auto push is NOT the shipped default.** It remains an operator-configurable

@@ -30,6 +30,15 @@
 >   explicit clear). Added build-time `YF_GIT_DIRTY` capture (`git status --porcelain`, best-effort)
 >   surfaced as a `-dirty` suffix on `VERSION_LINE`; `VERSION` stays `CARGO_PKG_VERSION`. SELF-007 is
 >   a non-action REQ covered by the shared PRE-008 stamp-mismatch test.
+> - **plan-021 (2026-07-02, #47/#63/#64):** yf-plan lifecycle rework — intake-at-execute. Relocated
+>   the `plan-execute` pour from INTAKE to EXECUTE start and unified the duplicate-pour + resume
+>   guards into one pour-once/resume gate (added `REQ-RESUME-004`, `REQ-PLAN-054`; revised
+>   `REQ-PHASE-002`, `REQ-RESUME-001`, `REQ-PLAN-040`). Base-pinned named per-phase branches
+>   (`<plan-id>-development` / feature `<plan-id>` / `<plan-id>-execute`) + a `landing-strategy`
+>   config switch (`REQ-PLAN-05x`, Epic 2). Local auto-commit at the plan→execute boundary with a
+>   default-branch fail-closed guard and a `GR-PLAN-003` carve-out (added `REQ-PLAN-064/065`).
+>   Content-fingerprint-bound approval / stale-approved re-review gate (added `REQ-PORT-040/041`,
+>   mirror `REQ-PLAN-034`).
 > - **plan-020 (2026-07-02, #56):** mode-aware wedged-migration repair — revised `REQ-YF-PRE-007`
 >   and `REQ-BINIT-011` to a **mode-aware** working-set flush (server `bd dolt stop` unchanged;
 >   embedded storage uses a data-preserving raw-`dolt add -A && dolt commit` in the derived

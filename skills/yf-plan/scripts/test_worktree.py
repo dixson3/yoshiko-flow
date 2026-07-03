@@ -67,6 +67,7 @@ def git_repo(tmp_path, monkeypatch):
 
 PLAN_DIR = Path("docs/plans/plan-009-james-dixson-996e44")
 PLAN_ID = "plan-009-james-dixson-996e44"
+EXEC_BRANCH = f"{PLAN_ID}-execute"       # named per-phase branch (REQ-BRANCH-001)
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +123,7 @@ def test_bd_unresolved_tears_down_and_falls_back(git_repo, monkeypatch):
     assert result["torn_down"] is True
     # The freshly-created worktree + branch were cleaned up — no orphan left behind.
     assert not (git_repo / ".worktrees" / PLAN_ID).exists()
-    assert not pm._branch_exists(PLAN_ID, git_repo)
+    assert not pm._branch_exists(EXEC_BRANCH, git_repo)
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +134,7 @@ def test_create_then_reattach_idempotency(git_repo):
     first = pm._worktree_ensure(PLAN_DIR)
     assert first["viable"] is True
     assert first["action"] == "created"
-    assert first["branch"] == PLAN_ID            # branch name == plan id (INV-1)
+    assert first["branch"] == EXEC_BRANCH        # named execute branch (REQ-BRANCH-001)
     assert first["gitignore_updated"] is True
     assert (git_repo / ".worktrees" / PLAN_ID).is_dir()
 
@@ -144,8 +145,8 @@ def test_create_then_reattach_idempotency(git_repo):
 
 
 def test_reattach_existing_branch_without_worktree(git_repo):
-    # Branch exists but no worktree registered -> add WITHOUT -b (re-attach).
-    pm._run_git(["branch", PLAN_ID], cwd=git_repo)
+    # Execute branch exists but no worktree registered -> add WITHOUT -b (re-attach).
+    pm._run_git(["branch", EXEC_BRANCH], cwd=git_repo)
     result = pm._worktree_ensure(PLAN_DIR)
     assert result["viable"] is True
     assert result["action"] == "reattached-branch"
@@ -157,7 +158,7 @@ def test_teardown_clean(git_repo):
     assert result["status"] == "ok"
     assert result["steps"]["branch_delete"]["ok"] is True
     assert not (git_repo / ".worktrees" / PLAN_ID).exists()
-    assert not pm._branch_exists(PLAN_ID, git_repo)
+    assert not pm._branch_exists(EXEC_BRANCH, git_repo)
 
 
 def test_teardown_refuse_on_dirty(git_repo):
@@ -168,7 +169,7 @@ def test_teardown_refuse_on_dirty(git_repo):
     assert blocked["status"] == "blocked"
     assert blocked["steps"]["remove"]["ok"] is False
     # The branch is NOT deleted while the worktree still holds (possibly unmerged) work.
-    assert pm._branch_exists(PLAN_ID, git_repo)
+    assert pm._branch_exists(EXEC_BRANCH, git_repo)
     # --force escalates and clears it.
     forced = pm._worktree_teardown(PLAN_DIR, force=True)
     assert forced["status"] == "ok"
@@ -471,6 +472,184 @@ def test_audit_json_output_handles_control_chars(tmp_path, monkeypatch):
     payload = json.loads(result.output)
     assert payload["findings"][0]["detail"] == control_detail
     assert payload["report"] == control_report
+
+
+# ---------------------------------------------------------------------------
+# Branch model: base-pinning, named branches, landing-strategy (Issue 6.1 / #47)
+# ---------------------------------------------------------------------------
+
+def test_named_branch_helpers():
+    assert pm._development_branch(PLAN_ID) == f"{PLAN_ID}-development"
+    assert pm._feature_branch(PLAN_ID) == PLAN_ID
+    assert pm._execute_branch(PLAN_ID) == f"{PLAN_ID}-execute"
+
+
+def test_landing_strategy_resolution(lock_cwd):
+    assert pm._resolve_landing_strategy() == "main"          # default (no config)
+    (lock_cwd / ".yf-plan.local.json").write_text(
+        json.dumps({"landing-strategy": "feature-branch"}))
+    assert pm._resolve_landing_strategy() == "feature-branch"
+    (lock_cwd / ".yf-plan.local.json").write_text(
+        json.dumps({"landing-strategy": "bogus"}))
+    assert pm._resolve_landing_strategy() == "main"          # invalid → default
+
+
+def test_execute_base_pinned_not_ambient(git_repo):
+    # REQ-BRANCH-002: the execute branch is cut from the PINNED base (default branch),
+    # never ambient HEAD — even when a different branch is checked out.
+    default = pm._default_branch(git_repo)
+    pm._run_git(["checkout", "-b", "other"], cwd=git_repo)
+    (git_repo / "x.txt").write_text("x\n")
+    pm._run_git(["add", "."], cwd=git_repo)
+    pm._run_git(["commit", "-m", "ahead"], cwd=git_repo)
+
+    r = pm._worktree_ensure(PLAN_DIR)
+    assert r["viable"] is True
+    assert r["base"] == default
+    exec_head = pm._run_git(["rev-parse", EXEC_BRANCH], cwd=git_repo).stdout.strip()
+    base_head = pm._run_git(["rev-parse", default], cwd=git_repo).stdout.strip()
+    other_head = pm._run_git(["rev-parse", "other"], cwd=git_repo).stdout.strip()
+    assert exec_head == base_head        # cut from the pinned base
+    assert exec_head != other_head       # NOT from ambient HEAD
+
+
+def test_execute_base_feature_branch_strategy(git_repo):
+    # feature-branch strategy → base is the feature <plan-id> branch.
+    (git_repo / ".yf-plan.local.json").write_text(
+        json.dumps({"landing-strategy": "feature-branch"}))
+    pm._run_git(["branch", PLAN_ID], cwd=git_repo)   # the feature branch (base)
+    r = pm._worktree_ensure(PLAN_DIR)
+    assert r["viable"] is True
+    assert r["base"] == PLAN_ID
+
+
+def test_execute_base_unresolved_when_feature_missing(git_repo):
+    # feature-branch strategy with no feature branch → base cannot be resolved.
+    (git_repo / ".yf-plan.local.json").write_text(
+        json.dumps({"landing-strategy": "feature-branch"}))
+    r = pm._worktree_ensure(PLAN_DIR)
+    assert r["viable"] is False
+    assert r["reason"] == "base-unresolved"
+
+
+def test_teardown_preserves_feature_branch(git_repo):
+    # REQ-BRANCH-004: teardown deletes only <plan-id>-execute; the feature <plan-id>
+    # branch is PRESERVED under the feature-branch strategy.
+    (git_repo / ".yf-plan.local.json").write_text(
+        json.dumps({"landing-strategy": "feature-branch"}))
+    pm._run_git(["branch", PLAN_ID], cwd=git_repo)   # feature branch (base)
+    pm._worktree_ensure(PLAN_DIR)                     # creates <plan-id>-execute
+    result = pm._worktree_teardown(PLAN_DIR, force=True)
+    assert result["status"] == "ok"
+    assert not pm._branch_exists(EXEC_BRANCH, git_repo)   # execute branch deleted
+    assert pm._branch_exists(PLAN_ID, git_repo)           # feature branch preserved
+
+
+# ---------------------------------------------------------------------------
+# Content-fingerprint re-review gate (Issue 6.2 / #64)
+# ---------------------------------------------------------------------------
+
+_PLAN_MD = """# Plan: fingerprint test
+
+**ID:** plan-999
+**Status:** approved
+**Epic:** yf-mol-x1
+**Phase log:**
+- 2026-07-02 scoping: init
+
+## Objective
+Original objective.
+
+## Upstream Issues
+| Issue | Resolved By |
+|:------|:------------|
+| #1 | — |
+
+## Success Criteria
+- works
+"""
+
+
+@pytest.fixture
+def plan_fp(tmp_path):
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_PLAN_MD)
+    return pd
+
+
+def test_fingerprint_write_and_field(plan_fp):
+    fp = pm._plan_content_fingerprint(plan_fp)
+    assert fp
+    assert pm._write_fingerprint_field(plan_fp, fp) == "written"
+    assert f"**Fingerprint:** {fp}" in (plan_fp / "plan.md").read_text()
+    assert pm._write_fingerprint_field(plan_fp, fp) == "updated"   # idempotent
+
+
+def test_fingerprint_field_self_excluded(plan_fp):
+    # Writing the **Fingerprint:** header must not change the content hash (self-excluded).
+    before = pm._plan_content_fingerprint(plan_fp)
+    pm._write_fingerprint_field(plan_fp, before)
+    assert pm._plan_content_fingerprint(plan_fp) == before
+
+
+def test_fingerprint_bookkeeping_edits_do_not_flip(plan_fp):
+    fp = pm._plan_content_fingerprint(plan_fp)
+    pm._write_fingerprint_field(plan_fp, fp)
+    p = plan_fp / "plan.md"
+    # (a) filling the Upstream Issues "Resolved By" column (RT-C2) → NOT stale.
+    p.write_text(p.read_text().replace("| #1 | — |", "| #1 | yf-mol-x1.2 |"))
+    assert pm._fingerprint_status(plan_fp)["stale_approved"] is False
+    # (b) a phase-log / review write → NOT stale.
+    p.write_text(p.read_text().replace(
+        "- 2026-07-02 scoping: init",
+        "- 2026-07-02 scoping: init\n- 2026-07-02 review: pass-1"))
+    assert pm._fingerprint_status(plan_fp)["stale_approved"] is False
+
+
+def test_fingerprint_content_edit_flips(plan_fp):
+    fp = pm._plan_content_fingerprint(plan_fp)
+    pm._write_fingerprint_field(plan_fp, fp)
+    p = plan_fp / "plan.md"
+    p.write_text(p.read_text().replace("Original objective.", "Changed objective."))
+    assert pm._fingerprint_status(plan_fp)["stale_approved"] is True
+
+
+def _seed_plan(git_repo, branch=None):
+    pd = Path("docs/plans/plan-999")
+    (git_repo / pd).mkdir(parents=True, exist_ok=True)
+    (git_repo / pd / "plan.md").write_text(
+        "# Plan: obj\n\n**Status:** approved\n\n## Objective\nx\n")
+    if branch:
+        pm._run_git(["checkout", "-b", branch], cwd=git_repo)
+    return pd
+
+
+def test_commit_plan_refuses_default_branch(git_repo):
+    pd = _seed_plan(git_repo)
+    r = pm._commit_plan(pd)
+    assert r["status"] == "refused"
+    assert r["reason"] == "default-branch"
+
+
+def test_commit_plan_refuses_detached_head(git_repo):
+    pd = _seed_plan(git_repo)
+    pm._run_git(["add", "."], cwd=git_repo)
+    pm._run_git(["commit", "-m", "p"], cwd=git_repo)
+    pm._run_git(["checkout", "--detach"], cwd=git_repo)
+    r = pm._commit_plan(pd)
+    assert r["status"] == "refused"
+    assert r["reason"] == "detached-head"
+
+
+def test_commit_plan_commits_on_plan_branch_then_noop(git_repo):
+    pd = _seed_plan(git_repo, branch="plan-999")
+    r = pm._commit_plan(pd)
+    assert r["status"] == "committed"
+    assert r["branch"] == "plan-999"
+    assert "commit" in r
+    # nothing new staged → idempotent no-op (no empty commit)
+    assert pm._commit_plan(pd)["status"] == "noop"
 
 
 if __name__ == "__main__":
