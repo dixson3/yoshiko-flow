@@ -18,6 +18,15 @@ sequence the SPEC edit before the implementation epics, never after. Rationale: 
 the source of truth the coverage gate enforces; implementation-first invites drift and
 untagged requirements.
 
+## Testing
+
+When developing deep/integration test plans or test scripts for the **manager-script skills**
+(`yf-plan` / `plan_manager.py`, `yf-research` / `research_manager.py`), follow the strategy in
+[TESTING.md](TESTING.md): Tier-1 unit tests of the manager script, plus Tier-2 **mechanical
+drive** of the modified skill under a sandboxed `HOME` (never trust the installed copy — it is
+the old, `rust-embed`-baked skill). Do not hand-roll an interactive-agent smoke; drive the
+manager verbs directly.
+
 ## Upstream Tracking
 
 - **Source / repo / tool:** github · `dixson3/yoshiko-flow` · `gh issue`
