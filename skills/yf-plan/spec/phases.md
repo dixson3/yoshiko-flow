@@ -30,7 +30,7 @@ Verification: `grep 'Status values:' skills/yf-plan/SKILL.md` lists all 8.
 
 REQ-STATUS-002: Every phase transition sets status via `plan_manager.py update-status`.
 Rationale: Centralizing status updates in one script prevents format drift between SKILL.md and plan.md.
-Verification: `grep -c 'py update-status' skills/yf-plan/SKILL.md` returns 7 (one per non-initial status; the bare `update-status` prose mention in the CAPTURE phase is excluded).
+Verification: `grep -c 'py update-status' skills/yf-plan/SKILL.md` returns 8 — the 7 non-initial status transitions plus the conditional stale-approval `--force` override re-log in §5.2 (which re-stamps the *current* status to append an audit phase-log line, REQ-PORT-041, and is not a new transition); the bare `update-status` prose mention in the CAPTURE phase is excluded.
 
 REQ-STATUS-003: Initial status `scoping` is set by `plan_manager.py init`, not by a separate `update-status` call.
 Rationale: Plan creation and initial status are atomic — a plan.md without status is invalid.
