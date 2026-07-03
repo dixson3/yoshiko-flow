@@ -60,12 +60,18 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   full REVISE cycle yields exactly one pass file.
 - **REQ-PLAN-033** *(testable)* the portability `audit` shall run as the last PLAN step; INTAKE
   proceeds only on `pass` (or explicit `--force`, which logs a phase-log override).
+- **REQ-PLAN-034** *(testable)* approval shall write a `**Fingerprint:**` over the plan's content
+  sections (excluding header fields, phase-log, `reviews/`, Operator Resolutions, and the
+  `## Upstream Issues` section); a subsequent content edit marks the plan **stale-approved** and
+  blocks EXECUTE until a fresh conformance → red-team → portability cycle re-approves it (or a logged
+  `--force`). See `spec/portability.md` REQ-PORT-040/041.
 
 ### 2.5 Intake (see `spec/cli.md`, `beads-extra`)
 
-- **REQ-PLAN-040** *(testable)* INTAKE shall pour the `plan-execute` molecule once (duplicate-pour
-  guard via `resume-scan`), persist the plan↔epic linkage (epic `metadata.plan_dir` + `plan.md`
-  `**Epic:**` field), and create the bead DAG.
+- **REQ-PLAN-040** *(testable)* INTAKE shall **not** pour the molecule; it writes the content
+  fingerprint (REQ-PLAN-034), auto-commits the plan locally (REQ-PLAN-064), and lands it per the
+  landing strategy. The `plan-execute` pour and bead-DAG creation are deferred to EXECUTE start
+  (REQ-PLAN-054); duplicate-pour and resume are one guard there (REQ-RESUME-004).
 - **REQ-PLAN-041** child epics shall be created `--parent` only (never blocked by the start-gate
   task — a task→epic block is rejected); entry leaf issues shall depend on the start gate;
   downstream issues inherit it transitively.
@@ -75,8 +81,14 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 ### 2.6 Execute: worktree, resume, gates (see `spec/phases.md`, plan-009/plan-004)
 
 - **REQ-PLAN-050** *(testable)* EXECUTE shall default to an isolated worktree
-  (`.worktrees/<plan-id>`, branch `<plan-id>`); a non-viable verdict falls back to in-place
-  execution without regression.
+  (`.worktrees/<plan-id>`, branch `<plan-id>-execute`) cut from a pinned base (REQ-PLAN-055); a
+  non-viable verdict falls back to in-place execution without regression.
+- **REQ-PLAN-055** *(testable)* the worktree base and the §6.1 merge target shall be pinned to a
+  known branch — `main` (default) or feature `<plan-id>` — via a `landing-strategy` config switch
+  (`_resolve_landing_strategy`), never ambient HEAD. Named per-phase branches
+  (`<plan-id>-development` / feature `<plan-id>` / `<plan-id>-execute`) replace the single bare
+  `<plan-id>`; teardown preserves the feature branch under the feature-branch strategy. See
+  `spec/phases.md` REQ-BRANCH-001..004.
 - **REQ-PLAN-051** code edits shall target the worktree while bead tracking and plan-folder
   bookkeeping stay primary-side (the two-address-space model).
 - **REQ-PLAN-052** *(testable)* on resume, the guard shall detect an existing epic
@@ -85,6 +97,11 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   already-resolved start gate.
 - **REQ-PLAN-053** capability gates shall be first-class `-t gate` beads resolved with
   `bd gate resolve`; blocked gates are reported only after all unblocked work is drained.
+- **REQ-PLAN-054** *(testable)* EXECUTE shall pour the `plan-execute` molecule at execute-start (the
+  relocated INTAKE pour): `resume-scan` `found=false` pours once and writes the epic↔plan linkage
+  atomically (`record-epic` + epic `metadata.plan_dir`) immediately after the pour, then resolves the
+  start gate; `found=true` resumes without re-pouring. The former INTAKE duplicate-pour guard and the
+  resume guard are one code path — the pour-once/resume gate (see `spec/phases.md` REQ-RESUME-004).
 
 ### 2.7 Reconcile & land (see `spec/phases.md`)
 
@@ -98,6 +115,17 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   wait.
 - **REQ-PLAN-063** RECONCILE shall update upstream issues per `plan.md` dispositions (the
   reconciler agent), then close the reconcile step + epic and set status `complete`.
+- **REQ-PLAN-064** *(testable)* at the PLAN→EXECUTE landing boundary (after the portability audit and
+  the fingerprint write, REQ-PLAN-034), the plan shall be auto-committed **locally** via
+  `plan_manager.py commit-plan`: a scoped `git add -- "${plan_dir}" .beads/` (explicit pathspec,
+  never `git add -A`), a local commit (message `plan-NNN: <phase> — <objective>`), and **never a
+  push**. This is the #63 clean-handoff boundary — a fresh execute session inherits a committed base,
+  and intake artifacts survive a crash or fresh clone.
+- **REQ-PLAN-065** *(testable)* `commit-plan` shall refuse to commit on the repository's default
+  branch. Default-branch resolution is `git symbolic-ref --short refs/remotes/origin/HEAD` →
+  `git config init.defaultBranch` → `main`/`master`. A **detached HEAD or an empty current-branch
+  name is fail-closed = refuse** (never commit). The guard is a hard refusal returned as a JSON
+  verdict, not a warning.
 
 ### 2.8 Capture (manual)
 
@@ -125,8 +153,11 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   planning is `yf-plan`; all task tracking is `bd`. *Why:* one tracker, portable plans.
 - **GR-PLAN-002** *Drift:* review agents editing the plan. *Rule:* conformance + red-team are
   **read-only**; only the main session writes. *Why:* auditable, deterministic review.
-- **GR-PLAN-003** *Drift:* auto-committing/pushing on land. *Rule:* git authority is conservative —
-  report and await authorization. *Why:* the operator owns the remote.
+- **GR-PLAN-003** *Drift:* auto-**pushing**, or committing to the default branch. *Rule:* git
+  authority is conservative for the **remote** — report and await authorization before any push.
+  **Carve-out:** a **local** commit at the PLAN→EXECUTE boundary is permitted (REQ-PLAN-064), scoped
+  to `${plan_dir}` + `.beads/` and **refused on the default branch** (REQ-PLAN-065); the push stays
+  authorized-only. *Why:* the operator owns the remote; a clean local handoff does not touch it.
 - **GR-PLAN-004** *Drift:* an in-place EXECUTE→PLAN re-plan loop. *Rule:* there is none; scope
   changes that need epic surgery re-enter PLAN before INTAKE. *Why:* the phase machine forbids it
   (REQ-PLAN-002).

@@ -64,6 +64,16 @@ REQ-PORT-020: The operator may bypass the portability audit with an explicit `--
 Rationale: A hard audit with no escape hatch produces operator frustration in legitimate edge cases; an unlogged escape hatch hides quality regressions. Mandatory reasoning gives the audit teeth without blocking operator judgment.
 Verification: SKILL.md Phase 3 "Portability audit" subsection documents the override and the phase-log line format.
 
+## Content-fingerprint re-review gate (#64)
+
+REQ-PORT-040: Approval binds to a plan **content fingerprint** — a normalized hash over plan.md's content sections. The hashed span is the `##` section bodies from **Objective** through **Success Criteria**, **excluding** the self-trigger set: all `**Field:**` header lines (`Status`, `Epic`, `Fingerprint`, …), the phase log, the `reviews/` directory, the Operator Resolutions tables, **and the entire `## Upstream Issues` section** (its "Resolved By" cells are filled at the relocated pour and would otherwise flip the hash mid-execution). The fingerprint is stored as a `**Fingerprint:**` header field written at APPROVE via the `record-epic` field-insertion mechanism; being a `**Field:**` line it is self-excluded.
+Rationale: Approval must bind to *reviewed content*, not survive arbitrary later edits (#64). The exclusion set is exactly the surface that review and pour bookkeeping mutate — hashing it would make the fingerprint self-triggering (a review write or the pour would mark the plan stale against itself).
+Verification: `_plan_content_fingerprint` in plan_manager.py hashes the normalized content sections minus the exclusion set; `test_worktree.py` asserts a review/phase-log write **and** filling the Upstream Issues "Resolved By" column do not flip the fingerprint.
+
+REQ-PORT-041: A `review`/`approved` plan whose stored `**Fingerprint:**` no longer matches its recomputed content fingerprint is **stale-approved**. `resume-scan` surfaces `stale_approved` as a hard gate at `/yf-plan execute`; `list`/`status` surface it advisorily. A stale-approved plan **cannot execute** until a fresh conformance → red-team → portability cycle re-approves it (re-writing the fingerprint), or the operator passes `--force`, which appends a phase-log override line stating the reason.
+Rationale: A sticky `approved` status let a post-approval scope addition (plan-019) reach execution unreviewed. Binding execution eligibility to the fingerprint forces re-review of any content change; `--force` preserves operator judgment with an audit trail.
+Verification: `resume-scan` returns `stale_approved`; SKILL.md §5.2 refuses a stale plan and routes back through review; the `--force` path logs a phase-log line; `test_worktree.py` covers stale detection and `--force`.
+
 ## /yf-plan capture
 
 REQ-PORT-030: `/yf-plan capture [<plan-id>]` is re-entrant, status-agnostic (runs in any phase before intake), and **does not advance plan status**. It does not mutate beads or pour molecules.
