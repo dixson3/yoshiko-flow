@@ -137,14 +137,16 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 
 - **CLI / scripts:** preflight is `yf preflight yf-plan` (the `yf` kernel, not `plan_manager.py`);
   `scripts/plan_manager.py` — `init`, `scope`, `triage`, `update-status`, `record-epic`,
-  `resume-scan`, `audit`, `worktree {ensure,path,teardown}`,
+  `resume-scan`, `audit`, `fingerprint {write,check}`, `commit-plan`,
+  `worktree {ensure,path,teardown}`,
   `landing-lock {acquire,release,status}`, `validate-merged`, `json-get`; `manifest_update.py`. Full
   surface in `spec/cli.md`; data shapes in `spec/data.md`. **Preflight/config moves to `yf`** per
   macro `REQ-YF-PRE-*`; the domain subcommands stay in Python.
 - **Companion rule:** `protocols/PLANS.md` (+ `protocols/manifest.json`, sha256+semver) — the
   always-loaded trigger contract; verified by the preflight `rule_*` outcomes.
 - **Config / state:** `.yf-plan.local.json` (operator config incl. `ignore-skill`,
-  `execute.worktree`, `validate-cmd`); runtime state under `.yf/yf-plan/` (e.g. `preflight.json`).
+  `execute.worktree`, `validate-cmd`, `landing-strategy`); runtime state under `.yf/yf-plan/`
+  (e.g. `preflight.json`).
   Legacy `.bdplan.local.json` / `.state/bdplan/` migrate via macro `REQ-YF-MIGRATE-001`.
 
 ## 4. Guardrails (`GR-PLAN-NNN`)

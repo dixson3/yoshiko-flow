@@ -912,6 +912,241 @@ def record_epic(plan_dir: str, epic_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Content-fingerprint re-review gate (#64 / Issue 5.1)
+#
+# Approval binds to a normalized hash of plan.md's CONTENT sections. The hashed span
+# is every `## ` section from Objective through Success Criteria, EXCLUDING the
+# self-trigger set (REQ-PORT-040): the header preamble (all `**Field:**` lines +
+# `**Phase log:**`, which precede the first `## ` and are structurally dropped) and
+# the `## Upstream Issues` section (its "Resolved By" cells are filled at the relocated
+# pour and would else flip the hash mid-execution). Operator-Resolutions tables live in
+# reviews/pass-N.md, not plan.md, so they are already out of scope.
+# ---------------------------------------------------------------------------
+
+FINGERPRINT_EXCLUDE_SECTIONS = {"upstream issues"}
+
+
+def _plan_content_sections(text: str) -> list[tuple[str, str]]:
+    """Split plan.md into (title, body) per top-level `## ` section.
+
+    The preamble before the first `## ` — the `**Field:**` header lines and the
+    `**Phase log:**` block — is dropped, which self-excludes the bookkeeping surface.
+    """
+    sections: list[tuple[str, str]] = []
+    cur_title: str | None = None
+    cur: list[str] = []
+    for line in text.splitlines():
+        m = re.match(r"^## (.+?)\s*$", line)
+        if m:
+            if cur_title is not None:
+                sections.append((cur_title, "\n".join(cur)))
+            cur_title = m.group(1).strip()
+            cur = []
+        elif cur_title is not None:
+            cur.append(line)
+    if cur_title is not None:
+        sections.append((cur_title, "\n".join(cur)))
+    return sections
+
+
+def _plan_content_fingerprint(plan_dir: Path) -> str | None:
+    """sha256 of the normalized content sections (REQ-PORT-040). None if no plan.md.
+
+    Normalization (so cosmetic edits don't flip the hash): per-line right-strip and
+    blank-line removal, each section prefixed by its lowercased title. Excludes the
+    `## Upstream Issues` section and the (structurally dropped) header preamble.
+    """
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.exists():
+        return None
+    parts: list[str] = []
+    for title, body in _plan_content_sections(plan_md.read_text()):
+        if title.strip().lower() in FINGERPRINT_EXCLUDE_SECTIONS:
+            continue
+        parts.append(title.strip().lower())
+        parts.extend(ln.rstrip() for ln in body.splitlines() if ln.strip())
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def _read_plan_fingerprint_field(plan_md_text: str) -> str | None:
+    """Return the stored `**Fingerprint:** <hash>` header field value, if present."""
+    for line in plan_md_text.splitlines():
+        if line.startswith("**Fingerprint:**"):
+            return line.split("**Fingerprint:**", 1)[1].strip() or None
+    return None
+
+
+def _write_fingerprint_field(plan_dir: Path, fingerprint: str) -> str:
+    """Insert/update the `**Fingerprint:** <hash>` header field (clones record_epic).
+
+    Inserted after `**Epic:**` if present, else after `**Status:**`. Being a
+    `**Field:**` line it lands in the header preamble and is therefore self-excluded
+    from the hash. Idempotent. Returns "written" or "updated".
+    """
+    plan_md = plan_dir / "plan.md"
+    lines = plan_md.read_text().splitlines()
+    has_field = any(ln.startswith("**Fingerprint:**") for ln in lines)
+    new_lines: list[str] = []
+    field_done = False
+    for line in lines:
+        if line.startswith("**Fingerprint:**"):
+            new_lines.append(f"**Fingerprint:** {fingerprint}")
+            field_done = True
+            continue
+        new_lines.append(line)
+        if not has_field and not field_done and (
+            line.startswith("**Epic:**") or line.startswith("**Status:**")
+        ):
+            # Prefer anchoring after **Epic:**; if we just wrote **Status:** but an
+            # **Epic:** field exists later, defer to it.
+            if line.startswith("**Status:**") and any(
+                ln.startswith("**Epic:**") for ln in lines
+            ):
+                continue
+            new_lines.append(f"**Fingerprint:** {fingerprint}")
+            field_done = True
+    plan_md.write_text("\n".join(new_lines) + "\n")
+    return "updated" if has_field else "written"
+
+
+def _fingerprint_status(plan_dir: Path) -> dict:
+    """Compare the stored fingerprint to the recomputed content hash.
+
+    stale_approved is True iff a fingerprint is stored AND it no longer matches the
+    current content (REQ-PORT-041). No stored fingerprint → not stale (never approved).
+    """
+    plan_md = plan_dir / "plan.md"
+    text = plan_md.read_text() if plan_md.exists() else ""
+    stored = _read_plan_fingerprint_field(text)
+    current = _plan_content_fingerprint(plan_dir)
+    return {
+        "stored_fingerprint": stored,
+        "current_fingerprint": current,
+        "stale_approved": bool(stored) and stored != current,
+    }
+
+
+@cli.group()
+def fingerprint():
+    """Content-fingerprint re-review gate verbs (#64 / Issue 5.1)."""
+
+
+@fingerprint.command("write")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def fingerprint_write_cmd(plan_dir: str, as_json: bool):
+    """Compute + persist the `**Fingerprint:**` field at APPROVE (REQ-PLAN-034)."""
+    fp = _plan_content_fingerprint(Path(plan_dir))
+    if fp is None:
+        click.echo("ERROR: plan.md not found", err=True)
+        sys.exit(1)
+    action = _write_fingerprint_field(Path(plan_dir), fp)
+    out = {"fingerprint": fp, "action": action}
+    click.echo(json.dumps(out) if as_json else f"fingerprint {action}: {fp}")
+
+
+@fingerprint.command("check")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def fingerprint_check_cmd(plan_dir: str, as_json: bool):
+    """Report stale_approved: stored fingerprint vs recomputed content hash."""
+    result = _fingerprint_status(Path(plan_dir))
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    elif result["stale_approved"]:
+        click.echo("STALE-APPROVED: plan content changed since approval "
+                   "(stored fingerprint != current). Re-review required.")
+    elif result["stored_fingerprint"]:
+        click.echo("fingerprint current (matches approved content)")
+    else:
+        click.echo("no stored fingerprint (not yet approved)")
+
+
+# ---------------------------------------------------------------------------
+# Auto-commit at the plan→execute boundary (#63 / Issue 4.1)
+#
+# A local, scoped commit at the PLAN→EXECUTE handoff so a fresh execute session
+# inherits a committed base and intake artifacts survive a crash/fresh clone. Local
+# only — NEVER pushes (GR-PLAN-003 carve-out). Refuses the default branch fail-closed
+# (REQ-PLAN-065): a detached HEAD or empty current-branch name is a hard refusal.
+# ---------------------------------------------------------------------------
+
+
+def _read_plan_status(plan_md_text: str) -> str | None:
+    for line in plan_md_text.splitlines():
+        if line.startswith("**Status:**"):
+            return line.split("**Status:**", 1)[1].strip() or None
+    return None
+
+
+def _read_plan_objective(plan_md_text: str) -> str | None:
+    m = re.search(r"^# Plan:\s*(.+?)\s*$", plan_md_text, re.MULTILINE)
+    return m.group(1).strip() if m else None
+
+
+def _commit_plan(plan_dir: Path) -> dict:
+    """Local scoped commit of the plan folder + .beads/ (REQ-PLAN-064/065).
+
+    Verdict: {status, ...}. status ∈ {committed, noop, refused, error}.
+    Refuses (fail-closed) on the default branch or a detached HEAD; never pushes.
+    """
+    repo_root = _git_root()
+    cur = _current_branch(repo_root)
+    if cur is None:
+        return {"status": "refused", "reason": "detached-head",
+                "detail": "current branch is empty/detached — fail-closed, never commit."}
+    default = _default_branch(repo_root)
+    on_default = (cur == default) or (default is None and cur in ("main", "master"))
+    if on_default:
+        return {"status": "refused", "reason": "default-branch", "branch": cur,
+                "detail": f"refusing to auto-commit on the default branch '{cur}' "
+                          f"(REQ-PLAN-065). Plan commits land on a plan branch only."}
+
+    plan_md = plan_dir / "plan.md"
+    text = plan_md.read_text() if plan_md.exists() else ""
+    plan_id = _plan_id_from_dir(plan_dir)
+    phase = _read_plan_status(text) or "plan"
+    objective = _read_plan_objective(text) or plan_id
+
+    # Scoped staging — explicit pathspec, NEVER `git add -A` (REQ-PLAN-064).
+    add = _run_git(["add", "--", str(plan_dir), ".beads"], cwd=repo_root)
+    if add.returncode != 0:
+        return {"status": "error", "branch": cur,
+                "detail": f"git add failed: {add.stderr.strip()}"}
+    # Nothing staged → no-op (idempotent re-runs don't create empty commits).
+    if _run_git(["diff", "--cached", "--quiet"], cwd=repo_root).returncode == 0:
+        return {"status": "noop", "branch": cur,
+                "detail": "no staged changes under the plan folder / .beads."}
+
+    message = f"{plan_id}: {phase} — {objective}"
+    commit = _run_git(["commit", "-m", message], cwd=repo_root)
+    if commit.returncode != 0:
+        return {"status": "error", "branch": cur,
+                "detail": f"git commit failed: {commit.stderr.strip()}"}
+    sha = _run_git(["rev-parse", "--short", "HEAD"], cwd=repo_root).stdout.strip()
+    return {"status": "committed", "branch": cur, "commit": sha, "message": message}
+
+
+@cli.command("commit-plan")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def commit_plan_cmd(plan_dir: str, as_json: bool):
+    """Auto-commit the plan locally at the plan→execute boundary (never pushes)."""
+    result = _commit_plan(Path(plan_dir))
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        status = result["status"]
+        if status == "committed":
+            click.echo(f"committed {result['commit']} on {result['branch']}: "
+                       f"{result['message']}")
+        else:
+            click.echo(f"{status}: {result.get('detail', '')}".rstrip(": "))
+    # Exit 3 on refusal so a shell caller can branch; 0 on committed/noop.
+    sys.exit(3 if result["status"] in ("refused", "error") else 0)
+
+
+# ---------------------------------------------------------------------------
 # Worktree lifecycle engine (plan-009 Epic 1 — the extraction seam)
 #
 # A self-contained `worktree {ensure,path,teardown}` --json verb cluster, modeled
@@ -948,6 +1183,10 @@ WORKTREES_GITIGNORE_ANCHOR = "/.worktrees/"
 #   "validate-cmd": "<shell>"    → project integration suite run against the merged tree
 CONFIG_KEY_WORKTREE = "execute.worktree"
 CONFIG_KEY_VALIDATE_CMD = "validate-cmd"
+#   "landing-strategy": "main" | "feature-branch"  → execute base + merge target (Issue 2.1)
+CONFIG_KEY_LANDING_STRATEGY = "landing-strategy"
+LANDING_STRATEGY_DEFAULT = "main"
+LANDING_STRATEGIES = ("main", "feature-branch")
 
 
 def _worktree_opted_out() -> bool:
@@ -975,16 +1214,50 @@ def _resolve_validate_cmd() -> str | None:
     return val if isinstance(val, str) and val.strip() else None
 
 
+def _resolve_landing_strategy() -> str:
+    """The landing strategy from .yf-plan.local.json `landing-strategy` (Issue 2.1).
+
+    `main` (default) → the execute worktree base AND the §6.1 merge target are `main`;
+    plans land by merging to `main`.
+    `feature-branch` → the execute base is the feature `<plan-id>` branch; plans land on
+    that feature branch (preserved by teardown) for later operator integration.
+    Any unset or unrecognized value falls back to `main` (REQ-BRANCH-003).
+    """
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_LANDING_STRATEGY)
+    if isinstance(val, str) and val.strip() in LANDING_STRATEGIES:
+        return val.strip()
+    return LANDING_STRATEGY_DEFAULT
+
+
 def _plan_id_from_dir(plan_dir: Path) -> str:
-    """The plan id == branch name == worktree leaf: the plan_dir basename.
+    """The plan id == worktree leaf: the plan_dir basename.
 
     Holds for both roots (docs/plans/<id> and Incubator/<slug>/plans/<id>).
     """
     return plan_dir.name
 
 
+# Named per-phase branches (REQ-BRANCH-001). The single bare `<plan-id>` of the prior
+# model is replaced: planning cuts `<plan-id>-development`, the landed plan is feature
+# `<plan-id>` (feature-branch strategy only), execution cuts `<plan-id>-execute`.
+def _development_branch(plan_id: str) -> str:
+    return f"{plan_id}-development"
+
+
+def _feature_branch(plan_id: str) -> str:
+    return plan_id
+
+
+def _execute_branch(plan_id: str) -> str:
+    return f"{plan_id}-execute"
+
+
 def _worktree_path(plan_dir: Path) -> Path:
-    """Repo-relative worktree path `.worktrees/<plan-id>` (INV-1)."""
+    """Repo-relative execute worktree path `.worktrees/<plan-id>` (INV-1).
+
+    The path stays keyed on the plan id; only the *branch* is `<plan-id>-execute`.
+    """
     return WORKTREES_DIR / _plan_id_from_dir(plan_dir)
 
 
@@ -1014,6 +1287,54 @@ def _branch_exists(branch: str, repo_root: Path) -> bool:
     r = _run_git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
                  cwd=repo_root)
     return r.returncode == 0
+
+
+def _current_branch(repo_root: Path | None = None) -> str | None:
+    """The current branch name, or None on a detached HEAD (empty name)."""
+    r = _run_git(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd=repo_root)
+    name = r.stdout.strip()
+    return name if (r.returncode == 0 and name) else None
+
+
+def _default_branch(repo_root: Path | None = None) -> str | None:
+    """Resolve the repo's default branch (REQ-PLAN-065 / REQ-BRANCH-002 order).
+
+    `git symbolic-ref --short refs/remotes/origin/HEAD` (strip the `origin/`)
+      → `git config init.defaultBranch`
+      → `main` if it exists, else `master` if it exists
+      → None (indeterminate — callers fail-closed).
+    """
+    r = _run_git(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], cwd=repo_root)
+    if r.returncode == 0 and r.stdout.strip():
+        ref = r.stdout.strip()
+        return ref.split("/", 1)[1] if "/" in ref else ref
+    r = _run_git(["config", "init.defaultBranch"], cwd=repo_root)
+    if r.returncode == 0 and r.stdout.strip():
+        return r.stdout.strip()
+    for cand in ("main", "master"):
+        if _branch_exists(cand, repo_root):
+            return cand
+    return None
+
+
+def _resolve_execute_base(plan_id: str, repo_root: Path) -> tuple[str | None, str]:
+    """The pinned base branch the execute worktree is cut from (REQ-BRANCH-002/003).
+
+    Returns (base_branch | None, detail). `main` strategy → the repo default branch;
+    `feature-branch` strategy → the feature `<plan-id>` branch. A `None` base means it
+    could not be resolved (missing branch / indeterminate default) — the caller returns
+    a fallback verdict rather than cutting from ambient HEAD.
+    """
+    strategy = _resolve_landing_strategy()
+    if strategy == "feature-branch":
+        base = _feature_branch(plan_id)
+    else:
+        base = _default_branch(repo_root)
+    if not base:
+        return None, f"could not resolve a pinned base for the '{strategy}' strategy"
+    if not _branch_exists(base, repo_root):
+        return None, f"pinned base '{base}' ({strategy} strategy) does not exist"
+    return base, f"pinned to {base} ({strategy} strategy)"
 
 
 def _worktree_dirty(wt_abs: Path) -> tuple[bool, list[str]]:
@@ -1084,7 +1405,7 @@ def _worktree_ensure(plan_dir: Path) -> dict:
         return fallback
 
     plan_id = _plan_id_from_dir(plan_dir)
-    branch = plan_id
+    branch = _execute_branch(plan_id)
     wt_rel = _worktree_path(plan_dir)
     wt_abs = (repo_root / wt_rel).resolve()
 
@@ -1092,6 +1413,7 @@ def _worktree_ensure(plan_dir: Path) -> dict:
 
     registered = _registered_worktree_paths(repo_root)
     created_this_call = False
+    base: str | None = None
     if wt_abs in registered:
         action = "reattached-worktree"
     elif wt_abs.exists():
@@ -1105,6 +1427,8 @@ def _worktree_ensure(plan_dir: Path) -> dict:
                       f"resolve manually (git worktree prune / remove the path).",
         }
     elif _branch_exists(branch, repo_root):
+        # The execute branch already exists (a prior session) — re-attach it as-is; its
+        # base was pinned when it was first created.
         r = _run_git(["worktree", "add", str(wt_abs), branch], cwd=repo_root)
         if r.returncode != 0:
             return {"viable": False, "reason": "dirty-locked",
@@ -1112,7 +1436,12 @@ def _worktree_ensure(plan_dir: Path) -> dict:
         action = "reattached-branch"
         created_this_call = True
     else:
-        r = _run_git(["worktree", "add", str(wt_abs), "-b", branch], cwd=repo_root)
+        # Fresh execute branch: pin it to a KNOWN base per landing strategy, never
+        # ambient HEAD (REQ-BRANCH-002 — the #47 root-cause fix).
+        base, base_detail = _resolve_execute_base(plan_id, repo_root)
+        if base is None:
+            return {"viable": False, "reason": "base-unresolved", "detail": base_detail}
+        r = _run_git(["worktree", "add", str(wt_abs), "-b", branch, base], cwd=repo_root)
         if r.returncode != 0:
             return {"viable": False, "reason": "dirty-locked",
                     "detail": r.stderr.strip()}
@@ -1144,6 +1473,7 @@ def _worktree_ensure(plan_dir: Path) -> dict:
         "action": action,
         "path": str(wt_rel),
         "branch": branch,
+        "base": base,  # the pinned start-point (None on re-attach — base set at creation)
         "dirty": dirty,
         "dirty_files": dirty_files,
         "gitignore_updated": gitignore_updated,
@@ -1151,15 +1481,20 @@ def _worktree_ensure(plan_dir: Path) -> dict:
 
 
 def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
-    """Remove the worktree + delete the branch if merged + prune (Issue 1.1).
+    """Remove the worktree + delete the merged EXECUTE branch + prune (Issue 1.1/2.3).
 
     `git worktree remove` refuses on a dirty tree unless force=True (INV-1: never
     --force without confirmation). `git branch -d` refuses an unmerged branch (a
-    feature — only a merged-back plan branch is deleted); force escalates to -D.
+    feature — only a merged-back execute branch is deleted); force escalates to -D.
+
+    Per-strategy (REQ-BRANCH-004): teardown only ever targets `<plan-id>-execute`.
+    Under the `feature-branch` strategy the feature `<plan-id>` branch is therefore
+    **preserved** (never referenced here); under `main` the execute branch is deleted
+    after its merge to the default branch. Teardown never deletes a feature branch.
     """
     repo_root = _git_root()
     plan_id = _plan_id_from_dir(plan_dir)
-    branch = plan_id
+    branch = _execute_branch(plan_id)
     wt_rel = _worktree_path(plan_dir)
     wt_abs = (repo_root / wt_rel).resolve()
 
@@ -1213,8 +1548,9 @@ def worktree_path_cmd(plan_dir: str, as_json: bool):
     """Print the repo-relative worktree path for a plan (pure computation)."""
     wt_rel = _worktree_path(Path(plan_dir))
     plan_id = _plan_id_from_dir(Path(plan_dir))
+    branch = _execute_branch(plan_id)
     if as_json:
-        click.echo(json.dumps({"path": str(wt_rel), "branch": plan_id}))
+        click.echo(json.dumps({"path": str(wt_rel), "branch": branch}))
     else:
         click.echo(str(wt_rel))
 
@@ -1676,6 +2012,9 @@ def _resume_scan(plan_dir: Path) -> dict:
         "epic_id": epic_id,
         "epic_source": epic_source,
         "found": epic_id is not None,
+        # Content-fingerprint re-review gate (REQ-PORT-041): a hard gate the SKILL
+        # §5.2 execute path checks — a stale-approved plan must re-review before pouring.
+        **_fingerprint_status(plan_dir),
     }
     if not epic_id:
         return result
@@ -1735,6 +2074,9 @@ def resume_scan(plan_dir: str, as_json: bool):
         click.echo(f"No epic found for {plan_dir} (plan.md **Epic:** field absent "
                    f"and no bead metadata.plan_dir match). Treat as a fresh run.")
         return
+    if result.get("stale_approved"):
+        click.echo("  ⚠ STALE-APPROVED: plan content changed since approval — "
+                   "re-review required before execute.")
     click.echo(f"Epic {result['epic_id']} (source: {result['epic_source']})")
     click.echo(f"  descendants: {result['total']}  "
                f"counts: {result['counts']}")
