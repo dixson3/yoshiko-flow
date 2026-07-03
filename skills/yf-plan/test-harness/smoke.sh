@@ -39,6 +39,7 @@ set -euo pipefail
 HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRATCH_DIR="${HARNESS_DIR}/.scratch"       # harness-local bookkeeping (gitignore'd)
 ENV_FILE="${SCRATCH_DIR}/sandbox.env"
+REAL_HOME="${HOME}"                         # operator's real HOME (captured before sandboxing)
 
 # ------------------------------------------------------------------ setup ------
 cmd_setup() {
@@ -71,11 +72,23 @@ cmd_setup() {
     echo ">> WARNING: bd not on PATH — initialize beads before the /yf-plan walk." >&2
   fi
 
-  # 4. Persist the sandbox facts for `verify`.
+  # 4. Optional: make an interactive /yf-plan walk in the sandbox painless.
+  #    Auth on macOS lives in the login Keychain (per-USER, not per-HOME), so a
+  #    sandbox HOME already shares it — no token to copy, no re-login. We only link
+  #    the real ~/.claude.json config so `claude` in the sandbox isn't treated as a
+  #    first run. We deliberately do NOT link the whole ~/.claude (that would shadow
+  #    the MODIFIED skill with the operator's installed copy). Best-effort.
+  if [ -f "${REAL_HOME}/.claude.json" ] && [ ! -e "${YF_SANDBOX_HOME}/.claude.json" ]; then
+    ln -s "${REAL_HOME}/.claude.json" "${YF_SANDBOX_HOME}/.claude.json" 2>/dev/null \
+      && echo ">> linked ${REAL_HOME}/.claude.json into the sandbox (Keychain auth is shared)" || true
+  fi
+
+  # 5. Persist the sandbox facts for `drive` / `verify`.
   {
     echo "YF_SANDBOX_HOME=${YF_SANDBOX_HOME}"
     echo "YF_SANDBOX_BIN=${YF_SANDBOX_BIN}"
     echo "YF_SANDBOX_SKILL=${YF_SANDBOX_SKILL}"
+    echo "REPO_ROOT=${REPO_ROOT}"
     echo "SMOKE_PROJECT=${project}"
   } > "${ENV_FILE}"
 
@@ -247,11 +260,106 @@ cmd_verify() {
   fi
 }
 
+# ------------------------------------------------------------------ drive ------
+# Mechanically drive the NEW lifecycle over the sandbox project using the MODIFIED
+# skill's plan_manager.py verbs — the deterministic, non-interactive equivalent of
+# the operator's /yf-plan walk. Feature-branch strategy: planning on
+# <id>-development, land on feature <id>, execute cuts <id>-execute from the pinned
+# feature base. This exercises exactly the topology the capability gate checks.
+_env_get() { [ -f "${ENV_FILE}" ] && ( . "${ENV_FILE}"; eval "echo \${$1:-}" ); }
+
+cmd_drive() {
+  local project="${1:-$(_env_get SMOKE_PROJECT)}"
+  local skill; skill="$(_env_get YF_SANDBOX_SKILL)"
+  [ -d "${project}/.git" ] || { echo "ERROR: no sandbox project — run 'setup' first" >&2; exit 1; }
+  [ -d "${skill}/scripts" ] || { echo "ERROR: sandbox skill missing (${skill})" >&2; exit 1; }
+
+  local PM=(env -u VIRTUAL_ENV uv run "${skill}/scripts/plan_manager.py")
+  local jget=(env -u VIRTUAL_ENV uv run "${skill}/scripts/plan_manager.py" json-get)
+
+  pushd "${project}" >/dev/null
+  echo '{"landing-strategy":"feature-branch"}' > .yf-plan.local.json
+
+  echo ">> [drive] init plan"
+  local pj plan_dir plan_id
+  pj="$("${PM[@]}" init "smoke: trivial no-op plan")"
+  plan_dir="$(printf '%s' "${pj}" | "${jget[@]}" plan_dir)"
+  plan_id="$(printf '%s' "${pj}" | "${jget[@]}" plan_id)"
+  echo "   plan_id=${plan_id}"
+
+  echo ">> [drive] planning branch ${plan_id}-development"
+  git checkout -q -b "${plan_id}-development"
+
+  echo ">> [drive] approve -> fingerprint -> auto-commit"
+  "${PM[@]}" update-status "${plan_dir}" approved -m "smoke approve" >/dev/null
+  "${PM[@]}" fingerprint write "${plan_dir}" --json >/dev/null
+  "${PM[@]}" commit-plan "${plan_dir}" --json
+
+  echo ">> [drive] land on feature ${plan_id} (feature-branch strategy)"
+  git branch "${plan_id}"          # feature branch at the planning tip = the landing
+  git checkout -q "${plan_id}"     # primary on feature: the plan folder is present here
+
+  echo ">> [drive] execute: worktree ensure (cut ${plan_id}-execute from pinned feature base)"
+  local wt viable
+  wt="$("${PM[@]}" worktree ensure "${plan_dir}" --json)"
+  printf '%s\n' "${wt}"
+  viable="$(printf '%s' "${wt}" | "${jget[@]}" viable)"
+  case "${viable}" in
+    True|true) echo ">> [drive] worktree viable; execute branch created." ;;
+    *) echo ">> [drive] WARNING: worktree not viable (reason: $(printf '%s' "${wt}" | "${jget[@]}" reason))." >&2
+       echo ">> [drive] The execute-branch topology check will fail — inspect the reason above." >&2 ;;
+  esac
+  popd >/dev/null
+  echo ">> [drive] done"
+}
+
+# ------------------------------------------------------------------- gate ------
+# One-shot: setup -> drive -> verify -> Tier-1, with a single combined verdict.
+cmd_gate() {
+  local scratch_home="${1:-}"
+  echo "==================== [1/4] SETUP (build + sandbox install) ===================="
+  cmd_setup "${scratch_home}"
+  local project repo_root
+  project="$(_env_get SMOKE_PROJECT)"
+  repo_root="$(_env_get REPO_ROOT)"
+
+  echo ""
+  echo "==================== [2/4] DRIVE (mechanical lifecycle) ======================="
+  cmd_drive "${project}"
+
+  echo ""
+  echo "==================== [3/4] VERIFY (topology assertions) ======================="
+  local verify_rc=0
+  cmd_verify "${project}" || verify_rc=$?
+
+  echo ""
+  echo "==================== [4/4] TIER-1 (test_worktree.py, repo tree) ==============="
+  local t1_rc=0
+  ( cd "${repo_root}" && env -u VIRTUAL_ENV uv run skills/yf-plan/scripts/test_worktree.py ) || t1_rc=$?
+
+  echo ""
+  echo "======================================= VERDICT ==============================="
+  echo "  Tier-2 scratch smoke (topology): $([ "${verify_rc}" -eq 0 ] && echo PASS || echo FAIL)"
+  echo "  Tier-1 test_worktree.py:         $([ "${t1_rc}" -eq 0 ] && echo PASS || echo FAIL)"
+  echo "  topology artifact:               ${HARNESS_DIR}/topology.txt"
+  if [ "${verify_rc}" -eq 0 ] && [ "${t1_rc}" -eq 0 ]; then
+    echo ""
+    echo "  ✅ CAPABILITY GATE SATISFIED. Resolve it with:"
+    echo "       bd gate resolve yf-mol-al2.10"
+    return 0
+  fi
+  echo ""
+  echo "  ❌ One or more checks failed — do NOT resolve the gate. See output above." >&2
+  return 1
+}
+
 # ------------------------------------------------------------------- main ------
-case "${1:-all}" in
-  setup)  shift; cmd_setup "${1:-}" ;;
+case "${1:-gate}" in
+  setup)  shift; cmd_setup  "${1:-}" ;;
+  drive)  shift; cmd_drive  "${1:-}" ;;
   verify) shift; cmd_verify "${1:-}" ;;
+  gate)   shift; cmd_gate   "${1:-}" ;;
   all)    shift; cmd_setup "${1:-}"
           echo ">> 'all' completed setup only; run 'smoke.sh verify' after the walk." ;;
-  *)      echo "usage: smoke.sh {setup|verify|all} [arg]" >&2; exit 2 ;;
+  *)      echo "usage: smoke.sh {gate|setup|drive|verify|all} [arg]" >&2; exit 2 ;;
 esac
