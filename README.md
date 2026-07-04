@@ -10,7 +10,7 @@ and install into either the `.claude` or `.agents` surface, at user or project s
 ## Prerequisites
 
 `yf` is a single self-contained binary. **Installing it does not pull in `bd` or `uv`** —
-neither the `curl | sh` installer nor the Homebrew formula declares them as dependencies, so
+the Homebrew formula does not declare them as dependencies, so
 install those separately. `git` is assumed already present. The toolchain `yf` and the skills
 rely on:
 
@@ -28,7 +28,21 @@ Optional (detected at runtime):
 
 ## Install
 
-**Recommended: the `curl | sh` vendor installer.** Downloads a prebuilt `yf` to `~/.local/bin`,
+**Recommended: the Homebrew tap.** Installs a working `yf` from the tap; upgrade with
+`brew upgrade`:
+
+```bash
+brew install dixson3/tap/yf
+```
+
+This does not install `bd` / `uv` — see [Prerequisites](#prerequisites).
+
+<!--
+Vendor installer (`curl | sh`) — temporarily suppressed until the dedicated yoshiko-flow
+domain is stood up to host the install script. Re-enable this section (and the "vendor"
+self-update guidance below) once the domain-hosted installer is live.
+
+**The `curl | sh` vendor installer.** Downloads a prebuilt `yf` to `~/.local/bin`,
 adds that dir to `PATH`, and writes an install receipt under `~/.config/yf` — the uv-style
 self-contained model:
 
@@ -47,17 +61,10 @@ yf self uninstall         # remove the binary + yf-owned dirs (installed skills 
 ```
 
 `yf version` / `yf doctor` print a throttled, vendor-only nudge when a newer release exists
-(silence it with `YF_NO_UPDATE_CHECK=1`).
+(silence it with `YF_NO_UPDATE_CHECK=1`). `yf self update` deliberately **refuses** on a
+Homebrew (Cellar) copy and points you back to `brew upgrade`.
+-->
 
-**Alternative: Homebrew (secondary).** The tap still ships a working `yf`. Direct brew users
-upgrade with `brew upgrade` — `yf self update` deliberately **refuses** on a Homebrew (Cellar)
-copy and points you back to brew:
-
-```bash
-brew install dixson3/tap/yf
-```
-
-Neither path installs `bd` / `uv` — see [Prerequisites](#prerequisites).
 
 **Developing on this repo?** Promote your local build to `~/.local/bin` instead of a release:
 
