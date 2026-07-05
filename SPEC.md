@@ -39,6 +39,21 @@
 >   default-branch fail-closed guard and a `GR-PLAN-003` carve-out (added `REQ-PLAN-064/065`).
 >   Content-fingerprint-bound approval / stale-approved re-review gate (added `REQ-PORT-040/041`,
 >   mirror `REQ-PLAN-034`).
+> - **plan-023 (2026-07-05, #58/#67/#66/#57):** beads infra / local-only hardening. Added
+>   `REQ-YF-PRE-010` (canonical **minimal-local beads profile** — per-repo local-server +
+>   worktree-shared + local-only/no-remote — with read-only drift detection folded into
+>   `detect_canonicalization_drift`, split into **correctable** local-only/no-remote vs
+>   **detect/warn-only** engine-mode; embedded engine-mode is surfaced-with-guidance, never
+>   auto-migrated) and the paired `REQ-BINIT-025` (repair corrects only the safe axes). Revised
+>   `REQ-YF-PRE-004` and `REQ-YF-MIGRATE-001` for the `.yf/<short>/config.local.json` config
+>   namespace (co-located with the `.yf/<short>/` state dir; resolution precedence subdir → flat
+>   `.yf/<short>.local.json` → legacy root dotfile) and the **short-name standardization** — one
+>   centralized `resolve_skill` shared by preflight and `migrate`, fixing the full-name
+>   `.yf/yf-plan/` vs short-name `.yf/plan/` state-dir disagreement — and collapsed the top-level
+>   gitignore anchors to one `/.yf/`. Revised `REQ-BINIT-023` to add `interactions.jsonl` to the
+>   `.beads/.gitignore` top-up set (untracked **and** ignored, no `?? .beads/interactions.jsonl`
+>   resurface). Reworded the `UPSTREAM_TRACKING.md` close-time Safety invariant to be
+>   routing-primary (invoke `/yf-beads-upstream`), no longer a standalone hand-CLI recipe (#57).
 > - **plan-020 (2026-07-02, #56):** mode-aware wedged-migration repair — revised `REQ-YF-PRE-007`
 >   and `REQ-BINIT-011` to a **mode-aware** working-set flush (server `bd dolt stop` unchanged;
 >   embedded storage uses a data-preserving raw-`dolt add -A && dolt commit` in the derived
@@ -190,9 +205,24 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   `previous_versions[].sha256` still yields `update_available`, a `deprecated:true` entry yields
   `deprecated`, and an unknown `schema_version` yields `manifest_schema_unknown`. This per-rule axis is
   **distinct** from the §3.4 whole-tree marker.
-- **REQ-YF-PRE-004** *(testable)* the kernel shall read per-skill config `.yf-<skill>.local.json`
-  (including `ignore-skill`) and maintain runtime state under `.yf/<skill>/`.
-- **REQ-YF-PRE-005** *(testable)* the kernel shall scaffold gitignore anchors (`/.yf/`) idempotently.
+- **REQ-YF-PRE-004** *(testable, revised #67)* the kernel shall read per-skill config (including
+  `ignore-skill`) and maintain runtime state under the **short-name** `.yf/<short>/` namespace.
+  The **canonical** config location is `.yf/<short>/config.local.json` — co-located with the
+  `.yf/<short>/` state dir. `read_config` shall resolve in precedence order, first match wins:
+  1. the canonical subdir `.yf/<short>/config.local.json`;
+  2. the transitional flat `.yf/<short>.local.json` (back-compat read only — slated for removal
+     once migration is ubiquitous);
+  3. the legacy root dotfile named by the skill's `config_basename` descriptor field
+     (e.g. `.yf-plan.local.json`).
+
+  The **short name** is resolved by a single centralized `resolve_skill` (skill-arg → `(dir,
+  short)`); `migrate` shall consume the **same** resolver so the state dir it writes and the state
+  dir preflight reads agree (fixing the historical full-name `.yf/yf-plan/` vs short-name
+  `.yf/plan/` disagreement). The state short-name and the config **basename** are distinct axes:
+  standardizing the state short-name shall **not** misroute config resolution.
+- **REQ-YF-PRE-005** *(testable)* the kernel shall scaffold a single top-level gitignore anchor
+  (`/.yf/`) idempotently — one anchor covers both config (`.yf/<short>/config.local.json`) and
+  state (`.yf/<short>/preflight.json`); no per-skill top-level dotfile anchors.
 - **REQ-YF-PRE-006** *(testable)* beads-init **verify** shall classify a repo by parsing
   `bd status --json` for an `error` **key** (not exit code), distinguishing `not_initialized` from a
   wedged-but-initialized `corrupted` repo.
@@ -225,6 +255,33 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   mutation beyond the gitignore scaffold. The offer names `yf self update` (noting it also refreshes
   skill definitions/rules) and that the operator likely needs `/reload-skills` afterward. Verified by
   a test tagged `REQ-YF-PRE-009`.
+- **REQ-YF-PRE-010** *(testable, #58)* the kernel shall assert a canonical **minimal-local beads
+  profile** and **detect** drift from it **read-only** (no silent mutation), folded into
+  `detect_canonicalization_drift`. The profile is three invariants:
+  1. **per-repo local-server engine mode** — `bd` runs a Dolt server for this repo
+     (`.beads/dolt-server.{pid,port}` present, or `dolt_mode: "server"` in `.beads/metadata.json`).
+     Server-files-present ⇒ conformant. This is the **only read-only-observable** engine-mode
+     signal — there is no `--shared-server`/host-port config, so "per-repo vs a hypothetical
+     shared server" has **no observable** and is **not** an asserted axis.
+  2. **worktree-shared** — automatic: `bd` resolves the canonical `.beads/` via git-common-dir, so
+     every worktree reaches the one per-repo server. Not a separately-detected axis (it follows
+     from invariant 1).
+  3. **local-only / no-remote** — `dolt.local-only true`, zero `dolt_remotes` rows, no
+     `sync.remote` (the plan-022 machinery: `has_local_only_remote`).
+
+  The profile splits into two axis classes:
+  - **Correctable** (invariant 3): missing `dolt.local-only` or a stray Dolt remote — surfaced as a
+    canonicalization-drift string that **offers** `yf doctor --repair` (already the existing gap-3
+    offer); `doctor --repair` corrects these via `REQ-BINIT-025` / the plan-022 machinery.
+  - **Detect/warn-only** (invariant 1): an **embedded** store (`dolt_mode: "embedded"` / no
+    `dolt-server.*`) is drift the kernel **warns** about with guidance, but **never auto-migrates**
+    — engine-mode migration (server↔embedded) is **out of scope** (invasive, unproven). The warn
+    names no `--repair` action (there is no safe correction to offer).
+
+  This repo (local-server) is conformant, not drift. Verified by tests tagged `REQ-YF-PRE-010`:
+  missing-local-only / stray-remote → detect + offer-repair; embedded → detect/warn (no mutation,
+  no repair offer); local-server → conformant (no drift). No shared-server fixture (no observable)
+  and no engine-migration fixture (out of scope).
 
 ### 3.6 Doctor (`REQ-YF-DOCTOR`)
 
@@ -330,8 +387,20 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
 
 ### 3.9 Legacy migration (`REQ-YF-MIGRATE`)
 
-- **REQ-YF-MIGRATE-001** *(testable)* `yf` shall idempotently migrate legacy `.state/<old>/` and
-  `.<old>.local.json` to `.yf/<new>/` and `.<new>.local.json`.
+- **REQ-YF-MIGRATE-001** *(testable, revised #67)* `yf` shall idempotently migrate legacy per-skill
+  state and config into the canonical `.yf/<short>/` namespace:
+  - **state**: `.state/<old>/` → `.yf/<short>/` (short name, matching what preflight reads — not
+    the full `.yf/<skill>/` the pre-#67 migrator wrote);
+  - **config**: both the legacy root dotfile `.<old>.local.json` **and** the transitional flat
+    `.yf/<short>.local.json` → `.yf/<short>/config.local.json`.
+
+  Migration is idempotent and **never-clobber** (an existing dest is left untouched, source
+  reported `skipped`), safe to re-run, and preserves values. `migrate` shall use the centralized
+  `resolve_skill` (REQ-YF-PRE-004) for the short name so its dest matches preflight's read path.
+  Migration shall also collapse legacy top-level per-skill gitignore anchors to the single `/.yf/`
+  anchor (REQ-YF-PRE-005). The flat `.yf/<short>.local.json` tier is **transitional** — a
+  back-compat read + migration source only, slated for removal once migration is ubiquitous (a
+  follow-up cleanup, filed at land-the-plane).
 
 ## 4. Skill catalog (per-skill specs)
 

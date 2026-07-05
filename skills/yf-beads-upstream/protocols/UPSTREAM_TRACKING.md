@@ -35,9 +35,19 @@ un-persisted decline would re-fire). Procedure: `yf-beads-upstream` SKILL.md ini
 
 ## Safety invariant
 
-Never run a bare `bd <backend> sync` — it re-imports every upstream issue as a duplicate bead
-and pushes the whole local DB upstream. Always `--push-only` (Jira: `--push`) + scoped
-`--issues <ids>` / `--parent <id>`, and `--dry-run` first. Auth is inline-only
-(`TOKEN=$(...) bd <backend> …`), never written to config.
+**Route every upstream push through `/yf-beads-upstream` — do not hand-run `bd <backend>` push
+commands.** The skill performs the scoped, dry-run-first, inline-auth push correctly; typing the
+`bd` commands by hand bypasses that routing and is **not** the compliant path (a raw
+`bd <backend> push --dry-run` looks safe but skips the skill's enumeration, mapping, and
+follow-on handling).
 
-For config, backends, and failure handling, see the `yf-beads-upstream` SKILL.
+The constraints below are what the skill's push **guarantees** — they describe why the routing
+exists, not a recipe to reproduce by hand:
+
+- **never a bare `bd <backend> sync`** — a bare sync re-imports every upstream issue as a
+  duplicate bead and pushes the whole local DB; the skill only ever pushes **scoped**
+  (`--issues <ids>` / `--parent <id>`), **`--push-only`** (Jira: `--push`), **`--dry-run` first**;
+- **auth is inline-only** (`TOKEN=$(...) bd <backend> …`), never written to config.
+
+If `/yf-beads-upstream` is unavailable, stop and report — do not substitute a hand-run push. For
+config, backends, and failure handling, see the `yf-beads-upstream` SKILL.

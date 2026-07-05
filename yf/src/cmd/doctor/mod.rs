@@ -128,6 +128,18 @@ fn run_repair(args: &DoctorArgs) -> Result<()> {
         args.remove_remote,
     )?;
 
+    // REQ-YF-PRE-010 / REQ-BINIT-025 (#58): repair corrects only the SAFE profile
+    // axes (local-only / no-remote). An embedded engine mode is DETECT/WARN-ONLY —
+    // reported here, NEVER migrated. Emitted to stderr so `--json` stdout stays a
+    // clean flat RepairResult for programmatic consumers.
+    if crate::beads_init::has_embedded_engine_drift(&repo) {
+        eprintln!(
+            "profile (warn-only): beads uses embedded Dolt storage; the canonical minimal-local \
+             profile is a per-repo local-server. Engine-mode migration is out of scope — repair \
+             did NOT convert it. Re-initialize in server mode only if you deliberately want to switch."
+        );
+    }
+
     if args.json {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {

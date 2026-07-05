@@ -106,9 +106,9 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
      `bd hooks install --force` step was removed (#31) — it contradicted cruft suppression
      and re-dirtied a clean repo. Repair only ever *removes* hooks (next bullet).
    - **Gitignore drift:** `bd doctor --fix`, then top up any patterns it misses (the engine
-     adds them): `.beads/.gitignore` ← `.env, export-state.json, embeddeddolt/, proxieddb/,
-     dolt-server.activity, daemon.*, *.lock, *.corrupt.backup/, .beads-credential-key,
-     proxied_server_client_info.json`; project `.gitignore` ← `.beads-credential-key,
+     adds them): `.beads/.gitignore` ← `.env, export-state.json, interactions.jsonl,
+     embeddeddolt/, proxieddb/, dolt-server.activity, daemon.*, *.lock, *.corrupt.backup/,
+     .beads-credential-key, proxied_server_client_info.json`; project `.gitignore` ← `.beads-credential-key,
      .beads/proxieddb/`.
    - **Portable record:** `bd export -o .beads/issues.jsonl` (ensure it is **not** gitignored).
    - **Cruft cleanup (#31, idempotent — no-op on a clean repo):** `bd hooks uninstall` +

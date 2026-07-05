@@ -45,8 +45,9 @@ const MANIFEST_SCHEMA: i64 = 1;
 /// (re-)ensured once per version, gated by runtime state.
 const SCAFFOLD_VERSION: i64 = 1;
 
-/// The single gitignore anchor under the new `.yf/` tree (REQ-YF-PRE-005). The
-/// per-skill `config-basename` anchor is added alongside it (legacy parity).
+/// The single gitignore anchor under the `.yf/` tree (REQ-YF-PRE-005, revised
+/// #67). One anchor covers both config (`.yf/<short>/config.local.json`) and state
+/// (`.yf/<short>/preflight.json`); no per-skill top-level dotfile anchor is added.
 const YF_ANCHOR: &str = "/.yf/";
 
 /// State key stamping the generating `yf` version onto `preflight.json`
@@ -218,7 +219,13 @@ impl Env {
 /// `.yf/<skill>/` paths use the short names `plan` / `research`. We accept
 /// either form (and the legacy `bdplan`/`bdresearch` for back-compat). `short`
 /// drives config/state paths; `dir` selects the embedded SKILL.md + manifest.
-fn resolve_skill(arg: &str) -> (String, String) {
+/// Centralized skill-name resolver (REQ-YF-PRE-004): skill-arg → `(dir, short)`.
+/// The **single source of truth** for the short name, shared by the preflight
+/// config/state paths and by `migrate` (which previously duplicated this mapping
+/// in its own `SKILL_MAP`, disagreeing on `.yf/yf-plan/` full-name vs `.yf/plan/`
+/// short-name). `short` is the `.yf/<short>/` namespace key; `dir` is the embedded
+/// skill directory name.
+pub fn resolve_skill(arg: &str) -> (String, String) {
     // Explicit aliases for the two self-renamed skills.
     let (dir, short) = match arg {
         "plan" | "yf-plan" | "bdplan" => ("yf-plan", "plan"),
@@ -231,6 +238,13 @@ fn resolve_skill(arg: &str) -> (String, String) {
         }
     };
     (dir.to_string(), short.to_string())
+}
+
+/// The `.yf/<short>/` namespace key for a skill name — the shared short-name half
+/// of [`resolve_skill`]. Used by `migrate` so its state-dir and config-dir targets
+/// match exactly what preflight reads (fixes the historical full-vs-short drift).
+pub fn skill_short_name(arg: &str) -> String {
+    resolve_skill(arg).1
 }
 
 // ---------------------------------------------------------------------------
@@ -432,11 +446,17 @@ fn read_config(
     short: &str,
     config_basename: Option<&str>,
 ) -> serde_json::Map<String, serde_json::Value> {
-    let new_path = env
-        .repo_root
-        .join(".yf")
-        .join(format!("{short}.local.json"));
-    if let Some(m) = read_json_obj(&new_path) {
+    // REQ-YF-PRE-004 resolution precedence, first match wins:
+    // 1. canonical subdir `.yf/<short>/config.local.json` (co-located with state);
+    // 2. transitional flat `.yf/<short>.local.json` (back-compat read only);
+    // 3. legacy root dotfile named by the skill's `config_basename` descriptor.
+    let yf = env.repo_root.join(".yf");
+    let subdir_path = yf.join(short).join("config.local.json");
+    if let Some(m) = read_json_obj(&subdir_path) {
+        return m;
+    }
+    let flat_path = yf.join(format!("{short}.local.json"));
+    if let Some(m) = read_json_obj(&flat_path) {
         return m;
     }
     if let Some(base) = config_basename {
@@ -721,10 +741,28 @@ fn detect_canonicalization_drift(repo_root: &Path) -> Vec<String> {
     }
 
     // Gap 3: a Dolt remote under local-only — surface the --remove-remote form.
+    // This is a CORRECTABLE profile axis (REQ-YF-PRE-010): the offer names the
+    // `yf doctor --repair` command that fixes it.
     if crate::beads_init::has_local_only_remote(repo_root) {
         out.push(
             "Canonicalization drift: a Dolt remote is configured under local-only — \
              run `yf doctor --repair --local-only --remove-remote` to clear it"
+                .to_string(),
+        );
+    }
+
+    // Profile engine-mode drift (REQ-YF-PRE-010, #58): an EMBEDDED store drifts from
+    // the canonical per-repo local-server profile. This is the DETECT/WARN-ONLY axis
+    // — engine-mode migration (server<->embedded) is out of scope, so the warn names
+    // NO `--repair` action (there is no safe correction to offer); it is guidance
+    // only. A conformant local-server store (server files present / `dolt_mode:
+    // "server"`) produces no warn.
+    if crate::beads_init::has_embedded_engine_drift(repo_root) {
+        out.push(
+            "Profile drift (warn-only): beads uses embedded Dolt storage, but the canonical \
+             minimal-local profile is a per-repo local-server (concurrency-safe across \
+             worktrees). Engine-mode migration is out of scope — `yf doctor --repair` does NOT \
+             convert it; re-initialize in server mode only if you deliberately want to switch."
                 .to_string(),
         );
     }
@@ -940,11 +978,13 @@ fn ensure_scaffold(env: &Env, short: &str, config_basename: Option<&str>) -> Vec
         return added;
     }
 
-    let mut anchors: Vec<String> = vec![];
-    if let Some(base) = config_basename {
-        anchors.push(format!("/{base}"));
-    }
-    anchors.push(YF_ANCHOR.to_string());
+    // REQ-YF-PRE-005 (revised #67): a SINGLE top-level anchor `/.yf/` covers both
+    // config (`.yf/<short>/config.local.json`) and state (`.yf/<short>/preflight.json`).
+    // No per-skill top-level dotfile anchor is scaffolded anymore — the legacy
+    // `config_basename` root dotfile is a back-compat READ path only (migrated into
+    // `.yf/` by `yf migrate`), not a location this scaffold creates or anchors.
+    let _ = config_basename; // retained in the signature; no longer anchored
+    let anchors: Vec<String> = vec![YF_ANCHOR.to_string()];
 
     let gitignore = env.repo_root.join(".gitignore");
     let mut lines: Vec<String> = std::fs::read_to_string(&gitignore)
@@ -1314,8 +1354,9 @@ mod tests {
         std::fs::remove_dir_all(&tmp).ok();
     }
 
-    // REQ-YF-PRE-005: the scaffold writes `/.yf/` (and the config-basename anchor)
-    // to .gitignore on the `ok` path, reported in scaffold_added.
+    // REQ-YF-PRE-005 (revised #67): the scaffold writes the SINGLE `/.yf/` anchor to
+    // .gitignore on the `ok` path (no per-skill config-basename anchor), reported in
+    // scaffold_added.
     #[test]
     fn scaffold_writes_yf_anchor() {
         let tmp = unique_tmp("scaffold");
@@ -1347,7 +1388,15 @@ mod tests {
         );
         let gi = std::fs::read_to_string(repo.join(".gitignore")).unwrap();
         assert!(gi.contains("/.yf/"));
-        assert!(gi.contains("/.yf-plan.local.json"));
+        // Revised #67: NO per-skill top-level dotfile anchor is scaffolded.
+        assert!(
+            !gi.contains("/.yf-plan.local.json"),
+            "no per-skill config-basename anchor should be scaffolded: {gi}"
+        );
+        assert!(
+            added.iter().all(|a| a != "gitignore /.yf-plan.local.json"),
+            "scaffold_added must not record a per-skill anchor: {added:?}"
+        );
         // Second run is idempotent: scaffold already ensured, nothing added.
         let out2 = run_with_env("plan", &env);
         assert_eq!(out2.scaffold_added.unwrap(), Vec::<String>::new());
@@ -1980,5 +2029,93 @@ mod tests {
             out.instructions
         );
         std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-010 (#58): detect_canonicalization_drift emits the DETECT/WARN-ONLY
+    // embedded engine-mode drift string for an embedded store, and stays silent for
+    // a conformant local-server store. The warn names NO `--repair` action (out of
+    // scope) — asserted by checking the string does not steer to `yf doctor --repair`.
+    #[test]
+    fn detect_drift_warns_on_embedded_engine_mode() {
+        let repo = unique_tmp("embedded-drift");
+        let beads = repo.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Embedded store → a warn-only drift string, but NO repair offer for it.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"embedded"}"#).unwrap();
+        let out = detect_canonicalization_drift(&repo);
+        let embedded_warn = out.iter().find(|s| s.contains("embedded Dolt storage"));
+        assert!(
+            embedded_warn.is_some(),
+            "embedded store must produce a warn-only drift string: {out:?}"
+        );
+        assert!(
+            embedded_warn.unwrap().contains("out of scope"),
+            "the embedded warn must state engine-mode migration is out of scope: {out:?}"
+        );
+
+        // Conformant local-server store → no embedded warn.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"server"}"#).unwrap();
+        let out = detect_canonicalization_drift(&repo);
+        assert!(
+            !out.iter().any(|s| s.contains("embedded Dolt storage")),
+            "a conformant local-server store must not warn: {out:?}"
+        );
+
+        std::fs::remove_dir_all(&repo).ok();
+    }
+
+    // REQ-YF-PRE-004 (#67): read_config resolution precedence — canonical subdir
+    // `.yf/<short>/config.local.json` > transitional flat `.yf/<short>.local.json` >
+    // legacy root dotfile. Also proves (pass-1 concern 4) that config resolution is
+    // DECOUPLED from the state short-name: config still resolves for `plan` (short)
+    // after the SKILL_MAP state-dir change.
+    #[test]
+    fn read_config_resolution_precedence() {
+        let repo = unique_tmp("cfg-precedence");
+        let rules = repo.join("rules");
+        let env = test_env(&repo, &rules);
+        let yf = repo.join(".yf");
+        std::fs::create_dir_all(yf.join("plan")).unwrap();
+        let basename = ".yf-plan.local.json";
+
+        // Tier 3 only: legacy root dotfile.
+        std::fs::write(repo.join(basename), r#"{"src":"legacy"}"#).unwrap();
+        assert_eq!(
+            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            "legacy"
+        );
+
+        // Tier 2 wins over tier 3: flat `.yf/<short>.local.json`.
+        std::fs::write(yf.join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
+        assert_eq!(
+            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            "flat"
+        );
+
+        // Tier 1 wins over all: canonical subdir `.yf/<short>/config.local.json`.
+        std::fs::write(
+            yf.join("plan").join("config.local.json"),
+            r#"{"src":"subdir"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            "subdir"
+        );
+
+        std::fs::remove_dir_all(&repo).ok();
+    }
+
+    // REQ-YF-PRE-004 (#67): the centralized resolver — the single source of the
+    // `.yf/<short>/` short name shared by preflight and `migrate`.
+    #[test]
+    fn skill_short_name_is_centralized() {
+        assert_eq!(skill_short_name("yf-plan"), "plan");
+        assert_eq!(skill_short_name("bdplan"), "plan");
+        assert_eq!(skill_short_name("yf-research"), "research");
+        // Generic skills strip the `yf-` prefix.
+        assert_eq!(skill_short_name("yf-beads-init"), "beads-init");
+        assert_eq!(skill_short_name("yf-markdown-lint"), "markdown-lint");
     }
 }

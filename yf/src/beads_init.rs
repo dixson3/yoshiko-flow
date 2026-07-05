@@ -30,6 +30,11 @@ const MIN_BD_VERSION: (u32, u32, u32) = (1, 0, 5);
 const BEADS_GITIGNORE: &[&str] = &[
     ".env",
     "export-state.json",
+    // #66 (REQ-BINIT-023): `interactions.jsonl` is in the BEADS_UNTRACK set, so
+    // repair `git rm --cached`s it — but without a matching `.beads/.gitignore`
+    // entry it immediately resurfaced as `?? .beads/interactions.jsonl` noise.
+    // Ignoring it here gives untrack ⇒ ignore parity (untracked AND ignored).
+    "interactions.jsonl",
     "embeddeddolt/",
     "proxieddb/",
     "dolt-server.activity",
@@ -1007,6 +1012,24 @@ pub fn has_local_only_remote(repo_root: &Path) -> bool {
     bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty())
 }
 
+/// READ-ONLY detection (#58 / REQ-YF-PRE-010, for preflight): whether the repo's
+/// beads store drifts from the canonical **per-repo local-server** engine mode —
+/// i.e. it is an **embedded** store (`dolt_mode: "embedded"` / no `dolt-server.*`).
+/// This is the **detect/warn-only** axis: engine-mode migration is out of scope,
+/// so preflight only surfaces the drift with guidance, never offering a `--repair`.
+///
+/// Returns `false` (conformant / not-applicable) when there is no `.beads/` dir at
+/// all — a non-beads or not-yet-initialized repo is never flagged as engine-mode
+/// drift (that classification is `bd_not_initialized`'s job, upstream of here).
+/// Only an existing `.beads/` that resolves to embedded storage returns `true`.
+pub fn has_embedded_engine_drift(repo_root: &Path) -> bool {
+    let beads_dir = repo_root.join(".beads");
+    if !beads_dir.is_dir() {
+        return false;
+    }
+    is_embedded_mode(&beads_dir)
+}
+
 /// Enumerate configured Dolt-DB-level remote names by running raw `dolt remote`
 /// in the derived Dolt-repo cwd (each remote name on its own line). Read-only.
 /// Empty on any failure (`dolt` absent, no remotes, non-zero exit) — treated as
@@ -1678,6 +1701,34 @@ mod tests {
         assert!(!is_embedded_mode(&beads));
     }
 
+    // REQ-YF-PRE-010 / REQ-BINIT-025 (#58): the profile engine-mode drift probe.
+    // Embedded store → drift (warn-only); local-server store → conformant; absent
+    // `.beads/` → not flagged (never false-positive on a non-beads/uninit repo).
+    #[test]
+    fn has_embedded_engine_drift_classifies_profile() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // No `.beads/` at all → not engine-mode drift (bd_not_initialized's job).
+        assert!(!has_embedded_engine_drift(root));
+
+        let beads = root.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Embedded store (dolt_mode: embedded) → drift.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"embedded"}"#).unwrap();
+        assert!(has_embedded_engine_drift(root), "embedded → drift");
+
+        // Conformant per-repo local-server (dolt_mode: server) → no drift.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"server"}"#).unwrap();
+        assert!(!has_embedded_engine_drift(root), "server → conformant");
+
+        // Keyless metadata + server files present → conformant local-server.
+        std::fs::write(beads.join("metadata.json"), r#"{}"#).unwrap();
+        std::fs::write(beads.join("dolt-server.port"), "3306").unwrap();
+        assert!(!has_embedded_engine_drift(root), "server files → conformant");
+    }
+
     // REQ-BINIT-016 (integration): native-step idempotency + data preservation
     // against a real embedded repo. Dirties the derived Dolt working set, runs
     // the verb, asserts the set is committed (clean) with data preserved, then
@@ -2088,6 +2139,56 @@ mod tests {
         // Idempotent re-run: still a no-op, file still present.
         untrack_runtime(root).unwrap();
         assert!(beads.join("interactions.jsonl").exists());
+    }
+
+    // #66 (REQ-BINIT-023): untrack ⇒ ignore parity. After repair untracks
+    // `.beads/interactions.jsonl` AND writes `.beads/.gitignore` with the
+    // BEADS_GITIGNORE top-up set, the file is both untracked and IGNORED — it must
+    // not resurface as `?? .beads/interactions.jsonl` on the next `git status`.
+    #[test]
+    fn interactions_jsonl_untracked_then_ignored_no_resurface() {
+        // The gitignore top-up set must carry the entry (the crux of #66).
+        assert!(
+            BEADS_GITIGNORE.contains(&"interactions.jsonl"),
+            "BEADS_GITIGNORE must ignore interactions.jsonl (#66)"
+        );
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        if !git_init(root) {
+            return; // no git on host — skip.
+        }
+        let beads = root.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Track, commit, then untrack the bead file (the pre-#66 resurface setup).
+        std::fs::write(beads.join("interactions.jsonl"), "log\n").unwrap();
+        run_in(&["git", "add", "-f", ".beads/interactions.jsonl"], 30, root);
+        git_add_commit(root);
+        untrack_runtime(root).unwrap();
+        assert!(
+            !is_tracked(root, ".beads/interactions.jsonl"),
+            "untracked from index"
+        );
+
+        // Write the .beads/.gitignore top-up — the repair step that #66 fixes.
+        ensure_gitignore(&beads.join(".gitignore"), BEADS_GITIGNORE).unwrap();
+
+        // git now IGNORES the working file → no `?? .beads/interactions.jsonl`.
+        let (rc, out, _e) = run_in(
+            &["git", "check-ignore", ".beads/interactions.jsonl"],
+            30,
+            root,
+        );
+        assert_eq!(rc, 0, "interactions.jsonl must be git-ignored after top-up");
+        assert!(out.contains("interactions.jsonl"));
+
+        // And it does not appear as untracked in porcelain status.
+        let (_rc, status, _e) = run_in(&["git", "status", "--porcelain"], 30, root);
+        assert!(
+            !status.contains("?? .beads/interactions.jsonl"),
+            "interactions.jsonl must not resurface as untracked, got: {status:?}"
+        );
     }
 
     // #39 B.3: shim content-guard — a hook carrying `bd hooks run` is removed; a
