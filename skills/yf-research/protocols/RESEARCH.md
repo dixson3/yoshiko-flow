@@ -32,7 +32,7 @@ resumable.
 ## Task tracking
 
 `bd` (beads) — never `TodoWrite`, markdown checklists, or inline task lists. See the
-`beads` and `yf-beads-extra` skills for CLI patterns. Requires `bd` >= 1.0.5.
+`beads` and `yf-beads-extra` skills for CLI patterns. Requires `bd` >= 1.1.0.
 
 ## Research outputs
 

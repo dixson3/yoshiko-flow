@@ -2,8 +2,8 @@
   "schema_version": 1,
   "files": {
     "RESEARCH.md": {
-      "sha256": "ba0bfbeed77c344eca36e1ceb46fbf4bd6a2f13e8da7219d3f6e62297acd5c36",
-      "version": "1.0.3",
+      "sha256": "b2339c8b64b0e4a9eddf517384079d6723170e8b0d4d59e825755cdb700e4ff2",
+      "version": "1.0.4",
       "deprecated": false,
       "previous_versions": [
         {
@@ -17,6 +17,10 @@
         {
           "sha256": "4d4bcfbcdc967b4d6f64d6f4debb8b5d15cbfef53b24308a397f5da2daeab195",
           "version": "1.0.2"
+        },
+        {
+          "sha256": "ba0bfbeed77c344eca36e1ceb46fbf4bd6a2f13e8da7219d3f6e62297acd5c36",
+          "version": "1.0.3"
         }
       ]
     }

@@ -392,7 +392,7 @@ mod tests {
             .and_then(|f| f.preflight.clone())
             .expect("yf-plan must carry a preflight descriptor");
         assert_eq!(pf.companion_rule.as_deref(), Some("PLANS.md"));
-        assert_eq!(pf.min_bd_version.as_deref(), Some("1.0.5"));
+        assert_eq!(pf.min_bd_version.as_deref(), Some("1.1.0"));
         assert_eq!(pf.config_basename.as_deref(), Some(".yf-plan.local.json"));
     }
 

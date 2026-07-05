@@ -23,7 +23,8 @@ The advanced/gotcha layer for driving the `bd` CLI directly. It layers on top of
 canonical **`beads`** skill (which owns the routine loop); this skill documents only the
 parts that bite when you script `bd` directly.
 
-> **Verified against `bd` 1.0.5 (gastownhall/beads).** Several rules from older beads
+> **Verified against `bd` 1.0.5, re-certified against `bd` 1.1.0 (gastownhall/beads; #68).**
+> The gotchas below are structurally unchanged 1.0.5 → 1.1.0. Several rules from older beads
 > lines (steveyegge/beads ≤ 0.x) no longer hold; where behavior is version-sensitive it
 > is called out inline. Re-verify against your installed `bd version` if it differs.
 
@@ -216,7 +217,10 @@ An empty `DEP_OPS` should be skipped (don't `printf` an empty batch).
 > **Creates still need individual calls** — you must capture each new bead's ID from its
 > `--json` result before you can reference it in `--deps`/`dep add`. Batch the edge
 > wiring, not the ID-producing creates. If a create returns empty, **stop and fix** —
-> silent failures cascade into broken dependency graphs.
+> silent failures cascade into broken dependency graphs. *(The specific 1.0.x cause of a
+> silently-bricked `bd create` — an orphaned `child_counters` row — is **fixed in bd 1.1.0**
+> via a clone-local migration, #68. Keep this defensive check anyway: it is cheap
+> defense-in-depth against any silent-create failure, not only that one retired bug.)*
 
 ### Fallback when `bd batch` is unavailable
 

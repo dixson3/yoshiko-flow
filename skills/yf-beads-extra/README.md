@@ -4,15 +4,15 @@ The advanced/gotcha layer for driving the `bd` (beads) CLI directly at runtime, 
 
 This is a **reference skill** — it documents only the parts of `bd` that bite when you script the CLI directly. The routine `bd ready` / `bd show` / `bd update --claim` / `bd close` loop lives in the canonical `beads` skill; authoring beads-backed skills (formulas, coordinator loops) is covered by `beads-authoring`.
 
-> Verified against `bd` 1.0.5 (gastownhall/beads). Several rules from older beads lines (steveyegge/beads ≤ 0.x) no longer hold; version-sensitive behavior is called out inline in SKILL.md.
+> Verified against `bd` 1.0.5, re-certified against `bd` 1.1.0 (gastownhall/beads; #68) — the gotchas are structurally unchanged 1.0.5 → 1.1.0. Several rules from older beads lines (steveyegge/beads ≤ 0.x) no longer hold; version-sensitive behavior is called out inline in SKILL.md.
 
 ## Prerequisites
 
 | Tool | Version | Install |
 |:-----|:--------|:--------|
-| `bd` | 1.0.5 | https://github.com/gastownhall/beads |
+| `bd` | 1.0.5–1.1.0 | https://github.com/gastownhall/beads |
 
-The gotchas are pinned to 1.0.5 behavior — re-verify against your installed `bd version` if it differs. No `init` step: this skill ships no `protocols/` rule and writes no config or state.
+The gotchas are certified for bd 1.0.5–1.1.0 — re-verify against your installed `bd version` if it is newer. No `init` step: this skill ships no `protocols/` rule and writes no config or state.
 
 ## Install
 
@@ -36,5 +36,5 @@ None. This is an instruction-only reference skill with no phases or state transi
 
 - `SKILL.md` — the gotcha reference: `bd create -t` issue types, gate creation/resolution, additive dependency-edge mutation, the epic-blocking rule, defensive `--json` parsing, `bd batch` bulk intake, and `bd mol pour` output shape.
 - `README.md` — this file.
-- `spec/cli.md` — CLI behavioral contracts verified against bd 1.0.5 (REQ-CLI-*).
+- `spec/cli.md` — CLI behavioral contracts verified against bd 1.0.5, re-certified 1.1.0 (REQ-CLI-*).
 - `spec/json-and-scope.md` — defensive JSON-parsing contract + the corrects-the-plugin / citation boundary (REQ-JSON-*, REQ-DOC-*).

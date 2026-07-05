@@ -344,6 +344,48 @@ def test_enumerate_parity_nonactive_set():
     assert "epic_parked" not in candidates  # dropped as container (and is itself non-active)
 
 
+# --- REQ-BUP-048: owner-on-create enumerate knob (#61) ------------------------
+
+def test_owner_on_create_true():
+    g = fake_config({"custom.upstream.owner_on_create": "true\n"})
+    assert up.owner_on_create(g) is True
+
+
+def test_owner_on_create_false_and_unset_and_other_deny():
+    assert up.owner_on_create(fake_config({"custom.upstream.owner_on_create": "false\n"})) is False
+    assert up.owner_on_create(fake_config({})) is False  # unset → (not set) sentinel
+    assert up.owner_on_create(fake_config({"custom.upstream.owner_on_create": "yes\n"})) is False
+
+
+def test_enumerate_owner_on_create_reincludes_claimed_open():
+    """#61/REQ-BUP-048: with the knob ON, an owner-only 'claim' is a candidate again,
+    while in_progress and ancestor-of-active exclusions are preserved."""
+    beads, edges = make_enumerate_universe()
+    candidates = {r["id"] for r in up.enumerate_candidates(beads, edges, ignore_owner_claim=True)}
+    # The owner-only bead re-enters candidacy (the #61 bug fix)...
+    assert "t_claimed" in candidates
+    assert candidates == {"t_open", "t_blocked", "t_deferred", "t_claimed"}
+    # ...but genuine active work stays excluded (owner is not the only signal):
+    assert "t_ip" not in candidates        # in_progress is status-based, unaffected by owner blanking
+    assert "epic_anc" not in candidates    # still an open ancestor of the in_progress bead
+    assert "t_closed" not in candidates
+
+
+def test_enumerate_owner_on_create_off_is_byte_for_byte_prior():
+    """Knob OFF (default) must reproduce the parity set exactly — no behavior change."""
+    beads, edges = make_enumerate_universe()
+    off = {r["id"] for r in up.enumerate_candidates(beads, edges, ignore_owner_claim=False)}
+    assert off == {"t_open", "t_blocked", "t_deferred"}  # identical to test_enumerate_parity_nonactive_set
+
+
+def test_enumerate_owner_on_create_does_not_mutate_input():
+    """The knob blanks owner on a COPY — the caller's bead universe is untouched
+    (guards the shared-classifier byte-identity invariant at the call boundary)."""
+    beads, edges = make_enumerate_universe()
+    up.enumerate_candidates(beads, edges, ignore_owner_claim=True)
+    assert beads["t_claimed"]["owner"] == "alice"  # original dict unchanged
+
+
 # --- C.3 land-the-plane hoist -------------------------------------------------
 
 def test_land_default_proposes_whole_batch_requires_confirm():

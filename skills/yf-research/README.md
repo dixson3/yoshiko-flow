@@ -10,7 +10,7 @@ Checked at runtime by `scripts/research_manager.py check`:
 
 | Tool | Version | Install |
 |:-----|:--------|:--------|
-| `bd` | >= 1.0.5 | https://github.com/gastownhall/beads |
+| `bd` | >= 1.1.0 | https://github.com/gastownhall/beads |
 | `uv` | any | https://docs.astral.sh/uv/ |
 | `git` | any | system package manager |
 

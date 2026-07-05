@@ -22,7 +22,7 @@ allowed-tools:
   - AskUserQuestion
 preflight:
   companion-rule: PLANS.md
-  min-bd-version: 1.0.5
+  min-bd-version: 1.1.0
   config-basename: .yf-plan.local.json
 ---
 

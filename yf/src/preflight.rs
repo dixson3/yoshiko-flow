@@ -724,7 +724,7 @@ fn detect_canonicalization_drift(repo_root: &Path) -> Vec<String> {
     if crate::beads_init::has_local_only_remote(repo_root) {
         out.push(
             "Canonicalization drift: a Dolt remote is configured under local-only — \
-             run `yf doctor --repair --remove-remote` to clear it"
+             run `yf doctor --repair --local-only --remove-remote` to clear it"
                 .to_string(),
         );
     }
@@ -1216,7 +1216,7 @@ mod tests {
         );
         assert_eq!(
             verdict.version.as_deref(),
-            Some("1.0.3"),
+            Some("1.0.4"),
             "update_available carries the current manifest version"
         );
         std::fs::remove_dir_all(&tmp).ok();
@@ -1236,7 +1236,7 @@ mod tests {
         let env = test_env(&repo, &rules);
         let verdict = check_rule("yf-beads-init", "BEADS_INIT.md", &env);
         assert_eq!(verdict.outcome, "ok");
-        assert_eq!(verdict.version.as_deref(), Some("1.0.3"));
+        assert_eq!(verdict.version.as_deref(), Some("1.0.4"));
         std::fs::remove_dir_all(&tmp).ok();
     }
 

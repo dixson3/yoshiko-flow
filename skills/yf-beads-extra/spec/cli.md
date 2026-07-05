@@ -1,4 +1,4 @@
-# Spec: bd CLI contracts (1.0.5)
+# Spec: bd CLI contracts (1.0.5, re-certified 1.1.0)
 
 The version-sensitive `bd` behaviors this skill asserts. Each is verified against the
 installed binary; re-verify on a `bd version` bump.

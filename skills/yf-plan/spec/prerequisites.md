@@ -10,9 +10,9 @@ REQ-PREREQ-002: `uv` must be available on PATH.
 Rationale: plan_manager.py runs via `uv run` with inline script metadata (PEP 723); no other Python runner is supported.
 Verification: `shutil.which("uv")` in `plan_manager.py check`.
 
-REQ-PREREQ-003: `bd` (beads) must be available on PATH at version >= 1.0.5.
-Rationale: The execution engine depends on beads features (molecules, gates, metadata). The floor is pinned to 1.0.5 — the verified baseline (gastownhall/beads) against which the gate, dependency, and JSON behaviors documented in `beads-extra` were confirmed.
-Verification: `_parse_bd_version()` in `plan_manager.py check` (parses major.minor.patch; `MIN_BD_VERSION = (1, 0, 5)`).
+REQ-PREREQ-003: `bd` (beads) must be available on PATH at version >= 1.1.0.
+Rationale: The execution engine depends on beads features (molecules, gates, metadata). The floor is the **1.1.0** certified baseline (gastownhall/beads; #68) — the shipped Homebrew line — against which the gate, dependency, and JSON behaviors documented in `beads-extra` were re-confirmed (1.0.5 → 1.1.0 is structurally unchanged). The floor is **documentary**: no runtime bd-version parse or hard block exists (`plan_manager.py` has no `MIN_BD_VERSION`/`_parse_bd_version()` — a prior refactor removed them), so older-bd operators are advised, not blocked.
+Verification: bd presence is checked by the `yf` preflight kernel (`yf preflight yf-plan --json`); `plan_manager.py` probes `bd --version` only for the `context.md` tool snapshot, not as a version gate.
 
 REQ-PREREQ-004: A beads database must be initialized in the project (`bd init`).
 Rationale: All `bd` commands fail without an initialized database.

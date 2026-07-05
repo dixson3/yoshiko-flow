@@ -34,8 +34,11 @@ the latter would wrongly send the operator to `bd init` and risk clobbering real
   `bd migrate`. The flush is `bd dolt stop` in **server** mode; for **embedded** storage
   (`.beads/embeddeddolt/`, no server — `bd dolt stop` errors there) it is a data-preserving raw
   `dolt add -A && dolt commit` in the derived Dolt-repo dir (never `reset --hard`; clean-tree
-  no-op). Do **not** attempt `bd vc commit` first — it cannot open the wedged DB; the embedded
-  raw-`dolt` commit is a distinct escape hatch, not `bd vc commit`.
+  no-op). `bd migrate schema` must not run against a still-dirty set — flush first. Raw `dolt`
+  is the version-agnostic default (and the **bd < 1.1.0** requirement); on **bd ≥ 1.1.0** `bd
+  dolt commit` also opens a wedged embedded DB and is the commit bd's wedge error prescribes
+  (#68 cert). The pre-1.1.0 "`bd vc commit` cannot open the wedged DB" claim is version-scoped,
+  not absolute.
 - Hardening (hooks, gitignore, metadata, perms, JSONL export) is idempotent and safe to re-run.
 - For local-only repos, never add a Dolt remote or `bd dolt push`; assert
   `bd config set dolt.local-only true`. Upstream issue tracking routes to `yf-beads-upstream`.

@@ -10,7 +10,10 @@
 runtime**, on top of the canonical `beads` skill. It documents only the parts that bite when you
 script `bd`: issue-type semantics, gate verbs, dependency-edge mutation, defensive `--json`
 parsing, transactional bulk intake (`bd batch`), and the `bd mol pour` output shape. It is verified
-against **bd 1.0.5** (gastownhall/beads) and **wins** over the bundled `beads` plugin's pre-1.0.5
+against **bd 1.0.5** (gastownhall/beads) and **re-certified against bd 1.1.0** (#68, plan-022) —
+every documented gotcha (issue types, gate verbs, additive `bd dep`, no `bd update --deps`,
+epic-blocking rule, `--json` array shape, `bd batch`, `bd mol pour` shape) is **structurally
+unchanged** across 1.0.5 → 1.1.0. It **wins** over the bundled `beads` plugin's pre-1.0.5
 `resources/` where they disagree.
 
 **In scope:** the version-sensitive `bd` behaviors a script must get right (REQ-BEXTRA-CLI-*) and
@@ -104,9 +107,15 @@ skill); authoring beads-backed skills — formulas, coordinator loops, the `coor
   routine loop is the `beads` skill's; this skill keeps only the 1.0.5-verified gotcha delta.
   *Why:* one source of truth per fact.
 - **GR-BEXTRA-002** *Drift:* assuming pre-1.0.5 `bd` behavior. *Rule:* every contract is verified
-  against bd 1.0.5 and re-verified on a `bd version` bump; where the bundled plugin docs disagree,
-  this skill wins (REQ-BEXTRA-DOC-001). *Why:* removed verbs (`bd gate approve`, bare `bd pour`)
-  silently break scripts.
+  against bd 1.0.5, **re-certified against bd 1.1.0** (#68), and re-verified on a `bd version` bump;
+  where the bundled plugin docs disagree, this skill wins (REQ-BEXTRA-DOC-001). *Why:* removed verbs
+  (`bd gate approve`, bare `bd pour`) silently break scripts.
+- **GR-BEXTRA-003** *Retired 1.0.x failure mode (#68).* The batch-intake "if a create returns empty,
+  **stop and fix**" warning had a real 1.0.x cause: an orphaned `child_counters` row could brick
+  every `bd create`. That row is **fixed in bd 1.1.0** (clone-local migration). *Rule:* keep the
+  defensive "empty create → stop" advice (cheap defense-in-depth against any silent-create failure),
+  but the guidance shall note the specific `child_counters` cause is retired on 1.1.0. *Why:*
+  defensive advice outlives its original trigger; the doc must not imply the 1.0.x bug persists.
 
 ## 5. Verification
 

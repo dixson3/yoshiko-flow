@@ -13,7 +13,7 @@ or coordinator loop.
 
 ## Prerequisites
 
-- `bd` (beads) >= 1.0.5 — provides first-class `bd github` / `bd gitlab` / `bd jira` sync.
+- `bd` (beads) >= 1.1.0 — provides first-class `bd github` / `bd gitlab` / `bd jira` sync.
 - For the GitHub backend: the `gh` CLI authenticated (`gh auth status`), used to mint an inline
   token (`gh auth token`).
 - `uv` — runs the `scripts/` Python helper (PEP 723 inline deps).
