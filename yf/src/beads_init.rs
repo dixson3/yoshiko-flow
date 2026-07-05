@@ -1701,6 +1701,34 @@ mod tests {
         assert!(!is_embedded_mode(&beads));
     }
 
+    // REQ-YF-PRE-010 / REQ-BINIT-025 (#58): the profile engine-mode drift probe.
+    // Embedded store → drift (warn-only); local-server store → conformant; absent
+    // `.beads/` → not flagged (never false-positive on a non-beads/uninit repo).
+    #[test]
+    fn has_embedded_engine_drift_classifies_profile() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // No `.beads/` at all → not engine-mode drift (bd_not_initialized's job).
+        assert!(!has_embedded_engine_drift(root));
+
+        let beads = root.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Embedded store (dolt_mode: embedded) → drift.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"embedded"}"#).unwrap();
+        assert!(has_embedded_engine_drift(root), "embedded → drift");
+
+        // Conformant per-repo local-server (dolt_mode: server) → no drift.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"server"}"#).unwrap();
+        assert!(!has_embedded_engine_drift(root), "server → conformant");
+
+        // Keyless metadata + server files present → conformant local-server.
+        std::fs::write(beads.join("metadata.json"), r#"{}"#).unwrap();
+        std::fs::write(beads.join("dolt-server.port"), "3306").unwrap();
+        assert!(!has_embedded_engine_drift(root), "server files → conformant");
+    }
+
     // REQ-BINIT-016 (integration): native-step idempotency + data preservation
     // against a real embedded repo. Dirties the derived Dolt working set, runs
     // the verb, asserts the set is committed (clean) with data preserved, then

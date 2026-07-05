@@ -1999,4 +1999,38 @@ mod tests {
         );
         std::fs::remove_dir_all(&tmp).ok();
     }
+
+    // REQ-YF-PRE-010 (#58): detect_canonicalization_drift emits the DETECT/WARN-ONLY
+    // embedded engine-mode drift string for an embedded store, and stays silent for
+    // a conformant local-server store. The warn names NO `--repair` action (out of
+    // scope) — asserted by checking the string does not steer to `yf doctor --repair`.
+    #[test]
+    fn detect_drift_warns_on_embedded_engine_mode() {
+        let repo = unique_tmp("embedded-drift");
+        let beads = repo.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Embedded store → a warn-only drift string, but NO repair offer for it.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"embedded"}"#).unwrap();
+        let out = detect_canonicalization_drift(&repo);
+        let embedded_warn = out.iter().find(|s| s.contains("embedded Dolt storage"));
+        assert!(
+            embedded_warn.is_some(),
+            "embedded store must produce a warn-only drift string: {out:?}"
+        );
+        assert!(
+            embedded_warn.unwrap().contains("out of scope"),
+            "the embedded warn must state engine-mode migration is out of scope: {out:?}"
+        );
+
+        // Conformant local-server store → no embedded warn.
+        std::fs::write(beads.join("metadata.json"), r#"{"dolt_mode":"server"}"#).unwrap();
+        let out = detect_canonicalization_drift(&repo);
+        assert!(
+            !out.iter().any(|s| s.contains("embedded Dolt storage")),
+            "a conformant local-server store must not warn: {out:?}"
+        );
+
+        std::fs::remove_dir_all(&repo).ok();
+    }
 }
