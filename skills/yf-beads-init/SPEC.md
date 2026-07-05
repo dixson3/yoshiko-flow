@@ -168,7 +168,7 @@ storage (that is `bd`).
   `BD_ALLOW_REMOTE_MIGRATE`). `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate` remains an **operator-gated**
   escape hatch for the case where a remote is *intentionally* retained — repair shall **never**
   auto-run it (it is the human coordination decision of REQ-BINIT-002's gate).
-- **REQ-BINIT-023** *(testable, #39)* repair shall include three idempotent canonicalization
+- **REQ-BINIT-023** *(testable, #39, #66)* repair shall include three idempotent canonicalization
   steps that are clean no-ops when nothing is tracked: (a) `git rm --cached` the pinned runtime
   set (`.beads/interactions.jsonl`, `.beads/embeddeddolt/`, `.beads/backup/`,
   `.beads/export-state.json`, `.beads/push-state.json`, `.beads/dolt-server.*`), keeping working
@@ -176,6 +176,12 @@ storage (that is `bd`).
   shim signature (never a hand-edited hook); (c) the `--remove-remote` remote clear of (020). The
   preflight kernel shall additionally OFFER `yf doctor --repair` (read-only) when it detects this
   drift, performing no mutation itself.
+  - **#66 — untrack ⇒ ignore parity.** `.beads/interactions.jsonl` is in the (a) untrack set but,
+    pre-#66, was **not** in the `.beads/.gitignore` top-up set, so after `git rm --cached` it
+    immediately resurfaced as `?? .beads/interactions.jsonl` noise. Repair's `.beads/.gitignore`
+    top-up shall therefore also include `interactions.jsonl`, so a bead file that repair untracks
+    is **also ignored** — after repair the file is untracked **and** ignored, with no
+    `?? .beads/interactions.jsonl` resurfacing on the next `git status`.
 - **REQ-BINIT-021** as a preflight dependency, another beads skill shall run its own
   system-deps/rule checks first, then on a beads-config failure (`bd_not_initialized`, a corrupted
   DB, or a `bd status` error JSON) route to `/yf-beads-init` / `yf preflight yf-beads-init --json`
@@ -184,6 +190,16 @@ storage (that is `bd`).
 - **REQ-BINIT-022** when `verify` returns `ok`, the preflight trigger shall be a **silent no-op** —
   no prompt, nag, or re-run; bootstrap/repair is offered only on an actual failure or explicit
   `/yf-beads-init`.
+- **REQ-BINIT-025** *(testable, #58)* repair is the correction half of the canonical minimal-local
+  beads profile (`REQ-YF-PRE-010`). It shall correct **only the safe axes** — the local-only /
+  no-remote invariant — reusing the plan-022 machinery: assert `dolt.local-only` (REQ-BINIT-020)
+  and, under `--remove-remote`, clear a stray Dolt remote at both layers (REQ-BINIT-020/024).
+  Repair shall **never migrate engine mode**: an **embedded** store (`dolt_mode: "embedded"` / no
+  `dolt-server.*`) is **detect/warn-only** drift (surfaced by preflight with guidance, per
+  REQ-YF-PRE-010), never converted server↔embedded — that conversion is invasive, unproven, and
+  out of scope. A per-repo **local-server** store is conformant; repair applies no engine-mode
+  action to it. Verified by fixtures tagged `REQ-BINIT-025`: missing-local-only / stray-remote →
+  corrected; embedded → no mutation (warn only); local-server → conformant no-op.
 
 ## 3. Interfaces
 

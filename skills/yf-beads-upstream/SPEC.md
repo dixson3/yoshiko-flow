@@ -77,6 +77,17 @@ companion rule.
 - **REQ-BUP-031** *(testable)* auth tokens shall be passed inline at call time
   (`TOKEN=$(...) bd <backend> …`) and never written to config — no `bd config set *.token`.
   *(Also captured as guardrail GR-BUP-002.)*
+- **REQ-BUP-032** *(testable, #57)* the companion rule's (`UPSTREAM_TRACKING.md`) close-time
+  **Safety invariant** shall be **routing-primary**: the guardrail's operative instruction is to
+  invoke `/yf-beads-upstream` (which performs the scoped, dry-run-first, inline-auth push of
+  REQ-BUP-030/031), **not** a standalone hand-CLI recipe. The invariant's `--push-only` / scoped /
+  `--dry-run` / inline-auth clauses shall be framed as **constraints the skill's push satisfies**
+  (what `/yf-beads-upstream` guarantees), so that a raw `bd <backend> push --dry-run` typed by
+  hand does **not** read as the compliant path — it bypasses the routing sentence that the
+  invariant exists to protect. The observed failure this closes: an agent satisfying the guardrail
+  with a raw `bd github push --dry-run` while skipping the invoke-the-skill routing. Verified by a
+  rule-content check that the Safety invariant leads with the invoke-`/yf-beads-upstream` routing
+  and does not present a bare `bd <backend>` push as the operator's action.
 
 ### 2.5 Backends & trigger split (see `spec/backends.md`)
 
