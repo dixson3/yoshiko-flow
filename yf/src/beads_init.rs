@@ -30,6 +30,11 @@ const MIN_BD_VERSION: (u32, u32, u32) = (1, 0, 5);
 const BEADS_GITIGNORE: &[&str] = &[
     ".env",
     "export-state.json",
+    // #66 (REQ-BINIT-023): `interactions.jsonl` is in the BEADS_UNTRACK set, so
+    // repair `git rm --cached`s it — but without a matching `.beads/.gitignore`
+    // entry it immediately resurfaced as `?? .beads/interactions.jsonl` noise.
+    // Ignoring it here gives untrack ⇒ ignore parity (untracked AND ignored).
+    "interactions.jsonl",
     "embeddeddolt/",
     "proxieddb/",
     "dolt-server.activity",
@@ -2088,6 +2093,56 @@ mod tests {
         // Idempotent re-run: still a no-op, file still present.
         untrack_runtime(root).unwrap();
         assert!(beads.join("interactions.jsonl").exists());
+    }
+
+    // #66 (REQ-BINIT-023): untrack ⇒ ignore parity. After repair untracks
+    // `.beads/interactions.jsonl` AND writes `.beads/.gitignore` with the
+    // BEADS_GITIGNORE top-up set, the file is both untracked and IGNORED — it must
+    // not resurface as `?? .beads/interactions.jsonl` on the next `git status`.
+    #[test]
+    fn interactions_jsonl_untracked_then_ignored_no_resurface() {
+        // The gitignore top-up set must carry the entry (the crux of #66).
+        assert!(
+            BEADS_GITIGNORE.contains(&"interactions.jsonl"),
+            "BEADS_GITIGNORE must ignore interactions.jsonl (#66)"
+        );
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        if !git_init(root) {
+            return; // no git on host — skip.
+        }
+        let beads = root.join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // Track, commit, then untrack the bead file (the pre-#66 resurface setup).
+        std::fs::write(beads.join("interactions.jsonl"), "log\n").unwrap();
+        run_in(&["git", "add", "-f", ".beads/interactions.jsonl"], 30, root);
+        git_add_commit(root);
+        untrack_runtime(root).unwrap();
+        assert!(
+            !is_tracked(root, ".beads/interactions.jsonl"),
+            "untracked from index"
+        );
+
+        // Write the .beads/.gitignore top-up — the repair step that #66 fixes.
+        ensure_gitignore(&beads.join(".gitignore"), BEADS_GITIGNORE).unwrap();
+
+        // git now IGNORES the working file → no `?? .beads/interactions.jsonl`.
+        let (rc, out, _e) = run_in(
+            &["git", "check-ignore", ".beads/interactions.jsonl"],
+            30,
+            root,
+        );
+        assert_eq!(rc, 0, "interactions.jsonl must be git-ignored after top-up");
+        assert!(out.contains("interactions.jsonl"));
+
+        // And it does not appear as untracked in porcelain status.
+        let (_rc, status, _e) = run_in(&["git", "status", "--porcelain"], 30, root);
+        assert!(
+            !status.contains("?? .beads/interactions.jsonl"),
+            "interactions.jsonl must not resurface as untracked, got: {status:?}"
+        );
     }
 
     // #39 B.3: shim content-guard — a hook carrying `bd hooks run` is removed; a
