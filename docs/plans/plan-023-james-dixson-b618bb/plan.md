@@ -3,7 +3,8 @@
 **ID:** plan-023-james-dixson-b618bb
 **Author:** james-dixson
 **Created:** 2026-07-05
-**Status:** approved
+**Status:** reconciling
+**Epic:** yf-mol-p1f
 **Fingerprint:** 4636eb036cfd5fd8603025fd368d624df76ca3ae787e37ab99f8e6dab32b7762
 **Phase log:**
 - 2026-07-05 scoping: initial scope captured (6 issues triaged → 4 active, 1 deferred, 1 superseded)
@@ -13,6 +14,9 @@
 - 2026-07-05 review: plan v1 presented for review
 - 2026-07-05 review: pass-2 red-team REVISE (narrow); 2 textual concerns fixed in-pass
 - 2026-07-05 approved: operator approved (pass-2 red-team APPROVE; portability audit pass)
+- 2026-07-05 intake: epic yf-mol-p1f poured
+- 2026-07-05 executing: start gate resolved
+- 2026-07-05 reconciling: post-execution reconciliation
 
 ## Objective
 
