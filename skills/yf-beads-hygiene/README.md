@@ -17,7 +17,7 @@ removing them would have un-gated 7 live beads. The fix is to resolve every edge
 
 | Tool | Version | Purpose |
 | :--- | :--- | :--- |
-| `bd` | >= 1.0.5 | the beads CLI being audited/repaired |
+| `bd` | >= 1.1.0 | the beads CLI being audited/repaired |
 | `uv` | any | runs the `beads_hygiene.py` engine (PEP 723) |
 | `git` | any | repo-root resolution |
 

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "files": {
     "BEADS_INIT.md": {
-      "sha256": "3478f578476310378b3316415906255b6a0d995b290702cb34266d139bd9d554",
-      "version": "1.0.3",
+      "sha256": "ef27798fdbb5330846f7cc4bf230780bcd7bd784fea9e03ec5282ec3e03a92f6",
+      "version": "1.0.4",
       "deprecated": false,
       "previous_versions": [
         {
@@ -17,6 +17,10 @@
         {
           "sha256": "1004faae8226604be0965785be7691ca1e5381946691c075ea68c1669c7af55e",
           "version": "1.0.2"
+        },
+        {
+          "sha256": "3478f578476310378b3316415906255b6a0d995b290702cb34266d139bd9d554",
+          "version": "1.0.3"
         }
       ]
     }

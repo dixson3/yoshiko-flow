@@ -42,7 +42,7 @@ storage (that is `bd`).
   (initialized-but-wedged, repairable), **never** `not_initialized`. (This is the macro
   false-negative invariant `REQ-YF-PRE-006`.)
 - **REQ-BINIT-003** *(testable)* `verify` shall return `deps_missing` when a required tool is
-  absent (`bd` ≥ 1.0.5, `uv`, `git`), and `not_initialized` only when there is no usable `.beads/`
+  absent (`bd` ≥ 1.1.0, `uv`, `git`), and `not_initialized` only when there is no usable `.beads/`
   (genuinely uninitialized), so a wedged repo is never routed to `bd init` (which would risk
   clobbering real data).
 
@@ -61,8 +61,15 @@ storage (that is `bd`).
     used — it errors in embedded mode (`not supported in embedded mode (no Dolt server)`) and
     `bd migrate schema` then fails against the dirty on-disk working set.
 
-  Neither mode shall attempt `bd vc commit` first (it cannot open the wedged DB — chicken-and-egg).
-  (Macro `REQ-YF-PRE-007`.)
+  The repair shall not route the flush through `bd vc commit`. **Version note (bd ≥ 1.1.0,
+  REQ-BINIT-017):** the historical rationale — "`bd vc commit` cannot open the wedged DB
+  (chicken-and-egg)" — held **only for bd < 1.1.0**. On bd ≥ 1.1.0 both `bd dolt commit` and
+  `bd vc commit` *do* open a wedged embedded DB and commit the dirty working set, bypassing the
+  migration guard (verified, EXP-001); `bd dolt commit` is in fact the fix bd's own wedge error
+  now prescribes. The mode-aware flush above is retained as the version-agnostic default (raw
+  `dolt` works on every bd line); what changes on 1.1.0 is only that the embedded commit *may*
+  be the supported `bd dolt commit` (REQ-BINIT-016), not that `bd migrate schema` becomes safe —
+  it still fails against a dirty set in all versions. (Macro `REQ-YF-PRE-007`.)
 - **REQ-BINIT-016** *(testable)* for the **embedded-storage** layout, repair shall detect mode from
   the filesystem and clear the dirty working set with a **data-preserving commit** before
   `bd migrate schema`:
@@ -79,12 +86,28 @@ storage (that is `bd`).
   - **Data-preserving commit.** In the derived cwd it shall run raw `dolt add -A`, then
     `dolt commit` **only if the working set is dirty** (a clean tree is a success no-op). It shall
     **never** `reset --hard` and **never** `--allow-empty`. When `dolt` is absent from PATH it shall
-    attempt `bd dolt commit` as a last resort before hard-failing with a remediation ("install dolt
-    or commit the embedded working set manually").
+    attempt `bd dolt commit` before hard-failing with a remediation ("install dolt or commit the
+    embedded working set manually"). **bd ≥ 1.1.0 (REQ-BINIT-017):** `bd dolt commit` is no longer
+    merely a `dolt`-absent last resort — it is a *supported* commit of a wedged embedded working
+    set (the command bd's own wedge error prescribes) and is data-preserving. Raw `dolt add -A &&
+    dolt commit` is retained as the **bd < 1.1.0 fallback** and as the default when `dolt` is on
+    PATH; no runtime bd-version floor is asserted, so the raw-`dolt` path shall never be removed
+    outright.
   - **Partial-failure outcome.** If the commit succeeds but `bd migrate schema` still fails, repair
     shall report **FAIL / `corrupted`** with the working set **committed (recoverable)** and a
     manual-repair remediation — an acceptable, data-safe outcome (the genuine wedge is
     unreproducible, so this is the most likely real-world non-happy path).
+- **REQ-BINIT-017** *(testable, #68)* the skill's guidance **shall be certified against bd 1.1.x**
+  (the shipped Homebrew line; skills previously pinned 1.0.5). The certification records the
+  empirically-verified 1.1.0 delta relevant to repair (EXP-001, plan-022): (a) on bd ≥ 1.1.0,
+  `bd dolt commit` **and** `bd vc commit` open a wedged **embedded** DB and commit the dirty
+  working set, **bypassing** the migration guard (bd's own wedge error prescribes `bd dolt
+  commit`); (b) `bd migrate schema` still fails against a dirty working set in all versions (the
+  chicken-and-egg is real for *that* command only); (c) the false-negative invariant
+  (`REQ-BINIT-002`) still holds on 1.1.0 (a remote-migrate-gated `bd status` returns error-JSON
+  with exit 0). No document shall carry the pre-1.1.0 blanket claim that `bd vc commit` "cannot
+  open the wedged DB" without a version qualifier. **No hard runtime bd-version floor is
+  asserted** — the raw-`dolt` embedded path (REQ-BINIT-016) is retained for bd < 1.1.0.
 - **REQ-BINIT-012** *(testable)* repair hardening shall be idempotent and safe to re-run:
   permissions (`chmod 700 .beads`), gitignore drift (`bd doctor --fix` plus the engine's top-up
   patterns for `.beads/.gitignore` and project `.gitignore`), and a portable JSONL export
@@ -120,9 +143,31 @@ storage (that is `bd`).
 - **REQ-BINIT-020** *(testable)* `repair --apply --local-only` shall assert
   `bd config set dolt.local-only true` and never `bd dolt push`; upstream issue tracking is
   `yf-beads-upstream`'s job. Repair never *adds* a Dolt remote. With the additional opt-in
-  `--remove-remote` (valid only alongside `--local-only`), repair shall *clear* a configured
-  `sync.remote` (a no-op when none is set); without `--remove-remote` any configured remote is
-  left untouched.
+  `--remove-remote` (valid only alongside `--local-only`), repair shall clear a configured remote
+  at **both layers in one invocation (#61):** (a) the **Dolt-DB-level** remote (each row in
+  `dolt_remotes`) — the **decisive** layer, and (b) the `sync.remote` **config** key — a secondary
+  cleanliness step. **The remote-migrate gate keys solely on the Dolt-DB remote** (EXP-002:
+  `SELECT COUNT(*) FROM dolt_remotes`); removing `sync.remote` alone leaves the repo still gated,
+  and removing the Dolt remote alone clears it. Each layer is a no-op when already empty. Without
+  `--remove-remote` any configured remote is left untouched.
+  - **Wedged-DB caveat (EXP-002, load-bearing for the impl).** On a **wedged** DB (pending
+    migrations) bd's *own* `bd config unset` and `bd dolt remote remove` are themselves gated and
+    perform **no** mutation. Canonicalization on a wedged repo shall therefore remove the Dolt
+    remote via **raw `dolt`** — `dolt remote remove <name>` in the derived `.beads/embeddeddolt/<db>/`
+    (or server data dir), followed by the data-preserving `dolt add -A && dolt commit` of
+    REQ-BINIT-016 — and edit `sync.remote` out of `config.yaml` **raw**, never via the gated bd
+    subcommands. On a healthy DB the bd subcommands are acceptable.
+- **REQ-BINIT-024** *(testable, #61)* the **instruction string** the preflight/doctor emits when it
+  detects local-only remote drift shall name the command that actually clears it —
+  `yf doctor --repair --local-only --remove-remote` — **including `--local-only`** (which
+  `--remove-remote` requires; the prior string omitted it, making the suggested command a no-op).
+  The **remote-migrate gate is cleared by canonicalization, not by an override:** once the
+  **Dolt-DB remote** is removed (REQ-BINIT-020, via raw `dolt` on a wedged DB), a local-only repo
+  is no longer "remote-backed" and bd auto-migrates on the next open **with no override**
+  (EXP-002: all 4 pending migrations applied after a raw `dolt remote remove`, no
+  `BD_ALLOW_REMOTE_MIGRATE`). `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate` remains an **operator-gated**
+  escape hatch for the case where a remote is *intentionally* retained — repair shall **never**
+  auto-run it (it is the human coordination decision of REQ-BINIT-002's gate).
 - **REQ-BINIT-023** *(testable, #39)* repair shall include three idempotent canonicalization
   steps that are clean no-ops when nothing is tracked: (a) `git rm --cached` the pinned runtime
   set (`.beads/interactions.jsonl`, `.beads/embeddeddolt/`, `.beads/backup/`,
@@ -168,14 +213,17 @@ storage (that is `bd`).
   wedged repo to `bd init`. *Rule:* classify by the parsed `error` **key**; a wedged-but-initialized
   repo is `corrupted`, repaired in place — never re-initialized (REQ-BINIT-002). *Why:* `bd init`
   on real data risks clobbering it.
-- **GR-BINIT-002** *Drift:* `bd vc commit` before clearing the wedged migration. *Rule:* the fix
-  order is a **mode-aware** working-set flush — server: `bd dolt stop`; embedded: a data-preserving
-  raw `dolt add -A && dolt commit` in the derived Dolt-repo cwd (REQ-BINIT-016) — then
-  `bd migrate schema → bd migrate`; `bd vc commit` cannot open the wedged DB (REQ-BINIT-011).
-  *Why:* it deadlocks the repair. **The embedded escape hatch is distinct from `bd vc commit`:** it
-  commits via **raw `dolt`** (or, only if `dolt` is absent, `bd dolt commit`), structurally
-  bypassing bd's wedged migration gate rather than routing through it — it is not a licence to
-  attempt the forbidden `bd vc commit`.
+- **GR-BINIT-002** *Drift:* routing the wedged-migration flush through `bd vc commit`. *Rule:* the
+  fix order is a **mode-aware** working-set flush — server: `bd dolt stop`; embedded: a
+  data-preserving raw `dolt add -A && dolt commit` in the derived Dolt-repo cwd (REQ-BINIT-016) —
+  then `bd migrate schema → bd migrate`. The embedded escape hatch commits via **raw `dolt`**
+  (default; the bd < 1.1.0 path) structurally bypassing bd's wedged migration gate. *Why:* on
+  **bd < 1.1.0**, `bd vc commit` could not open the wedged DB and deadlocked the repair.
+  **Version note (bd ≥ 1.1.0, REQ-BINIT-017):** this is no longer a hard prohibition — `bd dolt
+  commit` (and `bd vc commit`) *do* open a wedged embedded DB on 1.1.0, and `bd dolt commit` is
+  the supported, bd-prescribed commit (REQ-BINIT-016). The remaining rule is only that
+  `bd migrate schema` must not run against a still-dirty set (it fails in every version) — flush
+  first, by whichever commit the bd line supports.
 - **GR-BINIT-003** *Drift:* adding a Dolt remote / `bd dolt push` to "fix" a local-only repo's
   `No remotes configured` warning. *Rule:* on local-only, assert `dolt.local-only true`, keep
   remotes empty, route upstream tracking to `yf-beads-upstream` (REQ-BINIT-020). Repair only ever
@@ -203,7 +251,18 @@ storage (that is `bd`).
   **derived** (not hardcoded) path — ahead of `bd migrate schema` → `bd migrate`, and that
   re-verify returns `ok`. The embedded native step's data-preserving commit + clean-tree no-op +
   mode detection (REQ-BINIT-016) is verifiable against a real `bd init` embedded repo with a
-  synthetically-dirtied working set. The
+  synthetically-dirtied working set. The two-layer `--remove-remote` (REQ-BINIT-020) and the corrected instruction string
+  (REQ-BINIT-024) are verifiable against a fixture repo with **both** a `sync.remote` config key
+  and a Dolt-DB-level `origin` remote: after `repair --local-only --remove-remote`, `bd config get
+  sync.remote` and `bd dolt remote list` are both empty, and the emitted drift instruction reads
+  `yf doctor --repair --local-only --remove-remote`. The plan-022 micro-experiment (Issue 4.2)
+  records that removing both layers clears bd 1.1.0's remote-migrate gate without
+  `BD_ALLOW_REMOTE_MIGRATE`. The 1.1.0 certification (REQ-BINIT-017) is verified by
+  EXP-001 (plan-022 `findings/exp-001-embedded-wedged-commit.md`): a genuine wedged embedded
+  fixture (schema-49 embedded DB reopened by bd 1.1.0 with real pending migrations 0050–0053) on
+  which `bd dolt commit`/`bd vc commit` open and commit the dirty set while `bd migrate schema`
+  still fails — and by a repo-wide check that no document carries the unqualified
+  "`bd vc commit` cannot open the wedged DB" claim. The
   companion-rule hash (REQ-BINIT-021) is verified against `protocols/manifest.json`. These map to
   the macro spec's preflight three-state fixtures (`REQ-YF-PRE-006`, plan-010 Epic 6) once the
   engine ports to `yf`.

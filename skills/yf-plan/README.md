@@ -41,7 +41,7 @@ Checked at runtime by `scripts/plan_manager.py check`:
 | Tool | Version | Install |
 |:-----|:--------|:--------|
 | `uv` | any | https://docs.astral.sh/uv/ |
-| `bd` | >= 1.0.5 | https://github.com/gastownhall/beads |
+| `bd` | >= 1.1.0 | https://github.com/gastownhall/beads |
 | `git` | any | system package manager |
 
 Optional:

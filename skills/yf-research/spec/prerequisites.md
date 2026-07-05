@@ -5,10 +5,13 @@ Anchors the system requirements and the init/preflight contract. Verified agains
 
 ## System Tools
 
-REQ-PREREQ-001: `bd` (beads) must be on PATH at version >= 1.0.5.
-Rationale: The gate, dependency, and JSON behaviors this skill relies on were verified at
-1.0.5 (gastownhall/beads); see the `beads-extra` skill. Older lines differ.
-Verification: `_parse_bd_version()` (parses major.minor.patch) and `MIN_BD_VERSION = (1, 0, 5)` in `research_manager.py`.
+REQ-PREREQ-001: `bd` (beads) must be on PATH at version >= 1.1.0.
+Rationale: The gate, dependency, and JSON behaviors this skill relies on are certified at
+**1.1.0** (gastownhall/beads; #68) and were re-confirmed unchanged from the 1.0.5 baseline; see
+the `beads-extra` skill. Older lines differ. The floor is **documentary**: no runtime bd-version
+parse or hard block exists (`research_manager.py` has no `MIN_BD_VERSION`/`_parse_bd_version()`), so
+older-bd operators are advised, not blocked.
+Verification: bd presence is checked by the `yf` preflight kernel (`yf preflight yf-research --json`); the manager enforces no version gate.
 
 REQ-PREREQ-002: `uv` must be on PATH.
 Rationale: All skill scripts run via `uv run` with PEP 723 inline dependencies; without uv they cannot resolve `click` etc.

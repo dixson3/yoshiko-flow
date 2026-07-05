@@ -10,7 +10,7 @@ initialized").
 
 | Tool | Version | Purpose |
 |:-----|:--------|:--------|
-| `bd` | >= 1.0.5 | the beads CLI being verified/repaired |
+| `bd` | >= 1.1.0 | the beads CLI being verified/repaired |
 | `uv` | any | runs the `beads_init.py` engine (PEP 723) |
 | `git` | any | repo-root resolution |
 

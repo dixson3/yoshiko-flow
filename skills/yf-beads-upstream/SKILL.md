@@ -5,8 +5,12 @@ description: >
   beads to an issue tracker (GitHub/GitLab/Jira) as a land-the-plane step, and enumerates
   upstream issues as the authoritative worklist on status/pull.
   TRIGGER when: /yf-beads-upstream invoked; "set up upstream tracking" / "configure upstream"
-  (init); "push beads upstream" / "push open work to GitHub"; asking for project status,
-  available work, or the worklist when upstream tracking is configured (status/pull).
+  (init); mid-session intent to send beads to the issue tracker — "push beads upstream" /
+  "push open work to GitHub" / "push/sync upstream" / "sync issues upstream" / "mirror this bead
+  upstream" / "file/hoist this as a GitHub issue"; asking for project status, available work, or
+  the worklist when upstream tracking is configured (status/pull).
+  NOTE: "push/sync upstream" here means THIS `gh`-based issue mirror, which is ORTHOGONAL to
+  `bd dolt push` (Dolt DB replication) — on push-upstream intent do NOT reach for `bd dolt push`.
   SKIP for: routine local `bd ready` / `bd show` / `bd close` (use `beads`); direct-CLI
   `bd` scripting gotchas (use `yf-beads-extra`); authoring beads-backed skills
   (use `yf-beads-authoring`). The close-time / land-the-plane push trigger is NOT carried in
@@ -23,7 +27,7 @@ allowed-tools:
   - AskUserQuestion
 preflight:
   companion-rule: UPSTREAM_TRACKING.md
-  min-bd-version: 1.0.5
+  min-bd-version: 1.1.0
   config-basename: .yf-beads-upstream.local.json
 ---
 
@@ -53,14 +57,45 @@ All skill-internal paths use `${SKILL_DIR}/` prefix.
 
 Two distinct trigger classes, deliberately routed to two different surfaces:
 
-- **Intent triggers → this SKILL's `description`.** `init`, `status`/pull, "set up upstream
-  tracking", "push beads upstream". Description-matching catches these reliably because the
-  user states the intent.
+- **Intent triggers → this SKILL's `description`.** `init`, `status`/pull, and **explicit
+  mid-session push/sync intent**. Description-matching catches these reliably because the user
+  states the intent. The recognized phrasings (#61):
+
+  | Phrasing | Routes to |
+  |:--|:--|
+  | "set up upstream tracking" / "configure upstream" | `init` |
+  | "push beads upstream" / "push open work to GitHub" | push step |
+  | "push/sync upstream" / "sync issues upstream" | push step |
+  | "mirror this bead upstream" / "file/hoist this as a GitHub issue" | scoped push / `hoist` |
+  | "project status" / "what's the worklist" (tracking on) | status/pull |
+
 - **Procedural trigger → the always-loaded companion rule** (`protocols/UPSTREAM_TRACKING.md`,
   installed to the rules surface). The push-at-session-close / land-the-plane step is *not*
   reliably caught by a description — nobody says "trigger the upstream skill" when wrapping
   up — so the rule binds it and is in context every turn. The rule is minimal: the close-time
   trigger + the one safety invariant + a pointer here. All procedure lives in this SKILL.
+
+**Not `bd dolt push` (#61).** "push/sync upstream" means **this `gh`-based issue mirror**, which
+is orthogonal to `bd dolt push` (Dolt DB replication). On push-upstream intent, reach for this
+skill's scoped `bd <backend> push` / `hoist` — never `bd dolt push`. The full three-mechanism
+disambiguation (`git push` vs `bd dolt push` vs this `gh` mirror) is in the *Upstream vs Dolt
+remote vs git* table below.
+
+## Upstream vs Dolt remote vs git (three mechanisms)
+
+"Push" is overloaded across three **orthogonal** mechanisms (#61). On any "push/sync upstream"
+intent this skill's `gh`-based issue mirror is the target — **not** `bd dolt push`:
+
+| Mechanism | What it moves | Destination | For yf's local-only model |
+|:--|:--|:--|:--|
+| `git push` | repo content (code, docs, the plan folder) | the **git** remote (`origin`) | normal; how the repo itself syncs |
+| `bd dolt push` | the **Dolt DB** itself (versioned bead replication) | a **Dolt** remote (`dolt_remotes`) | **none** — a local-only repo holds no Dolt remote; a stray one wedges bd 1.1.0's remote-migrate gate (clear it with `yf doctor --repair --local-only --remove-remote`) |
+| **this skill** (`bd <backend> push` / `hoist`) | selected beads → tracker **issues** | the **`gh`/`glab`/Jira** issue tracker | **the** upstream path — beads mirror to GitHub issues, independent of Dolt |
+
+The three are independent: `bd dolt push` (DB replication) and this skill's issue mirror share
+the word "push" but touch different systems. yf beads is **always local-only** — interchange is
+this `gh` issue mirror (and, at most, local worktrees sharing one Dolt server), never a shared
+Dolt remote. So "push these upstream" ⇒ this skill, never `bd dolt push`.
 
 ## Backends
 

@@ -730,6 +730,40 @@ fn derive_dolt_repo_root(beads_dir: &Path) -> Result<PathBuf, String> {
 const EMBEDDED_COMMIT_MARKER: &str =
     "yf-beads-init: commit embedded Dolt working set before wedged-migration repair (REQ-BINIT-016)";
 
+/// Raw-`dolt` data-preserving commit in `dolt_root`: `add -A`, then `commit`
+/// only when the working set is dirty (a clean tree is a success no-op; never
+/// `--allow-empty`, never `reset --hard`). Caller guarantees `dolt` is on PATH.
+/// Shared by the REQ-BINIT-016 embedded-migration flush and the REQ-BINIT-020
+/// remote-removal commit.
+fn dolt_commit_dir(dolt_root: &Path, marker: &str) -> (i32, Option<String>) {
+    let (rc, _o, err) = run_in(&["dolt", "add", "-A"], 120, dolt_root);
+    if rc != 0 {
+        return (
+            rc.max(1),
+            Some(format!("dolt add -A failed: {}", err.trim())),
+        );
+    }
+    // Commit only if dirty (a clean tree is a success no-op; never --allow-empty).
+    let (_rc, status_out, _serr) = run_in(&["dolt", "status"], 60, dolt_root);
+    let lower = status_out.to_lowercase();
+    if lower.contains("working tree clean") || lower.contains("nothing to commit") {
+        return (0, None);
+    }
+    let (crc, _co, cerr) = run_in(&["dolt", "commit", "-m", marker], 120, dolt_root);
+    if crc == 0 {
+        return (0, None);
+    }
+    // Tolerate a clean-tree race (tree became clean between status and commit).
+    let cl = cerr.to_lowercase();
+    if cl.contains("nothing to commit") || cl.contains("no changes added") {
+        return (0, None);
+    }
+    (
+        crc.max(1),
+        Some(format!("dolt commit failed: {}", cerr.trim())),
+    )
+}
+
 /// REQ-BINIT-016 data-preserving embedded working-set commit. Self-guards to a
 /// no-op unless the repo is embedded (a server repo is handled by the
 /// `bd dolt stop` step). Derives the Dolt-repo cwd, then commits the dirty
@@ -750,36 +784,7 @@ fn dolt_commit_embedded(repo_root: &Path, beads_dir: &Path) -> (i32, Option<Stri
     // Prefer raw `dolt` — it structurally bypasses bd's wedged migration gate and,
     // in embedded mode (no server), faces no lock contention.
     if which("dolt").is_some() {
-        let (rc, _o, err) = run_in(&["dolt", "add", "-A"], 120, &dolt_root);
-        if rc != 0 {
-            return (
-                rc.max(1),
-                Some(format!("dolt add -A failed: {}", err.trim())),
-            );
-        }
-        // Commit only if dirty (a clean tree is a success no-op; never --allow-empty).
-        let (_rc, status_out, _serr) = run_in(&["dolt", "status"], 60, &dolt_root);
-        let lower = status_out.to_lowercase();
-        if lower.contains("working tree clean") || lower.contains("nothing to commit") {
-            return (0, None);
-        }
-        let (crc, _co, cerr) = run_in(
-            &["dolt", "commit", "-m", EMBEDDED_COMMIT_MARKER],
-            120,
-            &dolt_root,
-        );
-        if crc == 0 {
-            return (0, None);
-        }
-        // Tolerate a clean-tree race (tree became clean between status and commit).
-        let cl = cerr.to_lowercase();
-        if cl.contains("nothing to commit") || cl.contains("no changes added") {
-            return (0, None);
-        }
-        return (
-            crc.max(1),
-            Some(format!("dolt commit failed: {}", cerr.trim())),
-        );
+        return dolt_commit_dir(&dolt_root, EMBEDDED_COMMIT_MARKER);
     }
 
     // `dolt` absent — last-resort `bd dolt commit` (may share the wedge; worst
@@ -976,17 +981,49 @@ fn parse_bd_config_value(out: &str) -> Option<String> {
     })
 }
 
-/// READ-ONLY detection (#39 B.2, for preflight): whether a non-empty Dolt
-/// `sync.remote` is configured AND the repo is in local-only context
-/// (`dolt.local-only` is true). Pure inspection: never mutates. This is the
-/// drift the `--remove-remote` opt-in clears.
+/// READ-ONLY detection (#39 B.2, for preflight): whether a Dolt remote is
+/// configured AND the repo is in local-only context (`dolt.local-only` is
+/// true). Pure inspection: never mutates. This is the drift the
+/// `--remove-remote` opt-in clears.
+///
+/// Two layers count as a configured remote (either fires): the **Dolt-DB-level**
+/// remote (a row in `dolt_remotes`, enumerated via raw `dolt remote`) — the
+/// **decisive** layer the remote-migrate gate keys on (EXP-002) — and the
+/// secondary `sync.remote` **config** key.
 pub fn has_local_only_remote(repo_root: &Path) -> bool {
     let local_only = bd_config_value(repo_root, "dolt.local-only")
         .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"));
     if !local_only {
         return false;
     }
+    // Decisive layer: a Dolt-DB-level remote. The gate keys solely on this.
+    let beads_dir = repo_root.join(".beads");
+    if let Ok(dolt_root) = derive_dolt_repo_root(&beads_dir) {
+        if !dolt_remote_names(&dolt_root).is_empty() {
+            return true;
+        }
+    }
+    // Secondary layer: the `sync.remote` config key.
     bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty())
+}
+
+/// Enumerate configured Dolt-DB-level remote names by running raw `dolt remote`
+/// in the derived Dolt-repo cwd (each remote name on its own line). Read-only.
+/// Empty on any failure (`dolt` absent, no remotes, non-zero exit) — treated as
+/// "no remotes configured".
+fn dolt_remote_names(dolt_root: &Path) -> Vec<String> {
+    if which("dolt").is_none() {
+        return vec![];
+    }
+    let (rc, out, _err) = run_in(&["dolt", "remote"], 60, dolt_root);
+    if rc != 0 {
+        return vec![];
+    }
+    out.lines()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 /// `git ls-files` for the repo, returning the tracked paths (repo-relative,
@@ -1091,26 +1128,96 @@ fn remove_hook_shims(repo_root: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Clear the Dolt `sync.remote` config under local-only (#39 B.1, `--remove-remote`).
-/// Inspects `bd config get sync.remote`; when a non-empty remote is configured,
-/// unsets it via `bd config unset sync.remote`. Idempotent: a no-op when no remote
-/// is set. This is the one repair step that *clears* a remote (it never adds one).
+/// The commit message stamped on the commit that persists a Dolt-remote removal.
+const REMOTE_REMOVE_MARKER: &str =
+    "yf-beads-init: remove Dolt remote under local-only canonicalization (REQ-BINIT-020, #61)";
+
+/// Clear a configured remote at **both layers** under local-only (#39 B.1,
+/// `--remove-remote`; REQ-BINIT-020). This is the one repair step that *clears* a
+/// remote (it never adds one), and it is idempotent — a clean no-op when nothing
+/// is configured at either layer.
+///
+/// 1. **Dolt-DB remote (decisive).** The bd 1.1.0 remote-migrate gate keys SOLELY
+///    on `dolt_remotes` (EXP-002), and on a WEDGED DB bd's own `bd dolt remote
+///    remove` is itself gated (no mutation) — so each configured remote is removed
+///    via RAW `dolt remote remove <name>` in the derived Dolt-repo cwd, then the
+///    change is persisted data-preservingly via raw `dolt add -A && dolt commit`
+///    (shared with REQ-BINIT-016). A repo with no dolt remotes is a clean no-op.
+/// 2. **`sync.remote` config (secondary cleanliness).** Because `bd config unset`
+///    is likewise gated on a wedged DB, the key is stripped from
+///    `.beads/config.yaml` via a RAW file edit, not via the gated bd subcommand.
 fn remove_dolt_remote(repo_root: &Path) -> std::io::Result<()> {
-    // No remote configured (unparseable or empty value) → clean no-op. Uses the
-    // `--json` reader so the `(not set …)` sentinel isn't misread as a value (#43).
-    let configured =
-        bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty());
-    if !configured {
+    let beads_dir = repo_root.join(".beads");
+
+    // Layer 1 (decisive): the Dolt-DB-level remote(s), removed via raw `dolt`.
+    // A non-derivable Dolt repo (no unique .dolt/ dir) leaves nothing to clear
+    // at this layer — a clean no-op, not an error.
+    if let Ok(dolt_root) = derive_dolt_repo_root(&beads_dir) {
+        let names = dolt_remote_names(&dolt_root);
+        if !names.is_empty() {
+            for name in &names {
+                let (rc, _o, err) = run_in(&["dolt", "remote", "remove", name], 60, &dolt_root);
+                // An already-absent remote is a clean no-op (idempotent re-run).
+                if rc != 0 && !err.to_lowercase().contains("unknown remote") {
+                    return Err(std::io::Error::other(format!(
+                        "dolt remote remove {name} exit {rc}: {}",
+                        err.trim()
+                    )));
+                }
+            }
+            // Persist the removal data-preservingly (dolt is on PATH — we just
+            // enumerated remotes through it). A clean tree is a success no-op.
+            let (rc, msg) = dolt_commit_dir(&dolt_root, REMOTE_REMOVE_MARKER);
+            if rc != 0 {
+                return Err(std::io::Error::other(msg.unwrap_or_else(|| {
+                    "dolt commit after remote removal failed".into()
+                })));
+            }
+        }
+    }
+
+    // Layer 2 (secondary cleanliness): strip `sync.remote` from config.yaml RAW.
+    remove_sync_remote_config(&beads_dir)
+}
+
+/// Strip the `sync.remote` setting from `.beads/config.yaml` via a RAW file edit
+/// — never `bd config unset`, which is gated on a wedged DB (EXP-002). Handles
+/// both the flat (`sync.remote: …`) and nested (`sync:` → `  remote: …`) YAML
+/// shapes. Idempotent: a missing file or an absent key is a clean no-op (no
+/// write).
+fn remove_sync_remote_config(beads_dir: &Path) -> std::io::Result<()> {
+    let path = beads_dir.join("config.yaml");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return Ok(()); // no config file — nothing to clear.
+    };
+    let mut changed = false;
+    let mut out: Vec<String> = Vec::new();
+    let mut in_sync_block = false;
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let indent = line.len() - trimmed.len();
+        // Flat form: `sync.remote: …` (any indent).
+        if trimmed.starts_with("sync.remote:") {
+            changed = true;
+            continue;
+        }
+        // Nested form: a `remote:` child directly under a top-level `sync:` block.
+        if indent == 0 {
+            in_sync_block = trimmed.starts_with("sync:");
+        } else if in_sync_block && trimmed.starts_with("remote:") {
+            changed = true;
+            continue;
+        }
+        out.push(line.to_string());
+    }
+    if !changed {
         return Ok(());
     }
-    let (urc, _out, uerr) = run_in(&["bd", "config", "unset", "sync.remote"], 30, repo_root);
-    if urc != 0 {
-        return Err(std::io::Error::other(format!(
-            "bd config unset sync.remote exit {urc}: {}",
-            uerr.trim()
-        )));
+    let mut joined = out.join("\n");
+    if text.ends_with('\n') {
+        joined.push('\n');
     }
-    Ok(())
+    std::fs::write(&path, joined)
 }
 
 /// Remove `dir` only if it exists and is empty. Idempotent; ignores errors (a

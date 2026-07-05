@@ -20,7 +20,7 @@ allowed-tools:
   - AskUserQuestion
 preflight:
   companion-rule: BEADS_INIT.md
-  min-bd-version: 1.0.5
+  min-bd-version: 1.1.0
   config-basename: .yf-beads-init.local.json
 ---
 
@@ -74,7 +74,7 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
 
 1. **Verify.** Run `yf preflight yf-beads-init --json`. Branch on the beads `status`:
    - `ok` — nothing to do.
-   - `deps_missing` — install the listed tools (`bd` ≥ 1.0.5, `uv`, `git`); stop.
+   - `deps_missing` — install the listed tools (`bd` ≥ 1.1.0, `uv`, `git`); stop.
    - `not_initialized` — no usable `.beads/`. Confirm intent, then `yf doctor --repair` runs
      `bd init --skip-hooks --skip-agents` (cruft-suppressed init, see below), then go to step 3.
    - `corrupted` — initialized but wedged/broken; go to step 2.
@@ -92,8 +92,15 @@ classifies this as `corrupted` (repairable), never `not_initialized`.
        --hard`; a clean tree is a no-op). Mode is detected from `.beads/metadata.json`
        (`dolt_mode`, with a `dolt-server.*` filesystem fallback).
 
-     *Do not* try `bd vc commit` first — it cannot open the wedged DB (chicken-and-egg). The
-     embedded raw-`dolt` commit is a distinct escape hatch, not `bd vc commit`.
+     **Which commit clears the embedded set — version-dependent (#68 cert):** on **bd < 1.1.0**,
+     `bd vc commit` could not open the wedged DB (chicken-and-egg), so raw `dolt add -A && dolt
+     commit` was the only escape hatch. On **bd ≥ 1.1.0** that is no longer true — `bd dolt
+     commit` (and `bd vc commit`) *do* open a wedged embedded DB and commit the dirty set,
+     bypassing the migration guard; `bd dolt commit` is the command **bd's own wedge error now
+     prescribes** (verified, EXP-001). Repair keeps raw `dolt add -A && dolt commit` as the
+     version-agnostic default (and the bd < 1.1.0 requirement), falling back to `bd dolt commit`
+     when `dolt` is off PATH. What is *still* true in every version: `bd migrate schema` fails
+     against a dirty set — flush first, then migrate.
    - **Permissions:** `chmod 700 .beads` (bd warns at `0750`).
    - **Git hooks:** repair **never installs** beads git hooks. The former
      `bd hooks install --force` step was removed (#31) — it contradicted cruft suppression
@@ -152,6 +159,15 @@ it on repair:
 When beads is intentionally local-only (issues live upstream, e.g. GitHub, not in a Dolt
 remote): `bd config set dolt.local-only true`, keep `bd dolt remote list` empty, and never
 `bd dolt push`. `yf doctor --repair --local-only` sets the flag.
+
+**bd ≥ 1.1.0 remote-migrate gate (#68 cert):** on 1.1.0 the state-aware remote-migrate gate
+(`BD_SMART_GATE`, on by default) treats a **configured remote** as "remote-backed" and refuses
+to auto-apply pending schema migrations — wedging `bd status` into error-JSON-with-exit-0 on the
+next upgrade even when `dolt.local-only true` is set. For a genuinely local-only repo the fix is
+to hold **no** remote: clear both layers (`--remove-remote`, which unsets `sync.remote` *and*
+runs `bd dolt remote remove`). Escaping an already-wedged repo where a remote is intentionally
+retained is the operator-gated `BD_ALLOW_REMOTE_MIGRATE=1 bd migrate` (never auto-run). See
+`yf-beads-upstream` / `yf-beads-hygiene` for the full remote-hygiene contract.
 
 Repair never *adds* a Dolt remote. The opt-in `--remove-remote` flag (valid only alongside
 `--local-only`) is the one repair step that *clears* an existing remote: when a non-empty

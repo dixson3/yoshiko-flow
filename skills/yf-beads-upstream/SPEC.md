@@ -88,7 +88,12 @@ companion rule.
 - **REQ-BUP-042** intent triggers (`init`, `status`/pull, "set up upstream tracking", "push
   beads upstream") shall live in the SKILL `description`; the procedural close-time /
   land-the-plane push trigger shall live **only** in the always-loaded companion rule, never in
-  the description.
+  the description. **Mid-session intent (#61):** the description shall additionally fire on
+  explicit mid-session phrasing — "push/sync upstream", "sync issues upstream", "mirror this bead
+  upstream", "file/hoist this as a GitHub issue" — and shall **disambiguate this `gh`-based issue
+  mirror from `bd dolt push`** (Dolt DB replication): the two are orthogonal paths and an agent
+  must not reach for `bd dolt push` on "push upstream" intent. This mid-session trigger is distinct
+  from the close-time land-the-plane trigger (which stays in the companion rule only).
 - **REQ-BUP-043** *(implemented)* the granularity of upstream pushes shall be
   operator-configurable via `custom.upstream.granularity` (`coarse` | `granular`); unset or any
   unrecognized value defaults to `coarse`. Under `coarse` (the formalized existing default) one
@@ -119,12 +124,26 @@ companion rule.
 - **REQ-BUP-047** *(testable)* a wrongly-hoisted bead shall be restorable via `un-hoist`:
   `bd update <id> --status open` reopens it from its `close_reason` tombstone (the upstream issue
   stays); a `--record` file supports batch round-trip (`upstream.py` `plan_unhoist`, `cmd_unhoist`).
+- **REQ-BUP-048** *(testable, #61)* `enumerate` shall support an **owner-on-create** knob for repos
+  where `bd create` auto-assigns an owner. Default-off (`custom.upstream.owner_on_create` resolves
+  true only on the literal string `true`, mirroring REQ-BUP-043/044's `(not set)`-sentinel read).
+  When **on**, enumerate shall not treat *owner alone* as the `claimed`/active signal — a bead that
+  is `open` with an owner but is neither `in_progress` nor an ancestor of an `in_progress` bead is a
+  valid push candidate, not active work. **The shared plan-013 active-set glossary
+  (`_shared/active_set.py` `classify_active` / `ACTIVE_CLAIMED`) shall NOT change** (it stays
+  byte-identical across its two consumers, `upstream.py` and `yf-beads-hygiene`): the knob is
+  applied **locally in `enumerate_candidates`** by blanking the `owner` field on a copy of the
+  bead universe before classification, so `in_progress` and ancestor-of-active propagation are
+  preserved while owner-only "claims" fall through to candidacy. When **off** (default), enumerate
+  behavior is byte-for-byte as before. *Why (#61):* in owner-on-create repos every open bead reads
+  as claimed→active→excluded, so land-the-plane candidate discovery silently finds zero candidates.
 
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (non-active push candidates via
   the shared active-set classifier, flagging those already carrying an `External:` mapping;
-  defensive `--json` parse per `yf-beads-extra`), `mappings --issues <csv> [--json]` (report each
+  defensive `--json` parse per `yf-beads-extra`; honors the `custom.upstream.owner_on_create` knob
+  per REQ-BUP-048, applied locally without mutating the shared classifier), `mappings --issues <csv> [--json]` (report each
   bead's `External:` URL or null), `granularity`/`config [--json]` (report the
   `custom.upstream.granularity` and `custom.upstream.auto_hoist_followons` knobs),
   `followons --parent <id> --intake <ts> [--json]` (narrow vs broad follow-on detection),

@@ -31,7 +31,7 @@ allowed-tools:
   - mcp__exa__get_code_context_exa
 preflight:
   companion-rule: RESEARCH.md
-  min-bd-version: 1.0.5
+  min-bd-version: 1.1.0
   config-basename: .yf-research.local.json
 ---
 
