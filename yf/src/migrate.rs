@@ -429,6 +429,105 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let res = migrate(tmp.path(), false).unwrap();
         assert_eq!(res.migrated, 0);
+        // A clean repo has no legacy anchors either → no gitignore Entry.
         assert!(res.entries.iter().all(|e| e.action == Action::SourceAbsent));
+    }
+
+    // REQ-YF-MIGRATE-001 (#67): the transitional flat `.yf/<short>.local.json`
+    // migrates into the canonical `.yf/<short>/config.local.json` subdir.
+    #[test]
+    fn flat_config_migrates_to_subdir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        std::fs::create_dir_all(repo.join(".yf")).unwrap();
+        std::fs::write(repo.join(".yf").join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
+
+        let res = migrate(repo, false).unwrap();
+        assert_eq!(res.migrated, 1);
+        assert_eq!(
+            std::fs::read_to_string(repo.join(".yf").join("plan").join("config.local.json"))
+                .unwrap(),
+            r#"{"src":"flat"}"#
+        );
+        assert!(!repo.join(".yf").join("plan.local.json").exists());
+    }
+
+    // REQ-YF-MIGRATE-001 (#67): when BOTH a flat and a legacy-root config exist, the
+    // flat (higher read-precedence, tier 2) wins the subdir; the legacy source is
+    // left untouched (never-clobber), preserving the value a reader currently sees.
+    #[test]
+    fn flat_wins_over_legacy_on_consolidation() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        std::fs::create_dir_all(repo.join(".yf")).unwrap();
+        std::fs::write(repo.join(".yf").join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
+        std::fs::write(repo.join(".bdplan.local.json"), r#"{"src":"legacy"}"#).unwrap();
+
+        migrate(repo, false).unwrap();
+        // The subdir carries the flat value; the legacy file is left in place.
+        assert_eq!(
+            std::fs::read_to_string(repo.join(".yf").join("plan").join("config.local.json"))
+                .unwrap(),
+            r#"{"src":"flat"}"#
+        );
+        assert!(
+            repo.join(".bdplan.local.json").is_file(),
+            "legacy source left untouched (never-clobber)"
+        );
+    }
+
+    // REQ-YF-PRE-005 revised (#67): legacy per-skill top-level gitignore anchors
+    // collapse to the single `/.yf/`; orphaned per-skill headers are dropped and
+    // the general `/.yf/` header preserved. Idempotent on re-run.
+    #[test]
+    fn gitignore_anchors_collapse() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        let gi = "\
+/target/
+
+# Skill runtime state + local config (never committed; per Skill Surface Convention)
+/.yf/
+/.yf-plan.local.json
+
+# Skill runtime state + local config (bdplan; Surface Convention §6)
+/.bdplan.local.json
+
+# Skill runtime state + local config (yf-beads-init; Surface Convention §6)
+/.yf-beads-init.local.json
+";
+        std::fs::write(repo.join(".gitignore"), gi).unwrap();
+
+        migrate(repo, false).unwrap();
+        let out = std::fs::read_to_string(repo.join(".gitignore")).unwrap();
+        assert!(out.contains("/.yf/"), "the /.yf/ anchor is preserved");
+        assert!(out.contains("/target/"), "unrelated entries preserved");
+        assert!(
+            !out.contains(".yf-plan.local.json"),
+            "obsolete per-skill anchor removed: {out}"
+        );
+        assert!(
+            !out.contains(".bdplan.local.json"),
+            "obsolete legacy anchor removed: {out}"
+        );
+        assert!(
+            !out.contains(".yf-beads-init.local.json"),
+            "obsolete per-skill anchor removed: {out}"
+        );
+        assert!(
+            !out.contains("§6)"),
+            "orphaned per-skill headers dropped: {out}"
+        );
+        assert!(
+            out.contains("per Skill Surface Convention)"),
+            "general /.yf/ header preserved: {out}"
+        );
+
+        // Idempotent: a second run makes no further change (no gitignore Entry).
+        let res2 = migrate(repo, false).unwrap();
+        assert!(
+            res2.entries.iter().all(|e| e.kind != "gitignore"),
+            "collapse is idempotent"
+        );
     }
 }
