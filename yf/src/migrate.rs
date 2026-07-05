@@ -3,14 +3,17 @@
 //! Migrates a repo's legacy per-skill state + config from the old `bd*`/bare-name
 //! layout to the new `yf-*` layout:
 //!
-//! - `.state/<oldname>/`      → `.yf/<short>/`
-//! - `.<oldname>.local.json`  → `.yf-<newname>.local.json`
+//! - `.state/<oldname>/`         → `.yf/<short>/`
+//! - `.<oldname>.local.json`     → `.yf/<short>/config.local.json`
+//! - `.yf/<short>.local.json`    → `.yf/<short>/config.local.json` (transitional flat)
 //!
-//! where the STATE dest is keyed by the `.yf/<short>/` namespace short name from
-//! the centralized [`crate::preflight::skill_short_name`] resolver — matching what
-//! preflight reads (e.g. `.state/bdplan/` → `.yf/plan/`, NOT the pre-#67 full-name
-//! `.yf/yf-plan/`). The config dest still uses the `.yf-<newname>.local.json` root
-//! form here; its subdir move (`.yf/<short>/config.local.json`) lands in Issue 2.3.
+//! where the `.yf/<short>/` namespace short name comes from the centralized
+//! [`crate::preflight::skill_short_name`] resolver — matching what preflight reads
+//! (e.g. `.state/bdplan/` → `.yf/plan/`, NOT the pre-#67 full-name `.yf/yf-plan/`).
+//! Config consolidates BOTH legacy sources (the root dotfile and the transitional
+//! flat `.yf/<short>.local.json`) into the canonical `.yf/<short>/config.local.json`
+//! subdir (#67), and the per-skill top-level gitignore anchors collapse to one
+//! `/.yf/` anchor.
 //!
 //! ## Idempotency guarantees (REQ-YF-MIGRATE-001)
 //!
@@ -102,14 +105,29 @@ pub fn migrate(repo: &Path, dry_run: bool) -> std::io::Result<MigrateResult> {
             dry_run,
         )?);
 
-        // Config file: .<old>.local.json → .yf-<new>.local.json
-        // (config MIGRATION TARGET is decoupled from the state short-name — the
-        // subdir move to `.yf/<short>/config.local.json` lands in Issue 2.3.)
-        let cfg_from = repo.join(format!(".{old}.local.json"));
-        let cfg_to = repo.join(format!(".{new}.local.json"));
+        // Config → the canonical subdir `.yf/<short>/config.local.json` (REQ-YF-MIGRATE-001
+        // revised, #67). TWO legacy sources consolidate into the one dest, in
+        // READ-PRECEDENCE order so the value a reader currently sees is preserved:
+        //   (1) transitional flat `.yf/<short>.local.json` (read tier 2) — migrated first;
+        //   (2) legacy root `.<old>.local.json` (read tier 3) — DestExists if (1) moved.
+        // Both are idempotent + never-clobber (an existing dest is left untouched).
+        let cfg_to = repo.join(".yf").join(&short).join("config.local.json");
+        let flat_from = repo.join(".yf").join(format!("{short}.local.json"));
         entries.push(plan_and_apply(
-            "config", old, new, &cfg_from, &cfg_to, dry_run,
+            "config", old, new, &flat_from, &cfg_to, dry_run,
         )?);
+        let legacy_from = repo.join(format!(".{old}.local.json"));
+        entries.push(plan_and_apply(
+            "config", old, new, &legacy_from, &cfg_to, dry_run,
+        )?);
+    }
+
+    // Collapse legacy top-level per-skill gitignore anchors to the single `/.yf/`
+    // anchor (REQ-YF-PRE-005 revised, #67). Config now lives under `.yf/`, so the
+    // per-skill `/.yf-<new>.local.json` and `/.<old>.local.json` dotfile anchors are
+    // obsolete. Idempotent: only rewrites `.gitignore` when it actually changes.
+    if let Some(collapsed) = collapse_gitignore_anchors(repo, dry_run)? {
+        entries.push(collapsed);
     }
 
     let migrated = entries
@@ -153,6 +171,83 @@ fn plan_and_apply(
         to: to.display().to_string(),
         action,
     })
+}
+
+/// Collapse legacy per-skill top-level gitignore anchors to the single `/.yf/`
+/// anchor (REQ-YF-PRE-005 revised / REQ-YF-MIGRATE-001, #67). Removes the obsolete
+/// per-skill dotfile anchor lines (`/.yf-<new>.local.json`, `/.<old>.local.json`)
+/// and their orphaned per-skill comment headers, then ensures `/.yf/` is present.
+/// Idempotent: returns `None` (no Entry) when `.gitignore` is absent or already
+/// collapsed; returns `Some(Migrated)` (and rewrites, unless `dry_run`) on change.
+fn collapse_gitignore_anchors(repo: &Path, dry_run: bool) -> std::io::Result<Option<Entry>> {
+    let gitignore = repo.join(".gitignore");
+    let text = match std::fs::read_to_string(&gitignore) {
+        Ok(t) => t,
+        Err(_) => return Ok(None), // no .gitignore → nothing to collapse.
+    };
+
+    // The obsolete per-skill dotfile anchors, keyed off SKILL_MAP (both the legacy
+    // `bd*`/bare `.<old>.local.json` and the `.yf-<new>.local.json` forms).
+    let mut obsolete: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for (old, new) in SKILL_MAP {
+        obsolete.insert(format!("/.{old}.local.json"));
+        obsolete.insert(format!("/.{new}.local.json"));
+    }
+
+    let kept: Vec<&str> = text
+        .lines()
+        .filter(|line| {
+            let t = line.trim();
+            // Drop the obsolete anchor lines …
+            if obsolete.contains(t) {
+                return false;
+            }
+            // … and the now-orphaned per-skill comment header the scaffold used to
+            // write (`# Skill runtime state + local config (<skill>; Surface
+            // Convention §6)`). The GENERAL `/.yf/` header ("… per Skill Surface
+            // Convention)") lacks the `§6)` suffix, so it is preserved.
+            if t.starts_with("# Skill runtime state + local config (") && t.ends_with("§6)") {
+                return false;
+            }
+            true
+        })
+        .collect();
+
+    // Collapse consecutive blank lines to one and strip trailing blanks.
+    let mut out: Vec<String> = Vec::with_capacity(kept.len());
+    for line in kept {
+        if line.trim().is_empty() && out.last().map(|l| l.trim().is_empty()).unwrap_or(true) {
+            continue;
+        }
+        out.push(line.to_string());
+    }
+    while out.last().map(|l| l.trim().is_empty()).unwrap_or(false) {
+        out.pop();
+    }
+    // Ensure the single `/.yf/` anchor is present.
+    if !out.iter().any(|l| l.trim() == "/.yf/") {
+        if out.last().map(|l| !l.trim().is_empty()).unwrap_or(false) {
+            out.push(String::new());
+        }
+        out.push("# Skill runtime state + local config (never committed; per Skill Surface Convention)".to_string());
+        out.push("/.yf/".to_string());
+    }
+
+    let rewritten = out.join("\n") + "\n";
+    if rewritten == text {
+        return Ok(None); // already collapsed — idempotent no-op.
+    }
+    if !dry_run {
+        std::fs::write(&gitignore, &rewritten)?;
+    }
+    Ok(Some(Entry {
+        kind: "gitignore",
+        old: String::new(),
+        new: String::new(),
+        from: gitignore.display().to_string(),
+        to: gitignore.display().to_string(),
+        action: Action::Migrated,
+    }))
 }
 
 /// Move `from` → `to`, creating the dest parent. Tries an atomic rename first;
@@ -228,8 +323,9 @@ pub fn run(path: Option<PathBuf>, dry_run: bool, json: bool) -> anyhow::Result<(
 mod tests {
     use super::*;
 
-    // REQ-YF-MIGRATE-001: legacy .state/bdplan/foo + .bdplan.local.json migrate to
-    // .yf/plan/foo (SHORT name — matches what preflight reads) + .yf-plan.local.json.
+    // REQ-YF-MIGRATE-001 (#67): legacy .state/bdplan/foo + .bdplan.local.json migrate
+    // to .yf/plan/foo (SHORT name — matches what preflight reads) +
+    // .yf/plan/config.local.json (canonical config subdir).
     #[test]
     fn migrates_state_and_config() {
         let tmp = tempfile::tempdir().unwrap();
@@ -239,12 +335,14 @@ mod tests {
         std::fs::write(repo.join(".bdplan.local.json"), r#"{"k":1}"#).unwrap();
 
         let res = migrate(repo, false).unwrap();
+        // state + legacy-root config → 2 (flat config source absent here).
         assert_eq!(res.migrated, 2);
 
-        // New paths exist with content (state dir uses the SHORT name).
+        // New paths exist with content (state dir + config subdir use the SHORT name).
         assert!(repo.join(".yf").join("plan").join("foo").is_file());
         assert_eq!(
-            std::fs::read_to_string(repo.join(".yf-plan.local.json")).unwrap(),
+            std::fs::read_to_string(repo.join(".yf").join("plan").join("config.local.json"))
+                .unwrap(),
             r#"{"k":1}"#
         );
         // Old paths gone.
@@ -318,7 +416,11 @@ mod tests {
         assert_eq!(res.migrated, 1);
         // Nothing moved.
         assert!(repo.join(".markdown-lint.local.json").is_file());
-        assert!(!repo.join(".yf-markdown-lint.local.json").exists());
+        assert!(!repo
+            .join(".yf")
+            .join("markdown-lint")
+            .join("config.local.json")
+            .exists());
     }
 
     // REQ-YF-MIGRATE-001: a clean repo (no legacy state) migrates nothing.

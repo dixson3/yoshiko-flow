@@ -45,8 +45,9 @@ const MANIFEST_SCHEMA: i64 = 1;
 /// (re-)ensured once per version, gated by runtime state.
 const SCAFFOLD_VERSION: i64 = 1;
 
-/// The single gitignore anchor under the new `.yf/` tree (REQ-YF-PRE-005). The
-/// per-skill `config-basename` anchor is added alongside it (legacy parity).
+/// The single gitignore anchor under the `.yf/` tree (REQ-YF-PRE-005, revised
+/// #67). One anchor covers both config (`.yf/<short>/config.local.json`) and state
+/// (`.yf/<short>/preflight.json`); no per-skill top-level dotfile anchor is added.
 const YF_ANCHOR: &str = "/.yf/";
 
 /// State key stamping the generating `yf` version onto `preflight.json`
@@ -977,11 +978,13 @@ fn ensure_scaffold(env: &Env, short: &str, config_basename: Option<&str>) -> Vec
         return added;
     }
 
-    let mut anchors: Vec<String> = vec![];
-    if let Some(base) = config_basename {
-        anchors.push(format!("/{base}"));
-    }
-    anchors.push(YF_ANCHOR.to_string());
+    // REQ-YF-PRE-005 (revised #67): a SINGLE top-level anchor `/.yf/` covers both
+    // config (`.yf/<short>/config.local.json`) and state (`.yf/<short>/preflight.json`).
+    // No per-skill top-level dotfile anchor is scaffolded anymore — the legacy
+    // `config_basename` root dotfile is a back-compat READ path only (migrated into
+    // `.yf/` by `yf migrate`), not a location this scaffold creates or anchors.
+    let _ = config_basename; // retained in the signature; no longer anchored
+    let anchors: Vec<String> = vec![YF_ANCHOR.to_string()];
 
     let gitignore = env.repo_root.join(".gitignore");
     let mut lines: Vec<String> = std::fs::read_to_string(&gitignore)
@@ -1351,8 +1354,9 @@ mod tests {
         std::fs::remove_dir_all(&tmp).ok();
     }
 
-    // REQ-YF-PRE-005: the scaffold writes `/.yf/` (and the config-basename anchor)
-    // to .gitignore on the `ok` path, reported in scaffold_added.
+    // REQ-YF-PRE-005 (revised #67): the scaffold writes the SINGLE `/.yf/` anchor to
+    // .gitignore on the `ok` path (no per-skill config-basename anchor), reported in
+    // scaffold_added.
     #[test]
     fn scaffold_writes_yf_anchor() {
         let tmp = unique_tmp("scaffold");
@@ -1384,7 +1388,15 @@ mod tests {
         );
         let gi = std::fs::read_to_string(repo.join(".gitignore")).unwrap();
         assert!(gi.contains("/.yf/"));
-        assert!(gi.contains("/.yf-plan.local.json"));
+        // Revised #67: NO per-skill top-level dotfile anchor is scaffolded.
+        assert!(
+            !gi.contains("/.yf-plan.local.json"),
+            "no per-skill config-basename anchor should be scaffolded: {gi}"
+        );
+        assert!(
+            added.iter().all(|a| a != "gitignore /.yf-plan.local.json"),
+            "scaffold_added must not record a per-skill anchor: {added:?}"
+        );
         // Second run is idempotent: scaffold already ensured, nothing added.
         let out2 = run_with_env("plan", &env);
         assert_eq!(out2.scaffold_added.unwrap(), Vec::<String>::new());
