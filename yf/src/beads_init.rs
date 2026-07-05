@@ -1012,6 +1012,24 @@ pub fn has_local_only_remote(repo_root: &Path) -> bool {
     bd_config_value(repo_root, "sync.remote").is_some_and(|v| !v.trim().is_empty())
 }
 
+/// READ-ONLY detection (#58 / REQ-YF-PRE-010, for preflight): whether the repo's
+/// beads store drifts from the canonical **per-repo local-server** engine mode —
+/// i.e. it is an **embedded** store (`dolt_mode: "embedded"` / no `dolt-server.*`).
+/// This is the **detect/warn-only** axis: engine-mode migration is out of scope,
+/// so preflight only surfaces the drift with guidance, never offering a `--repair`.
+///
+/// Returns `false` (conformant / not-applicable) when there is no `.beads/` dir at
+/// all — a non-beads or not-yet-initialized repo is never flagged as engine-mode
+/// drift (that classification is `bd_not_initialized`'s job, upstream of here).
+/// Only an existing `.beads/` that resolves to embedded storage returns `true`.
+pub fn has_embedded_engine_drift(repo_root: &Path) -> bool {
+    let beads_dir = repo_root.join(".beads");
+    if !beads_dir.is_dir() {
+        return false;
+    }
+    is_embedded_mode(&beads_dir)
+}
+
 /// Enumerate configured Dolt-DB-level remote names by running raw `dolt remote`
 /// in the derived Dolt-repo cwd (each remote name on its own line). Read-only.
 /// Empty on any failure (`dolt` absent, no remotes, non-zero exit) — treated as

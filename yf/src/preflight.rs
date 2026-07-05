@@ -721,10 +721,28 @@ fn detect_canonicalization_drift(repo_root: &Path) -> Vec<String> {
     }
 
     // Gap 3: a Dolt remote under local-only — surface the --remove-remote form.
+    // This is a CORRECTABLE profile axis (REQ-YF-PRE-010): the offer names the
+    // `yf doctor --repair` command that fixes it.
     if crate::beads_init::has_local_only_remote(repo_root) {
         out.push(
             "Canonicalization drift: a Dolt remote is configured under local-only — \
              run `yf doctor --repair --local-only --remove-remote` to clear it"
+                .to_string(),
+        );
+    }
+
+    // Profile engine-mode drift (REQ-YF-PRE-010, #58): an EMBEDDED store drifts from
+    // the canonical per-repo local-server profile. This is the DETECT/WARN-ONLY axis
+    // — engine-mode migration (server<->embedded) is out of scope, so the warn names
+    // NO `--repair` action (there is no safe correction to offer); it is guidance
+    // only. A conformant local-server store (server files present / `dolt_mode:
+    // "server"`) produces no warn.
+    if crate::beads_init::has_embedded_engine_drift(repo_root) {
+        out.push(
+            "Profile drift (warn-only): beads uses embedded Dolt storage, but the canonical \
+             minimal-local profile is a per-repo local-server (concurrency-safe across \
+             worktrees). Engine-mode migration is out of scope — `yf doctor --repair` does NOT \
+             convert it; re-initialize in server mode only if you deliberately want to switch."
                 .to_string(),
         );
     }
