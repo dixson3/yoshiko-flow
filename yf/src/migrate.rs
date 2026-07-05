@@ -118,7 +118,12 @@ pub fn migrate(repo: &Path, dry_run: bool) -> std::io::Result<MigrateResult> {
         )?);
         let legacy_from = repo.join(format!(".{old}.local.json"));
         entries.push(plan_and_apply(
-            "config", old, new, &legacy_from, &cfg_to, dry_run,
+            "config",
+            old,
+            new,
+            &legacy_from,
+            &cfg_to,
+            dry_run,
         )?);
     }
 
@@ -229,7 +234,10 @@ fn collapse_gitignore_anchors(repo: &Path, dry_run: bool) -> std::io::Result<Opt
         if out.last().map(|l| !l.trim().is_empty()).unwrap_or(false) {
             out.push(String::new());
         }
-        out.push("# Skill runtime state + local config (never committed; per Skill Surface Convention)".to_string());
+        out.push(
+            "# Skill runtime state + local config (never committed; per Skill Surface Convention)"
+                .to_string(),
+        );
         out.push("/.yf/".to_string());
     }
 
@@ -370,11 +378,7 @@ mod tests {
         // Every entry is now source-absent or dest-exists; none migrated.
         assert!(second.entries.iter().all(|e| e.action != Action::Migrated));
         // Content intact (state dir uses the SHORT name).
-        assert!(repo
-            .join(".yf")
-            .join("research")
-            .join("idx.json")
-            .is_file());
+        assert!(repo.join(".yf").join("research").join("idx.json").is_file());
     }
 
     // REQ-YF-MIGRATE-001: an existing dest is never clobbered.
@@ -440,7 +444,11 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
         std::fs::create_dir_all(repo.join(".yf")).unwrap();
-        std::fs::write(repo.join(".yf").join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
+        std::fs::write(
+            repo.join(".yf").join("plan.local.json"),
+            r#"{"src":"flat"}"#,
+        )
+        .unwrap();
 
         let res = migrate(repo, false).unwrap();
         assert_eq!(res.migrated, 1);
@@ -460,7 +468,11 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
         std::fs::create_dir_all(repo.join(".yf")).unwrap();
-        std::fs::write(repo.join(".yf").join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
+        std::fs::write(
+            repo.join(".yf").join("plan.local.json"),
+            r#"{"src":"flat"}"#,
+        )
+        .unwrap();
         std::fs::write(repo.join(".bdplan.local.json"), r#"{"src":"legacy"}"#).unwrap();
 
         migrate(repo, false).unwrap();

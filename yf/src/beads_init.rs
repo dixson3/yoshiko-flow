@@ -1726,7 +1726,10 @@ mod tests {
         // Keyless metadata + server files present → conformant local-server.
         std::fs::write(beads.join("metadata.json"), r#"{}"#).unwrap();
         std::fs::write(beads.join("dolt-server.port"), "3306").unwrap();
-        assert!(!has_embedded_engine_drift(root), "server files → conformant");
+        assert!(
+            !has_embedded_engine_drift(root),
+            "server files → conformant"
+        );
     }
 
     // REQ-BINIT-016 (integration): native-step idempotency + data preservation

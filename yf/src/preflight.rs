@@ -2082,14 +2082,18 @@ mod tests {
         // Tier 3 only: legacy root dotfile.
         std::fs::write(repo.join(basename), r#"{"src":"legacy"}"#).unwrap();
         assert_eq!(
-            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            read_config(&env, "plan", Some(basename))
+                .get("src")
+                .unwrap(),
             "legacy"
         );
 
         // Tier 2 wins over tier 3: flat `.yf/<short>.local.json`.
         std::fs::write(yf.join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
         assert_eq!(
-            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            read_config(&env, "plan", Some(basename))
+                .get("src")
+                .unwrap(),
             "flat"
         );
 
@@ -2100,7 +2104,9 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            read_config(&env, "plan", Some(basename))
+                .get("src")
+                .unwrap(),
             "subdir"
         );
 
