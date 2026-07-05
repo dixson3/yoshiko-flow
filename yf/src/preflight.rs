@@ -218,7 +218,13 @@ impl Env {
 /// `.yf/<skill>/` paths use the short names `plan` / `research`. We accept
 /// either form (and the legacy `bdplan`/`bdresearch` for back-compat). `short`
 /// drives config/state paths; `dir` selects the embedded SKILL.md + manifest.
-fn resolve_skill(arg: &str) -> (String, String) {
+/// Centralized skill-name resolver (REQ-YF-PRE-004): skill-arg → `(dir, short)`.
+/// The **single source of truth** for the short name, shared by the preflight
+/// config/state paths and by `migrate` (which previously duplicated this mapping
+/// in its own `SKILL_MAP`, disagreeing on `.yf/yf-plan/` full-name vs `.yf/plan/`
+/// short-name). `short` is the `.yf/<short>/` namespace key; `dir` is the embedded
+/// skill directory name.
+pub fn resolve_skill(arg: &str) -> (String, String) {
     // Explicit aliases for the two self-renamed skills.
     let (dir, short) = match arg {
         "plan" | "yf-plan" | "bdplan" => ("yf-plan", "plan"),
@@ -231,6 +237,13 @@ fn resolve_skill(arg: &str) -> (String, String) {
         }
     };
     (dir.to_string(), short.to_string())
+}
+
+/// The `.yf/<short>/` namespace key for a skill name — the shared short-name half
+/// of [`resolve_skill`]. Used by `migrate` so its state-dir and config-dir targets
+/// match exactly what preflight reads (fixes the historical full-vs-short drift).
+pub fn skill_short_name(arg: &str) -> String {
+    resolve_skill(arg).1
 }
 
 // ---------------------------------------------------------------------------
@@ -432,11 +445,17 @@ fn read_config(
     short: &str,
     config_basename: Option<&str>,
 ) -> serde_json::Map<String, serde_json::Value> {
-    let new_path = env
-        .repo_root
-        .join(".yf")
-        .join(format!("{short}.local.json"));
-    if let Some(m) = read_json_obj(&new_path) {
+    // REQ-YF-PRE-004 resolution precedence, first match wins:
+    // 1. canonical subdir `.yf/<short>/config.local.json` (co-located with state);
+    // 2. transitional flat `.yf/<short>.local.json` (back-compat read only);
+    // 3. legacy root dotfile named by the skill's `config_basename` descriptor.
+    let yf = env.repo_root.join(".yf");
+    let subdir_path = yf.join(short).join("config.local.json");
+    if let Some(m) = read_json_obj(&subdir_path) {
+        return m;
+    }
+    let flat_path = yf.join(format!("{short}.local.json"));
+    if let Some(m) = read_json_obj(&flat_path) {
         return m;
     }
     if let Some(base) = config_basename {
@@ -2032,5 +2051,59 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&repo).ok();
+    }
+
+    // REQ-YF-PRE-004 (#67): read_config resolution precedence — canonical subdir
+    // `.yf/<short>/config.local.json` > transitional flat `.yf/<short>.local.json` >
+    // legacy root dotfile. Also proves (pass-1 concern 4) that config resolution is
+    // DECOUPLED from the state short-name: config still resolves for `plan` (short)
+    // after the SKILL_MAP state-dir change.
+    #[test]
+    fn read_config_resolution_precedence() {
+        let repo = unique_tmp("cfg-precedence");
+        let rules = repo.join("rules");
+        let env = test_env(&repo, &rules);
+        let yf = repo.join(".yf");
+        std::fs::create_dir_all(yf.join("plan")).unwrap();
+        let basename = ".yf-plan.local.json";
+
+        // Tier 3 only: legacy root dotfile.
+        std::fs::write(repo.join(basename), r#"{"src":"legacy"}"#).unwrap();
+        assert_eq!(
+            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            "legacy"
+        );
+
+        // Tier 2 wins over tier 3: flat `.yf/<short>.local.json`.
+        std::fs::write(yf.join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
+        assert_eq!(
+            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            "flat"
+        );
+
+        // Tier 1 wins over all: canonical subdir `.yf/<short>/config.local.json`.
+        std::fs::write(
+            yf.join("plan").join("config.local.json"),
+            r#"{"src":"subdir"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            read_config(&env, "plan", Some(basename)).get("src").unwrap(),
+            "subdir"
+        );
+
+        std::fs::remove_dir_all(&repo).ok();
+    }
+
+    // REQ-YF-PRE-004 (#67): the centralized resolver — the single source of the
+    // `.yf/<short>/` short name shared by preflight and `migrate`.
+    #[test]
+    fn skill_short_name_is_centralized() {
+        assert_eq!(skill_short_name("yf-plan"), "plan");
+        assert_eq!(skill_short_name("bdplan"), "plan");
+        assert_eq!(skill_short_name("yf-research"), "research");
+        // Generic skills strip the `yf-` prefix.
+        assert_eq!(skill_short_name("yf-beads-init"), "beads-init");
+        assert_eq!(skill_short_name("yf-markdown-lint"), "markdown-lint");
     }
 }

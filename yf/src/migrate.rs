@@ -3,11 +3,14 @@
 //! Migrates a repo's legacy per-skill state + config from the old `bd*`/bare-name
 //! layout to the new `yf-*` layout:
 //!
-//! - `.state/<oldname>/`      → `.yf/<newname>/`
+//! - `.state/<oldname>/`      → `.yf/<short>/`
 //! - `.<oldname>.local.json`  → `.yf-<newname>.local.json`
 //!
-//! where the dest is keyed by the NEW skill name (e.g. `.state/bdplan/` →
-//! `.yf/yf-plan/`, `.bdplan.local.json` → `.yf-plan.local.json`).
+//! where the STATE dest is keyed by the `.yf/<short>/` namespace short name from
+//! the centralized [`crate::preflight::skill_short_name`] resolver — matching what
+//! preflight reads (e.g. `.state/bdplan/` → `.yf/plan/`, NOT the pre-#67 full-name
+//! `.yf/yf-plan/`). The config dest still uses the `.yf-<newname>.local.json` root
+//! form here; its subdir move (`.yf/<short>/config.local.json`) lands in Issue 2.3.
 //!
 //! ## Idempotency guarantees (REQ-YF-MIGRATE-001)
 //!
@@ -81,9 +84,15 @@ pub fn migrate(repo: &Path, dry_run: bool) -> std::io::Result<MigrateResult> {
     let mut entries = Vec::new();
 
     for (old, new) in SKILL_MAP {
-        // State dir: .state/<old>/ → .yf/<new>/
+        // The `.yf/<short>/` namespace key comes from the CENTRALIZED resolver
+        // (REQ-YF-PRE-004) — NOT the full `new` name — so the state dir migrate
+        // writes matches exactly what preflight reads (fixes the historical
+        // full-name `.yf/yf-plan/` vs short-name `.yf/plan/` disagreement).
+        let short = crate::preflight::skill_short_name(new);
+
+        // State dir: .state/<old>/ → .yf/<short>/
         let state_from = repo.join(".state").join(old);
-        let state_to = repo.join(".yf").join(new);
+        let state_to = repo.join(".yf").join(&short);
         entries.push(plan_and_apply(
             "state",
             old,
@@ -94,6 +103,8 @@ pub fn migrate(repo: &Path, dry_run: bool) -> std::io::Result<MigrateResult> {
         )?);
 
         // Config file: .<old>.local.json → .yf-<new>.local.json
+        // (config MIGRATION TARGET is decoupled from the state short-name — the
+        // subdir move to `.yf/<short>/config.local.json` lands in Issue 2.3.)
         let cfg_from = repo.join(format!(".{old}.local.json"));
         let cfg_to = repo.join(format!(".{new}.local.json"));
         entries.push(plan_and_apply(
@@ -218,7 +229,7 @@ mod tests {
     use super::*;
 
     // REQ-YF-MIGRATE-001: legacy .state/bdplan/foo + .bdplan.local.json migrate to
-    // .yf/yf-plan/foo + .yf-plan.local.json.
+    // .yf/plan/foo (SHORT name — matches what preflight reads) + .yf-plan.local.json.
     #[test]
     fn migrates_state_and_config() {
         let tmp = tempfile::tempdir().unwrap();
@@ -230,8 +241,8 @@ mod tests {
         let res = migrate(repo, false).unwrap();
         assert_eq!(res.migrated, 2);
 
-        // New paths exist with content.
-        assert!(repo.join(".yf").join("yf-plan").join("foo").is_file());
+        // New paths exist with content (state dir uses the SHORT name).
+        assert!(repo.join(".yf").join("plan").join("foo").is_file());
         assert_eq!(
             std::fs::read_to_string(repo.join(".yf-plan.local.json")).unwrap(),
             r#"{"k":1}"#
@@ -260,10 +271,10 @@ mod tests {
         assert_eq!(second.migrated, 0);
         // Every entry is now source-absent or dest-exists; none migrated.
         assert!(second.entries.iter().all(|e| e.action != Action::Migrated));
-        // Content intact.
+        // Content intact (state dir uses the SHORT name).
         assert!(repo
             .join(".yf")
-            .join("yf-research")
+            .join("research")
             .join("idx.json")
             .is_file());
     }
@@ -276,8 +287,8 @@ mod tests {
         // Legacy source AND a pre-existing new dest both present.
         std::fs::create_dir_all(repo.join(".state").join("bdplan")).unwrap();
         std::fs::write(repo.join(".state").join("bdplan").join("old.txt"), "OLD").unwrap();
-        std::fs::create_dir_all(repo.join(".yf").join("yf-plan")).unwrap();
-        std::fs::write(repo.join(".yf").join("yf-plan").join("new.txt"), "NEW").unwrap();
+        std::fs::create_dir_all(repo.join(".yf").join("plan")).unwrap();
+        std::fs::write(repo.join(".yf").join("plan").join("new.txt"), "NEW").unwrap();
 
         let res = migrate(repo, false).unwrap();
         // The state entry must be DestExists, not migrated.
@@ -289,7 +300,7 @@ mod tests {
         assert_eq!(state_entry.action, Action::DestExists);
         // Dest content untouched; source still present.
         assert_eq!(
-            std::fs::read_to_string(repo.join(".yf").join("yf-plan").join("new.txt")).unwrap(),
+            std::fs::read_to_string(repo.join(".yf").join("plan").join("new.txt")).unwrap(),
             "NEW"
         );
         assert!(repo.join(".state").join("bdplan").join("old.txt").is_file());
