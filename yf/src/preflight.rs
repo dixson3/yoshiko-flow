@@ -439,8 +439,8 @@ fn skill_tools(skill_dir: &str) -> Vec<String> {
 // Config + state (REQ-YF-PRE-004)
 // ---------------------------------------------------------------------------
 
-/// Read per-skill operator config. Precedence: the new `.yf/<skill>.local.json`,
-/// then the legacy `.<config-basename>` at repo root (contract §7).
+/// Read per-skill operator config. Precedence: the canonical
+/// `.yf/<short>/config.local.json`, then the legacy `.<config-basename>` at repo root.
 fn read_config(
     env: &Env,
     short: &str,
@@ -448,15 +448,10 @@ fn read_config(
 ) -> serde_json::Map<String, serde_json::Value> {
     // REQ-YF-PRE-004 resolution precedence, first match wins:
     // 1. canonical subdir `.yf/<short>/config.local.json` (co-located with state);
-    // 2. transitional flat `.yf/<short>.local.json` (back-compat read only);
-    // 3. legacy root dotfile named by the skill's `config_basename` descriptor.
+    // 2. legacy root dotfile named by the skill's `config_basename` descriptor.
     let yf = env.repo_root.join(".yf");
     let subdir_path = yf.join(short).join("config.local.json");
     if let Some(m) = read_json_obj(&subdir_path) {
-        return m;
-    }
-    let flat_path = yf.join(format!("{short}.local.json"));
-    if let Some(m) = read_json_obj(&flat_path) {
         return m;
     }
     if let Some(base) = config_basename {
@@ -1108,14 +1103,14 @@ mod tests {
         base
     }
 
-    // REQ-YF-PRE-004: ignore-skill in config short-circuits to `ignored`.
+    // REQ-YF-PRE-004: ignore-skill in the canonical subdir config short-circuits to `ignored`.
     #[test]
     fn ignore_skill_short_circuits() {
         let tmp = unique_tmp("ignore");
         let repo = tmp.join("repo");
-        std::fs::create_dir_all(repo.join(".yf")).unwrap();
+        std::fs::create_dir_all(repo.join(".yf").join("plan")).unwrap();
         std::fs::write(
-            repo.join(".yf").join("plan.local.json"),
+            repo.join(".yf").join("plan").join("config.local.json"),
             r#"{"ignore-skill": true}"#,
         )
         .unwrap();
@@ -2065,11 +2060,11 @@ mod tests {
         std::fs::remove_dir_all(&repo).ok();
     }
 
-    // REQ-YF-PRE-004 (#67): read_config resolution precedence — canonical subdir
-    // `.yf/<short>/config.local.json` > transitional flat `.yf/<short>.local.json` >
-    // legacy root dotfile. Also proves (pass-1 concern 4) that config resolution is
-    // DECOUPLED from the state short-name: config still resolves for `plan` (short)
-    // after the SKILL_MAP state-dir change.
+    // REQ-YF-PRE-004 (yf-zlcq): read_config resolution precedence — canonical subdir
+    // `.yf/<short>/config.local.json` > legacy root dotfile. The transitional flat
+    // `.yf/<short>.local.json` tier was removed and is now IGNORED. Also proves (pass-1
+    // concern 4) that config resolution is DECOUPLED from the state short-name: config
+    // still resolves for `plan` (short) after the SKILL_MAP state-dir change.
     #[test]
     fn read_config_resolution_precedence() {
         let repo = unique_tmp("cfg-precedence");
@@ -2079,7 +2074,7 @@ mod tests {
         std::fs::create_dir_all(yf.join("plan")).unwrap();
         let basename = ".yf-plan.local.json";
 
-        // Tier 3 only: legacy root dotfile.
+        // Tier 2 only: legacy root dotfile.
         std::fs::write(repo.join(basename), r#"{"src":"legacy"}"#).unwrap();
         assert_eq!(
             read_config(&env, "plan", Some(basename))
@@ -2088,13 +2083,14 @@ mod tests {
             "legacy"
         );
 
-        // Tier 2 wins over tier 3: flat `.yf/<short>.local.json`.
+        // The removed flat `.yf/<short>.local.json` tier is IGNORED — the legacy root
+        // dotfile still wins over it (no back-compat read of the flat file).
         std::fs::write(yf.join("plan.local.json"), r#"{"src":"flat"}"#).unwrap();
         assert_eq!(
             read_config(&env, "plan", Some(basename))
                 .get("src")
                 .unwrap(),
-            "flat"
+            "legacy"
         );
 
         // Tier 1 wins over all: canonical subdir `.yf/<short>/config.local.json`.

@@ -64,6 +64,12 @@
 >   `GR-BINIT-002` that the embedded raw-`dolt` escape hatch is distinct from the forbidden
 >   `bd vc commit`. Engine: `yf/src/beads_init.rs` gains a `dolt-commit-embedded` native
 >   `apply_native` verb + mode-aware `Corrupted`-branch wiring.
+> - **plan-023 follow-up (2026-07-05, yf-zlcq):** removed the transitional flat
+>   `.yf/<short>.local.json` config tier now that the `.yf/<short>/config.local.json` migration is
+>   ubiquitous. `REQ-YF-PRE-004` drops read-precedence tier 2 (now subdir → legacy root dotfile);
+>   `REQ-YF-MIGRATE-001` drops the flat config migration source (config migrates only the legacy
+>   root dotfile `.<old>.local.json`). Engine: `read_config` (`preflight.rs`) and `migrate`
+>   (`migrate.rs`) drop the flat tier.
 
 ## 1. Purpose & scope
 
@@ -210,9 +216,7 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   The **canonical** config location is `.yf/<short>/config.local.json` — co-located with the
   `.yf/<short>/` state dir. `read_config` shall resolve in precedence order, first match wins:
   1. the canonical subdir `.yf/<short>/config.local.json`;
-  2. the transitional flat `.yf/<short>.local.json` (back-compat read only — slated for removal
-     once migration is ubiquitous);
-  3. the legacy root dotfile named by the skill's `config_basename` descriptor field
+  2. the legacy root dotfile named by the skill's `config_basename` descriptor field
      (e.g. `.yf-plan.local.json`).
 
   The **short name** is resolved by a single centralized `resolve_skill` (skill-arg → `(dir,
@@ -391,16 +395,13 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   state and config into the canonical `.yf/<short>/` namespace:
   - **state**: `.state/<old>/` → `.yf/<short>/` (short name, matching what preflight reads — not
     the full `.yf/<skill>/` the pre-#67 migrator wrote);
-  - **config**: both the legacy root dotfile `.<old>.local.json` **and** the transitional flat
-    `.yf/<short>.local.json` → `.yf/<short>/config.local.json`.
+  - **config**: the legacy root dotfile `.<old>.local.json` → `.yf/<short>/config.local.json`.
 
   Migration is idempotent and **never-clobber** (an existing dest is left untouched, source
   reported `skipped`), safe to re-run, and preserves values. `migrate` shall use the centralized
   `resolve_skill` (REQ-YF-PRE-004) for the short name so its dest matches preflight's read path.
   Migration shall also collapse legacy top-level per-skill gitignore anchors to the single `/.yf/`
-  anchor (REQ-YF-PRE-005). The flat `.yf/<short>.local.json` tier is **transitional** — a
-  back-compat read + migration source only, slated for removal once migration is ubiquitous (a
-  follow-up cleanup, filed at land-the-plane).
+  anchor (REQ-YF-PRE-005).
 
 ## 4. Skill catalog (per-skill specs)
 
