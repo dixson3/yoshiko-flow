@@ -712,5 +712,35 @@ def test_commit_plan_commits_on_plan_branch_then_noop(git_repo):
     assert pm._commit_plan(pd)["status"] == "noop"
 
 
+def test_commit_plan_skips_gitignored_beads_local_only(git_repo):
+    # Local-only beads: `.beads/` is gitignored (gh-only interchange). commit-plan
+    # must commit the plan dir cleanly and SKIP `.beads/` instead of erroring on the
+    # ignored pathspec (#71). Without the fix `git add -- ... .beads` fails.
+    (git_repo / ".beads" / "local.db").write_text("x")  # an ignored path under .beads
+    (git_repo / ".gitignore").write_text(".beads/\n")
+    pm._run_git(["add", ".gitignore"], cwd=git_repo)
+    pm._run_git(["commit", "-m", "ignore beads"], cwd=git_repo)
+    pd = _seed_plan(git_repo, branch="plan-777")
+    r = pm._commit_plan(pd)
+    assert r["status"] == "committed"
+    assert "beads_note" in r  # operator told beads state was not co-committed
+    # `.beads/` must NOT be in the commit (it is ignored).
+    files = pm._run_git(
+        ["show", "--name-only", "--pretty=format:", "HEAD"], cwd=git_repo).stdout
+    assert ".beads" not in files
+
+
+def test_commit_plan_co_commits_tracked_beads(git_repo):
+    # The standard (non-local-only) model: `.beads/` is tracked, so it is co-committed.
+    (git_repo / ".beads" / "issues.jsonl").write_text('{"id":"x"}\n')
+    pd = _seed_plan(git_repo, branch="plan-778")
+    r = pm._commit_plan(pd)
+    assert r["status"] == "committed"
+    assert "beads_note" not in r
+    files = pm._run_git(
+        ["show", "--name-only", "--pretty=format:", "HEAD"], cwd=git_repo).stdout
+    assert ".beads/issues.jsonl" in files
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

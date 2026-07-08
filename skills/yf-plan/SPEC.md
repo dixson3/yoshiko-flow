@@ -117,10 +117,13 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   reconciler agent), then close the reconcile step + epic and set status `complete`.
 - **REQ-PLAN-064** *(testable)* at the PLAN→EXECUTE landing boundary (after the portability audit and
   the fingerprint write, REQ-PLAN-034), the plan shall be auto-committed **locally** via
-  `plan_manager.py commit-plan`: a scoped `git add -- "${plan_dir}" .beads/` (explicit pathspec,
-  never `git add -A`), a local commit (message `plan-NNN: <phase> — <objective>`), and **never a
-  push**. This is the #63 clean-handoff boundary — a fresh execute session inherits a committed base,
-  and intake artifacts survive a crash or fresh clone.
+  `plan_manager.py commit-plan`: a scoped `git add` over an explicit pathspec (never `git add -A`) —
+  always `${plan_dir}`, and `.beads/` **only when it is tracked / not gitignored**. On a local-only
+  beads repo `.beads/` is intentionally gitignored (gh-only interchange), where co-adding it would
+  fail; commit-plan shall skip the `.beads/` pathspec (surfacing a `beads_note`) rather than erroring
+  (#71). Then a local commit (message `plan-NNN: <phase> — <objective>`), and **never a push**. This
+  is the #63 clean-handoff boundary — a fresh execute session inherits a committed base, and intake
+  artifacts survive a crash or fresh clone.
 - **REQ-PLAN-065** *(testable)* `commit-plan` shall refuse to commit on the repository's default
   branch. Default-branch resolution is `git symbolic-ref --short refs/remotes/origin/HEAD` →
   `git config init.defaultBranch` → `main`/`master`. A **detached HEAD or an empty current-branch

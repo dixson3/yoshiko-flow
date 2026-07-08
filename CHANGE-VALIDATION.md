@@ -16,6 +16,7 @@ approved: yes
 
 | id | cmd | cwd | timeout |
 |:--|:--|:--|--:|
+| `cargo-fmt` | `cargo fmt --all -- --check` |  |  |
 | `cargo` | `cargo test --workspace` |  |  |
 | `uv` | `uv run --with pytest python3 -m pytest _shared/test_sync.py -q` |  |  |
 | `uv-run` | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
@@ -56,10 +57,10 @@ approved: yes
 
 | changed-path glob | scopes to (FAST ids) |
 |:--|:--|
-| `*.rs` | `cargo` |
-| `**/*.rs` | `cargo` |
-| `Cargo.toml` | `cargo` |
-| `**/Cargo.toml` | `cargo` |
+| `*.rs` | `cargo-fmt`, `cargo` |
+| `**/*.rs` | `cargo-fmt`, `cargo` |
+| `Cargo.toml` | `cargo-fmt`, `cargo` |
+| `**/Cargo.toml` | `cargo-fmt`, `cargo` |
 | `_shared/**` | `uv`, `uv-_shared` |
 | `_shared/test_sync.py` | `uv` |
 | `skills/yf-beads-hygiene/scripts/**` | `uv-run` |

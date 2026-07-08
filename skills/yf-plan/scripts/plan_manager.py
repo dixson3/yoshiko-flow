@@ -1114,14 +1114,29 @@ def _commit_plan(plan_dir: Path) -> dict:
     objective = _read_plan_objective(text) or plan_id
 
     # Scoped staging — explicit pathspec, NEVER `git add -A` (REQ-PLAN-064).
-    add = _run_git(["add", "--", str(plan_dir), ".beads"], cwd=repo_root)
+    # The plan dir is always addable; `.beads/` is co-committed ONLY when it is
+    # tracked/not-ignored. On a local-only beads repo `.beads/` is intentionally
+    # gitignored (gh-only interchange), where `git add -- .beads` fails outright —
+    # so skip that pathspec instead of erroring (issue #71).
+    addpaths = [str(plan_dir)]
+    beads_note = None
+    if (repo_root / ".beads").exists():
+        ignored = _run_git(["check-ignore", "-q", ".beads"], cwd=repo_root).returncode == 0
+        if ignored:
+            beads_note = ".beads/ is gitignored (local-only beads) — not co-committed."
+        else:
+            addpaths.append(".beads")
+    add = _run_git(["add", "--", *addpaths], cwd=repo_root)
     if add.returncode != 0:
         return {"status": "error", "branch": cur,
                 "detail": f"git add failed: {add.stderr.strip()}"}
     # Nothing staged → no-op (idempotent re-runs don't create empty commits).
     if _run_git(["diff", "--cached", "--quiet"], cwd=repo_root).returncode == 0:
-        return {"status": "noop", "branch": cur,
-                "detail": "no staged changes under the plan folder / .beads."}
+        result = {"status": "noop", "branch": cur,
+                  "detail": "no staged changes under the plan folder / .beads."}
+        if beads_note:
+            result["beads_note"] = beads_note
+        return result
 
     message = f"{plan_id}: {phase} — {objective}"
     commit = _run_git(["commit", "-m", message], cwd=repo_root)
@@ -1129,7 +1144,10 @@ def _commit_plan(plan_dir: Path) -> dict:
         return {"status": "error", "branch": cur,
                 "detail": f"git commit failed: {commit.stderr.strip()}"}
     sha = _run_git(["rev-parse", "--short", "HEAD"], cwd=repo_root).stdout.strip()
-    return {"status": "committed", "branch": cur, "commit": sha, "message": message}
+    result = {"status": "committed", "branch": cur, "commit": sha, "message": message}
+    if beads_note:
+        result["beads_note"] = beads_note
+    return result
 
 
 @cli.command("commit-plan")
