@@ -324,3 +324,9 @@ Render a `.md` file to PDF via the pandoc + xelatex pipeline (`scripts/md2pdf.py
 **Usage:** `uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py <input.md> [-o OUT.pdf]`.
 
 See [skills/yf-markdown-pdf/README.md](skills/yf-markdown-pdf/README.md).
+
+## Contributing
+
+Bugs in the `yf-*` skills are tracked in **this** repo (the fix lands here), even
+when they surface inside a consuming project. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for where to file and what a good defect report includes.

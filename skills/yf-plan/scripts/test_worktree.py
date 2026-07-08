@@ -331,6 +331,66 @@ def cv_repo(git_repo, monkeypatch):
     return git_repo
 
 
+# --- Resolver discovery (#74 regression) ------------------------------------
+#
+# The tier-1 tests above monkeypatch `_change_validation_script`, so they never
+# exercise real path discovery — which is exactly how #74 slipped through: the
+# resolver checked only `<repo>/skills/...` and returned None for every normal
+# (user- or `.claude`/`.agents`-scope) install, silently yielding `engine: none`.
+# These tests drive the un-patched resolver against on-disk install surfaces.
+
+def _plant_engine(root: Path) -> Path:
+    """Create a stub engine script at a skill-surface root; return its path."""
+    p = root / "yf-change-validation" / "scripts" / "change_validation.py"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("# stub engine\n")
+    return p
+
+
+def test_change_validation_resolver_finds_user_scope(tmp_path, monkeypatch):
+    # A `~/.claude/skills` (user-scope) install must resolve — the #74 case.
+    home = tmp_path / "home"
+    repo = tmp_path / "repo"
+    (home / ".claude" / "skills").mkdir(parents=True)
+    repo.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    planted = _plant_engine(home / ".claude" / "skills")
+    assert pm._change_validation_script(repo) == planted
+
+
+def test_change_validation_resolver_finds_project_agents_scope(tmp_path, monkeypatch):
+    # A `<git-root>/.agents/skills` (project-scope) install must resolve too.
+    home = tmp_path / "home"
+    repo = tmp_path / "repo"
+    (home).mkdir()
+    (repo / ".agents" / "skills").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    planted = _plant_engine(repo / ".agents" / "skills")
+    assert pm._change_validation_script(repo) == planted
+
+
+def test_change_validation_resolver_prefers_in_tree_source(tmp_path, monkeypatch):
+    # yoshiko-flow's own in-tree source (`<repo>/skills/...`) wins over an install
+    # surface so the repo dogfoods the engine it is developing.
+    home = tmp_path / "home"
+    repo = tmp_path / "repo"
+    (home / ".claude" / "skills").mkdir(parents=True)
+    repo.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _plant_engine(home / ".claude" / "skills")
+    in_tree = _plant_engine(repo / "skills")
+    assert pm._change_validation_script(repo) == in_tree
+
+
+def test_change_validation_resolver_none_when_absent(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    repo = tmp_path / "repo"
+    home.mkdir()
+    repo.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    assert pm._change_validation_script(repo) is None
+
+
 # --- Tier 1: approved manifest → delegate to the engine ---------------------
 
 def test_validate_merged_tier1_delegates_pass(cv_repo):
