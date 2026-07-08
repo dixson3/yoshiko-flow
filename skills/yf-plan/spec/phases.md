@@ -18,19 +18,19 @@ REQ-PHASE-004: PLAN may return to SCOPE or INVESTIGATE if the draft reveals gaps
 Rationale: Plan synthesis is when gaps become visible; the model must be able to backtrack.
 Verification: SKILL.md Phase 3 Iteration includes return-to-INVESTIGATE and return-to-SCOPE paths.
 
-REQ-PHASE-005: PLAN advances to INTAKE only on explicit operator approval.
-Rationale: The operator must review and approve the plan before any beads are created or work begins.
-Verification: SKILL.md Phase 3 Iteration: `"approve" / "looks good" -> advance to INTAKE`.
+REQ-PHASE-005: PLAN advances to INTAKE only on explicit operator approval, and the approval prompt is solicited only once the plan is in `ready-for-approval` (i.e. `ready-check` is green: last red-team `APPROVE` + audit `pass`). Approval transitions `ready-for-approval → approved`.
+Rationale: The operator must review and approve the plan before any beads are created or work begins — and approval must be consent to an already-verified plan, not "approve, now verify". Gating the prompt on `ready-check` prevents soliciting approval on an unverified plan (a REVISE'd-but-unre-reviewed draft, or one whose audit has not passed).
+Verification: SKILL.md Phase 3 runs `ready-check` before the approval prompt and the `review -> ready-for-approval -> approved` sequence; Phase 3 Iteration: `"approve" / "looks good" -> advance to INTAKE`.
 
 ## Status Values
 
-REQ-STATUS-001: Exactly 8 status values exist: `scoping`, `investigating`, `drafting`, `review`, `approved`, `executing`, `reconciling`, `complete`.
-Rationale: Status drives phase transitions and plan selection; extra or missing values break the state machine.
-Verification: `grep 'Status values:' skills/yf-plan/SKILL.md` lists all 8.
+REQ-STATUS-001: Exactly 9 status values exist: `scoping`, `investigating`, `drafting`, `review`, `ready-for-approval`, `approved`, `executing`, `reconciling`, `complete`.
+Rationale: Status drives phase transitions and plan selection; extra or missing values break the state machine. `ready-for-approval` is the distinct pre-approval state a plan enters only when `ready-check` is green (last red-team `APPROVE` + audit `pass`); operator approval then transitions it to `approved`. It is not execute-eligible.
+Verification: `grep 'Status values:' skills/yf-plan/SKILL.md` lists all 9.
 
 REQ-STATUS-002: Every phase transition sets status via `plan_manager.py update-status`.
 Rationale: Centralizing status updates in one script prevents format drift between SKILL.md and plan.md.
-Verification: `grep -c 'py update-status' skills/yf-plan/SKILL.md` returns 8 — the 7 non-initial status transitions plus the conditional stale-approval `--force` override re-log in §5.2 (which re-stamps the *current* status to append an audit phase-log line, REQ-PORT-041, and is not a new transition); the bare `update-status` prose mention in the CAPTURE phase is excluded.
+Verification: `grep -c 'py update-status' skills/yf-plan/SKILL.md` returns 9 — the 8 non-initial status transitions (now including `ready-for-approval` set at the end of PLAN when `ready-check` is green, plus the `ready-for-approval → approved` transition at INTAKE) plus the conditional stale-approval `--force` override re-log in §5.2 (which re-stamps the *current* status to append an audit phase-log line, REQ-PORT-041, and is not a new transition); the bare `update-status` prose mention in the CAPTURE phase is excluded.
 
 REQ-STATUS-003: Initial status `scoping` is set by `plan_manager.py init`, not by a separate `update-status` call.
 Rationale: Plan creation and initial status are atomic — a plan.md without status is invalid.

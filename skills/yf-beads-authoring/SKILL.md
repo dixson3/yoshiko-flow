@@ -296,10 +296,23 @@ beads execute in the same run.
 ### Completion & git handoff
 
 The run is complete when `bd ready` is empty **and** no resettable stuck beads remain. Then
-resolve/verify terminal auto-gates, `bd close ${EPIC}`, and perform the git handoff **per the
+resolve/verify terminal auto-gates, close the epic, and perform the git handoff **per the
 project's git authority** — conservative default: report changed files and the proposed commit /
 `bd dolt push` / push commands; commit or push only under explicit operator or team-maintainer
 authority. (yf-research `agents/coordinator.md` → *Completion* is the conservative worked example.)
+
+**Cascade-close containers, not just the epic (pattern).** A bare `bd close ${EPIC}` closes only
+the top epic and leaves **intermediate epic containers open** under it — they resurface as
+false-positive "ready" containers in `bd ready` long after the work shipped. A completion handoff
+should instead **cascade-close every container in the tree** (intermediate epics **and** the
+top-level molecule) whose children are all terminal, bottom-up, and **fail loudly** on any
+still-open child rather than silently close or silently leave. "Terminal" must count a
+resolved/verified gate as terminal (so a resolved gate is not a false open child) while treating an
+*unsatisfied* gate as a genuine open child (never force-closed). yf-plan's
+`skills/yf-plan/scripts/close_cascade.py` (wired into its RECONCILE §6.4) is the reference
+implementation of this pattern. This is a **doctrine cross-reference only** — not a shared
+dependency; a skill needing the behavior implements its own walk (extraction to a shared surface
+awaits a genuine second runtime consumer, rule-of-three).
 
 ## Coordinate subcommand
 

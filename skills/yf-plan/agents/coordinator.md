@@ -88,15 +88,14 @@ When all execution beads (non-reconcile) close:
 ## Completion
 
 The run is complete when `bd ready` is empty and no resettable stuck beads remain
-(beads-authoring REQ-ORCH-014). Close the epic:
+(beads-authoring REQ-ORCH-014). **Do not close the epic or set status `complete` here** — that
+is the RECONCILE §6.4 step's job, which **cascade-closes** every container in the plan tree
+(intermediate epics **and** the top-level plan molecule, REQ-PLAN-067) bottom-up and halts
+loudly on any still-open child. A bare `bd close ${EPIC}` at this point would leave intermediate
+epics open under a closed molecule — exactly the #73 stale-container defect. Report that the bead
+DAG is drained and hand back.
 
-```bash
-bd close ${EPIC} --reason "Plan complete" --json
-```
-
-Set plan.md status to `complete`.
-
-**Hand back to RECONCILE (Phase 6).** After the epic closes, control returns to the
+**Hand back to RECONCILE (Phase 6).** After the DAG is drained, control returns to the
 SKILL.md main session for Phase 6. In **worktree mode** the land-the-plane flow is the
 reordered SKILL.md §6.1–§6.2: acquire the landing lock → `git merge --no-ff <plan>` from
 the **primary** → validate the merged state (§6.1.5) → conservative push handoff → worktree

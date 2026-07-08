@@ -145,7 +145,12 @@ UPSTREAM --> SCOPE <--> INVESTIGATE --> PLAN --> INTAKE
 - PLAN -> SCOPE/INVESTIGATE: draft plan may need more experiments
 - PLAN -> INTAKE: only on explicit operator approval
 
-Status values: `scoping | investigating | drafting | review | approved | executing | reconciling | complete`
+Status values: `scoping | investigating | drafting | review | ready-for-approval | approved | executing | reconciling | complete`
+
+(`ready-for-approval` is the gated pre-approval state reached only when `ready-check` is green —
+last red-team `APPROVE` + audit `pass`; approval transitions it to `approved`. This line is the
+declared source of truth for the `DRIFT-CHECK.md` `e-status-values` edge — status values used in
+`update-status` calls and agent prompts must be a subset of it.)
 
 ---
 
@@ -395,9 +400,11 @@ Two passes, in order. Both agents are read-only (REQ-AGENT-043); the main sessio
 1. **Conformance** — read `${SKILL_DIR}/agents/reviewer.md` and run its mechanical checklist. Verdict `PASS | INCOMPLETE`. On `INCOMPLETE`, resolve the listed gaps and re-run before proceeding — this is a mechanical gate, not a phase transition. It does not produce a `pass-N.md`.
 2. **Adversarial** — once conformance is `PASS`, read `${SKILL_DIR}/agents/red-team.md` and perform a structured adversarial review. **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Present the red-team verdict and concerns to the operator.
 
-- **APPROVE**: run portability audit, then advance to INTAKE
-- **REVISE**: address concerns, stay in PLAN
+- **APPROVE**: run the portability audit, then the `ready-check` gate (below) before the approval prompt
+- **REVISE**: address concerns, stay in PLAN, then **re-run the red-team** (a new cycle → new `pass-(N+1).md`)
 - **INVESTIGATE-MORE**: return to INVESTIGATE for additional experiments
+
+**Mandatory re-run after any major-concern revision (REQ-PLAN-030).** A `REVISE` verdict blocks the plan from reaching `ready-for-approval` until a *later* red-team cycle returns `APPROVE`. Readiness keys on the **last recorded** verdict — an earlier APPROVE followed by a REVISE whose revisions were never re-reviewed is **not** ready. Do not solicit approval on a REVISE'd-but-unre-reviewed plan.
 
 **Red-team is read-only** (REQ-AGENT-043). The agent never writes files — the main session does.
 
@@ -422,7 +429,7 @@ Writing at presentation makes the verdict portable the instant it exists: a plan
 
 ### Portability audit (last step of PLAN)
 
-After the red-team verdict is APPROVE (and the operator confirms), run the portability audit **before** transitioning to INTAKE. The audit is idempotent — safe to run multiple times during plan development. It is a **script exit-code check, not a bd gate**. Any `fail` finding blocks the transition to INTAKE; the operator fixes the gaps (or runs `/yf-plan capture`) and re-runs the audit.
+Once the **last** red-team verdict is APPROVE, run the portability audit — it is a **precondition of the approval prompt** (REQ-PLAN-033), not a post-approval step: the operator is not asked to approve until the audit passes, so approval is consent to an already-verified plan. The audit is idempotent — safe to run multiple times during plan development. It is a **script exit-code check, not a bd gate**. Any `fail` finding blocks reaching `ready-for-approval`; the operator fixes the gaps (or runs `/yf-plan capture`) and re-runs the audit.
 
 ```bash
 AUDIT_JSON=$(uv run ${SKILL_DIR}/scripts/plan_manager.py audit "${plan_dir}" --json-output)
@@ -443,26 +450,50 @@ On audit pass, transition to INTAKE. On audit fail, stay in PLAN — the operato
 
 **Grandfather clause.** Plans whose first `scoping:` phase-log entry is before the activation date (`PORTABILITY_ACTIVATION_DATE` in `plan_manager.py`, also recorded in `spec/portability.md`) have missing scaffolding downgraded to `warn` findings instead of `fail`. Audit passes; operator sees the gaps. New plans (first scoped on/after activation) get hard failures. See `spec/portability.md` for the activation date.
 
+### Ready-for-approval gate (before the approval prompt)
+
+Do **not** solicit operator approval until the plan is genuinely *ready*. Run `ready-check` — it verifies **both** preconditions in one place: the **last recorded** red-team verdict is `APPROVE` (REQ-PLAN-030) **and** the portability audit passes (REQ-PLAN-033). It exits `3` (not ready) or `0` (ready):
+
+```bash
+READY_JSON=$(uv run ${SKILL_DIR}/scripts/plan_manager.py ready-check "${plan_dir}" --json) || true
+READY=$(echo "$READY_JSON" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get ready)
+if [ "$READY" != "True" ]; then
+  echo "$READY_JSON" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get reasons
+  echo "Plan is not ready for approval. Resolve the reasons above (re-run the red-team on a REVISE, or fix audit findings), then re-check."
+fi
+```
+
+On **not ready**, stay in PLAN — resolve each reason (a REVISE needs a fresh red-team cycle; an audit fail needs remediation or `/yf-plan capture`), then re-run `ready-check`. On **ready**, transition to `ready-for-approval` and only then present the approval prompt:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "ready-for-approval" -m "ready-check green — last red-team APPROVE + audit pass"
+```
+
+`ready-for-approval` is **not** execute-eligible — it is the gated state that *precedes* the operator's single act of consent. Approval (Phase 4) transitions `ready-for-approval → approved`; `ready-check` re-runs at approval (adjacent to the fingerprint write) so no content edit can slip between a green check and the fingerprint.
+
 ### Iteration
 
 - Operator overrides red-team verdict at their discretion
 - "what about X?" -> may return to INVESTIGATE or SCOPE
-- "change approach to Y" -> revise, stay in PLAN
-- "approve" / "looks good" -> run portability audit, then advance to INTAKE on pass
+- "change approach to Y" -> revise, stay in PLAN (a major-concern revision requires a red-team re-run)
+- "approve" / "looks good" -> only after `ready-check` is green and the plan is in `ready-for-approval`; then advance to INTAKE
 
 ---
 
 ## Phase 4: INTAKE
 
-On operator approval. **INTAKE does not pour the molecule** (REQ-PLAN-040): the pour and the
+On operator approval of a plan already in `ready-for-approval` (Phase 3's ready-check gate). **INTAKE does not pour the molecule** (REQ-PLAN-040): the pour and the
 whole bead DAG are deferred to EXECUTE start (Phase 5). INTAKE's job is to freeze the approved
 content, commit it locally, land it per the landing strategy, and file the upstream tracking
 issue. Execution eligibility across the session boundary is carried by the plan's
 `**Fingerprint:**`, not by a pre-poured epic (REQ-PHASE-002).
 
-### 4.1 — Set status `approved`
+### 4.1 — Transition `ready-for-approval → approved`
+
+Approval is the operator's single act of consent on an already-verified plan. **Re-run `ready-check` immediately before flipping the status** (REQ-PLAN-066 adjacency) so no content edit slipped between the Phase-3 green check and this transition; only then set `approved`:
 
 ```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py ready-check "${plan_dir}" >/dev/null || { echo "ready-check no longer green — return to PLAN"; exit 1; }
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "approved" -m "operator approved"
 ```
 
@@ -944,13 +975,38 @@ authorized and completed.
 
 Read `${SKILL_DIR}/agents/reconciler.md` and follow its procedure. The reconciler parses plan.md dispositions, verifies execution, updates upstream issues, and reports results.
 
-### 6.4 — Close
+### 6.4 — Close (cascade-close containers, REQ-PLAN-067)
+
+Close the reconcile step, then **cascade-close every container in the plan tree** —
+intermediate epics **and the top-level plan molecule** `${EPIC}` — whose children are all
+terminal, bottom-up. The cascade **replaces the bare `bd close ${EPIC}`**: leaving intermediate
+epics open under a closed molecule is exactly the #73 defect (stale "ready" containers polluting
+`bd ready`). A container with any still-open child is a **hard failure** — the cascade exits
+non-zero and completion **halts** (never a silent close, never a silent `complete`):
 
 ```bash
 bd close ${RECONCILE_STEP} --reason "Upstream issues reconciled" --json
-bd close ${EPIC} --reason "Plan complete" --json
+
+# Cascade-close all-terminal containers under the plan molecule (incl. ${EPIC} itself).
+# "Terminal" = closed, or a resolved/verified gate; an unsatisfied gate is a genuine open
+# child (never force-closed). Exit 0 = clean; exit 2 = fail-loud (blocked set non-empty).
+CASCADE=$(uv run ${SKILL_DIR}/scripts/close_cascade.py ${EPIC} --plan "${plan_id}" --json)
+CASCADE_RC=$?
+echo "$CASCADE"
+if [ "$CASCADE_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: cascade-close reported open children (or a close error) — a container in"
+  echo "the plan tree still has a non-terminal child. Completion HALTS; do NOT set 'complete'."
+  echo "Resolve the blocked beads reported above, then re-run §6.4."
+  exit 1
+fi
+
+# Cascade clean — every container (incl. the plan molecule) closed. Only now set complete.
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "complete" -m "plan complete"
 ```
+
+The cascade is self-contained (`skills/yf-plan/scripts/close_cascade.py`); `_shared/` extraction
+is deferred until a genuine second in-repo runtime consumer exists (REQ-PLAN-067). yf-beads-authoring
+carries a doctrine cross-reference to this pattern (Issue 2.5), not a code dependency.
 
 ---
 

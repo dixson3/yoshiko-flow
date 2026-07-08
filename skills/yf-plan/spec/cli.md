@@ -54,6 +54,10 @@ REQ-CLI-011: `plan_manager.py audit <plan-dir> [--json-output] [--retro]` return
 Rationale: SKILL.md Phase 4 inserts the audit between `update-status approved` and `bd mol pour`; it needs a machine-readable shape for the halt decision and a human-readable report for operator display. The `--retro` passthrough keeps the `/yf-plan capture` invocation surface uniform without putting conversation mining in the script.
 Verification: `_audit_plan` in plan_manager.py constructs `{status, findings, report, grandfathered}`; the `audit` command adds `result["retro"]` and exits 0/1 based on status.
 
+REQ-CLI-014: `plan_manager.py ready-check <plan-dir> [--json-output|--json]` gates the approval prompt (REQ-PLAN-066). It verifies BOTH preconditions — the **last recorded** red-team verdict (highest `reviews/pass-N.md`, parsed from its `## Verdict:` line) is `APPROVE`, and the portability `audit` passes — and emits `{ready, reasons, verdict, review_pass, audit_status}`. Exit code is `0` when ready and `3` when not ready (a gate signal distinct from the `1` audit-fail/crash code).
+Rationale: SKILL.md Phase 3 runs `ready-check` before soliciting operator approval so approval is consent to an already-verified plan, never "approve, then verify". Keying on the *last* verdict (not any earlier APPROVE) enforces the mandatory red-team re-run after a REVISE. Exit 3 lets the SKILL branch on a gate-not-ready distinctly from a script error.
+Verification: `ready_check` in plan_manager.py calls `_latest_review_verdict` + `_audit_plan`, builds `{ready, reasons, ...}`, and `sys.exit(0 if ready else 3)`; `test_worktree.py` covers not-ready-on-REVISE, not-ready-on-audit-fail, ready-on-both-green, and the exit-code contract.
+
 REQ-CLI-010: `plan_manager.py` is invoked via `uv run` with inline script metadata, not installed as a package.
 Rationale: Keeps the skill self-contained with no build step; `uv` resolves dependencies from the script header.
 Verification: Script begins with `# /// script` PEP 723 metadata block.

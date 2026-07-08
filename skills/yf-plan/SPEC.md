@@ -23,8 +23,11 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 ### 2.1 Lifecycle & phases (see `spec/phases.md`)
 
 - **REQ-PLAN-001** *(testable)* a plan shall carry a `status` from
-  `scoping | investigating | drafting | review | approved | executing | reconciling | complete`,
+  `scoping | investigating | drafting | review | ready-for-approval | approved | executing | reconciling | complete`,
   advanced only via `plan_manager.py update-status`, which appends a phase-log line.
+  `ready-for-approval` is the distinct pre-approval state a plan enters only when `ready-check`
+  (REQ-PLAN-066) is green; it is **not** execute-eligible — only `approved` (with a fresh
+  fingerprint) is.
 - **REQ-PLAN-002** the phase machine shall be `UPSTREAM → SCOPE ↔ INVESTIGATE → PLAN → INTAKE →
   (session boundary) → EXECUTE → RECONCILE → COMPLETE`; there is **no EXECUTE→PLAN transition**.
 - **REQ-PLAN-003** *(testable)* every invocation except `init` shall run the preflight
@@ -52,14 +55,29 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 
 - **REQ-PLAN-030** *(testable)* Review shall run two passes in order: **conformance** (mechanical,
   `PASS|INCOMPLETE`, a gate) then **adversarial red-team** (`APPROVE|REVISE|INVESTIGATE-MORE`, which
-  drives the transition). Both agents are **read-only**; the main session writes files.
+  drives the transition). The red-team shall be **re-run after any major-concern revision**: a
+  `REVISE` verdict blocks the plan from reaching `ready-for-approval` until a later red-team cycle
+  returns `APPROVE`. Readiness keys on the **last recorded** red-team verdict being `APPROVE` — an
+  earlier APPROVE followed by a REVISE (whose revisions were never re-reviewed) is **not** ready.
+  Both agents are **read-only**; the main session writes files.
 - **REQ-PLAN-031** *(testable)* at red-team presentation the main session shall write
   `reviews/pass-N.md` **and** append the phase-log `review:` line atomically (create-on-present),
   preserving `count(reviews/pass-*.md) == count(phase-log review: lines)`.
 - **REQ-PLAN-032** a `pass-N.md` shall be mutable until all concerns resolve, then frozen; each
   full REVISE cycle yields exactly one pass file.
-- **REQ-PLAN-033** *(testable)* the portability `audit` shall run as the last PLAN step; INTAKE
-  proceeds only on `pass` (or explicit `--force`, which logs a phase-log override).
+- **REQ-PLAN-033** *(testable)* the portability `audit` shall be a **precondition of the approval
+  prompt**, not a post-approval step: it runs as the last PLAN step, before the operator is asked to
+  approve, so approval is consent to an already-verified plan (not "approve, then verify"). The
+  approval prompt is solicited only when `ready-check` (REQ-PLAN-066) is green; INTAKE proceeds only
+  on `pass` (or explicit `--force`, which logs a phase-log override).
+- **REQ-PLAN-066** *(testable)* a `ready-check` verb shall gate the approval prompt: it verifies
+  **both** preconditions — the **last recorded** red-team verdict is `APPROVE` (REQ-PLAN-030) **and**
+  the portability audit passes (REQ-PLAN-033) — returns `{ready, reasons:[...]}` JSON, and exits
+  non-zero (`3`) when not ready (mirroring the audit gate). A plan reaches status
+  `ready-for-approval` and the operator sees the approval prompt only when `ready-check` is green.
+  Operator approval is the single act of consent that transitions `ready-for-approval → approved`.
+  `ready-check` and the approval transition are **adjacent** — `ready-check` re-runs at approval so
+  no content edit can slip between a green check and the fingerprint write (REQ-PLAN-034).
 - **REQ-PLAN-034** *(testable)* approval shall write a `**Fingerprint:**` over the plan's content
   sections (excluding header fields, phase-log, `reviews/`, Operator Resolutions, and the
   `## Upstream Issues` section); a subsequent content edit marks the plan **stale-approved** and
@@ -114,7 +132,9 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   explicit operator/team-maintainer authorization; the landing lock is released before the push
   wait.
 - **REQ-PLAN-063** RECONCILE shall update upstream issues per `plan.md` dispositions (the
-  reconciler agent), then close the reconcile step + epic and set status `complete`.
+  reconciler agent), then close the reconcile step + epic and set status `complete`; the container
+  cascade-close (REQ-PLAN-067) runs as part of this close step so no stale open epic/molecule
+  survives completion.
 - **REQ-PLAN-064** *(testable)* at the PLAN→EXECUTE landing boundary (after the portability audit and
   the fingerprint write, REQ-PLAN-034), the plan shall be auto-committed **locally** via
   `plan_manager.py commit-plan`: a scoped `git add` over an explicit pathspec (never `git add -A`) —
@@ -129,6 +149,19 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `git config init.defaultBranch` → `main`/`master`. A **detached HEAD or an empty current-branch
   name is fail-closed = refuse** (never commit). The guard is a hard refusal returned as a JSON
   verdict, not a warning.
+- **REQ-PLAN-067** *(testable)* on COMPLETE (the RECONCILE close step, REQ-PLAN-063), yf-plan shall
+  **cascade-close every container in the plan's tree** — intermediate epics **and the top-level plan
+  molecule** — whose children are **all terminal**, walked **bottom-up**, with a close reason
+  referencing the plan. A container with **any still-open child** while the plan is being marked
+  `complete` is a **hard failure**: it must surface loudly (a non-empty `blocked` set halts
+  completion), never a silent close or a silent leave. **"Terminal"** is defined consistently with
+  `resume-scan`'s gate accounting: a child is terminal when it is `status: closed` **or** it is a
+  **resolved/verified gate** (even if not `status: closed`), so a resolved gate never triggers a
+  false hard failure; an **unsatisfied** gate is a genuine open child (part of the fail-loud signal,
+  never auto-forced). The walk ships as a self-contained helper `skills/yf-plan/scripts/close_cascade.py`
+  consumed by yf-plan §6.4; extraction to `_shared/` is **deferred** until a genuine second in-repo
+  runtime consumer exists (rule-of-three — yf-beads-authoring carries a doctrine cross-reference
+  only, not a code consumer). Cross-reference REQ-PLAN-063 (the reconcile/close step this hardens).
 
 ### 2.8 Capture (manual)
 
@@ -140,7 +173,7 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 
 - **CLI / scripts:** preflight is `yf preflight yf-plan` (the `yf` kernel, not `plan_manager.py`);
   `scripts/plan_manager.py` — `init`, `scope`, `triage`, `update-status`, `record-epic`,
-  `resume-scan`, `audit`, `fingerprint {write,check}`, `commit-plan`,
+  `resume-scan`, `audit`, `ready-check`, `fingerprint {write,check}`, `commit-plan`,
   `worktree {ensure,path,teardown}`,
   `landing-lock {acquire,release,status}`, `validate-merged`, `json-get`; `manifest_update.py`. Full
   surface in `spec/cli.md`; data shapes in `spec/data.md`. **Preflight/config moves to `yf`** per

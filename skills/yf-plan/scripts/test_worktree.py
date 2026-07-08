@@ -742,5 +742,91 @@ def test_commit_plan_co_commits_tracked_beads(git_repo):
     assert ".beads/issues.jsonl" in files
 
 
+# ---------------------------------------------------------------------------
+# ready-check gate (Issue 1.5 / #69) — REQ-PLAN-066
+#
+# ready-check verifies BOTH approval-prompt preconditions: the LAST recorded
+# red-team verdict (highest reviews/pass-N.md) is APPROVE (REQ-PLAN-030), AND the
+# portability audit passes (REQ-PLAN-033). Exit 3 when not ready, 0 when ready.
+# `_audit_plan` is stubbed to control the audit half in isolation.
+# ---------------------------------------------------------------------------
+
+def _mk_review_plan(tmp_path, verdicts):
+    """A plan dir with reviews/pass-N.md carrying `verdicts` (1-indexed)."""
+    pd = tmp_path / "plan"
+    (pd / "reviews").mkdir(parents=True)
+    (pd / "plan.md").write_text("# Plan: x\n\n**Status:** review\n\n## Objective\nx\n")
+    for i, v in enumerate(verdicts, start=1):
+        (pd / "reviews" / f"pass-{i}.md").write_text(
+            f"# Plan Red-Team: x — pass {i}\n\n## Verdict: {v}\n\n## Strengths\n- ok\n")
+    return pd
+
+
+def _stub_audit_status(monkeypatch, status):
+    monkeypatch.setattr(pm, "_audit_plan",
+                        lambda _pd: {"status": status, "findings": [],
+                                     "report": "", "grandfathered": False})
+
+
+def test_latest_review_verdict_picks_highest_pass(tmp_path):
+    # An earlier APPROVE followed by a later REVISE → last verdict is REVISE.
+    pd = _mk_review_plan(tmp_path, ["APPROVE", "REVISE"])
+    assert pm._latest_review_verdict(pd) == (2, "REVISE")
+
+
+def test_latest_review_verdict_none_when_absent(tmp_path):
+    pd = tmp_path / "p"
+    pd.mkdir()
+    assert pm._latest_review_verdict(pd) == (None, None)
+
+
+def test_ready_check_not_ready_on_last_verdict_revise(tmp_path, monkeypatch):
+    from click.testing import CliRunner
+    pd = _mk_review_plan(tmp_path, ["APPROVE", "REVISE"])   # last = REVISE
+    _stub_audit_status(monkeypatch, "pass")
+    result = CliRunner().invoke(pm.cli, ["ready-check", str(pd), "--json"])
+    assert result.exit_code == 3
+    payload = json.loads(result.output)
+    assert payload["ready"] is False
+    assert payload["verdict"] == "REVISE"
+    assert any("REVISE" in r for r in payload["reasons"])
+
+
+def test_ready_check_not_ready_on_audit_fail(tmp_path, monkeypatch):
+    from click.testing import CliRunner
+    pd = _mk_review_plan(tmp_path, ["APPROVE"])            # verdict green
+    _stub_audit_status(monkeypatch, "fail")               # audit red
+    result = CliRunner().invoke(pm.cli, ["ready-check", str(pd), "--json"])
+    assert result.exit_code == 3
+    payload = json.loads(result.output)
+    assert payload["ready"] is False
+    assert any("audit" in r.lower() for r in payload["reasons"])
+
+
+def test_ready_check_not_ready_when_no_review(tmp_path, monkeypatch):
+    from click.testing import CliRunner
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text("# Plan: x\n\n## Objective\nx\n")
+    _stub_audit_status(monkeypatch, "pass")
+    result = CliRunner().invoke(pm.cli, ["ready-check", str(pd), "--json"])
+    assert result.exit_code == 3
+    assert json.loads(result.output)["ready"] is False
+
+
+def test_ready_check_ready_when_both_green(tmp_path, monkeypatch):
+    from click.testing import CliRunner
+    # A REVISE re-reviewed to APPROVE (last verdict APPROVE) + audit pass → ready.
+    pd = _mk_review_plan(tmp_path, ["REVISE", "APPROVE"])
+    _stub_audit_status(monkeypatch, "pass")
+    result = CliRunner().invoke(pm.cli, ["ready-check", str(pd), "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["ready"] is True
+    assert payload["reasons"] == []
+    assert payload["verdict"] == "APPROVE"
+    assert payload["audit_status"] == "pass"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
