@@ -817,7 +817,17 @@ def list_plans(as_json: bool):
 @click.argument("status")
 @click.option("--message", "-m", default=None, help="Phase log message")
 def update_status(plan_dir: str, status: str, message: str):
-    """Update plan.md status and append to phase log."""
+    """Update plan.md status and append to phase log.
+
+    The writer is **free-form** — it accepts any status string and does not validate
+    against an enum. The status vocabulary is the source of truth in SPEC.md
+    (REQ-PLAN-001) and the SKILL.md Phase Model "Status values:" line: `scoping`,
+    `investigating`, `drafting`, `review`, `ready-for-approval`, `approved`,
+    `executing`, `reconciling`, `complete`. `ready-for-approval` is the pre-approval
+    gate state (set at the end of PLAN once `ready-check` is green) and is **not**
+    execute-eligible — only `approved` (with a fresh fingerprint) is; execute
+    eligibility keys on the fingerprint, never on a `status == "approved"` literal.
+    """
     plan_md = Path(plan_dir) / "plan.md"
     if not plan_md.exists():
         click.echo("ERROR: plan.md not found", err=True)
@@ -2211,6 +2221,41 @@ def _plan_review_line_count(plan_md_text: str) -> int:
     return count
 
 
+def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
+    """Return (N, verdict) of the highest-numbered ``reviews/pass-N.md`` file.
+
+    The verdict is parsed from the first ``## Verdict: <V>`` line (case-insensitive)
+    and upper-cased. Returns ``(None, None)`` when no pass file exists, and
+    ``(N, None)`` when the highest pass file has no parseable verdict line.
+
+    "Highest N" is the *last recorded* red-team cycle — REQ-PLAN-030 keys readiness
+    on that being ``APPROVE`` (an earlier APPROVE followed by an unre-reviewed REVISE
+    is not ready).
+    """
+    reviews_dir = plan_dir / "reviews"
+    if not reviews_dir.is_dir():
+        return (None, None)
+    best_n: int | None = None
+    best_file: Path | None = None
+    for f in reviews_dir.glob("pass-*.md"):
+        m = re.match(r"pass-(\d+)\.md$", f.name)
+        if not m:
+            continue
+        n = int(m.group(1))
+        if best_n is None or n > best_n:
+            best_n = n
+            best_file = f
+    if best_file is None:
+        return (None, None)
+    verdict: str | None = None
+    for line in best_file.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"##\s+Verdict:\s*([A-Za-z-]+)", line.strip())
+        if m:
+            verdict = m.group(1).upper()
+            break
+    return (best_n, verdict)
+
+
 def _plan_non_exclude_upstream_numbers(plan_md_text: str) -> list[str]:
     """Parse the Upstream Issues table and return issue numbers for any row
     whose disposition is not `exclude` and not a placeholder.
@@ -2448,6 +2493,65 @@ def audit(plan_dir: str, as_json: bool, retro: bool):
             click.echo("\n(retro mode: conversation mining is performed by the "
                        "captor agent, not this audit.)")
     sys.exit(0 if result["status"] == "pass" else 1)
+
+
+@cli.command("ready-check")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit structured JSON. Default is a human-readable report.")
+def ready_check(plan_dir: str, as_json: bool):
+    """Gate the approval prompt (REQ-PLAN-066).
+
+    Verifies BOTH preconditions of the approval prompt, so approval is consent to an
+    already-verified plan (not "approve, then verify"):
+
+      1. the **last recorded** red-team verdict (highest ``reviews/pass-N.md``) is
+         ``APPROVE`` (REQ-PLAN-030) — a later REVISE/INVESTIGATE-MORE that was never
+         re-reviewed blocks readiness;
+      2. the portability ``audit`` passes (REQ-PLAN-033).
+
+    Emits ``{"ready": bool, "reasons": [...], "verdict": ..., "review_pass": ...,
+    "audit_status": ...}``. Exits ``3`` when not ready (a gate signal, distinct from
+    a ``1`` crash), ``0`` when ready.
+    """
+    pdir = Path(plan_dir)
+    reasons: list[str] = []
+
+    n, verdict = _latest_review_verdict(pdir)
+    if verdict is None:
+        reasons.append(
+            "no red-team verdict found — expected reviews/pass-N.md with a "
+            "'## Verdict:' line")
+    elif verdict != "APPROVE":
+        reasons.append(
+            f"last red-team verdict is {verdict} (pass-{n}); a REVISE/INVESTIGATE-MORE "
+            "blocks ready-for-approval until a later cycle returns APPROVE")
+
+    audit = _audit_plan(pdir)
+    if audit["status"] != "pass":
+        reasons.append(
+            f"portability audit did not pass (status={audit['status']}) — run "
+            "`/yf-plan capture` or fix the failing findings")
+
+    ready = not reasons
+    result = {
+        "ready": ready,
+        "reasons": reasons,
+        "verdict": verdict,
+        "review_pass": n,
+        "audit_status": audit["status"],
+    }
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        if ready:
+            click.echo(
+                f"ready-check: READY (last red-team APPROVE at pass-{n} + audit pass)")
+        else:
+            click.echo("ready-check: NOT READY")
+            for r in reasons:
+                click.echo(f"  - {r}")
+    sys.exit(0 if ready else 3)
 
 
 if __name__ == "__main__":
