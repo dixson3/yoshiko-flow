@@ -5,15 +5,14 @@
 //!
 //! - `.state/<oldname>/`         → `.yf/<short>/`
 //! - `.<oldname>.local.json`     → `.yf/<short>/config.local.json`
-//! - `.yf/<short>.local.json`    → `.yf/<short>/config.local.json` (transitional flat)
 //!
 //! where the `.yf/<short>/` namespace short name comes from the centralized
 //! [`crate::preflight::skill_short_name`] resolver — matching what preflight reads
 //! (e.g. `.state/bdplan/` → `.yf/plan/`, NOT the pre-#67 full-name `.yf/yf-plan/`).
-//! Config consolidates BOTH legacy sources (the root dotfile and the transitional
-//! flat `.yf/<short>.local.json`) into the canonical `.yf/<short>/config.local.json`
-//! subdir (#67), and the per-skill top-level gitignore anchors collapse to one
-//! `/.yf/` anchor.
+//! Config migrates the legacy root dotfile `.<old>.local.json` into the canonical
+//! `.yf/<short>/config.local.json` subdir (#67); the transitional flat
+//! `.yf/<short>.local.json` source was removed (yf-zlcq). The per-skill top-level
+//! gitignore anchors collapse to one `/.yf/` anchor.
 //!
 //! ## Idempotency guarantees (REQ-YF-MIGRATE-001)
 //!
@@ -106,16 +105,10 @@ pub fn migrate(repo: &Path, dry_run: bool) -> std::io::Result<MigrateResult> {
         )?);
 
         // Config → the canonical subdir `.yf/<short>/config.local.json` (REQ-YF-MIGRATE-001
-        // revised, #67). TWO legacy sources consolidate into the one dest, in
-        // READ-PRECEDENCE order so the value a reader currently sees is preserved:
-        //   (1) transitional flat `.yf/<short>.local.json` (read tier 2) — migrated first;
-        //   (2) legacy root `.<old>.local.json` (read tier 3) — DestExists if (1) moved.
-        // Both are idempotent + never-clobber (an existing dest is left untouched).
+        // revised, #67). The legacy root dotfile `.<old>.local.json` (read tier 2) is the
+        // sole migration source — the transitional flat `.yf/<short>.local.json` tier was
+        // removed (yf-zlcq). Idempotent + never-clobber (an existing dest is left untouched).
         let cfg_to = repo.join(".yf").join(&short).join("config.local.json");
-        let flat_from = repo.join(".yf").join(format!("{short}.local.json"));
-        entries.push(plan_and_apply(
-            "config", old, new, &flat_from, &cfg_to, dry_run,
-        )?);
         let legacy_from = repo.join(format!(".{old}.local.json"));
         entries.push(plan_and_apply(
             "config",
@@ -343,7 +336,7 @@ mod tests {
         std::fs::write(repo.join(".bdplan.local.json"), r#"{"k":1}"#).unwrap();
 
         let res = migrate(repo, false).unwrap();
-        // state + legacy-root config → 2 (flat config source absent here).
+        // state + legacy-root config → 2.
         assert_eq!(res.migrated, 2);
 
         // New paths exist with content (state dir + config subdir use the SHORT name).
@@ -437,10 +430,11 @@ mod tests {
         assert!(res.entries.iter().all(|e| e.action == Action::SourceAbsent));
     }
 
-    // REQ-YF-MIGRATE-001 (#67): the transitional flat `.yf/<short>.local.json`
-    // migrates into the canonical `.yf/<short>/config.local.json` subdir.
+    // REQ-YF-MIGRATE-001 (yf-zlcq): the transitional flat `.yf/<short>.local.json`
+    // migration source was REMOVED — a flat-only repo migrates no config and the flat
+    // file is left untouched (it is no longer read or migrated anywhere).
     #[test]
-    fn flat_config_migrates_to_subdir() {
+    fn flat_config_is_ignored() {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
         std::fs::create_dir_all(repo.join(".yf")).unwrap();
@@ -451,20 +445,21 @@ mod tests {
         .unwrap();
 
         let res = migrate(repo, false).unwrap();
-        assert_eq!(res.migrated, 1);
-        assert_eq!(
-            std::fs::read_to_string(repo.join(".yf").join("plan").join("config.local.json"))
-                .unwrap(),
-            r#"{"src":"flat"}"#
-        );
-        assert!(!repo.join(".yf").join("plan.local.json").exists());
+        // No config source is present (the flat tier is gone) → nothing migrates.
+        assert_eq!(res.migrated, 0);
+        assert!(!repo
+            .join(".yf")
+            .join("plan")
+            .join("config.local.json")
+            .exists());
+        // The flat file is left where it is — never read, never moved.
+        assert!(repo.join(".yf").join("plan.local.json").is_file());
     }
 
-    // REQ-YF-MIGRATE-001 (#67): when BOTH a flat and a legacy-root config exist, the
-    // flat (higher read-precedence, tier 2) wins the subdir; the legacy source is
-    // left untouched (never-clobber), preserving the value a reader currently sees.
+    // REQ-YF-MIGRATE-001 (yf-zlcq): the legacy-root dotfile is the sole config source;
+    // it migrates to the canonical subdir even when a (now-ignored) flat file coexists.
     #[test]
-    fn flat_wins_over_legacy_on_consolidation() {
+    fn legacy_root_migrates_flat_ignored() {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
         std::fs::create_dir_all(repo.join(".yf")).unwrap();
@@ -476,16 +471,15 @@ mod tests {
         std::fs::write(repo.join(".bdplan.local.json"), r#"{"src":"legacy"}"#).unwrap();
 
         migrate(repo, false).unwrap();
-        // The subdir carries the flat value; the legacy file is left in place.
+        // The subdir carries the legacy-root value (the flat file is ignored).
         assert_eq!(
             std::fs::read_to_string(repo.join(".yf").join("plan").join("config.local.json"))
                 .unwrap(),
-            r#"{"src":"flat"}"#
+            r#"{"src":"legacy"}"#
         );
-        assert!(
-            repo.join(".bdplan.local.json").is_file(),
-            "legacy source left untouched (never-clobber)"
-        );
+        // Legacy source consumed by the migration; flat file untouched.
+        assert!(!repo.join(".bdplan.local.json").exists());
+        assert!(repo.join(".yf").join("plan.local.json").is_file());
     }
 
     // REQ-YF-PRE-005 revised (#67): legacy per-skill top-level gitignore anchors
