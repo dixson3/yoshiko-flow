@@ -1723,13 +1723,39 @@ def _repo_root() -> Path:
     return Path.cwd()
 
 
-def _change_validation_script(repo_root: Path) -> Path | None:
-    """Resolve the yf-change-validation engine in THIS repo, or None if absent.
+def _skill_surface_roots(repo_root: Path) -> list[Path]:
+    """Skill install roots in the same precedence as the SKILL.md SKILL_DIR `find`:
+    user scope (`~/.claude`, `~/.agents`), then project scope (`<git-root>/.claude`,
+    `.agents`), then cwd-relative. Mirrors SKILL.md's discovery so a script-side
+    resolver and the SKILL.md-side bootstrap cannot drift (issue #74)."""
+    home = Path.home()
+    return [
+        home / ".claude" / "skills",
+        home / ".agents" / "skills",
+        repo_root / ".claude" / "skills",
+        repo_root / ".agents" / "skills",
+        Path(".claude") / "skills",
+        Path(".agents") / "skills",
+    ]
 
-    Detect-at-runtime soft-dep: returns the script path only when it exists on disk.
-    """
-    script = repo_root / "skills" / "yf-change-validation" / "scripts" / "change_validation.py"
-    return script if script.exists() else None
+
+def _change_validation_script(repo_root: Path) -> Path | None:
+    """Resolve the yf-change-validation engine across install surfaces, or None.
+
+    Detect-at-runtime soft-dep: returns the first existing engine script found on
+    the skill-surface search path — the in-tree source checkout
+    (`<repo>/skills/...`, so yoshiko-flow dogfoods its own engine) followed by the
+    user/project/cwd install surfaces from `_skill_surface_roots`. The original
+    resolver checked only the in-tree path, so a normal install (user- or
+    `.claude`/`.agents`-scope) never resolved and `validate-merged` silently fell
+    through to `engine: none` (issue #74)."""
+    rel = Path("yf-change-validation") / "scripts" / "change_validation.py"
+    candidates = [repo_root / "skills" / rel]
+    candidates += [root / rel for root in _skill_surface_roots(repo_root)]
+    for script in candidates:
+        if script.exists():
+            return script
+    return None
 
 
 def _approved_manifest_present(repo_root: Path) -> bool:
