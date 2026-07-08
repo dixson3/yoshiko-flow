@@ -487,9 +487,11 @@ token.
 ### 4.3 — Auto-commit the plan locally
 
 Commit the approved plan **locally** so a fresh execute session (or a fresh clone after a
-crash) inherits a committed base (REQ-PLAN-064). `commit-plan` does a scoped
-`git add -- "${plan_dir}" .beads/` (explicit pathspec, never `git add -A`), a local commit
-(message `plan-NNN: <phase> — <objective>`), and **never a push**:
+crash) inherits a committed base (REQ-PLAN-064). `commit-plan` does a scoped `git add` over an
+explicit pathspec (never `git add -A`) — always `${plan_dir}`, plus `.beads/` **only when it is
+tracked / not gitignored** (a local-only beads repo gitignores `.beads/`, so it is skipped with a
+`beads_note` rather than failing, #71) — a local commit (message `plan-NNN: <phase> —
+<objective>`), and **never a push**:
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py commit-plan "${plan_dir}" --json
