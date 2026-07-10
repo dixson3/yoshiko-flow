@@ -39,6 +39,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `skill-readme` | `skills/*/README.md` | doc | derived | required |
 | `project-readme` | `README.md` | doc | derived | required |
 | `macro-spec` | `SPEC.md` | spec | fixed | required |
+| `crate-version` | `yf/Cargo.toml` (`[package]` `version`) | source | fixed | required |
+| `changelog` | `CHANGELOG.md` | doc | derived | required |
 | `guardrails` | `GUARDRAILS.md` | spec | fixed | required |
 | `per-skill-spec` | `skills/*/SPEC.md` | spec | fixed | optional |
 | `skill-diagram-png` | `skills/*/spec/*.png` | source | derived | optional |
@@ -85,6 +87,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-prereqs-union` | `skill-readme` | `project-readme` | contract |
 | `e-skill-diagram-ref` | `skill-diagram-png` | `skill-readme` | cross-ref |
 | `e-docs-diagram-ref` | `docs-diagram-png` | `project-readme` | cross-ref |
+| `e-changelog-version` | `crate-version` | `changelog` | contract |
 | `e-spec-guardrails` | `macro-spec` | `guardrails` | contract |
 | `e-spec-readme` | `macro-spec` | `project-readme` | behavioral |
 | `e-guardrails-readme` | `guardrails` | `project-readme` | cross-ref |
@@ -127,6 +130,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-prereqs-union` | `field-set-equal` | the project README Prerequisites table is the union of all skill READMEs' prerequisites. |
 | `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render freshness is NOT checked here (owned by `render.py check-dir`); diagram-vs-prose semantics are out of scope. |
 | `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render freshness and semantics out of scope (as above). |
+| `e-changelog-version` | `value-equal` | the top-most **released** version heading in `CHANGELOG.md` (`## v<X> — <date>`) matches the `yf/Cargo.toml` `[package]` `version`. Between releases the crate version stays at the last release and pending user-facing changes accumulate under a `## Unreleased` section **above** it; at a release cut the version bump and the `Unreleased`→`## v<X>` rename land together (a bumped crate version with no matching `## v<X>` heading, or a `## v<X>` heading that is empty / has no Added/Changed/Fixed entries, is drift). The section must record the notable user-facing changes for `<X>` — a released version whose changes merged since the previous tag are not reflected is out-of-date. `crate-version` is fixed authority: a mismatch is the **changelog** drifting (FAIL on `changelog`), never the version — unless the crate version itself is wrong (CONFLICT, §7). |
 | `e-spec-guardrails` | `field-set-subset` | `GUARDRAILS.md` does not contradict any `SPEC.md` REQ-* statement; read both and compare. The macro spec is fixed authority — a guardrail that conflicts with a REQ is the guardrail drifting (FAIL on guardrails), unless the SPEC itself is stale (CONFLICT, §7). |
 | `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. (The REQ-YF-PRE-004 config-path typo was operator-ratified and corrected in SPEC — SPEC/README/impl now agree on `.yf-<skill>.local.json`.) |
 | `e-guardrails-readme` | `field-set-subset` | any guardrail (`GUARDRAILS.md` GR-*) that constrains user-facing behavior README documents (e.g. operator-owned files `yf` must not edit, install/migration behavior) is reflected, not contradicted, in `README.md`. |
@@ -205,6 +209,8 @@ content-agreement axis).
 | `skills/*/protocols/*.md` | `e-protocol-rule` |
 | `skills/*/README.md` | `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table`, `e-index-desc`, `e-prereqs-union`, `e-skill-diagram-ref` |
 | `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref`, `e-spec-readme`, `e-guardrails-readme` |
+| `yf/Cargo.toml` | `e-changelog-version` |
+| `CHANGELOG.md` | `e-changelog-version` |
 | `SPEC.md` | `e-spec-guardrails`, `e-spec-readme` |
 | `GUARDRAILS.md` | `e-spec-guardrails`, `e-guardrails-readme` |
 | `skills/*/SPEC.md` | `e-skillspec-skillmd` |
@@ -214,10 +220,12 @@ content-agreement axis).
 
 ## 7. Fixed-Authority Conflict Policy
 
-The `fixed`-authority nodes are the spec set: `spec` (`skills/*/spec/*.md`), `macro-spec`
-(`SPEC.md`), `guardrails` (`GUARDRAILS.md`), and `per-skill-spec` (`skills/*/SPEC.md`). On a
+The `fixed`-authority nodes are the spec set — `spec` (`skills/*/spec/*.md`), `macro-spec`
+(`SPEC.md`), `guardrails` (`GUARDRAILS.md`), `per-skill-spec` (`skills/*/SPEC.md`) — plus
+`crate-version` (`yf/Cargo.toml` `[package]` `version`), the release source of truth. On a
 conflict across any spec-rooted edge (`e-spec-compliance`, `e-skillspec-skillmd`,
-`e-spec-guardrails`, `e-spec-readme`, `e-guardrails-readme`), the spec/guardrail wins: report
+`e-spec-guardrails`, `e-spec-readme`, `e-guardrails-readme`) or the version edge
+(`e-changelog-version`), the spec/guardrail/version wins: report
 the derived node (SKILL.md, README.md, GUARDRAILS.md, or other implementation/doc) as drifted;
 never edit a spec or guardrail to make a derived artifact fit. **Exception (the E4 lesson):** if
 the evidence shows the authority itself is stale — it names a file, tool, or identifier that does
