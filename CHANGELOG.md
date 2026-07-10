@@ -4,7 +4,13 @@ All notable changes to Yoshiko Flow (`yf`) are documented here. The version sour
 of truth is the `yf` crate version in `yf/Cargo.toml`; releases are cut by pushing a
 matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release).
 
-## Unreleased
+## v0.4.0 — 2026-07-09
+
+Self-contained vendor install with a full `yf self` update/install/uninstall
+lifecycle and XDG dirs; a `yf-plan` lifecycle overhaul (intake-at-execute,
+base-pinned branches, fingerprint re-review gate, ready-for-approval gate,
+cascade-close on completion); a `.yf/` config namespace with a minimal-local
+profile; and bd 1.1.x certification.
 
 ### Added
 
@@ -49,6 +55,19 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
   the scaffold ensure. This is how `yf self update` invalidates preflight — the swapped
   binary reports a new version, so the next preflight re-validates from scratch with no
   explicit cache-clear.
+- **`yf-plan` ready-for-approval gate (plan-024, #69).** A `ready-for-approval` status
+  plus a `ready-check` verb gate the approval prompt on **last-red-team = APPROVE AND
+  audit-pass**, so approval can't be granted over an un-reconciled review or a failing
+  portability audit.
+- **`yf-plan` cascade-close on completion (plan-024, #73).** A self-contained
+  `close_cascade.py` wired into RECONCILE §6.4 closes container/epic beads when a plan
+  completes — fail-loud on still-open children, treating a resolved gate as terminal.
+- **CONTRIBUTING.md — how to report `yf-*` skill defects (#75).** Documents where to
+  file, the report checklist, and anti-patterns (with #74 as the exemplar); linked from
+  the README so GitHub surfaces it in the new-issue flow.
+- **Claude Code Optimization docs (plan-025, #80).** New README section plus an expanded
+  `docs/recommended-settings.md` (permissions block, tool disables, notification/upload/
+  connector keys).
 
 ### Changed
 
@@ -96,6 +115,37 @@ matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release
   zero/multiple candidates), never hardcoded. The `verify` remediation string is
   likewise mode-aware. SPEC: `REQ-BINIT-011`/`REQ-BINIT-016`, `REQ-YF-PRE-007`;
   `BEADS_INIT.md` rule → v1.0.3.
+- **bd 1.1.x certification + local-only remote hygiene (plan-022, #68 + #61).** The
+  beads skills are certified against `bd` 1.1.x (219 yf tests + 41 upstream tests green,
+  FULL merged-state validation passing) and local-only remote handling is hardened.
+- **`.yf/` config namespace + minimal-local profile (plan-023, #58 + #67 + #66 + #57).**
+  Per-skill config migrated to `.yf/<skill>/config.local.json` (legacy root dotfile
+  migrated in, gitignore anchors collapsed; `REQ-YF-MIGRATE-001`, `REQ-YF-PRE-004`);
+  read-only profile engine-mode drift detection with `doctor --repair` reporting the
+  embedded engine-mode without migrating (`REQ-YF-PRE-010`, `REQ-BINIT-025`);
+  `interactions.jsonl` gitignored in the repair top-up (`REQ-BINIT-023`); and the
+  `UPSTREAM_TRACKING` Safety-invariant reworded routing-primary (`REQ-BUP-032`).
+- **Removed the transitional flat `.yf/<short>.local.json` config tier (#76).** Now that
+  the `.yf/<skill>/config.local.json` migration is ubiquitous, config resolution and
+  migration drop the flat interim tier end to end — resolution is canonical subdir →
+  legacy root dotfile only (revises `REQ-YF-PRE-004`, `REQ-YF-MIGRATE-001`).
+
+### Fixed
+
+- **`yf-plan` `commit-plan` failed on local-only beads repos (#71).** `commit-plan` did
+  an unconditional `git add -- "${plan_dir}" .beads`; where `.beads/` is gitignored
+  (gh-only interchange), the ignored pathspec made `git add` fail and blocked intake. The
+  pathspec is now conditional (`.beads/` added only when it exists and is not gitignored),
+  surfacing a `beads_note` when skipped. SPEC: `REQ-PLAN-064` local-only carve-out.
+- **change-validation FAST tier missed formatting drift (#45).** The `.rs` FAST tier ran
+  only `cargo test`, so `cargo fmt` drift slipped past local validation and failed only in
+  CI (bit v0.3.2). A dedicated `cargo-fmt` FAST id (`cargo fmt --all -- --check`) now runs
+  on `*.rs`/`Cargo.toml` edits; clippy stays FULL-only.
+- **change-validation engine resolver never fired on real installs (#74).** `yf-plan`
+  `validate-merged` resolved the `yf-change-validation` engine at one hardcoded in-repo
+  path, so every user- or `.claude`/`.agents`-scope install fell through to `engine: none`
+  and the layer-(b) cross-plan safety net never ran. Resolution now mirrors the SKILL_DIR
+  find precedence (user → project → cwd), searching in-tree source then install surfaces.
 
 ## v0.3.2 — 2026-06-24
 
