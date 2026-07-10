@@ -51,7 +51,7 @@ approved: yes
 |:--|:--|
 | `Cargo.toml` | `sha256:dc1c5e47e979e216` |
 | `.github/workflows/*.yml` | `sha256:5ebddf75ce6f6821` |
-| `**/test_*.py` | `sha256:44ab2de06b1834b5` |
+| `**/test_*.py` | `sha256:d93f576a39eb6e50` |
 | `website/package.json` | `sha256:c8683533309d1abc` |
 | `repo --check scripts` | `sha256:daa4d8b8c86cf102` |
 
