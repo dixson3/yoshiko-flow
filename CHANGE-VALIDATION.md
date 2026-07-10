@@ -24,6 +24,7 @@ approved: yes
 | `uv-skills` | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 | `uv-pytest` | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 | `uv-yf` | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
+| `uv-yf-cascade` | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
 
@@ -40,6 +41,7 @@ approved: yes
 |  | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
 
@@ -71,7 +73,8 @@ approved: yes
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
-| `skills/yf-plan/scripts/**` | `uv-yf` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
+| `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
 | `skills/yf-research/scripts/**` | `uv-research` |
 | `skills/yf-research/scripts/test_link_normalizer.py` | `uv-research` |
