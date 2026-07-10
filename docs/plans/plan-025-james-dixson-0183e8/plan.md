@@ -48,8 +48,9 @@ land ahead of code.
 |:------|:------|:------------|:------|:------------|
 
 _No existing upstream issue matches (searched `settings optimization claude code README` → none)._
-_Per the project coarse-granularity convention (AGENTS.md), a single tracking issue
-`Complete execution of plan-025` is filed at INTAKE._
+_Per the project coarse-granularity convention (AGENTS.md), a single coarse tracking issue is
+filed at INTAKE: **[#80](https://github.com/dixson3/yoshiko-flow/issues/80)** — "Complete
+execution of plan-025: Claude Code Optimization README section"._
 
 ## Investigation Findings
 
