@@ -145,15 +145,66 @@ ensures the gitignore scaffold. Its `--json` output is the machine-readable verd
 
 Several skill contracts assume you have turned off competing Claude Code built-ins
 (native workflows, the TodoWrite task feature, native memory). See
-[docs/recommended-settings.md](docs/recommended-settings.md) for a recommended
-`settings.json` baseline that ties each key to the rule/contract it supports —
-`disableWorkflows` and `todoFeatureEnabled: false` are the highest-impact.
+[Claude Code Optimization](#claude-code-optimization) below for the recommended
+`settings.json` changes and [docs/recommended-settings.md](docs/recommended-settings.md)
+for the full per-key rationale.
 
 Per-skill runtime state lives under `.yf/<skill>/` and operator config under
 `.yf-<skill>.local.json`. If you are coming from the pre-`yf` skills (`bdplan`/`bdresearch`
 and the `.state/` layout), run `yf migrate` once — it idempotently moves legacy state/config
 into the `.yf/` layout. See [docs/MIGRATION.md](docs/MIGRATION.md) for the one-time rename
 guide (skill names, `/commands`, `.gitignore` anchors).
+
+## Claude Code Optimization
+
+The `yf-*` skills run more efficiently when Claude Code's competing native
+mechanisms are turned off. Every unused native tool still costs **context /
+tool-schema budget on every turn**, and the always-loaded rule prose that *forbids*
+those mechanisms (native plan mode, workflows, TodoWrite, native memory) only steers
+the model — it does not stop paying to keep their schemas loaded. Disabling them at
+the `settings.json` level reclaims that budget, keeps state local/portable, and lets
+long autonomous runs proceed without prompt interruptions.
+
+The highest-leverage lever is the `permissions` block:
+
+```jsonc
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",   // trusted local dev — a real tradeoff, see the doc
+    "deny": [
+      // Safety guards (call-time block only; operator-tunable):
+      "Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(rm -rf ~)", "Bash(rm -rf ~/*)",
+      "Bash(rm -rf $HOME)", "Bash(rm -rf $HOME/*)", "Bash(sudo rm -rf *)",
+      // Tool disables (bare names → schema removed from context; Agent stays enabled):
+      "EnterPlanMode", "ExitPlanMode", "EnterWorktree", "ExitWorktree",
+      "TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskUpdate",
+      "DesignSync", "NotebookEdit", "SendMessage", "PushNotification",
+      "RemoteTrigger", "ReportFindings", "ScheduleWakeup",
+      "CronCreate", "CronDelete", "CronList"
+    ]
+  }
+}
+```
+
+Plus a handful of flag keys — highest-leverage first:
+
+- `disableWorkflows: true`, `todoFeatureEnabled: false` — `bd` (beads) and the
+  `Agent` tool are the only task/dispatch surfaces; native workflows and TodoWrite
+  are forbidden by every skill contract.
+- `autoMemoryEnabled: false`, `autoDreamEnabled: false`, `autoUploadSessions: false`,
+  `disableClaudeAiConnectors: true` — keep yf state cross-harness and off
+  Anthropic's servers.
+- `disableBundledSkills: true` — stop bundled skills from shadowing the
+  description-triggered `yf-*` skills.
+- `inputNeededNotifEnabled: false`, `agentPushNotifEnabled: false` — less
+  notification noise on long runs.
+
+Two are genuine tradeoffs, not free wins: `defaultMode: bypassPermissions` (pair it
+with `skipDangerousModePermissionPrompt: true`) removes the per-call human guard,
+and `askUserQuestionTimeout: "never"` **blocks** a run for a human rather than
+auto-answering. See [docs/recommended-settings.md](docs/recommended-settings.md) for
+the full per-key rationale, the bare-name-vs-scoped mechanism split, the boolean
+correction, and why the `Agent` tool must stay enabled.
 
 ## Skill frontmatter contract
 
