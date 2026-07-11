@@ -70,6 +70,30 @@
 >   `REQ-YF-MIGRATE-001` drops the flat config migration source (config migrates only the legacy
 >   root dotfile `.<old>.local.json`). Engine: `read_config` (`preflight.rs`) and `migrate`
 >   (`migrate.rs`) drop the flat tier.
+> - **plan-027 (2026-07-11, #84):** beads formula-staging kernel hardening. Added
+>   `REQ-YF-PRE-011` — preflight **owns formula staging**: it writes each beads-backed skill's
+>   embedded `formulas/*.formula.toml` into the project `.beads/formulas/` (verify-destination-
+>   every-run unconditional copy, so a deleted destination re-stages — not a source-hash-only
+>   skip), records ownership in a yf-owned staged-manifest marker (`.beads/formulas/.yf-staged.json`),
+>   and gitignores `/.beads/formulas/` via the **root** `.gitignore` `ensure_scaffold` path (never
+>   the bd-managed `.beads/.gitignore`); `SCAFFOLD_VERSION` bumped so already-preflighted repos get
+>   the new anchor. Staging is best-effort scaffold-class — no new preflight status, so
+>   `docs/yf/preflight-contract.md` §2 is unchanged. Added `REQ-YF-DOCTOR-004` — a static read-only
+>   `FormulaCheck` axis over the **embedded** tree (concrete `bd mol (pour|wisp) <name>` tokens
+>   inside **runnable bash fences**, excluding placeholders/prose) asserting each has a shipped
+>   `formulas/<name>.formula.toml`; plus **provenance-tracked GC** behind its own
+>   `yf doctor --prune-formulas` affordance (NOT plain `--repair`), removing only marker-attributed
+>   yf-staged formulas no embedded skill still declares, never a foreign/unmarked proto, and nothing
+>   at all with no marker. `FormulaCheck` is embedded-tree-based **by design** and does not use the
+>   on-disk single-scope doctor path (`mod.rs`); the "both scopes per-repo" requirement is met by
+>   embedded==verified-byte-identical-install coverage (no on-disk 2×2 enumeration added). Motivated
+>   by the plan-026 `bd mol wisp plan-investigate` `proto not found` failure (a skill shipping a
+>   formula it never staged, failing silently); this amendment makes the silent-omission bug class
+>   structurally impossible (preflight stages) and statically detectable (doctor). Engine:
+>   `yf/src/preflight.rs` (staging step + `SCAFFOLD_VERSION` bump), `yf/src/cmd/doctor/`
+>   (`FormulaCheck` in `checks()` + `--prune-formulas` GC path). Fleet SKILL.md `cp`/`rm` staging
+>   brackets removed (yf-plan `plan-execute`/`plan-investigate`, yf-research `yf-research`); the
+>   permanent `--force` on `bd mol burn` retained.
 
 ## 1. Purpose & scope
 
@@ -286,6 +310,28 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   missing-local-only / stray-remote → detect + offer-repair; embedded → detect/warn (no mutation,
   no repair offer); local-server → conformant (no drift). No shared-server fixture (no observable)
   and no engine-migration fixture (out of scope).
+- **REQ-YF-PRE-011** *(testable, plan-027)* the kernel shall **own formula staging** for
+  beads-backed skills. On a skill's preflight, for each `formulas/*.formula.toml` embedded under
+  that skill, the kernel shall write the file into the project's `.beads/formulas/` directory,
+  **verifying destination existence on every run** — an unconditional copy keyed on destination
+  presence/content, **not** a source-hash-only cache, so a destination deleted after any prior
+  stage is re-created (never a stale "already staged" skip that leaves `bd mol pour|wisp` failing
+  `proto not found`). The kernel shall record the basenames it staged in a **yf-owned
+  staged-manifest marker** (`.beads/formulas/.yf-staged.json`) so ownership is provenance-tracked
+  (consumed by `REQ-YF-DOCTOR-004` GC); the marker records, per staged basename, the declaring
+  embedded skill(s). The kernel shall ensure `/.beads/formulas/` is gitignored via the **root**
+  `.gitignore` `ensure_scaffold` path — **never** the bd-managed `.beads/.gitignore` — so staged
+  protos are never committed. Staging is a **best-effort scaffold-class side effect** running
+  beside the existing `ensure_scaffold` step and, like it, does **not** by itself change the
+  returned preflight status (no new status enum value is surfaced, so
+  `docs/yf/preflight-contract.md` §2 is unchanged); a staging I/O failure is reported in
+  `instructions`, not by a fatal status. Because staging now writes a new scaffold anchor, the
+  scaffold-ensure short-circuit version (`SCAFFOLD_VERSION`) shall be **bumped** so already-
+  preflighted repos (whose `scaffold-ensured` cache equals the old version) receive the new
+  `/.beads/formulas/` anchor rather than silently skipping it. Verified by tests tagged
+  `REQ-YF-PRE-011`: fresh stage, idempotent re-run, source-changed re-copy,
+  destination-deleted-but-cached re-stage, and gitignore anchor added on a repo carrying a
+  pre-existing older scaffold state.
 
 ### 3.6 Doctor (`REQ-YF-DOCTOR`)
 
@@ -301,6 +347,27 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   (`REQ-YF-PRE-007`) against the cwd repo, with `--local-only` (assert local-only Dolt) and
   `--remove-remote` (clear a configured Dolt remote) as opt-in modifiers. This is the one `doctor`
   path that mutates; without `--repair`, `doctor` never modifies the repo.
+- **REQ-YF-DOCTOR-004** *(testable, plan-027)* `yf doctor` shall include a **static, read-only**
+  `FormulaCheck` axis over the **embedded** skill tree (not on-disk scope enumeration — the
+  embedded tree is the verified byte-identical install source, so a static check transitively
+  covers every install scope). For each embedded skill that ships a `formulas/` directory, the
+  check shall extract every concrete molecule name referenced as `bd mol (pour|wisp) <name>`
+  **inside a runnable bash code fence** of that skill's `SKILL.md`, **excluding** placeholder
+  tokens (`<name>`, `<formula>`, and other angle-bracketed metavariables) and any mention outside a
+  runnable fence (prose, templates, comments). Every extracted name shall have a shipped
+  `formulas/<name>.formula.toml`; a runnable `bd mol pour|wisp <name>` with no shipped formula is a
+  **failure** (reported with remediation). A skill that references `bd mol pour|wisp` only in
+  prose/templates (e.g. `yf-beads-authoring`, `yf-beads-extra`) **passes**. This axis needs no repo
+  handle and never mutates. Separately, **provenance-tracked formula GC** shall be available behind
+  its **own explicit affordance** — a distinct `yf doctor --prune-formulas` flag, **not** plain
+  `--repair` (so a wedged-DB `--repair` can never trigger formula deletion). GC is cwd-scoped:
+  using the `REQ-YF-PRE-011` staged-manifest marker (`.beads/formulas/.yf-staged.json`), it removes
+  only `.beads/formulas/` entries the marker attributes to yf that **no** currently-embedded skill
+  declares (an entry is kept if **any** embedded skill declares that basename). It shall **never**
+  delete a formula not recorded in the marker (a foreign/local/bd-authored proto), and with **no
+  marker present** it deletes nothing (fail-safe). Verified by tests tagged `REQ-YF-DOCTOR-004`:
+  runnable-pour-without-formula flagged; prose-only pour passes; yf-staged orphan pruned under
+  `--prune-formulas`; foreign (unmarked) formula NOT deleted.
 
 ### 3.7 Distribution (`REQ-YF-DIST`)
 
