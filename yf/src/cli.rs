@@ -208,6 +208,14 @@ pub struct DoctorArgs {
     /// repair step that touches remote config, so it is an explicit opt-in.
     #[arg(long)]
     pub remove_remote: bool,
+
+    /// Provenance-tracked formula GC (REQ-YF-DOCTOR-004). Its OWN affordance,
+    /// distinct from `--repair` (a wedged-DB repair must never trigger deletion).
+    /// Removes only `.beads/formulas/` entries the yf-owned staged-manifest marker
+    /// attributes to yf that NO currently-embedded skill still declares; never a
+    /// foreign/unmarked proto, and nothing at all when the marker is absent.
+    #[arg(long)]
+    pub prune_formulas: bool,
 }
 
 #[derive(Debug, Args)]
