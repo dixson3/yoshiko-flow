@@ -296,12 +296,17 @@ PLAN CONTEXT: {scoping decisions and approach hypothesis}
 
 Independent experiments run in parallel.
 
-Track via wisp. Capture the wisp id so it can be burned after investigation (§4.7):
+Track via wisp. Capture the wisp id so it can be burned after investigation (§4.7). Stage the
+formula into `.beads/formulas/` first — `bd` resolves protos from there, not the skill dir (the
+same cp/rm bracket the §5.2a `plan-execute` pour uses); an unstaged proto errors `proto not
+found` and the wisp silently degrades to a no-op:
 
 ```bash
+cp -f "${SKILL_DIR}/formulas/plan-investigate.formula.toml" .beads/formulas/
 INVESTIGATION_WISP_ID=$(bd mol wisp plan-investigate \
   --var objective="${objective}" --var plan_dir="${plan_dir}" --json \
   | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new_epic_id)
+rm -f .beads/formulas/plan-investigate.formula.toml
 ```
 
 ### Post-investigation
@@ -743,10 +748,12 @@ RECONCILE_STEP=$(bd create "Reconcile: update upstream issues" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
 
-**Burn the investigation wisp** (captured in §2 as `INVESTIGATION_WISP_ID`):
+**Burn the investigation wisp** (captured in §2 as `INVESTIGATION_WISP_ID`). `--force` is
+required — `bd mol burn` otherwise prompts `[y/N]` and defaults to No in a non-interactive
+context, silently orphaning the wisp:
 
 ```bash
-bd mol burn ${INVESTIGATION_WISP_ID} 2>/dev/null || true
+bd mol burn ${INVESTIGATION_WISP_ID} --force 2>/dev/null || true
 ```
 
 **Resolve the start gate and set status `executing`** (this is a new session — the human start
