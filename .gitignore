@@ -28,3 +28,6 @@ __pycache__/
 
 # Skill runtime state + local config (yf-beads-init; Surface Convention §6)
 /.yf-beads-init.local.json
+
+# Skill runtime state + local config (yf-plan; Surface Convention §6)
+/.beads/formulas/
