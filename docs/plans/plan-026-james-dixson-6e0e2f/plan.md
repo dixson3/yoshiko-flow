@@ -1,10 +1,10 @@
-# Plan: Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), and add a new markdown-html skill (#50)
+# Plan: Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and absorb the strict GFM table aligner into yf-markdown-lint (#85)
 
 **ID:** plan-026-james-dixson-6e0e2f
 **Author:** james-dixson
 **Created:** 2026-07-11
 **Status:** approved
-**Fingerprint:** 611a1c963a535513f3d1af6152dafe7f3249bf773bdd3232898c27907c7e5769
+**Fingerprint:** b15020edb9074272ac125065d5b3384c6e51411953d9066dcd323fef0b5d60e6
 **Phase log:**
 - 2026-07-11 scoping: initial scope captured
 - 2026-07-11 scoping: 4 scope decisions resolved (full CriticMarkup filter, ML010 in authoring subset, caption filter default-on, add ML011)
@@ -14,9 +14,13 @@
 - 2026-07-11 review: pass-2 red-team APPROVE (2 low, self-resolving) — see reviews/pass-2.md
 - 2026-07-11 ready-for-approval: ready-check green — last red-team APPROVE + audit pass
 - 2026-07-11 approved: operator approved
+- 2026-07-12 drafting: reopened: integrating #85 (absorb md_table_align.py → ML012) into scope
+- 2026-07-12 review: pass-3 red-team APPROVE (3 concerns, all low/low-med, non-blocking) — see reviews/pass-3.md
+- 2026-07-12 ready-for-approval: ready-check green — pass-3 red-team APPROVE + audit pass (#85 folded in)
+- 2026-07-12 approved: operator approved (re-scope: #85 folded in)
 
 ## Objective
-Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), and add a new markdown-html skill (#50)
+Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and absorb the strict GFM table aligner (`md_table_align.py`) into yf-markdown-lint as a new ML012 alignment rule (#85)
 
 ## Motivation
 Five open GitHub issues cluster around one coherent gap in the repo's markdown toolchain and
@@ -34,10 +38,17 @@ reinforce each other:
 - **#46** blesses the two-field image convention (`alt` = a11y description, `title` = print
   caption) across both the linter and the PDF renderer so one image serves screen readers and
   print without the author picking a side.
+- **#85** folds the strict GFM **table aligner** (`md_table_align.py`) into `yf-markdown-lint`.
+  Today the linter validates table *structure* (ML005/ML008) but not column *alignment*;
+  alignment lives as a per-repo vendored script re-copied into every adopting repo
+  (`dixson3/obsidian-primary`, `dixson3/d3-pxe`). It belongs in the skill — a natural extension
+  of the same yf-markdown-lint work as #48/#46, so it joins this plan rather than spawning a
+  near-duplicate one.
 
 Affected: anyone authoring markdown in this repo and downstream repos (`dixson3/writing`,
-`dixson3/emacs.d`) that dogfood these skills. Triggered by the writing plan-010 and emacs.d
-plan-004 dogfood surfacing all five.
+`dixson3/emacs.d`, `dixson3/obsidian-primary`, `dixson3/d3-pxe`) that dogfood these skills.
+Triggered by the writing plan-010 and emacs.d plan-004 dogfood surfacing the first five; #85 was
+folded in later as an in-scope yf-markdown-lint extension.
 
 ## Scope Decisions (operator-confirmed)
 1. **markdown-html CriticMarkup** — ship the new skill *and* the opt-in CriticMarkup-rendering
@@ -51,7 +62,17 @@ plan-004 dogfood surfacing all five.
    `title` never warns.
 
 **Rule numbering:** ML009 is already taken (renderable-fence compile-check). New rules are
-**ML010** (un-escaped markup, #48) and **ML011** (empty-alt a11y, #46).
+**ML010** (un-escaped markup, #48), **ML011** (empty-alt a11y, #46), and **ML012** (table not
+aligned, #85).
+
+5. **#85 table-align tier & autofix** — the absorbed aligner keeps its three modes (`--check`
+   lint gate, `--write` in-place autofix, bare stdout). ML012 (`--check`) runs in the **full
+   audit**, NOT the on-edit authoring subset (whole-table reflow is heavier than the fast
+   authoring rules and is the natural pairing with the existing ML005/ML008 table checks). The
+   script stays stdlib-only (East-Asian-width aware). Vendoring source (pass-3 C1): the
+   locally-present `dixson3/d3-pxe/scripts/md_table_align.py` (~6 KB), with `dixson3/obsidian-primary`
+   — the original home, not checked out locally — reachable via `gh api` as a fallback; confirm the
+   copies are byte-identical before treating either as canonical.
 
 **Environment:** pandoc 3.10 (`+lua`, Figure AST available), xelatex present. The emacs.d
 plan-004 CriticMarkup filter is *not* locally accessible — it is built fresh here from the
@@ -65,10 +86,11 @@ approach described in the issues (Inlines-level filter, `--from=gfm-strikeout`).
 | #46 | alt-text / title image convention (lint + pdf) | include | Lint: bless pattern + ML011 empty-alt (Epic 1); PDF: title→caption filter default-on (Epic 2) | Epics 1 & 2 |
 | #49 | markdown-pdf un-escaped CriticMarkup/strikeout hazard | include | Document hazard in SKILL.md + optional pre-render advisory via ML010 | Epic 2 |
 | #50 | New skill markdown-html (CriticMarkup-aware) | include | Full new skill + opt-in CriticMarkup Lua filter | Epic 3 |
+| #85 | Absorb md_table_align.py (strict GFM table alignment) into yf-markdown-lint | include | Vendor the aligner into the skill's `scripts/`; wire ML012 (`--check`, full-audit tier) + `--write` autofix; document + note consumer migration | Epic 1 |
 
 **Coarse upstream tracking (AGENTS.md).** Reconcile files/updates **one coarse plan-026 tracking
-issue** (precedent #13/#14/#16) referencing #81/#48/#46/#49/#50 and closing them as resolved — it
-does **not** push granular per-bead sub-issues upstream.
+issue** (#82; precedent #13/#14/#16) referencing #81/#48/#46/#49/#50/#85 and closing them as
+resolved — it does **not** push granular per-bead sub-issues upstream.
 
 ## Investigation Findings
 See [exp-001](findings/exp-001-pandoc-lua-filters.md). All three filter/detection approaches
@@ -98,8 +120,20 @@ validated empirically against pandoc 3.10. Key corrections the issues under-spec
    The delimiter registry is documented and extensible.
 3. **#46 ML011** — new rule warning on images with **empty alt** (`![](x.png)`); a present title
    never warns. Bless `![alt](src "title")` as documented intent in SKILL.md.
-- SPEC-first: add `REQ-MDLINT-*` for ML010 (un-escaped markup), ML011 (empty-alt), and the ML003
-  title-parse clarification, ahead of code; extend the fixture corpus (one file per new rule).
+4. **#85 ML012 + aligner absorption** — vendor `md_table_align.py` (from the locally-present
+   `dixson3/d3-pxe/scripts/md_table_align.py`, ~6 KB, stdlib-only, East-Asian-width aware; the
+   original `dixson3/obsidian-primary` home is reachable via `gh api` as a fallback — confirm
+   byte-identical first) under `skills/yf-markdown-lint/scripts/`. Add PEP 723 header if any deps
+   (currently none). Keep the standalone script owning all three modes; wire a new **ML012 "table
+   not aligned"** rule into `markdown_lint.py` as a `--check` shell-out (ML009 precedent), full-audit
+   tier alongside ML005/ML008. The `--write` idempotent autofix stays on the standalone script
+   (markdown_lint.py remains read-only). Modes preserved: `--check` (exit 1 if any file would
+   change), `--write` (idempotent in-place), bare (stdout). Document alignment as part of the skill
+   in SKILL.md + the always-loaded `MARKDOWN_LINT.md` trigger rule, and note migration for existing
+   consumers (obsidian-primary, d3-pxe AGENTS.md) so they drop their vendored copies.
+- SPEC-first: add `REQ-MDLINT-*` for ML010 (un-escaped markup), ML011 (empty-alt), ML012 (table
+  alignment), and the ML003 title-parse clarification, ahead of code; extend the fixture corpus
+  (one file per new rule, incl. a mis-aligned table fixture + an idempotent-`--write` fixture).
 
 ### Epic 2 — yf-markdown-pdf (#46-pdf, #49)
 1. **#46 title→caption** — bundle `caption_from_title.lua`, wire into `md2pdf.py` `pre_args`
@@ -135,10 +169,14 @@ markdown-html; today a missing tool surfaces only as a raw failure at run time.
 
 ## Epics
 
-### Epic 1: yf-markdown-lint — ML003 fix + ML010/ML011 (#81, #48, #46-lint)
+### Epic 1: yf-markdown-lint — ML003 fix + ML010/ML011/ML012 (#81, #48, #46-lint, #85)
 - Issue 1.1: SPEC — add `REQ-MDLINT-*` for ML003 title-parse clarification, ML010 (un-escaped
-  markup), ML011 (empty-alt); update the §2.1 rule table **and** amend the §2.2 **REQ-MDLINT-011**
-  enumerated authoring subset to include ML010. **(SPEC-first — precedes 1.2–1.5.)**
+  markup), ML011 (empty-alt), and ML012 (table alignment `--check`, #85); update the §2.1 rule
+  table **and** amend the §2.2 **REQ-MDLINT-011** enumerated authoring subset to include ML010
+  (ML012 is full-audit-tier, NOT in the authoring subset). **Add a separate `REQ-MDLINT-*` for the
+  idempotent `--write` autofix / in-place mutation behavior** (distinct observable behavior from the
+  ML012 read-only check — pass-3 C2), so the idempotent-`--write` fixture in 1.5 has a requirement
+  to test against. **(SPEC-first — precedes 1.2–1.6.)**
 - Issue 1.2: Fix ML003 — strip optional GFM title from link/image dest before resolution (#81).
   - depends-on: 1.1
   - resolves-upstream: #81 (include)
@@ -153,10 +191,28 @@ markdown-html; today a missing tool surfaces only as a raw failure at run time.
   ML010/ML011 to `ALL_RULES` (line 49) and the script `Rules:` docstring (#46).
   - depends-on: 1.1
   - resolves-upstream: #46 (partial — lint half)
+- Issue 1.6: Absorb `md_table_align.py` (#85) — vendor the aligner into
+  `skills/yf-markdown-lint/scripts/` (PEP 723 header if deps arise; currently stdlib-only,
+  East-Asian-width aware). **Vendoring source (pass-3 C1):** use the locally-present
+  `dixson3/d3-pxe/scripts/md_table_align.py` copy; `dixson3/obsidian-primary` (the original home)
+  is not checked out locally — reach it via `gh api repos/dixson3/obsidian-primary/contents/scripts/md_table_align.py`
+  only as a fallback. **Confirm the d3-pxe and obsidian-primary copies are byte-identical** before
+  treating either as canonical. **Entry point (pass-3 C2):** keep `md_table_align.py` a **standalone
+  script** owning all three modes (`--check` exit-1-on-change / `--write` idempotent in-place / bare
+  stdout); wire **ML012 "table not aligned"** into `markdown_lint.py` as a `--check` **shell-out**
+  (the ML009 renderable-fence-compile precedent), in the **full-audit tier** (with ML005/ML008) —
+  `markdown_lint.py` itself stays a read-only reporter, the `--write` autofix lives only on the
+  standalone script. Add ML012 to `ALL_RULES` + the script `Rules:` docstring. Document alignment in
+  SKILL.md + the always-loaded `protocols/MARKDOWN_LINT.md`, and add a consumer-migration note
+  (obsidian-primary, d3-pxe drop their vendored copies). **Refresh the installed rule copy** so the
+  change is live.
+  - depends-on: 1.1
+  - resolves-upstream: #85 (include)
 - Issue 1.5: Fixture corpus — one file per new rule + regression fixture for the ML003 title case
-  (`![alt](images/x.png "caption")`) + ML011 images-only vs empty-link discrimination; update
-  tests.
-  - depends-on: 1.2, 1.3, 1.4
+  (`![alt](images/x.png "caption")`) + ML011 images-only vs empty-link discrimination + an ML012
+  mis-aligned-table fixture and an idempotent-`--write` fixture (running `--write` twice is a
+  no-op); update tests.
+  - depends-on: 1.2, 1.3, 1.4, 1.6
 
 ### Epic 2: yf-markdown-pdf — caption filter + hazard docs (#46-pdf, #49)
 - Issue 2.1: SPEC — add `REQ-MDPDF-*` for the title→caption filter and the un-escaped-markup
@@ -217,9 +273,9 @@ doctor/preflight, or is inert.
 
 ### Reconcile Gate
 - Type: auto (all execution beads closed)
-- Blocks: reconcile step (upstream issues #81, #48, #46, #49, #50 all incorporated). #46 is a
+- Blocks: reconcile step (upstream issues #81, #48, #46, #49, #50, #85 all incorporated). #46 is a
   **partial split** — the gate requires **both** Issue 1.4 (lint half) and Issue 2.2 (pdf half)
-  closed before #46 counts as reconciled.
+  closed before #46 counts as reconciled. #85 reconciles when Issue 1.6 closes.
 
 ## Risks & Mitigations
 | Risk | Mitigation |
@@ -231,6 +287,8 @@ doctor/preflight, or is inert.
 | ML010 (always-on subset) false-positives on prose that *documents* CriticMarkup — esp. the new markdown-html SKILL/SPEC | Exemption covers code spans/fences; mandate backtick-wrapping every CriticMarkup example in repo docs incl. the new skill's SKILL/SPEC (Issue 3.2). The registry only fires on the 5 explicit delimiter pairs. |
 | Epic 4 depends-on-tool mechanism turns out inert / harder than assumed | exp-002 investigates before implementing; Epic 4 matches the existing mechanism rather than inventing one. |
 | New markdown-html skill adds pandoc dep with no guard | Epic 4 explicitly closes this — the skill ships with dep declaration + entrypoint guard together. |
+| ML012 whole-table reflow is slow / noisy if run on every edit | ML012 is scoped to the **full-audit tier**, NOT the on-edit authoring subset — it pairs with the existing ML005/ML008 table checks, so the fast authoring path is unchanged. |
+| Absorbed `md_table_align.py` drifts from the still-vendored downstream copies | Issue 1.6 ships a consumer-migration note so obsidian-primary / d3-pxe drop their copies and point at the skill; the skill becomes the single source of truth. Idempotent-`--write` fixture guards behavior. |
 
 ## Success Criteria
 - ML003 no longer flags `![alt](path "title")` — regression fixture green; the full link audit is
@@ -244,5 +302,8 @@ doctor/preflight, or is inert.
   is literal pass-through.
 - A missing pandoc/xelatex is reported by `yf doctor`/preflight and by each run entrypoint as a
   clear message, not a raw crash.
+- `yf-markdown-lint` ships the strict GFM table aligner: ML012 flags mis-aligned tables in the
+  full audit, `--write` reflows them idempotently (twice = no-op), and the skill documents
+  alignment so downstream repos (obsidian-primary, d3-pxe) can drop their vendored copies.
 - Every new behavior has a SPEC `REQ-*` landed ahead of code and a tagged test; upstream issues
-  #81, #48, #46, #49, #50 reconciled.
+  #81, #48, #46, #49, #50, #85 reconciled.

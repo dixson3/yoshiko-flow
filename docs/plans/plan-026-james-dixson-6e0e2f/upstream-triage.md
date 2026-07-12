@@ -58,3 +58,10 @@ A markdown image has two text fields, and they want to serve two different goals
 
 **Disposition:**
 **Notes:**
+
+## #85 — yf-markdown-lint: absorb md_table_align.py (strict GFM table alignment)
+
+> Fold the strict GFM table aligner into the yf-markdown-lint skill so table alignment is enforced by the skill itself, instead of living as a per-repo vendored script (scripts/md_table_align.py). The linter validates table structure (ML005/ML008) but not column alignment ...
+
+**Disposition:** include (Epic 1, Issue 1.6 — ML012 `--check` full-audit tier + `--write` autofix; consumer-migration note)
+**Notes:** Folded in during a post-approval scope revision (2026-07-12). Full body in references/upstream-85.md.
