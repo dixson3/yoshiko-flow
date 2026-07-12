@@ -3,7 +3,8 @@
 **ID:** plan-027-james-dixson-a59656
 **Author:** james-dixson
 **Created:** 2026-07-11
-**Status:** approved
+**Status:** reconciling
+**Epic:** yf-mol-k4k
 **Fingerprint:** 1c9df273f24047364fcd34ced1a886cfe98ecb6aecce42802c6e5f0052cbe6c1
 **Phase log:**
 - 2026-07-11 scoping: initial scope captured
@@ -14,6 +15,9 @@
 - 2026-07-11 review: pass-2 red-team APPROVE (2 med folded, non-blocking) — see reviews/pass-2.md
 - 2026-07-11 ready-for-approval: ready-check green — pass-2 APPROVE + audit pass
 - 2026-07-11 approved: operator approved
+- 2026-07-11 intake: epic yf-mol-k4k poured
+- 2026-07-11 executing: start gate resolved
+- 2026-07-12 reconciling: post-execution reconciliation; DAG drained
 
 ## Objective
 Harden beads-backed skills against formula-staging bugs and add a preflight/doctor formula-resolvability check that validates both user-scope and project-scope skills per-repo
