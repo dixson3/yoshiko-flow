@@ -1592,8 +1592,8 @@ mod tests {
 
         let dest = repo.join(".beads").join("formulas");
         for name in ["plan-execute.formula.toml", "plan-investigate.formula.toml"] {
-            let staged = std::fs::read(dest.join(name))
-                .unwrap_or_else(|_| panic!("expected staged {name}"));
+            let staged =
+                std::fs::read(dest.join(name)).unwrap_or_else(|_| panic!("expected staged {name}"));
             let embedded = embed::read_file(&format!("yf-plan/formulas/{name}")).unwrap();
             assert_eq!(staged, embedded.as_ref(), "{name} staged byte-for-byte");
         }
@@ -1643,7 +1643,11 @@ mod tests {
         let dest = repo.join(".beads").join("formulas");
         std::fs::create_dir_all(&dest).unwrap();
         // Pre-stage a STALE/divergent copy.
-        std::fs::write(dest.join("plan-execute.formula.toml"), b"stale divergent bytes").unwrap();
+        std::fs::write(
+            dest.join("plan-execute.formula.toml"),
+            b"stale divergent bytes",
+        )
+        .unwrap();
         run_with_env("plan", &env);
         let embedded = embed::read_file("yf-plan/formulas/plan-execute.formula.toml").unwrap();
         assert_eq!(

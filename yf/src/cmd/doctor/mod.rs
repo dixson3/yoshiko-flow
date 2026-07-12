@@ -333,12 +333,21 @@ mod tests {
 
         let report = prune_orphan_formulas(tmp.path()).unwrap();
         assert!(report.marker_present);
-        assert_eq!(report.pruned, vec!["deprecated-old.formula.toml".to_string()]);
+        assert_eq!(
+            report.pruned,
+            vec!["deprecated-old.formula.toml".to_string()]
+        );
         assert_eq!(report.kept, vec!["plan-execute.formula.toml".to_string()]);
 
         // Orphan deleted; declared kept; FOREIGN untouched.
-        assert!(!fdir.join("deprecated-old.formula.toml").exists(), "orphan pruned");
-        assert!(fdir.join("plan-execute.formula.toml").exists(), "declared kept");
+        assert!(
+            !fdir.join("deprecated-old.formula.toml").exists(),
+            "orphan pruned"
+        );
+        assert!(
+            fdir.join("plan-execute.formula.toml").exists(),
+            "declared kept"
+        );
         assert!(
             fdir.join("foreign.formula.toml").exists(),
             "foreign/unmarked formula must NEVER be deleted"

@@ -254,7 +254,13 @@ pub fn extract_pour_names(skill_md: &str) -> BTreeSet<String> {
         // `RESULT=$(bd mol pour …)` or a backtick-wrapped call tokenizes standalone.
         let cleaned: String = line
             .chars()
-            .map(|c| if c == '(' || c == ')' || c == '`' { ' ' } else { c })
+            .map(|c| {
+                if c == '(' || c == ')' || c == '`' {
+                    ' '
+                } else {
+                    c
+                }
+            })
             .collect();
         let toks: Vec<&str> = cleaned.split_whitespace().collect();
         for i in 0..toks.len().saturating_sub(3) {
@@ -574,10 +580,15 @@ mod tests {
     // formula is flagged; a referenced name that IS shipped is not.
     #[test]
     fn missing_shipped_flags_unshipped_only() {
-        let referenced: BTreeSet<String> =
-            ["plan-execute", "ghost"].iter().map(|s| s.to_string()).collect();
+        let referenced: BTreeSet<String> = ["plan-execute", "ghost"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let shipped: BTreeSet<String> = ["plan-execute"].iter().map(|s| s.to_string()).collect();
-        assert_eq!(missing_shipped(&referenced, &shipped), vec!["ghost".to_string()]);
+        assert_eq!(
+            missing_shipped(&referenced, &shipped),
+            vec!["ghost".to_string()]
+        );
         // All-shipped ⇒ empty (pass).
         assert!(missing_shipped(&shipped, &shipped).is_empty());
     }
