@@ -80,19 +80,30 @@ canonical role table for every agent in this repo).
 
 ## Beads formulas
 
-Formulas live in the skill (`formulas/`) and are staged transiently into
-`.beads/formulas/` during pour, then removed — keeping the source of truth in the skill
-(upgradeable with it) while satisfying `bd`'s fixed search paths:
+Formulas live in the skill (`formulas/`) — the source of truth, upgradeable with the skill.
+`bd` resolves molecule protos from a repo's `.beads/formulas/`, not the skill dir, so a formula
+must be present there for `bd mol pour|wisp <name>` to work.
+
+**`yf preflight` OWNS staging (REQ-YF-PRE-011).** On every preflight, the kernel copies each
+beads-backed skill's embedded `formulas/*.formula.toml` into the project's (gitignored)
+`.beads/formulas/`, records provenance in a `.yf-staged.json` marker, and re-stages a
+destination deleted since a prior run. **Do NOT hand-stage in the SKILL body** — the canonical
+pattern is a bare pour with no per-call `cp`/`rm`:
 
 ```bash
-cp -f "${SKILL_DIR}/formulas/<name>.formula.toml" .beads/formulas/
 RESULT=$(bd mol pour <name> --var key=value --json)
-rm -f .beads/formulas/<name>.formula.toml
 ```
+
+The old `cp -f … .beads/formulas/` / `rm -f …` bracket is **removed** fleet-wide: it made the
+silent-omission bug class possible (a skill shipping a formula it forgot to stage failed
+`proto not found`, often swallowed). `yf doctor` now statically flags any runnable
+`bd mol pour|wisp <name>` lacking a shipped `formulas/<name>.formula.toml` (REQ-YF-DOCTOR-004),
+and `yf doctor --prune-formulas` GCs orphaned yf-staged protos.
 
 Capture `new_epic_id` and `id_mapping` from the pour result (see `yf-beads-extra` →
 *`bd mol pour` output shape*). Test a formula with `bd mol pour <name> --dry-run` before
-wiring the full pipeline.
+wiring the full pipeline (a dry-run still needs the proto staged — run the skill's preflight
+once first, or it is available after any prior `yf preflight <skill>`).
 
 ### Formula structure
 
@@ -218,7 +229,8 @@ for cross-consumer fields, so they're distinguishable from typos.
 1. **Prerequisites** — validate `bd` version, database initialization, required keys.
 2. **Scoping** — interactive questions to define the work.
 3. **Planning** — generate a structured plan.
-4. **Pouring** — stage formula, `bd mol pour`, attach agent metadata, inject dynamic beads.
+4. **Pouring** — `bd mol pour` (preflight already staged the formula), attach agent metadata,
+   inject dynamic beads.
 5. **Handoff** — direct the operator to run the skill's `coordinate` subcommand in a new
    session.
 6. **Coordinate** — gate resolution and coordinator dispatch (below).
@@ -393,8 +405,8 @@ Start from `yf-skill-authoring` (general layout, token rules, and the **Skill Su
 Convention** — preflight, config/state, manifest-hashed companion rules), then:
 
 1. Create a `.formula.toml` in `formulas/` for the fixed DAG skeleton (right-sized).
-2. Wire the pour sequence in SKILL.md: stage formula → `bd mol pour` → attach agent
-   metadata → inject dynamic beads (if needed).
+2. Wire the pour sequence in SKILL.md: `bd mol pour` (preflight stages the formula — no
+   per-call `cp`/`rm`) → attach agent metadata → inject dynamic beads (if needed).
 3. Author `agents/coordinator.md` (or extend an existing one) for dispatch.
 4. Implement the `coordinate` subcommand with gate auto-detection.
 5. Wire the preflight (`yf preflight <skill> --json`, the shared kernel) + `protocols/<NAME>.md`

@@ -259,11 +259,12 @@ uv run ${SKILL_DIR}/scripts/index_manager.py init "${research_dir}" "${topic}"
    (`new_epic_id`, `id_mapping`); `jq` is safe here. (For `bd show`/`bd list`, parse
    defensively — see `yf-beads-extra`.)
 
+`yf preflight` already staged this skill's embedded `formulas/*` into `.beads/formulas/`
+(REQ-YF-PRE-011), so the pour resolves the proto with no per-call `cp`/`rm` staging:
+
 ```bash
-cp -f "${SKILL_DIR}/formulas/yf-research.formula.toml" .beads/formulas/
 RESULT=$(bd mol pour yf-research \
   --var topic="${topic}" --var mode="${mode}" --var research_dir="${research_dir}" --json)
-rm -f .beads/formulas/yf-research.formula.toml
 
 EPIC=$(echo "$RESULT" | jq -r '.new_epic_id')
 # A gate-type formula step yields a task wrapper (id_mapping["yf-research.gate"]) AND the

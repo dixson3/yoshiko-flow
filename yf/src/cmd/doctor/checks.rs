@@ -2,10 +2,12 @@
 //! [`checks`], which assembles them. Adding a new prerequisite (git, gh, dolt) is
 //! a one-line `BinCheck { .. }` push here.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use super::check::{Check, CheckResult};
 use crate::cmd::common;
+use crate::embed;
 use crate::frontmatter;
 use crate::tool;
 
@@ -207,6 +209,127 @@ impl Check for RuleCheck {
     }
 }
 
+/// Whether a `bd mol pour|wisp <name>` token is a **concrete** formula name (vs. a
+/// placeholder/metavariable/flag). Concrete = starts with an ASCII letter and uses
+/// only `[A-Za-z0-9._-]`. This rejects `<name>`, `<formula>`, `${VAR}`, `$var`,
+/// `{{tmpl}}`, and `--json`, keeping only real formula tokens like `plan-execute`.
+fn is_concrete_formula_token(t: &str) -> bool {
+    let mut chars = t.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    t.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
+}
+
+/// REQ-YF-DOCTOR-004 extraction contract: the set of **concrete** molecule names a
+/// SKILL.md references as `bd mol (pour|wisp) <name>` **inside a runnable bash code
+/// fence**. Mentions in prose, inline code, or non-bash fences are excluded, as are
+/// placeholder tokens (`<name>`, `${VAR}`, `--json`). This is the exact set of names
+/// that MUST have a shipped `formulas/<name>.formula.toml`.
+pub fn extract_pour_names(skill_md: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    // `None` = outside any fence; `Some(is_bash)` = inside a fence of that language.
+    // Tracking the language across the whole fence (not per-line) is what makes a
+    // non-bash fence's CLOSING ``` not read as a new bash fence's opener.
+    let mut fence: Option<bool> = None;
+    for line in skill_md.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") {
+            match fence {
+                Some(_) => fence = None, // closing delimiter
+                None => {
+                    let info = trimmed.trim_start_matches('`').trim().to_ascii_lowercase();
+                    let is_bash = info == "bash" || info == "sh" || info.starts_with("bash ");
+                    fence = Some(is_bash);
+                }
+            }
+            continue;
+        }
+        if fence != Some(true) {
+            continue; // only scan inside runnable bash fences
+        }
+        // Normalize shell command-substitution / quoting punctuation so the `bd` in
+        // `RESULT=$(bd mol pour …)` or a backtick-wrapped call tokenizes standalone.
+        let cleaned: String = line
+            .chars()
+            .map(|c| if c == '(' || c == ')' || c == '`' { ' ' } else { c })
+            .collect();
+        let toks: Vec<&str> = cleaned.split_whitespace().collect();
+        for i in 0..toks.len().saturating_sub(3) {
+            if toks[i] == "bd"
+                && toks[i + 1] == "mol"
+                && (toks[i + 2] == "pour" || toks[i + 2] == "wisp")
+            {
+                let candidate = toks[i + 3];
+                if is_concrete_formula_token(candidate) {
+                    names.insert(candidate.to_string());
+                }
+            }
+        }
+    }
+    names
+}
+
+/// The referenced formula names with **no** shipped formula — the FormulaCheck
+/// failure set. Pure (referenced ∖ shipped), sorted, for testability.
+fn missing_shipped(referenced: &BTreeSet<String>, shipped: &BTreeSet<String>) -> Vec<String> {
+    referenced
+        .iter()
+        .filter(|n| !shipped.contains(*n))
+        .cloned()
+        .collect()
+}
+
+/// Static, read-only `FormulaCheck` axis (REQ-YF-DOCTOR-004): for a skill that
+/// ships a `formulas/` dir, assert every concrete `bd mol pour|wisp <name>` in a
+/// runnable bash fence of its SKILL.md has a shipped `formulas/<name>.formula.toml`.
+/// Embedded-tree-based (no repo handle, never mutates).
+pub struct FormulaCheck {
+    name: String,
+}
+
+impl Check for FormulaCheck {
+    fn run(&self) -> CheckResult {
+        let axis = format!("formulas:{}", self.name);
+        let Some(md) = embed::read_file(&format!("{}/SKILL.md", self.name)) else {
+            return CheckResult::ok(axis, "no SKILL.md to scan");
+        };
+        let text = String::from_utf8_lossy(&md);
+        let referenced = extract_pour_names(&text);
+        // Shipped formula names (`<name>` with the `.formula.toml` suffix stripped).
+        let shipped: BTreeSet<String> = embed::skill_formula_basenames(&self.name)
+            .into_iter()
+            .filter_map(|b| b.strip_suffix(".formula.toml").map(str::to_string))
+            .collect();
+        let missing = missing_shipped(&referenced, &shipped);
+        if missing.is_empty() {
+            CheckResult::ok(
+                axis,
+                format!(
+                    "{} runnable pour/wisp reference(s) all have shipped formulas",
+                    referenced.len()
+                ),
+            )
+        } else {
+            CheckResult::fail(
+                axis,
+                format!(
+                    "runnable `bd mol pour|wisp` with no shipped formula: {}",
+                    missing.join(", ")
+                ),
+                format!(
+                    "add skills/{}/formulas/<name>.formula.toml for: {} (or make the invocation \
+                     a non-runnable example)",
+                    self.name,
+                    missing.join(", ")
+                ),
+            )
+        }
+    }
+}
+
 /// Build the ordered registry of doctor checks for the given install surface.
 ///
 /// Order mirrors the previous hardcoded axes: `version`, `bd`, `uv` (+ its
@@ -248,6 +371,10 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
                 name: name.clone(),
                 rules_dir: rules_dir.to_path_buf(),
             }));
+        }
+        // FormulaCheck axis (REQ-YF-DOCTOR-004) only for skills that ship formulas.
+        if !embed::skill_formula_basenames(name).is_empty() {
+            out.push(Box::new(FormulaCheck { name: name.clone() }));
         }
     }
     out
@@ -387,6 +514,106 @@ mod tests {
         let r = rule_check("yf-beads-init", tmp.path()).run();
         assert!(!r.ok);
         assert!(r.detail.contains("rule_drift"), "{}", r.detail);
+    }
+
+    // ---- REQ-YF-DOCTOR-004: FormulaCheck extraction contract ---------------
+
+    // Concrete tokens only: real formula names accepted, metavariables/flags rejected.
+    #[test]
+    fn concrete_token_classifier() {
+        assert!(is_concrete_formula_token("plan-execute"));
+        assert!(is_concrete_formula_token("yf-research"));
+        assert!(is_concrete_formula_token("a.b_c-1"));
+        assert!(!is_concrete_formula_token("<name>"));
+        assert!(!is_concrete_formula_token("${VAR}"));
+        assert!(!is_concrete_formula_token("$var"));
+        assert!(!is_concrete_formula_token("--json"));
+        assert!(!is_concrete_formula_token("{{tmpl}}"));
+        assert!(!is_concrete_formula_token(""));
+        assert!(!is_concrete_formula_token("1formula"));
+    }
+
+    // Prose / inline-code mentions (outside a bash fence) contribute NO names.
+    #[test]
+    fn extract_ignores_prose_and_inline() {
+        let md = "See `bd mol pour` for details.\n\
+                  The formula is poured via `bd mol pour foo` inline.\n\
+                  No bd mol pour happens here in prose either.\n";
+        assert!(extract_pour_names(md).is_empty());
+    }
+
+    // A placeholder inside a bash fence is excluded (the yf-beads-authoring pattern).
+    #[test]
+    fn extract_ignores_placeholder_in_bash_fence() {
+        let md = "```bash\nRESULT=$(bd mol pour <name> --var key=value --json)\n```\n";
+        assert!(extract_pour_names(md).is_empty());
+    }
+
+    // The command-substitution form `$(bd mol pour NAME …)` IS caught (the real
+    // yf-plan/yf-research shape). This is the regression the whitespace-only scan missed.
+    #[test]
+    fn extract_catches_command_substitution() {
+        let md = "```bash\nRESULT=$(bd mol pour plan-execute --var x=1 --json)\n\
+                  WISP=$(bd mol wisp plan-investigate --json)\n```\n";
+        let names = extract_pour_names(md);
+        assert!(names.contains("plan-execute"), "{names:?}");
+        assert!(names.contains("plan-investigate"), "{names:?}");
+        assert_eq!(names.len(), 2);
+    }
+
+    // A non-bash fence (e.g. ```toml) is NOT scanned, and its closing ``` does not
+    // desync the fence tracker into reading following prose as bash.
+    #[test]
+    fn extract_ignores_non_bash_fence() {
+        let md = "```toml\nbd mol pour should-not-count\n```\n\
+                  Now prose: bd mol pour also-not.\n";
+        assert!(extract_pour_names(md).is_empty());
+    }
+
+    // The failure set is referenced ∖ shipped: a runnable pour with no shipped
+    // formula is flagged; a referenced name that IS shipped is not.
+    #[test]
+    fn missing_shipped_flags_unshipped_only() {
+        let referenced: BTreeSet<String> =
+            ["plan-execute", "ghost"].iter().map(|s| s.to_string()).collect();
+        let shipped: BTreeSet<String> = ["plan-execute"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(missing_shipped(&referenced, &shipped), vec!["ghost".to_string()]);
+        // All-shipped ⇒ empty (pass).
+        assert!(missing_shipped(&shipped, &shipped).is_empty());
+    }
+
+    // Integration: FormulaCheck passes on the real fleet (every runnable pour/wisp
+    // in yf-plan / yf-research has a shipped formula).
+    #[test]
+    fn formulacheck_passes_real_fleet() {
+        for skill in ["yf-plan", "yf-research"] {
+            let r = FormulaCheck {
+                name: skill.to_string(),
+            }
+            .run();
+            assert!(r.ok, "{skill} FormulaCheck should pass: {}", r.detail);
+        }
+    }
+
+    // A prose-only skill (no formulas/ dir, mentions `bd mol pour` only in prose)
+    // contributes NO formulas axis to the registry — it is structurally excluded.
+    #[test]
+    fn prose_only_skill_has_no_formula_axis() {
+        let tmp = tempfile::tempdir().unwrap();
+        let names: Vec<String> = checks(tmp.path(), tmp.path())
+            .iter()
+            .map(|c| c.run().name)
+            .collect();
+        assert!(
+            !names.iter().any(|n| n == "formulas:yf-beads-authoring"),
+            "yf-beads-authoring ships no formulas dir → no FormulaCheck axis"
+        );
+        assert!(
+            !names.iter().any(|n| n == "formulas:yf-beads-extra"),
+            "yf-beads-extra ships no formulas dir → no FormulaCheck axis"
+        );
+        // The skills that DO ship formulas get an axis.
+        assert!(names.iter().any(|n| n == "formulas:yf-plan"));
     }
 
     // #32: the bd BinCheck is version-gated; the gate is numeric (tuple-ordered).

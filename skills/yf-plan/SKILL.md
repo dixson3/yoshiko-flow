@@ -296,17 +296,15 @@ PLAN CONTEXT: {scoping decisions and approach hypothesis}
 
 Independent experiments run in parallel.
 
-Track via wisp. Capture the wisp id so it can be burned after investigation (§4.7). Stage the
-formula into `.beads/formulas/` first — `bd` resolves protos from there, not the skill dir (the
-same cp/rm bracket the §5.2a `plan-execute` pour uses); an unstaged proto errors `proto not
-found` and the wisp silently degrades to a no-op:
+Track via wisp. Capture the wisp id so it can be burned after investigation (§4.7). No per-call
+formula staging is needed — `yf preflight` OWNS staging (REQ-YF-PRE-011): it writes this skill's
+embedded `formulas/*` into the project `.beads/formulas/` on every preflight, so `bd mol wisp`
+just resolves the proto:
 
 ```bash
-cp -f "${SKILL_DIR}/formulas/plan-investigate.formula.toml" .beads/formulas/
 INVESTIGATION_WISP_ID=$(bd mol wisp plan-investigate \
   --var objective="${objective}" --var plan_dir="${plan_dir}" --json \
   | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new_epic_id)
-rm -f .beads/formulas/plan-investigate.formula.toml
 ```
 
 ### Post-investigation
@@ -644,10 +642,11 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "${curre
 real gate (key `plan-execute.gate-start-gate`, what `bd gate resolve` must target). See
 `yf-beads-authoring` → *Formula gate steps*.
 
+`yf preflight` already staged this skill's embedded `formulas/*` into `.beads/formulas/`
+(REQ-YF-PRE-011), so the pour resolves the proto with no per-call `cp`/`rm` staging:
+
 ```bash
-cp -f "${SKILL_DIR}/formulas/plan-execute.formula.toml" .beads/formulas/
 RESULT=$(bd mol pour plan-execute --var objective="${objective}" --var plan_dir="${plan_dir}" --json)
-rm -f .beads/formulas/plan-execute.formula.toml
 
 EPIC=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new_epic_id)
 START_GATE=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.start-gate")

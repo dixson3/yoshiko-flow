@@ -41,14 +41,30 @@ const DEFAULT_MIN_BD_VERSION: (u32, u32, u32) = (1, 0, 5);
 /// The manifest schema the code understands (`MANIFEST_SCHEMA = 1`).
 const MANIFEST_SCHEMA: i64 = 1;
 
-/// Scaffold version (legacy `SCAFFOLD_VERSION = 1`); the gitignore anchors are
-/// (re-)ensured once per version, gated by runtime state.
-const SCAFFOLD_VERSION: i64 = 1;
+/// Scaffold version; the gitignore anchors are (re-)ensured once per version,
+/// gated by runtime state. Bumped 1→2 for plan-027 (REQ-YF-PRE-011): the scaffold
+/// now also writes the `/.beads/formulas/` anchor, so already-preflighted repos
+/// (whose cached `scaffold-ensured` equals the old version) must re-run the ensure
+/// to pick up the new anchor rather than silently short-circuiting.
+const SCAFFOLD_VERSION: i64 = 2;
 
 /// The single gitignore anchor under the `.yf/` tree (REQ-YF-PRE-005, revised
 /// #67). One anchor covers both config (`.yf/<short>/config.local.json`) and state
 /// (`.yf/<short>/preflight.json`); no per-skill top-level dotfile anchor is added.
 const YF_ANCHOR: &str = "/.yf/";
+
+/// Gitignore anchor for the yf-owned formula staging dir (REQ-YF-PRE-011). Preflight
+/// stages a beads-backed skill's embedded formulas into `.beads/formulas/` so
+/// `bd mol pour|wisp <name>` resolves; the staged protos are runtime artifacts and
+/// must never be committed. Anchored in the **root** `.gitignore` via `ensure_scaffold`
+/// — deliberately NOT the bd-managed `.beads/.gitignore`.
+const BEADS_FORMULAS_ANCHOR: &str = "/.beads/formulas/";
+
+/// The yf-owned staged-manifest marker recording, per staged formula basename, which
+/// embedded skill(s) declared it. Provenance for `REQ-YF-DOCTOR-004 --prune-formulas`
+/// GC: only basenames recorded here are yf's to remove. Lives inside the gitignored
+/// `.beads/formulas/` dir.
+const STAGED_MARKER: &str = ".yf-staged.json";
 
 /// State key stamping the generating `yf` version onto `preflight.json`
 /// (REQ-YF-PRE-008). The value is the pure `crate::VERSION` (`CARGO_PKG_VERSION`) —
@@ -362,12 +378,18 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
     );
 
     // 4. Rule hash/semver (REQ-YF-PRE-003) — checked every run (cheap).
+    // REQ-YF-PRE-011: does this skill ship embedded formulas? Drives the
+    // `/.beads/formulas/` gitignore anchor and the every-run staging copy.
+    let ships_formulas = skill_ships_formulas(&skill_dir);
+
     let Some(rule_name) = rule_name else {
         // A skill with no companion rule in its descriptor: nothing to hash. Treat
         // as ok (deps already satisfied). Scaffold still runs.
-        let scaffold_added = ensure_scaffold(env, &short, config_basename.as_deref());
+        let scaffold_added =
+            ensure_scaffold(env, &short, config_basename.as_deref(), ships_formulas);
         let mut instructions = drift_offer;
         instructions.extend(self_update_offer); // REQ-YF-PRE-009 (ok return #1, C5)
+        instructions.extend(stage_formulas(env, &skill_dir)); // REQ-YF-PRE-011
         return Outcome {
             status: "ok".into(),
             missing: vec![],
@@ -381,7 +403,8 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
     let outcome = rule.outcome.clone();
     match outcome.as_str() {
         "ok" | "update_available" => {
-            let scaffold_added = ensure_scaffold(env, &short, config_basename.as_deref());
+            let scaffold_added =
+                ensure_scaffold(env, &short, config_basename.as_deref(), ships_formulas);
             let mut instructions = if outcome == "ok" {
                 vec![]
             } else {
@@ -392,6 +415,7 @@ pub fn run_with_env(skill_arg: &str, env: &Env) -> Outcome {
             };
             instructions.extend(drift_offer);
             instructions.extend(self_update_offer); // REQ-YF-PRE-009 (ok return #2, C5)
+            instructions.extend(stage_formulas(env, &skill_dir)); // REQ-YF-PRE-011
             Outcome {
                 status: "ok".into(),
                 missing: vec![],
@@ -962,7 +986,12 @@ fn rule_instruction(outcome: &str, rule_name: &str, short: &str) -> String {
 /// the `/.yf/` anchor (and the per-skill `config-basename` anchor) once per
 /// `SCAFFOLD_VERSION`, gated by runtime state. Returns the human-readable list of
 /// what was added (e.g. `"gitignore /.yf/"`), matching the legacy `scaffold_added`.
-fn ensure_scaffold(env: &Env, short: &str, config_basename: Option<&str>) -> Vec<String> {
+fn ensure_scaffold(
+    env: &Env,
+    short: &str,
+    config_basename: Option<&str>,
+    ships_formulas: bool,
+) -> Vec<String> {
     let mut added = vec![];
 
     let already = read_state(env, short)
@@ -979,7 +1008,13 @@ fn ensure_scaffold(env: &Env, short: &str, config_basename: Option<&str>) -> Vec
     // `config_basename` root dotfile is a back-compat READ path only (migrated into
     // `.yf/` by `yf migrate`), not a location this scaffold creates or anchors.
     let _ = config_basename; // retained in the signature; no longer anchored
-    let anchors: Vec<String> = vec![YF_ANCHOR.to_string()];
+    let mut anchors: Vec<String> = vec![YF_ANCHOR.to_string()];
+    // REQ-YF-PRE-011: a beads-backed skill (one shipping embedded formulas) also
+    // gets the `/.beads/formulas/` staging dir anchored in the ROOT .gitignore, so
+    // the protos preflight stages there are never committed.
+    if ships_formulas {
+        anchors.push(BEADS_FORMULAS_ANCHOR.to_string());
+    }
 
     let gitignore = env.repo_root.join(".gitignore");
     let mut lines: Vec<String> = std::fs::read_to_string(&gitignore)
@@ -1012,6 +1047,128 @@ fn ensure_scaffold(env: &Env, short: &str, config_basename: Option<&str>) -> Vec
         serde_json::Value::from(SCAFFOLD_VERSION),
     );
     added
+}
+
+// ---------------------------------------------------------------------------
+// Formula staging (REQ-YF-PRE-011)
+// ---------------------------------------------------------------------------
+
+/// The embedded `formulas/<name>.formula.toml` relpaths (relative to the skill's
+/// own dir) a skill ships. Empty for a skill with no `formulas/` dir.
+fn embedded_formula_files(skill_dir: &str) -> Vec<String> {
+    embed::skill_files(skill_dir)
+        .into_iter()
+        .filter(|f| f.starts_with("formulas/") && f.ends_with(".formula.toml"))
+        .collect()
+}
+
+/// Whether a skill is beads-backed in the staging sense — it ships at least one
+/// embedded `formulas/*.formula.toml`. Drives both the `/.beads/formulas/`
+/// gitignore anchor and the every-run staging copy.
+fn skill_ships_formulas(skill_dir: &str) -> bool {
+    !embedded_formula_files(skill_dir).is_empty()
+}
+
+/// REQ-YF-PRE-011: preflight OWNS formula staging. For the skill being preflighted,
+/// write each embedded `formulas/*.formula.toml` into the project's
+/// `.beads/formulas/`, **verifying the destination on every run** — an unconditional
+/// copy keyed on destination presence/content (never a source-hash-only "already
+/// staged" skip), so a destination deleted after a prior stage is re-created rather
+/// than left missing (which would fail `bd mol pour|wisp` with `proto not found`).
+/// Ownership is recorded in the yf-owned staged-manifest marker
+/// (`.beads/formulas/.yf-staged.json`) so `doctor --prune-formulas` GC can act only
+/// on yf-staged files. Best-effort: an I/O failure is returned as an `instructions`
+/// string (surfaced to the operator), never a fatal preflight status. Skips entirely
+/// when the repo has no `.beads/` dir (nothing beads-initialized to stage into).
+fn stage_formulas(env: &Env, skill_dir: &str) -> Vec<String> {
+    let mut failures: Vec<String> = vec![];
+
+    let formulas = embedded_formula_files(skill_dir);
+    if formulas.is_empty() {
+        return failures; // skill ships no formulas — nothing to stage
+    }
+    // Only stage into an actual beads repo; never create `.beads/` here (that is
+    // `bd init`'s job).
+    let beads_dir = env.repo_root.join(".beads");
+    if !beads_dir.is_dir() {
+        return failures;
+    }
+    let dest_dir = beads_dir.join("formulas");
+    if let Err(e) = std::fs::create_dir_all(&dest_dir) {
+        failures.push(format!(
+            "formula staging: could not create {}: {e}",
+            dest_dir.display()
+        ));
+        return failures;
+    }
+
+    let mut staged_basenames: Vec<String> = vec![];
+    for rel in &formulas {
+        // `rel` is `formulas/<name>.formula.toml`; basename is the file name.
+        let basename = match rel.rsplit('/').next() {
+            Some(b) => b.to_string(),
+            None => continue,
+        };
+        let embedded_relpath = format!("{skill_dir}/{rel}");
+        let Some(bytes) = embed::read_file(&embedded_relpath) else {
+            continue;
+        };
+        let dest = dest_dir.join(&basename);
+        // Verify-destination-every-run: (re)write unless the destination already
+        // exists with byte-identical content. A deleted or diverged destination is
+        // always restaged (pass-1 M4 — not a source-hash-only cache).
+        let needs_write = match std::fs::read(&dest) {
+            Ok(existing) => existing != bytes.as_ref(),
+            Err(_) => true, // missing/unreadable → restage
+        };
+        if needs_write {
+            if let Err(e) = std::fs::write(&dest, bytes.as_ref()) {
+                failures.push(format!(
+                    "formula staging: could not write {}: {e}",
+                    dest.display()
+                ));
+                continue;
+            }
+        }
+        staged_basenames.push(basename);
+    }
+
+    if !staged_basenames.is_empty() {
+        if let Err(e) = update_staged_marker(&dest_dir, skill_dir, &staged_basenames) {
+            failures.push(format!("formula staging: marker update failed: {e}"));
+        }
+    }
+    failures
+}
+
+/// Merge this skill's staged basenames into the provenance marker
+/// (`.beads/formulas/.yf-staged.json`), a map `{ "<basename>": ["<skill-dir>", ...] }`.
+/// Additive/idempotent: preserves entries other skills recorded, and records the
+/// declaring skill for each basename so GC can tell which basenames yf owns.
+fn update_staged_marker(
+    dest_dir: &std::path::Path,
+    skill_dir: &str,
+    basenames: &[String],
+) -> std::io::Result<()> {
+    let marker_path = dest_dir.join(STAGED_MARKER);
+    let mut map: serde_json::Map<String, serde_json::Value> = std::fs::read_to_string(&marker_path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default();
+
+    for basename in basenames {
+        let entry = map
+            .entry(basename.clone())
+            .or_insert_with(|| serde_json::Value::Array(vec![]));
+        if let Some(arr) = entry.as_array_mut() {
+            let already = arr.iter().any(|v| v.as_str() == Some(skill_dir));
+            if !already {
+                arr.push(serde_json::Value::String(skill_dir.to_string()));
+            }
+        }
+    }
+    let text = serde_json::to_string_pretty(&serde_json::Value::Object(map))?;
+    std::fs::write(&marker_path, text + "\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -1395,6 +1552,179 @@ mod tests {
         // Second run is idempotent: scaffold already ensured, nothing added.
         let out2 = run_with_env("plan", &env);
         assert_eq!(out2.scaffold_added.unwrap(), Vec::<String>::new());
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // ---- REQ-YF-PRE-011: preflight owns formula staging --------------------
+
+    /// Build a repo whose `plan` preflight reaches the `ok` path (warm cache +
+    /// materialized embedded PLANS.md) and carries a `.beads/` dir so staging fires.
+    /// Returns `(tmp, repo, env)`.
+    fn seed_ok_repo_with_beads(tag: &str) -> (PathBuf, PathBuf, Env) {
+        let tmp = unique_tmp(tag);
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        std::fs::create_dir_all(repo.join(".beads")).unwrap();
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true}}"#,
+                crate::VERSION
+            ),
+        )
+        .unwrap();
+        let embedded = embed::read_file("yf-plan/protocols/PLANS.md").unwrap();
+        std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
+        let env = test_env(&repo, &rules);
+        (tmp, repo, env)
+    }
+
+    // REQ-YF-PRE-011: a fresh stage writes every embedded formula into
+    // `.beads/formulas/` byte-for-byte and records provenance in the marker.
+    #[test]
+    fn stage_formulas_fresh_stage() {
+        let (tmp, repo, env) = seed_ok_repo_with_beads("stage-fresh");
+        let out = run_with_env("plan", &env);
+        assert_eq!(out.status, "ok");
+
+        let dest = repo.join(".beads").join("formulas");
+        for name in ["plan-execute.formula.toml", "plan-investigate.formula.toml"] {
+            let staged = std::fs::read(dest.join(name))
+                .unwrap_or_else(|_| panic!("expected staged {name}"));
+            let embedded = embed::read_file(&format!("yf-plan/formulas/{name}")).unwrap();
+            assert_eq!(staged, embedded.as_ref(), "{name} staged byte-for-byte");
+        }
+        // Provenance marker records both basenames, attributed to yf-plan.
+        let marker: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dest.join(".yf-staged.json")).unwrap())
+                .unwrap();
+        for name in ["plan-execute.formula.toml", "plan-investigate.formula.toml"] {
+            let owners = marker.get(name).and_then(|v| v.as_array()).unwrap();
+            assert!(
+                owners.iter().any(|o| o.as_str() == Some("yf-plan")),
+                "marker attributes {name} to yf-plan: {marker}"
+            );
+        }
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-011: a second preflight is idempotent — content stays identical
+    // and the marker does not accumulate duplicate owners.
+    #[test]
+    fn stage_formulas_idempotent_rerun() {
+        let (tmp, repo, env) = seed_ok_repo_with_beads("stage-idem");
+        run_with_env("plan", &env);
+        run_with_env("plan", &env);
+        let dest = repo.join(".beads").join("formulas");
+        let embedded = embed::read_file("yf-plan/formulas/plan-execute.formula.toml").unwrap();
+        assert_eq!(
+            std::fs::read(dest.join("plan-execute.formula.toml")).unwrap(),
+            embedded.as_ref()
+        );
+        let marker: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dest.join(".yf-staged.json")).unwrap())
+                .unwrap();
+        let owners = marker
+            .get("plan-execute.formula.toml")
+            .and_then(|v| v.as_array())
+            .unwrap();
+        assert_eq!(owners.len(), 1, "no duplicate owner entries: {marker}");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-011: a destination whose content diverged from the embedded source
+    // is overwritten back to the embedded bytes (verify-destination-every-run).
+    #[test]
+    fn stage_formulas_source_changed_recopy() {
+        let (tmp, repo, env) = seed_ok_repo_with_beads("stage-recopy");
+        let dest = repo.join(".beads").join("formulas");
+        std::fs::create_dir_all(&dest).unwrap();
+        // Pre-stage a STALE/divergent copy.
+        std::fs::write(dest.join("plan-execute.formula.toml"), b"stale divergent bytes").unwrap();
+        run_with_env("plan", &env);
+        let embedded = embed::read_file("yf-plan/formulas/plan-execute.formula.toml").unwrap();
+        assert_eq!(
+            std::fs::read(dest.join("plan-execute.formula.toml")).unwrap(),
+            embedded.as_ref(),
+            "divergent destination re-copied to embedded content"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-011 (pass-1 M4): the KEY regression — a destination deleted after a
+    // prior stage is re-created on the next run EVEN THOUGH the scaffold cache is warm.
+    // Staging is verify-destination-every-run, not gated by `scaffold-ensured`.
+    #[test]
+    fn stage_formulas_destination_deleted_but_cached_restage() {
+        let (tmp, repo, env) = seed_ok_repo_with_beads("stage-deleted");
+        // First run: stages formulas AND writes `scaffold-ensured` into the cache.
+        run_with_env("plan", &env);
+        let dest = repo.join(".beads").join("formulas");
+        assert!(dest.join("plan-execute.formula.toml").exists());
+        // Confirm the scaffold cache is now warm (would short-circuit ensure_scaffold).
+        let state = read_state(&env, "plan");
+        assert_eq!(
+            state.get("scaffold-ensured").and_then(|v| v.as_i64()),
+            Some(SCAFFOLD_VERSION),
+            "scaffold cache warm after first run"
+        );
+        // Delete the staged proto (simulating `proto not found` regression).
+        std::fs::remove_file(dest.join("plan-execute.formula.toml")).unwrap();
+        // Second run: despite the warm scaffold cache, staging re-creates it.
+        run_with_env("plan", &env);
+        assert!(
+            dest.join("plan-execute.formula.toml").exists(),
+            "deleted destination re-staged despite warm scaffold cache"
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-PRE-011 (pass-2 N2): a repo carrying a PRE-EXISTING older scaffold state
+    // (`scaffold-ensured: 1`, the pre-plan-027 version) still receives the new
+    // `/.beads/formulas/` gitignore anchor — the SCAFFOLD_VERSION bump forces re-run.
+    #[test]
+    fn stage_formulas_gitignore_anchor_on_preexisting_older_scaffold() {
+        let tmp = unique_tmp("stage-anchor-oldscaffold");
+        let repo = tmp.join("repo");
+        let rules = tmp.join("rules");
+        std::fs::create_dir_all(&rules).unwrap();
+        std::fs::create_dir_all(repo.join(".beads")).unwrap();
+        let state_dir = repo.join(".yf").join("plan");
+        std::fs::create_dir_all(&state_dir).unwrap();
+        // Pre-existing OLDER scaffold state: current yf-version (so no stale-cache
+        // reset), but `scaffold-ensured: 1` (the pre-plan-027 version).
+        std::fs::write(
+            state_dir.join("preflight.json"),
+            format!(
+                r#"{{"yf-version": "{}", "prereqs-present": true, "scaffold-ensured": 1}}"#,
+                crate::VERSION
+            ),
+        )
+        .unwrap();
+        // Seed a .gitignore already carrying `/.yf/` (as an older scaffold would).
+        std::fs::write(repo.join(".gitignore"), "/.yf/\n").unwrap();
+        let embedded = embed::read_file("yf-plan/protocols/PLANS.md").unwrap();
+        std::fs::write(rules.join("PLANS.md"), embedded.as_ref()).unwrap();
+
+        let env = test_env(&repo, &rules);
+        let out = run_with_env("plan", &env);
+        assert_eq!(out.status, "ok");
+        let gi = std::fs::read_to_string(repo.join(".gitignore")).unwrap();
+        assert!(
+            gi.contains("/.beads/formulas/"),
+            "older-scaffold repo receives the /.beads/formulas/ anchor after the \
+             SCAFFOLD_VERSION bump: {gi}"
+        );
+        assert!(
+            out.scaffold_added
+                .unwrap()
+                .iter()
+                .any(|a| a == "gitignore /.beads/formulas/"),
+            "scaffold_added reports the new anchor"
+        );
         std::fs::remove_dir_all(&tmp).ok();
     }
 

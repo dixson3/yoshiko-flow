@@ -70,6 +70,19 @@ pub fn read_file(relpath: &str) -> Option<Cow<'static, [u8]>> {
     Skills::get(relpath).map(|f| f.data)
 }
 
+/// The `formulas/<name>.formula.toml` files a skill ships, as basenames
+/// (`<name>.formula.toml`). Empty for a skill with no `formulas/` dir. The single
+/// source of truth for "which formula basenames does the embedded fleet declare",
+/// consumed by preflight staging (REQ-YF-PRE-011) and doctor's FormulaCheck + GC
+/// (REQ-YF-DOCTOR-004).
+pub fn skill_formula_basenames(skill: &str) -> Vec<String> {
+    skill_files(skill)
+        .into_iter()
+        .filter(|f| f.starts_with("formulas/") && f.ends_with(".formula.toml"))
+        .filter_map(|f| f.rsplit('/').next().map(str::to_string))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
