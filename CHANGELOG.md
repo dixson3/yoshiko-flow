@@ -4,6 +4,39 @@ All notable changes to Yoshiko Flow (`yf`) are documented here. The version sour
 of truth is the `yf` crate version in `yf/Cargo.toml`; releases are cut by pushing a
 matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release).
 
+## Unreleased
+
+Beads formula-staging kernel hardening (plan-027, #84): preflight now owns
+formula staging so beads-backed skills never ship a formula they forget to stage,
+and doctor gained static validation + provenance-tracked cleanup of the staging dir.
+
+### Added
+
+- **`yf preflight` owns formula staging (REQ-YF-PRE-011).** On every preflight, the
+  kernel copies each beads-backed skill's embedded `formulas/*.formula.toml` into the
+  project's (gitignored) `.beads/formulas/`, verifying the destination on every run
+  (a destination deleted since a prior stage is re-created — not a source-hash-only
+  skip), records provenance in a `.beads/formulas/.yf-staged.json` marker, and anchors
+  `/.beads/formulas/` in the root `.gitignore`. `SCAFFOLD_VERSION` bumped 1→2 so
+  already-preflighted repos pick up the new anchor. `bd mol pour|wisp <name>` now
+  resolves with no per-call `cp`/`rm` staging in the SKILL body.
+- **`yf doctor` FormulaCheck axis (REQ-YF-DOCTOR-004).** A static, read-only check over
+  the embedded skill tree: every concrete `bd mol pour|wisp <name>` in a runnable bash
+  fence of a formula-shipping skill's SKILL.md must have a shipped
+  `formulas/<name>.formula.toml` (placeholders/prose/non-bash fences excluded).
+- **`yf doctor --prune-formulas`.** A provenance-tracked GC on its own affordance
+  (decoupled from `--repair`): removes only `.beads/formulas/` entries the yf-staged
+  marker attributes to yf that no currently-embedded skill still declares — never a
+  foreign/unmarked proto, and nothing at all when the marker is absent.
+
+### Changed
+
+- **SKILL.md fleet migration.** Removed the per-call `cp`/`rm` `.beads/formulas/`
+  staging brackets from `yf-plan` (`plan-execute` pour + `plan-investigate` wisp) and
+  `yf-research` (`yf-research` pour); the permanent `--force` on `bd mol burn` is kept.
+  `yf-beads-authoring` documents the no-stage canonical pattern; the `e-formula-name`
+  drift edge now also flags a hand-staging bracket as drift.
+
 ## v0.4.0 — 2026-07-09
 
 Self-contained vendor install with a full `yf self` update/install/uninstall
