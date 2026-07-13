@@ -103,8 +103,8 @@ No upstream concerns.
 
 | # | Concern | Severity | Resolution | Status |
 |:--|:--------|:---------|:-----------|:-------|
-| C1 | #85 reverses GR-MDLINT-001; Issue 1.1 doesn't amend it | medium | | unresolved |
-| C2 | Epic 2 pins `-f gfm+implicit_figures`, regressing md2pdf's default reader | medium | | unresolved |
-| C3 | Epic 4 overstates the unknown; preflight already enforces depends-on-tool | low-medium | | unresolved |
-| C4 | ML012 shell-out: no line numbers; shebang convention mismatch | low | | unresolved |
-| C5 | Over-ambition (4 epics + new skill + kernel epic) | low | | unresolved (accept/split — operator call) |
+| C1 | #85 reverses GR-MDLINT-001; Issue 1.1 doesn't amend it | medium | Operator direction: instead of amending the guardrail, #85 moves OUT of yf-markdown-lint into a **new `yf-markdown-format` skill** (new Epic 5) owning `--check` + `--write` end-to-end. yf-markdown-lint gets no ML012 and stays validate-only — `GR-MDLINT-001` untouched. Skill is scoped to grow to multiple format standards. | resolved |
+| C2 | Epic 2 pins `-f gfm+implicit_figures`, regressing md2pdf's default reader | medium | Approach + Issue 2.2 + risk row de-hardcode the reader: md2pdf's default `markdown` reader already has `implicit_figures`, so the filter fires unchanged; a guard test asserts the reader/`-f` is unchanged. | resolved |
+| C3 | Epic 4 overstates the unknown; preflight already enforces depends-on-tool | low-medium | Epic 4 premise + issues reframed: preflight already enforces `depends-on-tool`; the real gap is only a new `yf doctor` per-skill-dep axis (optional, per exp-002) + md2html declaration + entrypoint guard. | resolved |
+| C4 | ML012 shell-out: no line numbers; shebang convention mismatch | low | Now internal to the new skill (Epic 5): Issue 5.2 re-shebangs to the `uv run` + PEP-723 convention; Issue 5.3 defines the `--check` finding-output convention (file-level / first offending table's line). | resolved |
+| C5 | Over-ambition (4 epics + new skill + kernel epic) | low | Operator decision: accept — keep #85 in plan-026 as Epic 5 (now 5 epics + 2 new skills). Explicitly chosen over splitting into a separate plan. | resolved (accepted) |
