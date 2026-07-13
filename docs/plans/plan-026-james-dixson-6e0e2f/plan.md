@@ -1,10 +1,10 @@
-# Plan: Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill that absorbs the strict GFM table aligner (#85)
+# Plan: Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill — the autofix side of the linter — absorbing the strict GFM table aligner (#85) and the existing Obsidian→GFM wiki-link migrator
 
 **ID:** plan-026-james-dixson-6e0e2f
 **Author:** james-dixson
 **Created:** 2026-07-11
 **Status:** approved
-**Fingerprint:** 03ba0a5078aacc42b150fdd2014a6167489a94f8ffe4f559ddc1d94810eb6359
+**Fingerprint:** 686a7f8f8c9380f2f44bd319360fa08f424fdea27c9ba9525fa217a55c938510
 **Phase log:**
 - 2026-07-11 scoping: initial scope captured
 - 2026-07-11 scoping: 4 scope decisions resolved (full CriticMarkup filter, ML010 in authoring subset, caption filter default-on, add ML011)
@@ -24,9 +24,15 @@
 - 2026-07-12 review: pass-5 red-team APPROVE (C1-C5 resolved+verified; 1 low-med C6 folded in) — see reviews/pass-5.md
 - 2026-07-12 ready-for-approval: ready-check green — pass-5 red-team APPROVE + audit pass (#85→Epic 5 restructure)
 - 2026-07-12 approved: operator approved (pass-5: #85→yf-markdown-format Epic 5)
+- 2026-07-13 drafting: reopened: fold convert_wikilinks refactor (lint→yf-markdown-format) into Epic 5 — clean flag-side/fix-side split
+- 2026-07-13 review: pass-6 red-team REVISE (1 med blocking: incomplete de-list list; 1 low accept) — see reviews/pass-6.md
+- 2026-07-13 drafting: revised — de-list list now grep-complete (lint README/root README/skill-authoring) per pass-6 C1
+- 2026-07-13 review: pass-7 red-team APPROVE (C1 resolved+verified grep-complete; 1 low folded in) — see reviews/pass-7.md
+- 2026-07-13 ready-for-approval: ready-check green — pass-7 APPROVE + audit pass (convert_wikilinks→format refactor)
+- 2026-07-13 approved: operator approved (pass-7: convert_wikilinks→yf-markdown-format; lint now truly validate-only)
 
 ## Objective
-Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new `yf-markdown-format` skill that absorbs the strict GFM table aligner (`md_table_align.py`) — keeping `yf-markdown-lint` validate-only (#85)
+Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new `yf-markdown-format` skill — **the autofix side of `yf-markdown-lint`** — that absorbs the strict GFM table aligner (`md_table_align.py`, #85) **and** the existing Obsidian→GFM wiki-link migrator (`convert_wikilinks.py`), keeping `yf-markdown-lint` genuinely validate-only
 
 ## Motivation
 Five open GitHub issues cluster around one coherent gap in the repo's markdown toolchain and
@@ -48,11 +54,19 @@ reinforce each other:
   Today alignment lives as a per-repo vendored script re-copied into every adopting repo
   (`dixson3/obsidian-primary`, `dixson3/d3-pxe`). It does **not** belong in `yf-markdown-lint`:
   that skill's `GR-MDLINT-001` guardrail is explicit that the linter *validates only — it never
-  authors, reformats, or aligns content* (alignment is a separate concern). Reformatting is a
-  distinct axis, so #85 ships as a **new `yf-markdown-format` skill** — a home for content-altering
-  format autofixes (starting with table alignment, extensible to future format standards) that
-  keeps `yf-markdown-lint` faithful to its validate-only intent. It rides in this plan because it
-  completes the same markdown-toolchain sweep as #81/#48/#46/#49/#50 (pass-4 C1).
+  authors, reformats, or aligns content*. Reformatting is a distinct axis, so #85 ships as a **new
+  `yf-markdown-format` skill** — the **autofix side of the linter**: everything that *rewrites*
+  markdown to conform to what `yf-markdown-lint` *flags*. This gives a clean flag-side/fix-side
+  split — ML001 flags `[[wikilinks]]` / the format skill rewrites them; ML005/ML008 flag table
+  structure / the format skill reflows alignment — extensible to future standards.
+- **Latent inconsistency this fixes (pass-6):** `yf-markdown-lint` **already** ships a
+  content-rewriter — `scripts/convert_wikilinks.py`, a reusable Obsidian→GFM migrator that edits
+  files in place — while `GR-MDLINT-001` claims the skill "never rewrites." That is a pre-existing
+  guardrail violation. Rather than leave lint half-clean (pull tables out, leave the wiki-link
+  rewriter in), `convert_wikilinks.py` **moves** into `yf-markdown-format` too, so the linter
+  becomes genuinely validate-only and the format skill owns the transform axis end-to-end. Both
+  ride in this plan because they complete the same markdown-toolchain sweep as
+  #81/#48/#46/#49/#50 (pass-4 C1, pass-6).
 
 Affected: anyone authoring markdown in this repo and downstream repos (`dixson3/writing`,
 `dixson3/emacs.d`, `dixson3/obsidian-primary`, `dixson3/d3-pxe`) that dogfood these skills.
@@ -75,16 +89,19 @@ rules are **ML010** (un-escaped markup, #48) and **ML011** (empty-alt a11y, #46)
 alignment is **not** an ML rule — it lives in the new `yf-markdown-format` skill (pass-4 C1), so
 `yf-markdown-lint`'s validate-only guardrail (`GR-MDLINT-001`) is untouched.
 
-5. **#85 → new `yf-markdown-format` skill (pass-4 C1).** Rather than an ML012 rule inside
-   `yf-markdown-lint` (which would reverse `GR-MDLINT-001` "never aligns content"), the table
-   aligner ships as a **standalone skill** owning the content-altering axis end-to-end: a `--check`
-   format-gate (exit 1 if any table would change — CI/pre-commit use) **and** a `--write` idempotent
-   in-place autofix, plus bare-stdout. The skill is scoped to grow to **multiple format standards**
-   later; table alignment is the first. `yf-markdown-lint` gets **no** ML012 and stays read-only.
-   The script stays stdlib-only (East-Asian-width aware). Vendoring source (pass-3 C1): the
-   locally-present `dixson3/d3-pxe/scripts/md_table_align.py` (~6 KB), with `dixson3/obsidian-primary`
-   — the original home, not checked out locally — reachable via `gh api` as a fallback; confirm the
-   copies are byte-identical before treating either as canonical.
+5. **#85 → new `yf-markdown-format` skill = the autofix side of the linter (pass-4 C1, pass-6).**
+   Rather than an ML012 rule inside `yf-markdown-lint` (which would reverse `GR-MDLINT-001` "never
+   aligns content"), the table aligner ships in a **standalone skill** owning the content-altering
+   axis end-to-end: a `--check` gate (exit 1 if content would change — CI/pre-commit) **and** a
+   `--write` idempotent in-place autofix, plus bare-stdout. The skill is **not** table-only — it is
+   the fix-side of everything the linter flags, so it also **absorbs `convert_wikilinks.py`** (the
+   Obsidian→GFM migrator today misfiled in the lint skill). `yf-markdown-lint` gets **no** ML012,
+   loses `convert_wikilinks.py`, and becomes genuinely read-only. Extensible to future format
+   standards. Vendoring source for the aligner (pass-3 C1): the locally-present
+   `dixson3/d3-pxe/scripts/md_table_align.py` (~6 KB), with `dixson3/obsidian-primary` — the
+   original home, not checked out locally — reachable via `gh api` as a fallback; confirm the
+   copies are byte-identical before treating either as canonical. `convert_wikilinks.py` moves from
+   the local lint skill (already present, no external fetch).
 
 **Environment:** pandoc 3.10 (`+lua`, Figure AST available), xelatex present. The emacs.d
 plan-004 CriticMarkup filter is *not* locally accessible — it is built fresh here from the
@@ -176,31 +193,43 @@ remain:
 - exp-002 (short code-read) confirms the preflight mechanism and the doctor-axis shape before
   implementing, so Epic 4 matches the kernel rather than re-deriving it.
 
-### Epic 5 — new yf-markdown-format skill (#85)
-A new skill for **content-altering** markdown format autofixes — the axis `yf-markdown-lint`
-deliberately refuses (`GR-MDLINT-001`). Table alignment is the first standard; the skill is
-structured so future format standards drop in beside it.
-1. New skill mirroring the markdown-pdf/lint structure: `SKILL.md`, `SPEC.md` (`REQ-MDFMT-*`),
-   `README.md`, `scripts/md_table_align.py` + tests, and a `protocols/` trigger rule if warranted
-   (a format skill that can rewrite files on `--write` likely wants an opt-in marker like
-   yf-markdown-lint's `.markdown-lint-on-edit`, NOT an always-on autofix).
+### Epic 5 — new yf-markdown-format skill (#85 + convert_wikilinks migration)
+A new skill for **content-altering** markdown transforms — **the autofix side of the linter**, the
+axis `yf-markdown-lint` deliberately refuses (`GR-MDLINT-001`). It absorbs **two** transforms: the
+strict GFM **table aligner** (#85, new) and the existing **Obsidian→GFM wiki-link migrator**
+(`convert_wikilinks.py`, moved out of the lint skill where it violates `GR-MDLINT-001`). Structured
+so future format standards drop in beside them.
+1. New skill mirroring the markdown-pdf/lint structure: `SKILL.md`, `SPEC.md` (`REQ-MDFMT-*` +
+   `GR-MDFMT-*`), `README.md`, `scripts/{md_table_align.py, convert_wikilinks.py}` + tests, and a
+   `protocols/` trigger rule if warranted (a skill that rewrites files on `--write` wants an opt-in
+   marker like yf-markdown-lint's `.markdown-lint-on-edit`, NOT an always-on autofix).
 2. Vendor `md_table_align.py` from the locally-present `dixson3/d3-pxe/scripts/md_table_align.py`
    (~6 KB, stdlib-only, East-Asian-width aware); `dixson3/obsidian-primary` (the original home) is
    reachable via `gh api` as a fallback — confirm byte-identical first. Re-shebang to the
    `#!/usr/bin/env -S uv run --script` + PEP-723 convention the fleet uses (pass-4 C4). Preserve the
    three modes: `--check` (exit 1 if any table would change — the CI/pre-commit gate), `--write`
    (idempotent in-place autofix — running twice is a no-op), bare (normalized to stdout).
-3. `--check` finding output: since the aligner reports at file granularity (no per-line number,
-   pass-4 C4), define the skill's check output convention (report the first offending table's line,
-   or file-level) and test it.
-4. Document alignment as a `yf-markdown-format` capability in SKILL.md; add a **consumer-migration
-   note** so `dixson3/obsidian-primary` and `dixson3/d3-pxe` drop their vendored
-   `scripts/md_table_align.py` and point their AGENTS.md at the skill.
-5. Root + install wiring: installer copy, **root `README.md` skill-index row** (DRIFT-CHECK
-   `e-index-table`), **root `SPEC.md` §4** `yf-markdown-format` reference, DRIFT-CHECK trigger-scope
-   coverage for the new SKILL/SPEC/protocol.
+3. **Move `convert_wikilinks.py`** from `skills/yf-markdown-lint/scripts/` into the new skill
+   (a `git mv`-style move — it is already local, no external fetch). Add the **tests it currently
+   lacks** (dry-run vs write, code/frontmatter-fence protection, idempotence). **De-list it from
+   `yf-markdown-lint`:** delete the SKILL.md "Migration helper" §, drop the `convert_wikilinks.py`
+   line from `SPEC.md` §3 Interfaces + the migration-helper mention, and drop the
+   `protocols/MARKDOWN_LINT.md` "migration helper" pointer — so the linter is genuinely
+   validate-only and `GR-MDLINT-001` is finally true (this fixes a pre-existing violation).
+4. `--check` finding output: the aligner reports at file granularity (no per-line number, pass-4
+   C4); define the skill's check-output convention (first offending table's line, or file-level)
+   and test it.
+5. Document **both** transforms as `yf-markdown-format` capabilities in SKILL.md/README.md; add a
+   **consumer-migration note** so `dixson3/obsidian-primary` and `dixson3/d3-pxe` drop their vendored
+   `md_table_align.py` and any `convert_wikilinks.py` reference and point AGENTS.md at the skill.
+6. Root + install wiring: installer copy, **root `README.md` skill-index row** (DRIFT-CHECK
+   `e-index-table`), **root `SPEC.md` §4** `yf-markdown-format` reference, `GUARDRAILS.md`
+   compose-by-reference for `GR-MDFMT-*`, DRIFT-CHECK trigger-scope + node coverage for the new
+   SKILL/SPEC/protocol **and the moved `convert_wikilinks.py` `script` node** (its glob owner
+   changes skills).
 - SPEC-first: author `SPEC.md` with `REQ-MDFMT-*` (the `--check`/`--write`/bare contract, the
-  idempotent-autofix guarantee, East-Asian width) before the script.
+  idempotent-autofix guarantee, East-Asian width, **and** the wiki-link migration contract) +
+  `GR-MDFMT-*` before moving/writing the scripts.
 
 ## Epics
 
@@ -288,13 +317,15 @@ whose axes are fixed (`REQ-YF-DOCTOR-001`) and do **not** enumerate a skill's `d
   with md2pdf's `check_deps()`) when pandoc is absent; tagged test. (md2pdf already covered.)
   - depends-on: 4.1, 3.2
 
-### Epic 5: new yf-markdown-format skill (#85)
-- Issue 5.1: SPEC — author `skills/yf-markdown-format/SPEC.md` with `REQ-MDFMT-*`: the
-  `--check`/`--write`/bare-stdout contract, the idempotent-autofix guarantee (`--write` twice = no-op),
-  East-Asian-width awareness, and the fenced-code-skip behavior. **Author a `§4 Guardrails`
-  section with `GR-MDFMT-*`** (pass-5 C6) — this is the fleet's one write-in-place skill, so bound
-  it: aligns tables only, **opt-in per repo** (never an always-on autofix), idempotent, and never
-  rewrites non-table prose (mirrors `GR-MDPDF-002` "renders; never lints"). **(SPEC-first — precedes 5.2–5.5.)**
+### Epic 5: new yf-markdown-format skill (#85 + convert_wikilinks migration)
+- Issue 5.1: SPEC — author `skills/yf-markdown-format/SPEC.md` with `REQ-MDFMT-*` covering **both**
+  transforms: (a) table alignment — the `--check`/`--write`/bare-stdout contract, idempotent-autofix
+  guarantee (`--write` twice = no-op), East-Asian-width awareness, fenced-code skip; (b) the
+  Obsidian→GFM **wiki-link migration** contract (code/frontmatter-fence protection, best-effort
+  resolution, idempotence). **Author a `§4 Guardrails` section with `GR-MDFMT-*`** (pass-5 C6) — the
+  fleet's one write-in-place skill, so bound it: transforms markdown to conform to GFM (table
+  alignment, wiki-link migration) only, **opt-in per repo** (never an always-on autofix),
+  idempotent, never rewrites content outside its declared transforms. **(SPEC-first — precedes 5.2–5.6.)**
 - Issue 5.2: Vendor `md_table_align.py` into `skills/yf-markdown-format/scripts/` from the
   locally-present `dixson3/d3-pxe/scripts/md_table_align.py` (`gh api` on obsidian-primary as
   fallback; confirm byte-identical first). Re-shebang to `#!/usr/bin/env -S uv run --script` + PEP-723
@@ -302,20 +333,44 @@ whose axes are fixed (`REQ-YF-DOCTOR-001`) and do **not** enumerate a skill's `d
   (twice = no-op) and a mis-aligned-table `--check` fixture.
   - depends-on: 5.1
   - resolves-upstream: #85 (include)
-- Issue 5.3: `SKILL.md` + `README.md` — document the skill, its `--check` (CI/pre-commit gate) vs
-  `--write` (autofix) modes, and the `--check` finding-output convention (file-level or first
-  offending table's line, pass-4 C4). Add an opt-in trigger marker if an on-edit autofix rule is
-  warranted (NOT always-on — a format skill that rewrites files must be opt-in per repo).
-  - depends-on: 5.2
-- Issue 5.4: Root + install wiring — installer copy, **root `README.md` skill-index row**
-  (DRIFT-CHECK `e-index-table`), **root `SPEC.md` §4** `yf-markdown-format` reference, a
-  **`GUARDRAILS.md` compose-by-reference line** for `GR-MDFMT-*` (pass-5 C6), DRIFT-CHECK
-  trigger-scope coverage for the new SKILL/SPEC/protocol.
-  - depends-on: 5.2
-- Issue 5.5: Consumer-migration note — document that `dixson3/obsidian-primary` and `dixson3/d3-pxe`
-  can drop their vendored `scripts/md_table_align.py` and point AGENTS.md at the skill (a downstream
-  consequence recorded here, not executed in those repos by this plan).
-  - depends-on: 5.3
+- Issue 5.3: **Move `convert_wikilinks.py`** from `skills/yf-markdown-lint/scripts/` into
+  `skills/yf-markdown-format/scripts/` (already local — a move, no external fetch). Add the tests it
+  currently lacks (dry-run vs in-place write, code/frontmatter-fence protection, idempotence).
+  **De-list every in-repo reference (grep-complete, pass-6 C1):** `grep -rn convert_wikilinks` and
+  clear all of them so no dangling pointer remains — specifically (a) `yf-markdown-lint/SKILL.md`
+  (delete the "## Migration helper" §, lines ~90-98); (b) `yf-markdown-lint/SPEC.md` §3 Interfaces
+  (drop the `scripts/convert_wikilinks.py` line + migration-helper mention); (c)
+  **`yf-markdown-lint/README.md`** — both the usage command **and** the file-layout tree entry
+  (else `e-readme-usage` + `e-readme-layout`, `required` edges, FAIL); (d) the
+  `protocols/MARKDOWN_LINT.md` migration-helper pointer; (e) repoint the cross-skill mention in
+  **`skills/yf-skill-authoring/SKILL.md`** (~:228) to the new skill. (The root README skills-index
+  row is handled in Issue 5.5.) Result: the linter is genuinely validate-only and `GR-MDLINT-001`
+  "never rewrites" is finally honored (fixes a pre-existing violation). Independent of Epic 1's rule
+  work — touches different lint sections (the script + Migration-helper/Interfaces/README blocks,
+  not the ML rule table).
+  - depends-on: 5.1
+- Issue 5.4: `SKILL.md` + `README.md` — document the skill and **both** transforms (`--check`
+  gate vs `--write` autofix for alignment; the wiki-link migrator), and the `--check`
+  finding-output convention (file-level or first offending table's line, pass-4 C4). The new
+  `README.md` **file-layout fence and Usage section must list both** `scripts/md_table_align.py`
+  **and** `scripts/convert_wikilinks.py` (pass-7 — the destination side of the `e-readme-layout`
+  `field-set-equal` invariant). Add an opt-in trigger marker if an on-edit autofix rule is
+  warranted (NOT always-on — a skill that rewrites files must be opt-in per repo).
+  - depends-on: 5.2, 5.3
+- Issue 5.5: Root + install wiring — installer copy, **new root `README.md` skills-index row** for
+  `yf-markdown-format` (DRIFT-CHECK `e-index-table`/`e-index-desc`) **and edit the existing
+  `yf-markdown-lint` root-README row to drop the "Ships `convert_wikilinks.py` …" clause** (pass-6
+  C1 — else `e-index-desc` FAILs against the de-listed lint README), **root `SPEC.md` §4**
+  `yf-markdown-format` reference, a **`GUARDRAILS.md` compose-by-reference line** for `GR-MDFMT-*`
+  (pass-5 C6), DRIFT-CHECK trigger-scope + node coverage for the new SKILL/SPEC/protocol. The moved
+  `convert_wikilinks.py` needs no per-file DRIFT-CHECK edit — it is covered by the generic
+  `skills/*/scripts/*.{sh,py}` `script`-node glob, which matches the new path automatically.
+  - depends-on: 5.2, 5.3
+- Issue 5.6: Consumer-migration note — document that `dixson3/obsidian-primary` and `dixson3/d3-pxe`
+  can drop their vendored `scripts/md_table_align.py` (and any `convert_wikilinks.py` reference) and
+  point AGENTS.md at the skill (a downstream consequence recorded here, not executed in those repos
+  by this plan).
+  - depends-on: 5.4
 
 ## Gates
 ### Start Gate (mandatory)
@@ -339,15 +394,18 @@ whose axes are fixed (`REQ-YF-DOCTOR-001`) and do **not** enumerate a skill's `d
 | ML010 (always-on subset) false-positives on prose that *documents* CriticMarkup — esp. the new markdown-html SKILL/SPEC | Exemption covers code spans/fences; mandate backtick-wrapping every CriticMarkup example in repo docs incl. the new skill's SKILL/SPEC (Issue 3.2). The registry only fires on the 5 explicit delimiter pairs. |
 | Epic 4 scope over-estimated (preflight assumed inert) | pass-4 C3: preflight already enforces `depends-on-tool`; Epic 4 is reframed to the real gaps (doctor axis + md2html declaration/guard). exp-002 confirms before implementing. |
 | New markdown-html skill adds pandoc dep with no guard | Epic 4 closes this — markdown-html declares `depends-on-tool: [uv, pandoc]` (preflight enforces) + a md2html entrypoint guard. |
-| `yf-markdown-format` `--write` mutates files — a format skill that rewrites content is a bigger footgun than a linter | The skill is opt-in per repo (no always-on autofix, Issue 5.3); `--check` (read-only gate) is the default CI use; `--write` is explicit. Idempotent-`--write` fixture (twice = no-op) guards behavior. Keeping it OUT of yf-markdown-lint preserves that skill's validate-only guardrail (pass-4 C1). |
-| Absorbed `md_table_align.py` drifts from the still-vendored downstream copies | Issue 5.5 ships a consumer-migration note so obsidian-primary / d3-pxe drop their copies and point at the skill; the skill becomes the single source of truth. |
+| `yf-markdown-format` `--write` mutates files — a format skill that rewrites content is a bigger footgun than a linter | The skill is opt-in per repo (no always-on autofix, Issue 5.4); `--check` (read-only gate) is the default CI use; `--write` is explicit. Idempotent-`--write` fixture (twice = no-op) guards behavior. Keeping BOTH transforms out of yf-markdown-lint preserves that skill's validate-only guardrail (pass-4 C1). |
+| Absorbed `md_table_align.py` drifts from the still-vendored downstream copies | Issue 5.6 ships a consumer-migration note so obsidian-primary / d3-pxe drop their copies and point at the skill; the skill becomes the single source of truth. |
+| Moving `convert_wikilinks.py` across skills breaks its DRIFT-CHECK `script` node / any in-repo caller | Issue 5.5 updates the DRIFT-CHECK `script`-node coverage for the new glob owner; the move is `git mv`-style (history preserved) and the script is a standalone CLI (no in-repo import); its consumers are external vaults referenced by path, updated via the 5.6 migration note. |
+| `convert_wikilinks.py` is currently untested — moving it risks silent regressions | Issue 5.3 adds the tests it lacks (dry-run vs write, fence/frontmatter protection, idempotence) as part of the move, so the transform lands in the new skill better-covered than it left the old one. |
 
 ## Success Criteria
 - ML003 no longer flags `![alt](path "title")` — regression fixture green; the full link audit is
   clean on titled images.
 - ML010 flags bare CriticMarkup in prose, exempts code spans/fences, and runs in the on-edit
-  authoring subset; ML011 warns on empty alt only. `yf-markdown-lint` remains validate-only
-  (`GR-MDLINT-001` intact — no `--write`, no ML012).
+  authoring subset; ML011 warns on empty alt only. `yf-markdown-lint` is **genuinely validate-only**
+  — no `--write`, no ML012, and **no `convert_wikilinks.py`** (moved to yf-markdown-format), so
+  `GR-MDLINT-001` "never rewrites" is finally true (a pre-existing violation, resolved).
 - markdown-pdf routes a non-empty image title to the figure caption by default; no-title images
   unchanged; the pandoc reader is unchanged (guard test); hazard documented in SKILL.md.
 - `markdown-html` renders standalone HTML with embedded resources and a default stylesheet;
@@ -356,9 +414,9 @@ whose axes are fixed (`REQ-YF-DOCTOR-001`) and do **not** enumerate a skill's `d
 - markdown-html declares `depends-on-tool: [uv, pandoc]` (preflight reports a missing tool as
   `system_deps_missing`) and its run entrypoint fails closed with a clear message, not a raw crash;
   if adopted, `yf doctor` also reports the missing per-skill dep.
-- The new `yf-markdown-format` skill ships the strict GFM table aligner: `--check` flags a
-  mis-aligned table (exit 1), `--write` reflows idempotently (twice = no-op), and the skill
-  documents alignment so downstream repos (obsidian-primary, d3-pxe) can drop their vendored copies.
-  `yf-markdown-lint` is untouched by this.
+- The new `yf-markdown-format` skill is the linter's autofix side, owning **both** transforms:
+  the table aligner (`--check` flags a mis-aligned table exit 1, `--write` reflows idempotently)
+  **and** the Obsidian→GFM `convert_wikilinks.py` migrator (moved from lint, now tested). The skill
+  documents both so downstream repos (obsidian-primary, d3-pxe) drop their vendored copies.
 - Every new behavior has a SPEC `REQ-*` landed ahead of code and a tagged test; upstream issues
   #81, #48, #46, #49, #50, #85 reconciled.
