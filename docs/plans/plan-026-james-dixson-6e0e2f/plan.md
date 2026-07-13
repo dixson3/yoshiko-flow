@@ -3,7 +3,7 @@
 **ID:** plan-026-james-dixson-6e0e2f
 **Author:** james-dixson
 **Created:** 2026-07-11
-**Status:** approved
+**Status:** drafting
 **Fingerprint:** b15020edb9074272ac125065d5b3384c6e51411953d9066dcd323fef0b5d60e6
 **Phase log:**
 - 2026-07-11 scoping: initial scope captured
@@ -18,6 +18,8 @@
 - 2026-07-12 review: pass-3 red-team APPROVE (3 concerns, all low/low-med, non-blocking) — see reviews/pass-3.md
 - 2026-07-12 ready-for-approval: ready-check green — pass-3 red-team APPROVE + audit pass (#85 folded in)
 - 2026-07-12 approved: operator approved (re-scope: #85 folded in)
+- 2026-07-12 review: pass-4 red-team REVISE (full whole-plan review; 2 med, 2 low, 1 accept) — see reviews/pass-4.md
+- 2026-07-12 drafting: pass-4 full red-team REVISE — returned to PLAN; approval superseded pending revisions
 
 ## Objective
 Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and absorb the strict GFM table aligner (`md_table_align.py`) into yf-markdown-lint as a new ML012 alignment rule (#85)
