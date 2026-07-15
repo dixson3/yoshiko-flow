@@ -3,7 +3,8 @@
 **ID:** plan-026-james-dixson-6e0e2f
 **Author:** james-dixson
 **Created:** 2026-07-11
-**Status:** approved
+**Status:** reconciling
+**Epic:** yf-mol-a1f
 **Fingerprint:** 686a7f8f8c9380f2f44bd319360fa08f424fdea27c9ba9525fa217a55c938510
 **Phase log:**
 - 2026-07-11 scoping: initial scope captured
@@ -30,6 +31,9 @@
 - 2026-07-13 review: pass-7 red-team APPROVE (C1 resolved+verified grep-complete; 1 low folded in) — see reviews/pass-7.md
 - 2026-07-13 ready-for-approval: ready-check green — pass-7 APPROVE + audit pass (convert_wikilinks→format refactor)
 - 2026-07-13 approved: operator approved (pass-7: convert_wikilinks→yf-markdown-format; lint now truly validate-only)
+- 2026-07-15 intake: epic yf-mol-a1f poured
+- 2026-07-15 executing: start gate resolved
+- 2026-07-15 reconciling: post-execution reconciliation; bead DAG drained (22/22 issues closed)
 
 ## Objective
 Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new `yf-markdown-format` skill — **the autofix side of `yf-markdown-lint`** — that absorbs the strict GFM table aligner (`md_table_align.py`, #85) **and** the existing Obsidian→GFM wiki-link migrator (`convert_wikilinks.py`), keeping `yf-markdown-lint` genuinely validate-only
