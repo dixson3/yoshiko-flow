@@ -94,6 +94,14 @@
 >   (`FormulaCheck` in `checks()` + `--prune-formulas` GC path). Fleet SKILL.md `cp`/`rm` staging
 >   brackets removed (yf-plan `plan-execute`/`plan-investigate`, yf-research `yf-research`); the
 >   permanent `--force` on `bd mol burn` retained.
+> - **plan-026 (2026-07-15):** dependency-guarding for the markdown renderers. Added
+>   `REQ-YF-DOCTOR-005` — a per-skill **`depends-on-tool`** doctor axis that reads each embedded
+>   skill's `depends-on-tool` frontmatter and reports any declared tool missing from `PATH` (reusing
+>   the `BinCheck` PATH-probe, install-hint format matching `REQ-MDPDF-003`), read-only, complementing
+>   preflight's `system_deps_missing` enforcement. Paired per-skill: `REQ-MDHTML-005` (md2html run
+>   entrypoint fail-closed `check_deps()` guard when `pandoc` is absent). Added `yf-markdown-html`
+>   (`MDHTML`) and `yf-markdown-format` (`MDFMT`) to the §4 catalog — two new `markdown`-group skills;
+>   `convert_wikilinks.py` moved from `yf-markdown-lint` to `yf-markdown-format`.
 
 ## 1. Purpose & scope
 
@@ -368,6 +376,14 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   marker present** it deletes nothing (fail-safe). Verified by tests tagged `REQ-YF-DOCTOR-004`:
   runnable-pour-without-formula flagged; prose-only pour passes; yf-staged orphan pruned under
   `--prune-formulas`; foreign (unmarked) formula NOT deleted.
+- **REQ-YF-DOCTOR-005** *(testable)* `yf doctor` shall include a per-skill **`depends-on-tool`**
+  axis: for each embedded skill it shall read the skill's `depends-on-tool` frontmatter and report
+  any declared tool missing from `PATH`, **reusing the existing PATH-probe logic** (`BinCheck`),
+  with an install hint matching `yf-markdown-pdf`'s missing-tool message format (REQ-MDPDF-003). A
+  declared tool absent from `PATH` is a **failure** (surfaced under `REQ-YF-DOCTOR-002` exit-non-
+  zero); a skill declaring no `depends-on-tool` passes. This axis is **read-only** and never
+  mutates — it surfaces in the `doctor` report the same system-dependency gap that preflight
+  already enforces as `system_deps_missing`.
 
 ### 3.7 Distribution (`REQ-YF-DIST`)
 
@@ -491,6 +507,8 @@ The macro spec composes these. `REQ-<KEY>-*` ids live in each skill's `SPEC.md`.
 | yf-skill-authoring      | skill-authoring      | utility  | SKAUTH   | `skills/yf-skill-authoring/SPEC.md`      |
 | yf-markdown-lint        | markdown-lint        | markdown | MDLINT   | `skills/yf-markdown-lint/SPEC.md`        |
 | yf-markdown-pdf         | markdown-pdf         | markdown | MDPDF    | `skills/yf-markdown-pdf/SPEC.md`         |
+| yf-markdown-html        | markdown-html        | markdown | MDHTML   | `skills/yf-markdown-html/SPEC.md`        |
+| yf-markdown-format      | markdown-format      | markdown | MDFMT    | `skills/yf-markdown-format/SPEC.md`      |
 
 > Several skills already ship topical design docs under `skills/<skill>/spec/*.md` (e.g. `cli.md`,
 > `data.md`, `phases.md`, `portability.md`). The per-skill `SPEC.md` is the **requirement-numbered**

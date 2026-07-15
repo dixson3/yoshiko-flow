@@ -69,6 +69,43 @@ the three skills cannot drift.
 - **`--no-render-fences`** keeps ` ```d2 ` / ` ```csv ` fences verbatim — use it
   when you are *documenting* d2/csv syntax itself.
 
+## Figure captions (image title)
+
+md2pdf blesses the two-field image convention shared with
+[`yf-markdown-lint`](../yf-markdown-lint/SKILL.md): in `![alt](path "title")` the
+**alt** text is the accessibility description and the **title** is the print
+caption. A default-on Lua filter (`scripts/caption_from_title.lua`) routes a
+**non-empty title to the figure caption**; an image with no title keeps pandoc's
+default alt-derived caption.
+
+- This is **reader-neutral**: md2pdf passes **no** `-f`, so pandoc's default
+  `markdown` reader (which enables `implicit_figures`) forms the figure and the
+  filter overrides its caption. The pandoc reader/extensions are unchanged — the
+  filter is **not** paired with `-f gfm+implicit_figures` (that would drop md2pdf
+  off full pandoc-markdown).
+- Only images that become a **figure** (alone in a paragraph) get a caption; an
+  inline image with a title is left untouched.
+
+## Markup hazards (un-escaped inline markup, strikeout)
+
+Prose that *describes* inline markup can be *interpreted* as markup by pandoc and
+mis-render in the PDF. The sharpest case is **strikeout**: `~~text~~` renders as
+struck-through text under pandoc's default markdown reader even when you meant the
+literal tildes — so a sentence that mentions a `~~…~~` construct silently loses
+the tildes and strikes the words between them. The same trap applies to
+CriticMarkup-style constructs (`{++ins++}`, `{--del--}`, `{~~a~>b~~}`,
+`{==mark==}`, `{>>comment<<}`): pandoc does not implement CriticMarkup, so the raw
+braces (and any embedded `~~`) render as literal noise or unexpected strikeout.
+
+To keep such text literal in the PDF, **escape or code-span it** in the source:
+write `` `~~not struck~~` `` (a code span) or backslash-escape the delimiters.
+
+**Optional pre-render advisory (non-blocking).** By default md2pdf runs the
+sibling `yf-markdown-lint` **ML010** rule (un-escaped inline markup) over the
+source before rendering and prints a **warning** for any hit — then still produces
+the PDF. It is best-effort: if the linter is unavailable it skips silently and
+never blocks or fails the render. Disable it with `--no-lint-advisory`.
+
 ## Glyph coverage (color emoji)
 
 xelatex cannot use color-bitmap (emoji) fonts, so a codepoint like ✅ (U+2705)

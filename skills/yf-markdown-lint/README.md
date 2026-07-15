@@ -36,8 +36,6 @@ User-invocable. Lint files or directories, optionally scoping the rule set:
 
 ```bash
 uv run .claude/skills/markdown-lint/scripts/markdown_lint.py ${ARGS:-.}
-# one-time Obsidian wiki-link -> GFM migration for a tree
-uv run .claude/skills/markdown-lint/scripts/convert_wikilinks.py <dir> --vault-root . --report <out.md>
 ```
 
 Exit 1 on any violation. Rules ML001–ML007 are documented in
@@ -58,7 +56,6 @@ markdown-lint/
     MARKDOWN_LINT.md  always-loaded lint-on-edit trigger (opt-in, portable)
   scripts/
     markdown_lint.py      the GFM linter (PEP 723, argparse)
-    convert_wikilinks.py  one-time wiki-link → GFM migration tool
 ```
 
 ---

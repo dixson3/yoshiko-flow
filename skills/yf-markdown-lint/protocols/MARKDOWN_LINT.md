@@ -1,7 +1,7 @@
 # Markdown Lint-on-Edit Trigger Protocol
 
 Always-loaded firing surface for the `yf-markdown-lint` skill. The linter procedure,
-the rule list (ML001–ML009), and the table conventions live in the skill's
+the rule list (ML001–ML011), and the table conventions live in the skill's
 `SKILL.md`; this rule binds only the on-edit trigger a `description` cannot
 reliably fire. It is the **portable, cross-harness** equivalent of the optional
 Claude-Code `FileChanged` hook documented in `SKILL.md` — use one, not both.
@@ -14,14 +14,16 @@ After any create or modify of a `**/*.md` file, **if the repo has opted in** (a
 the same pass:
 
 ```bash
-uv run <skill-dir>/scripts/markdown_lint.py "<changed.md>" --rules ML001,ML002,ML005,ML006,ML007,ML008
+uv run <skill-dir>/scripts/markdown_lint.py "<changed.md>" --rules ML001,ML002,ML005,ML006,ML007,ML008,ML010
 ```
 
 The subset is the fast authoring rules — wiki-links (ML001), embeds (ML002),
-malformed tables (ML005), empty links (ML006), bad delimiters (ML007), and table
-columns missing alignment markers (ML008). It
-deliberately skips link/anchor resolution (ML003/ML004): those are a full link
-audit (`/yf-markdown-lint` with no `--rules`), not an every-edit check. A non-empty
+malformed tables (ML005), empty links (ML006), bad delimiters (ML007), table
+columns missing alignment markers (ML008), and bare CriticMarkup constructs
+(ML010). It
+deliberately skips link/anchor resolution (ML003/ML004) and the empty-alt a11y
+check (ML011): those are a full link audit (`/yf-markdown-lint` with no `--rules`),
+not an every-edit check. A non-empty
 marker file may override the rule set (`--rules …` on its own line) or list
 exclude globs; an empty marker means "use this default subset".
 
@@ -41,5 +43,5 @@ files. Cross-edge content agreement (docs ↔ spec ↔ implementation) is
 `yf-drift-check`'s axis, not this one — the two may both fire on a `.md` edit on
 orthogonal axes (GFM validity vs. cross-edge agreement).
 
-For the rule list, table conventions, the migration helper, and the Claude-Code
+For the rule list, table conventions, and the Claude-Code
 `FileChanged` hook alternative, see the `yf-markdown-lint` `SKILL.md`.

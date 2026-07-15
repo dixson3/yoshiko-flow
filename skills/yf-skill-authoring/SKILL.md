@@ -225,7 +225,7 @@ variable, content-sized column widths. **Lint every authored/edited `.md` with t
 `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve every
 violation before the skill is considered done** — this is part of the review gate above, not
 optional. For a skill dir that still carries Obsidian wiki-links, run
-`yf-markdown-lint`'s `scripts/convert_wikilinks.py` once to migrate them to GFM.
+`yf-markdown-format`'s `scripts/convert_wikilinks.py` once to migrate them to GFM.
 
 ## Reference
 

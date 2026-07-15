@@ -1,0 +1,124 @@
+/* yf-markdown-html default stylesheet — broad-coverage, self-contained.
+ * Injected via `--css default.css` + `--embed-resources`, so it is inlined into
+ * a single standalone HTML file (no external host, no network fetch at view
+ * time). Omit with --no-default-css; add your own with --css PATH. */
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  line-height: 1.6;
+  color: #24292f;
+  background: #ffffff;
+  max-width: 46rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1.6em 0 0.6em;
+}
+
+h1 { font-size: 2em; border-bottom: 1px solid #d8dee4; padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid #d8dee4; padding-bottom: 0.3em; }
+h3 { font-size: 1.25em; }
+
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+p, ul, ol, blockquote, table, pre { margin: 0 0 1em; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.9em;
+  background: #eff1f3;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+pre {
+  background: #f6f8fa;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.88em;
+}
+
+blockquote {
+  margin-left: 0;
+  padding: 0 1em;
+  color: #57606a;
+  border-left: 0.25em solid #d0d7de;
+}
+
+table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+th, td {
+  border: 1px solid #d0d7de;
+  padding: 0.4em 0.8em;
+}
+
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(2n) td { background: #f6f8fa; }
+
+img { max-width: 100%; height: auto; }
+
+hr { border: none; border-top: 1px solid #d8dee4; margin: 2em 0; }
+
+/* CriticMarkup construct classes (rendered only under --criticmarkup). */
+ins.cm-add {
+  background: #e6ffed;
+  color: #116329;
+  text-decoration: none;
+}
+
+del.cm-del {
+  background: #ffebe9;
+  color: #82071e;
+}
+
+mark.cm-hl {
+  background: #fff8c5;
+  color: inherit;
+}
+
+span.cm-comment {
+  color: #6e7781;
+  font-style: italic;
+  background: #f6f8fa;
+  padding: 0 0.2em;
+  border-radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { color: #c9d1d9; background: #0d1117; }
+  h1, h2 { border-bottom-color: #21262d; }
+  a { color: #58a6ff; }
+  code { background: #161b22; }
+  pre { background: #161b22; }
+  blockquote { color: #8b949e; border-left-color: #30363d; }
+  th, td { border-color: #30363d; }
+  th, tr:nth-child(2n) td { background: #161b22; }
+  hr { border-top-color: #21262d; }
+  ins.cm-add { background: #1b4721; color: #7ee787; }
+  del.cm-del { background: #5a1e21; color: #ffa198; }
+  mark.cm-hl { background: #5a4a00; color: #f2cc60; }
+  span.cm-comment { color: #8b949e; background: #161b22; }
+}

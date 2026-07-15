@@ -5,7 +5,7 @@
 # ///
 """Convert Obsidian wiki-links to GFM markdown links across a vault.
 
-One-time migration tool that backs the `markdown-lint` skill's de-Obsidian-ify
+One-time migration tool that backs the `yf-markdown-format` skill's de-Obsidian-ify
 flow. Resolves `[[target]]`, `[[target|alias]]`, `[[target#heading]]`,
 `[[#heading]]`, and `![[embed]]` to standard markdown links/images with
 relative paths and GFM-slugified anchors.

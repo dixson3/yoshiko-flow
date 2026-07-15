@@ -96,14 +96,36 @@ this skill only renders them.
   remain unsupported (accepted limitation); the portable fallback font is `font-symbola` / Noto
   Sans Symbols 2 via `--mainfont`.
 
+### 2.6 Figure captions & markup-hazard advisory
+
+- **REQ-MDPDF-050** *(testable)* by default the script shall apply the title→figure-caption Lua
+  filter `scripts/caption_from_title.lua`, wired into the pandoc invocation (always applied). A
+  `Figure` produced from an image with a **non-empty title** shall take that **title** as its
+  caption; an image with **no title** shall keep pandoc's default (alt-derived) caption. The filter
+  shall **not** change the pandoc reader: md2pdf passes **no** `-f`, so it uses pandoc's default
+  `markdown` reader (which already enables `implicit_figures`, forming the `Figure`). `-f
+  gfm+implicit_figures` shall **not** be hardcoded — doing so would regress md2pdf off full
+  pandoc-markdown and silently drop extensions.
+- **REQ-MDPDF-051** *(testable)* the un-escaped-markup / `~~…~~`-strikeout rendering hazard (prose
+  that *describes* inline markup can be *interpreted* as markup, and `~~text~~` strikes even where
+  strikeout is unsupported) shall be documented in `SKILL.md`, and the script shall provide an
+  **OPTIONAL, non-blocking** pre-render advisory: it runs the sibling `yf-markdown-lint` **ML010**
+  rule (`../yf-markdown-lint/scripts/markdown_lint.py --rules ML010`) over each source and surfaces
+  hits as a **warning** while **still producing the PDF**. The advisory shall be **best-effort** —
+  if the linter is absent or errors it shall **skip silently** and shall never block, fail, or
+  delay the render. `--no-lint-advisory` shall disable it.
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/md2pdf.py` (run via `uv run`) — positional `.md` input(s); flags
   `-o/--output`, `--mainfont`, `--monofont`, `--margin`, `--table-font`, `--landscape-cols`,
   `--columns`, `--no-render-fences`, `--no-normalize-images` (disable 16-bit/alpha PNG
-  normalization; see REQ-MDPDF-003a), and `--` passthrough. Helpers:
+  normalization; see REQ-MDPDF-003a), `--no-lint-advisory` (disable the ML010 pre-render advisory;
+  see REQ-MDPDF-051), and `--` passthrough. Helpers:
   `scripts/landscape_wide_tables.lua` (landscape-rotation filter), `scripts/blocks.lua`
-  (renderable-fence renderer; reads the `MD2PDF_FENCE_TMPDIR` env var), `scripts/glyph-fallback.tex`
+  (renderable-fence renderer; reads the `MD2PDF_FENCE_TMPDIR` env var),
+  `scripts/caption_from_title.lua` (title→figure-caption filter; see REQ-MDPDF-050),
+  `scripts/glyph-fallback.tex`
   (macOS color-emoji remap header). **External tools:** the script shells to **pandoc** and **xelatex**
   (`depends-on-tool: [uv, pandoc, xelatex]`). This is a skill that shells to external tools,
   consistent with macro GUARDRAILS GR-004 (PDF rendering lives in the skill, not in `yf`) and
@@ -134,13 +156,19 @@ this skill only renders them.
 - A `.md` referencing a relative image renders without a resource error (REQ-MDPDF-002); a
   `--landscape-cols`/`--table-font` run injects the expected header / Lua filter (REQ-MDPDF-030/031).
   Forward coverage per plan-010 Epic 6 (tests naming the REQ id).
+- The caption filter (REQ-MDPDF-050) is asserted by running `pandoc --lua-filter
+  caption_from_title.lua -t json` over a titled image and checking the `Figure` caption is the
+  **title** (not the alt), plus a guard test asserting the built pandoc argv contains **no** `-f`/
+  `--from` and no `implicit_figures` literal (reader unchanged). The advisory (REQ-MDPDF-051) is
+  asserted by a unit test: silent no-op when the linter is absent, and an ML010 warning surfaced
+  (render still succeeds) when the linter reports a hit.
 
 ## 6. References
 
 - `skills/yf-markdown-pdf/SKILL.md` (pipeline defaults, font policy, table levers, renderable
   fences, glyph fallback).
 - `skills/yf-markdown-pdf/scripts/md2pdf.py`, `scripts/landscape_wide_tables.lua`,
-  `scripts/blocks.lua`, `scripts/glyph-fallback.tex`.
+  `scripts/blocks.lua`, `scripts/caption_from_title.lua`, `scripts/glyph-fallback.tex`.
 - `_shared/renderable_fences.py` (canonical renderable-fence registry mirrored into `blocks.lua`).
 - `skills/yf-markdown-lint/SKILL.md` (portable pipe-table authoring + ML009 d2 compile-check — the
   lint axis on the same registry).
