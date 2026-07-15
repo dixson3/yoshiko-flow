@@ -78,6 +78,143 @@ def test_help_lists_no_render_fences():
     assert proc.returncode == 0
     assert "--no-render-fences" in proc.stdout
     assert "--no-normalize-images" in proc.stdout
+    assert "--no-lint-advisory" in proc.stdout
+
+
+# --- unit: title->figure-caption filter (#46, REQ-MDPDF-050) -----------------
+
+def test_caption_filter_exists():
+    assert md2pdf.CAPTION_FILTER.is_file()
+
+
+def _has_pandoc():
+    return shutil.which("pandoc") is not None
+
+
+_needs_pandoc = pytest.mark.skipif(not _has_pandoc(), reason="needs pandoc")
+
+
+def _figure_caption_json(md_text, tmp_path):
+    """Run the caption filter over `md_text` and return the first Figure's caption
+    (the `long` blocks) as a JSON string, so a test can assert its text source."""
+    import json
+
+    src = tmp_path / "cap.md"
+    src.write_text(md_text, encoding="utf-8")
+    proc = subprocess.run(
+        ["pandoc", str(src), "--lua-filter", str(md2pdf.CAPTION_FILTER), "-t", "json"],
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    ast = json.loads(proc.stdout)
+    fig = ast["blocks"][0]
+    assert fig["t"] == "Figure"
+    caption = fig["c"][1]          # [short, long]
+    return json.dumps(caption[1])  # the long (caption body) blocks
+
+
+@_needs_pandoc
+def test_caption_source_is_title_when_present(tmp_path):
+    # REQ-MDPDF-050: a non-empty title becomes the figure caption (not the alt).
+    # pandoc tokenizes words into separate Str nodes, so match distinctive words.
+    body = _figure_caption_json('![altword](img.png "Titleword")\n', tmp_path)
+    assert "Titleword" in body        # caption SOURCE is the title
+    assert "altword" not in body      # alt did NOT drive the caption
+
+
+@_needs_pandoc
+def test_caption_keeps_alt_when_no_title(tmp_path):
+    # REQ-MDPDF-050: an image with no title keeps pandoc's alt-derived caption.
+    body = _figure_caption_json("![altword](img.png)\n", tmp_path)
+    assert "altword" in body
+
+
+def test_default_command_wires_caption_filter_and_keeps_default_reader(monkeypatch, tmp_path):
+    # REQ-MDPDF-050 guard: the caption filter is wired DEFAULT-ON, AND md2pdf must
+    # NOT touch the pandoc reader — no `-f`/`--from`, no hardcoded implicit_figures
+    # (which would regress md2pdf off full pandoc-markdown).
+    src = tmp_path / "d.md"
+    src.write_text('# t\n\n![a](x.png "Cap")\n', encoding="utf-8")
+
+    captured = {}
+
+    class _Proc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def _fake_run(cmd, *a, **k):
+        if cmd and cmd[0] == "pandoc":
+            captured["cmd"] = cmd
+        return _Proc()
+
+    monkeypatch.setattr(md2pdf.subprocess, "run", _fake_run)
+    monkeypatch.setattr(md2pdf.shutil, "which", lambda t: f"/usr/bin/{t}")
+    monkeypatch.setattr(
+        sys, "argv",
+        ["md2pdf.py", str(src), "-o", str(tmp_path / "o.pdf"), "--no-render-fences"],
+    )
+    assert md2pdf.main() == 0
+    cmd = captured["cmd"]
+    assert str(md2pdf.CAPTION_FILTER) in cmd            # wired default-on
+    assert "-f" not in cmd and "--from" not in cmd      # reader UNCHANGED
+    assert not any("implicit_figures" in a for a in cmd)  # not hardcoded
+
+
+# --- unit: ML010 pre-render advisory (#49, REQ-MDPDF-051) --------------------
+
+def test_lint_advisory_silent_when_script_absent(monkeypatch, tmp_path, capsys):
+    # Best-effort: a missing linter is a silent no-op (never blocks).
+    monkeypatch.setattr(md2pdf, "LINT_SCRIPT", tmp_path / "does-not-exist.py")
+    src = tmp_path / "s.md"
+    src.write_text("hello\n", encoding="utf-8")
+    md2pdf.lint_advisory(src)                            # must not raise
+    assert capsys.readouterr().out == ""
+
+
+def test_lint_advisory_silent_when_linter_errors(monkeypatch, tmp_path, capsys):
+    stub = tmp_path / "markdown_lint.py"
+    stub.write_text("# stub\n", encoding="utf-8")
+    monkeypatch.setattr(md2pdf, "LINT_SCRIPT", stub)
+
+    def _boom(*a, **k):
+        raise OSError("cannot run linter")
+
+    monkeypatch.setattr(md2pdf.subprocess, "run", _boom)
+    md2pdf.lint_advisory(tmp_path / "s.md")             # swallowed, no crash
+    assert capsys.readouterr().out == ""
+
+
+def test_lint_advisory_surfaces_ml010_hit(monkeypatch, tmp_path, capsys):
+    stub = tmp_path / "markdown_lint.py"
+    stub.write_text("# stub\n", encoding="utf-8")
+    monkeypatch.setattr(md2pdf, "LINT_SCRIPT", stub)
+
+    class _Proc:
+        returncode = 1
+        stdout = "s.md:3: ML010 un-escaped strikeout ~~x~~\n"
+        stderr = ""
+
+    monkeypatch.setattr(md2pdf.subprocess, "run", lambda *a, **k: _Proc())
+    md2pdf.lint_advisory(tmp_path / "s.md")
+    out = capsys.readouterr().out
+    assert "advisory" in out
+    assert "ML010" in out
+
+
+def test_lint_advisory_no_warning_when_clean(monkeypatch, tmp_path, capsys):
+    stub = tmp_path / "markdown_lint.py"
+    stub.write_text("# stub\n", encoding="utf-8")
+    monkeypatch.setattr(md2pdf, "LINT_SCRIPT", stub)
+
+    class _Proc:
+        returncode = 0
+        stdout = "markdown-lint: clean\n"
+        stderr = ""
+
+    monkeypatch.setattr(md2pdf.subprocess, "run", lambda *a, **k: _Proc())
+    md2pdf.lint_advisory(tmp_path / "s.md")
+    assert capsys.readouterr().out == ""
 
 
 # --- unit: raster normalization (#44) ----------------------------------------

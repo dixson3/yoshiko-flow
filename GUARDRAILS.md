@@ -66,8 +66,11 @@ not become*. They are made enforceable by the `SPEC.md ↔ GUARDRAILS.md ↔ REA
 
 Each skill's `SPEC.md` MAY declare skill-specific guardrails (`GR-<KEY>-NNN`) — e.g.
 `yf-drift-check` never authors/auto-fixes (only reports agreement); `yf-markdown-lint` never
-rewrites prose (only validates GFM). Those live with the skill and are composed here by reference,
-mirroring the macro/per-skill SPEC model.
+rewrites prose (only validates GFM); `yf-markdown-html` (`GR-MDHTML-*`) stays a single-file HTML
+renderer and never lints/rewrites the source or pulls a CDN; `yf-markdown-format` (`GR-MDFMT-*`)
+autofixes only the axes the linter flags, is opt-in (never always-on), and every transform is a
+fixed point. Those live with the skill and are composed here by reference, mirroring the
+macro/per-skill SPEC model.
 
 ## References
 

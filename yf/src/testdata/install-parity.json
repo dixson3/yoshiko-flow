@@ -10,6 +10,8 @@
     "yf-diagram-authoring": "utility",
     "yf-drift-check": "utility",
     "yf-incubator": "beads",
+    "yf-markdown-format": "markdown",
+    "yf-markdown-html": "markdown",
     "yf-markdown-lint": "markdown",
     "yf-markdown-pdf": "markdown",
     "yf-optimal-instructions": "utility",
@@ -34,6 +36,8 @@
       "yf-research"
     ],
     "markdown": [
+      "yf-markdown-format",
+      "yf-markdown-html",
       "yf-markdown-lint",
       "yf-markdown-pdf"
     ],
@@ -57,6 +61,8 @@
       "yf-research"
     ],
     "group:markdown": [
+      "yf-markdown-format",
+      "yf-markdown-html",
       "yf-markdown-lint",
       "yf-markdown-pdf"
     ],

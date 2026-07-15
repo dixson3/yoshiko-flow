@@ -70,7 +70,42 @@ TABLE_FONT_SIZES = (
 )
 LANDSCAPE_FILTER = Path(__file__).parent / "landscape_wide_tables.lua"
 BLOCKS_FILTER = Path(__file__).parent / "blocks.lua"
+CAPTION_FILTER = Path(__file__).parent / "caption_from_title.lua"
 GLYPH_FALLBACK = Path(__file__).parent / "glyph-fallback.tex"
+
+# Sibling yf-markdown-lint linter, used for the optional ML010 pre-render advisory
+# (REQ-MDPDF-051). Best-effort: if it is absent the advisory silently skips.
+LINT_SCRIPT = (
+    Path(__file__).parent.parent.parent / "yf-markdown-lint" / "scripts" / "markdown_lint.py"
+)
+
+
+def lint_advisory(src: Path) -> None:
+    """Optional, NON-BLOCKING pre-render advisory (REQ-MDPDF-051): run the sibling
+    yf-markdown-lint ML010 rule (un-escaped inline markup / `~~`-strikeout) over
+    `src` and surface any hit as a warning. It NEVER blocks the render — this is a
+    heads-up that prose markup like ``~~text~~`` may mis-render under xelatex.
+
+    Best-effort: if the linter script is absent, cannot run, or predates ML010
+    (nothing to report), the advisory skips silently and the PDF is still produced."""
+    if not LINT_SCRIPT.is_file():
+        return
+    try:
+        # Run with the current interpreter (the linter declares no deps) so we do
+        # not nest a `uv run` inside this one.
+        proc = subprocess.run(
+            [sys.executable, str(LINT_SCRIPT), str(src), "--rules", "ML010"],
+            capture_output=True, text=True,
+        )
+    except Exception:
+        return  # linter unrunnable -> skip silently, never block the render
+    # Exit 1 = violation(s) found; clean or an older linter without ML010 exits 0.
+    hits = [ln for ln in proc.stdout.splitlines() if "ML010" in ln]
+    if proc.returncode == 1 and hits:
+        print(f"  advisory: un-escaped inline markup in {src} may mis-render under "
+              f"xelatex (e.g. ~~strike~~) — the PDF was still produced:")
+        for ln in hits[:5]:
+            print(f"    {ln.strip()}")
 
 
 def check_deps() -> None:
@@ -245,6 +280,11 @@ def main() -> int:
                     help="skip flattening 16-bit / alpha PNGs to 8-bit RGB "
                          "(default: normalize, so they don't render blank under "
                          "xelatex). Originals are never modified in place.")
+    ap.add_argument("--no-lint-advisory", action="store_true",
+                    help="skip the optional ML010 pre-render advisory (default: "
+                         "run the sibling yf-markdown-lint ML010 rule and warn on "
+                         "un-escaped inline markup like ~~strike~~; never blocks "
+                         "the render).")
     args, passthrough = ap.parse_known_args()
     # argparse leaves a leading "--" in the remainder; drop it.
     if passthrough and passthrough[0] == "--":
@@ -258,7 +298,12 @@ def main() -> int:
     landscape = args.landscape_cols > 0
     env = dict(os.environ)
 
-    pre_args: list[str] = [f"--columns={args.columns}"]
+    # Title->figure-caption filter (#46, REQ-MDPDF-050) is DEFAULT-ON. It is
+    # reader-neutral: md2pdf passes no `-f`, so pandoc's default `markdown` reader
+    # (with implicit_figures) forms the Figure and this filter routes a non-empty
+    # image title to its caption. Do NOT add `-f gfm+implicit_figures` here.
+    pre_args: list[str] = [f"--columns={args.columns}",
+                           "--lua-filter", str(CAPTION_FILTER)]
     if landscape:
         pre_args += ["--lua-filter", str(LANDSCAPE_FILTER)]
         env["LANDSCAPE_COLS"] = str(args.landscape_cols)
@@ -304,6 +349,8 @@ def main() -> int:
         for src in args.inputs:
             if not src.is_file():
                 sys.exit(f"error: not a file: {src}")
+            if not args.no_lint_advisory:
+                lint_advisory(src)
             out = args.output if args.output else src.with_suffix(".pdf")
             rpaths = [str(src.parent)]
             if normalize and img_tmpdir is not None:

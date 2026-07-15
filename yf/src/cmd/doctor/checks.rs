@@ -336,6 +336,51 @@ impl Check for FormulaCheck {
     }
 }
 
+/// The declared tools absent from PATH, given a `present` predicate. Pure
+/// (`tools ∖ present`), sorted-as-declared, for testability without touching PATH.
+fn missing_tools<F: Fn(&str) -> bool>(tools: &[String], present: F) -> Vec<String> {
+    tools
+        .iter()
+        .filter(|t| !present(t))
+        .cloned()
+        .collect()
+}
+
+/// Per-skill `depends-on-tool` axis (REQ-YF-DOCTOR-005): for a skill that declares
+/// `depends-on-tool` frontmatter, probe each tool on PATH — **reusing the BinCheck
+/// PATH-probe** (`tool::resolve_tool`) — and fail if any is missing, with an install
+/// hint matching yf-markdown-pdf's missing-tool message (REQ-MDPDF-003). A declared
+/// tool absent from PATH is a required failure (surfaced under REQ-YF-DOCTOR-002);
+/// a skill declaring no tools contributes no axis. Read-only — it surfaces in the
+/// report the same gap preflight enforces as `system_deps_missing`, never mutating.
+pub struct SkillDepsCheck {
+    name: String,
+    tools: Vec<String>,
+}
+
+impl Check for SkillDepsCheck {
+    fn run(&self) -> CheckResult {
+        let axis = format!("skill-deps:{}", self.name);
+        let missing = missing_tools(&self.tools, |t| tool::resolve_tool(t).is_some());
+        if missing.is_empty() {
+            CheckResult::ok(
+                axis,
+                format!("depends-on-tool present: {}", self.tools.join(", ")),
+            )
+        } else {
+            CheckResult::fail(
+                axis,
+                format!("missing required tool(s): {}", missing.join(", ")),
+                format!(
+                    "install the missing tool(s): {} (see skills/{}'s README/SPEC for install hints)",
+                    missing.join(", "),
+                    self.name,
+                ),
+            )
+        }
+    }
+}
+
 /// Build the ordered registry of doctor checks for the given install surface.
 ///
 /// Order mirrors the previous hardcoded axes: `version`, `bd`, `uv` (+ its
@@ -366,7 +411,7 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
     ];
 
     let skills = frontmatter::load_skills();
-    for name in skills.keys() {
+    for (name, fm) in &skills {
         out.push(Box::new(SkillCheck {
             name: name.clone(),
             skills_dir: skills_dir.to_path_buf(),
@@ -381,6 +426,14 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
         // FormulaCheck axis (REQ-YF-DOCTOR-004) only for skills that ship formulas.
         if !embed::skill_formula_basenames(name).is_empty() {
             out.push(Box::new(FormulaCheck { name: name.clone() }));
+        }
+        // Per-skill depends-on-tool axis (REQ-YF-DOCTOR-005), after the SkillCheck
+        // axes, only for skills that declare `depends-on-tool` frontmatter.
+        if !fm.tools.is_empty() {
+            out.push(Box::new(SkillDepsCheck {
+                name: name.clone(),
+                tools: fm.tools.clone(),
+            }));
         }
     }
     out
@@ -625,6 +678,77 @@ mod tests {
         );
         // The skills that DO ship formulas get an axis.
         assert!(names.iter().any(|n| n == "formulas:yf-plan"));
+    }
+
+    // ---- REQ-YF-DOCTOR-005: per-skill depends-on-tool axis ------------------
+
+    // REQ-YF-DOCTOR-005: the missing set is declared ∖ present — a tool absent per
+    // the probe is flagged; a present one is not; all-present ⇒ empty (pass).
+    #[test]
+    fn skill_deps_missing_is_declared_minus_present() {
+        let tools: Vec<String> = ["uv", "pandoc"].iter().map(|s| s.to_string()).collect();
+        // Only `uv` present ⇒ `pandoc` is the missing set.
+        assert_eq!(
+            missing_tools(&tools, |t| t == "uv"),
+            vec!["pandoc".to_string()]
+        );
+        // All present ⇒ empty (the ok path).
+        assert!(missing_tools(&tools, |_| true).is_empty());
+        // A skill declaring no tools has no missing set.
+        assert!(missing_tools(&[], |_| false).is_empty());
+    }
+
+    // REQ-YF-DOCTOR-005: all declared deps present ⇒ ok verdict on the run() path.
+    #[test]
+    fn skill_deps_all_present_is_ok() {
+        // Empty declared set trivially has all-present; run() reports ok.
+        let r = SkillDepsCheck {
+            name: "some-skill".to_string(),
+            tools: vec![],
+        }
+        .run();
+        assert!(r.ok && r.required);
+        assert_eq!(r.name, "skill-deps:some-skill");
+    }
+
+    // REQ-YF-DOCTOR-005: a declared tool missing from PATH ⇒ required failure with
+    // an install hint naming the missing tool (md2pdf REQ-MDPDF-003 message format).
+    #[test]
+    fn skill_deps_missing_tool_fails_with_hint() {
+        let r = SkillDepsCheck {
+            name: "yf-markdown-html".to_string(),
+            tools: vec!["definitely-not-a-real-binary-xyz".to_string()],
+        }
+        .run();
+        assert!(!r.ok && r.required && r.is_failure());
+        assert_eq!(r.name, "skill-deps:yf-markdown-html");
+        assert!(
+            r.detail.contains("missing required tool(s)")
+                && r.detail.contains("definitely-not-a-real-binary-xyz"),
+            "detail must name the missing tool: {}",
+            r.detail
+        );
+        let rem = r.remediation.expect("missing-tool failure carries a hint");
+        assert!(
+            rem.contains("definitely-not-a-real-binary-xyz"),
+            "hint must name the missing tool: {rem}"
+        );
+    }
+
+    // REQ-YF-DOCTOR-005: the registry adds a skill-deps axis for a skill that
+    // declares depends-on-tool (yf-markdown-html: [uv, pandoc]), and NONE for a
+    // skill that declares no tools.
+    #[test]
+    fn registry_has_skill_deps_axis_only_when_declared() {
+        let tmp = tempfile::tempdir().unwrap();
+        let names: Vec<String> = checks(tmp.path(), tmp.path())
+            .iter()
+            .map(|c| c.run().name)
+            .collect();
+        assert!(
+            names.iter().any(|n| n == "skill-deps:yf-markdown-html"),
+            "yf-markdown-html declares depends-on-tool ⇒ a skill-deps axis: {names:?}"
+        );
     }
 
     // #32: the bd BinCheck is version-gated; the gate is numeric (tuple-ordered).

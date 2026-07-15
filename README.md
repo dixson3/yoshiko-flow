@@ -25,6 +25,7 @@ Optional (detected at runtime):
 - `gh` / `glab` — GitHub / GitLab CLI (upstream issue tracking)
 - `d2` — diagram renderer for the `yf-diagram-authoring` skill (`.d2` → `.png`; `brew install d2`)
 - `pandoc` + `xelatex` — PDF rendering for the `yf-markdown-pdf` skill (a LaTeX distribution provides `xelatex`)
+- `pandoc` — HTML rendering for the `yf-markdown-html` skill (no `xelatex` needed)
 
 ## Install
 
@@ -220,7 +221,9 @@ added or regrouped.
 
 **Groups.** `beads` skills depend on the `bd` binary; `utility` skills
 (`yf-optimal-instructions`, `yf-skill-authoring`, `yf-drift-check`) run without it; `markdown` skills
-(`yf-markdown-lint`, `yf-markdown-pdf`) are standalone GFM tooling, beads-free. Install a single group
+(`yf-markdown-lint`, `yf-markdown-pdf`, `yf-markdown-html`, `yf-markdown-format`) are standalone GFM
+tooling, beads-free (`yf-markdown-pdf` needs `pandoc` + `xelatex`, `yf-markdown-html` needs `pandoc`,
+`yf-markdown-lint` / `yf-markdown-format` are stdlib-only). Install a single group
 with `--group <name>` (see [Install](#install)).
 
 **Soft-dep tie-break.** `skill-group` reflects *intended-use coupling*, not just hard tool deps.
@@ -251,6 +254,8 @@ skill — that keeps `--group utility` provably beads-free.
 | [yf-beads-upstream](skills/yf-beads-upstream/README.md) | `/yf-beads-upstream` | Configurable, GitHub-first upstream tracking — push open/deferred beads to an issue tracker as a land-the-plane step; upstream issues as the worklist |
 | [yf-markdown-lint](skills/yf-markdown-lint/README.md) | `/yf-markdown-lint` | Conventional GitHub-Flavored-Markdown linter — no Obsidian wiki-links/embeds, resolvable relative links/anchors, well-formed tables |
 | [yf-markdown-pdf](skills/yf-markdown-pdf/README.md) | `/yf-markdown-pdf` | Render a `.md` file to PDF via pandoc + xelatex, tuned for Unicode glyphs and relative image paths |
+| [yf-markdown-html](skills/yf-markdown-html/README.md) | `/yf-markdown-html` | Render a `.md` file to a single, self-contained HTML file via pandoc — embedded resources, default stylesheet, self-contained math |
+| [yf-markdown-format](skills/yf-markdown-format/README.md) | `/yf-markdown-format` | The autofix side of `yf-markdown-lint` — rewrites Markdown in place to plain GFM: strict table alignment and Obsidian → GFM wiki-link migration |
 
 "auto" skills are not user-invoked directly; they trigger from their `description`
 conditions when relevant work appears.
@@ -362,7 +367,7 @@ See [skills/yf-change-validation/README.md](skills/yf-change-validation/README.m
 
 ### yf-markdown-lint
 
-Conventional GitHub-Flavored-Markdown linter (`scripts/markdown_lint.py`, PEP 723 + argparse). Checks that documents are valid GFM with well-formed, resolvable links — no Obsidian wiki-links (`[[...]]`) or embeds (`![[...]]`), valid relative links/anchors, and consistent pipe tables (rules ML001–ML007). Frontmatter, fenced code, and inline code spans are exempt from link checks. Ships `convert_wikilinks.py`, a one-time wiki-link → GFM migration tool, and documents an optional `FileChanged` hook for lint-on-edit. Triggers on `/yf-markdown-lint` or after a generator writes markdown. `skill-group: markdown`, beads-free (`depends-on-tool: [uv]`).
+Conventional GitHub-Flavored-Markdown linter (`scripts/markdown_lint.py`, PEP 723 + argparse). Checks that documents are valid GFM with well-formed, resolvable links — no Obsidian wiki-links (`[[...]]`) or embeds (`![[...]]`), valid relative links/anchors, and consistent pipe tables (rules ML001–ML007). Frontmatter, fenced code, and inline code spans are exempt from link checks. Documents an optional `FileChanged` hook for lint-on-edit. Triggers on `/yf-markdown-lint` or after a generator writes markdown. `skill-group: markdown`, beads-free (`depends-on-tool: [uv]`).
 
 **Usage:** `/yf-markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]`.
 
@@ -375,6 +380,22 @@ Render a `.md` file to PDF via the pandoc + xelatex pipeline (`scripts/md2pdf.py
 **Usage:** `uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py <input.md> [-o OUT.pdf]`.
 
 See [skills/yf-markdown-pdf/README.md](skills/yf-markdown-pdf/README.md).
+
+### yf-markdown-html
+
+Render a `.md` file to a single, self-contained HTML file via pandoc (`scripts/md2html.py`, PEP 723 + argparse): a standalone document with all resources embedded (images, CSS, fonts), a broad-coverage default stylesheet, relative image paths (`![](diagrams/x.png)`) resolved against the source file's directory, self-contained math (MathML, no CDN), and opt-in CriticMarkup rendering. No `xelatex` needed — that is `yf-markdown-pdf`. Triggers on `/yf-markdown-html` or intent like "export this report to HTML". `skill-group: markdown`; needs `pandoc` on PATH (`depends-on-tool: [uv, pandoc]`).
+
+**Usage:** `uv run .claude/skills/yf-markdown-html/scripts/md2html.py <input.md> [-o OUT.html]`.
+
+See [skills/yf-markdown-html/README.md](skills/yf-markdown-html/README.md).
+
+### yf-markdown-format
+
+The autofix side of `yf-markdown-lint` — rewrites Markdown in place to conform to plain GFM along the axes the linter flags. Owns two transforms: strict GFM **table alignment** (`scripts/md_table_align.py` — `--check` gate / `--write` idempotent autofix / bare stdout) and Obsidian → GFM **wiki-link migration** (`scripts/convert_wikilinks.py`, a one-time `[[…]]` → GFM migration tool with dry-run / in-place modes). Opt-in per repo — never an always-on autofix. Triggers on `/yf-markdown-format` or intent like "align these GFM tables" / "convert wiki-links to GFM". `skill-group: markdown`, beads-free and stdlib-only (`depends-on-tool: [uv]`).
+
+**Usage:** `uv run .claude/skills/yf-markdown-format/scripts/md_table_align.py <input.md> --write`.
+
+See [skills/yf-markdown-format/README.md](skills/yf-markdown-format/README.md).
 
 ## Contributing
 
