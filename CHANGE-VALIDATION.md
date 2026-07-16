@@ -26,6 +26,7 @@ approved: yes
 | `uv-yf` | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
 | `uv-yf-cascade` | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
+| `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
 
 ### full
@@ -43,6 +44,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
+|  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
 
 ## 2. Signal Fingerprint
@@ -51,7 +53,7 @@ approved: yes
 |:--|:--|
 | `Cargo.toml` | `sha256:dc1c5e47e979e216` |
 | `.github/workflows/*.yml` | `sha256:5ebddf75ce6f6821` |
-| `**/test_*.py` | `sha256:d93f576a39eb6e50` |
+| `**/test_*.py` | `sha256:9027588c212a53f9` |
 | `website/package.json` | `sha256:c8683533309d1abc` |
 | `repo --check scripts` | `sha256:daa4d8b8c86cf102` |
 
@@ -76,5 +78,6 @@ approved: yes
 | `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
-| `skills/yf-research/scripts/**` | `uv-research` |
+| `skills/yf-research/scripts/**` | `uv-research`, `uv-research-cred` |
 | `skills/yf-research/scripts/test_link_normalizer.py` | `uv-research` |
+| `skills/yf-research/scripts/test_credibility_scorer.py` | `uv-research-cred` |

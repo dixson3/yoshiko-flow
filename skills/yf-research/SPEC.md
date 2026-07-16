@@ -45,6 +45,16 @@ is `bd`), and build planning (that is `yf-plan`).
 - **REQ-RESEARCH-022** **absence of evidence shall be a valid, recordable finding.**
 - **REQ-RESEARCH-023** *(testable)* sources shall be credibility-scored (`credibility_scorer.py`),
   and the score shall be visible in the synthesis.
+- **REQ-RESEARCH-024** *(testable)* the credibility scorer shall be robust to real-world source
+  metadata: (a) `_currency_score` shall **normalize a timezone-naive publication date to UTC**
+  (treat a naive ISO date as `+00:00`) and score it by age rather than raising `TypeError` —
+  tz-aware, `Z`-suffixed, evergreen, and missing-date inputs shall be unchanged; (b)
+  `_domain_authority_score` shall tier **official vendor-documentation domains** at Tier 2
+  (band 70–84) via **both** an explicit allowlist (including `docs.gitea.com`, `forgejo.org`,
+  `docs.gitlab.com`, `docs.github.com`, `docs.gocd.org`, `cli.github.com`, `github.blog`) **and**
+  a heuristic bump for hosts whose name starts with `docs.` or whose TLD is `dev`, the heuristic
+  evaluated **after** the exact-tier loop and **before** the unknown-domain fallback so it never
+  downgrades a Tier-1 match.
 
 ### 2.4 Agents & coordination (see `spec/agents.md`)
 

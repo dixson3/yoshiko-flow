@@ -102,6 +102,18 @@
 >   entrypoint fail-closed `check_deps()` guard when `pandoc` is absent). Added `yf-markdown-html`
 >   (`MDHTML`) and `yf-markdown-format` (`MDFMT`) to the §4 catalog — two new `markdown`-group skills;
 >   `convert_wikilinks.py` moved from `yf-markdown-lint` to `yf-markdown-format`.
+> - **plan-028 (2026-07-15, #87/#86):** two small skill fixes. **#87 (yf-research):** added
+>   `REQ-RESEARCH-024` — the credibility scorer normalizes tz-naive publication dates to UTC (no
+>   more `TypeError` crash on naive ISO dates) and tiers official vendor-documentation domains at
+>   Tier 2 via both an explicit allowlist and a `docs.*` / `.dev` heuristic (evaluated after the
+>   exact-tier loop, before the unknown-domain fallback, never downgrading Tier-1). **#86
+>   (yf-plan):** amended `REQ-PLAN-064`'s intake commit-message format so an **approved-phase**
+>   intake subject signals plan *state* (awaiting `/yf-plan execute`) rather than reading as
+>   shipped work, and added a parked-plan detection requirement — a plan is *parked* when its
+>   status is `approved` and its stored content fingerprint is present and fresh — surfaced via
+>   `list` / `/yf-plan status` and a land-the-plane check, plus the Phase 4.5 tracking-issue title
+>   `plan-NNN execution tracking`. See the per-skill `skills/yf-research/SPEC.md` and
+>   `skills/yf-plan/SPEC.md` for the requirement text.
 
 ## 1. Purpose & scope
 

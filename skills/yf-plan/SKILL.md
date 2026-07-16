@@ -551,9 +551,11 @@ The landing strategy chosen here also pins the EXECUTE worktree base and the §6
 ### 4.5 — Create the upstream tracking issue
 
 File the single coarse tracking issue for this plan-scale effort — title
-`Complete execution of <plan-id>` — linking the plan folder and (once poured) its epic, with
-any `resolves-upstream` dependency links from the plan's Upstream Issues. Per the project
-Upstream Tracking convention (AGENTS.md), file ONE issue per plan, not one per execution bead.
+`plan-<plan-id> execution tracking` (not the past-tense-glancing "Complete execution of …",
+which reads as if the work already shipped, #86) — linking the plan folder and (once poured)
+its epic, with any `resolves-upstream` dependency links from the plan's Upstream Issues. Per
+the project Upstream Tracking convention (AGENTS.md), file ONE issue per plan, not one per
+execution bead.
 
 ### 4.6 — Handoff
 
@@ -1067,10 +1069,38 @@ plan.md is self-contained for cold resume.
 uv run ${SKILL_DIR}/scripts/plan_manager.py list
 ```
 
+`list` renders a `⏸ PARKED` tag on any **parked** plan — approved but never executed
+(status `approved` with a present-and-fresh fingerprint, REQ-PLAN-068). The `--json-output`
+form carries a `parked` boolean per plan.
+
 ### /yf-plan status [<plan-id>]
 
 Show plan.md header + `bd show <epic-id> --json` + bead progress.
 Without plan-id: show all plans with bead counts.
+
+**Parked-plan nudge (#86).** After the per-plan progress, surface parked plans (approved but
+not executed) so an intake'd-but-unexecuted plan is never silently forgotten:
+
+```bash
+PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
+COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
+```
+
+If `count > 0`, print: `N plan(s) approved but not executed — run /yf-plan execute <id>.`
+listing each parked plan id. A parked plan is distinct from a **stale-approved** one (which
+needs re-review, not execution); the two tags are mutually exclusive.
+
+### Land-the-plane parked check
+
+On a land-the-plane / session-close gate, enumerate parked plans and surface the same nudge,
+so an approved-but-unexecuted plan is caught before the session ends. This is a **portable,
+documented script-verb step** — never a harness hook or scheduler:
+
+```bash
+PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
+COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
+# COUNT > 0 → report: "N plan(s) approved but not executed — run /yf-plan execute <id>."
+```
 
 ## Markdown output convention
 
