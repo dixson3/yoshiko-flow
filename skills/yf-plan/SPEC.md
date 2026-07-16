@@ -141,9 +141,13 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   always `${plan_dir}`, and `.beads/` **only when it is tracked / not gitignored**. On a local-only
   beads repo `.beads/` is intentionally gitignored (gh-only interchange), where co-adding it would
   fail; commit-plan shall skip the `.beads/` pathspec (surfacing a `beads_note`) rather than erroring
-  (#71). Then a local commit (message `plan-NNN: <phase> — <objective>`), and **never a push**. This
+  (#71). Then a local commit, and **never a push**. This
   is the #63 clean-handoff boundary — a fresh execute session inherits a committed base, and intake
-  artifacts survive a crash or fresh clone.
+  artifacts survive a crash or fresh clone. **Commit-subject state signalling (#86):** when the
+  resolved phase is `approved` (the intake landing commit), the subject shall signal that the plan is
+  *approved but not yet executed* — `plan-NNN: INTAKE approved (awaiting /yf-plan execute) — <objective>`
+  — so a `git log` scan cannot misread an intake'd-but-unexecuted plan as shipped work; the objective
+  moves to the commit body. All other phases keep the plain `plan-NNN: <phase> — <objective>` subject.
 - **REQ-PLAN-065** *(testable)* `commit-plan` shall refuse to commit on the repository's default
   branch. Default-branch resolution is `git symbolic-ref --short refs/remotes/origin/HEAD` →
   `git config init.defaultBranch` → `main`/`master`. A **detached HEAD or an empty current-branch
@@ -162,6 +166,20 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   consumed by yf-plan §6.4; extraction to `_shared/` is **deferred** until a genuine second in-repo
   runtime consumer exists (rule-of-three — yf-beads-authoring carries a doctrine cross-reference
   only, not a code consumer). Cross-reference REQ-PLAN-063 (the reconcile/close step this hardens).
+- **REQ-PLAN-068** *(testable)* yf-plan shall detect and surface **parked** plans — approved-but-never-
+  executed plans that otherwise silently masquerade as complete (#86). A plan is **parked** iff its
+  status is `approved` (coarse filter) **and** its stored content fingerprint is **present and fresh**
+  (`bool(stored) and stored == current` — the same execute-eligibility signal, **not** the "not stale"
+  test, which is also true when no fingerprint is stored). This deliberately excludes `executing` /
+  `complete` (fail the status filter), stale-approved plans (fail freshness — they already carry the
+  `stale_approved` tag), and `approved` plans with no stored fingerprint (which would otherwise get a
+  contradictory execute nudge). The parked state shall be exposed as a `parked` flag in `list --json`
+  and a rendered tag alongside the stale tag, surfaced by `/yf-plan status`, and enumerable by a
+  `plan_manager.py parked --json` verb consumed by a **portable** land-the-plane SKILL.md step (a
+  documented script-verb call, never a harness hook or scheduler). The Phase 4.5 coarse tracking issue
+  shall be titled `plan-NNN execution tracking` (not the past-tense-glancing "Complete execution of
+  plan-NNN"). Amendment-log entry: root `SPEC.md` `plan-028` (authored by plan-028 Issue 1.1; this
+  requirement references it).
 
 ### 2.8 Capture (manual)
 

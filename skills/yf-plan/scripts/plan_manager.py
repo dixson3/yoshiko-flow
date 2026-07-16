@@ -735,10 +735,12 @@ def triage(plan_dir: str, objective: str, issues_json: str):
     }, indent=2))
 
 
-@cli.command("list")
-@click.option("--json-output", "as_json", is_flag=True)
-def list_plans(as_json: bool):
-    """List all plans and research items, across vault-default + Incubator roots."""
+def _enumerate_plans() -> list[dict]:
+    """Collect plan records across vault-default + Incubator roots.
+
+    Each record carries the advisory `stale_approved` (REQ-PORT-041) and `parked`
+    (#86, REQ-PLAN-068) flags. Shared by `list` and `parked`.
+    """
     plans = []
     for root in list_plan_roots():
         incubator = _scope_for_root(root, PLANS_DIR)
@@ -760,7 +762,11 @@ def list_plans(as_json: bool):
 
             # Advisory stale-approved flag (REQ-PORT-041): only meaningful once a
             # fingerprint is stored (review/approved onward). Non-fatal in list/status.
-            stale = _fingerprint_status(d).get("stale_approved", False)
+            fp_status = _fingerprint_status(d)
+            stale = fp_status.get("stale_approved", False)
+            # Parked = approved but never executed (#86, REQ-PLAN-068). Mutually
+            # exclusive with stale_approved (freshness gate) by construction.
+            parked = _is_parked(status, fp_status)
             plans.append({
                 "id": d.name,
                 "objective": objective,
@@ -768,8 +774,17 @@ def list_plans(as_json: bool):
                 "incubator": incubator,
                 "path": str(d),
                 "stale_approved": stale,
+                "parked": parked,
             })
     plans.sort(key=lambda p: p["id"])
+    return plans
+
+
+@cli.command("list")
+@click.option("--json-output", "as_json", is_flag=True)
+def list_plans(as_json: bool):
+    """List all plans and research items, across vault-default + Incubator roots."""
+    plans = _enumerate_plans()
 
     research = []
     for root in list_research_roots():
@@ -795,9 +810,10 @@ def list_plans(as_json: bool):
         for p in plans:
             scope = p["incubator"] or "docs"
             stale_tag = "  ⚠ STALE-APPROVED (re-review before execute)" if p.get("stale_approved") else ""
+            parked_tag = "  ⏸ PARKED (approved, not executed — run /yf-plan execute)" if p.get("parked") else ""
             click.echo(
                 f"  {p['id']:<35} [{scope:<18}] "
-                f"{p['objective']:<40} status: {p['status']}{stale_tag}"
+                f"{p['objective']:<40} status: {p['status']}{stale_tag}{parked_tag}"
             )
 
     if research:
@@ -810,6 +826,25 @@ def list_plans(as_json: bool):
                 f"  {r['id']:<35} [{scope:<18}] "
                 f"{r['topic']:<40} kind: {kind_tag}"
             )
+
+
+@cli.command("parked")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def parked_cmd(as_json: bool):
+    """Enumerate parked plans — approved but never executed (#86, REQ-PLAN-068).
+
+    Consumed by the `/yf-plan status` nudge and the land-the-plane check.
+    """
+    parked = [p for p in _enumerate_plans() if p.get("parked")]
+    if as_json:
+        click.echo(json.dumps({"count": len(parked), "parked": parked}, indent=2))
+        return
+    if not parked:
+        click.echo("No parked plans.")
+        return
+    click.echo(f"{len(parked)} plan(s) approved but not executed — run /yf-plan execute <id>:")
+    for p in parked:
+        click.echo(f"  {p['id']:<35} {p['objective']}")
 
 
 @cli.command()
@@ -1041,6 +1076,22 @@ def _fingerprint_status(plan_dir: Path) -> dict:
     }
 
 
+def _is_parked(status: str, fp_status: dict) -> bool:
+    """Classify a plan as *parked* — approved but never executed (#86, REQ-PLAN-068).
+
+    Parked iff status is `approved` (coarse filter) AND a stored content fingerprint is
+    present and fresh — `bool(stored) and stored == current`, the same signal
+    execute-eligibility keys on, NOT the "not stale_approved" test (which is also true
+    when no fingerprint is stored). This excludes:
+      - executing / complete            → fail the status filter
+      - stale-approved                  → fail freshness (already carry the stale tag)
+      - approved with no stored fp      → present-and-fresh is False (no contradictory nudge)
+    """
+    stored = fp_status.get("stored_fingerprint")
+    current = fp_status.get("current_fingerprint")
+    return status == "approved" and bool(stored) and stored == current
+
+
 @cli.group()
 def fingerprint():
     """Content-fingerprint re-review gate verbs (#64 / Issue 5.1)."""
@@ -1148,8 +1199,18 @@ def _commit_plan(plan_dir: Path) -> dict:
             result["beads_note"] = beads_note
         return result
 
-    message = f"{plan_id}: {phase} — {objective}"
-    commit = _run_git(["commit", "-m", message], cwd=repo_root)
+    # Commit-subject state signalling (#86, REQ-PLAN-064): the `approved`-phase intake
+    # landing commit signals that the plan is approved-but-not-yet-executed, so a `git log`
+    # scan cannot misread a parked plan as shipped work. Objective moves to the commit body.
+    # Other phases keep the plain `plan-NNN: <phase> — <objective>` subject.
+    if phase == "approved":
+        subject = f"{plan_id}: INTAKE approved (awaiting /yf-plan execute)"
+        commit_args = ["commit", "-m", subject, "-m", objective]
+        message = subject
+    else:
+        message = f"{plan_id}: {phase} — {objective}"
+        commit_args = ["commit", "-m", message]
+    commit = _run_git(commit_args, cwd=repo_root)
     if commit.returncode != 0:
         return {"status": "error", "branch": cur,
                 "detail": f"git commit failed: {commit.stderr.strip()}"}

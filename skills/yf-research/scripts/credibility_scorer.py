@@ -39,6 +39,9 @@ TIER_2_DOMAINS = {
     # Official docs
     "docs.python.org", "docs.microsoft.com", "developer.mozilla.org",
     "docs.aws.amazon.com", "cloud.google.com",
+    # Official dev-tooling / forge documentation (REQ-RESEARCH-024)
+    "docs.gitea.com", "forgejo.org", "docs.gitlab.com", "docs.github.com",
+    "docs.gocd.org", "cli.github.com", "github.blog",
 }
 
 TIER_3_DOMAINS = {
@@ -79,6 +82,13 @@ def _domain_authority_score(url: str) -> int:
             if td in domain:
                 return (low + high) // 2
 
+    # Heuristic Tier-2 bump for official vendor-doc hosts not in the allowlist
+    # (REQ-RESEARCH-024): a `docs.*` host or a `.dev` TLD. Evaluated AFTER the
+    # exact-tier loop (so it never downgrades a Tier-1 match) and BEFORE the
+    # unknown-domain fallback. Caps at Tier 2 (70-84 band midpoint), never Tier 1.
+    if domain.startswith("docs.") or tld == "dev":
+        return (70 + 84) // 2
+
     # Unknown domain
     return 30
 
@@ -95,6 +105,11 @@ def _currency_score(published_date: str | None, evergreen: bool = False) -> int:
         pub = datetime.fromisoformat(published_date.replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return 50
+
+    # Normalize a timezone-naive date to UTC so the subtraction below does not
+    # raise "can't subtract offset-naive and offset-aware datetimes" (REQ-RESEARCH-024).
+    if pub.tzinfo is None:
+        pub = pub.replace(tzinfo=timezone.utc)
 
     now = datetime.now(timezone.utc)
     age_days = (now - pub).days

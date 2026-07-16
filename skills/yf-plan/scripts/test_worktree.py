@@ -828,5 +828,76 @@ def test_ready_check_ready_when_both_green(tmp_path, monkeypatch):
     assert payload["audit_status"] == "pass"
 
 
+# ---------------------------------------------------------------------------
+# Parked-plan classifier + approved-phase commit subject (#86, plan-028 Issue 2.6)
+# ---------------------------------------------------------------------------
+
+def _fp(stored, current):
+    return {"stored_fingerprint": stored, "current_fingerprint": current,
+            "stale_approved": bool(stored) and stored != current}
+
+
+def test_is_parked_approved_fresh_fingerprint():
+    # approved + stored present and fresh (stored == current) → parked.
+    assert pm._is_parked("approved", _fp("abc", "abc")) is True
+
+
+def test_is_parked_stale_approved_not_parked():
+    # approved + stale (stored != current) → NOT parked; the stale tag owns it.
+    assert pm._is_parked("approved", _fp("abc", "xyz")) is False
+
+
+def test_is_parked_approved_no_fingerprint_not_parked():
+    # approved but no stored fingerprint → NOT parked (would get a contradictory nudge).
+    assert pm._is_parked("approved", _fp(None, "abc")) is False
+    assert pm._is_parked("approved", _fp("", "abc")) is False
+
+
+def test_is_parked_executing_not_parked():
+    assert pm._is_parked("executing", _fp("abc", "abc")) is False
+
+
+def test_is_parked_complete_not_parked():
+    assert pm._is_parked("complete", _fp("abc", "abc")) is False
+
+
+def _mk_intake_plan(root: Path, status: str, objective: str = "My objective") -> Path:
+    pd = root / "plan-999-tester-abc123"
+    pd.mkdir(parents=True)
+    (pd / "plan.md").write_text(
+        f"# Plan: {objective}\n\n**Status:** {status}\n\n## Objective\n{objective}\n")
+    return pd
+
+
+def test_commit_subject_approved_signals_state(git_repo):
+    # On a plan branch (not default), an approved-phase intake commit uses the
+    # state-signalling subject; the objective moves to the body (#86, REQ-PLAN-064).
+    _git(["checkout", "-b", "plan-999-tester-abc123-execute"], git_repo)
+    pd = _mk_intake_plan(git_repo, "approved")
+    result = pm._commit_plan(pd)
+    assert result["status"] == "committed", result
+    subject = subprocess.run(
+        ["git", "log", "-1", "--pretty=%s"], cwd=git_repo,
+        capture_output=True, text=True, check=True).stdout.strip()
+    body = subprocess.run(
+        ["git", "log", "-1", "--pretty=%b"], cwd=git_repo,
+        capture_output=True, text=True, check=True).stdout.strip()
+    assert subject == "plan-999-tester-abc123: INTAKE approved (awaiting /yf-plan execute)"
+    assert "shipped" not in subject.lower()
+    assert body == "My objective"
+
+
+def test_commit_subject_non_approved_phase_plain(git_repo):
+    # A non-approved phase keeps the plain `plan-NNN: <phase> — <objective>` subject.
+    _git(["checkout", "-b", "plan-999-tester-abc123-execute"], git_repo)
+    pd = _mk_intake_plan(git_repo, "drafting")
+    result = pm._commit_plan(pd)
+    assert result["status"] == "committed", result
+    subject = subprocess.run(
+        ["git", "log", "-1", "--pretty=%s"], cwd=git_repo,
+        capture_output=True, text=True, check=True).stdout.strip()
+    assert subject == "plan-999-tester-abc123: drafting — My objective"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
