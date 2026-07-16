@@ -3,7 +3,8 @@
 **ID:** plan-028-james-dixson-a9738b
 **Author:** james-dixson
 **Created:** 2026-07-15
-**Status:** approved
+**Status:** reconciling
+**Epic:** yf-mol-181
 **Fingerprint:** 832dd5b34e3a87acc96ef3180df330ccdbdb6310d49e6e8da05e557addad68a5
 **Phase log:**
 - 2026-07-15 scoping: initial scope captured
@@ -12,6 +13,9 @@
 - 2026-07-15 review: plan v2 presented — red-team APPROVE (pass-2), 2 residual items folded in
 - 2026-07-15 ready-for-approval: ready-check green — red-team APPROVE (pass-2) + audit pass
 - 2026-07-15 approved: operator approved
+- 2026-07-15 intake: epic yf-mol-181 poured
+- 2026-07-15 executing: start gate resolved
+- 2026-07-15 reconciling: post-execution reconciliation
 
 ## Objective
 
