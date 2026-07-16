@@ -3,7 +3,7 @@
 **ID:** plan-028-james-dixson-a9738b
 **Author:** james-dixson
 **Created:** 2026-07-15
-**Status:** reconciling
+**Status:** complete
 **Epic:** yf-mol-181
 **Fingerprint:** 832dd5b34e3a87acc96ef3180df330ccdbdb6310d49e6e8da05e557addad68a5
 **Phase log:**
@@ -16,6 +16,7 @@
 - 2026-07-15 intake: epic yf-mol-181 poured
 - 2026-07-15 executing: start gate resolved
 - 2026-07-15 reconciling: post-execution reconciliation
+- 2026-07-15 complete: plan complete — #87 and #86 resolved, merged + pushed
 
 ## Objective
 
