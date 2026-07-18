@@ -1,0 +1,57 @@
+[
+  {
+    "id": "S1",
+    "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/knowledge-catalog/main/okf/SPEC.md",
+    "title": "Open Knowledge Format (OKF) — SPEC.md (Version 0.1 — Draft)",
+    "snippet": "The authoritative OKF specification: bundle structure, reserved filenames (index.md, log.md), required YAML frontmatter with a REQUIRED `type` field, cross-linking (bundle-relative links), citations, conformance rules, and versioning (okf_version).",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "gh",
+    "quote": "The format is intentionally minimal: a directory of markdown files with YAML frontmatter. There is no schema registry, no central authority, and no required tooling. If you can `cat` a file, you can read OKF; if you can `git clone` a repo, you can ship it.",
+    "cluster": "okf-spec-primary"
+  },
+  {
+    "id": "S2",
+    "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/knowledge-catalog/main/okf/README.md",
+    "title": "OKF README — GoogleCloudPlatform/knowledge-catalog/okf",
+    "snippet": "README framing OKF as a universal, vendor-neutral markdown+frontmatter knowledge format; points to SPEC.md as the contribution and to three example bundles (ga4, stackoverflow, crypto_bitcoin).",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "gh",
+    "quote": "OKF is a **universal, vendor-neutral format** for representing knowledge as plain markdown files with YAML frontmatter. It is **not tied to any particular agent, framework, model provider, or serving system**.",
+    "cluster": "okf-spec-primary"
+  },
+  {
+    "id": "S3",
+    "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/knowledge-catalog/main/okf/bundles/ga4/references/metrics/avg_pageviews.md",
+    "title": "Example OKF concept document — ga4/references/metrics/avg_pageviews.md",
+    "snippet": "A real conformant concept doc from the ga4 sample bundle: frontmatter with type/resource/title/description/tags/timestamp and a body ending in a `# Citations` heading.",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "gh",
+    "quote": "---\ntype: Reference\nresource: https://developers.google.com/analytics/bigquery/basic-queries\ntitle: Average Pageviews\ndescription: The average number of pageviews per user.\ntags:\n- metric\ntimestamp: '2026-05-28T22:51:43+00:00'\n---\n\nThe average number of pageviews per user.\n\n```sql\nSUM(page_view_count) / COUNT(*)\n```\n\n# Citations\n- https://developers.google.com/analytics/bigquery/basic-queries",
+    "cluster": "okf-spec-primary"
+  },
+  {
+    "id": "S4",
+    "url": "https://raw.githubusercontent.com/GoogleCloudPlatform/knowledge-catalog/main/okf/bundles/ga4/index.md",
+    "title": "Example OKF index.md — ga4/index.md (bundle root)",
+    "snippet": "A real bundle-root index.md. It contains NO frontmatter and does NOT declare okf_version, confirming both are optional and unused in the reference bundles.",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "gh",
+    "quote": "# Subdirectories\n\n* [datasets](datasets/index.md) - A sample of obfuscated Google Analytics BigQuery event export data ...\n* [references](references/index.md) - This directory contains specifications for data joins and definitions ...\n* [tables](tables/index.md) - Contains Google Analytics event export data from the `ga4_obfuscated_sample_ecommerce` dataset.",
+    "cluster": "okf-spec-primary"
+  },
+  {
+    "id": "S5",
+    "url": "https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf",
+    "title": "Absence findings — okf_version usage and log.md files in knowledge-catalog",
+    "snippet": "Repo-wide code search for `okf_version` returns only the SPEC prose defining it (no bundle actually declares it). A recursive tree scan finds ZERO `log.md` files anywhere. Both features are spec'd-but-unexercised in the reference implementation.",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "gh",
+    "quote": "gh search code okf_version --repo GoogleCloudPlatform/knowledge-catalog => only match: 'okf/SPEC.md: `okf_version: \"0.1\"` in a bundle-root `index.md`'. Recursive tree filter for '*log.md' => (no results).",
+    "cluster": "okf-spec-primary"
+  }
+]

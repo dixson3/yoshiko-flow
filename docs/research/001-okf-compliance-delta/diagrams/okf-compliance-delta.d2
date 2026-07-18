@@ -1,0 +1,85 @@
+# OKF compliance-delta: 7 OKF rules x 3 yf-* tools, and the 3 integration paths.
+# Rendered light-mode (theme 0), elk layout. Source of truth: Summary.md compliance-delta table.
+# Cells declared COLUMN-MAJOR (d2 grid fills top-to-bottom, then next column).
+
+direction: down
+
+matrix: "Compliance-delta matrix (OKF rule x tool)" {
+  style.stroke: "#334155"
+  style.font-size: 18
+  grid-columns: 4
+  grid-gap: 0
+
+  # ---- Column 1: OKF rule labels ----
+  h_rule: "OKF rule" { style.bold: true; style.fill: "#e2e8f0" }
+  r1: "1. Frontmatter + type\n(MUST)" { style.bold: true; style.fill: "#fef08a" }
+  r2: "2. Open type vocab" { style.fill: "#f1f5f9" }
+  r3: "3. okf_version\n(optional)" { style.fill: "#f1f5f9" }
+  r4: "4. Reserved\nindex.md / log.md" { style.fill: "#f1f5f9" }
+  r5: "5. # Citations\n(SHOULD)" { style.fill: "#f1f5f9" }
+  r6: "6. /-absolute links\n(SHOULD)" { style.fill: "#f1f5f9" }
+  r7: "7. Extension-key\nmetadata" { style.fill: "#f1f5f9" }
+
+  # ---- Column 2: yf-plan ----
+  h_plan: "yf-plan" { style.bold: true; style.fill: "#e2e8f0" }
+  r1_plan: "GAP\nno frontmatter\n(Field-prose)" { style.fill: "#fecaca" }
+  r2_plan: "mechanical\nn/a until typed" { style.fill: "#dcfce7" }
+  r3_plan: "non-gap\nunexercised" { style.fill: "#dcfce7" }
+  r4_plan: "CONCEPTUAL\nREADME.md;\nlog in plan.md" { style.fill: "#fed7aa" }
+  r5_plan: "n/a" { style.fill: "#f8fafc" }
+  r6_plan: "non-gap\nrelative" { style.fill: "#dcfce7" }
+  r7_plan: "mechanical\ncarry permitted*" { style.fill: "#dcfce7" }
+
+  # ---- Column 3: yf-research ----
+  h_research: "yf-research" { style.bold: true; style.fill: "#e2e8f0" }
+  r1_research: "GAP\nno frontmatter\n(plain GFM)" { style.fill: "#fecaca" }
+  r2_research: "mechanical\nn/a until typed" { style.fill: "#dcfce7" }
+  r3_research: "non-gap\nunexercised" { style.fill: "#dcfce7" }
+  r4_research: "CONCEPTUAL\n_index.md;\nmanifest table" { style.fill: "#fed7aa" }
+  r5_research: "mechanical\ninline [N] ->\nsources.json" { style.fill: "#dcfce7" }
+  r6_research: "non-gap\nrelative" { style.fill: "#dcfce7" }
+  r7_research: "mechanical\ncarry permitted*" { style.fill: "#dcfce7" }
+
+  # ---- Column 4: yf-incubator ----
+  h_incub: "yf-incubator" { style.bold: true; style.fill: "#e2e8f0" }
+  r1_incub: "near\nfrontmatter present,\nadd 1 type key" { style.fill: "#fed7aa" }
+  r2_incub: "mechanical\nn/a until typed" { style.fill: "#dcfce7" }
+  r3_incub: "non-gap\nunexercised" { style.fill: "#dcfce7" }
+  r4_incub: "CONCEPTUAL\nREADME.md;\n## Decision log" { style.fill: "#fed7aa" }
+  r5_incub: "n/a" { style.fill: "#f8fafc" }
+  r6_incub: "non-gap\nrelative" { style.fill: "#dcfce7" }
+  r7_incub: "mechanical\ncarry permitted*" { style.fill: "#dcfce7" }
+}
+
+legend: "LEGEND\n\nyellow = the one MUST\nred = GAP (conceptual)\norange = conceptual (design decision)\ngreen = mechanical / non-gap\n\n* extension-key carry is permitted,\nbut round-trip preservation is\nSHOULD-level and unverified" {
+  style.fill: "#f8fafc"
+  style.stroke: "#94a3b8"
+  style.font-size: 14
+}
+
+paths: "Integration paths (primary Q3)" {
+  style.stroke: "#334155"
+  style.font-size: 18
+  direction: right
+
+  native: "Native-compliant frontmatter\n\nrewrite tools to author OKF\nfrontmatter on line 1 => disrupts\nField-prose + heading-based audit" {
+    style.fill: "#fee2e2"
+    style.stroke: "#b91c1c"
+  }
+  emit: "Export-emit path  (RECOMMENDED)\n\nkeep native metadata as source of\ntruth; add OKF emitter -> conformant\nview on demand. Least-regret for a\nv0.1 draft" {
+    style.fill: "#bbf7d0"
+    style.stroke: "#15803d"
+    style.bold: true
+    style.font-size: 16
+    style.shadow: true
+  }
+  doconly: "Document-only\n\ntreat OKF as prose ref, emit\nnothing => forgoes an interop\noption (no evidenced demand)" {
+    style.fill: "#fef9c3"
+    style.stroke: "#a16207"
+  }
+}
+
+matrix -> paths: "gaps -> resolution strategy" {
+  style.stroke: "#334155"
+  style.stroke-width: 2
+}
