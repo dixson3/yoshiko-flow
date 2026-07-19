@@ -1,0 +1,24 @@
+{
+  "command": "check",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/incubator-bundle/after",
+  "ok": true,
+  "rulesets_composed": [
+    "OKF-BASELINE",
+    "OKF-YF-EXTENSIONS",
+    "OKF-INCUBATOR"
+  ],
+  "findings": [
+    {
+      "path": "00Index.md",
+      "req": "REQ-OKF-FAM-001",
+      "level": "warning",
+      "message": "type 'Concept' not in OKF-INCUBATOR vocab ['Incubator']"
+    },
+    {
+      "path": "Onboarding.md",
+      "req": "REQ-OKF-FAM-001",
+      "level": "warning",
+      "message": "type 'Concept' not in OKF-INCUBATOR vocab ['Incubator']"
+    }
+  ]
+}

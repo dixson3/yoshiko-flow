@@ -1,0 +1,6 @@
+./00Index.md
+./codemage marketecture.excalidraw
+./index.md
+./log.md
+./Onboarding.md
+./README.md

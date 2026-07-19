@@ -1,0 +1,38 @@
+topic: "OKF (Open Knowledge Format) compliance-delta for yf-plan / yf-research / yf-incubator artifacts"
+mode: standard
+priority: 2
+research_dir: "docs/research/001-okf-compliance-delta"
+
+questions:
+  primary:
+    - "Exactly where do yf-plan plan folders, yf-research research dirs, and yf-incubator artifacts diverge from the OKF SPEC (frontmatter `type`, reserved index.md/log.md, citation heading, bundle-relative links, okf_version)?"
+    - "Which gaps are mechanical (add YAML frontmatter) vs conceptual (`**Field:**` headers vs frontmatter; README vs index.md; phase-log vs log.md)?"
+    - "Which integration path — native-compliant frontmatter / export-emit path / document-only — is recommended, and why?"
+  secondary:
+    - "Does OKF's type/resource/tags/timestamp model losslessly carry our plan metadata (ID, status, fingerprint, upstream dispositions, phase log, review passes)? What needs an OKF type-specific extension?"
+    - "What is the impact of README->index.md and phase-log->log.md on the portability contract and plan_manager.py audit?"
+    - "What real-world OKF adoption / tooling exists, and what does compliance actually unlock? (absence is a valid finding)"
+
+source_clusters:
+  - name: okf-spec-primary
+    targets: ["OKF SPEC.md", "knowledge-catalog repo (README, examples, schema)", "commit/issue history"]
+    method: direct
+    expected_artifacts: 5
+  - name: ecosystem-interop
+    targets: ["OKF adopters", "knowledge-catalog tooling", "agent-knowledge format comparables", "GCP announcements/blogs"]
+    method: exa
+    expected_artifacts: 6
+  - name: local-artifacts
+    targets: ["skills/yf-plan/spec/portability.md", "yf-plan SKILL.md layout", "yf-research dir layout", "yf-incubator artifacts", "plan_manager.py audit checks", "a real plan-028 folder"]
+    method: direct
+    expected_artifacts: 8
+
+tooling_needed:
+  - description: "OKF conformance checker: parse a bundle, report per-file type/frontmatter/reserved-file/citation deltas against the SPEC"
+    shared: false
+
+execution:
+  estimated_beads: 11
+  estimated_budget_usd: 9.00
+  session_mode: new
+epic: yf-mol-2av

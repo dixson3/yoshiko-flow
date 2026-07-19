@@ -1,0 +1,30 @@
+{
+  "command": "check",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/research-bundle/after",
+  "ok": true,
+  "rulesets_composed": [
+    "OKF-BASELINE",
+    "OKF-YF-EXTENSIONS",
+    "OKF-RESEARCH"
+  ],
+  "findings": [
+    {
+      "path": "Summary.md",
+      "req": "REQ-OKF-FAM-001",
+      "level": "warning",
+      "message": "missing required key 'idx' (composed from OKF-RESEARCH; per-skill adapter backfills it)"
+    },
+    {
+      "path": "Summary.md",
+      "req": "REQ-OKF-FAM-001",
+      "level": "warning",
+      "message": "missing required key 'topic' (composed from OKF-RESEARCH; per-skill adapter backfills it)"
+    },
+    {
+      "path": "Summary.md",
+      "req": "REQ-OKF-FAM-001",
+      "level": "warning",
+      "message": "missing required key 'created' (composed from OKF-RESEARCH; per-skill adapter backfills it)"
+    }
+  ]
+}

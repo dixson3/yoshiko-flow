@@ -1,0 +1,95 @@
+{
+  "command": "migrate",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/plan-bundle/after",
+  "dry_run": true,
+  "skill": "yf-plan",
+  "member": "OKF-PLAN",
+  "changes": [
+    {
+      "op": "rename",
+      "path": "README.md",
+      "to": "index.md"
+    },
+    {
+      "op": "extract-log",
+      "path": "plan.md",
+      "to": "log.md",
+      "source_kept": true,
+      "first_scoping_date": "2026-04-05"
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "context.md",
+      "keys": {
+        "type": "Environment",
+        "okf_spec": "OKF-PLAN"
+      }
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "plan.md",
+      "keys": {
+        "type": "Plan",
+        "okf_spec": "OKF-PLAN",
+        "id": "plan-001-james-dixson-c88e7a",
+        "author": "james-dixson",
+        "created": "2026-04-05",
+        "status": "complete"
+      },
+      "mirrored_fields": [
+        "author",
+        "created",
+        "id",
+        "status"
+      ]
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "references/upstream-3.md",
+      "keys": {
+        "type": "Reference",
+        "okf_spec": "OKF-PLAN"
+      }
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "reviews/pass-1.md",
+      "keys": {
+        "type": "Review",
+        "okf_spec": "OKF-PLAN",
+        "date": "2026-04-05",
+        "plan_version_reviewed": "v1",
+        "phase-log_anchor": "`- 2026-04-05 review: plan v1 presented \u2014 REVISE`"
+      },
+      "mirrored_fields": [
+        "date",
+        "phase-log_anchor",
+        "plan_version_reviewed"
+      ]
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "reviews/pass-2.md",
+      "keys": {
+        "type": "Review",
+        "okf_spec": "OKF-PLAN",
+        "date": "2026-04-05",
+        "plan_version_reviewed": "v2",
+        "phase-log_anchor": "`- 2026-04-05 review: plan v2 presented`"
+      },
+      "mirrored_fields": [
+        "date",
+        "phase-log_anchor",
+        "plan_version_reviewed"
+      ]
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "upstream-triage.md",
+      "keys": {
+        "type": "Reference",
+        "okf_spec": "OKF-PLAN"
+      }
+    }
+  ]
+}

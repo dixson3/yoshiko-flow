@@ -1,0 +1,90 @@
+[
+  {
+    "id": "L1",
+    "url": "skills/yf-plan/spec/portability.md",
+    "title": "yf-plan Portability Specification (REQ-PORT-001..008)",
+    "snippet": "Defines the reserved plan-folder files: README.md (File map + Reading order), context.md (5 required sections), motivation, references/upstream-<N>.md, reviews/pass-<N>.md. No YAML frontmatter mandated anywhere.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "REQ-PORT-001: Every plan folder (under either `docs/plans/<plan-id>/` or `Incubator/<slug>/plans/<plan-id>/`) must contain `README.md` at the plan root with file-map and reading-order sections. ... REQ-PORT-002: Every plan folder must contain `context.md` at the plan root with non-empty required sections: Project environment, Tool inventory, Paths, Operator identity, Runtime assumptions. ... REQ-PORT-005: Every non-exclude row in plan.md's Upstream Issues table must have a corresponding `references/upstream-<N>.md` file ... REQ-PORT-006: The number of `reviews/pass-*.md` files must equal the number of `^- \\d{4}-\\d{2}-\\d{2} review:` lines in plan.md's phase log.",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L2",
+    "url": "skills/yf-plan/scripts/plan_manager.py",
+    "title": "plan_manager.py _audit_plan() — mechanical portability audit",
+    "snippet": "The audit checks: (1) README.md present + File map/Reading order headers; (2) context.md 5 sections non-empty and not placeholder; (3) motivation present; (4) one references/upstream-<N>.md per non-exclude row; (5) reviews/pass-*.md count == phase-log review-line count; (6) no dangling absolute paths / ../ traversal. All stdlib regex/grep — no LLM, no frontmatter parsing.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "# 1. README.md ... missing_sections = [s for s in _README_REQUIRED_SECTIONS if s not in rtxt] ... # 2. context.md — required sections non-empty (no unfilled placeholder lines) ... # 4. references/upstream-*.md — one file per non-exclude row ... # 5. reviews/pass-*.md — count == phase-log review line count ... # 6. No dangling external refs across all plan files. ... any_fail = any(f[\"status\"] == \"fail\" for f in findings)",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L3",
+    "url": "skills/yf-plan/scripts/plan_manager.py",
+    "title": "plan_manager.py audit constants — required sections & activation date",
+    "snippet": "Reserved-section constants: _README_REQUIRED_SECTIONS = (File map, Reading order); _CONTEXT_REQUIRED_SECTIONS = (Project environment, Tool inventory, Paths, Operator identity, Runtime assumptions); PORTABILITY_ACTIVATION_DATE = 2026-04-05 (pre-date plans grandfathered to warn). Audit is heading-name based, not frontmatter-key based.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "PORTABILITY_ACTIVATION_DATE = \"2026-04-05\" ... _CONTEXT_REQUIRED_SECTIONS = (\n    \"Project environment\",\n    \"Tool inventory\",\n    \"Paths\",\n    \"Operator identity\",\n    \"Runtime assumptions\",\n) ... _README_REQUIRED_SECTIONS = (\"File map\", \"Reading order\")",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L4",
+    "url": "docs/plans/plan-028-james-dixson-a9738b/",
+    "title": "Real completed plan folder plan-028 — file inventory + no frontmatter",
+    "snippet": "Files: plan.md, README.md, context.md, upstream-triage.md, references/upstream-86.md, references/upstream-87.md, reviews/pass-1.md, reviews/pass-2.md. Every file's first line is a Markdown '# ' heading — NO YAML '---' frontmatter block anywhere. plan.md carries metadata as bold `**Field:**` header lines (ID, Author, Created, Status, Epic, Fingerprint, Phase log), not frontmatter keys.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "# Plan: Fix credibility_scorer tz-naive crash ...\n\n**ID:** plan-028-james-dixson-a9738b\n**Author:** james-dixson\n**Created:** 2026-07-15\n**Status:** complete\n**Epic:** yf-mol-181\n**Fingerprint:** 832dd5b34e3a87acc96ef3180df330ccdbdb6310d49e6e8da05e557addad68a5\n**Phase log:**\n- 2026-07-15 scoping: initial scope captured",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L5",
+    "url": "skills/yf-research/spec/data.md",
+    "title": "yf-research Data Specification (REQ-DATA-001..007) — research dir layout",
+    "snippet": "Research output layout: plan.yaml, Summary.md, sources.json, _index.md, scripts/, artifacts/ (cluster-<name>.md, triangulation.md, critique.md). _index.md is the artifact manifest (single writer index_manager.py). Every factual claim carries inline [N] resolving to a sources.json entry. Reserved index file is '_index.md' (underscore prefix), NOT 'index.md'.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "REQ-DATA-002: Each research topic uses the layout: `plan.yaml`, `Summary.md`, `sources.json`, `_index.md`, `scripts/`, `artifacts/` (with `cluster-<name>.md`, `triangulation.md`, `critique.md`). ... REQ-DATA-003: `sources.json` holds every source with a credibility score; every factual claim in `Summary.md`/artifacts carries an inline `[N]` that resolves to a `sources.json` entry. ... REQ-DATA-005: `_index.md` is the artifact manifest, created/updated only via `index_manager.py` (`init`, `add`).",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L6",
+    "url": "skills/yf-research/SKILL.md",
+    "title": "yf-research SKILL.md — dir scaffold, citation convention, GFM mandate",
+    "snippet": "Phase 3 scaffolds the dir via 'mkdir -p ${research_dir}/scripts ${research_dir}/artifacts ${research_dir}/diagrams' then 'index_manager.py init'. Citation convention: quote form '> \"...\" [N]' with [N] resolving to sources.json. All markdown artifacts are plain GFM — never Obsidian wikilinks. No frontmatter used in research output.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "mkdir -p \"${research_dir}/scripts\" \"${research_dir}/artifacts\" \"${research_dir}/diagrams\" ... **Direct quotes over paraphrase.** When citing, include a direct quote (`> \"...\" [N]`) ... Every markdown artifact this skill writes (`Summary.md`, `sources.md`, `artifacts/*.md`, `_index.md`, the packaged report) is plain **GFM** — never Obsidian `[[wikilinks]]` or",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L7",
+    "url": "skills/yf-research/scripts/index_manager.py",
+    "title": "index_manager.py HEADER_TEMPLATE + real _index.md — no frontmatter",
+    "snippet": "_index.md is created from HEADER_TEMPLATE = '# Research Index: {topic}' followed by a GFM table (Timestamp|Phase|Artifact|Description). No YAML frontmatter. Confirmed against the live docs/research/001-okf-compliance-delta/_index.md whose first line is '# Research Index: ...'. Reserved manifest filename is '_index.md'.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "HEADER_TEMPLATE = \"\"\"# Research Index: {topic}\" ... (live file:) # Research Index: OKF (Open Knowledge Format) compliance-delta for yf-plan / yf-research / yf-incubator artifacts\n\n| Timestamp | Phase | Artifact | Description |\n|-----------|-------|----------|-------------|",
+    "cluster": "local-artifacts"
+  },
+  {
+    "id": "L8",
+    "url": "skills/yf-incubator/SPEC.md",
+    "title": "yf-incubator SPEC (REQ-INCUB-001/002) — frontmatter-keyed state files",
+    "snippet": "Incubators DO use YAML frontmatter (unlike yf-plan/yf-research). Each incubator is a portable, frontmatter-keyed markdown state file: directory form Incubator/<kebab>/README.md (with research/, references/, plans/ alongside) or single-file Incubator/<kebab>.md. Frontmatter carries title, created, status, priority, last_reviewed; ordered body sections include ## Status, ## Premise, ## Open questions, ## Decision log, ## Files, ## Beads to file. Reserved root file is README.md; index is Incubator/INDEX.md.",
+    "retrieved": "2026-07-17T16:45:00Z",
+    "credibility": "high_trust",
+    "provider": "direct",
+    "quote": "Each incubator is a portable, frontmatter-keyed [markdown state file] ... REQ-INCUB-002 *(testable)* the state file frontmatter shall carry `title`, `created`, [`status`, `priority`, `last_reviewed`] ... ordered body sections `## Status`, `## Premise`, `## Open questions`, `## Decision log`, `## Files`, and `## Beads to file`; `## Decision log` and `## Beads to file` are never dropped",
+    "cluster": "local-artifacts"
+  }
+]

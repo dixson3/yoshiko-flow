@@ -1,0 +1,45 @@
+{
+  "command": "migrate",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/incubator-bundle/after",
+  "dry_run": true,
+  "skill": "yf-incubator",
+  "member": "OKF-INCUBATOR",
+  "changes": [
+    {
+      "op": "scaffold-index",
+      "path": "index.md",
+      "reason": "member scaffolds index.md"
+    },
+    {
+      "op": "scaffold-log",
+      "path": "log.md",
+      "reason": "member scaffolds log.md"
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "00Index.md",
+      "keys": {
+        "type": "Concept",
+        "okf_spec": "OKF-INCUBATOR"
+      },
+      "type_source": "default-fallback"
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "Onboarding.md",
+      "keys": {
+        "type": "Concept",
+        "okf_spec": "OKF-INCUBATOR"
+      },
+      "type_source": "default-fallback"
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "README.md",
+      "keys": {
+        "type": "Incubator",
+        "okf_spec": "OKF-INCUBATOR"
+      }
+    }
+  ]
+}

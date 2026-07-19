@@ -1,0 +1,11 @@
+{
+  "command": "check",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/plan-bundle/after",
+  "ok": true,
+  "rulesets_composed": [
+    "OKF-BASELINE",
+    "OKF-YF-EXTENSIONS",
+    "OKF-PLAN"
+  ],
+  "findings": []
+}

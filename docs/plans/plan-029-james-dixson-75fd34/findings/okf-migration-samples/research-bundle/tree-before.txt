@@ -1,0 +1,16 @@
+./_index.md
+./artifacts/cluster-ecosystem-interop.md
+./artifacts/cluster-local-artifacts.md
+./artifacts/cluster-okf-spec-primary.md
+./artifacts/critique.md
+./artifacts/triangulation.md
+./diagrams/okf-compliance-delta.d2
+./diagrams/okf-compliance-delta.png
+./plan.yaml
+./scripts/okf_conformance_check.py
+./sources.ecosystem-interop.json
+./sources.json
+./sources.local-artifacts.json
+./sources.md
+./sources.okf-spec-primary.json
+./Summary.md

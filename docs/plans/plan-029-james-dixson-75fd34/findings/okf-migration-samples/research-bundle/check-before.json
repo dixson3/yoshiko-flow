@@ -1,0 +1,72 @@
+{
+  "command": "check",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/research-bundle/before",
+  "ok": false,
+  "rulesets_composed": [
+    "OKF-BASELINE",
+    "OKF-YF-EXTENSIONS",
+    "OKF-RESEARCH"
+  ],
+  "findings": [
+    {
+      "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/research-bundle/before/index.md",
+      "req": "REQ-OKF-001",
+      "level": "error",
+      "message": "reserved index.md missing"
+    },
+    {
+      "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/research-bundle/before/log.md",
+      "req": "REQ-OKF-002",
+      "level": "error",
+      "message": "reserved log.md missing"
+    },
+    {
+      "path": "Summary.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "_index.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "artifacts/cluster-ecosystem-interop.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "artifacts/cluster-local-artifacts.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "artifacts/cluster-okf-spec-primary.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "artifacts/critique.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "artifacts/triangulation.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "sources.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "command": "check",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/foreign-frontmatter/before",
+  "ok": false,
+  "rulesets_composed": [
+    "OKF-BASELINE",
+    "OKF-YF-EXTENSIONS",
+    "OKF-INCUBATOR"
+  ],
+  "findings": [
+    {
+      "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/foreign-frontmatter/before/index.md",
+      "req": "REQ-OKF-001",
+      "level": "error",
+      "message": "reserved index.md missing"
+    },
+    {
+      "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/foreign-frontmatter/before/log.md",
+      "req": "REQ-OKF-002",
+      "level": "error",
+      "message": "reserved log.md missing"
+    },
+    {
+      "path": "README.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "missing or empty `type`"
+    },
+    {
+      "path": "README.md",
+      "req": "REQ-OKF-030",
+      "level": "error",
+      "message": "missing `okf_spec` member key"
+    }
+  ]
+}

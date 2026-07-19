@@ -1,0 +1,66 @@
+{
+  "command": "check",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/plan-bundle/before",
+  "ok": false,
+  "rulesets_composed": [
+    "OKF-BASELINE",
+    "OKF-YF-EXTENSIONS",
+    "OKF-PLAN"
+  ],
+  "findings": [
+    {
+      "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/plan-bundle/before/index.md",
+      "req": "REQ-OKF-001",
+      "level": "error",
+      "message": "reserved index.md missing"
+    },
+    {
+      "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/plan-bundle/before/log.md",
+      "req": "REQ-OKF-002",
+      "level": "error",
+      "message": "reserved log.md missing"
+    },
+    {
+      "path": "README.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "context.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "plan.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "references/upstream-3.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "reviews/pass-1.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "reviews/pass-2.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    },
+    {
+      "path": "upstream-triage.md",
+      "req": "REQ-OKF-003",
+      "level": "error",
+      "message": "no YAML frontmatter block"
+    }
+  ]
+}

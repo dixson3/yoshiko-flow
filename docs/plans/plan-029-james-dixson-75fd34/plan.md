@@ -3,7 +3,8 @@
 **ID:** plan-029-james-dixson-75fd34
 **Author:** james-dixson
 **Created:** 2026-07-17
-**Status:** approved
+**Status:** reconciling
+**Epic:** yf-mol-w21
 **Fingerprint:** 6088f15ad7bc49c1cba3a165e3e128788dadfc157f75fd28e85f828e0a8d5fc6
 **Phase log:**
 - 2026-07-17 scoping: initial scope captured
@@ -21,6 +22,9 @@
 - 2026-07-18 review: red-team cycle 6: APPROVE
 - 2026-07-18 ready-for-approval: ready-check green — cycle-6 APPROVE + audit pass (assessment epic)
 - 2026-07-18 approved: operator approved
+- 2026-07-18 intake: epic yf-mol-w21 poured
+- 2026-07-18 executing: start gate resolved
+- 2026-07-19 reconciling: bead DAG drained; entering land-the-plane
 
 ## Objective
 Create a yf-okf skill and adopt it in yf-plan, yf-research, and yf-incubator as the standard way to construct and manage their artifact folders

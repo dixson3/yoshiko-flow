@@ -1,0 +1,156 @@
+[
+  {
+    "id": "E1",
+    "url": "https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing",
+    "title": "Introducing the Open Knowledge Format (Google Cloud Blog)",
+    "snippet": "Official GCP announcement of OKF v0.1 (Sam McVeety & Amir Hormati, Data Cloud), June 12/13 2026. Frames OKF as vendor-neutral markdown+YAML frontmatter format; notes Knowledge Catalog updated to ingest OKF.",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "exa",
+    "quote": "That's why today, we're introducing the Open Knowledge Format (OKF), an open specification that formalizes the LLM-wiki pattern into a portable, interoperable format. This is a vendor-neutral, agent- and human-friendly standard for representing the metadata, context, and curated knowledge that modern AI systems need. ... We have also updated Google Cloud's Knowledge Catalog to be able to ingest Open Knowledge Format and serve it to our agents.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E2",
+    "url": "https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf",
+    "title": "knowledge-catalog/okf README (GoogleCloudPlatform)",
+    "snippet": "Official OKF README. Lists intended producers (Google ADK, LangChain, export pipelines from Dataplex/Unity Catalog/Collibra) and consumers (Obsidian, Notion, MkDocs, search index, graph viewer). 'Why OKF' section enumerates what the format unlocks.",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "exa",
+    "quote": "Anyone can produce OKF — humans authoring by hand, agents built on any framework (Google ADK, LangChain, custom), export pipelines from existing catalogs (Dataplex, Unity Catalog, Collibra, ...), or scripts walking a database. Anyone can serve and consume OKF — a static file server, a knowledge-management UI (Obsidian, Notion, MkDocs), an LLM loading files into context, a search index, or a graph viewer like the one bundled in this repo.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E3",
+    "url": "https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md",
+    "title": "OKF v0.1 SPEC.md (GoogleCloudPlatform/knowledge-catalog)",
+    "snippet": "The normative spec. Minimal by design: directory of markdown files with YAML frontmatter, no schema registry, no central authority, no required tooling.",
+    "retrieved": "2026-07-17",
+    "credibility": "high",
+    "provider": "exa",
+    "quote": "The format is intentionally minimal: a directory of markdown files with YAML frontmatter. There is no schema registry, no central authority, and no required tooling. If you can `cat` a file, you can read OKF; if you can `git clone` a repo, you can ship it.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E4",
+    "url": "https://github.com/thisismydesign/okf-lint",
+    "title": "thisismydesign/okf-lint (npm @thisismydesign/okf-lint)",
+    "snippet": "Third-party Node.js/ESM linter for OKF bundles. Reports errors on mandatory conformance violations (missing type field) and warnings on recommended-file omissions (no index.md).",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "A linter for the Open Knowledge Format (OKF) — Google's open, human- and agent-friendly format for knowledge catalogs. ... Reports errors when a bundle violates a mandatory OKF conformance requirement (e.g. a concept document is missing its `type` field).",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E5",
+    "url": "https://pypi.org/project/okft/",
+    "title": "okft v0.1.0 (PyPI) — OKF validator + MCP server",
+    "snippet": "Python package (author Poorva, Apache-2.0, uploaded 2026-07-14) that lints an OKF bundle against v0.1 and serves it to MCP-capable agents (Claude, Gemini CLI, Cursor) as navigation tools.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "okft lint — validate a bundle against the OKF v0.1 spec, plus hygiene checks (broken links, orphaned concepts, malformed timestamps). Wire it into CI so your knowledge bundle can't rot silently. okft serve — expose a bundle to any MCP-capable AI agent (Claude, Gemini CLI, Cursor, ...) as a set of navigation tools: overview, read, search, list.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E6",
+    "url": "https://pypi.org/project/okf-schema/",
+    "title": "okf-schema v0.9.0 (PyPI) — CLI + library with JSONSchema frontmatter validation",
+    "snippet": "Python CLI/library that validates OKF frontmatter with per-type JSONSchema files stored in the bundle under _schema/, dispatched by the concept's type field; preserves YAML comments on format.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "okf-schema is a CLI tool and Python library for working with OKF (Open Knowledge Format) bundles with JSONSchema validation of the frontmatter metadata, and formatting capabilities while preserving comments. ... The `type` field in a concept's frontmatter tells okf-schema which schema file to load.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E7",
+    "url": "https://pypi.org/project/okflint/0.3.0/",
+    "title": "okflint v0.3.0 (PyPI) — 'the Ruff of documentation'",
+    "snippet": "MIT-licensed deterministic OKF compliance linter (Python >=3.12). validate subcommand is a normative gate (exit 0/1) for pre-commit hooks and CI.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "The Ruff of documentation. A deterministic compliance linter for documentary bases in Open Knowledge Format (OKF). ... okflint validate — normative compliance gate. exit 0 if conformant, exit 1 otherwise. Designed for pre-commit hooks and CI.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E8",
+    "url": "https://github.com/okfcli/okf",
+    "title": "okfcli/okf — Go CLI toolkit for OKF (vendor-neutral alternative)",
+    "snippet": "Go single-binary OKF toolkit (Apache-2.0, created 2026-06-18, 3 stars). Explicitly positions itself against Google's Python+Gemini+BigQuery reference implementation as vendor-neutral.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "okf creates, validates, lints, indexes, searches, and inspects OKF knowledge bundles. One static binary, no runtime dependencies... Google's reference OKF implementation is Python + Gemini + BigQuery — vendor-locked to Google's cloud. okf is the vendor-neutral alternative: a single Go binary that works anywhere, speaks JSON natively, and is designed to be driven by any AI agent on any provider.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E9",
+    "url": "https://witscode.com/okf-conformance",
+    "title": "OKF Conformance Suite (WitsCode)",
+    "snippet": "Third-party free open-source conformance suite that pass/fail-checks any OKF bundle locally, exit 0/1 for CI gating.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "OKF conformance is whether a knowledge bundle correctly follows the Open Knowledge Format, Google Cloud's open spec for agent-readable markdown. WitsCode maintains a free, open-source conformance suite that checks any OKF bundle and tells you, pass or fail, whether it follows the spec. It runs locally and needs no account.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E10",
+    "url": "https://pypi.org/project/okf-cli/0.3.1/",
+    "title": "okf-cli v0.3.1 (PyPI) — markdown-to-OKF converter",
+    "snippet": "Third-party converter: turns plain markdown into OKF-conformant bundles, generating frontmatter, type, timestamps, and index files; lenient parsing.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "Converts plain markdown into OKF-conformant knowledge bundles. Domain experts write '# Title' then '> description' — okf bundle generates frontmatter, type, timestamps, and index files.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E11",
+    "url": "https://signb.ee/blog/multi-protocol-future-mcp-skills-llmstxt",
+    "title": "MCP vs llms.txt vs Agent Skills: Complete Comparison (2026)",
+    "snippet": "Comparable-formats landscape: positions llms.txt (static description), OpenAPI (machine-readable spec), Agent Skills (structured capability), MCP servers (runtime tools) as complementary layers.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "Four protocols make APIs discoverable by AI agents: llms.txt (static description), OpenAPI (machine-readable spec), Agent Skills (structured capability), and MCP servers (runtime tools). Each serves a different layer.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E12",
+    "url": "https://devtoollab.com/blog/agent-skills-open-standard-guide",
+    "title": "Agent Skills Explained: SKILL.md vs MCP (DevToolLab, 2026)",
+    "snippet": "Comparable format detail: Agent Skills is a folder convention (SKILL.md + files) whose entire spec is two required YAML fields plus a markdown body — structurally parallel to OKF's single-required-field minimalism.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "The reason is boring in the best way: the entire spec is two required YAML fields and a Markdown body. No JSON-RPC, no auth handshake, no server process to keep alive. A competent engineer can add support to any agent tool in an afternoon. ... Agent Skills [is] A folder convention (SKILL.md + files).",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E13",
+    "url": "https://agent-ready.dev/complete-guide-to-agent-readability",
+    "title": "The complete guide to agent readability (Agent Ready)",
+    "snippet": "Comparable discoverability-signal landscape: AGENTS.md skill files, JSON-LD/schema.org metadata, and MCP well-known cards as stackable agent-readability signals.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "Metadata — canonical link, html lang, og:title, og:description, meta description > 50 chars, and at least one JSON-LD block. Article, FAQPage, HowTo, and BreadcrumbList are the four schema.org types that earn the most citation lift. ... MCP (Model Context Protocol) — discovery for AI clients calling remote tools and resources. Card at /.well-known/mcp.json per SEP-1649.",
+    "cluster": "ecosystem-interop"
+  },
+  {
+    "id": "E14",
+    "url": "https://medium.com/google-cloud/open-knowledge-format-portable-digital-map-of-your-data-as-code-45703ac491a0",
+    "title": "Open Knowledge Format — portable digital map of your data as code (Medium, Google Cloud Community)",
+    "snippet": "Community explainer (Yurii Serhiichuk, Jun 2026). Emphasizes that the spec enforces only the `type` field — standardize the smallest interoperability surface.",
+    "retrieved": "2026-07-17",
+    "credibility": "medium",
+    "provider": "exa",
+    "quote": "The spec only enforces one field to be explicitly provided — `type`, and that's exactly the trick: standardize only the smallest possible interoperability surface while leaving everything else to the people producing the data.",
+    "cluster": "ecosystem-interop"
+  }
+]

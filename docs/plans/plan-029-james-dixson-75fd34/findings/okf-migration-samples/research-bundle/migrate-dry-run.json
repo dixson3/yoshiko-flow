@@ -1,0 +1,87 @@
+{
+  "command": "migrate",
+  "dir": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/research-bundle/after",
+  "dry_run": true,
+  "skill": "yf-research",
+  "member": "OKF-RESEARCH",
+  "changes": [
+    {
+      "op": "rename",
+      "path": "_index.md",
+      "to": "index.md"
+    },
+    {
+      "op": "scaffold-log",
+      "path": "log.md",
+      "reason": "member scaffolds log.md"
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "Summary.md",
+      "keys": {
+        "type": "Research Report",
+        "okf_spec": "OKF-RESEARCH",
+        "research_project": "001-okf-compliance-delta \u00b7 **Phase:** synthesize \u00b7 **Date:** 2026-07-17"
+      },
+      "mirrored_fields": [
+        "research_project"
+      ]
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "artifacts/cluster-ecosystem-interop.md",
+      "keys": {
+        "type": "Research Artifact",
+        "okf_spec": "OKF-RESEARCH"
+      }
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "artifacts/cluster-local-artifacts.md",
+      "keys": {
+        "type": "Research Artifact",
+        "okf_spec": "OKF-RESEARCH"
+      }
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "artifacts/cluster-okf-spec-primary.md",
+      "keys": {
+        "type": "Research Artifact",
+        "okf_spec": "OKF-RESEARCH",
+        "cluster": "okf-spec-primary \u00b7 **Method:** direct (primary-source retrieval) \u00b7 **Retrieved:** 2026-07-17"
+      },
+      "mirrored_fields": [
+        "cluster"
+      ]
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "artifacts/critique.md",
+      "keys": {
+        "type": "Research Artifact",
+        "okf_spec": "OKF-RESEARCH"
+      }
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "artifacts/triangulation.md",
+      "keys": {
+        "type": "Research Artifact",
+        "okf_spec": "OKF-RESEARCH",
+        "phase": "triangulate \u00b7 **Method:** cross-cluster cross-reference (27 sources, 3"
+      },
+      "mirrored_fields": [
+        "phase"
+      ]
+    },
+    {
+      "op": "add-frontmatter",
+      "path": "sources.md",
+      "keys": {
+        "type": "Reference",
+        "okf_spec": "OKF-RESEARCH"
+      }
+    }
+  ]
+}

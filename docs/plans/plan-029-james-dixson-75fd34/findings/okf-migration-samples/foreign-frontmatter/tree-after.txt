@@ -1,0 +1,3 @@
+./index.md
+./log.md
+./README.md
