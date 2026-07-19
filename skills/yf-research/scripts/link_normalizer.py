@@ -11,8 +11,13 @@ Operations:
     and artifacts/*.md to [ID](sources.md#<slug>) GFM links. Only rewrites IDs
     that exist in the topic's source set; annotations like [uncertain],
     [gap ...] are left untouched.
-  - link-index: rewrite the Artifact column of _index.md to GFM links.
-  - all: run all three in order.
+  - all: run build-sources then link-citations, in order.
+
+The legacy `link-index` command (which rewrote the Artifact column of the old
+`_index.md` timestamped GFM table into links) has been retired: the OKF bundle
+listing is now `index.md`, a bullet listing emitted by `index_manager.py` /
+`okf.add_index_entry` that already carries `[artifact](path)` GFM links, so no
+post-hoc table-cell link rewriting is needed (REQ-PORT-009 / OKF-EXTENSION §5).
 
 Output is plain GFM that lints clean under the yf-markdown-lint skill.
 Intended to be idempotent; safe to re-run — already-GFM links are not
@@ -165,36 +170,6 @@ def rewrite_citations(text: str, known_ids: set[str]) -> tuple[str, int]:
     return new, count
 
 
-INDEX_ROW_RE = re.compile(
-    r"^\|\s*(?P<ts>[^|]+?)\s*\|\s*(?P<phase>[^|]+?)\s*\|\s*(?P<artifact>[^|]+?)\s*\|\s*(?P<desc>[^|]*?)\s*\|\s*$"
-)
-
-
-def rewrite_index(text: str) -> tuple[str, int]:
-    """Turn plain artifact cell into a GFM link when it resolves to a .md file."""
-    count = 0
-    out_lines = []
-    for line in text.splitlines():
-        m = INDEX_ROW_RE.match(line)
-        if not m:
-            out_lines.append(line)
-            continue
-        artifact = m.group("artifact")
-        # "](" means the cell is already a GFM link — skip for idempotency.
-        if "](" in artifact or artifact in ("Artifact", "(none)", "-"):
-            out_lines.append(line)
-            continue
-        if artifact.endswith(".md"):
-            note = artifact[:-3]
-            link = f"[{note}]({artifact})"
-            new = f"| {m.group('ts')} | {m.group('phase')} | {link} | {m.group('desc')} |"
-            out_lines.append(new)
-            count += 1
-        else:
-            out_lines.append(line)
-    return "\n".join(out_lines) + ("\n" if text.endswith("\n") else ""), count
-
-
 @click.group()
 def cli():
     """Normalize research topic links to plain GFM."""
@@ -239,27 +214,12 @@ def link_citations(topic_dir: Path):
     click.echo(f"{topic_dir.name}: {total} citations linked across {len(targets)} files")
 
 
-@cli.command("link-index")
-@click.argument("topic_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
-def link_index(topic_dir: Path):
-    """Rewrite _index.md Artifact column to GFM links."""
-    idx = topic_dir / "_index.md"
-    if not idx.exists():
-        click.echo(f"{topic_dir.name}: no _index.md — skipped")
-        return
-    new, n = rewrite_index(idx.read_text())
-    if n:
-        idx.write_text(new)
-    click.echo(f"{topic_dir.name}: {n} artifact cells GFM-linked")
-
-
 @cli.command("all")
 @click.argument("topic_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.pass_context
 def all_cmd(ctx, topic_dir: Path):
     ctx.invoke(build_sources, topic_dir=topic_dir)
     ctx.invoke(link_citations, topic_dir=topic_dir)
-    ctx.invoke(link_index, topic_dir=topic_dir)
 
 
 if __name__ == "__main__":

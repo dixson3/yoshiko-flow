@@ -30,11 +30,11 @@ REQ-CLI-006: `plan_manager.py` exposes 10 subcommands: `check`, `json-get`, `ini
 Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. `audit` was added to support the portability precondition check at intake and the `/yf-plan capture` maintenance subcommand. `record-epic` and `resume-scan` were added for coordinator crash recovery (#2): the first persists the plan↔epic linkage at intake, the second reports it back for the resume guard. The companion rule is installed by the repo installer (`install.sh`), not by `init`, so no `rules-dir` subcommand is needed; preflight locates the installed rule internally via `_rule_candidates()`/`_check_rule()`.
 Verification: `grep '@cli.command' skills/yf-plan/scripts/plan_manager.py` returns 10 matches.
 
-REQ-CLI-012: `plan_manager.py record-epic <plan-dir> <epic-id>` persists the plan↔epic linkage in plan.md: an `**Epic:** <id>` header field (inserted after `**Status:**`, updated in place if present) and an inert `- DATE intake: epic <id> poured` phase-log line. It is idempotent and the intake line matches neither the `review:` nor `scoping:` audit regexes.
-Rationale: The resume guard needs a deterministic epic pointer that survives a crash. The inert phase-log line records the linkage without perturbing review/scoping counts the portability audit keys on.
-Verification: `record_epic` in plan_manager.py writes the `**Epic:**` field and the `intake:` line; SKILL.md §4.2 invokes it after the pour.
+REQ-CLI-012: `plan_manager.py record-epic <plan-dir> <epic-id>` persists the plan↔epic linkage in the bundle: the epic id in plan.md's header metadata — dual-written as the `epic` frontmatter key **and** the `**Epic:** <id>` header line (REQ-DATA-015; inserted after `**Status:**`, updated in place if present) — and an inert `- intake: epic <id> poured` entry appended to `log.md` under the current date heading (REQ-DATA-012). It is idempotent and the intake entry matches neither the `review:` nor `scoping:` audit tokens.
+Rationale: The resume guard needs a deterministic epic pointer that survives a crash. The inert `log.md` entry records the linkage without perturbing the review/scoping counts the portability audit keys on.
+Verification: `record_epic` in plan_manager.py writes both the `epic` frontmatter key and the `**Epic:**` header line and the `log.md` `intake:` entry; SKILL.md §4.2 invokes it after the pour.
 
-REQ-CLI-013: `plan_manager.py resume-scan <plan-dir> [--json-output|--json]` resolves the plan's epic (plan.md `**Epic:**` field, then `metadata.plan_dir` fallback) and returns `{plan_dir, epic_id, epic_source (plan_md|bd_metadata|none), found, counts, total, stuck, open_work_remaining}`. `stuck` lists `in_progress`/claimed descendant beads. bd JSON is parsed defensively (multi-document tolerant). Default output is a human-readable summary; `--json`/`--json-output` emits the structured object.
+REQ-CLI-013: `plan_manager.py resume-scan <plan-dir> [--json-output|--json]` resolves the plan's epic (plan.md `epic` frontmatter key, then `**Epic:**` header line, then `metadata.plan_dir` fallback — REQ-DATA-015) and returns `{plan_dir, epic_id, epic_source (plan_md|bd_metadata|none), found, counts, total, stuck, open_work_remaining}`. `stuck` lists `in_progress`/claimed descendant beads. bd JSON is parsed defensively (multi-document tolerant). Default output is a human-readable summary; `--json`/`--json-output` emits the structured object.
 Rationale: SKILL.md §5.2's resume guard and §4.2's duplicate-pour guard branch on `found`; the coordinator's orphan sweep consumes `stuck`. A machine-readable shape is required for both.
 Verification: `_resume_scan`/`resume_scan` in plan_manager.py construct the documented keys; `_parse_bd_json` tolerates concatenated documents; SKILL.md §5.2 and §4.2 consume the JSON via `json-get`.
 
@@ -46,7 +46,7 @@ REQ-CLI-008: `plan_manager.py list --json-output` returns an array of objects wi
 Rationale: SKILL.md Phase 5.1 and Phase 1.1 filter on `status` to find actionable plans.
 Verification: `list_plans` function in plan_manager.py constructs dicts with these 4 keys.
 
-REQ-CLI-009: `plan_manager.py init <objective>` returns JSON with keys `plan_id`, `plan_dir`, `plan_md`, `readme_md`, `context_md`, `references_dir`, `reviews_dir`.
+REQ-CLI-009: `plan_manager.py init <objective>` returns JSON with keys `plan_id`, `plan_dir`, `plan_md`, `index_md`, `context_md`, `references_dir`, `reviews_dir`. The orientation surface is the OKF-reserved `index.md` (replacing the legacy `README.md`, REQ-PORT-001), so the key is `index_md`.
 Rationale: SKILL.md Phase 1.2 extracts `plan_id` and `plan_dir` for downstream operations. The portability-scaffolding keys let SKILL.md verify all contract seed files were created.
 Verification: `init` function in plan_manager.py merges `seed_portability_scaffolding` return into the result dict.
 

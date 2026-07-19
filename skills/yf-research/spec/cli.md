@@ -30,7 +30,7 @@ Verification: SKILL.md Pre-flight `ignored` branch; the `yf preflight` kernel re
 ## research_manager.py CLI
 
 REQ-CLI-006: `research_manager.py` exposes exactly 2 subcommands: `json-get`, `record-epic`.
-Rationale: The manager is deliberately narrow. Preflight moved to the `yf preflight` kernel (plan-010), so the manager carries only a defensive `json-get` plus `record-epic` (the idempotent epic-pointer writer, ported from `plan_manager.py`). Research-directory and `_index.md` state stays in `index_manager.py`; citation/report tooling in `link_normalizer.py` and `credibility_scorer.py`.
+Rationale: The manager is deliberately narrow. Preflight moved to the `yf preflight` kernel (plan-010), so the manager carries only a defensive `json-get` plus `record-epic` (the idempotent epic-pointer writer, ported from `plan_manager.py`). Research-directory and `index.md`/`log.md` state stays in `index_manager.py`; citation/report tooling in `link_normalizer.py` and `credibility_scorer.py`.
 Verification: `grep -c '@cli.command' scripts/research_manager.py` == 2.
 
 REQ-CLI-007: `research_manager.py record-epic <research_dir> <epic_id>` writes/updates a single top-level `epic: <id>` line in `<research_dir>/plan.yaml` (replacing the commented `# epic: <id>` placeholder or an existing `epic:` line in place, else appending) and emits a JSON object with keys `epic_id` and `epic_field` (`written` when a line was replaced, `appended` when none existed). It is idempotent — re-running for the same epic leaves `plan.yaml` byte-identical.

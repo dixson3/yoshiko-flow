@@ -61,6 +61,7 @@ def test_real_assets_registered():
     assert "defensive json extractor" in region_names
     assert "renderable-fence registry" in region_names
     assert "manifest_update.py" in whole_names
+    assert "okf.py" in whole_names
 
 
 def test_canonical_body_renderable_fences():

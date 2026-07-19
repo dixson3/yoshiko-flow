@@ -33,6 +33,10 @@
 #                                                branch-of-a-branch)
 #   * .yf-plan.local.json carries "landing-strategy"
 #   * plan.md carries a "**Fingerprint:**" header field (written at APPROVE)
+#   * the plan bundle is born OKF: reserved index.md (not README.md) + reserved
+#     newest-first log.md (not an in-plan.md **Phase log:** block), and plan.md
+#     dual-writes a typed YAML frontmatter block (type: Plan / okf_spec: OKF-PLAN)
+#     alongside the legacy **Field:** header lines
 
 set -euo pipefail
 
@@ -216,7 +220,7 @@ cmd_verify() {
     esac
   fi
 
-  # --- Fingerprint header in plan.md ----------------------------------------
+  # --- OKF bundle layout + Fingerprint header in plan.md --------------------
   local plan_md="" _search_roots=()
   [ -d "${project}/docs/plans" ] && _search_roots+=("${project}/docs/plans")
   [ -d "${project}/Incubator" ] && _search_roots+=("${project}/Incubator")
@@ -224,8 +228,45 @@ cmd_verify() {
     plan_md="$(find "${_search_roots[@]}" -name plan.md -path "*${plan_id:-}*" 2>/dev/null | head -1 || true)"
   fi
   if [ -n "${plan_md}" ] && [ -f "${plan_md}" ]; then
+    local plan_dir; plan_dir="$(dirname "${plan_md}")"
+
+    # OKF layout: orientation is the reserved index.md listing, NOT a README.md.
+    if [ -f "${plan_dir}/index.md" ]; then
+      _ok "plan bundle carries OKF index.md (not README.md)"
+    else
+      _bad "plan bundle missing OKF index.md (${plan_dir})"
+    fi
+    if [ -f "${plan_dir}/README.md" ]; then
+      _bad "plan bundle still carries a legacy README.md (${plan_dir}/README.md)"
+    else
+      _ok "plan bundle has no legacy README.md"
+    fi
+
+    # OKF layout: the phase log is the reserved, newest-first log.md — NOT an
+    # in-plan.md **Phase log:** block.
+    if [ -f "${plan_dir}/log.md" ]; then
+      _ok "plan bundle carries reserved log.md"
+    else
+      _bad "plan bundle missing reserved log.md (${plan_dir})"
+    fi
+    if grep -q '^\*\*Phase log:\*\*' "${plan_md}"; then
+      _bad "plan.md still carries a legacy **Phase log:** block (should live in log.md)"
+    else
+      _ok "plan.md carries no legacy **Phase log:** block"
+    fi
+
+    # OKF dual-write: plan.md leads with a typed YAML frontmatter block
+    # (type: Plan / okf_spec: OKF-PLAN) alongside the legacy **Field:** lines.
+    if [ "$(head -1 "${plan_md}")" = "---" ] \
+       && grep -q '^type: Plan$' "${plan_md}" \
+       && grep -q '^okf_spec: OKF-PLAN$' "${plan_md}"; then
+      _ok "plan.md carries OKF frontmatter (type: Plan / okf_spec: OKF-PLAN)"
+    else
+      _bad "plan.md missing OKF frontmatter (type: Plan / okf_spec: OKF-PLAN)"
+    fi
+
     if grep -q '^\*\*Fingerprint:\*\*' "${plan_md}"; then
-      _ok "plan.md carries **Fingerprint:** header ($(basename "$(dirname "${plan_md}")"))"
+      _ok "plan.md carries **Fingerprint:** header ($(basename "${plan_dir}"))"
     else
       _bad "plan.md missing **Fingerprint:** header (${plan_md})"
     fi

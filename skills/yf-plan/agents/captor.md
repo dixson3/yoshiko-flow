@@ -41,7 +41,7 @@ When `retro` is set, mine the **current session's conversation** for context tha
 
 Produce draft content for each failing contract item the audit reported:
 
-- **`README.md`** — orientation paragraph, file map, status pointer to `plan.md`, reading order, portability notice. Use the plan's objective as the headline.
+- **`index.md`** — the OKF-reserved bundle listing (replaces the legacy `README.md`). A progressive-disclosure listing: `okf_version: 0.1` frontmatter, a `#` heading (the plan id), the objective as a one-line blockquote, and `- [child](path) - description` bullets enumerating the bundle members (`plan.md`, `context.md`, `log.md`, `references/`, `reviews/`, `findings/`, `diagrams/`, `assets/`). Fold the old file-map + reading-order prose into the bullet descriptions — do **not** emit `File map` / `Reading order` headings. Being an OKF **reserved** file, `index.md` carries **no `type` and no `okf_spec`**.
 - **`context.md`** — required sections: Project environment, Tool inventory, Paths, Operator identity, Runtime assumptions. Optional: Adjacent-concept glossary, Additional context. Tool inventory must include a `<!-- snapshot: host=<hostname> date=<YYYY-MM-DD> -->` header. Probe tools via `--version` with a short timeout; record missing tools as `not present`.
 - **`motivation.md`** OR a `## Motivation` section in `plan.md` — why this plan exists, derived from objective, upstream issue bodies, and phase-log context. One of the two must exist; draft whichever is absent.
 - **`references/upstream-<N>.md`** — one per missing non-exclude row in plan.md's Upstream Issues table. Fetch the full body via `gh issue view`. Include number, title, URL, state, labels, full body.
@@ -68,6 +68,7 @@ Return structured output suitable for operator review before any write:
 ## Rules
 
 - **Never write files.** The main session writes after operator approval.
+- **OKF frontmatter on non-reserved concept drafts.** Every non-reserved bundle `.md` drafted (`context.md`, `references/upstream-<N>.md`, `reviews/pass-<N>.md`, `motivation.md`) carries a YAML frontmatter block with a non-empty `type` and `okf_spec: OKF-PLAN` above the first `## ` (`context.md`→`Environment`, `references/*`→`Reference`, `reviews/*`→`Review`). The two OKF-**reserved** files `index.md` and `log.md` are exempt — never give them `type`/`okf_spec`.
 - **Never invent reviewer verdicts.** If the phase log does not state the verdict or concerns, flag the review as inconclusive and ask the operator to supply the missing content.
 - **Never fabricate tool versions.** Probe in the current environment; record absent tools as `not present`.
 - **Preserve existing files.** If an audit item is `warn` (grandfathered) and a file already exists, do not draft a replacement.

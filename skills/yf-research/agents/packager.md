@@ -36,7 +36,7 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
    system, a process/flow, a taxonomy, or a comparison with >2 interacting parts, author a d2
    diagram per the `diagram-authoring` skill into `${research_dir}/diagrams/<slug>.{d2,png}`,
    reference the PNG from `Summary.md` (`![<alt>](diagrams/<slug>.png)`), and register it in
-   `_index.md` (step 5). Always attempt at least one for a non-trivial report; the operator may
+   `index.md` (step 5). Always attempt at least one for a non-trivial report; the operator may
    delete it. Degrade gracefully (prose only) if the skill or `d2` is absent — never add a
    `depends-on-skill` edge for it.
 4. Generate `sources.md` from `sources.json` so GFM citation anchors resolve, and normalize any remaining plain-bracket citations:
@@ -44,7 +44,7 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
    uv run ${SKILL_DIR}/scripts/link_normalizer.py all "${research_dir}"
    ```
    This writes `sources.md` (one `## <ID>` heading per source) and rewrites `[ID]` citation patterns in `Summary.md` and `artifacts/*.md` to `[ID](sources.md#id)` GFM links. Re-running is safe and idempotent.
-5. Update `_index.md` with all artifacts (including any `diagrams/<slug>.png` from step 3):
+5. Update `index.md` with all artifacts (including any `diagrams/<slug>.png` from step 3):
    ```bash
    uv run ${SKILL_DIR}/scripts/index_manager.py add "${research_dir}" "<phase>" "<artifact>" "<description>"
    ```

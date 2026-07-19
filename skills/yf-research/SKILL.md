@@ -140,7 +140,7 @@ Handle the sub-agent result:
 `research_manager.py` is intentionally narrow — a defensive `json-get`. The preflight
 (config gating + state caching + installed-rule hash) moved to the `yf preflight` kernel
 (plan-010). Research-directory and
-`_index.md` state stays in `index_manager.py`. After editing `protocols/RESEARCH.md`,
+`index.md`/`log.md` state stays in `index_manager.py`. After editing `protocols/RESEARCH.md`,
 refresh the hash: `uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols`,
 and commit the rule + `manifest.json` together.
 
@@ -249,7 +249,7 @@ mkdir -p "${research_dir}/scripts" "${research_dir}/artifacts" "${research_dir}/
 # Write plan.yaml to ${research_dir}/plan.yaml
 ```
 
-2. **Initialize `_index.md`:**
+2. **Initialize `index.md` + `log.md`:**
 
 ```bash
 uv run ${SKILL_DIR}/scripts/index_manager.py init "${research_dir}" "${topic}"
@@ -424,14 +424,14 @@ authorization.
 
 On `/yf-research status [<idx>]`:
 
-- with `<idx>`: show `bd epic status <epic-id>` and the `_index.md` for that topic.
+- with `<idx>`: show `bd epic status <epic-id>` and the `index.md` for that topic.
 - without: list research dirs across both roots with epic status —
 
 ```bash
 for dir in docs/research/[0-9]*-*/ Incubator/*/research/[0-9]*-*/; do
   [ -d "$dir" ] || continue
   echo "## $(basename "$dir")"
-  cat "${dir}/_index.md" 2>/dev/null || echo "(no index)"
+  cat "${dir}/index.md" 2>/dev/null || echo "(no index)"
   echo
 done
 ```
@@ -439,7 +439,7 @@ done
 ## Markdown output convention
 
 Every markdown artifact this skill writes (`Summary.md`, `sources.md`, `artifacts/*.md`,
-`_index.md`, the packaged report) is plain **GFM** — never Obsidian `[[wikilinks]]` or
+`index.md`, the packaged report) is plain **GFM** — never Obsidian `[[wikilinks]]` or
 `![[embeds]]`. Citations are GFM links into `sources.md` (`[ID](sources.md#id)`, lowercase
 anchor) — see `agents/synthesizer.md` and `scripts/link_normalizer.py`. Use GFM tables with
 explicit alignment markers (`:--` left, `:-:` center, `--:` right) and variable, content-sized

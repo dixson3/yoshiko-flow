@@ -3,6 +3,7 @@
 # dependencies = [
 #     "click>=8.1",
 #     "pytest>=8",
+#     "pyyaml>=6",
 # ]
 # ///
 """Unit tests for the plan_manager.py worktree verb cluster (plan-009 Issue 1.4).
@@ -25,6 +26,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -673,6 +675,820 @@ def test_fingerprint_content_edit_flips(plan_fp):
     p = plan_fp / "plan.md"
     p.write_text(p.read_text().replace("Original objective.", "Changed objective."))
     assert pm._fingerprint_status(plan_fp)["stale_approved"] is True
+
+
+# --- Fingerprint stability under OKF adoption (Issue 3.6 / REQ-PORT-040, REQ-OKF-
+# MIG-003): every metadata surface sits above the first `## `, so adding frontmatter,
+# relocating the phase log, and dual-writing both field surfaces are all hash-neutral.
+
+def test_fingerprint_adding_frontmatter_block_is_hash_neutral(plan_fp):
+    # (1) Adding a YAML frontmatter block above the first `## ` does not change the
+    # content hash — OKF adoption is hash-neutral by construction (REQ-OKF-010).
+    import okf as _okf
+    before = pm._plan_content_fingerprint(plan_fp)
+    _okf.write_frontmatter(
+        plan_fp / "plan.md",
+        {"type": "Plan", "okf_spec": "OKF-PLAN", "status": "approved"},
+    )
+    text = (plan_fp / "plan.md").read_text()
+    assert text.lstrip().startswith("---")                     # frontmatter present
+    assert text.index("okf_spec") < text.index("## Objective")  # above the first `## `
+    assert pm._plan_content_fingerprint(plan_fp) == before
+
+
+def test_fingerprint_removing_phase_log_block_is_hash_neutral(plan_fp):
+    # (2) Relocating the **Phase log:** block out of plan.md (Issue 3.4 -> log.md) is
+    # hash-neutral: the block lives above the first `## ` (REQ-PORT-040).
+    before = pm._plan_content_fingerprint(plan_fp)
+    p = plan_fp / "plan.md"
+    p.write_text(p.read_text().replace(
+        "**Phase log:**\n- 2026-07-02 scoping: init\n", ""))
+    assert "**Phase log:**" not in p.read_text()
+    assert pm._plan_content_fingerprint(plan_fp) == before
+
+
+def test_fingerprint_dual_write_both_surfaces_is_hash_neutral(plan_fp):
+    # (3) The dual-write of `**Field:**` + frontmatter (one model, both surfaces)
+    # does not change the fingerprint — both surfaces are self-excluded.
+    before = pm._plan_content_fingerprint(plan_fp)
+    pm._write_plan_fields(plan_fp, {"status": "approved", "fingerprint": "deadbeef"})
+    text = (plan_fp / "plan.md").read_text()
+    # both surfaces landed (dual-write consistency), both above the first `## `
+    assert "**Status:** approved" in text
+    fm, _ = __import__("okf").read_frontmatter(text)
+    assert fm.get("status") == "approved"
+    assert text.index("**Status:**") < text.index("## Objective")
+    assert pm._plan_content_fingerprint(plan_fp) == before
+
+
+# ---------------------------------------------------------------------------
+# Dual-mode header-field accessor (Issue 3.2 / REQ-DATA-015 / REQ-OKF-020/021)
+# ---------------------------------------------------------------------------
+
+_LEGACY_PLAN = """# Plan: dual test
+
+**ID:** plan-777
+**Author:** tester
+**Created:** 2026-07-01
+**Status:** review
+**Epic:** yf-mol-z9
+**Phase log:**
+- 2026-07-01 scoping: init
+
+## Objective
+Body.
+"""
+
+_FRONTMATTER_PLAN = """---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-777
+author: tester
+created: 2026-07-01
+status: review
+epic: yf-mol-z9
+---
+# Plan: dual test
+
+## Objective
+Body.
+"""
+
+_DUAL_PLAN = """---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-777
+author: tester
+created: 2026-07-01
+status: review
+epic: yf-mol-z9
+---
+# Plan: dual test
+
+**ID:** plan-777
+**Author:** tester
+**Created:** 2026-07-01
+**Status:** review
+**Epic:** yf-mol-z9
+**Phase log:**
+- 2026-07-01 scoping: init
+
+## Objective
+Body.
+"""
+
+
+def test_read_field_all_three_forms_identical():
+    # A **Field:**-only (legacy), a frontmatter-only, and a dual plan must read
+    # IDENTICALLY through the single accessor (REQ-DATA-015 / REQ-OKF-021).
+    for key, want in [("status", "review"), ("epic", "yf-mol-z9"),
+                      ("id", "plan-777"), ("author", "tester"),
+                      ("created", "2026-07-01")]:
+        a = pm._read_plan_field(_LEGACY_PLAN, key)
+        b = pm._read_plan_field(_FRONTMATTER_PLAN, key)
+        c = pm._read_plan_field(_DUAL_PLAN, key)
+        assert a == b == c == want, (key, a, b, c)
+
+
+def test_read_field_frontmatter_wins_over_stale_field_line():
+    # Frontmatter value overrides a divergent legacy **Field:** line (REQ-OKF-021).
+    stale = _DUAL_PLAN.replace("status: review", "status: approved")
+    assert pm._read_plan_field(stale, "status") == "approved"
+
+
+def test_read_field_absent_returns_none():
+    assert pm._read_plan_field(_LEGACY_PLAN, "fingerprint") is None
+
+
+def test_read_status_epic_fp_route_through_accessor():
+    assert pm._read_plan_status(_FRONTMATTER_PLAN) == "review"
+    assert pm._read_plan_epic_field(_FRONTMATTER_PLAN) == "yf-mol-z9"
+    assert pm._read_plan_fingerprint_field(_FRONTMATTER_PLAN) is None
+
+
+def test_semantic_accessors_identical_across_all_three_forms():
+    # Consolidated dual-representation read (Issue 3.6, extends 3.2): the SEMANTIC
+    # accessors (status/epic) resolve a `**Field:**`-only (legacy), a frontmatter-only,
+    # and a dual plan IDENTICALLY — not just the low-level `_read_plan_field`.
+    for text in (_LEGACY_PLAN, _FRONTMATTER_PLAN, _DUAL_PLAN):
+        assert pm._read_plan_status(text) == "review", text
+        assert pm._read_plan_epic_field(text) == "yf-mol-z9", text
+        assert pm._read_plan_fingerprint_field(text) is None, text
+
+
+def _both_surfaces(plan_dir, key, label):
+    """Return (frontmatter_value, field_line_value) for a header key."""
+    import okf as _okf  # vendored sibling, importable because pm added scripts/ to path
+    text = (plan_dir / "plan.md").read_text()
+    fm, _ = _okf.read_frontmatter(text)
+    line_val = None
+    for ln in text.splitlines():
+        if ln.startswith(f"**{label}:**"):
+            line_val = ln.split(f"**{label}:**", 1)[1].strip()
+            break
+    return fm.get(key), line_val
+
+
+def test_write_plan_fields_emits_both_surfaces(tmp_path):
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN)  # frontmatter-free start
+    pm._write_plan_fields(pd, {"status": "approved"})
+    # Both surfaces present and in sync for the updated field AND the pre-existing
+    # identity fields (dual-write consistency — never one surface alone).
+    for key, label, want in [("status", "Status", "approved"),
+                             ("id", "ID", "plan-777"),
+                             ("epic", "Epic", "yf-mol-z9")]:
+        fm_v, line_v = _both_surfaces(pd, key, label)
+        assert fm_v == line_v == want, (key, fm_v, line_v)
+
+
+def test_write_plan_fields_preserves_phase_log(tmp_path):
+    # The 3.2 dual-writer preserves a legacy in-plan.md **Phase log:** block verbatim
+    # (it is not a PLAN_FIELD_LABELS label); Issue 3.4 does not touch that path. With
+    # no log.md present, the relocated reader falls back to the legacy block.
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN)
+    pm._write_plan_fields(pd, {"status": "approved"})
+    text = (pd / "plan.md").read_text()
+    assert "**Phase log:**" in text
+    assert "- 2026-07-01 scoping: init" in text
+    # No log.md → reader falls back to the in-plan.md phase-log block.
+    assert not (pd / "log.md").exists()
+    assert pm._plan_first_scoping_date(pd) == "2026-07-01"
+
+
+def test_update_status_dual_writes(tmp_path):
+    from click.testing import CliRunner
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN)
+    r = CliRunner().invoke(pm.update_status, [str(pd), "approved", "-m", "ready"])
+    assert r.exit_code == 0, r.output
+    fm_v, line_v = _both_surfaces(pd, "status", "Status")
+    assert fm_v == line_v == "approved"
+    # Issue 3.4: the phase-transition entry is appended to the reserved log.md
+    # (newest-first, `- <status>: <message>`), NOT plan.md.
+    log_text = (pd / "log.md").read_text()
+    assert "- approved: ready" in log_text
+    assert re.search(r"## \d{4}-\d{2}-\d{2}", log_text)
+    assert "approved: ready" not in (pd / "plan.md").read_text()
+
+
+def test_record_epic_dual_writes(tmp_path):
+    from click.testing import CliRunner
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    plan = _LEGACY_PLAN.replace("**Epic:** yf-mol-z9\n", "")  # no epic yet
+    (pd / "plan.md").write_text(plan)
+    r = CliRunner().invoke(pm.record_epic, [str(pd), "yf-mol-new"])
+    assert r.exit_code == 0, r.output
+    fm_v, line_v = _both_surfaces(pd, "epic", "Epic")
+    assert fm_v == line_v == "yf-mol-new"
+    # Issue 3.4: the inert intake entry is appended to the reserved log.md, not plan.md.
+    assert "- intake: epic yf-mol-new poured" in (pd / "log.md").read_text()
+    assert "intake: epic yf-mol-new poured" not in (pd / "plan.md").read_text()
+    # Idempotent: re-running does not append a duplicate intake entry.
+    r2 = CliRunner().invoke(pm.record_epic, [str(pd), "yf-mol-new"])
+    assert r2.exit_code == 0, r2.output
+    assert (pd / "log.md").read_text().count("intake: epic yf-mol-new poured") == 1
+
+
+def test_dual_write_is_hash_neutral(tmp_path):
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN)
+    before = pm._plan_content_fingerprint(pd)
+    pm._write_plan_fields(pd, {"status": "approved", "fingerprint": "deadbeef"})
+    assert pm._plan_content_fingerprint(pd) == before
+
+
+# ---------------------------------------------------------------------------
+# Phase-log relocation to reserved log.md (Issue 3.4 / REQ-DATA-012, REQ-PORT-006,
+# REQ-PORT-ACT) — the R1 guard: three plan.md-text parsers must rebind to log.md
+# (newest-first heading+bullet form) while a legacy in-plan.md **Phase log:** block
+# still resolves for the ~29 un-migrated plans.
+# ---------------------------------------------------------------------------
+
+# A newest-first reserved log.md (as `okf.append_log` produces): headings descend,
+# newest bullet first under each heading. Note the OLDEST scoping is 2026-05-01.
+_LOG_MD = """# Log
+
+## 2026-06-10
+
+- review: presented v2
+- approved: ready
+
+## 2026-05-20
+
+- review: presented v1
+
+## 2026-05-01
+
+- scoping: initial scope captured
+"""
+
+# A legacy plan with the phase log still IN plan.md and NO log.md (un-migrated).
+_LEGACY_PLAN_WITH_PHASE_LOG = """# Plan: legacy
+
+**ID:** plan-legacy
+**Status:** review
+**Phase log:**
+- 2026-05-01 scoping: initial scope captured
+- 2026-05-20 review: presented v1
+- 2026-06-10 review: presented v2
+
+## Objective
+Body.
+"""
+
+
+def _plan_with_log(tmp_path, log_text=_LOG_MD, plan_text=_LEGACY_PLAN):
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(plan_text)
+    (pd / "log.md").write_text(log_text)
+    return pd
+
+
+def test_first_scoping_date_from_log_md(tmp_path):
+    # Oldest ## YYYY-MM-DD heading bearing a scoping: bullet (log.md is newest-first).
+    pd = _plan_with_log(tmp_path)
+    assert pm._plan_first_scoping_date(pd) == "2026-05-01"
+
+
+def test_first_scoping_date_legacy_fallback(tmp_path):
+    # No log.md → fall back to the in-plan.md **Phase log:** block (un-migrated plan).
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN_WITH_PHASE_LOG)
+    assert not (pd / "log.md").exists()
+    assert pm._plan_first_scoping_date(pd) == "2026-05-01"
+
+
+def test_review_count_from_log_md(tmp_path):
+    # Count `- review:` bullets across log.md date headings (REQ-PORT-006).
+    pd = _plan_with_log(tmp_path)
+    assert pm._plan_review_line_count(pd) == 2
+
+
+def test_review_count_legacy_fallback(tmp_path):
+    # No log.md → count legacy inline-date review lines in the plan.md phase log.
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN_WITH_PHASE_LOG)
+    assert pm._plan_review_line_count(pd) == 2
+
+
+def test_log_md_takes_precedence_over_legacy_block(tmp_path):
+    # When BOTH surfaces exist, log.md is authoritative — the stale plan.md block is
+    # NOT merged/double-counted. log.md here carries 2 reviews; the plan.md block 3.
+    pd = _plan_with_log(tmp_path, plan_text=_LEGACY_PLAN_WITH_PHASE_LOG)
+    assert pm._plan_review_line_count(pd) == 2          # from log.md, not 3
+    assert pm._plan_first_scoping_date(pd) == "2026-05-01"
+
+
+def test_empty_log_md_does_not_fall_back(tmp_path):
+    # A present-but-empty log.md means "migrated, no entries yet" — it must NOT
+    # trigger the legacy fallback (which would resurrect a stale plan.md block).
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN_WITH_PHASE_LOG)
+    (pd / "log.md").write_text("# Log\n\n")
+    assert pm._plan_review_line_count(pd) == 0
+    assert pm._plan_first_scoping_date(pd) is None
+
+
+def test_seed_plan_md_seeds_scoping_to_log_md(tmp_path):
+    # A fresh plan seeds the initial scoping entry into log.md — NOT a plan.md block —
+    # so the grandfather date survives the first update_status (which creates log.md).
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    pm.seed_plan_md(pd, "plan-001-t-abc123", "seed test", "tester")
+    plan_text = (pd / "plan.md").read_text()
+    assert "**Phase log:**" not in plan_text
+    log_text = (pd / "log.md").read_text()
+    assert "- scoping: initial scope captured" in log_text
+    assert re.search(r"## \d{4}-\d{2}-\d{2}", log_text)
+    assert pm._plan_first_scoping_date(pd) is not None
+
+
+def test_update_status_appends_newest_first_to_log_md(tmp_path):
+    from click.testing import CliRunner
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN)
+    # Seed an older-dated entry, then append a newer one; newest heading must lead.
+    pm.okf.append_log(pd, "scoping: init", date="2026-05-01")
+    r = CliRunner().invoke(pm.update_status, [str(pd), "review", "-m", "v1"])
+    assert r.exit_code == 0, r.output
+    log_text = (pd / "log.md").read_text()
+    headings = re.findall(r"## (\d{4}-\d{2}-\d{2})", log_text)
+    # Newest-first: the review append's (today's) heading precedes the seeded 2026-05-01.
+    assert headings == sorted(headings, reverse=True)
+    assert headings[-1] == "2026-05-01"
+    assert "- review: v1" in log_text
+
+
+def test_seeded_plan_survives_first_update_status(tmp_path):
+    # End-to-end R1 guard: seed → update_status must NOT lose the scoping date.
+    from click.testing import CliRunner
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    pm.seed_plan_md(pd, "plan-002-t-def456", "e2e", "tester")
+    seeded_scoping = pm._plan_first_scoping_date(pd)
+    assert seeded_scoping is not None
+    r = CliRunner().invoke(pm.update_status, [str(pd), "review", "-m", "v1"])
+    assert r.exit_code == 0, r.output
+    # scoping date preserved; one review now counted from log.md.
+    assert pm._plan_first_scoping_date(pd) == seeded_scoping
+    assert pm._plan_review_line_count(pd) == 1
+
+
+# ---------------------------------------------------------------------------
+# OKF-PLAN bundle construction (Issue 3.3 / REQ-PORT-001, REQ-PORT-050,
+# REQ-OKF-031) — a freshly-constructed bundle is born OKF-conformant.
+# ---------------------------------------------------------------------------
+
+def _fresh_bundle(tmp_path):
+    """Construct a bundle exactly as `init` does (seed plan.md + scaffolding)."""
+    import okf as _okf  # noqa: F401 (ensures the vendored engine is importable)
+    pd = tmp_path / "plan-101-t-abc123"
+    pm.make_plan_dir("plan-101-t-abc123", pd.parent)
+    pm.seed_plan_md(pd, "plan-101-t-abc123", "bundle build test", "tester")
+    pm.seed_portability_scaffolding(pd, "plan-101-t-abc123", "bundle build test", "tester")
+    return pd
+
+
+def test_construction_seeds_index_not_readme(tmp_path):
+    # The orientation surface is the OKF-reserved `index.md`, not `README.md`.
+    pd = _fresh_bundle(tmp_path)
+    assert (pd / "index.md").exists()
+    assert not (pd / "README.md").exists()
+    idx = (pd / "index.md").read_text()
+    # A listing: `#` heading + child bullets, NOT the legacy File map/Reading order.
+    assert idx.lstrip().startswith("---")            # okf_version frontmatter
+    assert "okf_version:" in idx
+    assert re.search(r"^# ", idx, re.MULTILINE)
+    assert "- [plan.md](plan.md)" in idx
+    assert "- [context.md](context.md)" in idx
+    assert "File map" not in idx and "Reading order" not in idx
+
+
+def test_construction_reserved_files_carry_no_type(tmp_path):
+    # Reserved index.md / log.md carry no `type` and no `okf_spec` (REQ-OKF-031).
+    import okf as _okf
+    pd = _fresh_bundle(tmp_path)
+    for reserved in ("index.md", "log.md"):
+        fm, _ = _okf.read_frontmatter((pd / reserved).read_text())
+        assert "type" not in fm, reserved
+        assert "okf_spec" not in fm, reserved
+
+
+def test_construction_plan_md_typed_and_dual(tmp_path):
+    # plan.md carries type: Plan + okf_spec + the dual identity fields (frontmatter
+    # AND `**Field:**`), all above the first `## ` (REQ-PORT-050 / REQ-OKF-020/010).
+    import okf as _okf
+    pd = _fresh_bundle(tmp_path)
+    text = (pd / "plan.md").read_text()
+    fm, _ = _okf.read_frontmatter(text)
+    assert fm.get("type") == "Plan"
+    assert fm.get("okf_spec") == "OKF-PLAN"
+    assert fm.get("id") == "plan-101-t-abc123"
+    assert fm.get("status") == "scoping"
+    # dual surface: the `**Field:**` header lines still present and in sync
+    for key, label in [("id", "ID"), ("status", "Status")]:
+        fm_v, line_v = _both_surfaces(pd, key, label)
+        assert fm_v == line_v, (key, fm_v, line_v)
+    # frontmatter + field block sit above the first `## `
+    assert text.index("okf_spec") < text.index("## Objective")
+    assert text.index("**ID:**") < text.index("## Objective")
+
+
+def test_construction_context_md_typed_environment(tmp_path):
+    # context.md is the Environment concept doc (OKF-EXTENSION §1a).
+    import okf as _okf
+    pd = _fresh_bundle(tmp_path)
+    fm, _ = _okf.read_frontmatter((pd / "context.md").read_text())
+    assert fm.get("type") == "Environment"
+    assert fm.get("okf_spec") == "OKF-PLAN"
+
+
+def test_construction_reference_typed_reference(tmp_path):
+    # references/upstream-<N>.md is a Reference concept doc.
+    import okf as _okf
+    pd = _fresh_bundle(tmp_path)
+    pm.seed_upstream_triage(
+        pd, "bundle build test",
+        [{"number": 42, "title": "T", "body": "b", "state": "open",
+          "labels": ["x"], "url": "u"}],
+    )
+    fm, _ = _okf.read_frontmatter((pd / "references" / "upstream-42.md").read_text())
+    assert fm.get("type") == "Reference"
+    assert fm.get("okf_spec") == "OKF-PLAN"
+    # upstream-triage.md is typed Reference too (§1a)
+    tfm, _ = _okf.read_frontmatter((pd / "upstream-triage.md").read_text())
+    assert tfm.get("type") == "Reference"
+
+
+def test_construction_bundle_passes_engine_check(tmp_path):
+    # `yf-okf check` (the vendored engine's check_conformance) on a freshly-
+    # constructed init bundle is error-free (REQ-PORT-050 conformance floor).
+    import okf as _okf
+    pd = _fresh_bundle(tmp_path)
+    findings = _okf.check_conformance(pd, skill="yf-plan")
+    assert findings.ok, [f.as_dict() for f in findings.findings]
+    assert "OKF-PLAN" in findings.rulesets_composed
+
+
+# ---------------------------------------------------------------------------
+# Portability AUDIT rework to the OKF model (Issue 3.5 / REQ-PORT-001, REQ-PORT-006,
+# REQ-PORT-050, REQ-DATA-015 R7). These drive the REAL `_audit_plan` (not a stub):
+# check #1 (index.md listing shape), #5 (count-equality from log.md), #7 (OKF
+# conformance floor), #8 (dual-write divergence), and the OKF-legacy grandfather gate.
+# ---------------------------------------------------------------------------
+
+_AUDIT_PLAN_MD = """---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-500-t-abc
+author: tester
+created: 2026-05-01
+status: review
+---
+# Plan: audit fixture
+
+**ID:** plan-500-t-abc
+**Author:** tester
+**Created:** 2026-05-01
+**Status:** review
+
+## Objective
+A conformant OKF-native plan bundle.
+
+## Motivation
+This plan exists to exercise the reworked portability audit against a fully
+OKF-conformant, portable bundle. Affected: the yf-plan maintainers.
+
+## Success Criteria
+- The reworked audit passes clean.
+"""
+
+_AUDIT_INDEX_MD = """---
+okf_version: 0.1
+---
+
+# plan-500-t-abc
+
+> audit fixture
+
+- [plan.md](plan.md) - the plan of record
+- [context.md](context.md) - environment snapshot
+"""
+
+_AUDIT_LOG_MD = """# Log
+
+## 2026-05-01
+
+- scoping: initial scope captured
+"""
+
+_AUDIT_CONTEXT_MD = """---
+type: Environment
+okf_spec: OKF-PLAN
+---
+# Context
+
+## Project environment
+The beads-skills repository — a Python skill codebase for Claude Code.
+
+## Tool inventory
+<!-- snapshot: host=testhost date=2026-05-01 -->
+- `bd`: 1.1.0
+- `git`: 2.40
+
+## Paths
+- repo root: the git toplevel of beads-skills.
+
+## Operator identity
+tester, project maintainer, full authority to approve.
+
+## Runtime assumptions
+Assumes uv and python3 are on PATH.
+"""
+
+
+def _okf_bundle(tmp_path, *, reviews=0):
+    """Construct a fully OKF-conformant, portable, OKF-NATIVE plan bundle that the
+    reworked `_audit_plan` passes clean. `reviews` seeds N `review:` log entries + N
+    matching `reviews/pass-<i>.md` files (count-equality, REQ-PORT-006)."""
+    pd = tmp_path / "plan-500-t-abc"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_AUDIT_PLAN_MD)
+    (pd / "index.md").write_text(_AUDIT_INDEX_MD)
+    (pd / "context.md").write_text(_AUDIT_CONTEXT_MD)
+    log_text = _AUDIT_LOG_MD
+    if reviews:
+        review_lines = "".join(f"- review: presented v{i + 1}\n" for i in range(reviews))
+        log_text = f"# Log\n\n## 2026-05-02\n\n{review_lines}\n## 2026-05-01\n\n- scoping: initial scope captured\n"
+        rdir = pd / "reviews"
+        rdir.mkdir()
+        for i in range(reviews):
+            (rdir / f"pass-{i + 1}.md").write_text(
+                "---\ntype: Review\nokf_spec: OKF-PLAN\n---\n"
+                f"# Review pass-{i + 1}\n\n## Verdict: APPROVE\n")
+    (pd / "log.md").write_text(log_text)
+    return pd
+
+
+def test_audit_fresh_okf_bundle_passes_clean(tmp_path):
+    # A fully OKF-conformant, portable, OKF-native bundle → status pass, no findings.
+    pd = _okf_bundle(tmp_path)
+    result = pm._audit_plan(pd)
+    assert result["status"] == "pass", result["report"]
+    assert result["okf_native"] is True
+    assert not any(f["status"] == "fail" for f in result["findings"]), result["report"]
+
+
+def test_audit_legacy_bundle_passes_with_warns_only(tmp_path):
+    # An un-migrated legacy bundle (README, in-plan.md phase log, NO frontmatter, NO
+    # index.md/log.md) is OKF-legacy: missing OKF scaffolding downgrades to warn, so
+    # the bundle PASSES (the key regression guard for the ~29 existing plans).
+    pd = tmp_path / "plan-legacy"
+    pd.mkdir()
+    (pd / "plan.md").write_text(
+        "# Plan: legacy\n\n"
+        "**ID:** plan-legacy\n"
+        "**Status:** review\n"
+        "**Phase log:**\n"
+        "- 2026-05-01 scoping: initial scope captured\n\n"  # scoping only, 0 reviews
+        "## Objective\nBody.\n"
+    )  # no frontmatter → OKF-legacy
+    (pd / "README.md").write_text("# Legacy\n\n## File map\n## Reading order\n")
+    (pd / "context.md").write_text(_AUDIT_CONTEXT_MD.split("---\n", 2)[2])  # strip fm
+    (pd / "motivation.md").write_text("Real motivation prose for the legacy plan.\n")
+    result = pm._audit_plan(pd)
+    assert result["okf_native"] is False
+    # index.md + type/okf_spec absences are warns, not fails.
+    okf_findings = [f for f in result["findings"] if f["item"].startswith(("index.md", "okf:"))]
+    assert okf_findings, "expected OKF scaffolding findings"
+    assert all(f["status"] == "warn" for f in okf_findings), result["report"]
+    assert result["status"] == "pass", result["report"]
+
+
+def test_audit_okf_native_missing_index_fails(tmp_path):
+    # An OKF-native bundle (plan.md frontmatter present) with NO index.md → check #1
+    # hard-fails (REQ-PORT-001). Not grandfathered, not OKF-legacy.
+    pd = _okf_bundle(tmp_path)
+    (pd / "index.md").unlink()
+    result = pm._audit_plan(pd)
+    assert result["status"] == "fail"
+    idx = [f for f in result["findings"] if f["item"] == "index.md"]
+    assert idx and idx[0]["status"] == "fail", result["report"]
+
+
+def test_audit_index_not_a_listing_fails(tmp_path):
+    # An OKF-native bundle whose index.md is legacy README prose (no `- [x](y)`
+    # bullets) fails the listing-shape check (REQ-PORT-001).
+    pd = _okf_bundle(tmp_path)
+    (pd / "index.md").write_text(
+        "---\nokf_version: 0.1\n---\n# plan\n\n## File map\n\n## Reading order\n")
+    result = pm._audit_plan(pd)
+    idx = [f for f in result["findings"] if f["item"] == "index.md"]
+    assert idx and idx[0]["status"] == "fail"
+    assert "not an OKF listing" in idx[0]["detail"], result["report"]
+
+
+def test_audit_typeless_nonreserved_md_fails_req_port_050(tmp_path):
+    # A non-reserved .md with no frontmatter/type in an OKF-native bundle → the
+    # REQ-PORT-050 conformance floor hard-fails (backed by check_conformance).
+    pd = _okf_bundle(tmp_path)
+    (pd / "findings").mkdir()
+    (pd / "findings" / "exp-001.md").write_text("# Experiment\n\nno frontmatter here.\n")
+    result = pm._audit_plan(pd)
+    assert result["status"] == "fail"
+    port050 = [f for f in result["findings"]
+               if f["item"].startswith("okf:") and "exp-001" in f["item"]]
+    assert port050 and all(f["status"] == "fail" for f in port050), result["report"]
+
+
+def test_audit_wrong_okf_spec_value_fails(tmp_path):
+    # A non-reserved .md whose okf_spec is present but NOT `OKF-PLAN` → REQ-PORT-050
+    # selector failure (engine checks presence; the audit checks the value).
+    pd = _okf_bundle(tmp_path)
+    (pd / "findings").mkdir()
+    (pd / "findings" / "exp-001.md").write_text(
+        "---\ntype: Finding\nokf_spec: OKF-RESEARCH\n---\n# Exp\n")
+    result = pm._audit_plan(pd)
+    bad = [f for f in result["findings"]
+           if f["item"].startswith("okf:") and "OKF-RESEARCH" in f["detail"]]
+    assert bad and all(f["status"] == "fail" for f in bad), result["report"]
+
+
+def test_audit_dual_write_divergence_fails_r7(tmp_path):
+    # A divergence between the frontmatter value and the `**Field:**` line (writer bug
+    # or hand-edit) is a hard fail (R7 / REQ-DATA-015) — always, never grandfathered.
+    pd = _okf_bundle(tmp_path)
+    p = pd / "plan.md"
+    # frontmatter says status: review; corrupt the **Status:** line to disagree.
+    p.write_text(p.read_text().replace("**Status:** review", "**Status:** approved"))
+    result = pm._audit_plan(pd)
+    assert result["status"] == "fail"
+    r7 = [f for f in result["findings"] if f["item"] == "dual-write:status"]
+    assert r7 and r7[0]["status"] == "fail", result["report"]
+    assert "divergence" in r7[0]["detail"]
+
+
+def test_audit_dual_write_in_sync_passes_r7(tmp_path):
+    # No divergence when the two surfaces agree → no R7 finding.
+    pd = _okf_bundle(tmp_path)
+    result = pm._audit_plan(pd)
+    assert not any(f["item"].startswith("dual-write:") for f in result["findings"]), \
+        result["report"]
+
+
+def test_audit_review_count_equality_from_log_md(tmp_path):
+    # Count-equality (REQ-PORT-006) keys on log.md `review:` entries. Two review
+    # entries + two pass files → pass; delete one pass file → count mismatch fail.
+    pd = _okf_bundle(tmp_path, reviews=2)
+    result = pm._audit_plan(pd)
+    assert result["status"] == "pass", result["report"]
+    (pd / "reviews" / "pass-2.md").unlink()  # now 1 file vs 2 log review entries
+    result2 = pm._audit_plan(pd)
+    rev = [f for f in result2["findings"] if f["item"] == "reviews/"]
+    assert rev and rev[0]["status"] == "fail", result2["report"]
+    assert "expected 2" in rev[0]["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Migrated-legacy-plan SAFETY (Issue 3.6 capability gate — Epic 3): a REAL legacy
+# plan folder, once migrated by okf.migrate, passes the audit as GRANDFATHERED with
+# count-equality (REQ-PORT-006) and content fingerprint (REQ-OKF-MIG-003) preserved.
+# Exercises the real engine migrate over real content (README->index.md verbatim,
+# **Phase log:** -> log.md transcription, per-file type stamping).
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_LEGACY_PLAN_SRC = _REPO_ROOT / "docs" / "plans" / "plan-001-james-dixson-c88e7a"
+
+# A portable, pre-activation context.md (legacy form, no frontmatter) — replaces
+# plan-001's genuinely-unfilled placeholder sections so the ONLY variables under test
+# are the migration effects (grandfather / count-equality / fingerprint), not
+# plan-001's own pre-portability-contract incompleteness.
+_PORTABLE_LEGACY_CONTEXT = """# Project Environment Context
+
+## Project environment
+
+The beads-skills repository: a Python skill codebase for Claude Code, managed
+with uv and git.
+
+## Tool inventory
+
+<!-- snapshot: host=testhost date=2026-04-04 -->
+
+- `bd`: 1.1.0
+- `git`: 2.50
+
+## Paths
+
+- Repo root: the git toplevel of beads-skills.
+
+## Operator identity
+
+tester, project maintainer, with full authority to approve plans.
+
+## Runtime assumptions
+
+Assumes uv and python3 are on PATH; no network side effects at plan time.
+"""
+
+
+def _legacy_plan_copy(tmp_path):
+    """Copy the REAL plan-001 legacy folder and sanitize the COPY into a genuine
+    *pre-activation, portable* legacy plan: backdate the first `scoping:` date to
+    strictly before the activation date (so it is date-grandfathered — plan-001's
+    real scoping date lands exactly ON activation), and fill the placeholder context
+    sections. Everything else (README, in-plan.md **Phase log:** with its two
+    `review:` lines, reviews/pass-1&2.md, references/) is the real legacy content."""
+    import shutil
+    dst = tmp_path / "plan-001-copy"
+    shutil.copytree(_LEGACY_PLAN_SRC, dst)
+    # backdate first scoping: 2026-04-05 (== activation) -> 2026-04-04 (< activation)
+    p = dst / "plan.md"
+    p.write_text(p.read_text().replace(
+        "- 2026-04-05 scoping: initial scope captured",
+        "- 2026-04-04 scoping: initial scope captured", 1))
+    (dst / "context.md").write_text(_PORTABLE_LEGACY_CONTEXT)
+    return dst
+
+
+@pytest.mark.skipif(not _LEGACY_PLAN_SRC.is_dir(),
+                    reason="real plan-001 legacy folder not present in this checkout")
+def test_migrated_legacy_plan_audit_passes_grandfathered(tmp_path):
+    # THE capability-gate assertion: a migrated legacy plan folder passes the audit.
+    import okf as _okf
+    pd = _legacy_plan_copy(tmp_path)
+
+    # Pre-migration it is a grandfathered OKF-legacy bundle -> already passes (warns).
+    pre = pm._audit_plan(pd)
+    assert pre["status"] == "pass", pre["report"]
+    assert pre["grandfathered"] is True
+    assert pre["okf_native"] is False  # no plan.md frontmatter yet
+
+    fp_before = pm._plan_content_fingerprint(pd)
+    scoping_before = pm._plan_first_scoping_date(pd)
+    reviews_before = pm._plan_review_line_count(pd)
+    passfiles = len(list((pd / "reviews").glob("pass-*.md")))
+    assert reviews_before == passfiles == 2  # count-equal before migration
+
+    _okf.migrate(pd, skill="yf-plan")  # migrate the COPY in place
+
+    post = pm._audit_plan(pd)
+    # (a) audit status: pass — migration gaps only warn on a grandfathered plan
+    assert post["status"] == "pass", post["report"]
+    # (b) now OKF-native (migrate stamped plan.md frontmatter) yet still grandfathered
+    assert post["okf_native"] is True
+    assert post["grandfathered"] is True
+    # (c) grandfather status preserved: first scoping date intact and < activation
+    assert pm._plan_first_scoping_date(pd) == scoping_before == "2026-04-04"
+    assert scoping_before < pm.PORTABILITY_ACTIVATION_DATE
+    # (d) REQ-PORT-006 count-equality preserved across migration (2 == 2)
+    assert pm._plan_review_line_count(pd) == 2
+    assert len(list((pd / "reviews").glob("pass-*.md"))) == 2
+    assert not any(f["item"] == "reviews/" for f in post["findings"]), post["report"]
+    # (e) content fingerprint unchanged (REQ-OKF-MIG-003 — not stale-approved)
+    assert pm._plan_content_fingerprint(pd) == fp_before
+
+
+@pytest.mark.skipif(not _LEGACY_PLAN_SRC.is_dir(),
+                    reason="real plan-001 legacy folder not present in this checkout")
+def test_migrated_legacy_index_verbatim_only_warns(tmp_path):
+    # The 3.5 migrate flag: README.md -> index.md is renamed VERBATIM (not a listing).
+    # On a grandfathered plan this must only WARN, never fail (REQ-PORT-ACT-OKF gate).
+    import okf as _okf
+    pd = _legacy_plan_copy(tmp_path)
+    _okf.migrate(pd, skill="yf-plan")
+    assert (pd / "index.md").exists() and not (pd / "README.md").exists()
+    assert not pm._index_is_listing((pd / "index.md").read_text())  # verbatim, not a listing
+    result = pm._audit_plan(pd)
+    idx = [f for f in result["findings"] if f["item"] == "index.md"]
+    assert idx and idx[0]["status"] == "warn", result["report"]  # warn, not fail
+    assert result["status"] == "pass", result["report"]
+
+
+@pytest.mark.skipif(not _LEGACY_PLAN_SRC.is_dir(),
+                    reason="real plan-001 legacy folder not present in this checkout")
+def test_migrated_legacy_plan_count_equality_preserved(tmp_path):
+    # Focused REQ-PORT-006 guard: the **Phase log:**'s two `review:` lines survive the
+    # extract-log transcription into log.md (the engine fix), so the log-review count
+    # still equals the reviews/pass-*.md count after migration.
+    import okf as _okf
+    pd = _legacy_plan_copy(tmp_path)
+    _okf.migrate(pd, skill="yf-plan")
+    log_text = (pd / "log.md").read_text()
+    assert log_text.count("- review:") == 2, log_text
+    assert pm._plan_review_line_count(pd) == len(list((pd / "reviews").glob("pass-*.md")))
 
 
 def _seed_plan(git_repo, branch=None):

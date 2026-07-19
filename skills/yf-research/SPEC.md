@@ -36,6 +36,10 @@ is `bd`), and build planning (that is `yf-plan`).
   global across both roots so cross-references stay unambiguous.
 - **REQ-RESEARCH-011** a research directory shall be self-contained and portable (a cold reader in
   another repo can understand it from the folder alone).
+- **REQ-RESEARCH-012** *(testable)* a completed research bundle shall conform to the **OKF-RESEARCH**
+  member (OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ OKF-RESEARCH): reserved `index.md` + `log.md`, and OKF
+  frontmatter (`type` + `okf_spec: OKF-RESEARCH`) on every non-reserved `.md`, with the non-`.md`
+  sidecars excluded. See `spec/portability.md` REQ-PORT-007..009 and `skills/yf-research/OKF-EXTENSION.md`.
 
 ### 2.3 Epistemics (see `spec/epistemics.md`)
 
