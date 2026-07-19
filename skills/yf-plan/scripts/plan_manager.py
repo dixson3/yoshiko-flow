@@ -2,6 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "click>=8.1",
+#     "pyyaml>=6",
 # ]
 # ///
 """Plan manager utility for the /yf-plan skill.
@@ -23,8 +24,107 @@ from pathlib import Path
 
 import click
 
+# Vendored OKF engine (byte-identical to _shared/okf.py; synced by _shared/sync.py).
+# Imported as a scripts/ sibling — same address-space convention as the defensive
+# json extractor / manifest_update precedent (no cross-skill imports). Providing the
+# dual-mode frontmatter+**Field:** field model (REQ-DATA-015 / REQ-OKF-020/021).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import okf  # noqa: E402
+
 PLANS_DIR = Path("docs/plans")
 INCUBATOR_PARENT = Path("Incubator")
+
+# Dual-field model (REQ-DATA-015 / OKF-EXTENSION.md §4): a single in-memory model
+# maps each frontmatter key to its human `**Field:**` label. Reads are
+# frontmatter-first with `**Field:**` fallback; writes emit BOTH surfaces.
+PLAN_FIELD_LABELS = {
+    "id": "ID",
+    "author": "Author",
+    "created": "Created",
+    "status": "Status",
+    "epic": "Epic",
+    "fingerprint": "Fingerprint",
+}
+#: Canonical header-field ordering for the `**Field:**` block.
+PLAN_FIELD_ORDER = ("id", "author", "created", "status", "epic", "fingerprint")
+
+
+def _read_plan_field(plan_md_text: str, key: str) -> str | None:
+    """Single dual-mode header-field accessor (REQ-DATA-015 / REQ-OKF-021).
+
+    Reads **frontmatter-first** via the vendored OKF engine and falls back to the
+    legacy `**Field:**` header line when the key is absent from frontmatter — so a
+    migrated (frontmatter-bearing) plan and an un-migrated (frontmatter-free) plan
+    resolve identically. `key` is a frontmatter key (`status`, `epic`,
+    `fingerprint`, `id`, …). Returns None when neither surface carries the field.
+    """
+    try:
+        model = okf.read_fields(plan_md_text)
+    except okf.OKFParseError:
+        model = {}
+    val = model.get(key)
+    if val is None:
+        return None
+    val = str(val).strip()
+    return val or None
+
+
+def _rebuild_field_block(text: str, model: dict[str, str]) -> str:
+    """Rewrite the contiguous `**Field:**` header block from `model`.
+
+    Emits one `**Label:** <value>` line per PLAN_FIELD_ORDER key present in `model`,
+    replacing the existing contiguous span of identity-field lines (never the
+    `**Phase log:**` block, which is not a PLAN_FIELD_LABELS label and is preserved
+    verbatim for Issue 3.4 to relocate). If no field block exists yet, the block is
+    inserted just after the `# ` title. Everything else — title, blank lines, phase
+    log, and all `## ` content — is preserved, so the content fingerprint is
+    unaffected (REQ-OKF-010).
+    """
+    lines = text.splitlines()
+    prefixes = {f"**{lbl}:**": key for key, lbl in PLAN_FIELD_LABELS.items()}
+    idxs: list[int] = []
+    for i, line in enumerate(lines):
+        if any(line.startswith(p) for p in prefixes):
+            idxs.append(i)
+    block = [f"**{PLAN_FIELD_LABELS[k]}:** {model[k]}"
+             for k in PLAN_FIELD_ORDER if k in model]
+    if idxs:
+        start, end = idxs[0], idxs[-1]
+        new_lines = lines[:start] + block + lines[end + 1:]
+    else:
+        insert_at = 0
+        for i, line in enumerate(lines):
+            if line.startswith("# "):
+                insert_at = i + 1
+                if insert_at < len(lines) and lines[insert_at].strip() == "":
+                    insert_at += 1
+                break
+        new_lines = lines[:insert_at] + block + lines[insert_at:]
+    return "\n".join(new_lines) + "\n"
+
+
+def _write_plan_fields(plan_dir: Path, updates: dict[str, str]) -> None:
+    """Single dual-writer (REQ-DATA-015 dual-write consistency / REQ-OKF-020).
+
+    One in-memory model drives BOTH representations: the human `**Field:**` header
+    block AND a merge-and-preserve YAML frontmatter block (delegated to the OKF
+    engine). There is no path that writes one surface without the other. The model
+    is the current header fields (read frontmatter-first) merged with `updates`, so
+    every write re-lands both surfaces in sync. Both blocks sit above the first
+    `## ` heading, hence neither perturbs the content fingerprint (REQ-OKF-010).
+    """
+    plan_md = plan_dir / "plan.md"
+    text = plan_md.read_text()
+    model: dict[str, str] = {}
+    for k in PLAN_FIELD_ORDER:
+        v = _read_plan_field(text, k)
+        if v is not None:
+            model[k] = v
+    model.update({k: str(v) for k, v in updates.items()})
+    # Surface 1: the human **Field:** block (preserves **Phase log:** + body).
+    plan_md.write_text(_rebuild_field_block(text, model))
+    # Surface 2: the YAML frontmatter block (merge-and-preserve foreign keys).
+    okf.write_frontmatter(plan_md, dict(model))
 
 # Skill Surface Convention (see skill-authoring/reference/SURFACE_CONVENTION.md):
 # operator config vs runtime state. Preflight (deps + installed-rule hash + the
@@ -268,8 +368,53 @@ def make_plan_dir(plan_id: str, plans_dir: Path | None = None) -> Path:
     return plan_dir
 
 
+# OKF-PLAN bundle construction (plan-029 Issue 3.3). Every non-reserved bundle `.md`
+# is stamped `type` (role-mapped via the vendored engine's `_assign_type` over the
+# OKF-EXTENSION.md §1a map) + `okf_spec: OKF-PLAN`, merge-and-preserved above the first
+# `## ` (REQ-PORT-050 / REQ-OKF-003/010/030/070). Reserved `index.md`/`log.md` are
+# exempt — they carry no `type`/`okf_spec` (REQ-OKF-031).
+_OKF_MEMBER = "OKF-PLAN"
+_okf_plan_ext_cache = None
+
+
+def _okf_plan_extension():
+    """Resolve + cache the vendored yf-plan `OKF-EXTENSION.md` ruleset (role→type map,
+    member name). `__file__`-relative via the engine — independent of cwd."""
+    global _okf_plan_ext_cache
+    if _okf_plan_ext_cache is None:
+        _okf_plan_ext_cache = okf.resolve_extension("yf-plan")
+    return _okf_plan_ext_cache
+
+
+def _stamp_okf_type(plan_dir: Path, md_path: Path) -> None:
+    """Stamp `type` (role-mapped) + `okf_spec: OKF-PLAN` frontmatter onto a
+    non-reserved bundle `.md` (REQ-PORT-050). The `type` is assigned from the bundle-
+    relative path via the OKF-EXTENSION §1a map (`plan.md`→Plan, `context.md`→
+    Environment, `references/*`→Reference, …), falling back to the member default.
+    Merge-and-preserves existing keys and sits above the first `## ` (REQ-OKF-010/070).
+    """
+    ext = _okf_plan_extension()
+    rel = str(md_path.relative_to(plan_dir))
+    if ext.found and ext.type_map:
+        typ, _matched = okf._assign_type(rel, ext.type_map, ext.default_type)
+        member = ext.member or _OKF_MEMBER
+    else:
+        typ, member = "Concept", _OKF_MEMBER
+    okf.write_frontmatter(md_path, {"type": typ, "okf_spec": member})
+
+
 def seed_plan_md(plan_dir: Path, plan_id: str, objective: str, author: str) -> Path:
-    """Create initial plan.md with scoping status."""
+    """Create initial plan.md with scoping status.
+
+    Issue 3.4 / REQ-DATA-012: the phase log no longer lives in plan.md — the initial
+    `scoping:` entry is seeded into the reserved bundle-root `log.md` (newest-first)
+    instead of a `**Phase log:**` block, so the first-`scoping:` grandfather date and
+    the review-count invariant resolve from `log.md` from the plan's first moment.
+
+    Issue 3.3 / REQ-PORT-050: plan.md is born OKF-conformant — a `type: Plan` +
+    `okf_spec: OKF-PLAN` frontmatter block, dual-written with the `**Field:**` header
+    lines via `_write_plan_fields` (REQ-OKF-020), both above the first `## `.
+    """
     today = datetime.now().strftime("%Y-%m-%d")
     content = f"""# Plan: {objective}
 
@@ -277,8 +422,6 @@ def seed_plan_md(plan_dir: Path, plan_id: str, objective: str, author: str) -> P
 **Author:** {author}
 **Created:** {today}
 **Status:** scoping
-**Phase log:**
-- {today} scoping: initial scope captured
 
 ## Objective
 {objective}
@@ -313,6 +456,12 @@ _To be determined._
 """
     plan_md = plan_dir / "plan.md"
     plan_md.write_text(content)
+    # Seed the initial scoping entry into the reserved `log.md` (Issue 3.4).
+    okf.append_log(plan_dir, "scoping: initial scope captured", date=today)
+    # Stamp OKF frontmatter (Issue 3.3): type: Plan + okf_spec, then dual-write the
+    # identity `**Field:**` lines into their frontmatter mirror (REQ-OKF-020/050).
+    _stamp_okf_type(plan_dir, plan_md)
+    _write_plan_fields(plan_dir, {})
     return plan_md
 
 
@@ -365,49 +514,39 @@ def _portability_snapshot_header() -> str:
     return f"<!-- snapshot: host={host} date={date} -->"
 
 
-def seed_readme(plan_dir: Path, plan_id: str, objective: str) -> Path:
-    """Write README.md orientation file (Epic 1.2)."""
-    content = f"""# {plan_id}
+#: Bundle members listed in the reserved `index.md` — `(path, description)`. Folds the
+#: legacy README `File map` + `Reading order` prose into OKF listing bullets
+#: (REQ-PORT-001 / OKF-EXTENSION.md §5).
+_INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
+    ("plan.md", "The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes."),
+    ("context.md", "Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes."),
+    ("log.md", "Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log)."),
+    ("references/", "Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses."),
+    ("reviews/", "Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved."),
+    ("findings/", "Investigation experiment results (if any)."),
+    ("diagrams/", "d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill."),
+    ("assets/", "Attachments and other generated artifacts (not diagrams — those live in `diagrams/`)."),
+)
 
-> {objective}
 
-This plan folder is **portable**. A reader should be able to understand the
-plan's purpose, environment, reviewer history, and upstream context from the
-files here alone — without access to the drafting conversation.
+def seed_index(plan_dir: Path, plan_id: str, objective: str) -> Path:
+    """Write the OKF-reserved bundle listing `index.md` (Issue 3.3, REQ-PORT-001).
 
-## File map
-
-- `plan.md` — the plan. Authoritative status, phase log, objective, motivation,
-  approach, epics, gates, risks, success criteria.
-- `context.md` — project environment snapshot (tool versions, paths, operator,
-  runtime assumptions) at the time the plan was authored.
-- `references/` — inlined upstream issue bodies (`upstream-<N>.md`), one file
-  per non-excluded row in plan.md's Upstream Issues table. Snapshots, not live.
-- `reviews/` — reviewer verdicts (`pass-<N>.md`), one file per review cycle,
-  in strict correspondence with the phase log's review lines.
-- `findings/` — investigation experiment results (if any).
-- `scope-answers.md` — scoping questionnaire answers (if complex scoping ran).
-- `upstream-triage.md` — upstream disposition working file (source of truth is
-  plan.md's Upstream Issues table; this file stays for context).
-- `diagrams/` — d2 diagrams authored for the plan (`<slug>.d2` source beside `<slug>.png`
-  render), per the `diagram-authoring` skill.
-- `assets/` — attachments and other generated artifacts (not diagrams — those live in
-  `diagrams/`).
-
-## Reading order
-
-1. `plan.md` Objective + Motivation → why this plan exists
-2. `context.md` → what environment it assumes
-3. `references/` → upstream issues it addresses
-4. `plan.md` Approach + Epics → how it will be executed
-5. `reviews/` → what reviewers flagged and how it was resolved
-6. `plan.md` Phase log → full history
-
-**Read only from this folder.** If documentation outside this folder is
-required to understand the plan, the portability contract has been violated.
-"""
-    path = plan_dir / "README.md"
-    path.write_text(content)
+    A progressive-disclosure listing — an `okf_version` frontmatter block, a `#`
+    heading, the objective, and `- [child](path) - description` bullets enumerating
+    the bundle members (via the engine's `add_index_entry`). It replaces the legacy
+    `README.md` file-map/reading-order surface. Being an OKF **reserved** file it
+    carries no `type` and no `okf_spec` (REQ-OKF-031).
+    """
+    path = plan_dir / "index.md"
+    path.write_text(
+        f"---\nokf_version: {okf.okf_version}\n---\n\n# {plan_id}\n\n> {objective}\n\n"
+        "This plan folder is **portable** — a cold reader understands its purpose, "
+        "environment, reviewer history, and upstream context from the files below "
+        "alone, without the drafting conversation.\n\n"
+    )
+    for member, desc in _INDEX_MEMBERS:
+        okf.add_index_entry(plan_dir, member, desc)
     return path
 
 
@@ -481,25 +620,28 @@ _Optional._ Anything else a cold reader needs that does not fit above.
 """
     path = plan_dir / "context.md"
     path.write_text(content)
+    # OKF frontmatter (Issue 3.3): context.md is the Environment concept doc.
+    _stamp_okf_type(plan_dir, path)
     return path
 
 
 def seed_portability_scaffolding(plan_dir: Path, plan_id: str, objective: str,
                                  author: str) -> dict[str, str]:
-    """Epic 1.1/1.5: seed README.md, context.md, references/, reviews/.
+    """Epic 1.1/1.5: seed the reserved `index.md`, context.md, references/, reviews/.
 
     Returns a dict of created paths suitable for merging into init JSON
     output. Best-effort tool detection runs inline — any probe failure is
-    non-fatal (see _detect_tools).
+    non-fatal (see _detect_tools). Issue 3.3: the orientation surface is now the
+    OKF-reserved `index.md` (not `README.md`).
     """
-    readme = seed_readme(plan_dir, plan_id, objective)
+    index = seed_index(plan_dir, plan_id, objective)
     context = seed_context_md(plan_dir, author)
     references = plan_dir / "references"
     reviews = plan_dir / "reviews"
     references.mkdir(parents=True, exist_ok=True)
     reviews.mkdir(parents=True, exist_ok=True)
     return {
-        "readme_md": str(readme),
+        "index_md": str(index),
         "context_md": str(context),
         "references_dir": str(references),
         "reviews_dir": str(reviews),
@@ -534,6 +676,8 @@ def _write_upstream_reference(plan_dir: Path, issue: dict) -> Path:
 {issue.get("body", "") or "_(empty)_"}
 """
     path.write_text(content)
+    # OKF frontmatter (Issue 3.3): each upstream reference is a Reference concept doc.
+    _stamp_okf_type(plan_dir, path)
     return path
 
 
@@ -579,6 +723,8 @@ Anything else relevant?
 """
     path = plan_dir / "scope-answers.md"
     path.write_text(content)
+    # OKF frontmatter (Issue 3.3): a non-reserved bundle .md — REQ-PORT-050.
+    _stamp_okf_type(plan_dir, path)
     return path
 
 
@@ -624,6 +770,8 @@ def seed_upstream_triage(plan_dir: Path, objective: str,
             reference_paths.append(_write_upstream_reference(plan_dir, issue))
     path = plan_dir / "upstream-triage.md"
     path.write_text("\n".join(lines))
+    # OKF frontmatter (Issue 3.3): upstream-triage.md is typed Reference (§1a).
+    _stamp_okf_type(plan_dir, path)
     return path, reference_paths
 
 
@@ -752,13 +900,10 @@ def _enumerate_plans() -> list[dict]:
                 continue
 
             text = plan_md.read_text()
-            status = "unknown"
-            objective = d.name
-            for line in text.splitlines():
-                if line.startswith("# Plan: "):
-                    objective = line[8:].strip()
-                if line.startswith("**Status:**"):
-                    status = line.split("**Status:**")[1].strip()
+            # Status via the single dual-mode accessor (frontmatter-first) so a
+            # migrated (frontmatter-only) plan resolves; objective stays inline.
+            status = _read_plan_status(text) or "unknown"
+            objective = _read_plan_objective(text) or d.name
 
             # Advisory stale-approved flag (REQ-PORT-041): only meaningful once a
             # fingerprint is stored (review/approved onward). Non-fatal in list/status.
@@ -869,30 +1014,18 @@ def update_status(plan_dir: str, status: str, message: str):
         sys.exit(1)
 
     today = datetime.now().strftime("%Y-%m-%d")
-    text = plan_md.read_text()
-    lines = text.splitlines()
-    new_lines = []
-    log_entry = f"- {today} {status}: {message or status}"
 
-    skip_until = -1
-    for i, line in enumerate(lines):
-        if i < skip_until:
-            continue
-        if line.startswith("**Status:**"):
-            new_lines.append(f"**Status:** {status}")
-        elif line.startswith("**Phase log:**"):
-            new_lines.append(line)
-            j = i + 1
-            while j < len(lines) and lines[j].startswith("- "):
-                new_lines.append(lines[j])
-                j += 1
-            new_lines.append(log_entry)
-            skip_until = j
-        else:
-            new_lines.append(line)
+    # Dual-write the status field (frontmatter + `**Field:**`) from one model.
+    _write_plan_fields(Path(plan_dir), {"status": status})
 
-    plan_md.write_text("\n".join(new_lines) + "\n")
-    click.echo(json.dumps({"status": status, "log_entry": log_entry}))
+    # Append the phase-transition entry to the reserved bundle-root `log.md`
+    # (Issue 3.4 / REQ-DATA-012). `okf.append_log` is newest-first: it prepends a
+    # `## YYYY-MM-DD` heading (or reuses today's) and adds a `- <status>: <message>`
+    # bullet retaining the `<status>:` token the review/scoping/audit readers key on.
+    # It creates `log.md` on first write. The phase log no longer lives in plan.md.
+    okf.append_log(Path(plan_dir), f"{status}: {message or status}", date=today)
+    log_entry = f"- {status}: {message or status}"
+    click.echo(json.dumps({"status": status, "date": today, "log_entry": log_entry}))
 
 
 @cli.command("record-epic")
@@ -904,9 +1037,9 @@ def record_epic(plan_dir: str, epic_id: str):
     Two writes that make resume-guard deterministic:
       (a) an `**Epic:** <id>` header field (inserted after `**Status:**`, or
           updated in place if already present);
-      (b) an inert `- DATE intake: epic <id> poured` phase-log line. The
-          `intake:` prefix matches neither the `review:` nor `scoping:` regexes
-          the audit keys on, so it never perturbs review/scoping counts.
+      (b) an inert `- intake: epic <id> poured` entry in the reserved `log.md`
+          (Issue 3.4 / REQ-DATA-012). The `intake:` prefix matches neither the
+          `review:` nor `scoping:` reader, so it never perturbs review/scoping counts.
 
     Idempotent: re-running for the same epic updates the header field and does
     not append a duplicate intake line.
@@ -917,43 +1050,31 @@ def record_epic(plan_dir: str, epic_id: str):
         sys.exit(1)
 
     today = datetime.now().strftime("%Y-%m-%d")
-    intake_entry = f"- {today} intake: epic {epic_id} poured"
-    lines = plan_md.read_text().splitlines()
-    new_lines: list[str] = []
-    epic_field_written = False
-    intake_present = any(
-        re.match(rf"- \d{{4}}-\d{{2}}-\d{{2}} intake: epic {re.escape(epic_id)} poured", ln)
-        for ln in lines
-    )
+    intake_bullet = f"intake: epic {epic_id} poured"
+    intake_entry = f"- {intake_bullet}"
 
-    skip_until = -1
-    for i, line in enumerate(lines):
-        if i < skip_until:
-            continue
-        if line.startswith("**Epic:**"):
-            # Update an existing Epic field in place.
-            new_lines.append(f"**Epic:** {epic_id}")
-            epic_field_written = True
-        elif line.startswith("**Status:**"):
-            new_lines.append(line)
-            if not epic_field_written and not any(
-                ln.startswith("**Epic:**") for ln in lines
-            ):
-                new_lines.append(f"**Epic:** {epic_id}")
-                epic_field_written = True
-        elif line.startswith("**Phase log:**"):
-            new_lines.append(line)
-            j = i + 1
-            while j < len(lines) and lines[j].startswith("- "):
-                new_lines.append(lines[j])
-                j += 1
-            if not intake_present:
-                new_lines.append(intake_entry)
-            skip_until = j
-        else:
-            new_lines.append(line)
+    # Idempotency: is the intake line already recorded? Check the reserved `log.md`
+    # first, then the legacy in-`plan.md` `**Phase log:**` block (an un-migrated plan
+    # whose intake predates the log.md relocation).
+    log_entries = _log_md_entries(Path(plan_dir))
+    if log_entries is not None:
+        intake_present = any(txt == intake_bullet for _d, txt in log_entries)
+    else:
+        intake_present = any(
+            re.match(rf"- \d{{4}}-\d{{2}}-\d{{2}} intake: epic {re.escape(epic_id)} poured", ln)
+            for ln in plan_md.read_text().splitlines()
+        )
 
-    plan_md.write_text("\n".join(new_lines) + "\n")
+    # Dual-write the epic field (frontmatter + `**Field:**`) from one model. The
+    # writer inserts `**Epic:**` in canonical order (after `**Status:**`) or updates
+    # it in place — matching the prior anchoring.
+    _write_plan_fields(Path(plan_dir), {"epic": epic_id})
+
+    # Append the inert `intake:` entry to the reserved `log.md` (Issue 3.4 /
+    # REQ-DATA-012). The `intake:` token matches neither the `review:` nor the
+    # `scoping:` reader, so it never perturbs review/scoping counts.
+    if not intake_present:
+        okf.append_log(Path(plan_dir), intake_bullet, date=today)
     click.echo(json.dumps({
         "epic_id": epic_id,
         "epic_field": "written",
@@ -1019,44 +1140,24 @@ def _plan_content_fingerprint(plan_dir: Path) -> str | None:
 
 
 def _read_plan_fingerprint_field(plan_md_text: str) -> str | None:
-    """Return the stored `**Fingerprint:** <hash>` header field value, if present."""
-    for line in plan_md_text.splitlines():
-        if line.startswith("**Fingerprint:**"):
-            return line.split("**Fingerprint:**", 1)[1].strip() or None
-    return None
+    """Return the stored fingerprint (frontmatter-first, `**Fingerprint:**`
+    fallback), if present."""
+    return _read_plan_field(plan_md_text, "fingerprint")
 
 
 def _write_fingerprint_field(plan_dir: Path, fingerprint: str) -> str:
-    """Insert/update the `**Fingerprint:** <hash>` header field (clones record_epic).
+    """Dual-write the `fingerprint` header field (REQ-DATA-015).
 
-    Inserted after `**Epic:**` if present, else after `**Status:**`. Being a
-    `**Field:**` line it lands in the header preamble and is therefore self-excluded
-    from the hash. Idempotent. Returns "written" or "updated".
+    Routes through the single dual-writer, which emits BOTH the `**Fingerprint:**`
+    header line (in canonical order — after `**Epic:**`/`**Status:**`) AND the
+    `fingerprint` frontmatter key from one model. Both surfaces are self-excluded
+    from the content hash (above the first `## `). Idempotent. Returns "written" or
+    "updated".
     """
     plan_md = plan_dir / "plan.md"
-    lines = plan_md.read_text().splitlines()
-    has_field = any(ln.startswith("**Fingerprint:**") for ln in lines)
-    new_lines: list[str] = []
-    field_done = False
-    for line in lines:
-        if line.startswith("**Fingerprint:**"):
-            new_lines.append(f"**Fingerprint:** {fingerprint}")
-            field_done = True
-            continue
-        new_lines.append(line)
-        if not has_field and not field_done and (
-            line.startswith("**Epic:**") or line.startswith("**Status:**")
-        ):
-            # Prefer anchoring after **Epic:**; if we just wrote **Status:** but an
-            # **Epic:** field exists later, defer to it.
-            if line.startswith("**Status:**") and any(
-                ln.startswith("**Epic:**") for ln in lines
-            ):
-                continue
-            new_lines.append(f"**Fingerprint:** {fingerprint}")
-            field_done = True
-    plan_md.write_text("\n".join(new_lines) + "\n")
-    return "updated" if has_field else "written"
+    had = _read_plan_field(plan_md.read_text(), "fingerprint") is not None
+    _write_plan_fields(plan_dir, {"fingerprint": fingerprint})
+    return "updated" if had else "written"
 
 
 def _fingerprint_status(plan_dir: Path) -> dict:
@@ -1139,10 +1240,7 @@ def fingerprint_check_cmd(plan_dir: str, as_json: bool):
 
 
 def _read_plan_status(plan_md_text: str) -> str | None:
-    for line in plan_md_text.splitlines():
-        if line.startswith("**Status:**"):
-            return line.split("**Status:**", 1)[1].strip() or None
-    return None
+    return _read_plan_field(plan_md_text, "status")
 
 
 def _read_plan_objective(plan_md_text: str) -> str | None:
@@ -2093,11 +2191,8 @@ def _all_plan_beads() -> dict[str, dict]:
 
 
 def _read_plan_epic_field(plan_md_text: str) -> str | None:
-    """Return the `**Epic:** <id>` header field value, if present."""
-    for line in plan_md_text.splitlines():
-        if line.startswith("**Epic:**"):
-            return line.split("**Epic:**", 1)[1].strip() or None
-    return None
+    """Return the epic id (frontmatter-first, `**Epic:**` fallback), if present."""
+    return _read_plan_field(plan_md_text, "epic")
 
 
 def _resume_scan(plan_dir: Path) -> dict:
@@ -2244,11 +2339,51 @@ _CONTEXT_PLACEHOLDERS = {
     "Runtime assumptions": "List the assumptions this plan makes about",
 }
 
-_README_REQUIRED_SECTIONS = ("File map", "Reading order")
+# OKF-reserved `index.md` listing shape (REQ-PORT-001): a `#` heading plus ≥1
+# `- [child](path)` listing bullet. Replaces the legacy README `File map` / `Reading
+# order` header check — the file-map/reading-order content folds into the bullets.
+_INDEX_HEADING_RE = re.compile(r"^# ", re.MULTILINE)
+_INDEX_BULLET_RE = re.compile(r"^- \[[^\]]+\]\([^)]+\)", re.MULTILINE)
+
+#: OKF error-level `check_conformance` reqs the audit surfaces under the REQ-PORT-050
+#: conformance floor (per-concept-doc frontmatter/type/okf_spec). The reserved-file
+#: presence errors (REQ-OKF-001 index / REQ-OKF-002 log) are deliberately excluded —
+#: `index.md` presence is check #1's job, so surfacing REQ-OKF-001 here too would
+#: double-report the same gap.
+_OKF_PORT050_REQS = frozenset({"REQ-OKF-003", "REQ-OKF-030", "REQ-OKF-031", "REQ-OKF-071"})
+
+
+def _index_is_listing(text: str) -> bool:
+    """True when an `index.md` body is an OKF progressive-disclosure listing — a `#`
+    heading plus ≥1 `- [child](path)` bullet (REQ-PORT-001), not the legacy README
+    `File map` / `Reading order` prose (which carries no markdown-link list bullets)."""
+    return bool(_INDEX_HEADING_RE.search(text)) and bool(_INDEX_BULLET_RE.search(text))
+
+
+def _read_field_line(plan_md_text: str, label: str) -> str | None:
+    """Read the RAW `**Label:** <value>` header-line value (NOT frontmatter-first).
+
+    Unlike `_read_plan_field` (frontmatter-first, REQ-OKF-021), this reads ONLY the
+    human `**Field:**` surface, so the audit's dual-write consistency check (R7 /
+    REQ-DATA-015) can compare the two representations independently and detect a
+    divergence. Returns None when no `**Label:**` line exists.
+    """
+    prefix = f"**{label}:**"
+    for line in plan_md_text.splitlines():
+        if line.startswith(prefix):
+            val = line[len(prefix):].strip()
+            return val or None
+    return None
 
 
 def _plan_phase_log_lines(plan_md_text: str) -> list[str]:
-    """Return the lines of the Phase log list (without the header)."""
+    """Return the lines of the legacy in-`plan.md` Phase log list (without the header).
+
+    Retained as the **legacy fallback** source for un-migrated plans (no `log.md`)
+    — Issue 3.4 relocated the live phase log to the reserved `log.md`, but the ~29
+    pre-existing plans still hold it in `plan.md`'s `**Phase log:**` block, so the
+    grandfather/count readers must still parse it when `log.md` is absent.
+    """
     lines = plan_md_text.splitlines()
     out: list[str] = []
     in_log = False
@@ -2265,18 +2400,80 @@ def _plan_phase_log_lines(plan_md_text: str) -> list[str]:
     return out
 
 
-def _plan_first_scoping_date(plan_md_text: str) -> str | None:
-    """Extract the date of the earliest `scoping:` phase-log entry, if any."""
-    for line in _plan_phase_log_lines(plan_md_text):
+_LOG_DATE_HEADING_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})[ \t]*$")
+
+
+def _log_md_entries(plan_dir: Path) -> list[tuple[str, str]] | None:
+    """Parse the reserved bundle-root `log.md` into `(date, bullet_text)` pairs.
+
+    The OKF-reserved `log.md` (REQ-DATA-012) is newest-first: entries are grouped
+    under ISO-8601 `## YYYY-MM-DD` date headings and each entry is a `- <status>:
+    <message>` bullet whose `<status>:` token is retained. `bullet_text` is the
+    bullet with its leading `- ` stripped (e.g. `review: presented v1`), so a caller
+    keys on `bullet_text.startswith("review:")` / `"scoping:"` and pairs it with the
+    enclosing heading `date`.
+
+    Returns `None` when `log.md` is absent — the signal for callers to fall back to
+    the legacy in-`plan.md` `**Phase log:**` block (un-migrated plans). Returns an
+    (empty) list when `log.md` exists, so an existing-but-empty log does NOT trigger
+    the legacy fallback.
+    """
+    log_md = plan_dir / "log.md"
+    if not log_md.exists():
+        return None
+    entries: list[tuple[str, str]] = []
+    current_date: str | None = None
+    for line in log_md.read_text().splitlines():
+        hm = _LOG_DATE_HEADING_RE.match(line)
+        if hm:
+            current_date = hm.group(1)
+            continue
+        if current_date and line.startswith("- "):
+            entries.append((current_date, line[2:].strip()))
+    return entries
+
+
+def _plan_first_scoping_date(plan_dir: Path) -> str | None:
+    """Return the earliest `scoping:` date for a plan bundle (REQ-PORT-ACT).
+
+    **Primary source: the reserved `log.md`** — the OLDEST `## YYYY-MM-DD` heading
+    bearing a `- scoping:` bullet (log.md is newest-first, so the oldest scoping date
+    is the `min` across scoping entries). **Legacy fallback:** when `log.md` is absent
+    (un-migrated plan), the first `scoping:` line in the in-`plan.md` `**Phase log:**`
+    block, so grandfathered plans resolve identically before and after migration
+    (REQ-OKF-MIG-002 preserves the first `scoping:` date across the extraction).
+    """
+    entries = _log_md_entries(plan_dir)
+    if entries is not None:
+        scoping_dates = [d for d, txt in entries if txt.startswith("scoping:")]
+        return min(scoping_dates) if scoping_dates else None
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.exists():
+        return None
+    for line in _plan_phase_log_lines(plan_md.read_text()):
         m = re.match(r"- (\d{4}-\d{2}-\d{2}) scoping:", line)
         if m:
             return m.group(1)
     return None
 
 
-def _plan_review_line_count(plan_md_text: str) -> int:
+def _plan_review_line_count(plan_dir: Path) -> int:
+    """Count `review:` update-history entries for a plan bundle (REQ-PORT-006).
+
+    The count-equality invariant (`len(reviews/pass-*.md) == review-entry count`) now
+    keys on the reserved `log.md`: count `- review:` bullets across all date headings.
+    **Legacy fallback:** when `log.md` is absent, count the legacy inline-date
+    `^- \\d{4}-\\d{2}-\\d{2} review:` lines in the in-`plan.md` `**Phase log:**` block.
+    Only the source file and line shape move; the coupling is unchanged.
+    """
+    entries = _log_md_entries(plan_dir)
+    if entries is not None:
+        return sum(1 for _d, txt in entries if txt.startswith("review:"))
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.exists():
+        return 0
     count = 0
-    for line in _plan_phase_log_lines(plan_md_text):
+    for line in _plan_phase_log_lines(plan_md.read_text()):
         if re.match(r"- \d{4}-\d{2}-\d{2} review:", line):
             count += 1
     return count
@@ -2361,6 +2558,19 @@ def _audit_plan(plan_dir: Path) -> dict:
     status ∈ {"pass", "fail"} — a result is "pass" iff no findings have
     status="fail". Warn findings (grandfather clause) do not degrade overall
     status.
+
+    Checks: (1) reserved `index.md` presence + OKF listing shape (REQ-PORT-001,
+    replaces the legacy README File map/Reading order surface); (2) context.md
+    required sections; (3) motivation; (4) upstream references; (5) reviews/pass-*.md
+    count == `log.md` review-entry count (REQ-PORT-006); (6) no dangling refs;
+    (7) REQ-PORT-050 OKF conformance floor (type + `okf_spec: OKF-PLAN` on every
+    non-reserved `.md`, via the vendored `okf.check_conformance`); (8) dual-write
+    consistency (R7 / REQ-DATA-015 — frontmatter and `**Field:**` must agree).
+
+    The OKF scaffolding checks (#1, #7) are downgraded to `warn` for an OKF-legacy
+    plan (date-grandfathered OR un-migrated — no `plan.md` frontmatter) and `fail` for
+    an OKF-native plan, mirroring how the date grandfather downgrades the original
+    portability scaffolding (#2–#5).
     """
     findings: list[dict] = []
     plan_md = plan_dir / "plan.md"
@@ -2373,29 +2583,45 @@ def _audit_plan(plan_dir: Path) -> dict:
         }
 
     plan_text = plan_md.read_text()
-    first_scoping = _plan_first_scoping_date(plan_text)
+    first_scoping = _plan_first_scoping_date(plan_dir)
     grandfathered = (
         first_scoping is not None
         and first_scoping < PORTABILITY_ACTIVATION_DATE
     )
     missing_level = "warn" if grandfathered else "fail"
 
-    # 1. README.md
-    readme = plan_dir / "README.md"
-    if not readme.exists() or not readme.read_text().strip():
+    # OKF adoption gate (plan-029): the OKF-PLAN scaffolding checks — reserved
+    # `index.md` (#1), the REQ-PORT-050 conformance floor (#7) — must NOT hard-fail a
+    # plan created before OKF adoption. The date grandfather (2026-04-05) does not
+    # cover them: every pre-adoption plan is scoped after it yet carries none of the
+    # OKF surface. The reliable "OKF-native" marker is a parseable `plan.md`
+    # frontmatter block — present on a born-OKF (seeded) or migrated plan, absent on a
+    # legacy one. An OKF-legacy plan (grandfathered OR no `plan.md` frontmatter) gets
+    # `warn` for missing OKF scaffolding, exactly as the date grandfather downgrades
+    # the original portability scaffolding; an OKF-native plan gets a hard `fail`.
+    try:
+        plan_fm, _ = okf.read_frontmatter(plan_text)
+    except okf.OKFParseError:
+        plan_fm = {}
+    okf_native = bool(plan_fm)
+    okf_missing_level = "fail" if (okf_native and not grandfathered) else "warn"
+
+    # 1. Reserved `index.md` — presence + OKF listing shape (REQ-PORT-001). Replaces
+    #    the legacy README `File map` / `Reading order` surface; `README.md` is no
+    #    longer required. `index.md` is the OKF-reserved bundle listing.
+    index_md = plan_dir / "index.md"
+    if not index_md.exists() or not index_md.read_text().strip():
         findings.append(_audit_finding(
-            "README.md", missing_level,
-            "missing or empty; expected portability orientation file",
+            "index.md", okf_missing_level,
+            "missing or empty; expected OKF-reserved bundle listing "
+            "(replaces the legacy README file-map/reading-order surface)",
         ))
-    else:
-        rtxt = readme.read_text()
-        missing_sections = [s for s in _README_REQUIRED_SECTIONS
-                            if s not in rtxt]
-        if missing_sections:
-            findings.append(_audit_finding(
-                "README.md", "fail",
-                f"missing required sections: {', '.join(missing_sections)}",
-            ))
+    elif not _index_is_listing(index_md.read_text()):
+        findings.append(_audit_finding(
+            "index.md", okf_missing_level,
+            "not an OKF listing; expected a `#` heading plus `- [child](path)` "
+            "bullets, not the legacy File map / Reading order prose",
+        ))
 
     # 2. context.md — required sections non-empty (no unfilled placeholder lines)
     context = plan_dir / "context.md"
@@ -2468,8 +2694,9 @@ def _audit_plan(plan_dir: Path) -> dict:
                 "missing body for non-exclude upstream issue",
             ))
 
-    # 5. reviews/pass-*.md — count == phase-log review line count
-    expected_reviews = _plan_review_line_count(plan_text)
+    # 5. reviews/pass-*.md — count == log.md review-entry count (legacy fallback:
+    #    in-plan.md phase-log review lines when log.md is absent)
+    expected_reviews = _plan_review_line_count(plan_dir)
     reviews_dir = plan_dir / "reviews"
     actual_reviews = 0
     if reviews_dir.exists():
@@ -2480,6 +2707,67 @@ def _audit_plan(plan_dir: Path) -> dict:
             f"expected {expected_reviews} pass-*.md (one per phase-log review line), "
             f"found {actual_reviews}",
         ))
+
+    # 7. REQ-PORT-050 conformance floor — every non-reserved bundle `.md` carries a
+    #    parseable frontmatter block with a non-empty `type` and `okf_spec: OKF-PLAN`.
+    #    Backed by the vendored OKF engine's `check_conformance` (error-level findings →
+    #    audit finding; warning-level — type-vocab / required-key backfill — never a
+    #    hard fail, matching the ratified error/warning split). Downgraded to `warn`
+    #    for an OKF-legacy plan (grandfathered or un-migrated), `fail` for OKF-native.
+    try:
+        conf = okf.check_conformance(plan_dir, skill=SKILL_NAME)
+        for cf in conf.findings:
+            if cf.level != "error" or cf.req not in _OKF_PORT050_REQS:
+                continue
+            try:
+                rel = str(Path(cf.path).relative_to(plan_dir))
+            except ValueError:
+                rel = cf.path
+            findings.append(_audit_finding(
+                f"okf:{rel}", okf_missing_level, f"{cf.req}: {cf.message}",
+            ))
+    except Exception as exc:  # engine is report-only/crash-safe; defensive only
+        findings.append(_audit_finding(
+            "okf-conformance", "warn",
+            f"OKF conformance check errored (engine): {exc}",
+        ))
+    # REQ-PORT-050 selector value: `okf_spec` must be exactly `OKF-PLAN`. The engine
+    # verifies presence (REQ-OKF-030) but not the value; a present-but-wrong selector
+    # (e.g. a mis-stamped `OKF-RESEARCH`) is flagged here. Absence is already covered
+    # by the conformance pass above.
+    for md in sorted(plan_dir.rglob("*.md")):
+        if md.name in okf.RESERVED_FILES:
+            continue
+        try:
+            fm, _ = okf.read_frontmatter(md.read_text())
+        except Exception:
+            continue
+        spec = str(fm.get("okf_spec") or "").strip()
+        if spec and spec != _OKF_MEMBER:
+            findings.append(_audit_finding(
+                f"okf:{md.relative_to(plan_dir)}", okf_missing_level,
+                f"okf_spec is {spec!r}, expected {_OKF_MEMBER!r} (REQ-PORT-050)",
+            ))
+
+    # 8. Dual-write consistency (R7 / REQ-DATA-015) — for every dual identity field the
+    #    frontmatter value and the `**Field:**` header line must AGREE. A divergence is
+    #    a single-writer-bypass writer bug or a hand-edit and is always a hard fail
+    #    (it can only arise when BOTH surfaces exist, i.e. on an OKF-native plan). Read
+    #    the two surfaces INDEPENDENTLY — not through the frontmatter-first accessor,
+    #    which would mask the divergence.
+    for key in PLAN_FIELD_ORDER:
+        if key not in plan_fm:
+            continue
+        line_val = _read_field_line(plan_text, PLAN_FIELD_LABELS[key])
+        if line_val is None:
+            continue  # field lives only in frontmatter — no divergence to detect
+        fm_val = str(plan_fm.get(key)).strip()
+        if fm_val != line_val:
+            findings.append(_audit_finding(
+                f"dual-write:{key}", "fail",
+                f"frontmatter {fm_val!r} != **{PLAN_FIELD_LABELS[key]}:** {line_val!r} "
+                "(dual-write divergence — REQ-DATA-015)",
+            ))
 
     # 6. No dangling external refs across all plan files.
     # Strip fenced/inline code spans first — they contain pattern examples,
@@ -2517,6 +2805,12 @@ def _audit_plan(plan_dir: Path) -> dict:
             f"{PORTABILITY_ACTIVATION_DATE}; missing scaffolding downgraded to warn."
         )
         report_lines.append("")
+    if okf_missing_level == "warn" and not grandfathered:
+        report_lines.append(
+            "[okf-legacy] no plan.md frontmatter (un-migrated); missing OKF "
+            "scaffolding (index.md, type/okf_spec) downgraded to warn."
+        )
+        report_lines.append("")
     for f in findings:
         report_lines.append(f"  [{f['status']:<4}] {f['item']}: {f['detail']}")
     if not findings:
@@ -2526,6 +2820,7 @@ def _audit_plan(plan_dir: Path) -> dict:
         "findings": findings,
         "report": "\n".join(report_lines),
         "grandfathered": grandfathered,
+        "okf_native": okf_native,
     }
 
 

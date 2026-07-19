@@ -58,11 +58,20 @@ status: incubating
 last_reviewed: YYYY-MM-DD
 priority: normal
 aliases: [<kebab-name>]
+type: Incubator
+okf_spec: OKF-INCUBATOR
 ---
 ```
 
 `status`: `incubating` | `scoping` | `exploring` | `converging` | `concluded` |
 `parked` | `abandoned`. `priority`: `high` | `normal` | `low`.
+
+`type: Incubator` + `okf_spec: OKF-INCUBATOR` make the state file the typed OKF
+concept document (OKF-INCUBATOR, `OKF-EXTENSION.md`). The seven pre-OKF keys are
+retained byte-for-byte; the two OKF keys are additive (merge-and-preserve). Write
+them via the engine (`scripts/incubator-index.py scaffold <path>` →
+`okf.write_frontmatter`), never by hand-editing YAML. The state file is **kept** —
+a dir-form bundle's `README.md` is never renamed to `index.md`.
 
 Body, in order, verbatim. Never drop `## Decision log` or `## Beads to file`:
 
@@ -108,6 +117,15 @@ plan/execute DAG, hand off to `yf-plan`. Keep the stubs human-readable until the
 
 Optional: `## Prior art and inspirations`. `## Layout` may replace `## Files`
 for research-heavy directory incubators.
+
+**OKF reserved files (dir-form only).** A single-file incubator (`Incubator/<kebab>.md`)
+is **exempt** from reserved files (REQ-INCUB-042) — `## Files` and `## Decision log` stay
+in-body. On promotion to dir-form (`scripts/incubator-index.py promote <kebab>.md`), those
+two sections **move** into the OKF reserved `index.md` (from `## Files`/`## Layout`) and
+`log.md` (from `## Decision log`, newest-first) — never dropped (REQ-INCUB-041). The
+reserved files carry no `type`/`okf_spec`; `README.md` stays the typed state file. The
+repo-level `Incubator/INDEX.md` is a cross-incubator catalog, not a bundle `index.md`, and
+carries no `type`/`okf_spec` (REQ-INCUB-043).
 
 ## Subcommands
 

@@ -69,4 +69,4 @@ id = "package"
 title = "Package: {{topic}}"
 type = "task"
 needs = ["refine"]
-description = "Finalize Summary.md, update _index.md, hoist reusable scripts, close epic, and report a git handoff (commit/push only on explicit authorization)."
+description = "Finalize Summary.md, update index.md, hoist reusable scripts, close epic, and report a git handoff (commit/push only on explicit authorization)."

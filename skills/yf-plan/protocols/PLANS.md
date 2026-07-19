@@ -21,4 +21,4 @@ The plan root is chosen at scoping time (Phase 1.2 of yf-plan SKILL.md). When `p
 - `/yf-plan status [<plan-id>]` — show progress
 - `/yf-plan list` — list all plans
 
-**Plan folders are portable.** Every plan directory contains `README.md`, `context.md`, `references/`, and `reviews/` in addition to `plan.md`. A cold reader in a different repo must be able to understand the plan from the folder alone. Intake runs a mechanical audit (`plan_manager.py audit`) and halts on failure; use `/yf-plan capture` mid-drafting to audit and draft missing files.
+**Plan folders are portable.** Every plan directory is an OKF bundle: the reserved `index.md` (bundle listing, replaces the legacy `README.md`) and `log.md` (newest-first phase history, extracted from the old in-`plan.md` phase log), plus `context.md`, `references/`, and `reviews/` alongside `plan.md`. A cold reader in a different repo must be able to understand the plan from the folder alone. Intake runs a mechanical audit (`plan_manager.py audit`) and halts on failure; use `/yf-plan capture` mid-drafting to audit and draft missing files.

@@ -231,7 +231,7 @@ plan_dir=$(echo "$PLAN_JSON" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-
 
 Plan dirs land under `Incubator/<slug>/plans/<plan-id>/` when an incubator was named, otherwise under `docs/plans/<plan-id>/`. Numbering is global across all roots.
 
-Creates `${plan_dir}/`, `findings/`, `diagrams/` (d2 diagrams per the `yf-diagram-authoring` skill), `assets/` (attachments, not diagrams), `references/`, `reviews/`, initial `plan.md` with `status: scoping`, `README.md` (orientation), and `context.md` (tool-inventory snapshot with hostname+date header). Tool detection is best-effort — missing tools are recorded as `not present` and never block init.
+Creates `${plan_dir}/`, `findings/`, `diagrams/` (d2 diagrams per the `yf-diagram-authoring` skill), `assets/` (attachments, not diagrams), `references/`, `reviews/`, initial `plan.md` with `status: scoping`, the OKF-reserved `index.md` (bundle listing / orientation, replacing the legacy `README.md`) and `log.md` (update history), and `context.md` (tool-inventory snapshot with hostname+date header). Tool detection is best-effort — missing tools are recorded as `not present` and never block init.
 
 ### 1.4 — Upstream issue scan
 
@@ -1104,7 +1104,7 @@ COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get co
 
 ## Markdown output convention
 
-Every markdown artifact this skill writes (`plan.md`, `README.md`, `context.md`,
+Every markdown artifact this skill writes (`plan.md`, `index.md`, `context.md`,
 `findings/*.md`, `reviews/*.md`, `upstream-triage.md`) is plain **GFM** — never Obsidian
 `[[wikilinks]]` or `![[embeds]]`. Use GFM links (`[text](path)` / `[text](file.md#anchor)`)
 and GFM tables with explicit alignment markers (`:--` left, `:-:` center, `--:` right) and

@@ -14,6 +14,7 @@
     "yf-markdown-html": "markdown",
     "yf-markdown-lint": "markdown",
     "yf-markdown-pdf": "markdown",
+    "yf-okf": "utility",
     "yf-optimal-instructions": "utility",
     "yf-plan": "beads",
     "yf-research": "beads",
@@ -45,6 +46,7 @@
       "yf-change-validation",
       "yf-diagram-authoring",
       "yf-drift-check",
+      "yf-okf",
       "yf-optimal-instructions",
       "yf-skill-authoring"
     ]
@@ -70,6 +72,7 @@
       "yf-change-validation",
       "yf-diagram-authoring",
       "yf-drift-check",
+      "yf-okf",
       "yf-optimal-instructions",
       "yf-skill-authoring"
     ],

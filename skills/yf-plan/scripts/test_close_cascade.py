@@ -3,6 +3,7 @@
 # dependencies = [
 #     "click>=8.1",
 #     "pytest>=8",
+#     "pyyaml>=6",
 # ]
 # ///
 """Unit tests for close_cascade.py (Issue 2.4 / #73) — REQ-PLAN-067.

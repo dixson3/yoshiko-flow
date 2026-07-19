@@ -64,7 +64,7 @@ REQ-AGENT-042: High-severity concerns block approval.
 Rationale: Proceeding with known high-severity issues produces plans that fail during execution.
 Verification: red-team.md Rules: "High blocks approval."
 
-REQ-AGENT-043: The red-team agent is read-only. It never writes files. `reviews/pass-N.md` and the phase-log `review:` line are written by the main session **at red-team presentation** (create-on-present, #4) as a single atomic step, then the same file is updated in place as the operator resolves concerns (REQ-PORT-006/008).
+REQ-AGENT-043: The red-team agent is read-only. It never writes files. `reviews/pass-N.md` and the `log.md` `review:` line are written by the main session **at red-team presentation** (create-on-present, #4) as a single atomic step, then the same file is updated in place as the operator resolves concerns (REQ-PORT-006/008).
 Rationale: Agents that write files outside their dispatch scope violate agent isolation (REQ-AGENT-050 sibling) and make the review capture path non-auditable. Keeping the red-team read-only lets the main session atomically write the review artifact and the phase-log entry together; writing at presentation (not after resolution) makes the verdict portable while the plan is still parked in `review`.
 Verification: red-team.md Rules: "Read-only — never writes files" + "writes ... at presentation"; SKILL.md Phase 3 Review section "Write the report at presentation" states the main session writes `reviews/pass-N.md` + phase-log line atomically at red-team presentation.
 
@@ -82,7 +82,7 @@ Verification: reviewer.md Rules: "Conformance only" + "Read-only — never write
 
 ## Captor
 
-REQ-AGENT-060: The captor drafts missing portability-contract files (README.md, context.md, motivation, references/upstream-*.md, reviews/pass-*.md) from current plan state. Invoked by `/yf-plan capture` via SKILL.md Phase: CAPTURE.
+REQ-AGENT-060: The captor drafts missing portability-contract files (the reserved `index.md`, context.md, motivation, references/upstream-*.md, reviews/pass-*.md) from current plan state. Invoked by `/yf-plan capture` via SKILL.md Phase: CAPTURE.
 Rationale: Operators should not have to hand-write portability scaffolding when the plan folder already contains enough state to derive it. The captor centralizes the drafting heuristics.
 Verification: `agents/captor.md` Draft section enumerates the contract files; SKILL.md Phase: CAPTURE dispatches to `agents/captor.md`.
 

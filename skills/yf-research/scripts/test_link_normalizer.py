@@ -3,7 +3,7 @@
 # dependencies = ["click", "pytest"]
 # ///
 """Tests for link_normalizer GFM citation/link conversion + idempotency."""
-from link_normalizer import gh_slug, rewrite_citations, rewrite_index
+from link_normalizer import gh_slug, rewrite_citations
 
 KNOWN = {"CL12", "AB3", "ME7"}
 
@@ -43,26 +43,20 @@ def test_rewrite_citations_idempotent():
     assert n == 0
 
 
-def test_rewrite_index_plain_cell():
-    src = (
-        "| Timestamp | Phase | Artifact | Description |\n"
-        "|---|---|---|---|\n"
-        "| 2026-01-01T00:00 | SYNTH | Summary.md | the report |\n"
-    )
-    out, n = rewrite_index(src)
-    assert "| [Summary](Summary.md) |" in out
-    assert n == 1
+# The legacy `rewrite_index` / `link-index` path (which rewrote the Artifact
+# column of the old `_index.md` timestamped GFM table into links) has been
+# retired: the OKF bundle listing is now `index.md`, a bullet listing emitted
+# by index_manager.py / okf.add_index_entry that already carries
+# `[artifact](path)` GFM links, so no post-hoc table-cell link rewriting is
+# needed (REQ-PORT-009 / OKF-EXTENSION §5). Its tests are removed accordingly.
 
 
-def test_rewrite_index_idempotent():
-    src = (
-        "| Timestamp | Phase | Artifact | Description |\n"
-        "|---|---|---|---|\n"
-        "| 2026-01-01T00:00 | SYNTH | [Summary](Summary.md) | the report |\n"
-    )
-    out, n = rewrite_index(src)
-    assert out == src
-    assert n == 0
+def test_no_link_index_command():
+    """link-index is retired; only build-sources, link-citations, all remain."""
+    from link_normalizer import cli
+
+    assert "link-index" not in cli.commands
+    assert set(cli.commands) == {"build-sources", "link-citations", "all"}
 
 
 if __name__ == "__main__":

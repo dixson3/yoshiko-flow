@@ -168,6 +168,16 @@ WHOLE_FILE_ASSETS = [
             _skill("yf-skill-authoring", "scripts", "manifest_update.py"),
         ],
     ),
+    WholeFileAsset(
+        name="okf.py",
+        canonical=REPO_ROOT / "_shared" / "okf.py",
+        consumers=[
+            _skill("yf-plan", "scripts", "okf.py"),
+            _skill("yf-research", "scripts", "okf.py"),
+            _skill("yf-incubator", "scripts", "okf.py"),
+            _skill("yf-okf", "scripts", "okf.py"),
+        ],
+    ),
 ]
 
 EMITTED_ASSETS = [

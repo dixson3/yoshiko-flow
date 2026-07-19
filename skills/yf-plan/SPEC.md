@@ -35,9 +35,12 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 
 ### 2.2 Plan folder & portability (see `spec/portability.md`, `spec/data.md`)
 
-- **REQ-PLAN-010** *(testable)* `init` shall create a plan folder under `docs/plans/<plan-id>/` (or
-  `Incubator/<slug>/plans/<plan-id>/`) with `plan.md`, `README.md`, `context.md`, `findings/`,
-  `diagrams/`, `assets/`, `references/`, `reviews/`; plan-id numbering is global across roots.
+- **REQ-PLAN-010** *(testable)* `init` shall create an OKF-PLAN plan bundle under `docs/plans/<plan-id>/`
+  (or `Incubator/<slug>/plans/<plan-id>/`) with `plan.md`, the OKF-reserved `index.md` and `log.md`
+  (replacing the legacy `README.md` and in-`plan.md` phase log — REQ-PORT-001, REQ-DATA-012),
+  `context.md`, `findings/`, `diagrams/`, `assets/`, `references/`, `reviews/`; every non-reserved
+  `.md` carries `type` + `okf_spec: OKF-PLAN` frontmatter (REQ-PORT-050). Plan-id numbering is global
+  across roots.
 - **REQ-PLAN-011** *(testable)* `plan.md` shall contain the required portability sections
   (Objective, Motivation, Upstream Issues, Investigation Findings, Approach, Epics, Gates, Risks &
   Mitigations, Success Criteria); `audit` shall return `pass|fail` and block INTAKE on `fail`.
@@ -61,8 +64,8 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   earlier APPROVE followed by a REVISE (whose revisions were never re-reviewed) is **not** ready.
   Both agents are **read-only**; the main session writes files.
 - **REQ-PLAN-031** *(testable)* at red-team presentation the main session shall write
-  `reviews/pass-N.md` **and** append the phase-log `review:` line atomically (create-on-present),
-  preserving `count(reviews/pass-*.md) == count(phase-log review: lines)`.
+  `reviews/pass-N.md` **and** append the `log.md` `review:` line atomically (create-on-present),
+  preserving `count(reviews/pass-*.md) == count(log.md review: lines)` (REQ-PORT-006).
 - **REQ-PLAN-032** a `pass-N.md` shall be mutable until all concerns resolve, then frozen; each
   full REVISE cycle yields exactly one pass file.
 - **REQ-PLAN-033** *(testable)* the portability `audit` shall be a **precondition of the approval
@@ -78,9 +81,11 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   Operator approval is the single act of consent that transitions `ready-for-approval → approved`.
   `ready-check` and the approval transition are **adjacent** — `ready-check` re-runs at approval so
   no content edit can slip between a green check and the fingerprint write (REQ-PLAN-034).
-- **REQ-PLAN-034** *(testable)* approval shall write a `**Fingerprint:**` over the plan's content
-  sections (excluding header fields, phase-log, `reviews/`, Operator Resolutions, and the
-  `## Upstream Issues` section); a subsequent content edit marks the plan **stale-approved** and
+- **REQ-PLAN-034** *(testable)* approval shall write the fingerprint under the dual field set
+  (`fingerprint` frontmatter key + `**Fingerprint:**` line, REQ-DATA-015) over the plan's content
+  sections — everything before the first `## ` (frontmatter, `**Field:**` lines, and the now-relocated
+  log) is positionally excluded, along with `reviews/`, Operator Resolutions, and the
+  `## Upstream Issues` section; a subsequent content edit marks the plan **stale-approved** and
   blocks EXECUTE until a fresh conformance → red-team → portability cycle re-approves it (or a logged
   `--force`). See `spec/portability.md` REQ-PORT-040/041.
 

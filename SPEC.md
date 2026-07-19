@@ -114,6 +114,24 @@
 >   `list` / `/yf-plan status` and a land-the-plane check, plus the Phase 4.5 tracking-issue title
 >   `plan-NNN execution tracking`. See the per-skill `skills/yf-research/SPEC.md` and
 >   `skills/yf-plan/SPEC.md` for the requirement text.
+> - **plan-029 (2026-07-18):** OKF adoption — added the `yf-okf` skill (`skills/yf-okf/SPEC.md`,
+>   the OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ OKF-`<member>` family engine, vendored whole-file as
+>   `_shared/okf.py` → `skills/{yf-plan,yf-research,yf-incubator,yf-okf}/scripts/okf.py`) and made
+>   it the standard artifact-folder model for yf-plan, yf-research, and yf-incubator bundles. The
+>   OKF-reserved `index.md` replaces the legacy seeded `README.md`/`_index.md`; the reserved
+>   `log.md` (newest-first ISO-8601 phase history) replaces the in-`plan.md` `**Phase log:**` block
+>   and the research ledger; every non-reserved bundle `.md` carries YAML frontmatter with `type` +
+>   `okf_spec`; `plan.md`'s existing `**Field:**` header lines are dual-written with their
+>   frontmatter mirror keys (one writer, both representations, never authored independently);
+>   single-file incubator notes are OKF-exempt (no forced bundle dir); and `Incubator/INDEX.md`
+>   remains a cross-bundle catalog, not a per-bundle `index.md`. Per-skill requirement text lives in
+>   `skills/yf-plan/SPEC.md` (`REQ-PORT-050`, `REQ-DATA-015`), `skills/yf-research/SPEC.md`
+>   (`REQ-RESEARCH-012`, with `REQ-PORT-007/008/009` in its `spec/portability.md`), and
+>   `skills/yf-incubator/SPEC.md`
+>   (`REQ-INCUB-040..043`); the family/engine REQs are `REQ-OKF-*` in `skills/yf-okf/SPEC.md`. Note:
+>   incubator frontmatter round-trips value/order-preserving, not literally byte-for-byte (a
+>   YAML flow-style block may re-serialize to block style). `DRIFT-CHECK.md` gained the
+>   `okf-canonical` → `okf-copy-{plan,research,incubator,okf}` value-equal edges.
 
 ## 1. Purpose & scope
 

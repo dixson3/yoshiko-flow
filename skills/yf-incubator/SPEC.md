@@ -28,14 +28,20 @@ edits with no park/resume intent.
   (`Incubator/<kebab>/README.md`, with `research/`/`references/`/`plans/` alongside) or
   single-file form (`Incubator/<kebab>.md`); single-file is promoted to directory form when it
   gains `research/` or a `## Resume`.
-- **REQ-INCUB-002** *(testable)* the state file frontmatter shall carry `title`, `created`,
-  `tags`, `status`, `last_reviewed`, `priority`, and `aliases`; `status` is one of
+- **REQ-INCUB-002** *(testable)* the state file frontmatter shall carry `type`, `okf_spec`,
+  `title`, `created`, `tags`, `status`, `last_reviewed`, `priority`, and `aliases` (8 domain keys
+  plus the `okf_spec` selector); `type` shall be `Incubator` and `okf_spec` shall be
+  `OKF-INCUBATOR` (OKF conformance — REQ-INCUB-040); `status` is one of
   `incubating | scoping | exploring | converging | concluded | parked | abandoned` and
-  `priority` is one of `high | normal | low`.
+  `priority` is one of `high | normal | low`. The seven pre-OKF keys (`title`, `created`, `tags`,
+  `status`, `last_reviewed`, `priority`, `aliases`) are retained byte-for-byte; `type` and
+  `okf_spec` are additive (merge-and-preserve, `skills/yf-okf/SPEC.md` REQ-OKF-070).
 - **REQ-INCUB-003** the body shall contain, in order, the verbatim sections `## Resume`,
   `## Status`, `## Premise`, `## Open questions`, `## Decision log`, `## Files`, and
   `## Beads to file`; `## Decision log` and `## Beads to file` are never dropped (they may be
-  empty).
+  empty). In a **dir-form** bundle, `## Decision log` and `## Files` are promoted out of the
+  state file into the OKF reserved `log.md` / `index.md` respectively (REQ-INCUB-041); the
+  remaining sections stay in the typed state file.
 - **REQ-INCUB-004** `## Resume` shall let a cold reader resume with no session history — concrete
   next action plus the exact files to re-read under "Context to reload".
 
@@ -80,6 +86,43 @@ edits with no park/resume intent.
   guarded, best-effort normalization step; when the skill is absent the step is skipped without
   error.
 
+### 2.5 OKF conformance (`OKF-INCUBATOR` member)
+
+An incubator bundle is an OKF-family bundle whose per-skill extension is **OKF-INCUBATOR**
+(`skills/yf-incubator/OKF-EXTENSION.md`), composed as
+OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ OKF-INCUBATOR (`skills/yf-okf/SPEC.md` REQ-OKF-FAM-001).
+Because the incubator state file already emitted native YAML frontmatter, OKF-INCUBATOR is the
+smallest of the three family deltas: it adds only the mandatory `type` key plus the `okf_spec`
+selector.
+
+- **REQ-INCUB-040** *(testable)* the incubator **state file** — `Incubator/<kebab>.md`
+  (single-file) or `Incubator/<kebab>/README.md` (dir-form) — shall be the typed OKF concept
+  document, carrying `type: Incubator` and `okf_spec: OKF-INCUBATOR` in its frontmatter.
+  **Divergence from OKF-PLAN (`skills/yf-okf/SPEC.md` REQ-OKF-MIG-005):** the state file is
+  **kept** as the typed document and is **never** renamed to `index.md`; a dir-form bundle's
+  reserved `index.md` is **scaffolded** alongside `README.md`, not produced by renaming it. The
+  state file is thus the type-bearing node while `index.md` remains the untyped listing. Rationale:
+  `README.md` is the incubator's resume-from-cold surface, not a bundle table of contents
+  (OKF-EXTENSION §1a/§1b).
+- **REQ-INCUB-041** *(testable)* in a **dir-form** incubator the body sections shall map to OKF
+  reserved files: `## Files` (or `## Layout`) → the reserved **`index.md`** listing
+  (`skills/yf-okf/SPEC.md` REQ-OKF-001), and `## Decision log` → the reserved **`log.md`** with
+  newest-first ISO-8601 entries (REQ-OKF-002). Promotion **moves** `## Decision log` into `log.md`
+  (never drops it — REQ-INCUB-003 invariant). The reserved `index.md` and `log.md` shall carry
+  **no `type` and no `okf_spec`** (REQ-OKF-031); the type-bearing content stays in the state file.
+- **REQ-INCUB-042** *(testable)* a **single-file** incubator — one `.md` at `Incubator/<kebab>.md`
+  with no owning directory — shall be **exempt** from the reserved `index.md` / `log.md`
+  requirement (`skills/yf-okf/SPEC.md` REQ-OKF-050); it carries only its own frontmatter (with
+  `type` + `okf_spec`) and keeps `## Files` and `## Decision log` in-body. The exemption ends when
+  the incubator is **promoted to dir-form** — when it gains `research/` or a `## Resume`
+  (REQ-INCUB-001) — at which point REQ-INCUB-041 applies and the two sections are extracted to the
+  reserved files.
+- **REQ-INCUB-043** *(testable)* the repo-level `Incubator/INDEX.md` (the cross-incubator catalog
+  the indexer regenerates over all bundles, REQ-INCUB-014) is **out of scope** of the OKF bundle
+  model: it is a cross-bundle listing surface, **not** a per-bundle reserved `index.md`, and shall
+  carry **no `type` and no `okf_spec`**. Migration and conformance checks shall not treat it as a
+  bundle-root `index.md` (OKF-EXTENSION §5).
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/incubator-index.py` — `collect` (managed vs unmanaged split),
@@ -115,9 +158,19 @@ edits with no park/resume intent.
   fixture `Incubator/` tree mixing managed and unmanaged entries, asserting the priority-then-
   staleness order and that unmanaged entries are reported but unmodified. Subcommand behaviors
   (REQ-INCUB-010..014) map to plan-010 Epic 6 integration tests naming the REQ id.
+- OKF conformance (REQ-INCUB-040..043) is checked by asserting the state file carries
+  `type: Incubator` + `okf_spec: OKF-INCUBATOR` with the seven pre-OKF keys preserved; that a
+  dir-form bundle promotes `## Files` → `index.md` and `## Decision log` → `log.md` (newest-first,
+  untyped reserved files) while `README.md` is kept and never renamed; that a single-file bundle is
+  reserved-file-exempt (REQ-OKF-050) until promotion; and that `Incubator/INDEX.md` is left
+  untyped and untouched by the migration/conformance path.
 
 ## 6. References
 
 - `skills/yf-incubator/SKILL.md` (invocation, state schema, subcommands, proactive detection).
 - `skills/yf-incubator/scripts/incubator-index.py` (managed/unmanaged classification + sort).
+- `skills/yf-incubator/OKF-EXTENSION.md` (the ratified OKF-INCUBATOR member: `type` vocab,
+  role→type map, single-file exemption, dir-form reserved-file mapping).
+- `skills/yf-okf/SPEC.md` (REQ-OKF-001/002/031/050/070/MIG-005, FAM-001) and its
+  `spec/OKF-BASELINE.md` / `spec/OKF-YF-EXTENSIONS.md`.
 - Root `SPEC.md` §4 (INCUB), §3.8 (rename), §3.9 (`REQ-YF-MIGRATE-001`), and `GUARDRAILS.md`.
