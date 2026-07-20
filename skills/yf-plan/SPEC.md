@@ -185,6 +185,42 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   shall be titled `plan-NNN execution tracking` (not the past-tense-glancing "Complete execution of
   plan-NNN"). Amendment-log entry: root `SPEC.md` `plan-028` (authored by plan-028 Issue 1.1; this
   requirement references it).
+- **REQ-PLAN-069** *(testable)* on COMPLETE (the RECONCILE close step, REQ-PLAN-063), for a plan whose
+  **deliverable class is `ci-release`** (REQ-PLAN-069a) yf-plan shall **hard-gate `complete`** on
+  evidence that the deliverable's runner-only-observable behavior has been exercised: after the
+  container cascade-close (REQ-PLAN-067) and **before** `update-status complete`, a `complete-gate`
+  verb shall **halt completion** (exit non-zero + JSON verdict + actionable message, mirroring the
+  `close_cascade.py` fail-loud contract) unless **at least one** of — (a) a **green-execution
+  attestation**: a `log.md` `- validated:` bullet (REQ-PLAN-069b) recording one observed green run;
+  **or** (b) an **open, out-of-tree, upstream-tracked deferred-validation bead** carrying the
+  unverified-behavior signal forward (a standalone `bd` issue with label `deferred-validation` and
+  metadata `{"plan":"<plan-id>"}`, discovered by a `bd list --label` filter — **never** a plan-tree
+  child, so `close_cascade` does not fail-loud on it first). For a `standard`/unset deliverable class
+  the gate is a strict **no-op** — ordinary plans (whose deliverable is observable in merged-state
+  validation, REQ-PLAN-060) are never gated. The lesson driving this gate: CI/infra/release config is
+  only correct when it *runs on the target*, and `merged` is not `works` (upstream #89). Parallel to
+  REQ-PLAN-067; the deferred bead's out-of-tree placement is a deliberate per-bead exception to the
+  coarse-granularity upstream convention.
+- **REQ-PLAN-069a** *(testable)* **detection.** A plan's deliverable class shall be a **registered
+  canonical dual-write field** `deliverable_class`↔`**Deliverable-class:**` (REQ-DATA-015 field set,
+  `PLAN_FIELD_ORDER` immediately after `status`), with values `ci-release` (the gated class) or
+  `standard` (default). Being a **registered** field — not a raw header line — it survives every
+  `update-status`/`record-epic` field-block rewrite (`_rebuild_field_block` re-emits only registered
+  fields) while remaining fingerprint-excluded (positionally above the first `## `, REQ-PORT-040), so
+  writing it post-approval does not stale the plan. A `classify-deliverable` verb shall **suggest** a
+  class by scanning the plan's epics/upstream/success-criteria text and (when available) merged-tree
+  changed paths for ci-release signals (`.github/workflows/**`, `release`/`notarize`/`sign`/`deploy`
+  keywords, self-hosted-runner references) returning `{suggested_class, signals, confidence}`
+  (`high` = a workflow path or release/sign/notarize signal; `low` = keyword-only); the operator
+  **confirms or overrides**, and the confirmed value is written via the dual-write field setter. The
+  class is re-confirmable at reconcile when changed paths are available (they may be absent at intake).
+- **REQ-PLAN-069b** *(testable)* **evidence.** One green execution shall be recorded as a `log.md`
+  bullet `- validated: <run URL/id> — <note>` under the current `## YYYY-MM-DD` heading, written via
+  `okf.append_log` (helper: `attest-validation`; a hand-written bullet is equally valid). Evidence is
+  **operator-attested and trust-based** — no CI-API coupling. `complete-gate` reads `log.md` (with a
+  `plan.md` `**Phase log:**` fallback for un-migrated bundles) and matches the `- validated:` bullet
+  form. `validated:` shall be a recognized **non-status** `log.md` token (alongside `intake:`): no
+  review-count (REQ-PORT-006), grandfather-date, or status parser keys on it.
 
 ### 2.8 Capture (manual)
 
@@ -198,7 +234,9 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `scripts/plan_manager.py` — `init`, `scope`, `triage`, `update-status`, `record-epic`,
   `resume-scan`, `audit`, `ready-check`, `fingerprint {write,check}`, `commit-plan`,
   `worktree {ensure,path,teardown}`,
-  `landing-lock {acquire,release,status}`, `validate-merged`, `json-get`; `manifest_update.py`. Full
+  `landing-lock {acquire,release,status}`, `validate-merged`,
+  `classify-deliverable`, `set-deliverable-class`, `complete-gate`, `attest-validation`,
+  `json-get`; `manifest_update.py`. Full
   surface in `spec/cli.md`; data shapes in `spec/data.md`. **Preflight/config moves to `yf`** per
   macro `REQ-YF-PRE-*`; the domain subcommands stay in Python.
 - **Companion rule:** `protocols/PLANS.md` (+ `protocols/manifest.json`, sha256+semver) — the
@@ -227,12 +265,17 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 
 - Portability/phase invariants are checked by `plan_manager.py audit` and the
   `count(pass-*.md) == count(review: lines)` invariant (REQ-PLAN-031). Worktree/landing-lock
-  behavior has `scripts/test_worktree.py`. Preflight parity (REQ-PLAN-003) is verified by the macro
-  spec's Epic 6.3 three-state fixtures once preflight moves to `yf`.
+  behavior has `scripts/test_worktree.py`. The REQ-PLAN-069 completion criterion
+  (`classify-deliverable` detection, `complete-gate` halt/pass/no-op, `deliverable_class`
+  round-trip survival, out-of-tree deferred-bead agreement, `validated:` non-status token) is
+  covered by `scripts/test_complete_gate.py` (Tier-1, tagged REQ-PLAN-069). Preflight parity
+  (REQ-PLAN-003) is verified by the macro spec's Epic 6.3 three-state fixtures once preflight moves
+  to `yf`.
 
 ## 6. References
 
 - `skills/yf-plan/SKILL.md`; `spec/phases.md`, `spec/agents.md`, `spec/cli.md`, `spec/data.md`,
-  `spec/portability.md`, `spec/prerequisites.md`; `spec/worktree-execute-lifecycle.{d2,png}`.
+  `spec/portability.md`, `spec/prerequisites.md`, `spec/ci-release-completion.md`;
+  `spec/worktree-execute-lifecycle.{d2,png}`.
 - `protocols/PLANS.md`.
 - Root `SPEC.md` §4 (PLAN) and `GUARDRAILS.md` (GR-002, GR-005).

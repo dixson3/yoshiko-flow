@@ -500,6 +500,28 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py ready-check "${plan_dir}" >/dev/null
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "approved" -m "operator approved"
 ```
 
+### 4.1.5 — Classify & confirm the deliverable class (REQ-PLAN-069a)
+
+Determine whether this plan's **primary deliverable is CI/infra/release configuration**
+(`ci-release`) — runner-only-observable behavior that the merged-state validation cannot exercise
+— or an ordinary `standard` plan (the default). Run the heuristic, present its suggestion, and on
+operator confirmation write the class. The field is fingerprint-excluded (a `**Field:**` header
+line above the first `## `, REQ-PORT-040), so writing it here does **not** perturb the §4.2
+fingerprint; it is durable across later field-block rewrites because it is a registered dual-write
+field (REQ-DATA-015).
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" --json
+# → {suggested_class, signals, confidence}. Present it and ask the operator to confirm/override.
+uv run ${SKILL_DIR}/scripts/plan_manager.py set-deliverable-class "${plan_dir}" "<ci-release|standard>"
+```
+
+At intake no merged tree exists yet, so path signals (`.github/workflows/**`) may be absent; the
+class is **re-confirmable at reconcile** (§6.4) once changed paths are available. When unset the
+completion gate is a strict no-op — a `standard` plan is never gated. See
+`spec/ci-release-completion.md` for the criterion and the `workflow_dispatch` no-publish test-build
+pattern.
+
 ### 4.2 — Write the content fingerprint
 
 Approval binds to *reviewed content*. Write a `**Fingerprint:**` header field over the plan's
@@ -983,14 +1005,27 @@ authorized and completed.
 
 Read `${SKILL_DIR}/agents/reconciler.md` and follow its procedure. The reconciler parses plan.md dispositions, verifies execution, updates upstream issues, and reports results.
 
-### 6.4 — Close (cascade-close containers, REQ-PLAN-067)
+### 6.4 — Close (cascade-close containers → complete-gate → set complete)
 
-Close the reconcile step, then **cascade-close every container in the plan tree** —
+The close step runs a fixed order (REQ-COMPLETE-001): **cascade-close → complete-gate → set
+complete**. Close the reconcile step, then **cascade-close every container in the plan tree** —
 intermediate epics **and the top-level plan molecule** `${EPIC}` — whose children are all
 terminal, bottom-up. The cascade **replaces the bare `bd close ${EPIC}`**: leaving intermediate
 epics open under a closed molecule is exactly the #73 defect (stale "ready" containers polluting
 `bd ready`). A container with any still-open child is a **hard failure** — the cascade exits
-non-zero and completion **halts** (never a silent close, never a silent `complete`):
+non-zero and completion **halts** (never a silent close, never a silent `complete`).
+
+**Reconcile-time re-confirm of the deliverable class (C5, REQ-PLAN-069a).** Before the gate runs,
+the merged-tree changed paths are now available (they may have been absent at intake §4.1.5).
+Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
+present it and let the operator confirm/override:
+
+```bash
+CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
+uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
+  $(printf ' --changed %q' ${CHANGED}) --json
+# On operator override: set-deliverable-class "${plan_dir}" "<ci-release|standard>"
+```
 
 ```bash
 bd close ${RECONCILE_STEP} --reason "Upstream issues reconciled" --json
@@ -1008,8 +1043,33 @@ if [ "$CASCADE_RC" -ne 0 ]; then
   exit 1
 fi
 
-# Cascade clean — every container (incl. the plan molecule) closed. Only now set complete.
+# Completion gate (REQ-PLAN-069): AFTER cascade-close, BEFORE set complete. No-op for a
+# standard/unset deliverable class; for ci-release it fail-louds (non-zero) unless a log.md
+# '- validated:' attestation OR an open out-of-tree deferred-validation bead exists.
+GATE=$(uv run ${SKILL_DIR}/scripts/plan_manager.py complete-gate "${plan_dir}" --json)
+GATE_RC=$?
+echo "$GATE"
+if [ "$GATE_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: completion gate blocked a ci-release plan — its runner-only-observable"
+  echo "behavior is unverified. Completion HALTS; do NOT set 'complete'. Follow the gate's"
+  echo "'remediation': either attest one green run (attest-validation; see the workflow_dispatch"
+  echo "no-publish pattern in spec/ci-release-completion.md) OR file a standalone out-of-tree"
+  echo "deferred-validation bead and push it individually upstream, then re-run §6.4."
+  exit 1
+fi
+
+# Cascade clean AND completion gate satisfied. Only now set complete.
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "complete" -m "plan complete"
+```
+
+**Filing the deferred-validation bead (option b).** When a real green run is not yet achievable,
+file a **standalone, out-of-tree** bead — never a child of `${EPIC}`, or cascade-close fail-louds
+on it first — and push it individually upstream (a deliberate per-bead exception to the coarse
+upstream convention):
+
+```bash
+bd create "Deferred validation: ${plan_id} <deliverable> not yet run green" \
+  -t task -p 1 --label deferred-validation --metadata "{\"plan\":\"${plan_id}\"}"
 ```
 
 The cascade is self-contained (`skills/yf-plan/scripts/close_cascade.py`); `_shared/` extraction

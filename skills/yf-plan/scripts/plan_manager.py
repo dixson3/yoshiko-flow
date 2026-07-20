@@ -42,11 +42,19 @@ PLAN_FIELD_LABELS = {
     "author": "Author",
     "created": "Created",
     "status": "Status",
+    "deliverable_class": "Deliverable-class",
     "epic": "Epic",
     "fingerprint": "Fingerprint",
 }
 #: Canonical header-field ordering for the `**Field:**` block.
-PLAN_FIELD_ORDER = ("id", "author", "created", "status", "epic", "fingerprint")
+#: `deliverable_class` sits immediately after `status` (REQ-DATA-015 / REQ-PLAN-069a);
+#: being a registered field it survives every `_rebuild_field_block` rewrite.
+PLAN_FIELD_ORDER = ("id", "author", "created", "status", "deliverable_class",
+                    "epic", "fingerprint")
+
+#: Deliverable-class values (REQ-PLAN-069a). `ci-release` is the gated class;
+#: `standard` (the default when the field is absent) makes the completion gate a no-op.
+DELIVERABLE_CLASSES = ("standard", "ci-release")
 
 
 def _read_plan_field(plan_md_text: str, key: str) -> str | None:
@@ -1080,6 +1088,254 @@ def record_epic(plan_dir: str, epic_id: str):
         "epic_field": "written",
         "intake_log_entry": None if intake_present else intake_entry,
     }))
+
+
+# ---------------------------------------------------------------------------
+# Deliverable-class detection + completion gate (REQ-PLAN-069 / plan-030)
+# ---------------------------------------------------------------------------
+
+#: ci-release "high confidence" signals — a release/sign/notarize concern (REQ-PLAN-069a).
+#: Regex patterns (matched case-insensitively) with trailing boundaries so `sign` matches
+#: sign/signing/signed/signature but NOT `signal`.
+_CI_RELEASE_HIGH_PATTERNS = {
+    "release": r"\brelease",
+    "notarize": r"\bnotariz",
+    "sign": r"\bsign(?:ing|ed|ature|s)?\b",
+    "codesign": r"\bcode[- ]?sign",
+}
+#: ci-release "low confidence" signals — keyword-only nudges (REQ-PLAN-069a).
+_CI_RELEASE_LOW_KEYWORDS = (
+    "workflow_dispatch", "self-hosted", "self hosted", "runner", "deploy",
+    "pipeline", "github actions", "workflow",
+)
+#: a merged-tree changed path under this prefix is a strong ci-release signal.
+_CI_RELEASE_PATH_MARKER = ".github/workflows/"
+
+
+def _read_deliverable_class(plan_md_text: str) -> str:
+    """Return the plan's deliverable class (REQ-PLAN-069a), default `standard`.
+
+    Frontmatter-first with `**Deliverable-class:**` fallback (REQ-DATA-015). An
+    absent field means `standard` — the completion gate is then a no-op.
+    """
+    val = _read_plan_field(plan_md_text, "deliverable_class")
+    if val is None:
+        return "standard"
+    val = val.strip().lower()
+    return val if val in DELIVERABLE_CLASSES else "standard"
+
+
+def _classify_deliverable(plan_dir: Path, changed: tuple[str, ...] = ()) -> dict:
+    """Heuristic-suggest a deliverable class (REQ-PLAN-069a / REQ-CLI-015).
+
+    Scans the plan's epics/upstream/success-criteria text and any `changed`
+    merged-tree paths for ci-release signals. Pure read, no mutation. Returns
+    `{suggested_class, signals, confidence}`:
+      - `suggested_class` — `ci-release` when any signal matched, else `standard`;
+      - `signals` — the matched tokens/paths (sorted, de-duplicated);
+      - `confidence` — `high` when a `.github/workflows/**` path or a
+        release/sign/notarize keyword matched, else `low`.
+    """
+    plan_md = plan_dir / "plan.md"
+    text = plan_md.read_text() if plan_md.exists() else ""
+    # Scan the epics/upstream/success-criteria region — in practice the whole body
+    # below the header block; a superset that never misses those sections.
+    hay = text.lower()
+
+    high: set[str] = set()
+    low: set[str] = set()
+
+    for path in changed:
+        if _CI_RELEASE_PATH_MARKER in path.replace("\\", "/"):
+            high.add(f"path:{path}")
+
+    for name, pat in _CI_RELEASE_HIGH_PATTERNS.items():
+        if re.search(pat, hay):
+            high.add(name)
+    for kw in _CI_RELEASE_LOW_KEYWORDS:
+        if kw in hay:
+            low.add(kw)
+
+    signals = sorted(high) + sorted(low)
+    if not signals:
+        return {"suggested_class": "standard", "signals": [], "confidence": "low"}
+    return {
+        "suggested_class": "ci-release",
+        "signals": signals,
+        "confidence": "high" if high else "low",
+    }
+
+
+def _has_validated_bullet(plan_dir: Path) -> bool:
+    """True iff a `- validated:` green-execution attestation exists (REQ-PLAN-069b).
+
+    Reads the reserved `log.md` (REQ-DATA-016); falls back to the legacy in-`plan.md`
+    `**Phase log:**` block for un-migrated bundles. `validated:` is a non-status token
+    — matching it here perturbs no review-count/grandfather/status parser.
+    """
+    entries = _log_md_entries(plan_dir)
+    if entries is not None:
+        return any(txt.startswith("validated:") for _d, txt in entries)
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.exists():
+        return False
+    for line in _plan_phase_log_lines(plan_md.read_text()):
+        if re.match(r"- (?:\d{4}-\d{2}-\d{2} )?validated:", line):
+            return True
+    return False
+
+
+def _bead_metadata(issue: dict) -> dict:
+    """Return a bead's metadata as a dict (bd may serialize it as a JSON string)."""
+    meta = issue.get("metadata")
+    if isinstance(meta, dict):
+        return meta
+    if isinstance(meta, str) and meta.strip():
+        try:
+            parsed = json.loads(meta)
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _bead_labels(issue: dict) -> list[str]:
+    """Return a bead's labels as a list (bd may key them under `labels`/`label`)."""
+    for key in ("labels", "label"):
+        val = issue.get(key)
+        if isinstance(val, list):
+            return [str(x) for x in val]
+        if isinstance(val, str) and val.strip():
+            return [p.strip() for p in val.split(",") if p.strip()]
+    return []
+
+
+def _open_deferred_validation_bead(plan_id: str) -> dict | None:
+    """Find an OPEN, out-of-tree `deferred-validation` bead for this plan (REQ-PLAN-069).
+
+    Queries `bd list --label deferred-validation --all` and returns the first bead
+    that is (a) not closed and (b) carries `metadata.plan == plan_id`. The bead is a
+    standalone issue (no plan-tree parent), so `close_cascade` never fail-louds on it.
+    Returns the matching issue dict, or None.
+    """
+    for issue in _bd_list("--label", "deferred-validation", "--all"):
+        status = str(issue.get("status", "")).lower()
+        if status == "closed":
+            continue
+        if _bead_metadata(issue).get("plan") == plan_id:
+            return issue
+    return None
+
+
+@cli.command("set-deliverable-class")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.argument("deliverable_class")
+def set_deliverable_class(plan_dir: str, deliverable_class: str):
+    """Write the operator-confirmed deliverable class (REQ-PLAN-069a / REQ-CLI-015).
+
+    Dual-writes `deliverable_class`↔`**Deliverable-class:**` (frontmatter + header
+    line) via the single field writer. Idempotent. Rejects any value outside
+    `standard | ci-release`. The field sits above the first `## ` heading, so it is
+    fingerprint-excluded (REQ-PORT-040) and does not stale an approved plan.
+    """
+    dc = deliverable_class.strip().lower()
+    if dc not in DELIVERABLE_CLASSES:
+        click.echo(json.dumps({
+            "error": f"invalid deliverable_class {deliverable_class!r}; "
+                     f"expected one of {list(DELIVERABLE_CLASSES)}"
+        }), err=True)
+        sys.exit(1)
+    _write_plan_fields(Path(plan_dir), {"deliverable_class": dc})
+    click.echo(json.dumps({"deliverable_class": dc, "written": True}))
+
+
+@cli.command("classify-deliverable")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--changed", multiple=True,
+              help="A merged-tree changed path (repeatable) to include in the scan.")
+@click.option("--json-output", "--json", "json_output", is_flag=True,
+              help="Emit the structured object (default is also JSON).")
+def classify_deliverable(plan_dir: str, changed: tuple[str, ...], json_output: bool):
+    """Suggest a deliverable class from plan text + changed paths (REQ-CLI-015).
+
+    Pure read. Emits `{suggested_class, signals, confidence}` — the operator confirms
+    or overrides, then `set-deliverable-class` writes the decision.
+    """
+    result = _classify_deliverable(Path(plan_dir), tuple(changed))
+    click.echo(json.dumps(result))
+
+
+@cli.command("attest-validation")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.argument("run")
+@click.option("--note", default="", help="Short note describing what ran green.")
+def attest_validation(plan_dir: str, run: str, note: str):
+    """Append a green-execution attestation to `log.md` (REQ-PLAN-069b / REQ-CLI-017).
+
+    Writes a `- validated: <run> — <note>` bullet under today's date heading via
+    `okf.append_log` (newest-first). A hand-written bullet of the same form is equally
+    valid; this verb guarantees the recognized shape.
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+    bullet = f"validated: {run}" + (f" — {note}" if note else "")
+    okf.append_log(Path(plan_dir), bullet, date=today)
+    click.echo(json.dumps({"validated": run, "date": today, "log_entry": f"- {bullet}"}))
+
+
+@cli.command("complete-gate")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "json_output", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def complete_gate(plan_dir: str, json_output: bool):
+    """Hard-gate `complete` for ci-release plans (REQ-PLAN-069 / REQ-CLI-016).
+
+    No-op (clean pass) for a `standard`/unset deliverable class. For `ci-release`,
+    passes iff a `log.md` `- validated:` bullet exists OR an open out-of-tree
+    `deferred-validation` bead scoped to this plan exists; else fail-loud (exit
+    non-zero + JSON verdict + actionable remediation), mirroring `close_cascade.py`.
+    """
+    pdir = Path(plan_dir)
+    plan_md = pdir / "plan.md"
+    if not plan_md.exists():
+        click.echo(json.dumps({"error": "plan.md not found"}), err=True)
+        sys.exit(1)
+
+    dclass = _read_deliverable_class(plan_md.read_text())
+    if dclass != "ci-release":
+        click.echo(json.dumps({
+            "passed": True, "noop": True, "deliverable_class": dclass,
+            "reason": "standard/unset deliverable class — completion criterion N/A",
+        }))
+        return
+
+    plan_id = _plan_id_from_dir(pdir)
+    has_attestation = _has_validated_bullet(pdir)
+    deferred = _open_deferred_validation_bead(plan_id)
+
+    if has_attestation or deferred is not None:
+        click.echo(json.dumps({
+            "passed": True, "noop": False, "deliverable_class": dclass,
+            "evidence": "validated-bullet" if has_attestation else "deferred-bead",
+            "deferred_bead": deferred.get("id") if deferred else None,
+        }))
+        return
+
+    remediation = (
+        "ci-release plan cannot complete: no green-execution evidence. Either "
+        f"(a) attest one observed green run — `plan_manager.py attest-validation {plan_dir} "
+        "<run-url> --note '<what ran>'` (see spec/ci-release-completion.md for the "
+        "workflow_dispatch no-publish test-build pattern); or (b) file a standalone "
+        "out-of-tree deferred-validation bead — `bd create \"Deferred validation: "
+        f"{plan_id} ...\" -t task -p 1 --label deferred-validation --metadata "
+        f"'{{\"plan\":\"{plan_id}\"}}'` and push it individually upstream."
+    )
+    click.echo(json.dumps({
+        "passed": False, "noop": False, "deliverable_class": dclass,
+        "reason": "ci-release plan has neither a log.md '- validated:' bullet nor an "
+                  "open out-of-tree deferred-validation bead",
+        "remediation": remediation,
+    }), err=True)
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
