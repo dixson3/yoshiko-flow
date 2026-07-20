@@ -2,6 +2,7 @@
 
 | Timestamp | Phase | Artifact | Description |
 |:----------|:------|:---------|:------------|
+| 2026-07-19T23:09 | decision | [DECISION.md](DECISION.md) | Decision: defer OKF integration (document-only) — v0.1 draft, no confirmed non-Google adopter, no materialized demand. Deferred impl bead yf-uz5k. Tracking gh-91. |
 | 2026-07-17T23:34 | tooling | scripts/okf_conformance_check.py | OKF conformance checker (provisional SPEC ruleset; per-file frontmatter/type/reserved-file/citation/link deltas) |
 | 2026-07-18T00:07 | triangulate | [artifacts/triangulation](artifacts/triangulation.md) | Cross-cluster triangulation of OKF spec, ecosystem, and local-artifact evidence (27 sources) |
 | 2026-07-18T00:07 | critique | [artifacts/critique](artifacts/critique.md) | Adversarial critique pass: force-of-claim, absence findings, credibility caveats |
