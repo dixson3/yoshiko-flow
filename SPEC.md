@@ -132,6 +132,23 @@
 >   incubator frontmatter round-trips value/order-preserving, not literally byte-for-byte (a
 >   YAML flow-style block may re-serialize to block style). `DRIFT-CHECK.md` gained the
 >   `okf-canonical` → `okf-copy-{plan,research,incubator,okf}` value-equal edges.
+> - **plan-030 (2026-07-20, #89):** yf-plan CI/infra/release completion criterion. Added
+>   **`REQ-PLAN-069`** (+ supporting **`REQ-PLAN-069a`** detection, **`REQ-PLAN-069b`** evidence) to
+>   `skills/yf-plan/SPEC.md` §2.7: for a plan whose deliverable class is `ci-release`, the RECONCILE
+>   close step (§6.4) hard-gates `complete` — after cascade-close (REQ-PLAN-067) and before
+>   `update-status complete`, a new `complete-gate` verb halts completion (fail-loud, mirroring
+>   `close_cascade.py`) unless **one** of: a `log.md` `- validated:` green-execution attestation, or
+>   an open **out-of-tree** `deferred-validation` bead (label + `{"plan":...}` metadata, discovered by
+>   label filter — never a plan-tree child, so cascade-close does not fail-loud on it first). Detection
+>   is a **registered canonical dual-write field** `deliverable_class`↔`**Deliverable-class:**`
+>   (fingerprint-excluded, durable across field-block rewrites), suggested by a `classify-deliverable`
+>   heuristic and operator-confirmed; a `standard`/unset class makes the gate a strict no-op. Evidence
+>   is an operator-attested `log.md` bullet (`validated:` joins `intake:` as a recognized non-status
+>   token). Also codified the `workflow_dispatch` no-publish "test build" pattern
+>   (`spec/ci-release-completion.md`). New spec text: `REQ-DATA-016`, `spec/phases.md`
+>   `REQ-COMPLETE-001/002`, `spec/cli.md` `REQ-CLI-015/016/017`. Lesson driver: pybridge plan-010 CI
+>   signing shipped `complete` unexecuted (`merged` is not `works`). Per-skill requirement text in
+>   `skills/yf-plan/SPEC.md`.
 
 ## 1. Purpose & scope
 
