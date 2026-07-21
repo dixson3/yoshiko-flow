@@ -198,3 +198,16 @@ repo root/
 > `.claude/settings.json` (a real file, not symlinked).
 
 For a skill that *does* install Claude Code hooks, add `hooks/manifest.json` next to `protocols/`. For a skill with multiple rule files, list each in `manifest.json` `files[]` and install each into the scope+surface-anchored rules dir.
+
+## See also
+
+- **[naba agent-tools SPEC](https://github.com/dixson3/naba/blob/main/docs/specifications/agent-tools.md)**
+  — a tool-agnostic contract for making a CLI first-class to AI agents, across three axes:
+  a **skills self-management lifecycle** (embedded, integrity-marked skill tree with a
+  harness-descriptor install model and a receipt-driven upgrade/preflight — the pattern the
+  Skill Surface Convention above and `yf`'s `REQ-YF-MARK-*` / `REQ-YF-CLI-*` machinery realize),
+  an optional **MCP-over-CLI interface**, and a universal **`--json` output envelope**. naba is
+  the reference implementation and the yoshiko-flow `yf` kernel a conforming one; the SPEC's
+  "Deltas across implementations" section names where `yf` and naba diverge (surface↔harness
+  naming, skills-receipt vs binary-receipt, MCP present in naba / absent in `yf` by `GR-003`,
+  pipe-auto-enable). This is a doc-only cross-reference — no `REQ-*` or behavior change in `yf`.
