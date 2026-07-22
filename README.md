@@ -29,28 +29,18 @@ Optional (detected at runtime):
 
 ## Install
 
-**Recommended: the Homebrew tap.** Installs a working `yf` from the tap; upgrade with
-`brew upgrade`:
+**Recommended: the `curl | sh` vendor installer.** Downloads a prebuilt `yf` to
+`~/.local/bin`, adds that dir to `PATH`, and writes an install receipt under `~/.config/yf` —
+the uv-style self-contained model — served from the project's own domain,
+[yoshikoflow.sh](https://yoshikoflow.sh):
 
 ```bash
-brew install dixson3/tap/yf
+curl --proto '=https' --tlsv1.2 -LsSf https://yoshikoflow.sh/install.sh | sh
 ```
 
-This does not install `bd` / `uv` — see [Prerequisites](#prerequisites).
-
-<!--
-Vendor installer (`curl | sh`) — temporarily suppressed until the dedicated yoshiko-flow
-domain is stood up to host the install script. Re-enable this section (and the "vendor"
-self-update guidance below) once the domain-hosted installer is live.
-
-**The `curl | sh` vendor installer.** Downloads a prebuilt `yf` to `~/.local/bin`,
-adds that dir to `PATH`, and writes an install receipt under `~/.config/yf` — the uv-style
-self-contained model:
-
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/dixson3/yoshiko-flow/releases/latest/download/yf-installer.sh | sh
-```
+The hosted `install.sh` is a byte-for-byte mirror of cargo-dist's `yf-installer.sh` from a
+pinned GitHub release; **GitHub Releases stays canonical** for every binary and for
+self-update. This does not install `bd` / `uv` — see [Prerequisites](#prerequisites).
 
 `yf` then manages **itself** (distinct from `yf skills upgrade`, which manages the embedded
 skills):
@@ -64,8 +54,15 @@ yf self uninstall         # remove the binary + yf-owned dirs (installed skills 
 `yf version` / `yf doctor` print a throttled, vendor-only nudge when a newer release exists
 (silence it with `YF_NO_UPDATE_CHECK=1`). `yf self update` deliberately **refuses** on a
 Homebrew (Cellar) copy and points you back to `brew upgrade`.
--->
 
+**Alternative: the Homebrew tap.** Installs a working `yf` from the tap; upgrade with
+`brew upgrade` (a Homebrew copy does not self-update via `yf self update`):
+
+```bash
+brew install dixson3/tap/yf
+```
+
+This does not install `bd` / `uv` either — see [Prerequisites](#prerequisites).
 
 **Developing on this repo?** Promote your local build to `~/.local/bin` instead of a release:
 

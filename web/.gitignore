@@ -1,0 +1,19 @@
+# Pelican build output
+output/
+output-validate/
+__pycache__/
+*.py[cod]
+
+# Local Python virtual environment
+.venv/
+
+# Local operational values / secrets (direnv). Only .envrc.example is committed.
+.envrc
+
+# AWS provisioning captured resource ids (account-specific; written by
+# scripts/provision_aws.sh — never commit).
+.aws-provision-state.json
+
+# The hosted install.sh is STAGED at deploy time from a cargo-dist release by
+# scripts/sync_installer.sh — it is a generated artifact, not source.
+content/extra/install.sh

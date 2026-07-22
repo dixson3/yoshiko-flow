@@ -1,0 +1,35 @@
+# yoshiko-flow skill lifecycle — install -> preflight -> invoke -> coordinate/execute.
+direction: right
+
+install: {
+  label: "1. install\nyf skills install"
+  shape: rectangle
+}
+
+preflight: {
+  label: "2. preflight\nyf preflight <skill>\nok / ignored / deps-missing / rule-drift"
+  shape: rectangle
+}
+
+invoke: {
+  label: "3. invoke\n/yf-<skill> or auto-trigger"
+  shape: rectangle
+}
+
+coordinate: {
+  label: "4. coordinate / execute\nbeads DAG -> worktree\n-> merge-back -> validate"
+  shape: rectangle
+}
+
+land: {
+  label: "5. land the plane\npush upstream + reconcile"
+  shape: rectangle
+}
+
+install -> preflight: "deploys skill + companion rule"
+preflight -> invoke: "green"
+preflight -> install: "deps missing / rule drift\n(repair, re-run)" {
+  style.stroke-dash: 4
+}
+invoke -> coordinate: "beads-backed skills"
+coordinate -> land: "DAG drained"

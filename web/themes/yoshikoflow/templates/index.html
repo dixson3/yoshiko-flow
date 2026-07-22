@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ SITENAME }} &mdash; {{ SITESUBTITLE }}{% endblock %}
+{% block description %}{{ HOME_HERO.description_text }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1 class="hero-name"><span class="glyph">{{ HOME_HERO.glyph|e }}</span> {{ HOME_HERO.name|e }}</h1>
+  <p class="hero-sub">{{ SITESUBTITLE }}</p>
+  <p class="hero-desc">{{ HOME_HERO.description_html }}</p>
+
+  <div class="term" aria-label="bootstrap install command">
+    <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-title">bash</span></div>
+    <pre class="term-body"><span class="ps1">$</span> {{ HOME_HERO.install_cmd|e }}</pre>
+  </div>
+
+  <div class="hero-cta">
+    {% for cta in HOME_HERO.ctas %}
+    <a class="btn{% if cta.primary %} btn-primary{% endif %}" href="{{ SITEURL if cta.href.startswith('/') else '' }}{{ cta.href|e }}">{{ cta.label|e }}{% if cta.external %} &#8599;{% endif %}</a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="features">
+  {% for card in HOME_CARDS %}
+  <a class="card" href="{{ SITEURL }}{{ card.href|e }}">
+    <h3><span class="glyph">{{ card.glyph|e }}</span> {{ card.title|e }} <span class="card-arrow">&rarr;</span></h3>
+    {{ card.body }}
+    <pre class="mini">{{ card.command|e }}</pre>
+  </a>
+  {% endfor %}
+</section>
+{% endblock %}
