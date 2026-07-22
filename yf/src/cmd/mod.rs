@@ -6,6 +6,7 @@
 
 pub mod common;
 pub mod doctor;
+pub mod harness;
 pub mod install;
 pub mod self_cmd;
 pub mod status;

@@ -92,6 +92,11 @@ fn run() -> Result<std::process::ExitCode> {
         // `self` owns its exit code: a refusal (e.g. a Homebrew copy) is a verdict,
         // and a failed post-update refresh exits non-zero without rolling back.
         Command::SelfCmd { command } => cmd::self_cmd::run(&command),
+        // `harness tune` owns its exit code: an unknown harness or a malformed
+        // settings file is a refusal (non-zero verdict), not an error.
+        Command::Harness { command } => match command {
+            cli::HarnessCommand::Tune(args) => cmd::harness::run(&args),
+        },
     }
 }
 

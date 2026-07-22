@@ -43,8 +43,53 @@ pub enum Command {
         #[command(subcommand)]
         command: SelfCommand,
     },
+    /// Align a harness's settings to the yf skill contracts (REQ-YF-TUNE).
+    Harness {
+        #[command(subcommand)]
+        command: HarnessCommand,
+    },
     /// Print the `yf` version and build metadata.
     Version(VersionArgs),
+}
+
+/// `yf harness …` subcommands (plan-032).
+#[derive(Debug, Subcommand)]
+pub enum HarnessCommand {
+    /// Idempotently align a harness `settings.json` to the recommended yf baseline
+    /// (deny competing native tools, disable competing features).
+    Tune(HarnessTuneArgs),
+}
+
+/// `yf harness tune` arguments (REQ-YF-TUNE-002/003/007).
+#[derive(Debug, Args)]
+pub struct HarnessTuneArgs {
+    /// Target harness (forward-compat lookup key). Only `claude-code` has an
+    /// embedded profile today; an unknown value is a clean refusal.
+    #[arg(long, default_value = "claude-code")]
+    pub harness: String,
+
+    /// Target project scope (`<git-root>/.claude/…`) instead of the user scope.
+    /// The project default is the personal, gitignored `settings.local.json`.
+    #[arg(long)]
+    pub project: bool,
+
+    /// With `--project`, target the shared, committed `settings.json` instead of
+    /// the gitignored `settings.local.json`.
+    #[arg(long, requires = "project")]
+    pub committed: bool,
+
+    /// Overwrite an existing scalar whose value differs from the recommendation
+    /// (set-valued keys always union and never need `--force`). Never denies `Agent`.
+    #[arg(long)]
+    pub force: bool,
+
+    /// Show the diff without writing anything.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Emit machine-readable JSON (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// `yf self …` subcommands (plan-018 Epic 3).
@@ -181,6 +226,12 @@ pub struct SkillsArgs {
     /// Show what would change without writing anything.
     #[arg(long)]
     pub dry_run: bool,
+
+    /// After a successful install, run `yf harness tune` to align the harness
+    /// settings to the yf skill contracts (install only). Off by default — without
+    /// it, install reports that tuning is available and changes no settings.
+    #[arg(long)]
+    pub tune: bool,
 
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]

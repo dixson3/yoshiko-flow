@@ -157,6 +157,18 @@
 >   the workflows depend on (no engine change — `resolve_selection` already applies the closure to a
 >   group base; the `install-parity.json` golden and the `computed_groups` unit test were regenerated
 >   for the new membership).
+> - **plan-032 (2026-07-22, #95):** harness settings tuning. Added §3.10 **`REQ-YF-TUNE-001..011`** —
+>   a machine-readable Claude Code settings profile (single source of truth, embedded via a separate
+>   embed root; each entry carries path/value/kind/rationale with polarity in the value), a new top-
+>   level `yf harness tune --harness <name> [--project [--committed]] [--force] [--dry-run] [--json]`
+>   command with a **kind-aware** merge (scalar add-missing/conflict-report-vs-`--force`; set-valued
+>   union that never removes user entries), the `Agent`-never-denied invariant, fail-safe refusal on
+>   unparseable input, `bd setup claude` hook-block preservation, an assert-agreement drift test on the
+>   `docs/recommended-settings.md` reference-baseline `jsonc` block, a **read-only** `yf doctor`
+>   settings-drift axis over the effective merged view across precedence layers (decoupled from
+>   `--repair`), and a `yf skills install --tune` opt-in (no interactive prompt). Multi-harness is a
+>   forward-compat dimension only — Claude Code is implemented; concrete non-Claude profiles are a
+>   follow-on gated on the `yf-2gyv` research (`yf-8agh`), unknown `--harness` refuses cleanly.
 
 ## 1. Purpose & scope
 
@@ -544,6 +556,74 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   `resolve_skill` (REQ-YF-PRE-004) for the short name so its dest matches preflight's read path.
   Migration shall also collapse legacy top-level per-skill gitignore anchors to the single `/.yf/`
   anchor (REQ-YF-PRE-005).
+
+### 3.10 Harness settings tuning (`REQ-YF-TUNE`)
+
+The yf-* skills assume the operator has turned **off** the competing Claude Code built-ins (native
+plan mode, `TodoWrite`/`Task*`, native workflows, bundled skills, Claude-only memory/dream/upload).
+Today that assumption lives only in prose (`docs/recommended-settings.md`). This section makes `yf`
+the actor: it aligns a harness's settings to the skill contracts on demand (`yf harness tune`) and
+surfaces drift on inspection (`yf doctor`). The command surface carries a **harness dimension**, but
+only the Claude Code merge engine and JSON model are implemented here; other harnesses are deferred.
+
+- **REQ-YF-TUNE-001** *(testable)* `yf` shall embed a **machine-readable settings profile** as the
+  single source of truth for the recommended Claude Code baseline. Each profile **entry** shall
+  carry: a JSON **path** (e.g. `permissions.deny`, `todoFeatureEnabled`), a recommended **value**, a
+  **kind** (`scalar` or `set-valued`), and a one-line **rationale**. Boolean **polarity** is encoded
+  in the entry's value itself (mixed: `disable*` keys are `true`; `*Enabled` off-switches are
+  `false`), so it cannot be hand-fumbled. The profile shall be embedded via a **separate embed root**
+  (NOT under `../skills`, which treats every top-level dir as a skill and would pollute
+  tree-hash/marker logic) and exposed through a typed loader.
+- **REQ-YF-TUNE-002** *(testable)* `yf` shall expose a top-level `yf harness` command group with a
+  `tune --harness <name> [--project [--committed]] [--force] [--dry-run] [--json]` subcommand. An
+  **unknown** `--harness` (no embedded profile) shall be a **clean refusal** (a reported verdict, not
+  a stub write and not a crash); only `claude-code` is available in this section.
+- **REQ-YF-TUNE-003** *(testable)* `yf harness tune` scope resolution shall default to **user**
+  (`~/.claude/settings.json`), matching the skill-install default and staying disjoint from the
+  project-scope beads hook `bd setup claude` owns. `--project` shall target project scope; the
+  project default shall be the personal, gitignored `settings.local.json`, with `--committed` to
+  target the shared `settings.json`. (The safe default is the gitignored file.)
+- **REQ-YF-TUNE-004** *(testable)* the merge shall be **kind-aware**. A **scalar** entry shall be
+  **add-missing**: an absent key is written; an existing key with a **different** value is **reported
+  as a conflict and left untouched** unless `--force` (which overwrites it). A **set-valued** entry
+  (an array, e.g. `permissions.deny`) shall be a **non-destructive union**: the profile's missing
+  elements are added and **no** existing element is ever removed (preserving the operator's custom
+  denies and `rm -rf` safety globs); union needs no `--force` because it cannot clobber.
+- **REQ-YF-TUNE-005** *(testable)* the merge shall be **idempotent** (a second run over an
+  already-tuned file writes nothing), shall **preserve** existing JSON structure and key order
+  (`serde_json` `preserve_order`), and shall **never** deny or disable the `Agent` tool — every yf
+  coordinator/investigator/reviewer fans out through it. The `Agent`-never-denied invariant holds
+  even under `--force`.
+- **REQ-YF-TUNE-006** *(testable)* on a **malformed / unparseable** settings.json the writer shall
+  **refuse and report** (a verdict, never an overwrite) so no data is lost, mirroring
+  `prune_empty_settings`. When it writes, it shall **preserve** any `bd setup claude` hook block
+  (the beads `SessionStart` hook) untouched — tune writes only its own profile keys.
+- **REQ-YF-TUNE-007** *(testable)* `yf harness tune` shall support `--dry-run` (compute and print the
+  diff — added keys, unioned set elements, and scalar conflicts — without writing) and `--json`
+  (machine-readable result: the file acted on, the changes, and any conflicts).
+- **REQ-YF-TUNE-008** *(testable)* the fenced **reference-baseline** block in
+  `docs/recommended-settings.md` (a `jsonc` fence carrying hand-authored `//` rationale comments)
+  shall be **drift-checked against the profile** by an **assert-agreement** test: a JSONC-tolerant
+  parse (strip `//` comments) compares the block's keys, scalar values, and array membership to the
+  embedded profile and **fails** on divergence. The test shall **not** regenerate the block — the
+  `//` comments are hand-authored prose and are preserved; only the key/value data is checked.
+- **REQ-YF-TUNE-009** *(testable)* `yf doctor` shall include a **read-only** settings-drift axis for
+  the Claude Code profile, computed over the **effective merged view** across the precedence layers
+  (user ← project `settings.json` ← `settings.local.json`) so a recommended key set in a *different*
+  layer is **not** a false "missing". It shall report missing recommended entries, scalar conflicts,
+  and an accidentally **denied `Agent`**. The profile is its own reference set (no marker). The axis
+  is **report-only** — its remediation is "run `yf harness tune`" — and is **decoupled** from `yf
+  doctor --repair` (which short-circuits to the beads-init repair per REQ-YF-DOCTOR-003 and shall
+  **not** gain a settings write).
+- **REQ-YF-TUNE-010** *(testable)* `yf skills install` shall gain a `--tune` opt-in that runs `yf
+  harness tune` after a successful install. There shall be **no** interactive prompt (install runs
+  non-interactively and the `yf` binary has no prompt precedent); **without** `--tune`, install shall
+  report that tuning is available and make **no** change to any settings.json.
+- **REQ-YF-TUNE-011** the command surface and this SPEC carry a **multi-harness** dimension, but the
+  merge engine, scope resolution, and JSON model are **Claude-Code-specific** in this plan — a future
+  harness (e.g. codex → `.codex/config.toml` TOML) needs a *new engine*, not merely a new profile.
+  Concrete non-Claude profiles are a **follow-on** gated on the `yf-2gyv` per-harness research; an
+  unknown `--harness` refuses cleanly (REQ-YF-TUNE-002) rather than emitting a stub.
 
 ## 4. Skill catalog (per-skill specs)
 

@@ -261,6 +261,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            tune: false,
             json: true,
         }
     }
@@ -342,6 +343,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            tune: false,
             json: true,
         };
         let rules_dir = skills_dir.parent().unwrap().join("rules");
@@ -423,6 +425,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            tune: false,
             json: true,
         };
         super::super::install::run(&args).unwrap();
@@ -460,6 +463,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            tune: false,
             json: true,
         };
         // Install two rule-bearing skills.

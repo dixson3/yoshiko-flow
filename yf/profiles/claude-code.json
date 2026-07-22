@@ -1,0 +1,139 @@
+{
+  "harness": "claude-code",
+  "surface_dir": ".claude",
+  "settings_filename": "settings.json",
+  "settings_local_filename": "settings.local.json",
+  "hook_preserve_key": "hooks",
+  "agent_tool": "Agent",
+  "entries": [
+    {
+      "path": "permissions.defaultMode",
+      "kind": "scalar",
+      "value": "bypassPermissions",
+      "rationale": "Highest-leverage efficiency lever: bare tool names, schema removed from context. bypassPermissions makes the deny globs call-time safety only."
+    },
+    {
+      "path": "permissions.deny",
+      "kind": "set",
+      "value": [
+        "Bash(rm -rf /)",
+        "Bash(rm -rf /*)",
+        "Bash(rm -rf ~)",
+        "Bash(rm -rf ~/*)",
+        "Bash(rm -rf $HOME)",
+        "Bash(rm -rf $HOME/*)",
+        "Bash(sudo rm -rf *)",
+        "EnterPlanMode",
+        "ExitPlanMode",
+        "EnterWorktree",
+        "ExitWorktree",
+        "TaskCreate",
+        "TaskGet",
+        "TaskList",
+        "TaskOutput",
+        "TaskUpdate",
+        "DesignSync",
+        "NotebookEdit",
+        "SendMessage",
+        "PushNotification",
+        "RemoteTrigger",
+        "ReportFindings",
+        "ScheduleWakeup",
+        "CronCreate",
+        "CronDelete",
+        "CronList"
+      ],
+      "rationale": "Deny the native tools the yf-* skills forbid (native plan mode, Task*, notebook/design/report surfaces, schedulers) plus call-time rm -rf safety globs. Union-only: never removes an operator's existing denies. Agent is deliberately absent — every yf coordinator fans out through it."
+    },
+    {
+      "path": "skipDangerousModePermissionPrompt",
+      "kind": "scalar",
+      "value": true,
+      "rationale": "bypassPermissions companion: without it the dangerous-mode prompt still interrupts long autonomous runs."
+    },
+    {
+      "path": "disableWorkflows",
+      "kind": "scalar",
+      "value": true,
+      "rationale": "yf-* skills parallelize via the Agent tool; native workflow/task tools are forbidden. disable*=true means the capability is off."
+    },
+    {
+      "path": "todoFeatureEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "bd (beads) is the ONLY task tracker. TodoWrite / markdown checklists / inline task lists are forbidden by every beads-backed skill contract."
+    },
+    {
+      "path": "autoMemoryEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Portability: yf state must be cross-harness (beads / incubators / repo files). Native Claude memory traps it in a Claude-only store."
+    },
+    {
+      "path": "autoDreamEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Same portability contract — any Claude-native persistence traps yf state in a non-portable store."
+    },
+    {
+      "path": "autoUploadSessions",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Same portability contract. All state lives in vault/repo files; never session-only or Claude-only stores."
+    },
+    {
+      "path": "disableClaudeAiConnectors",
+      "kind": "scalar",
+      "value": true,
+      "rationale": "Data minimization — keep state off Anthropic's servers."
+    },
+    {
+      "path": "disableBundledSkills",
+      "kind": "scalar",
+      "value": true,
+      "rationale": "The yf-* skills rely on description-based triggering; a bundled skill whose description overlaps a yf-* trigger can shadow it."
+    },
+    {
+      "path": "inputNeededNotifEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Fewer interruptions — notification noise on long runs."
+    },
+    {
+      "path": "agentPushNotifEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Fewer interruptions — notification noise on long runs."
+    },
+    {
+      "path": "askUserQuestionTimeout",
+      "kind": "scalar",
+      "value": "never",
+      "rationale": "Interactive-correctness tradeoff — 'never' BLOCKS the run for a human rather than auto-answering."
+    },
+    {
+      "path": "disableRemoteControl",
+      "kind": "scalar",
+      "value": true,
+      "rationale": "Operator preference — noise / overhead reduction on long skill runs."
+    },
+    {
+      "path": "promptSuggestionEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Operator preference — noise / overhead reduction on long skill runs."
+    },
+    {
+      "path": "spinnerTipsEnabled",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Operator preference — noise / overhead reduction on long skill runs."
+    },
+    {
+      "path": "effortLevel",
+      "kind": "scalar",
+      "value": "medium",
+      "rationale": "Operator preference — noise / overhead reduction on long skill runs."
+    }
+  ]
+}
