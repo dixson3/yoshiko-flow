@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-07-22
+- complete: plan complete — yf harness tune shipped; fmt/clippy/285 tests green; merged-state validation pass
 - reconciling: post-execution reconciliation (worktree merge-back)
 - executing: start gate resolved
 - intake: epic yf-mol-ifx poured
