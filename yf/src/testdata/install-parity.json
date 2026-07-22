@@ -9,21 +9,22 @@
     "yf-change-validation": "utility",
     "yf-diagram-authoring": "utility",
     "yf-drift-check": "utility",
-    "yf-incubator": "beads",
+    "yf-incubator": "workflows",
     "yf-markdown-format": "markdown",
     "yf-markdown-html": "markdown",
     "yf-markdown-lint": "markdown",
     "yf-markdown-pdf": "markdown",
     "yf-okf": "utility",
     "yf-optimal-instructions": "utility",
-    "yf-plan": "beads",
-    "yf-research": "beads",
+    "yf-plan": "workflows",
+    "yf-research": "workflows",
     "yf-skill-authoring": "utility"
   },
   "groups": [
     "beads",
     "markdown",
-    "utility"
+    "utility",
+    "workflows"
   ],
   "group_members": {
     "beads": [
@@ -31,10 +32,7 @@
       "yf-beads-extra",
       "yf-beads-hygiene",
       "yf-beads-init",
-      "yf-beads-upstream",
-      "yf-incubator",
-      "yf-plan",
-      "yf-research"
+      "yf-beads-upstream"
     ],
     "markdown": [
       "yf-markdown-format",
@@ -49,6 +47,11 @@
       "yf-okf",
       "yf-optimal-instructions",
       "yf-skill-authoring"
+    ],
+    "workflows": [
+      "yf-incubator",
+      "yf-plan",
+      "yf-research"
     ]
   },
   "closures": {
@@ -57,10 +60,7 @@
       "yf-beads-extra",
       "yf-beads-hygiene",
       "yf-beads-init",
-      "yf-beads-upstream",
-      "yf-incubator",
-      "yf-plan",
-      "yf-research"
+      "yf-beads-upstream"
     ],
     "group:markdown": [
       "yf-markdown-format",
@@ -75,6 +75,13 @@
       "yf-okf",
       "yf-optimal-instructions",
       "yf-skill-authoring"
+    ],
+    "group:workflows": [
+      "yf-beads-authoring",
+      "yf-beads-extra",
+      "yf-incubator",
+      "yf-plan",
+      "yf-research"
     ],
     "skill:yf-beads-extra": [
       "yf-beads-extra"

@@ -36,11 +36,11 @@ already have. `yf` ships **18 skills**. Grouped by what they do:
   OKF folders, optimal instructions, change validation.
 - **markdown (4)** — standalone GFM tooling: lint, format, PDF, HTML.
 
-Those four are **documentation** categories. The install `--group` selector uses each skill's
-`skill-group` frontmatter (`beads`, `utility`, or `markdown`) — the three workflow skills carry
-`skill-group: beads` because they need `bd`, so `yf skills install --group beads` installs the
-workflows **and** the beads support skills together (see [install](/install/)). A **group
-invariant** keeps the split honest: no `utility` skill may (transitively, via
+Those four are the **install groups** — each skill's `skill-group` frontmatter — so
+`yf skills install --group <name>` selects one. Installing a group pulls the **transitive
+`depends-on-skill` closure** of its members, so `yf skills install --group workflows` also
+installs the `beads` support skills the workflows depend on (see [install](/install/)). A
+**group invariant** keeps the split honest: no `utility` skill may (transitively, via
 `depends-on-skill`) depend on a `beads` skill, so `yf skills install --group utility` is
 provably beads-free. Browse them all on the [skills](/skills/) page — that catalog, its
 grouping, and each skill's dependency links are generated from the same `SKILL.md` frontmatter,

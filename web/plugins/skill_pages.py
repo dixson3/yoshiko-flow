@@ -31,8 +31,8 @@ from markdown import Markdown
 from pelican import signals
 from pelican.contents import Page
 
-# Site presentation categories (see _site_category). Display order + human labels; any
-# category not listed here is appended alphabetically, so a new one never silently disappears.
+# Install groups (the `skill-group` frontmatter). Display order + human labels; any group not
+# listed here is appended alphabetically, so a new skill-group never silently disappears.
 GROUP_ORDER = ["workflows", "beads", "utility", "markdown"]
 GROUP_LABELS = {
     "workflows": "workflows",
@@ -41,26 +41,11 @@ GROUP_LABELS = {
     "markdown": "markdown",
 }
 GROUP_BLURBS = {
-    "workflows": "End-to-end, beads-tracked user workflows — the skills you invoke to get work done.",
+    "workflows": "End-to-end, beads-tracked user workflows — the skills you invoke to get work done. Installing this group pulls in the beads skills it depends on.",
     "beads": "The <code>bd</code> (beads) support layer the workflows build on: init/health, direct-CLI gotchas, authoring conventions, graph hygiene, and upstream tracking.",
     "utility": "Beads-free helper skills — no <code>bd</code> binary required.",
     "markdown": "Standalone GitHub-Flavored-Markdown tooling, beads-free.",
 }
-
-
-def _site_category(skill):
-    """Presentation category for the site nav/catalog, derived from skill-group + name.
-
-    The install `skill-group` frontmatter (beads/utility/markdown) stays the source of truth
-    for `yf skills install --group`; for documentation the beads group is split into the
-    user-facing **workflows** (the beads-backed skills you invoke: plan/research/incubator)
-    and the **beads** support skills (`yf-beads-*`). utility/markdown pass through unchanged.
-    Deriving from name + skill-group means a new skill auto-places with no map to maintain.
-    """
-    group = skill.get("group", "other")
-    if group == "beads":
-        return "beads" if skill["name"].startswith("yf-beads-") else "workflows"
-    return group
 
 _FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.S)
 
@@ -134,7 +119,7 @@ def _ordered_groups(skills):
     """Group skills by site category (GROUP_ORDER), extras alphabetical."""
     by_group = {}
     for skill in skills:
-        by_group.setdefault(_site_category(skill), []).append(skill)
+        by_group.setdefault(skill.get("group", "other"), []).append(skill)
     ordered = [g for g in GROUP_ORDER if g in by_group]
     ordered += sorted(g for g in by_group if g not in GROUP_ORDER)
     return [(g, sorted(by_group[g], key=lambda s: s["name"])) for g in ordered]
@@ -241,7 +226,7 @@ def _skill_page_html(settings, skill, repo_root, known):
         parts.append(f"<p>{skill['summary']}</p>")
     parts.append("<h2>At a glance</h2>")
     parts.append("<ul>")
-    parts.append(f"<li><strong>Category:</strong> <code>{_site_category(skill)}</code></li>")
+    parts.append(f"<li><strong>Group:</strong> <code>{skill.get('group', 'other')}</code></li>")
     parts.append(f"<li><strong>Invocation:</strong> {invoke}</li>")
     if skill["depends_on_tool"]:
         tools = ", ".join(f"<code>{t}</code>" for t in skill["depends_on_tool"])
@@ -278,18 +263,18 @@ def _skill_page_html(settings, skill, repo_root, known):
 def _index_html(settings, grouped, known):
     total = sum(len(items) for _, items in grouped)
     parts = [
-        f"<p>yoshiko-flow ships <strong>{total} skills</strong>, grouped here by what they do — "
-        "the <strong>workflows</strong> you invoke to get work done, the <strong>beads</strong> "
-        "support layer they build on, and the beads-free <strong>utility</strong> and "
-        "<strong>markdown</strong> helpers. User-invocable skills are triggered with "
-        "<code>/yf-&lt;skill&gt;</code>; <code>auto</code> skills fire from their description "
-        "conditions when relevant work appears. Install them all with "
-        "<code>yf skills install</code>, or by install group with "
-        "<code>yf skills install --group &lt;beads|utility|markdown&gt;</code> (the workflow "
-        'skills ship as <code>skill-group: beads</code> since they need <code>bd</code>; see '
+        f"<p>yoshiko-flow ships <strong>{total} skills</strong>, grouped by their "
+        "<code>skill-group</code> — the <strong>workflows</strong> you invoke to get work done, "
+        "the <strong>beads</strong> support layer they build on, and the beads-free "
+        "<strong>utility</strong> and <strong>markdown</strong> helpers. User-invocable skills "
+        "are triggered with <code>/yf-&lt;skill&gt;</code>; <code>auto</code> skills fire from "
+        "their description conditions when relevant work appears. Install them all with "
+        "<code>yf skills install</code>, or one group with "
+        "<code>yf skills install --group &lt;workflows|beads|utility|markdown&gt;</code> (see "
         '<a href="/install/">install</a>). The <strong>Depends on</strong> column shows each '
-        "skill's <code>depends-on-skill</code> closure — naming a skill at install time pulls "
-        "its dependencies in automatically.</p>"
+        "skill's <code>depends-on-skill</code> — installing a skill or a group pulls its "
+        "transitive dependency closure automatically, so <code>--group workflows</code> also "
+        "installs the beads skills the workflows need.</p>"
     ]
     for group, items in grouped:
         label = GROUP_LABELS.get(group, group)

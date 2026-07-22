@@ -8,13 +8,19 @@ title: |md
   style.font-size: 26
 }
 
-beads: "beads group — needs the bd binary" {
-  style.fill: "#eef4fb"
-  style.stroke: "#2f6fb0"
+workflows: "workflows group — beads-tracked user workflows" {
+  style.fill: "#efeafd"
+  style.stroke: "#7c5cd0"
 
   bdplan: "yf-plan\n[bd, uv, git]"
   bdresearch: "yf-research\n[bd, uv, git]"
   incub: "yf-incubator\n[uv]"
+}
+
+beads: "beads group — bd support skills" {
+  style.fill: "#eef4fb"
+  style.stroke: "#2f6fb0"
+
   bupstream: "yf-beads-upstream\n[bd, uv, gh]"
   bauthor: "yf-beads-authoring\n[bd]"
   bextra: "yf-beads-extra\n[bd]"
@@ -30,20 +36,22 @@ util: "utility group — beads-free (no bd)" {
   diagram: "yf-diagram-authoring\n[d2]"
 }
 
-# depends-on-skill edges (the install set closes over these)
-beads.bdplan -> beads.bextra
-beads.bdplan -> beads.bauthor
-beads.bdresearch -> beads.bextra
-beads.bdresearch -> beads.bauthor
+# depends-on-skill edges (the install set closes over these). workflows -> beads
+# is why `--group workflows` also installs the beads support skills.
+workflows.bdplan -> beads.bextra
+workflows.bdplan -> beads.bauthor
+workflows.bdresearch -> beads.bextra
+workflows.bdresearch -> beads.bauthor
+workflows.incub -> beads.bextra
 beads.bauthor -> beads.bextra
 beads.bupstream -> beads.bextra
-beads.incub -> beads.bextra
 util.optinst -> util.skauth
 
 invariant: |md
   **Invariant:** no `utility` skill may depend
   (transitively) on a `beads` skill — that keeps
   `--group utility` provably beads-free.
+  (`workflows` deliberately depend on `beads`.)
 | {
   near: bottom-center
   style.font-size: 13

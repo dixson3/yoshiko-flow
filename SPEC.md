@@ -149,6 +149,14 @@
 >   `REQ-COMPLETE-001/002`, `spec/cli.md` `REQ-CLI-015/016/017`. Lesson driver: pybridge plan-010 CI
 >   signing shipped `complete` unexecuted (`merged` is not `works`). Per-skill requirement text in
 >   `skills/yf-plan/SPEC.md`.
+> - **workflows install group (2026-07-22):** promoted `workflows` to a formal `skill-group`.
+>   `yf-plan`, `yf-research`, and `yf-incubator` moved from `beads` to `skill-group: workflows`;
+>   the `beads` install group is now the five `yf-beads-*` support skills. `REQ-YF-INSTALL-003`
+>   group list gains `workflows`; `REQ-YF-INSTALL-004` clarified that a `--group` install closes over
+>   its members' `depends-on-skill` closure, so `--group workflows` also installs the `beads` skills
+>   the workflows depend on (no engine change — `resolve_selection` already applies the closure to a
+>   group base; the `install-parity.json` golden and the `computed_groups` unit test were regenerated
+>   for the new membership).
 
 ## 1. Purpose & scope
 
@@ -213,9 +221,13 @@ requirement lives only in code (GUARDRAILS GR-010).
   `<anchor>/.<surface>/rules`.
 - **REQ-YF-INSTALL-003** *(testable)* `yf` shall parse SKILL.md frontmatter (`name`, `skill-group`,
   `depends-on-tool`, `depends-on-skill`, `user-invocable`) and compute install groups from
-  `skill-group` (current: `beads`, `utility`, `markdown`).
-- **REQ-YF-INSTALL-004** *(testable)* installing a skill shall transitively include its
-  `depends-on-skill` closure; unresolved/external deps shall be logged, not fatal.
+  `skill-group` (current: `workflows`, `beads`, `utility`, `markdown`) — computed as the union of
+  all skills' values, never a hardcoded set.
+- **REQ-YF-INSTALL-004** *(testable)* installing a skill **or a `--group`** shall transitively
+  include the `depends-on-skill` closure of the selected set; unresolved/external deps shall be
+  logged, not fatal. A group therefore installs the other groups it depends on: `--group workflows`
+  (the `yf-plan` / `yf-research` / `yf-incubator` user workflows) pulls in the `beads` support
+  skills its members depend on.
 - **REQ-YF-INSTALL-005** *(testable)* `--group <g>`, explicit positional skill names, and `--strict`
   (fail on missing `depends-on-tool`) shall behave as in the retired `install.py`. `--force` shall
   **no longer overwrite rule content**: the aggregated ruleset is a fully `yf`-managed artifact whose

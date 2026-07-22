@@ -77,8 +77,9 @@ a vendor release.
 ### Deploy the skills
 
 ```bash
-yf skills install                # all skills → ~/.claude/{skills,rules}/
-yf skills install --group beads  # only the beads-dependent skills
+yf skills install                    # all skills → ~/.claude/{skills,rules}/
+yf skills install --group workflows  # yf-plan/research/incubator + the beads skills they need
+yf skills install --group beads      # only the beads support skills (yf-beads-*)
 yf skills install --scope project --surface agents  # <git-root>/.agents/{skills,rules}/
 yf skills install --dry-run      # preview without writing
 yf doctor                        # verify the toolchain + skill-install health
@@ -212,24 +213,27 @@ added or regrouped.
 
 | Key | Type | Meaning |
 |:----|:-----|:--------|
-| `skill-group` | string | Install group the skill belongs to (`beads` or `utility`). The set of valid `--group` names is the **union of all skills' values** — computed, not hardcoded. |
+| `skill-group` | string | Install group the skill belongs to (`workflows`, `beads`, `utility`, or `markdown`). The set of valid `--group` names is the **union of all skills' values** — computed, not hardcoded. |
 | `depends-on-tool` | list | Binaries the skill needs at runtime (e.g. `[bd, uv, git]`). Probed on `PATH` at install: missing → warning, **install still proceeds (exit 0)**; `--strict` makes it a hard failure. |
 | `depends-on-skill` | list | **Bare** in-repo skill names this skill needs. The install set is closed over these (transitive pull). A name not found under `skills/*` is warned as external / assumed-provided and skipped. |
 
-**Groups.** `beads` skills depend on the `bd` binary; `utility` skills
-(`yf-optimal-instructions`, `yf-skill-authoring`, `yf-drift-check`) run without it; `markdown` skills
-(`yf-markdown-lint`, `yf-markdown-pdf`, `yf-markdown-html`, `yf-markdown-format`) are standalone GFM
-tooling, beads-free (`yf-markdown-pdf` needs `pandoc` + `xelatex`, `yf-markdown-html` needs `pandoc`,
-`yf-markdown-lint` / `yf-markdown-format` are stdlib-only). Install a single group
-with `--group <name>` (see [Install](#install)).
+**Groups.** `workflows` are the end-to-end, beads-tracked skills you invoke to get work done
+(`yf-plan`, `yf-research`, `yf-incubator`); `beads` are the `bd` support skills the workflows build
+on (`yf-beads-init`, `-extra`, `-authoring`, `-hygiene`, `-upstream`); `utility` skills
+(`yf-optimal-instructions`, `yf-skill-authoring`, `yf-drift-check`, …) run without `bd`; `markdown`
+skills (`yf-markdown-lint`, `yf-markdown-pdf`, `yf-markdown-html`, `yf-markdown-format`) are
+standalone GFM tooling, beads-free (`yf-markdown-pdf` needs `pandoc` + `xelatex`, `yf-markdown-html`
+needs `pandoc`, `yf-markdown-lint` / `yf-markdown-format` are stdlib-only). Install a single group
+with `--group <name>`; the install closes over the group's `depends-on-skill` closure, so
+`--group workflows` pulls in the `beads` skills its members need (see [Install](#install)).
 
 **Soft-dep tie-break.** `skill-group` reflects *intended-use coupling*, not just hard tool deps.
-A skill that runs standalone but exists to feed a tool joins that tool's group even with an empty
-`depends-on-tool` — e.g. `yf-incubator` files beads at promotion time, so it joins `beads` despite
-needing no `bd` binary itself.
+`yf-incubator` needs no `bd` binary itself but files beads at promotion time and is a user-facing
+workflow, so it joins `workflows` (which depends on `beads` via `depends-on-skill`).
 
 **Invariant.** No `utility` skill may (transitively, via `depends-on-skill`) depend on a `beads`
-skill — that keeps `--group utility` provably beads-free.
+skill — that keeps `--group utility` provably beads-free. (`workflows` deliberately *do* depend on
+`beads`.)
 
 ![beads-skills install groups and depends-on-skill graph](docs/diagrams/skill-ecosystem.png)
 

@@ -453,8 +453,9 @@ mod tests {
     fn computed_groups_match_spec() {
         let skills = load_skills();
         let groups = computed_groups(&skills);
-        // SPEC §3.3: current groups are beads, utility, markdown.
-        assert_eq!(groups, vec!["beads", "markdown", "utility"]);
+        // SPEC REQ-YF-INSTALL-003: current groups are workflows, beads, utility, markdown
+        // (computed union of skill-group values, sorted).
+        assert_eq!(groups, vec!["beads", "markdown", "utility", "workflows"]);
     }
 
     // REQ-YF-INSTALL-003
@@ -462,12 +463,18 @@ mod tests {
     fn beads_group_contains_beads_skills() {
         let skills = load_skills();
         let beads = skills_in_group(&skills, "beads");
-        for expected in ["yf-beads-extra", "yf-beads-authoring", "yf-plan"] {
+        // The beads install group is the `yf-beads-*` support skills.
+        for expected in ["yf-beads-extra", "yf-beads-authoring"] {
             assert!(
                 beads.contains(&expected.to_string()),
                 "beads group missing {expected}: {beads:?}"
             );
         }
+        // The user workflows moved to the `workflows` group; they depend on beads
+        // (via depends-on-skill closure) but are not members of it.
+        let workflows = skills_in_group(&skills, "workflows");
+        assert!(workflows.contains(&"yf-plan".to_string()));
+        assert!(!beads.contains(&"yf-plan".to_string()));
         // A markdown skill must NOT be in the beads group.
         assert!(!beads.contains(&"yf-markdown-lint".to_string()));
     }

@@ -101,8 +101,9 @@ vendor release.
 
 ```bash
 yf skills install                                    # all skills + companion rules
+yf skills install --group workflows                  # yf-plan/research/incubator + the beads skills they need
+yf skills install --group beads                      # only the beads support skills (yf-beads-*)
 yf skills install --group utility                    # only the beads-free utility skills
-yf skills install --group beads                      # only the beads-dependent skills
 yf skills install yf-plan yf-research                # named skills (pull their deps)
 yf skills install --scope project --surface agents   # <git-root>/.agents/{skills,rules}/
 yf skills install --dry-run                          # preview without writing
@@ -110,10 +111,12 @@ yf skills install --dry-run                          # preview without writing
 
 By default this installs into the **user / claude** surface (`~/.claude/skills/`), with
 companion rules in the sibling `~/.claude/rules/`. Groups are computed from each skill's
-`skill-group` frontmatter (`beads`, `utility`, `markdown`). A missing `depends-on-tool` is a
-warning and the install still proceeds (skill files are inert until the tool is present);
-`--strict` makes it a hard failure. An existing companion rule is **preserved** unless
-`--force` is given, so hand-edits survive a reinstall.
+`skill-group` frontmatter (`workflows`, `beads`, `utility`, `markdown`) — the valid `--group`
+names are the union of all skills' values, never hardcoded. **Installing a skill or a group
+pulls its transitive `depends-on-skill` closure**, so `--group workflows` also installs the
+`beads` skills those workflows depend on; an unresolved/external dependency is logged, not
+fatal. A missing `depends-on-tool` is a warning and the install still proceeds (skill files are
+inert until the tool is present); `--strict` makes it a hard failure.
 
 ## Verify the install
 
