@@ -43,7 +43,9 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `changelog` | `CHANGELOG.md` | doc | derived | required |
 | `guardrails` | `GUARDRAILS.md` | spec | fixed | required |
 | `per-skill-spec` | `skills/*/SPEC.md` | spec | fixed | optional |
+| `skill-diagram-src` | `skills/*/spec/*.d2` | source | derived | optional |
 | `skill-diagram-png` | `skills/*/spec/*.png` | source | derived | optional |
+| `docs-diagram-src` | `docs/diagrams/*.d2` | source | derived | optional |
 | `docs-diagram-png` | `docs/diagrams/*.png` | source | derived | optional |
 | `classifier-canonical` | `_shared/active_set.py` (the marker-fenced canonical active-set classifier region) | source | fixed | required |
 | `classifier-copy-hygiene` | `skills/yf-beads-hygiene/scripts/beads_hygiene.py` (the generated `active-set classifier` region) | source | derived | required |
@@ -116,6 +118,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-okf-copy-okf` | `okf-canonical` | `okf-copy-okf` | contract |
 | `e-web-skill-counts` | `frontmatter-contract` | `web-skill-facts` | contract |
 | `e-web-skill-groups` | `frontmatter-contract` | `web-skill-pages-plugin` | contract |
+| `e-skill-diagram-fresh` | `skill-diagram-src` | `skill-diagram-png` | contract |
+| `e-docs-diagram-fresh` | `docs-diagram-src` | `docs-diagram-png` | contract |
 
 ## 3. Per-Edge Contracts
 
@@ -141,8 +145,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-index-desc` | `value-equal` | each skill's description in the project README index matches that skill's README description. |
 | `e-frontmatter` | `field-set-subset` | the project README "Skill frontmatter contract" section's documented keys/rules match the frontmatter `install.py` actually reads (`skill-group` / `depends-on-tool` / `depends-on-skill`). |
 | `e-prereqs-union` | `field-set-equal` | the project README Prerequisites table is the union of all skill READMEs' prerequisites. |
-| `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render freshness is NOT checked here (owned by `render.py check-dir`); diagram-vs-prose semantics are out of scope. |
-| `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render freshness and semantics out of scope (as above). |
+| `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render **freshness** is checked by the sibling edge `e-skill-diagram-fresh`; diagram-vs-prose semantics remain out of scope. |
+| `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render **freshness** is checked by the sibling edge `e-docs-diagram-fresh`; semantics remain out of scope. |
 | `e-changelog-version` | `value-equal` | the top-most **released** version heading in `CHANGELOG.md` (`## v<X> — <date>`) matches the `yf/Cargo.toml` `[package]` `version`. Between releases the crate version stays at the last release and pending user-facing changes accumulate under a `## Unreleased` section **above** it; at a release cut the version bump and the `Unreleased`→`## v<X>` rename land together (a bumped crate version with no matching `## v<X>` heading, or a `## v<X>` heading that is empty / has no Added/Changed/Fixed entries, is drift). The section must record the notable user-facing changes for `<X>` — a released version whose changes merged since the previous tag are not reflected is out-of-date. `crate-version` is fixed authority: a mismatch is the **changelog** drifting (FAIL on `changelog`), never the version — unless the crate version itself is wrong (CONFLICT, §7). |
 | `e-spec-guardrails` | `field-set-subset` | `GUARDRAILS.md` does not contradict any `SPEC.md` REQ-* statement; read both and compare. The macro spec is fixed authority — a guardrail that conflicts with a REQ is the guardrail drifting (FAIL on guardrails), unless the SPEC itself is stale (CONFLICT, §7). |
 | `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. (The REQ-YF-PRE-004 config-path typo was operator-ratified and corrected in SPEC — SPEC/README/impl now agree on `.yf-<skill>.local.json`.) |
@@ -165,6 +169,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-okf-copy-okf` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-okf/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-okf`. |
 | `e-web-skill-counts` | `value-equal` | the skill-count claims in `web/content/pages/architecture.md` equal the real tallies from `skills/*/SKILL.md`: the total "**N skills**" equals the number of `skills/*/` dirs carrying a `SKILL.md`, and each per-group count (`beads (N)` / `utility (N)` / `markdown (N)`) equals the number of skills whose frontmatter `skill-group` is that group. The site's per-skill pages and grouped `/skills/` index are auto-generated by `web/plugins/skill_pages.py` from the same frontmatter and never drift — only these hand-authored prose counts do. `frontmatter-contract` is the source of truth: a mismatch is the **web page** drifting (FAIL on `web-skill-facts`), never the skills. |
 | `e-web-skill-groups` | `field-set-subset` | every `skill-group` value present across `skills/*/SKILL.md` is represented in the `web/plugins/skill_pages.py` group registry (`GROUP_ORDER`, `GROUP_LABELS`, and `GROUP_BLURBS`), so a newly-introduced group renders on the generated `/skills/` index with a defined order + label + blurb rather than being silently appended unlabeled. A `skill-group` value missing from that registry is the **plugin** drifting (FAIL on `web-skill-pages-plugin`), never the skills. |
+| `e-skill-diagram-fresh` | `value-equal` | each `skills/*/spec/<slug>.png` is a current render of its sibling `skills/*/spec/<slug>.d2`: read the `.d2` source **and** Read the `.png` image, and confirm the rendered nodes / edges / labels reflect the current `.d2` (a `.d2` edited without re-rendering leaves a stale `.png`). `uv run skills/yf-diagram-authoring/scripts/render.py check-dir skills/<skill>/spec` is the mechanical backstop — **authoritative on a missing render** (a `.d2` with no `.png` → FAIL), advisory (mtime) on staleness. The `.d2` is the source of truth: a stale or missing render is the **png** drifting (FAIL on `skill-diagram-png`), never the `.d2`. Regenerate with `render.py render-dir skills/<skill>/spec`. |
+| `e-docs-diagram-fresh` | `value-equal` | as `e-skill-diagram-fresh`, for each `docs/diagrams/<slug>.png` against its sibling `docs/diagrams/<slug>.d2` (backstop `render.py check-dir docs/diagrams`). A stale or missing render is the **png** drifting (FAIL on `docs-diagram-png`); regenerate with `render.py render-dir docs/diagrams`. |
 
 ## 4. Referencers (orphan check)
 
@@ -239,8 +245,10 @@ content-agreement axis).
 | `GUARDRAILS.md` | `e-spec-guardrails`, `e-guardrails-readme` |
 | `skills/*/SPEC.md` | `e-skillspec-skillmd` |
 | `DRIFT-CHECK.md` | `e-docs-diagram-ref` |
-| `skills/*/spec/*.png` | `e-skill-diagram-ref` |
-| `docs/diagrams/*.png` | `e-docs-diagram-ref` |
+| `skills/*/spec/*.d2` | `e-skill-diagram-fresh` |
+| `skills/*/spec/*.png` | `e-skill-diagram-ref`, `e-skill-diagram-fresh` |
+| `docs/diagrams/*.d2` | `e-docs-diagram-fresh` |
+| `docs/diagrams/*.png` | `e-docs-diagram-ref`, `e-docs-diagram-fresh` |
 | `web/content/pages/architecture.md` | `e-web-skill-counts` |
 | `web/plugins/skill_pages.py` | `e-web-skill-groups` |
 

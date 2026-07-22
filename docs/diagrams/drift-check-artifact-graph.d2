@@ -42,6 +42,7 @@ skill_sources: "skill sources" {
   script: script
   formula: formula
   template: template
+  skdsrc: "skill-diagram-src\n(spec/*.d2)"
   skpng: "skill-diagram-png\n(spec/*.png)"
 }
 
@@ -50,7 +51,15 @@ docs: "docs (derived)" {
   style.stroke: "#3f8f4f"
   skreadme: "skill-readme\n(skills/*/README.md)"
   prreadme: "project-readme\n(README.md)"
+  docssrc: "docs-diagram-src\n(docs/diagrams/*.d2)"
   docspng: "docs-diagram-png\n(docs/diagrams/*.png)"
+}
+
+web: "web site (derived)" {
+  style.fill: "#eef7ee"
+  style.stroke: "#3f8f4f"
+  webfacts: "web-skill-facts\n(web/content/pages/architecture.md)"
+  webplugin: "web-skill-pages-plugin\n(web/plugins/skill_pages.py)"
 }
 
 # ---- edges (colored by check category) ----
@@ -64,6 +73,14 @@ skill_sources.skillmd -> docs.skreadme: e-readme-desc { style.stroke: "#2f6fb0" 
 docs.skreadme -> docs.prreadme: e-index-table { style.stroke: "#2f6fb0" }
 skill_sources.fm -> docs.prreadme: e-frontmatter { style.stroke: "#2f6fb0" }
 docs.skreadme -> docs.prreadme: e-prereqs-union { style.stroke: "#2f6fb0" }
+
+# web-site skill facts (contract = blue)
+skill_sources.fm -> web.webfacts: e-web-skill-counts { style.stroke: "#2f6fb0" }
+skill_sources.fm -> web.webplugin: e-web-skill-groups { style.stroke: "#2f6fb0" }
+
+# diagram render freshness: .d2 source -> .png render (contract = blue)
+skill_sources.skdsrc -> skill_sources.skpng: e-skill-diagram-fresh { style.stroke: "#2f6fb0" }
+docs.docssrc -> docs.docspng: e-docs-diagram-fresh { style.stroke: "#2f6fb0" }
 
 # cross-ref = green
 skill_sources.script -> skill_sources.skillmd: e-skill-script-cli { style.stroke: "#3f8f4f" }
