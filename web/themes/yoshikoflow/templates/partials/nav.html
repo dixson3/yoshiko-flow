@@ -1,0 +1,34 @@
+{# Left navigation tree. `cur` is the current page's url ('' on the homepage). #}
+{% set cur = (page.url if page else '') %}
+
+<div class="nav-group">
+  <p class="nav-group-title">Getting started</p>
+  <ul class="nav-list">
+    <li><a class="nav-item{% if cur == '' %} active{% endif %}" href="{{ SITEURL }}/">Overview</a></li>
+    <li><a class="nav-item{% if cur == 'install/' %} active{% endif %}" href="{{ SITEURL }}/install/">Install</a></li>
+    <li><a class="nav-item{% if cur == 'usage/' %} active{% endif %}" href="{{ SITEURL }}/usage/">Usage</a></li>
+  </ul>
+</div>
+
+<div class="nav-group">
+  <p class="nav-group-title">Concepts</p>
+  <ul class="nav-list">
+    <li><a class="nav-item{% if cur == 'architecture/' %} active{% endif %}" href="{{ SITEURL }}/architecture/">Architecture</a></li>
+    <li><a class="nav-item{% if cur == 'lifecycle/' %} active{% endif %}" href="{{ SITEURL }}/lifecycle/">Skill lifecycle</a></li>
+  </ul>
+</div>
+
+<div class="nav-group">
+  <p class="nav-group-title">Skills</p>
+  <ul class="nav-list">
+    <li><a class="nav-item{% if cur == 'skills/' %} active{% endif %}" href="{{ SITEURL }}/skills/">All skills</a></li>
+  </ul>
+  {% for grp in SKILL_NAV %}
+  <p class="nav-subhead">{{ grp.label }}</p>
+  <ul class="nav-list nav-sublist">
+    {% for s in grp.skills %}
+    <li><a class="nav-item nav-leaf{% if cur == 'skills/' ~ s.name ~ '/' %} active{% endif %}" href="{{ SITEURL }}{{ s.url }}"><code>{{ s.name }}</code></a></li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+</div>

@@ -26,13 +26,96 @@
     gtag('config', '{{ GA_MEASUREMENT_ID }}');
   </script>
   {% endif %}
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b0f0c'/%3E%3Ctext x='2' y='12' font-family='monospace' font-size='11' fill='%2350fa7b'%3E%3E_%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2312121a'/%3E%3Ctext x='2' y='12' font-family='monospace' font-size='11' fill='%23a78bfa'%3E%3E_%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <input type="checkbox" id="nav-toggle" class="nav-toggle-state" hidden>
   {% include "partials/header.html" %}
-  <main class="wrap">
-    {% block content %}{% endblock %}
-  </main>
-  {% include "partials/footer.html" %}
+
+  <label for="nav-toggle" class="nav-scrim" aria-hidden="true"></label>
+  <div class="layout">
+    <nav class="sidebar sidebar-nav" aria-label="Site navigation">
+      <div class="sidebar-inner">
+        {% include "partials/nav.html" %}
+      </div>
+    </nav>
+
+    <main id="content" class="content">
+      {% block content %}{% endblock %}
+      {% include "partials/footer.html" %}
+    </main>
+
+    <aside class="sidebar sidebar-toc" aria-label="On this page">
+      <div class="sidebar-inner toc-inner">
+        <p class="toc-title" hidden>On this page</p>
+        <nav id="toc"></nav>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+  (function () {
+    // ---- mobile nav: close the drawer after following a link ----
+    var toggle = document.getElementById('nav-toggle');
+    document.querySelectorAll('.sidebar-nav a').forEach(function (a) {
+      a.addEventListener('click', function () { if (toggle) toggle.checked = false; });
+    });
+
+    // ---- right-rail table of contents, built from the content headings ----
+    var content = document.getElementById('content');
+    var tocEl = document.getElementById('toc');
+    var tocTitle = document.querySelector('.toc-title');
+    if (!content || !tocEl) return;
+
+    function slugify(text) {
+      return text.toLowerCase().trim()
+        .replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+    }
+
+    var headings = content.querySelectorAll('.page-body h2, .page-body h3');
+    var links = [];
+    if (headings.length) {
+      if (tocTitle) tocTitle.hidden = false;
+      var list = document.createElement('ul');
+      list.className = 'toc-list';
+      var used = {};
+      headings.forEach(function (h) {
+        var id = h.id;
+        if (!id) {
+          id = slugify(h.textContent) || 'section';
+          if (used[id]) { id = id + '-' + (used[id]++); } else { used[id] = 1; }
+          h.id = id;
+        }
+        var li = document.createElement('li');
+        li.className = 'toc-item toc-' + h.tagName.toLowerCase();
+        var a = document.createElement('a');
+        a.href = '#' + id;
+        a.textContent = h.textContent;
+        li.appendChild(a);
+        list.appendChild(li);
+        links.push({ id: id, a: a });
+      });
+      tocEl.appendChild(list);
+    }
+
+    // ---- scroll-spy: highlight the TOC entry for the heading in view ----
+    if (links.length && 'IntersectionObserver' in window) {
+      var byId = {};
+      links.forEach(function (l) { byId[l.id] = l.a; });
+      var current = null;
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) {
+            if (current) current.classList.remove('active');
+            current = byId[e.target.id];
+            if (current) current.classList.add('active');
+          }
+        });
+      }, { rootMargin: '0px 0px -75% 0px', threshold: 0 });
+      headings.forEach(function (h) { obs.observe(h); });
+    }
+  })();
+  </script>
 </body>
 </html>

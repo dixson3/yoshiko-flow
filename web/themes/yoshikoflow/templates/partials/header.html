@@ -1,16 +1,16 @@
 <header class="site-header">
-  <div class="wrap header-inner">
+  <div class="header-inner">
+    <label for="nav-toggle" class="nav-burger" aria-label="Toggle navigation" title="Toggle navigation">
+      <span></span><span></span><span></span>
+    </label>
     <a class="brand" href="{{ SITEURL }}/">
-      <span class="prompt">yoshiko-flow</span>{% if YOSHIKOFLOW_RELEASE %}<span class="version">({{ YOSHIKOFLOW_RELEASE }})</span>{% endif %}<span class="cursor">&nbsp;</span>
+      <span class="brand-glyph">&gt;_</span>
+      <span class="brand-name">yoshiko-flow</span>
+      {% if YOSHIKOFLOW_RELEASE %}<span class="brand-version">{{ YOSHIKOFLOW_RELEASE }}</span>{% endif %}
     </a>
-    <nav class="nav">
-      {% for title, url in MENUITEMS %}
-        {% if url.startswith('http') %}
-          <a href="{{ url }}" class="nav-link nav-ext">{{ title }}<span class="ext-mark">&#8599;</span></a>
-        {% else %}
-          <a href="{{ SITEURL }}{{ url }}" class="nav-link">{{ title }}</a>
-        {% endif %}
-      {% endfor %}
+    <div class="header-spacer"></div>
+    <nav class="header-links" aria-label="External links">
+      <a class="header-link" href="{{ GITHUB_URL }}" title="GitHub">GitHub <span class="ext-mark">&#8599;</span></a>
     </nav>
   </div>
 </header>

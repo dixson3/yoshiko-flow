@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ page.title }} &mdash; {{ SITENAME }}{% endblock %}
-{% block description %}{% if page.summary %}{{ page.summary|striptags|truncate(180) }}{% else %}{{ SITE_DESCRIPTION }}{% endif %}{% endblock %}
+{% block description %}{% if page.subtitle %}{{ page.subtitle|striptags|truncate(180) }}{% elif page.summary %}{{ page.summary|striptags|truncate(180) }}{% else %}{{ SITE_DESCRIPTION }}{% endif %}{% endblock %}
 
 {% block content %}
 <article class="page">
   <header class="page-head">
-    <h1 class="page-title"><span class="glyph">&gt;_</span> {{ page.title }}</h1>
+    <h1 class="page-title">{{ page.title }}</h1>
     {% if page.subtitle %}<p class="page-sub">{{ page.subtitle }}</p>{% endif %}
   </header>
   <div class="page-body">

@@ -241,6 +241,19 @@ def add_skill_pages(generator):
     # generator.context["pages"] is the SAME list object as generator.pages, so extend once.
     generator.pages.extend(pages)
 
+    # Structured nav for the theme's left sidebar: skills grouped by skill-group, each with
+    # its site URL. The sidebar renders these under the "Skills" section.
+    generator.context["SKILL_NAV"] = [
+        {
+            "group": group,
+            "label": GROUP_LABELS.get(group, group),
+            "skills": [
+                {"name": s["name"], "url": f"/skills/{s['name']}/"} for s in items
+            ],
+        }
+        for group, items in grouped
+    ]
+
 
 def register():
     signals.page_generator_finalized.connect(add_skill_pages)
