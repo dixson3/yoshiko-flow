@@ -45,7 +45,10 @@ which will consume the profile this plan creates.
 |:------|:------|:------------|:------|:------------|
 
 _No existing upstream issue matched (searched "settings tools disable competing"). A single
-coarse tracking issue is filed at intake per the project Upstream Tracking convention._
+coarse tracking issue is filed at intake per the project Upstream Tracking convention:_
+**[dixson3/yoshiko-flow#95](https://github.com/dixson3/yoshiko-flow/issues/95)** — `plan-032 execution
+tracking`. Source bead `yf-nl8i`; follow-on beads `yf-8agh` (multi-harness, gated on `yf-2gyv`),
+`yf-up7s` (revert path).
 
 ## Investigation Findings
 
