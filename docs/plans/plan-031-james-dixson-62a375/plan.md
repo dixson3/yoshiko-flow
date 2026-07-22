@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-031-james-dixson-62a375
 author: james-dixson
 created: '2026-07-22'
-status: approved
+status: reconciling
 deliverable_class: ci-release
 fingerprint: a384289e2d4c776525d430c571c70419363916c8e62e46ec23388cfc81fb628e
+epic: yf-mol-e9q
 ---
 # Plan: Build yoshiko-flow documentation + Pelican static site under web/ deployed to yoshikoflow.sh (supersedes #54, #28)
 
 **ID:** plan-031-james-dixson-62a375
 **Author:** james-dixson
 **Created:** 2026-07-22
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** ci-release
+**Epic:** yf-mol-e9q
 **Fingerprint:** a384289e2d4c776525d430c571c70419363916c8e62e46ec23388cfc81fb628e
 **Phase log:**
 - 2026-07-22 scoping: initial scope captured; upstream #54/#28 triaged (both superseded)
