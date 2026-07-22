@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="{{ DEFAULT_LANG }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ SITENAME }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ SITE_DESCRIPTION }}{% endblock %}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ SITENAME }}">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="{{ self.description() }}">
+  {% if SITEURL %}<meta property="og:url" content="{{ SITEURL }}/{% if page %}{{ page.url }}{% endif %}">{% endif %}
+  <meta name="twitter:card" content="summary">
+
+  {% if SITEURL %}<link rel="canonical" href="{{ SITEURL }}/{% if page %}{{ page.url }}{% endif %}">{% endif %}
+  <link rel="stylesheet" href="{{ SITEURL }}/theme/css/style.css">
+
+  {% if GA_MEASUREMENT_ID %}
+  <!-- Google tag (gtag.js) — production only; id injected from YOSHIKOFLOW_GA_MEASUREMENT_ID -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ GA_MEASUREMENT_ID }}');
+  </script>
+  {% endif %}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b0f0c'/%3E%3Ctext x='2' y='12' font-family='monospace' font-size='11' fill='%2350fa7b'%3E%3E_%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  {% include "partials/header.html" %}
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+  {% include "partials/footer.html" %}
+</body>
+</html>

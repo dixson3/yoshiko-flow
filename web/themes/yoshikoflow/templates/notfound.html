@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}404 &mdash; {{ SITENAME }}{% endblock %}
+{% block content %}
+<section class="notfound">
+  <p class="code">404</p>
+  <div class="term" style="max-width:560px;margin:18px auto;text-align:left;">
+    <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-title">bash</span></div>
+    <pre class="term-body"><span class="ps1">$</span> yf open {{ page.url if page else '' }}
+yf: no such page</pre>
+  </div>
+  <p>That path doesn't exist. Try <a href="{{ SITEURL }}/">home</a>,
+     <a href="{{ SITEURL }}/install/">install</a>, or
+     <a href="{{ SITEURL }}/skills/">skills</a>.</p>
+</section>
+{% endblock %}

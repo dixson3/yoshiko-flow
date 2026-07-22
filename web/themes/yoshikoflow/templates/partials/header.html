@@ -1,0 +1,16 @@
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ SITEURL }}/">
+      <span class="prompt">yoshiko-flow</span>{% if YOSHIKOFLOW_RELEASE %}<span class="version">({{ YOSHIKOFLOW_RELEASE }})</span>{% endif %}<span class="cursor">&nbsp;</span>
+    </a>
+    <nav class="nav">
+      {% for title, url in MENUITEMS %}
+        {% if url.startswith('http') %}
+          <a href="{{ url }}" class="nav-link nav-ext">{{ title }}<span class="ext-mark">&#8599;</span></a>
+        {% else %}
+          <a href="{{ SITEURL }}{{ url }}" class="nav-link">{{ title }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+</header>
