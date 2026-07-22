@@ -26,19 +26,25 @@ markdown — those are the skills themselves. Its jobs:
 
 The **entire skill tree is embedded in the `yf` binary at build time**, so installing skills
 needs no network access and no repo clone — the skills you get always match the binary you
-already have. `yf` ships **18 skills**, grouped by their `skill-group` frontmatter:
+already have. `yf` ships **18 skills**. Grouped by what they do:
 
-- **beads (8)** — planning, research, incubator, and the beads-support skills
-  (`yf-beads-init`, `-extra`, `-authoring`, `-hygiene`, `-upstream`). These depend on or feed
-  the `bd` issue tracker.
+- **workflows (3)** — the end-to-end, beads-tracked skills you invoke to get work done:
+  `yf-plan`, `yf-research`, `yf-incubator`.
+- **beads (5)** — the `bd` (beads) support layer the workflows build on: `yf-beads-init`,
+  `yf-beads-extra`, `yf-beads-authoring`, `yf-beads-hygiene`, `yf-beads-upstream`.
 - **utility (6)** — beads-free helpers: skill authoring, drift checking, diagram authoring,
-  OKF folders, optimal instructions.
+  OKF folders, optimal instructions, change validation.
 - **markdown (4)** — standalone GFM tooling: lint, format, PDF, HTML.
 
-A **group invariant** keeps the split honest: no `utility` skill may (transitively, via
+Those four are **documentation** categories. The install `--group` selector uses each skill's
+`skill-group` frontmatter (`beads`, `utility`, or `markdown`) — the three workflow skills carry
+`skill-group: beads` because they need `bd`, so `yf skills install --group beads` installs the
+workflows **and** the beads support skills together (see [install](/install/)). A **group
+invariant** keeps the split honest: no `utility` skill may (transitively, via
 `depends-on-skill`) depend on a `beads` skill, so `yf skills install --group utility` is
-provably beads-free. Browse them all on the [skills](/skills/) page — that catalog is
-generated from the same `SKILL.md` frontmatter, so it never drifts from what ships.
+provably beads-free. Browse them all on the [skills](/skills/) page — that catalog, its
+grouping, and each skill's dependency links are generated from the same `SKILL.md` frontmatter,
+so they never drift from what ships.
 
 ## Companion rules
 

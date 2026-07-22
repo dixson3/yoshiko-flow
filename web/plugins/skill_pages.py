@@ -31,19 +31,36 @@ from markdown import Markdown
 from pelican import signals
 from pelican.contents import Page
 
-# Display order + human labels for the groups. Any group not listed here is appended
-# alphabetically after these, so a new skill-group never silently disappears.
-GROUP_ORDER = ["beads", "utility", "markdown"]
+# Site presentation categories (see _site_category). Display order + human labels; any
+# category not listed here is appended alphabetically, so a new one never silently disappears.
+GROUP_ORDER = ["workflows", "beads", "utility", "markdown"]
 GROUP_LABELS = {
+    "workflows": "workflows",
     "beads": "beads",
     "utility": "utility",
     "markdown": "markdown",
 }
 GROUP_BLURBS = {
-    "beads": "Skills that depend on (or feed) the <code>bd</code> issue tracker (beads).",
+    "workflows": "End-to-end, beads-tracked user workflows — the skills you invoke to get work done.",
+    "beads": "The <code>bd</code> (beads) support layer the workflows build on: init/health, direct-CLI gotchas, authoring conventions, graph hygiene, and upstream tracking.",
     "utility": "Beads-free helper skills — no <code>bd</code> binary required.",
     "markdown": "Standalone GitHub-Flavored-Markdown tooling, beads-free.",
 }
+
+
+def _site_category(skill):
+    """Presentation category for the site nav/catalog, derived from skill-group + name.
+
+    The install `skill-group` frontmatter (beads/utility/markdown) stays the source of truth
+    for `yf skills install --group`; for documentation the beads group is split into the
+    user-facing **workflows** (the beads-backed skills you invoke: plan/research/incubator)
+    and the **beads** support skills (`yf-beads-*`). utility/markdown pass through unchanged.
+    Deriving from name + skill-group means a new skill auto-places with no map to maintain.
+    """
+    group = skill.get("group", "other")
+    if group == "beads":
+        return "beads" if skill["name"].startswith("yf-beads-") else "workflows"
+    return group
 
 _FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.S)
 
@@ -105,16 +122,19 @@ def _read_skills(repo_root):
                 "summary": summary,
                 "trigger": trigger,
                 "skip": skip,
+                "depends_on_tool": list(fm.get("depends-on-tool") or []),
+                "depends_on_skill": list(fm.get("depends-on-skill") or []),
+                "dependents": [],  # filled in by add_skill_pages (reverse of depends_on_skill)
             }
         )
     return skills
 
 
 def _ordered_groups(skills):
-    """Group skills by skill-group in GROUP_ORDER, extras alphabetical."""
+    """Group skills by site category (GROUP_ORDER), extras alphabetical."""
     by_group = {}
     for skill in skills:
-        by_group.setdefault(skill["group"], []).append(skill)
+        by_group.setdefault(_site_category(skill), []).append(skill)
     ordered = [g for g in GROUP_ORDER if g in by_group]
     ordered += sorted(g for g in by_group if g not in GROUP_ORDER)
     return [(g, sorted(by_group[g], key=lambda s: s["name"])) for g in ordered]
@@ -133,26 +153,112 @@ def _skill_override_html(settings, name):
     return md.convert(text)
 
 
-def _skill_page_html(settings, skill):
+# README sections that are repo-developer oriented, not useful on the public site.
+_DROP_SECTIONS = ("install", "file layout")
+# Markdown link / image: (optional !)[text](url optional-title)
+_MD_LINK = re.compile(r"(!?)\[([^\]]*)\]\(([^)\s]+)(\s+\"[^\"]*\")?\)")
+
+
+def _rewrite_readme_links(md_text, name, github):
+    """Rewrite skill-dir-relative links/images to GitHub so they resolve off-site.
+
+    Relative link → the skill dir's GitHub blob URL; relative image → the raw
+    (githubusercontent) URL so the diagram renders inline. Absolute (http/https),
+    root, anchor, and mailto targets are left untouched.
+    """
+    repo = github.split("github.com/", 1)[1].rstrip("/") if "github.com/" in github else ""
+    blob = f"{github}/blob/main/skills/{name}/"
+    raw = f"https://raw.githubusercontent.com/{repo}/main/skills/{name}/" if repo else ""
+
+    def repl(match):
+        bang, text, url, title = match.group(1), match.group(2), match.group(3), match.group(4) or ""
+        if url.lower().startswith(("http://", "https://", "/", "#", "mailto:")):
+            return match.group(0)
+        base = raw if bang else blob
+        if not base:
+            return match.group(0)
+        return f"{bang}[{text}]({base}{url}{title})"
+
+    return _MD_LINK.sub(repl, md_text)
+
+
+def _readme_body_md(repo_root, name):
+    """The skill README markdown from its first `##` on, with dev-only sections dropped.
+
+    Drops the H1 title and the intro one-liner (the SKILL `description` summary already
+    leads the page), and the `Install` / `File Layout` sections (repo-dev oriented).
+    """
+    path = os.path.join(repo_root, "skills", name, "README.md")
+    if not os.path.isfile(path):
+        return ""
+    with open(path, encoding="utf-8") as fh:
+        text = _FRONTMATTER.sub("", fh.read())
+
+    out, started, skipping = [], False, False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            started = True
+            title = line[3:].strip().lower()
+            skipping = any(title.startswith(drop) for drop in _DROP_SECTIONS)
+            if skipping:
+                continue
+        if not started or skipping:
+            continue
+        out.append(line)
+    return "\n".join(out).strip()
+
+
+def _readme_html(repo_root, name, github):
+    """Rendered, link-rewritten skill README exposition, or '' if the README is absent."""
+    body = _readme_body_md(repo_root, name)
+    if not body:
+        return ""
+    return _fresh_md().convert(_rewrite_readme_links(body, name, github))
+
+
+def _skill_link(name, known):
+    """A link to another skill's page when it is an in-repo skill, else plain code."""
+    if name in known:
+        return f'<a href="/skills/{name}/"><code>{name}</code></a>'
+    return f"<code>{name}</code>"
+
+
+def _skill_page_html(settings, skill, repo_root, known):
     github = settings.get("GITHUB_URL", "")
-    src = f"{github}/blob/main/skills/{skill['name']}/SKILL.md" if github else ""
+    name = skill["name"]
+    skmd = f"{github}/blob/main/skills/{name}/SKILL.md" if github else ""
+    rdme = f"{github}/blob/main/skills/{name}/README.md" if github else ""
     invoke = (
-        f"<code>/{skill['name']}</code> (user-invocable)"
+        f"<code>/{name}</code> (user-invocable)"
         if skill["invocable"]
         else "auto (fires from its description conditions when relevant work appears)"
     )
     parts = []
-    override = _skill_override_html(settings, skill["name"])
+    override = _skill_override_html(settings, name)
     if override:
         parts.append(override)
     if skill["summary"]:
         parts.append(f"<p>{skill['summary']}</p>")
     parts.append("<h2>At a glance</h2>")
     parts.append("<ul>")
-    parts.append(f"<li><strong>Group:</strong> <code>{skill['group']}</code></li>")
+    parts.append(f"<li><strong>Category:</strong> <code>{_site_category(skill)}</code></li>")
     parts.append(f"<li><strong>Invocation:</strong> {invoke}</li>")
-    if src:
-        parts.append(f'<li><strong>Source:</strong> <a href="{src}"><code>skills/{skill["name"]}/SKILL.md</code></a></li>')
+    if skill["depends_on_tool"]:
+        tools = ", ".join(f"<code>{t}</code>" for t in skill["depends_on_tool"])
+        parts.append(f"<li><strong>Requires tools:</strong> {tools}</li>")
+    else:
+        parts.append("<li><strong>Requires tools:</strong> none (self-contained)</li>")
+    if skill["depends_on_skill"]:
+        deps = ", ".join(_skill_link(d, known) for d in skill["depends_on_skill"])
+        parts.append(f"<li><strong>Depends on skills:</strong> {deps}</li>")
+    if skill["dependents"]:
+        rev = ", ".join(_skill_link(d, known) for d in skill["dependents"])
+        parts.append(f"<li><strong>Depended on by:</strong> {rev}</li>")
+    if skmd:
+        parts.append(
+            f'<li><strong>Source:</strong> <a href="{skmd}"><code>SKILL.md</code></a>'
+            f' &middot; <a href="{rdme}"><code>README.md</code></a></li>'
+        )
     parts.append("</ul>")
     if skill["trigger"]:
         parts.append("<h2>When it fires</h2>")
@@ -160,35 +266,47 @@ def _skill_page_html(settings, skill):
     if skill["skip"]:
         parts.append("<h2>When to skip it</h2>")
         parts.append(f"<p>{skill['skip']}</p>")
+    # The skill's own README carries the real exposition (why it exists, how it works,
+    # usage, behavior model). Render it below the frontmatter-derived quick reference.
+    readme = _readme_html(repo_root, name, github)
+    if readme:
+        parts.append("<hr>")
+        parts.append(readme)
     return "\n".join(parts)
 
 
-def _index_html(settings, grouped):
+def _index_html(settings, grouped, known):
     total = sum(len(items) for _, items in grouped)
     parts = [
-        f"<p>yoshiko-flow ships <strong>{total} skills</strong>, grouped by their "
-        "<code>skill-group</code> frontmatter. Install them all with "
-        "<code>yf skills install</code>, or one group with "
-        "<code>yf skills install --group &lt;name&gt;</code> (see "
-        '<a href="/install/">install</a>). User-invocable skills are triggered with '
+        f"<p>yoshiko-flow ships <strong>{total} skills</strong>, grouped here by what they do — "
+        "the <strong>workflows</strong> you invoke to get work done, the <strong>beads</strong> "
+        "support layer they build on, and the beads-free <strong>utility</strong> and "
+        "<strong>markdown</strong> helpers. User-invocable skills are triggered with "
         "<code>/yf-&lt;skill&gt;</code>; <code>auto</code> skills fire from their description "
-        "conditions when relevant work appears.</p>"
+        "conditions when relevant work appears. Install them all with "
+        "<code>yf skills install</code>, or by install group with "
+        "<code>yf skills install --group &lt;beads|utility|markdown&gt;</code> (the workflow "
+        'skills ship as <code>skill-group: beads</code> since they need <code>bd</code>; see '
+        '<a href="/install/">install</a>). The <strong>Depends on</strong> column shows each '
+        "skill's <code>depends-on-skill</code> closure — naming a skill at install time pulls "
+        "its dependencies in automatically.</p>"
     ]
     for group, items in grouped:
         label = GROUP_LABELS.get(group, group)
         blurb = GROUP_BLURBS.get(group, "")
-        parts.append(f"<h2>{label} group</h2>")
+        parts.append(f"<h2>{label}</h2>")
         if blurb:
             parts.append(f"<p>{blurb}</p>")
         parts.append("<table>")
-        parts.append("<thead><tr><th>Skill</th><th>Invocation</th><th>Purpose</th></tr></thead>")
+        parts.append("<thead><tr><th>Skill</th><th>Invocation</th><th>Purpose</th><th>Depends on</th></tr></thead>")
         parts.append("<tbody>")
         for skill in items:
             invoke = f"<code>/{skill['name']}</code>" if skill["invocable"] else "auto"
             purpose = skill["summary"] or ""
+            deps = ", ".join(_skill_link(d, known) for d in skill["depends_on_skill"]) or "&mdash;"
             parts.append(
                 f'<tr><td><a href="/skills/{skill["name"]}/"><code>{skill["name"]}</code></a></td>'
-                f"<td>{invoke}</td><td>{purpose}</td></tr>"
+                f"<td>{invoke}</td><td>{purpose}</td><td>{deps}</td></tr>"
             )
         parts.append("</tbody></table>")
     return "\n".join(parts)
@@ -216,6 +334,17 @@ def add_skill_pages(generator):
     skills = _read_skills(repo_root)
     if not skills:
         return
+
+    # Reverse the depends-on-skill graph so each skill page can show what depends on IT.
+    known = {s["name"] for s in skills}
+    for s in skills:
+        for dep in s["depends_on_skill"]:
+            for other in skills:
+                if other["name"] == dep:
+                    other["dependents"].append(s["name"])
+    for s in skills:
+        s["dependents"] = sorted(set(s["dependents"]))
+
     grouped = _ordered_groups(skills)
 
     pages = [
@@ -223,8 +352,8 @@ def add_skill_pages(generator):
             generator,
             "skills",
             "skills",
-            _index_html(settings, grouped),
-            subtitle=f"the {len(skills)} yf-* skills, grouped",
+            _index_html(settings, grouped, known),
+            subtitle=f"the {len(skills)} yf-* skills, grouped by what they do",
         )
     ]
     for skill in skills:
@@ -233,7 +362,7 @@ def add_skill_pages(generator):
                 generator,
                 f"skills/{skill['name']}",
                 skill["name"],
-                _skill_page_html(settings, skill),
+                _skill_page_html(settings, skill, repo_root, known),
                 subtitle=skill["summary"][:120] if skill["summary"] else "",
             )
         )
