@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-032-james-dixson-6cb87b
 author: james-dixson
 created: '2026-07-22'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: edaafd7587d70d201988363f865ca9cf86b6e2e212492331d1d06b7bbd36af9d
+epic: yf-mol-ifx
 ---
 # Plan: yf harness tune — align Claude Code settings.json to the yf skill contracts
 
 **ID:** plan-032-james-dixson-6cb87b
 **Author:** james-dixson
 **Created:** 2026-07-22
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-ifx
 **Fingerprint:** edaafd7587d70d201988363f865ca9cf86b6e2e212492331d1d06b7bbd36af9d
 
 ## Objective
