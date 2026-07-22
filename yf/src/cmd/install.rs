@@ -54,6 +54,17 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     // --dry-run the same projection is computed but nothing is written (C3).
     let flow = common::install_rules_aggregate(&install, &rules_dir, args.dry_run)?;
 
+    // plan-032: optional post-install settings tune (REQ-YF-TUNE-010). Runs only
+    // on a real (non-dry-run) install and only under --tune. There is NO
+    // interactive prompt; without --tune, tuning is merely advertised and no
+    // settings.json is touched. Scope tracks the install scope (project → local).
+    let project = matches!(args.scope, crate::cli::Scope::Project);
+    let tune_result: Option<serde_json::Value> = if args.tune && !args.dry_run {
+        Some(crate::cmd::harness::tune_for_install(project)?)
+    } else {
+        None
+    };
+
     if args.json {
         let out = serde_json::json!({
             "command": "skills install",
@@ -68,6 +79,8 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
             "rules_migrated": flow.migrated,
             "missing_tools": missing,
             "warnings": sel.log,
+            "tune": tune_result,
+            "tune_available": !args.tune,
         });
         println!("{}", serde_json::to_string(&out)?);
         return Ok(());
@@ -132,5 +145,16 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
         installed.len(),
         skills_dir.display()
     );
+    match &tune_result {
+        Some(t) => {
+            let status = t.get("status").and_then(|v| v.as_str()).unwrap_or("?");
+            let path = t.get("path").and_then(|v| v.as_str()).unwrap_or("");
+            println!("Harness tune: {status} {path}");
+        }
+        None if !args.dry_run => {
+            println!("Tip: run `yf harness tune` (or re-install with --tune) to align settings to the yf skill contracts.");
+        }
+        None => {}
+    }
     Ok(())
 }

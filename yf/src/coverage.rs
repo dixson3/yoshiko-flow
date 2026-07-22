@@ -57,6 +57,10 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // Rename cleanliness is a repo-wide drift concern verified by the
     // drift-check gate, not by an in-crate test.
     ("REQ-YF-RENAME-003", "covered by the drift-check gate (no stale bdplan/bdresearch reference post-rename); repo-wide drift, not unit-testable in-crate"),
+    // plan-032 note: REQ-YF-TUNE-001..010 used a temporary allowlist bridge (Issue 1.3)
+    // while the SPEC-first §3.10 landed ahead of the implementing epics. All are now
+    // tagged by in-crate tests, so none remain allowlisted (net-clean, as designed).
+    // REQ-YF-TUNE-011 is a non-testable design-posture requirement (no *(testable)* tag).
 ];
 
 /// Root of the `yf` crate (the dir holding `Cargo.toml`).

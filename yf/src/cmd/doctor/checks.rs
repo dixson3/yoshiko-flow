@@ -382,6 +382,103 @@ impl Check for SkillDepsCheck {
 /// Order mirrors the previous hardcoded axes: `version`, `bd`, `uv` (+ its
 /// homebrew-shadow warning), `git`, then per-skill marker + companion-rule axes.
 /// Adding a prerequisite is a one-line `Box::new(BinCheck::new(..))` here.
+/// `settings:<harness>` axis (REQ-YF-TUNE-009): a **read-only** report of settings
+/// drift from the embedded profile, computed over the **effective merged view**
+/// across the precedence layers (user ← project `settings.json` ←
+/// `settings.local.json`). Non-required (a warning): un-tuned settings are an
+/// alignment nudge, not a health failure. Remediation is `yf harness tune`.
+///
+/// **Decoupled from `--repair`** (REQ-YF-TUNE-009 / REQ-YF-DOCTOR-003): `--repair`
+/// short-circuits to the beads-init repair and never reaches this axis, so no
+/// settings write ever happens under `doctor` — this axis only reports.
+pub struct SettingsDriftCheck {
+    /// Target harness key (profile lookup), e.g. `claude-code`.
+    harness: String,
+    /// Settings layer paths, **low → high** precedence.
+    layers: Vec<PathBuf>,
+}
+
+impl SettingsDriftCheck {
+    /// Build the check for `harness`, resolving the three layer paths from the
+    /// real environment (`$HOME` + git root).
+    pub fn from_env(harness: &str) -> Option<Self> {
+        let profile = crate::cmd::harness::profile::load_profile(harness)
+            .ok()
+            .flatten()?;
+        use crate::cmd::harness::settings::{settings_path_at, TuneScope};
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        let root = crate::dest::git_root_or_cwd();
+        // Low → high precedence: user < project committed < project local.
+        let layers = vec![
+            settings_path_at(&profile, TuneScope::User, &home, &root),
+            settings_path_at(&profile, TuneScope::ProjectCommitted, &home, &root),
+            settings_path_at(&profile, TuneScope::ProjectLocal, &home, &root),
+        ];
+        Some(Self {
+            harness: harness.to_string(),
+            layers,
+        })
+    }
+
+    /// Evaluate over the resolved layer paths (I/O), returning the verdict. A
+    /// malformed layer is skipped (it does not contribute to the effective view);
+    /// the profile itself is the reference set (no marker).
+    fn evaluate(&self) -> CheckResult {
+        use crate::cmd::harness::{
+            audit, profile, settings::read_settings, settings::SettingsRead,
+        };
+        let name = format!("settings:{}", self.harness);
+        let Some(prof) = profile::load_profile(&self.harness).ok().flatten() else {
+            return CheckResult::warn(
+                name,
+                true,
+                format!("no embedded profile for harness '{}'", self.harness),
+                None,
+            );
+        };
+        let mut parsed: Vec<serde_json::Value> = Vec::new();
+        for path in &self.layers {
+            if let SettingsRead::Parsed(v) = read_settings(path) {
+                parsed.push(v);
+            }
+        }
+        let refs: Vec<&serde_json::Value> = parsed.iter().collect();
+        let drift = audit::audit(&prof, &refs);
+        if drift.is_empty() {
+            CheckResult::warn(
+                name,
+                true,
+                "aligned with the recommended profile".to_string(),
+                None,
+            )
+        } else {
+            let detail = format!(
+                "{} setting(s) drift from the profile: {}",
+                drift.len(),
+                drift
+                    .iter()
+                    .map(|d| d.summary())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            );
+            CheckResult::warn(
+                name,
+                false,
+                detail,
+                Some("run `yf harness tune` to align".to_string()),
+            )
+        }
+    }
+}
+
+impl Check for SettingsDriftCheck {
+    fn run(&self) -> CheckResult {
+        self.evaluate()
+    }
+}
+
 pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
     let mut out: Vec<Box<dyn Check>> = vec![
         Box::new(VersionCheck),
@@ -432,6 +529,12 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
             }));
         }
     }
+
+    // Settings-drift axis (REQ-YF-TUNE-009): read-only report over the effective
+    // merged view. Claude Code is the one implemented harness.
+    if let Some(c) = SettingsDriftCheck::from_env("claude-code") {
+        out.push(Box::new(c));
+    }
     out
 }
 
@@ -451,6 +554,70 @@ mod tests {
         let r = c.run();
         assert!(!r.ok && r.required && r.is_failure());
         assert_eq!(r.remediation.as_deref(), Some("install it"));
+    }
+
+    // REQ-YF-TUNE-009: the doctor drift axis is read-only and non-required; it
+    // reports drift over the effective merged view read from real layer files, and
+    // a recommended key set in a lower-precedence layer is NOT a false-missing.
+    #[test]
+    fn settings_drift_axis_reads_layers_and_reports() {
+        let dir = tempfile::tempdir().unwrap();
+        let user = dir.path().join("user.json");
+        let committed = dir.path().join("committed.json");
+        let local = dir.path().join("local.json");
+
+        // An empty view: everything drifts, axis is a non-required warning.
+        std::fs::write(&user, "{}").unwrap();
+        let check = SettingsDriftCheck {
+            harness: "claude-code".to_string(),
+            layers: vec![user.clone(), committed.clone(), local.clone()],
+        };
+        let r = check.run();
+        assert!(
+            !r.required,
+            "settings-drift axis must be report-only (non-required)"
+        );
+        assert!(!r.ok, "empty settings must report drift");
+        assert_eq!(
+            r.remediation.as_deref(),
+            Some("run `yf harness tune` to align")
+        );
+
+        // Fully tune the user layer via the merge engine, write it back → no drift,
+        // even though committed/local are absent (key set in ONE layer suffices).
+        let profile = crate::cmd::harness::profile::load_profile("claude-code")
+            .unwrap()
+            .unwrap();
+        let (tuned, _) = crate::cmd::harness::merge::merge(&serde_json::json!({}), &profile, false);
+        std::fs::write(&user, serde_json::to_string_pretty(&tuned).unwrap()).unwrap();
+        let r2 = check.run();
+        assert!(r2.ok, "a fully-tuned layer must clear drift: {}", r2.detail);
+        assert!(!r2.required);
+    }
+
+    // REQ-YF-TUNE-009: a malformed layer is skipped (does not crash the axis) — the
+    // other layers still drive the effective view.
+    #[test]
+    fn settings_drift_axis_skips_malformed_layer() {
+        let dir = tempfile::tempdir().unwrap();
+        let user = dir.path().join("user.json");
+        let profile = crate::cmd::harness::profile::load_profile("claude-code")
+            .unwrap()
+            .unwrap();
+        let (tuned, _) = crate::cmd::harness::merge::merge(&serde_json::json!({}), &profile, false);
+        std::fs::write(&user, serde_json::to_string_pretty(&tuned).unwrap()).unwrap();
+        let bad = dir.path().join("local.json");
+        std::fs::write(&bad, "{ not json ,,,").unwrap();
+        let check = SettingsDriftCheck {
+            harness: "claude-code".to_string(),
+            layers: vec![user, bad],
+        };
+        let r = check.run();
+        assert!(
+            r.ok,
+            "malformed layer skipped; tuned user layer clears drift: {}",
+            r.detail
+        );
     }
 
     // #32: the homebrew-shadow check is always non-required (a warning), never a
