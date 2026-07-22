@@ -36,6 +36,15 @@ and doctor gained static validation + provenance-tracked cleanup of the staging 
   `yf-research` (`yf-research` pour); the permanent `--force` on `bd mol burn` is kept.
   `yf-beads-authoring` documents the no-stage canonical pattern; the `e-formula-name`
   drift edge now also flags a hand-staging bracket as drift.
+- **`workflows` promoted to a formal install group (`REQ-YF-INSTALL-003/004`).**
+  `yf-plan`, `yf-research`, and `yf-incubator` move from `skill-group: beads` to
+  `skill-group: workflows`; the `beads` install group is now the five `yf-beads-*`
+  support skills. `yf skills install --group workflows` installs those three workflows
+  **plus their `depends-on-skill` closure** (the beads skills they need) — a `--group`
+  install now closes over its members' dependencies, so groups pull in the groups they
+  depend on. `--group beads` installs only the `yf-beads-*` support skills. No engine
+  change (the closure already applied to a group base); the frozen `install-parity.json`
+  golden and the `computed_groups` / beads-membership unit tests were regenerated.
 
 ## v0.4.0 — 2026-07-09
 
