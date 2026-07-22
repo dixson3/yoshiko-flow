@@ -1,0 +1,46 @@
+# yoshiko-flow architecture — the yf kernel, embedded skills, beads, upstream tracking.
+direction: right
+
+user: {
+  label: "operator\n(Claude Code / agent harness)"
+  shape: person
+}
+
+yf: {
+  label: "yf CLI\n(single Rust binary)"
+  shape: rectangle
+  install: "skills install / upgrade / remove"
+  preflight: "preflight <skill>\n(shared kernel gate)"
+  doctor: "doctor\n(env + install health)"
+}
+
+skills: {
+  label: "embedded skills (18)\ncompiled into the binary"
+  shape: rectangle
+  beads: "beads group (8)\nplan · research · incubator\nbeads-init/extra/authoring/\nhygiene/upstream"
+  utility: "utility group (6)\nskill-authoring · drift-check\ndiagram · okf · ..."
+  markdown: "markdown group (4)\nlint · format · pdf · html"
+}
+
+harness: {
+  label: "harness surface\n~/.claude or ~/.agents\n(user or project scope)"
+  shape: rectangle
+}
+
+bd: {
+  label: "beads (bd)\nDolt-backed issue DB"
+  shape: cylinder
+}
+
+upstream: {
+  label: "upstream tracker\nGitHub / GitLab / Jira"
+  shape: rectangle
+}
+
+user -> yf: "invoke"
+yf.install -> skills: "embeds"
+yf.install -> harness: "deploys skills + rules"
+user -> harness: "/yf-plan, /yf-research, ..."
+harness -> yf.preflight: "gate before run"
+skills.beads -> bd: "track work"
+bd -> upstream: "land-the-plane push\n(open + deferred beads)"
