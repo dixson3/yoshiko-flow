@@ -1,0 +1,52 @@
+# web/.envrc.example — operational values for the yoshikoflow.sh site.
+#
+# Copy to web/.envrc (gitignored) and fill in. With direnv installed, `direnv allow`
+# exports these when you cd into web/. NONE of these are committed — the real .envrc is
+# gitignored; only this .example is tracked. CI reads the same values from GitHub repo
+# Secrets (see scripts/aws/ci/README.md).
+#
+# None of the operational IDENTIFIERS below (domain, distribution id, hosted-zone id) are
+# secrets — they are just account-specific. The only true secret is the GA4 measurement id,
+# and even that is low-sensitivity. They are kept out of committed files purely so this
+# public repo hardcodes nothing account-specific.
+
+# --- required for build + deploy ---------------------------------------------------------
+
+# Bare site host. Drives the S3 bucket (Makefile S3_BUCKET), the ACM cert, and the Route53
+# record in provision_aws.sh.
+export YOSHIKOFLOW_SITE_DOMAIN="yoshikoflow.sh"
+
+# Canonical public URL — becomes Pelican's production SITEURL (publishconf.py). Keep this the
+# https:// form of the domain. (pelicanconf.py keeps SITEURL empty so the dev server stays
+# relative; only the production build uses PUBLISH_URL.)
+export PUBLISH_URL="https://${YOSHIKOFLOW_SITE_DOMAIN}"
+
+# Route53 public hosted-zone id for the domain. Required by provision_aws.sh for the ACM
+# validation CNAME and the A/ALIAS record. (The yoshikoflow.sh zone already exists.)
+export YOSHIKOFLOW_HOSTED_ZONE_ID="Z0201468FY30AYTNQWIO"
+
+# --- set AFTER provisioning --------------------------------------------------------------
+
+# CloudFront distribution id — does not exist until `make provision` creates it, and the
+# script prints the value to set here. The Makefile/CI CloudFront-invalidation steps no-op
+# while this is empty.
+export YOSHIKOFLOW_CF_DISTRIBUTION=""
+
+# --- optional ----------------------------------------------------------------------------
+
+# GA4 measurement id — PRODUCTION build only (publishconf.py). Unset => the theme renders no
+# gtag snippet. Leave empty to disable analytics entirely.
+# export YOSHIKOFLOW_GA_MEASUREMENT_ID="G-XXXXXXXXXX"
+
+# --- optional: source secrets from 1Password (Y-Home vault) ------------------------------
+#
+# If you keep these values in 1Password rather than typed in-file, use the `op` CLI to read
+# them at direnv-eval time (requires the 1Password CLI + `op signin`). Replace the plain
+# `export`s above with the pattern below for any value you want vault-backed. Example:
+#
+#   export YOSHIKOFLOW_GA_MEASUREMENT_ID="$(op read 'op://Y-Home/yoshikoflow-ga/measurement-id')"
+#   export YOSHIKOFLOW_CF_DISTRIBUTION="$(op read 'op://Y-Home/yoshikoflow-cf/distribution-id')"
+#
+# The non-secret identifiers (domain, hosted-zone id) are fine to keep as plain exports; only
+# reach for `op read` where you prefer the vault as the source of truth. CI does NOT use `op`
+# — it reads GitHub repo Secrets (scripts/aws/ci/README.md).
