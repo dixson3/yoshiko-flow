@@ -367,6 +367,13 @@ All task tracking inside a beads-backed skill MUST use `bd`. Never use TodoWrite
 markdown checklists, or inline task lists. Sub-work discovered during execution creates
 new beads with `--deps discovered-from:<parent-id>`.
 
+To keep beads authoritative at runtime (prose forbids the native tools but still pays their
+schema budget), operators should disable the competing surfaces in `~/.claude/settings.json`:
+`todoFeatureEnabled: false`, the `Task*` tools and `disableWorkflows: true` in
+`permissions.deny`. The `Agent` tool stays **enabled** — it is the coordinator's fan-out
+mechanism, distinct from the native `Task*` surface. See
+[docs/recommended-settings.md](https://github.com/dixson3/yoshiko-flow/blob/main/docs/recommended-settings.md).
+
 For the dependency-type semantics behind `discovered-from` / `blocks` / `related` /
 `parent-child`, and the AI-supervised issue lifecycle these skills orchestrate, cite the
 plugin's stable `resources/DEPENDENCIES.md` and `resources/WORKFLOWS.md` rather than

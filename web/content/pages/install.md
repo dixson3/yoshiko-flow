@@ -124,3 +124,31 @@ yf doctor
 `yf doctor` checks the environment (`bd` present and ≥ 1.1.0, `uv`, `git`) and every installed
 skill's marker + companion rule, exiting non-zero if any axis fails. See [usage](/usage/) to
 run your first skill, and [skills](/skills/) for the full catalog.
+
+## Tune Claude Code for the skills
+
+The `yf-*` skills deliberately **replace** several Claude Code built-ins — and those built-ins
+will happily usurp the skills if left on. `/yf-plan` overrides native plan mode; `bd` (beads) is
+the only task tracker; state must stay portable, not trapped in a Claude-only store. The
+skills' always-loaded rules *forbid* the native mechanisms, but prose only steers the model — it
+still pays the tool-schema budget every turn. Disabling the competitors in `~/.claude/settings.json`
+makes the safe state the default and reclaims that context.
+
+The highest-impact settings, and the skill each one protects:
+
+| Setting | Value | Why — what it would otherwise usurp |
+|:--------|:------|:------------------------------------|
+| `permissions.deny: ["EnterPlanMode", "ExitPlanMode"]` | — | Native plan mode; `/yf-plan` replaces it. A bare name in `deny` also drops the tool's schema from context. |
+| `permissions.deny: ["TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskUpdate"]` | — | The native task surface; `bd` (beads) is the only task tracker every skill uses. |
+| `permissions.deny: ["EnterWorktree", "ExitWorktree"]` | — | The harness worktree primitive; `/yf-plan` manages its own persistent git worktree. |
+| `todoFeatureEnabled` | `false` | `TodoWrite` — forbidden by every beads-backed skill; use `bd`. |
+| `disableWorkflows` | `true` | Native workflows; skills fan out only via the `Agent` tool (which must stay **enabled**). |
+| `autoMemoryEnabled` / `autoDreamEnabled` / `autoUploadSessions` | `false` | Claude-only memory/session stores; yf state lives in beads / repo files so it is cross-harness. |
+| `disableBundledSkills` | `true` | Bundled skills whose descriptions can shadow the `yf-*` description triggers. |
+
+> **Keep the `Agent` tool enabled** — every coordinator, investigator, and reviewer fans out
+> through it. The denied `Task*` tools are a *different*, native background-task surface.
+
+The full per-key rationale — including the `bypassPermissions` and `askUserQuestionTimeout`
+tradeoffs and the bare-name-vs-scoped `deny` mechanics — is in
+[`docs/recommended-settings.md`](https://github.com/dixson3/yoshiko-flow/blob/main/docs/recommended-settings.md).

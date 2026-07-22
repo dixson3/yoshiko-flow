@@ -30,6 +30,12 @@ preflight:
 
 **OVERRIDE:** Replaces native plan mode. Do not use EnterPlanMode/ExitPlanMode.
 
+**Operator hardening (recommended):** so the model cannot reach for the mechanisms this skill
+replaces, deny them in `~/.claude/settings.json` — `EnterPlanMode`/`ExitPlanMode` (native plan
+mode), `EnterWorktree`/`ExitWorktree` (this skill runs its own git worktree), the `Task*` tools
+and `todoFeatureEnabled: false` (beads is the only task tracker), `disableWorkflows: true`. See
+[docs/recommended-settings.md](https://github.com/dixson3/yoshiko-flow/blob/main/docs/recommended-settings.md).
+
 ## SKILL_DIR
 
 ```bash
