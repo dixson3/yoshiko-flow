@@ -1,0 +1,46 @@
+topic: "Can companion rules be replaced by skill triggers + recommended settings.json? Per-harness (claude-code, codex, opencode, pi) global-rule minimization strategy"
+mode: standard
+priority: 2
+research_dir: "docs/research/002-harness-global-rule-minimization"
+bead: yf-2gyv
+
+questions:
+  primary:
+    - "In claude-code with the recommended settings.json in effect, how much of the always-loaded companion-rule surface (YOSHIKO_FLOW.md aggregate) is genuinely load-bearing vs. replaceable by (a) richer per-skill SKILL.md description triggers and (b) settings.json keys?"
+    - "For each supported harness (claude-code, codex, opencode, pi): what is its global-instruction/rules mechanism, and what — if anything — should live there?"
+    - "What is the minimal per-harness always-loaded rule set, and which yf rules can collapse into skill triggers or settings instead?"
+  secondary:
+    - "Which YOSHIKO_FLOW.md rules encode triggers a description alone CANNOT reliably fire (the stated reason each rule is always-loaded)? Are those the irreducible core?"
+    - "What does dixson3/naba do for global rules across harnesses, and what is transferable?"
+    - "What is pi (https://pi.dev) and what is its global-instruction/rules mechanism?"
+    - "What are the token-cost / portability tradeoffs of always-loaded rules vs description-triggered skills per harness?"
+
+source_clusters:
+  - name: local-codebase
+    targets: ["this repo: ~/.claude/rules/YOSHIKO_FLOW.md, skills/*/protocols/*.md, skills/*/SKILL.md frontmatter, docs/recommended-settings.md, SPEC.md", "sibling repo ../naba: AGENTS.md, CLAUDE.md, .claude/, skills/"]
+    method: direct
+    expected_artifacts: 6
+  - name: claude-code-docs
+    targets: ["Claude Code docs: settings.json keys, skills/description triggers, memory & rules, CLAUDE.md/AGENTS.md loading"]
+    method: exa
+    expected_artifacts: 4
+  - name: codex-cli
+    targets: ["OpenAI Codex CLI: AGENTS.md, global ~/.codex config/instructions, rules mechanism"]
+    method: exa
+    expected_artifacts: 3
+  - name: opencode
+    targets: ["opencode.ai / opencode agent: AGENTS.md, rules/instructions, global config"]
+    method: exa
+    expected_artifacts: 3
+  - name: pi-and-cross-harness
+    targets: ["pi coding agent (https://pi.dev): global instructions/rules/config mechanism + cross-harness AGENTS.md convention (agents.md standard), portability of instructions"]
+    method: exa
+    expected_artifacts: 3
+
+tooling_needed: []
+
+execution:
+  estimated_beads: 11
+  estimated_budget_usd: 8.00
+  session_mode: new
+epic: yf-mol-3py
