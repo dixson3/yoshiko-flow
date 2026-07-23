@@ -1,0 +1,63 @@
+# plan-033: yf multi-harness provisioning topology
+# ALL harness ops under `yf harness`:
+# harness skills install|upgrade|remove|status (skills-only) | harness tune (config + rules)
+# --tune = flag on `install` | --revert = flag on `tune` ONLY
+# the ENTIRE top-level `yf skills` group is a deprecated alias (until next major)
+
+direction: right
+
+detect: "Harness auto-detection\n(no --harness; PATH injected for hermetic tests)\nuser: home dir / PATH binary\nproject: dot-dir presence\nmulti-harness --tune: confirm / dry-run before write" {
+  style.stroke-dash: 3
+}
+
+install: "yf harness skills install|upgrade|remove|status  (SKILLS ONLY)\n--tune = flag on install (no --revert here)\nbare install: warns 'skills-only, run tune for rules'\nalias: whole `yf skills` group (deprecated, until next major)" {
+  table: "Harness descriptor table\n(claude-code, codex, opencode, pi, agents)\nnaba-style; --surface = deprecated alias\nrepeatable, deduped by resolved path\n(codex + agents -> .agents/skills)"
+  skills: "deploy skill BODIES\n<anchor>/.<harness>/skills\n(pi: lowercase-hyphen,max64)"
+  table -> skills: "resolve dest"
+}
+
+tune: "yf harness tune --harness <h>  (TWO SUB-OPERATIONS)" {
+  cfg: "(a) config alignment\nclaude-code / codex / opencode\n(Pi config DEFERRED)"
+  rules: "(b) rule optimization + deployment\nprotocols/*.md -> aggregate (MOVED from install)\n-> minimize to irreducible-core\n-> managed block (BEGIN/END)"
+}
+
+engine: "Config engine (merge.rs UNCHANGED, pure over serde_json::Value)" {
+  merge: "kind-aware merge\nscalar add-missing / set union / Agent-never-denied"
+  json: "JSON adapter (opencode, claude-code)"
+  toml: "TOML delta-replay adapter (codex)\nconfig.toml -> toml_edit::DocumentMut (trivia)\n+ derive Value (decision only)\nreplay MergeReport deltas -> serialize doc"
+  json -> merge: "Value"
+  toml -> merge: "Value"
+}
+
+min: "Rule minimization" {
+  classifier: "curated minimization classifier\nkeep irreducible (PLANS/RESEARCH override,\nbd mandates, UPSTREAM close-time, must-fire)\ndrop reducible on-edit rules (stay prose)\n+ bundle<->source agreement assertion"
+}
+
+targets: "Per-harness targets (research-002 mechanism table)" {
+  t_cc: "claude-code:\n~/.claude/settings.json\n~/.claude/rules/ (NOT AGENTS.md)"
+  t_cx: "codex:\n~/.codex/config.toml\n~/.codex/AGENTS.md"
+  t_oc: "opencode:\n~/.config/opencode/opencode.json\n~/.config/opencode/AGENTS.md"
+  t_pi: "pi:\n(config DEFERRED)\nrule target GATED: Issue 1.5 investigation\n-> ONE choice (AGENTS.md xor APPEND_SYSTEM.md)\nelse explicit --pi-rule-target opt-in\n(never a compiled-in guess)"
+}
+
+gate: "CAPABILITY GATE: Pi rule target verified\nblocks Epic 6.3 (Pi rule deploy)\nuntil Issue 1.5 resolves first-party target" {
+  style.stroke-dash: 3
+}
+
+manifest: "Sidecar ownership manifest (.yf/, gitignored in project scope)" {
+  rec: "records yf-written keys (prior + yf-written values),\nunion-added set elements, rule block markers\n-> --revert removes ONLY yf's additions\n(touched-since-tune guard: skip + report hand-edited keys)"
+}
+
+detect -> install: "detected set"
+detect -> tune: "detected set"
+install -> tune: "--tune opt-in bridge\n(yf harness skills install --tune)\n(install + tune stay separable)"
+
+gate -> targets.t_pi: "unblocks Pi rule target"
+
+tune.cfg -> engine: "kind-aware merge"
+tune.rules -> min: "minimize"
+engine -> targets: "write config file"
+min -> targets: "write AGENTS.md / rules managed block"
+engine -> manifest: "record writes"
+min -> manifest: "record block"
+tune -> manifest: "--revert reads"
