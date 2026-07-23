@@ -14,7 +14,7 @@ use anyhow::{Context, Result};
 
 use crate::cli::{Scope, SkillsArgs};
 use crate::flow::{self, FlowSection};
-use crate::{dest, embed, frontmatter, marker};
+use crate::{dest, embed, frontmatter, harness_desc, harness_detect, marker};
 
 /// Resolved selection plus the closure diagnostics to surface to the operator.
 pub struct Selection {
@@ -88,8 +88,14 @@ pub fn tool_on_path(tool: &str) -> bool {
     crate::tool::tool_on_path(tool)
 }
 
-/// Deploy one embedded skill into `skills_dir/<name>`, injecting the integrity
-/// marker into the written `SKILL.md` (REQ-YF-INSTALL-001, REQ-YF-MARK-002).
+/// Deploy one embedded skill into `skills_dir/<dir-name>`, injecting the
+/// integrity marker into the written `SKILL.md` (REQ-YF-INSTALL-001,
+/// REQ-YF-MARK-002).
+///
+/// The on-disk directory name is the skill `name` run through the target
+/// `harness`'s `name_transform` (REQ-YF-INSTALL-007): identity for every harness
+/// except `pi`, which imposes `lowercase-hyphen,max64`. Embedded-source lookups
+/// always key on the untransformed `name`. An unknown harness id is identity.
 ///
 /// When `prune` is set (upgrade), deployed files absent from the embedded tree
 /// are removed first (REQ-YF-MARK-004). The embedded tree hash is computed from
@@ -97,8 +103,16 @@ pub fn tool_on_path(tool: &str) -> bool {
 /// later (REQ-YF-MARK-001).
 ///
 /// Returns the list of skill-relative file paths written.
-pub fn deploy_skill(name: &str, skills_dir: &Path, prune: bool) -> Result<Vec<String>> {
-    let skill_root = skills_dir.join(name);
+pub fn deploy_skill(
+    name: &str,
+    skills_dir: &Path,
+    prune: bool,
+    harness: &str,
+) -> Result<Vec<String>> {
+    let dir_name = harness_desc::lookup(harness)
+        .map(|d| d.transform_skill_name(name))
+        .unwrap_or_else(|| name.to_string());
+    let skill_root = skills_dir.join(&dir_name);
     let embedded_files = embed::skill_files(name);
     let embedded_set: BTreeSet<&str> = embedded_files.iter().map(String::as_str).collect();
 
@@ -501,20 +515,102 @@ pub fn skill_health(name: &str, skills_dir: &Path) -> Result<Health> {
     })
 }
 
-/// Resolve `(skills_dir, rules_dir)` from a `skills` subcommand's args.
-pub fn dirs_for(args: &SkillsArgs) -> (PathBuf, PathBuf) {
+/// One unique install destination after per-path dedupe (REQ-YF-INSTALL-002).
+pub struct ResolvedDest {
+    /// The harness id whose descriptor produced this destination. Drives the
+    /// skill-name transform applied by [`deploy_skill`].
+    pub harness: String,
+    /// The resolved skills directory.
+    pub skills_dir: PathBuf,
+}
+
+/// The harness ids a `skills` invocation acts on, resolving the no-`--harness`
+/// case by **auto-detection** (REQ-YF-INSTALL-009).
+///
+/// Precedence: an explicit `--harness` (or the deprecated `--surface`) **always
+/// overrides** detection and is returned verbatim via
+/// [`SkillsArgs::resolved_harnesses`]. A `--target` also skips detection — the
+/// destination is a single fixed dir there, so only the name-transform-governing
+/// primary id matters (the historical `claude-code` default). Otherwise, with no
+/// explicit selection and no target, `yf` detects installed harnesses from the
+/// real environment ([`harness_detect::detect_from_env`]) and acts on all
+/// detected; when nothing is detected it falls back to the historical
+/// `claude-code` default so a bare install still targets something.
+pub fn effective_harnesses(args: &SkillsArgs) -> Vec<String> {
+    if !args.harness.is_empty() || args.surface.is_some() || args.target.is_some() {
+        return args.resolved_harnesses();
+    }
+    let detected = harness_detect::detect_from_env(args.scope);
+    if detected.is_empty() {
+        vec!["claude-code".to_string()]
+    } else {
+        detected
+    }
+}
+
+/// Resolve every requested `--harness` (plus a deprecated `--surface`) to its
+/// skills destination and **dedupe by resolved absolute path**
+/// (REQ-YF-INSTALL-002): two harnesses that resolve to the same directory — e.g.
+/// `codex` and `agents`, both `.agents/skills` — collapse to a **single**
+/// destination, so a skill is written there exactly once. Order follows first
+/// appearance. When `--target` is set, every harness resolves to that one dir, so
+/// the result is a single destination carrying the first harness's id (which
+/// governs the name transform). A deprecated `--surface` is warned to stderr
+/// (never to `--json` stdout).
+pub fn resolved_dests(args: &SkillsArgs) -> Vec<ResolvedDest> {
+    if args.surface.is_some() {
+        eprintln!(
+            "warning: `--surface` is a deprecated alias for `--harness` and will be removed \
+             in the next major release; use `--harness`."
+        );
+    }
     let target = args.target.as_deref();
+    let mut seen: BTreeSet<PathBuf> = BTreeSet::new();
+    let mut out: Vec<ResolvedDest> = Vec::new();
+    for harness in effective_harnesses(args) {
+        let skills_dir = dest::resolve_skills_dir(args.scope, &harness, target);
+        if seen.insert(skills_dir.clone()) {
+            out.push(ResolvedDest {
+                harness,
+                skills_dir,
+            });
+        }
+    }
+    out
+}
+
+/// Resolve `(skills_dir, rules_dir)` from a `skills` subcommand's args.
+///
+/// Issue 2.1 resolves the **primary** harness only (first `--harness`, else the
+/// deprecated `--surface` alias, else `claude-code`); repeatable-harness dedupe /
+/// multi-write is Issue 2.2. A deprecated `--surface` is warned to stderr (never
+/// to `--json` stdout).
+pub fn dirs_for(args: &SkillsArgs) -> (PathBuf, PathBuf) {
+    if args.surface.is_some() {
+        eprintln!(
+            "warning: `--surface` is a deprecated alias for `--harness` and will be removed \
+             in the next major release; use `--harness`."
+        );
+    }
+    let target = args.target.as_deref();
+    // Single-destination verbs (status/upgrade/remove): the primary of the
+    // effective set, which auto-detects in the no-`--harness` case
+    // (REQ-YF-INSTALL-009) and otherwise honors the explicit selection.
+    let harness = effective_harnesses(args)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| "claude-code".to_string());
     (
-        dest::resolve_skills_dir(args.scope, args.surface, target),
-        dest::resolve_rules_dir(args.scope, args.surface, target),
+        dest::resolve_skills_dir(args.scope, &harness, target),
+        dest::resolve_rules_dir(args.scope, &harness, target),
     )
 }
 
 /// Same, but spelled out for callers that already have the pieces (doctor).
-pub fn dirs_from(scope: Scope, surface: crate::cli::Surface) -> (PathBuf, PathBuf) {
+pub fn dirs_from(scope: Scope, harness: &str) -> (PathBuf, PathBuf) {
     (
-        dest::resolve_skills_dir(scope, surface, None),
-        dest::resolve_rules_dir(scope, surface, None),
+        dest::resolve_skills_dir(scope, harness, None),
+        dest::resolve_rules_dir(scope, harness, None),
     )
 }
 
@@ -708,5 +804,90 @@ mod flow_tests {
         let second = std::fs::read_to_string(rules.join(flow::FLOW_FILENAME)).unwrap();
         assert_eq!(first, second, "second run is a no-op on the file");
         assert!(res2.migrated.is_empty(), "no standalones left to migrate");
+    }
+}
+
+#[cfg(test)]
+mod dest_dedupe_tests {
+    use super::*;
+    use crate::cli::{Scope, SkillsArgs};
+
+    fn args_with_harnesses(harness: Vec<String>) -> SkillsArgs {
+        SkillsArgs {
+            names: Vec::new(),
+            scope: Scope::User,
+            harness,
+            surface: None,
+            target: None,
+            group: None,
+            strict: false,
+            force: false,
+            dry_run: false,
+            tune: false,
+            yes: false,
+            json: false,
+        }
+    }
+
+    // REQ-YF-INSTALL-002: `--harness codex --harness agents` both resolve to
+    // `.agents/skills`, so dedupe-by-resolved-path yields exactly ONE destination
+    // (a single write), not two.
+    #[test]
+    fn codex_and_agents_dedupe_to_one_destination() {
+        let args = args_with_harnesses(vec!["codex".to_string(), "agents".to_string()]);
+        let dests = resolved_dests(&args);
+        assert_eq!(
+            dests.len(),
+            1,
+            "codex and agents resolve to the same dir → one deduped destination"
+        );
+        assert!(
+            dests[0].skills_dir.ends_with(".agents/skills"),
+            "the single destination is the shared .agents/skills dir: {:?}",
+            dests[0].skills_dir
+        );
+    }
+
+    // REQ-YF-INSTALL-009: an explicit `--harness` BYPASSES auto-detection — the
+    // effective set is exactly the requested ids, regardless of what the ambient
+    // environment has installed. (Detection only runs in the no-`--harness` case.)
+    #[test]
+    fn explicit_harness_bypasses_detection() {
+        let args = args_with_harnesses(vec!["pi".to_string()]);
+        assert_eq!(
+            effective_harnesses(&args),
+            vec!["pi".to_string()],
+            "explicit --harness must be returned verbatim, never detection"
+        );
+        // The resolved destination is pi's, not a detected harness's.
+        let dests = resolved_dests(&args);
+        assert_eq!(dests.len(), 1);
+        assert_eq!(dests[0].harness, "pi");
+    }
+
+    // REQ-YF-INSTALL-009: a `--target` also bypasses detection — the primary id
+    // stays the historical `claude-code` default, so the name transform is stable
+    // and the (single) destination is env-independent.
+    #[test]
+    fn target_bypasses_detection() {
+        let mut args = args_with_harnesses(Vec::new());
+        args.target = Some(PathBuf::from("/tmp/fixed/skills"));
+        assert_eq!(effective_harnesses(&args), vec!["claude-code".to_string()]);
+    }
+
+    // REQ-YF-INSTALL-002: distinct harnesses keep distinct destinations, in
+    // first-appearance order.
+    #[test]
+    fn distinct_harnesses_keep_distinct_destinations() {
+        let args = args_with_harnesses(vec![
+            "claude-code".to_string(),
+            "codex".to_string(),
+            "agents".to_string(),
+        ]);
+        let dests = resolved_dests(&args);
+        // claude-code → .claude/skills; codex & agents collapse to .agents/skills.
+        assert_eq!(dests.len(), 2, "two unique resolved paths");
+        assert!(dests[0].skills_dir.ends_with(".claude/skills"));
+        assert!(dests[1].skills_dir.ends_with(".agents/skills"));
     }
 }

@@ -169,6 +169,37 @@
 >   `--repair`), and a `yf skills install --tune` opt-in (no interactive prompt). Multi-harness is a
 >   forward-compat dimension only — Claude Code is implemented; concrete non-Claude profiles are a
 >   follow-on gated on the `yf-2gyv` research (`yf-8agh`), unknown `--harness` refuses cleanly.
+> - **plan-033 (2026-07-23):** yf multi-harness provisioning. Turned `yf` into a multi-harness
+>   provisioner across three surfaces — skills install, config tuning, and always-loaded rule
+>   deployment — for **claude-code, codex, opencode, and pi** (Pi *config* deferred). Relocated
+>   **all four** skills sub-verbs under a canonical `yf harness skills install|upgrade|remove|status`,
+>   making the **entire** top-level `yf skills` group a **deprecated alias** (kept until the next
+>   major release) — revised `REQ-YF-CLI-001`, `REQ-YF-CLI-002`, `REQ-YF-TUNE-002` (the `harness`
+>   group gains a `skills` subcommand alongside `tune`). Replaced `--surface {claude,agents}` with
+>   repeatable `--harness {claude-code,codex,opencode,pi,agents}` over a per-harness **descriptor
+>   table** (new `REQ-YF-INSTALL-007`, 5 rows, SPEC↔code parity test, pi `lowercase-hyphen,max64`
+>   transform); generalized destination resolution (`REQ-YF-INSTALL-002` revised — dedupe-by-
+>   resolved-path); made install **skills-only** with a bare-install rules-not-deployed warning (new
+>   `REQ-YF-INSTALL-008`; `REQ-YF-INSTALL-001` revised); and added harness **auto-detection** with an
+>   injected `PATH` (new `REQ-YF-INSTALL-009`). Moved the `YOSHIKO_FLOW.md` aggregation **invocation**
+>   from install to `yf harness tune` (`REQ-YF-FLOW-001..006` invocation-site revised; new
+>   `REQ-YF-FLOW-007` with backward-compat for existing installs — mechanics / byte-stability
+>   unchanged). Added §3.10 `REQ-YF-TUNE-012..025`: the two-sub-operation `tune` (`-012`); the
+>   format-aware `SettingsFormat` engine with TOML delta-replay while `merge.rs` stays
+>   `serde_json::Value`-pure (`-013`); profile-driven scope/path resolution (`-014`); codex-TOML /
+>   opencode-JSON profiles (`-015`/`-016`); the **Pi config deferral** (`-017`); rule
+>   **minimization** from `protocols/*.md` with a bundle↔source agreement assertion (`-018`); the
+>   `BEGIN`/`END` managed-block engine (`-019`); the per-harness rule target map with **Pi's target
+>   pinned by Issue 1.5** — a verified first-party choice xor an explicit `--pi-rule-target` opt-in,
+>   never a compiled-in guess (`-020`); the sidecar `.yf/` ownership manifest (`-021`); `--revert`
+>   with a touched-since-tune guard (`-022`); the `--tune` opt-in bridge + auto-detect first-run
+>   provisioning with a confirmed multi-harness blast radius (`-023`); the code-accurate `web/`
+>   install/tune matrices (`-024`); and the doc↔code assert-agreement test (`-025`). Revised
+>   `REQ-YF-TUNE-011` to record the follow-on **delivered** and to **explicitly defer** the
+>   per-harness `yf doctor` / `docs/recommended-settings.md` drift axis (the 008/009 analogs) to a
+>   filed follow-on bead. Closes `yf-8agh` (multi-harness) and `yf-up7s` (`--revert`); reconciles
+>   local web beads `yf-8ayq` / `yf-ij06`. Engine work lands in later epics — this entry records the
+>   SPEC-first Epic 1 amendment.
 
 ## 1. Purpose & scope
 
@@ -203,13 +234,26 @@ requirement lives only in code (GUARDRAILS GR-010).
 
 ### 3.1 CLI surface (`REQ-YF-CLI`)
 
-- **REQ-YF-CLI-001** *(testable)* `yf` shall expose subcommands `skills` (with
-  `install|upgrade|remove|status`), `self` (with `update|install|uninstall`), `doctor`,
-  `preflight`, `migrate` (`REQ-YF-MIGRATE-001`), and `version`. The `self` namespace manages the
-  **binary** lifecycle and is distinct from `skills`, which manages the embedded skills/rules.
-- **REQ-YF-CLI-002** *(testable)* `skills` subcommands shall accept `--scope {user,project}`
-  (default `user`), `--surface {claude,agents}` (default `claude`), `--target <path>`, and
-  `--dry-run`.
+- **REQ-YF-CLI-001** *(testable, revised plan-033)* `yf` shall expose subcommands `harness` (the
+  **canonical** home for `skills` and `tune` — `REQ-YF-TUNE-002`), `skills`, `self` (with
+  `update|install|uninstall`), `doctor`, `preflight`, `migrate` (`REQ-YF-MIGRATE-001`), and
+  `version`. The **canonical** skills lifecycle home is `yf harness skills` (carrying
+  `install|upgrade|remove|status`); the top-level `skills` subcommand (with the same
+  `install|upgrade|remove|status`) is retained as a **deprecated alias group** that delegates
+  verb-for-verb to `yf harness skills <verb>` with identical behavior (kept until the next major
+  release of `yf`, emitting a deprecation notice). The `self` namespace manages the **binary**
+  lifecycle and is distinct from `skills`/`harness skills`, which manage the embedded skills/rules.
+- **REQ-YF-CLI-002** *(testable, revised plan-033)* the canonical skills group `yf harness skills`
+  shall carry all four sub-verbs `install|upgrade|remove|status` (matching the existing top-level
+  `yf skills` sub-verb style); the `install` sub-verb shall accept `[--tune] [--harness <name>...]
+  [--scope {user,project}]` (there is **no** `--revert` on `install` — `--revert` is a
+  `yf harness tune` flag only, `REQ-YF-TUNE-022`). Skills sub-verbs shall accept `--scope
+  {user,project}` (default `user`), repeatable `--harness {claude-code,codex,opencode,pi,agents}`,
+  `--target <path>`, and `--dry-run`. `--surface {claude,agents}` shall be retained as a
+  **deprecated alias** for `--harness` (`claude`→`claude-code`, `agents`→`agents`, passthrough for
+  an unknown id + the legacy `.<id>/skills` fallback). The **entire** top-level `yf skills` group
+  (`install|upgrade|remove|status`) shall remain a **deprecated alias** delegating verb-for-verb to
+  `yf harness skills <verb>` with identical behavior, kept until the next major release of `yf`.
 - **REQ-YF-CLI-003** *(testable)* every subcommand shall support `--json` for machine-readable
   output and shall exit non-zero on failure.
 - **REQ-YF-CLI-004** *(testable)* `yf version` shall print the semver version (and build metadata
@@ -224,13 +268,19 @@ requirement lives only in code (GUARDRAILS GR-010).
 
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 
-- **REQ-YF-INSTALL-001** *(testable)* `yf skills install` shall copy a skill's tree to the resolved
-  destination and surface its companion rules (`protocols/*.md`) into the sibling `rules/` surface
-  as a **single aggregated `YOSHIKO_FLOW.md`** (one fenced section per protocol), not as per-file
-  standalone rules (see `REQ-YF-FLOW-001`).
-- **REQ-YF-INSTALL-002** *(testable)* destination resolution shall match: `--target` wins; else
-  `<anchor>/.<surface>/skills`, anchor = `$HOME` (user) or git-root/cwd (project); rules →
-  `<anchor>/.<surface>/rules`.
+- **REQ-YF-INSTALL-001** *(testable, revised plan-033)* `yf harness skills install` (canonical;
+  `yf skills install` a deprecated alias) shall copy a skill's tree to the resolved destination. It
+  writes **skill bodies only** (`REQ-YF-INSTALL-008`); surfacing companion rules (`protocols/*.md`)
+  into the sibling `rules/` surface as the aggregated `YOSHIKO_FLOW.md` (`REQ-YF-FLOW-001`) is
+  performed by `yf harness tune` (`REQ-YF-FLOW-007`), no longer by install.
+- **REQ-YF-INSTALL-002** *(testable, revised plan-033)* destination resolution shall be driven by
+  the **per-harness descriptor table** (`REQ-YF-INSTALL-007`): `--target` wins; else the resolved
+  skills destination is `<anchor>/<harness.subpath>`, where `<harness.subpath>` is the descriptor's
+  `user_subpath` (anchor = `$HOME`, user scope) or `project_subpath` (anchor = git-root/cwd,
+  project scope). Repeatable `--harness` values shall be **deduped by resolved absolute path** (e.g.
+  `codex` and `agents` both resolve to `.agents/skills`, yielding a single write). Install writes
+  **skill bodies only** (`REQ-YF-INSTALL-008`); the rules surface is written by `yf harness tune`
+  (`REQ-YF-FLOW-007`), not by install.
 - **REQ-YF-INSTALL-003** *(testable)* `yf` shall parse SKILL.md frontmatter (`name`, `skill-group`,
   `depends-on-tool`, `depends-on-skill`, `user-invocable`) and compute install groups from
   `skill-group` (current: `workflows`, `beads`, `utility`, `markdown`) — computed as the union of
@@ -248,12 +298,43 @@ requirement lives only in code (GUARDRAILS GR-010).
 - **REQ-YF-INSTALL-006** *(superseded by `REQ-YF-FLOW-004`)* the legacy "companion-rule install shall
   preserve an existing rule unless `--force`" no longer holds: under the aggregated ruleset there is
   no hand-edit tolerance (S3) — acted-on sections are always rewritten to the embedded source.
+- **REQ-YF-INSTALL-007** *(testable, plan-033)* `yf` shall carry a **harness descriptor table** as
+  the single source of truth for per-harness skills destinations — exactly **five rows**:
+  `claude-code`, `codex`, `opencode`, `pi`, and `agents`. Each row shall carry an `id`, a
+  `user_subpath`, a `project_subpath`, and an optional `name_transform`: claude-code `.claude/skills`
+  (both scopes); opencode `.config/opencode/skills` (user) / `.opencode/skills` (project); pi
+  `.pi/agent/skills` (user) / `.pi/skills` (project) with a `lowercase-hyphen,max64`
+  `name_transform`; codex **and** agents both `.agents/skills` (both scopes — hence the
+  `REQ-YF-INSTALL-002` dedupe-by-resolved-path). A **SPEC↔code parity test** shall parse this table
+  from the SPEC and assert it equals the shipped descriptor (id, both subpaths, `name_transform`,
+  and row count); pi's `lowercase-hyphen,max64` transform shall be validated against yf's long skill
+  names (e.g. `yf-change-validation`).
+- **REQ-YF-INSTALL-008** *(testable, plan-033)* `yf harness skills install` (and its deprecated
+  `yf skills install` alias) shall deploy **skill bodies only** — it shall write **no** rules: it
+  shall not write `YOSHIKO_FLOW.md`, fold standalone rule files, or otherwise touch the `rules/`
+  surface (the aggregation is owned by `yf harness tune`, `REQ-YF-FLOW-007`). A **bare** install run
+  **without** `--tune` shall emit a **skills-only warning** ("skills-only — run `yf harness tune` to
+  deploy always-loaded rules") and its success output shall **state that rules were not deployed**.
+- **REQ-YF-INSTALL-009** *(testable, plan-033)* when **no** `--harness` is given, `yf` shall
+  **auto-detect** installed harnesses and act on all detected: at **user** scope by probing each
+  harness's home dir (`~/.claude`, `~/.codex`, `~/.config/opencode`, `~/.pi`) **or** its binary on
+  `PATH` (`claude`, `codex`, `opencode`, `pi`); at **project** scope by dot-dir presence (`.claude`,
+  `.opencode`, `.agents`, `.pi`). An explicit `--harness` shall **override** detection. The detection
+  routine shall take **`PATH` as an injected parameter** (not read from the ambient process
+  environment) so tests control both the home-dir probe (sandboxed `HOME`) and the binary probe
+  (injected `PATH`) hermetically.
 
 ### 3.3.1 Aggregated ruleset (`REQ-YF-FLOW`)
 
 `yf` surfaces every rule-bearing skill's companion protocol as **one** operator-facing file in the
 rules dir, `YOSHIKO_FLOW.md`, instead of a scatter of standalone `*.md` files. The format is owned
 end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
+
+**Invocation (revised plan-033):** the aggregation engine below (`REQ-YF-FLOW-001..006`) is invoked
+by **`yf harness tune`**, not by `yf harness skills install` — install is skills-only
+(`REQ-YF-INSTALL-008`). Only the **invocation site** moved (install → tune); the aggregation
+**mechanics are unchanged** (byte-stable serialization, reconcile-prune, `sha256` sections), per
+`REQ-YF-FLOW-007`.
 
 - **REQ-YF-FLOW-001** *(testable)* the aggregate file shall carry a fixed do-not-edit banner, a
   deterministic `yf`-version generated-on note (never a wall-clock timestamp), and one HTML-comment
@@ -265,8 +346,8 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
   `(skill, protocol)` is no longer embedded, or whose manifest entry is `deprecated:true`, is dropped;
   a section for a skill merely **not selected** this run is retained (reconcile keys on the embedded
   set, never on the invocation selection).
-- **REQ-YF-FLOW-003** *(testable)* on **any** install/upgrade write, every `yf`-owned standalone rule
-  file present in the rules dir — including protocols for skills **not** named this run — shall be
+- **REQ-YF-FLOW-003** *(testable, invocation revised plan-033)* on **any** `yf harness tune`
+  rule-deploy write, every `yf`-owned standalone rule file present in the rules dir — including protocols for skills **not** named this run — shall be
   folded into `YOSHIKO_FLOW.md` and the standalone deleted (C4a migration); non-`yf` files are never
   touched; the fold is idempotent and preserves a folded standalone's bytes.
 - **REQ-YF-FLOW-004** *(testable)* the aggregate is a fully `yf`-managed artifact (S3, no hand-edit
@@ -283,6 +364,14 @@ end-to-end by the `flow` module (as `marker` owns the SKILL.md marker).
 - **REQ-YF-FLOW-006** *(testable)* serialization shall be deterministic: `serialize → parse →
   serialize` is byte-stable (the generated-on note carries the `yf` version, not a timestamp), and
   section sha256 is over the body only, so header churn never perturbs a doctor/preflight verdict.
+- **REQ-YF-FLOW-007** *(testable, plan-033)* `yf harness skills install` shall **no longer** write
+  `YOSHIKO_FLOW.md`; the aggregate, its minimization, and its per-harness placement are owned by
+  `yf harness tune` (`REQ-YF-TUNE-018..020`), which invokes the unchanged aggregation engine
+  (`REQ-YF-FLOW-001..006`) — byte-stable serialization / reconcile-prune / `sha256` mechanics
+  unchanged, only the invocation site moving from install to tune. **Backward-compat:** an existing
+  install's already-written `YOSHIKO_FLOW.md` shall be left **byte-untouched** by the now-skills-only
+  install, and **adopted/reconciled** by `tune` on its first run (no orphaned or double-written
+  aggregate).
 
 ### 3.4 Integrity marker & up-to-date detection (`REQ-YF-MARK`)
 
@@ -563,8 +652,16 @@ The yf-* skills assume the operator has turned **off** the competing Claude Code
 plan mode, `TodoWrite`/`Task*`, native workflows, bundled skills, Claude-only memory/dream/upload).
 Today that assumption lives only in prose (`docs/recommended-settings.md`). This section makes `yf`
 the actor: it aligns a harness's settings to the skill contracts on demand (`yf harness tune`) and
-surfaces drift on inspection (`yf doctor`). The command surface carries a **harness dimension**, but
-only the Claude Code merge engine and JSON model are implemented here; other harnesses are deferred.
+surfaces drift on inspection (`yf doctor`). The command surface carries a **harness dimension**, and
+as of plan-033 (`REQ-YF-TUNE-012..025`) the **multi-harness** model is **implemented**:
+`yf harness tune` runs two sub-operations per harness — **config alignment** (claude-code + opencode
+over the JSON engine; codex over a TOML delta-replay engine; the `merge.rs` decision engine is
+byte-for-byte unchanged and stays pure over `serde_json::Value`) and **rule deployment** (the
+minimized irreducible-core managed block into each harness's always-loaded global-rule surface) —
+with a sidecar `.yf/` ownership manifest and a `--revert` that reverses only yf's own additions.
+**Pi config remains deferred** (`REQ-YF-TUNE-017`): its config surface is `[uncertain]` and a
+rust-embedded profile would commit a guess into a released binary; Pi still receives skills **and**
+rule deployment.
 
 - **REQ-YF-TUNE-001** *(testable)* `yf` shall embed a **machine-readable settings profile** as the
   single source of truth for the recommended Claude Code baseline. Each profile **entry** shall
@@ -574,10 +671,14 @@ only the Claude Code merge engine and JSON model are implemented here; other har
   `false`), so it cannot be hand-fumbled. The profile shall be embedded via a **separate embed root**
   (NOT under `../skills`, which treats every top-level dir as a skill and would pollute
   tree-hash/marker logic) and exposed through a typed loader.
-- **REQ-YF-TUNE-002** *(testable)* `yf` shall expose a top-level `yf harness` command group with a
-  `tune --harness <name> [--project [--committed]] [--force] [--dry-run] [--json]` subcommand. An
-  **unknown** `--harness` (no embedded profile) shall be a **clean refusal** (a reported verdict, not
-  a stub write and not a crash); only `claude-code` is available in this section.
+- **REQ-YF-TUNE-002** *(testable, revised plan-033)* `yf` shall expose a top-level `yf harness`
+  command group carrying **both** a `skills` subcommand (the canonical skills lifecycle —
+  `install|upgrade|remove|status`, `REQ-YF-CLI-002`) **and** a `tune --harness <name> [--project
+  [--committed]] [--force] [--dry-run] [--revert] [--json]` subcommand — the group is no longer
+  `tune`-only. An **unknown** `--harness` (no embedded profile) on a `tune` **config** operation
+  shall be a **clean refusal** (a reported verdict, not a stub write and not a crash); a harness with
+  a rule target but no config profile (e.g. pi, `REQ-YF-TUNE-017`) shall run rule deployment and
+  report config as **deferred**, not as a failure.
 - **REQ-YF-TUNE-003** *(testable)* `yf harness tune` scope resolution shall default to **user**
   (`~/.claude/settings.json`), matching the skill-install default and staying disjoint from the
   project-scope beads hook `bd setup claude` owns. `--project` shall target project scope; the
@@ -619,11 +720,121 @@ only the Claude Code merge engine and JSON model are implemented here; other har
   harness tune` after a successful install. There shall be **no** interactive prompt (install runs
   non-interactively and the `yf` binary has no prompt precedent); **without** `--tune`, install shall
   report that tuning is available and make **no** change to any settings.json.
-- **REQ-YF-TUNE-011** the command surface and this SPEC carry a **multi-harness** dimension, but the
-  merge engine, scope resolution, and JSON model are **Claude-Code-specific** in this plan — a future
-  harness (e.g. codex → `.codex/config.toml` TOML) needs a *new engine*, not merely a new profile.
-  Concrete non-Claude profiles are a **follow-on** gated on the `yf-2gyv` per-harness research; an
-  unknown `--harness` refuses cleanly (REQ-YF-TUNE-002) rather than emitting a stub.
+- **REQ-YF-TUNE-011** *(revised plan-033)* the plan-032 multi-harness **follow-on is now delivered**:
+  the format-aware engine (`REQ-YF-TUNE-013`), generalized scope/path resolution (`REQ-YF-TUNE-014`),
+  and concrete codex-TOML / opencode-JSON profiles (`REQ-YF-TUNE-015..016`) land the codex/opencode
+  config engines the original text pre-declared as "a new engine, not merely a new profile"; rule
+  deployment (`REQ-YF-TUNE-018..020`) and `--revert` (`REQ-YF-TUNE-021..022`) close **yf-8agh** and
+  **yf-up7s**. Pi **config** remains deferred (`REQ-YF-TUNE-017`). **Explicitly deferred:** the
+  per-harness `yf doctor` / `docs/recommended-settings.md` settings-drift axis (the `REQ-YF-TUNE-008`
+  / `REQ-YF-TUNE-009` analogs for codex/opencode) is **out of scope** here and tracked by a filed
+  follow-on bead (Epic 10); the plan-032 Claude-Code drift/doctor axes remain in force unchanged.
+- **REQ-YF-TUNE-012** *(testable, plan-033)* `yf harness tune --harness <name>` shall own **two
+  sub-operations** per harness: **(a) config alignment** (the kind-aware merge engine,
+  `REQ-YF-TUNE-004..006`) and **(b) rule optimization + deployment** (the minimized irreducible-core
+  managed block, `REQ-YF-TUNE-018..020`), reporting a per-harness verdict covering both. A harness
+  with no config profile (pi, `REQ-YF-TUNE-017`) shall run only the rule sub-operation and report
+  config as **deferred**, cleanly, not as a failure.
+- **REQ-YF-TUNE-013** *(testable, plan-033)* the config engine shall be **format-aware** via a
+  `SettingsFormat` (`Json` | `Toml`). `merge.rs` shall remain **pure over `serde_json::Value`** and
+  byte-for-byte unchanged. The TOML write path shall be **delta-replay**: parse the target
+  `config.toml` into a `toml_edit::DocumentMut` (retaining comments, key order, and trivia),
+  **separately** derive a `serde_json::Value` for the merge **decision only**, run the unchanged
+  `merge()` to obtain a `MergeReport`, then **replay only the report's deltas** (`ScalarAdded` /
+  `ScalarForced` / `SetUnioned`, keyed by dot-path) onto the `DocumentMut` and serialize **that
+  document** — never the `Value` (which cannot round-trip TOML datetimes, int-vs-float distinctions,
+  or trivia).
+- **REQ-YF-TUNE-014** *(testable, plan-033)* per-harness scope/path resolution shall be
+  **generalized off the profile** rather than Claude-hardwired: the `Profile` shall carry a `format`
+  field (`REQ-YF-TUNE-013`) plus its surface-directory / filename fields, and `settings.rs` read /
+  write / path resolution shall dispatch by profile (surface dir + filenames + format), preserving
+  the fail-safe read (`Absent` / `Parsed` / `Malformed`) per format.
+- **REQ-YF-TUNE-015** *(testable, plan-033)* `yf` shall embed a **codex** config profile with
+  `format: toml` targeting `~/.codex/config.toml` (user scope) and its project-scope form,
+  exercising the `REQ-YF-TUNE-013` TOML delta-replay path. A codex tune shall honor the unchanged
+  kind-aware / idempotent / `Agent`-never-denied merge contract and preserve pre-existing operator
+  comments in `config.toml`.
+- **REQ-YF-TUNE-016** *(testable, plan-033)* `yf` shall embed an **opencode** config profile with
+  `format: json` targeting `~/.config/opencode/opencode.json` (user scope) and its project-scope
+  form, reusing the existing JSON merge path unchanged; an opencode tune shall be idempotent.
+- **REQ-YF-TUNE-017** *(testable, plan-033)* **Pi config tuning is deferred.** No `pi` **config**
+  profile shall ship: research-002 Q6 marks Pi's config surface `[uncertain]` (questionable-tier
+  sources only), and because profiles are rust-embedded a guessed Pi config path/format would commit
+  a guess into a released binary (correctable only by a point release, not a config edit). Pi
+  **skills** (`REQ-YF-INSTALL-007`) and Pi **rules** (`REQ-YF-TUNE-020`) ship now; a `yf harness
+  tune` targeting pi shall perform rule deployment and return a **clean config-deferred** verdict
+  (not a stub write, not a crash). A follow-on bead (filed per Epic 10) tracks Pi config
+  re-verification against first-party Pi docs.
+- **REQ-YF-TUNE-018** *(testable, plan-033)* `yf harness tune` shall deploy a **minimized
+  irreducible-core** rule bundle — the rules a skill `description` cannot carry (the `yf-plan` /
+  `yf-research` native-override mandates, the two `bd`-usage mandates, the `yf-beads-upstream`
+  close-time push, and the deterministic must-fire trigger invariants). The bundle shall be
+  **derived from the skills' `protocols/*.md` sources** (the same sources `YOSHIKO_FLOW.md`
+  aggregates), passed through a **minimization classifier** that keeps only the irreducible rules and
+  drops the reducible on-edit engine rules (which stay prose cross-harness — no `paths`/hook analog
+  is attested outside Claude Code). The derivation shall be **forward-looking and re-runnable**: a
+  new skill's new `protocols/` rule automatically enters the same analysis. A **bundle↔source
+  agreement assertion** shall hold for the current corpus and **fail loudly** when a selected
+  `protocols/` section drifts or a new unclassified `protocols/` rule appears.
+- **REQ-YF-TUNE-019** *(testable, plan-033)* the rule bundle shall be deployed as a **marker-
+  delimited managed block** with `BEGIN` / `END` sentinels: append the block when absent, replace
+  **only** the span between the markers when present, and **never** modify surrounding operator
+  prose. The block merge shall be **idempotent** (a second deploy of the same bundle writes nothing)
+  and **fail-safe** on partial or duplicate markers — refuse and report rather than corrupt the file.
+- **REQ-YF-TUNE-020** *(testable, plan-033)* `yf` shall carry a **per-harness global-rule target
+  map** naming each harness's always-loaded rule destination: claude-code `~/.claude/rules/`, codex
+  `~/.codex/AGENTS.md`, opencode `~/.config/opencode/AGENTS.md`. **Pi's rule target shall NOT be a
+  compiled-in guess:** it is **to be pinned by Issue 1.5** to **one** concrete first-party-verified
+  choice (`~/.pi/agent/AGENTS.md` **xor** `~/.pi/agent/APPEND_SYSTEM.md`) against a first-party Pi
+  source, gated by the "Pi rule target verified" capability gate. **Resolved (Issue 1.5, OUTCOME 1
+  — first-party evidence found):** Pi's rule target is **`~/.pi/agent/AGENTS.md`**. The `--pi-rule-
+  target` opt-in fallback described below is therefore **not** the operative path. **Fallback (now
+  moot):** if the Issue 1.5 investigation had found **no first-party evidence**, Pi rules would ship
+  **only** behind an explicit `--pi-rule-target {agents-md|append-system}` opt-in accompanied by a
+  **loud "unverified target" notice** — never a silent compiled-in default. Pi **does** receive rule
+  deployment, but only against a verified-or-explicitly-opted-in target. *(Pi target pinned by Issue
+  1.5: `~/.pi/agent/AGENTS.md`. First-party source: earendil-works/pi official docs
+  `packages/coding-agent/docs/usage.md`, "Context Files" — "Pi loads `AGENTS.md` or `CLAUDE.md` at
+  startup from: `~/.pi/agent/AGENTS.md` for global instructions". `APPEND_SYSTEM.md` is rejected as
+  the target because its global auto-discovery is unimplemented per earendil-works/pi issue #748,
+  "`APPEND_SYSTEM.md` auto-discovery not implemented".)*
+- **REQ-YF-TUNE-021** *(testable, plan-033)* `yf harness tune` shall record its writes in a **sidecar
+  `.yf/` ownership manifest** beside the tuned surface (user: `<surface_dir>/.yf/harness-tune-
+  manifest.json`; project: `<project-root>/.yf/…`). The manifest shall record, per file/scope: each
+  config dot-path yf added (with **both** the **prior** scalar value where one existed **and** the
+  **yf-written** value), the set elements yf **unioned in**, and the rule managed-block markers — the
+  record the `--revert` guard (`REQ-YF-TUNE-022`) consumes. In **project** scope `.yf/` shall be
+  **gitignored**.
+- **REQ-YF-TUNE-022** *(testable, plan-033)* `yf harness tune --revert` shall reverse **only** yf's
+  own additions recorded in the ownership manifest (`REQ-YF-TUNE-021`): it restores each recorded
+  prior scalar value (or removes a key that had none), removes only the set elements yf unioned in
+  (leaving operator entries), and removes the rule managed blocks (leaving surrounding prose). Revert
+  shall apply a **touched-since-tune guard**: before reverting a key, it compares the key's current
+  on-disk value to the recorded **yf-written** value; if they differ (an operator hand-edited it
+  since the tune), the key is **conservative-kept and reported**, never clobbered. Revert shall be
+  idempotent, fail-safe on a malformed target, and preserve the `Agent`-never-denied invariant.
+- **REQ-YF-TUNE-023** *(testable, plan-033)* `--tune` on `yf harness skills install` shall remain an
+  **opt-in bridge** — install and tune stay **separable**: without `--tune`, install is skills-only
+  and reports that tuning is available (`REQ-YF-INSTALL-008`); with `--tune`, the bridge also runs
+  `yf harness tune` for the acted-on harnesses. The canonical bridge is `yf harness skills install
+  --tune` (the deprecated `yf skills install --tune` alias also works during deprecation). With
+  **no** `--harness`, `--tune` shall provision every **auto-detected** harness (`REQ-YF-INSTALL-009`)
+  end-to-end; the no-`--harness` multi-harness auto path shall **print the resolved target set and
+  require confirmation, or run dry-run-then-apply**, before writing config/rules — it shall **never**
+  fan out writes to all detected harnesses unconfirmed.
+- **REQ-YF-TUNE-024** *(testable, plan-033)* the `web/` site shall publish **code-accurate**
+  provisioning matrices: an **install matrix** (harness × scope → resolved skills dir, from the
+  descriptor table / `dest.rs` / `REQ-YF-INSTALL-002`) and a **tune matrix** (harness × scope →
+  {config file, rule target}), with **Pi config = deferred** (`REQ-YF-TUNE-017`) and **Pi rules =
+  the verified/opted-in target** per Issue 1.5 (`REQ-YF-TUNE-020`), plus the **auto-detect** behavior
+  (`REQ-YF-INSTALL-009`). The docs shall call out that a **bare install without `--tune`** is
+  non-functional for trigger-based engine skills until `tune` runs.
+- **REQ-YF-TUNE-025** *(testable, plan-033)* a **doc↔code assert-agreement test** (mirroring the
+  `REQ-YF-TUNE-008` / `yf/src/cmd/harness/drift.rs` pattern) shall derive the real
+  destinations/targets from the **code oracle** — the descriptor table / `dest.rs` for install, and
+  the profiles (`surface_dir` / `settings_filename` / `settings_local_filename` / `format`) + the
+  rule-deploy target map for tune — and **fail** if the published `REQ-YF-TUNE-024` matrices diverge
+  (missing row, wrong path, wrong file). Code is the oracle; the doc is the checked artifact.
 
 ## 4. Skill catalog (per-skill specs)
 

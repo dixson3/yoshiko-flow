@@ -69,13 +69,31 @@ fn section_protocols(text: &str) -> Vec<String> {
 fn flow_install_e2e_lifecycle() {
     let tmp = tempfile::tempdir().unwrap();
     let target = tmp.path().join("skills");
+    // With --target, the rules dir is the sibling <target>/../rules.
+    let rules_dir = target.parent().unwrap().join("rules");
 
-    // 1. install all rule-bearing skills.
+    // 1. install all rule-bearing skills — plan-033 install is SKILLS-ONLY
+    //    (REQ-YF-INSTALL-008): it deploys skill bodies and writes NO rules.
     let mut args = vec!["skills", "install"];
     args.extend_from_slice(RULE_SKILLS);
     args.extend_from_slice(&["--target", target.to_str().unwrap(), "--json"]);
     let j = yf_json(&args);
+    assert_eq!(
+        j["rules_deployed"],
+        Value::Bool(false),
+        "install is skills-only"
+    );
+    assert!(
+        !rules_dir.join("YOSHIKO_FLOW.md").exists(),
+        "skills-only install writes no aggregate"
+    );
 
+    // 2. the aggregate ruleset is produced by upgrade (its invocation relocates to
+    //    `tune` in Issue 3.1); drive it to materialize YOSHIKO_FLOW.md.
+    let mut mk = vec!["skills", "upgrade"];
+    mk.extend_from_slice(RULE_SKILLS);
+    mk.extend_from_slice(&["--target", target.to_str().unwrap(), "--json"]);
+    let j = yf_json(&mk);
     let flow_file = j["flow_file"]
         .as_str()
         .expect("flow_file in JSON")
@@ -164,17 +182,8 @@ fn flow_install_e2e_legacy_transition() {
     let tmp = tempfile::tempdir().unwrap();
     let target = tmp.path().join("skills");
 
-    // Discover the rules dir via a dry-run (writes nothing).
-    let j = yf_json(&[
-        "skills",
-        "install",
-        "yf-plan",
-        "--target",
-        target.to_str().unwrap(),
-        "--dry-run",
-        "--json",
-    ]);
-    let rules_dir = std::path::PathBuf::from(j["rules_dir"].as_str().unwrap());
+    // With --target, the rules dir is the sibling <target>/../rules.
+    let rules_dir = target.parent().unwrap().join("rules");
     std::fs::create_dir_all(&rules_dir).unwrap();
 
     // Pre-seed legacy standalones: PLANS.md (acted on) + RESEARCH.md (NOT acted

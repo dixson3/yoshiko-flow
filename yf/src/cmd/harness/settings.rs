@@ -16,9 +16,32 @@
 
 use std::path::{Path, PathBuf};
 
+use serde::Deserialize;
 use serde_json::Value;
 
 use super::profile::Profile;
+
+/// The on-disk format of a harness's settings/config file (REQ-YF-TUNE-013/014).
+///
+/// The merge *decision* is always computed over a `serde_json::Value` (the
+/// engine in [`super::merge`] is pure over `Value`); this enum selects the
+/// read/write adapter that bridges the file's real format to that `Value`.
+/// `Json` is the existing pretty-write path ([`read_settings`]/[`write_settings`]);
+/// `Toml` is the trivia-preserving delta-replay path ([`super::toml_adapter`]).
+///
+/// Carried on [`Profile`] as a `#[serde(default)]` field (REQ-YF-TUNE-014): a
+/// profile JSON with no `format` key (e.g. `claude-code.json`) deserializes to
+/// [`SettingsFormat::Json`], so the existing JSON tune path is behavior-identical.
+/// [`super::run_core`] dispatches read/merge/write on this value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SettingsFormat {
+    /// `settings.json` / `opencode.json` — the existing `serde_json` path.
+    #[default]
+    Json,
+    /// `config.toml` — the `toml_edit` delta-replay path.
+    Toml,
+}
 
 /// The resolved write target for `yf harness tune`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,10 +94,34 @@ pub fn settings_path_at(profile: &Profile, scope: TuneScope, home: &Path, root: 
     anchor.join(&profile.surface_dir).join(filename)
 }
 
-/// Resolve the settings-file path from the real environment (`$HOME` + git root).
-pub fn settings_path(profile: &Profile, scope: TuneScope) -> PathBuf {
+/// Resolve the always-loaded **rules dir** for `profile` at `scope`, anchored at
+/// `home` (user) or `root` (project) — the sibling `rules/` of the harness surface
+/// dir (e.g. `~/.claude/rules`). Anchored identically to [`settings_path_at`] so
+/// tune's rule-deploy sub-operation tracks its config scope. Pure — no env reads.
+///
+/// This is the destination for the `YOSHIKO_FLOW.md` aggregation that
+/// `yf harness tune` now owns (REQ-YF-FLOW-007); it matches the sibling-`rules/`
+/// layout `dest::resolve_rules_dir` produces for the same harness's skills dir.
+///
+/// Reserved profile-driven seam. Issue 7.1's per-harness orchestration resolves the
+/// claude-code rules dir directly off the rule-target map
+/// ([`super::managed_block::RuleTarget::resolve_at`], `RulesDir` → `<surface>/rules`),
+/// so this convenience wrapper is not on the live `tune` path today.
+#[allow(dead_code)]
+pub fn rules_dir_at(profile: &Profile, scope: TuneScope, home: &Path, root: &Path) -> PathBuf {
+    let anchor = match scope {
+        TuneScope::User => home,
+        TuneScope::ProjectLocal | TuneScope::ProjectCommitted => root,
+    };
+    anchor.join(&profile.surface_dir).join("rules")
+}
+
+/// Resolve the rules dir from the real environment (`$HOME` + git root). Reserved
+/// real-env convenience twin of [`rules_dir_at`] (see its note).
+#[allow(dead_code)]
+pub fn rules_dir(profile: &Profile, scope: TuneScope) -> PathBuf {
     let root = crate::dest::git_root_or_cwd();
-    settings_path_at(profile, scope, &home_dir(), &root)
+    rules_dir_at(profile, scope, &home_dir(), &root)
 }
 
 /// The outcome of reading a settings file.
@@ -109,6 +156,49 @@ pub fn write_settings(path: &Path, value: &Value) -> std::io::Result<()> {
     }
     let mut text = serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string());
     text.push('\n');
+    std::fs::write(path, text)
+}
+
+/// The outcome of reading a TOML config file (`config.toml`) — the format-parallel
+/// of [`SettingsRead`] for the [`SettingsFormat::Toml`] dispatch (REQ-YF-TUNE-014).
+///
+/// Carries the **raw file text** (not a parsed value): the TOML write path is
+/// delta-replay ([`super::toml_adapter::merge_toml_text`]), which parses the text
+/// itself into a trivia-preserving document. Classification is fail-safe
+/// (REQ-YF-TUNE-006): a present-but-unparseable file yields [`TomlRead::Malformed`]
+/// so the command refuses rather than overwriting.
+#[derive(Debug)]
+pub enum TomlRead {
+    /// No file (or an empty one) — start from an empty document (a fresh tune).
+    Absent,
+    /// A parseable `config.toml`; the tuple is its verbatim text (the write source).
+    Parsed(String),
+    /// The file exists but is not valid TOML — the fail-safe refusal signal.
+    Malformed(String),
+}
+
+/// Read the TOML config file at `path`, classifying it fail-safe (REQ-YF-TUNE-006).
+/// Parses with [`super::toml_adapter::parse_document`] to validate; on success the
+/// original text is returned untouched (the delta-replay write source).
+pub fn read_toml(path: &Path) -> TomlRead {
+    match std::fs::read_to_string(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => TomlRead::Absent,
+        Err(e) => TomlRead::Malformed(format!("cannot read {}: {e}", path.display())),
+        Ok(text) if text.trim().is_empty() => TomlRead::Absent,
+        Ok(text) => match super::toml_adapter::parse_document(&text) {
+            Ok(_) => TomlRead::Parsed(text),
+            Err(e) => TomlRead::Malformed(format!("{}: {e}", path.display())),
+        },
+    }
+}
+
+/// Write raw `text` to `path`, creating parent dirs. The verbatim-string write used
+/// by the TOML delta-replay path (the document already carries its own trailing
+/// trivia, so no newline is appended here).
+pub fn write_text(path: &Path, text: &str) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     std::fs::write(path, text)
 }
 

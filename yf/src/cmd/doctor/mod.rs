@@ -22,7 +22,7 @@ use anyhow::Result;
 use self::check::CheckResult;
 use self::checks::checks;
 use super::common;
-use crate::cli::{DoctorArgs, Scope, Surface};
+use crate::cli::{DoctorArgs, Scope};
 use crate::embed;
 
 /// Run `yf doctor`. The read-only check path owns its exit code
@@ -46,9 +46,9 @@ pub fn run(args: &DoctorArgs) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
 
-    // Doctor inspects the default user/claude install surface (matches the
+    // Doctor inspects the default user/claude-code install surface (matches the
     // install defaults). --target is not a doctor flag by design.
-    let (skills_dir, rules_dir) = common::dirs_from(Scope::User, Surface::Claude);
+    let (skills_dir, rules_dir) = common::dirs_from(Scope::User, "claude-code");
 
     let results: Vec<CheckResult> = checks(&skills_dir, &rules_dir)
         .iter()

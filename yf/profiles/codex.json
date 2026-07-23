@@ -1,0 +1,29 @@
+{
+  "harness": "codex",
+  "surface_dir": ".codex",
+  "settings_filename": "config.toml",
+  "settings_local_filename": "config.toml",
+  "format": "toml",
+  "hook_preserve_key": "",
+  "agent_tool": "Agent",
+  "entries": [
+    {
+      "path": "approval_policy",
+      "kind": "scalar",
+      "value": "never",
+      "rationale": "Autonomy lever — the codex analog of claude-code's bypassPermissions/skipDangerousModePermissionPrompt: without it the approval prompt interrupts long autonomous yf skill runs. codex config.toml approval_policy is a real string key (untrusted|on-request|on-failure|never); sandbox_mode still governs actual filesystem safety, so this only silences the prompt. Source: research-002 Q2 (codex ~/.codex/config.toml surface) + codex approval/config docs."
+    },
+    {
+      "path": "tui.notifications",
+      "kind": "scalar",
+      "value": false,
+      "rationale": "Noise reduction on long runs — the codex analog of claude-code's inputNeededNotifEnabled/agentPushNotifEnabled=false. tui.notifications (default true) emits terminal event alerts. Real codex config.toml key. Source: research-002 Q2 (config is an enforcement/visibility lever) + codex config reference."
+    },
+    {
+      "path": "project_doc_max_bytes",
+      "kind": "scalar",
+      "value": 65536,
+      "rationale": "Prevents truncation of yf's always-loaded rule managed-block deployed into ~/.codex/AGENTS.md (Epic 6). codex caps the concatenated AGENTS.md at project_doc_max_bytes (default 32768 = 32 KiB); raising it to 64 KiB keeps the yf irreducible-core rules fully in context. Real codex config.toml key. Source: research-002 Q2/Q7 (codex 32 KiB AGENTS.md cap = project_doc_max_bytes)."
+    }
+  ]
+}

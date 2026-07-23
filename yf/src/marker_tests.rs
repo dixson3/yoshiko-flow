@@ -59,7 +59,7 @@ fn req_yf_mark_001_marker_strip_invariance_deployed_equals_embedded() {
     let embedded = marker::embedded_tree_hash(SKILL);
 
     // deploy_skill injects the marker into the written SKILL.md exactly as install.
-    common::deploy_skill(SKILL, &skills_dir, /*prune=*/ false).unwrap();
+    common::deploy_skill(SKILL, &skills_dir, /*prune=*/ false, "claude-code").unwrap();
     let skill_root = skills_dir.join(SKILL);
 
     // The deployed SKILL.md differs from the embedded bytes (marker present)...
@@ -128,7 +128,7 @@ fn req_yf_mark_002_inject_strip_parse_round_trip_and_replace() {
 fn req_yf_mark_004_prune_removes_stray_keeps_embedded() {
     let tmp = tempfile::tempdir().unwrap();
     let skills_dir = tmp.path().join("skills");
-    common::deploy_skill(SKILL, &skills_dir, false).unwrap();
+    common::deploy_skill(SKILL, &skills_dir, false, "claude-code").unwrap();
     let skill_root = skills_dir.join(SKILL);
 
     // Add a stray file in a nested dir absent from the embedded tree.
@@ -146,7 +146,7 @@ fn req_yf_mark_004_prune_removes_stray_keeps_embedded() {
     );
 
     // Re-deploy with prune: the stray (and its now-empty dir) go; embedded stays.
-    common::deploy_skill(SKILL, &skills_dir, /*prune=*/ true).unwrap();
+    common::deploy_skill(SKILL, &skills_dir, /*prune=*/ true, "claude-code").unwrap();
     assert!(!stray.exists(), "stray file must be pruned");
     assert!(!stray_dir.exists(), "now-empty stray dir must be removed");
     for rel in embed::skill_files(SKILL) {
@@ -172,7 +172,7 @@ fn req_yf_mark_004_prune_removes_stray_keeps_embedded() {
 fn req_yf_mark_003_status_four_axis_and_tamper_flips_unmodified() {
     let tmp = tempfile::tempdir().unwrap();
     let skills_dir = tmp.path().join("skills");
-    common::deploy_skill(SKILL, &skills_dir, false).unwrap();
+    common::deploy_skill(SKILL, &skills_dir, false, "claude-code").unwrap();
     let skill_root = skills_dir.join(SKILL);
 
     let h = common::skill_health(SKILL, &skills_dir).unwrap();

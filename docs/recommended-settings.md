@@ -258,6 +258,55 @@ taste, not alignment.
 | `spinnerTipsEnabled` | `false` | Less UI noise. |
 | `effortLevel` | `"medium"` | Sensible default for the planning / research pipelines. |
 
+## Other harnesses — codex, opencode, pi
+
+The baseline above is Claude Code's. As of plan-033, `yf harness tune --harness
+<name>` provisions the **other** harnesses too, aligning each one's own config
+surface and deploying the same always-loaded rules as a minimized managed block.
+The blocks below are **reference prose only** — the concrete, machine-readable
+source of truth is each harness's embedded profile (`yf/profiles/<harness>.json`)
+and the rule-target map; run `yf harness tune --harness <name> --dry-run` to see
+exactly what would change on your machine. (A per-harness `yf doctor`/drift axis —
+the codex/opencode/pi analog of the Claude-Code drift check — is deferred to a
+follow-on; there is no automated drift gate for these harnesses yet.)
+
+Config alignment is universally an **enforcement / visibility** lever, never a
+trigger supplier: the load-bearing cross-harness substrate is the always-loaded
+rule block, not the config keys.
+
+### codex — `~/.codex/config.toml` (TOML) + `~/.codex/AGENTS.md` (rules)
+
+`yf harness tune --harness codex` aligns `~/.codex/config.toml` via a
+comment-preserving TOML delta-replay (operator comments and key order survive) and
+deploys the rule managed block into `~/.codex/AGENTS.md`.
+
+| Key | Value | Why (Claude Code analog) |
+|:----|:------|:-------------------------|
+| `approval_policy` | `"never"` | Autonomy lever — analog of `bypassPermissions` / `skipDangerousModePermissionPrompt`; stops the approval prompt interrupting long autonomous runs. `sandbox_mode` still governs real filesystem safety. |
+| `tui.notifications` | `false` | Noise reduction — analog of `inputNeededNotifEnabled` / `agentPushNotifEnabled: false`. |
+| `project_doc_max_bytes` | `65536` | Raises codex's 32 KiB `AGENTS.md` concatenation cap to 64 KiB so the always-loaded yf rule block is not silently truncated. |
+
+### opencode — `~/.config/opencode/opencode.json` (JSON) + `~/.config/opencode/AGENTS.md` (rules)
+
+`yf harness tune --harness opencode` reuses the JSON engine on
+`~/.config/opencode/opencode.json` and deploys the rule block into
+`~/.config/opencode/AGENTS.md`.
+
+| Key | Value | Why (Claude Code analog) |
+|:----|:------|:-------------------------|
+| `permission.*` | `"allow"` | Autonomy lever — analog of `bypassPermissions`; a blanket allow (the `Agent`/subagent tool is never denied) so skill runs execute without per-tool prompts. |
+| `share` | `"disabled"` | Data minimization / portability — analog of `autoUploadSessions: false` / `disableClaudeAiConnectors`; prevents auto-sharing sessions off-machine. |
+
+### pi — rules only; config deferred
+
+`yf harness tune --harness pi` deploys the rule managed block into
+`~/.pi/agent/AGENTS.md` (the Issue 1.5-verified default; `--pi-rule-target
+append-system` retargets to `~/.pi/agent/APPEND_SYSTEM.md`). **Pi config tuning is
+deferred:** its config surface is unverified (`[uncertain]` per research-002), and
+a rust-embedded profile would commit a guess into a released binary — so no `pi`
+config profile ships and a pi tune reports config as *deferred*, cleanly, not as a
+failure. A follow-on bead tracks Pi config re-verification against first-party docs.
+
 ## Why settings and prose both
 
 The settings here mirror the `rules/*.md` / `protocols/*.md` protocol files

@@ -1,0 +1,31 @@
+# yf harness skills install — where the embedded skill tree lands per harness x scope.
+# Source of truth: yf/src/harness_desc.rs (DESCRIPTORS) + dest.rs scope anchors.
+direction: right
+
+cmd: {
+  label: "yf harness skills install\n(skills-only; --tune adds rules+config)"
+  shape: rectangle
+}
+
+user_scope: {
+  label: "user scope\nanchor = HOME (~)"
+  shape: rectangle
+  cc: "claude-code -> ~/.claude/skills/"
+  codex: "codex -> ~/.agents/skills/"
+  oc: "opencode -> ~/.config/opencode/skills/"
+  pi: "pi -> ~/.pi/agent/skills/\n(lowercase-hyphen,max64)"
+  agents: "agents -> ~/.agents/skills/"
+}
+
+project_scope: {
+  label: "project scope\nanchor = git root"
+  shape: rectangle
+  cc: "claude-code -> <root>/.claude/skills/"
+  codex: "codex -> <root>/.agents/skills/"
+  oc: "opencode -> <root>/.opencode/skills/"
+  pi: "pi -> <root>/.pi/skills/"
+  agents: "agents -> <root>/.agents/skills/"
+}
+
+cmd -> user_scope: "--scope user (default)"
+cmd -> project_scope: "--scope project"

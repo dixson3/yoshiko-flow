@@ -5,64 +5,63 @@
 //! - `--target` wins: it **is** the skills dir; the rules dir is its **sibling**
 //!   `<target>/../rules` (i.e. `target.parent()/rules`), matching install.py's
 //!   `skills_dest.parent / "rules"`.
-//! - otherwise the destination is `<anchor>/.<surface>/skills` (skills) and
-//!   `<anchor>/.<surface>/rules` (rules), where `anchor` is `$HOME` for
-//!   scope=user and the git-root (cwd fallback) for scope=project, and
-//!   `<surface>` is `claude` or `agents`.
+//! - otherwise the skills destination is `<anchor>/<harness.subpath>`, where the
+//!   subpath is drawn from the [`crate::harness_desc`] descriptor table
+//!   (`user_subpath` for scope=user, `project_subpath` for scope=project); an
+//!   unknown harness id falls back to the legacy `.<id>/skills`. `anchor` is
+//!   `$HOME` for scope=user and the git-root (cwd fallback) for scope=project.
+//!   The companion rules dir is the **sibling** `rules/` of the skills dir.
 //!
 //! The pure path-join logic is factored into [`skills_dir_for_anchor`] /
 //! [`rules_dir_for_anchor`] so it can be unit-tested without depending on the
 //! real `$HOME` or a git checkout.
 
-// Public destination-resolution API consumed by the (not-yet-wired) install /
-// upgrade / status commands (beads 1.5/1.6).
+// Public destination-resolution API consumed by the install / upgrade / status
+// commands.
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::cli::{Scope, Surface};
-
-impl Surface {
-    /// The dotted surface directory component, e.g. `.claude` / `.agents`.
-    fn dot_dir(self) -> &'static str {
-        match self {
-            Surface::Claude => ".claude",
-            Surface::Agents => ".agents",
-        }
-    }
-}
+use crate::cli::Scope;
+use crate::harness_desc;
 
 /// Resolve the skills destination directory (REQ-YF-INSTALL-002).
 ///
 /// `--target` (when `Some`) wins and is returned verbatim as the skills dir.
-pub fn resolve_skills_dir(scope: Scope, surface: Surface, target: Option<&Path>) -> PathBuf {
+/// Otherwise the destination is `<anchor>/<harness.subpath>` from the descriptor
+/// table (REQ-YF-INSTALL-007), with a legacy `.<id>/skills` fallback.
+pub fn resolve_skills_dir(scope: Scope, harness: &str, target: Option<&Path>) -> PathBuf {
     if let Some(t) = target {
         return t.to_path_buf();
     }
-    skills_dir_for_anchor(&anchor_for(scope), surface)
+    skills_dir_for_anchor(&anchor_for(scope), harness, scope)
 }
 
 /// Resolve the companion-rules destination directory (REQ-YF-INSTALL-002).
 ///
 /// With `--target`, the rules dir is the **sibling** of the target skills dir
-/// (`<target>/../rules`), matching install.py. Otherwise it is
-/// `<anchor>/.<surface>/rules`.
-pub fn resolve_rules_dir(scope: Scope, surface: Surface, target: Option<&Path>) -> PathBuf {
+/// (`<target>/../rules`), matching install.py. Otherwise it is the sibling
+/// `rules/` of the resolved skills dir.
+pub fn resolve_rules_dir(scope: Scope, harness: &str, target: Option<&Path>) -> PathBuf {
     if let Some(t) = target {
         return rules_sibling_of_target(t);
     }
-    rules_dir_for_anchor(&anchor_for(scope), surface)
+    rules_dir_for_anchor(&anchor_for(scope), harness, scope)
 }
 
-/// `<anchor>/.<surface>/skills` — pure path join (testable without env).
-pub fn skills_dir_for_anchor(anchor: &Path, surface: Surface) -> PathBuf {
-    anchor.join(surface.dot_dir()).join("skills")
+/// `<anchor>/<harness.subpath>` — pure path join (testable without env).
+pub fn skills_dir_for_anchor(anchor: &Path, harness: &str, scope: Scope) -> PathBuf {
+    anchor.join(harness_desc::skills_subpath(harness, scope))
 }
 
-/// `<anchor>/.<surface>/rules` — pure path join (testable without env).
-pub fn rules_dir_for_anchor(anchor: &Path, surface: Surface) -> PathBuf {
-    anchor.join(surface.dot_dir()).join("rules")
+/// The sibling `rules/` dir of the resolved skills dir — pure path join.
+pub fn rules_dir_for_anchor(anchor: &Path, harness: &str, scope: Scope) -> PathBuf {
+    let skills = skills_dir_for_anchor(anchor, harness, scope);
+    match skills.parent() {
+        Some(parent) => parent.join("rules"),
+        None => PathBuf::from("rules"),
+    }
 }
 
 /// The sibling `rules` dir of a `--target` skills dir: `<target>/../rules`.
@@ -143,10 +142,10 @@ mod tests {
     #[test]
     fn target_wins_for_skills_dir() {
         let target = PathBuf::from("/tmp/custom/skills");
-        let got = resolve_skills_dir(Scope::User, Surface::Claude, Some(&target));
+        let got = resolve_skills_dir(Scope::User, "claude-code", Some(&target));
         assert_eq!(got, target);
-        // Scope/surface are ignored when target is present.
-        let got2 = resolve_skills_dir(Scope::Project, Surface::Agents, Some(&target));
+        // Scope/harness are ignored when target is present.
+        let got2 = resolve_skills_dir(Scope::Project, "agents", Some(&target));
         assert_eq!(got2, target);
     }
 
@@ -154,7 +153,7 @@ mod tests {
     #[test]
     fn target_rules_is_sibling() {
         let target = PathBuf::from("/tmp/custom/skills");
-        let got = resolve_rules_dir(Scope::User, Surface::Claude, Some(&target));
+        let got = resolve_rules_dir(Scope::User, "claude-code", Some(&target));
         assert_eq!(got, PathBuf::from("/tmp/custom/rules"));
     }
 
@@ -177,25 +176,46 @@ mod tests {
         assert_eq!(got, PathBuf::from("rules"));
     }
 
-    // REQ-YF-INSTALL-002: surface maps to .claude / .agents (pure join).
+    // REQ-YF-INSTALL-002: descriptor subpaths map per harness/scope (pure join).
+    // claude-code/agents preserve the legacy `.claude`/`.agents` layout; the
+    // multi-segment harnesses (opencode, pi) resolve their descriptor subpaths.
     #[test]
-    fn surface_dot_dir_mapping() {
+    fn descriptor_subpath_mapping() {
         let anchor = Path::new("/home/jd");
         assert_eq!(
-            skills_dir_for_anchor(anchor, Surface::Claude),
+            skills_dir_for_anchor(anchor, "claude-code", Scope::User),
             PathBuf::from("/home/jd/.claude/skills")
         );
         assert_eq!(
-            skills_dir_for_anchor(anchor, Surface::Agents),
+            skills_dir_for_anchor(anchor, "agents", Scope::User),
             PathBuf::from("/home/jd/.agents/skills")
         );
         assert_eq!(
-            rules_dir_for_anchor(anchor, Surface::Claude),
+            rules_dir_for_anchor(anchor, "claude-code", Scope::User),
             PathBuf::from("/home/jd/.claude/rules")
         );
         assert_eq!(
-            rules_dir_for_anchor(anchor, Surface::Agents),
+            rules_dir_for_anchor(anchor, "agents", Scope::User),
             PathBuf::from("/home/jd/.agents/rules")
+        );
+        // opencode: user root under `.config/opencode`, project under `.opencode`.
+        assert_eq!(
+            skills_dir_for_anchor(anchor, "opencode", Scope::User),
+            PathBuf::from("/home/jd/.config/opencode/skills")
+        );
+        assert_eq!(
+            skills_dir_for_anchor(anchor, "opencode", Scope::Project),
+            PathBuf::from("/home/jd/.opencode/skills")
+        );
+        // pi: user `.pi/agent/skills`, project `.pi/skills`.
+        assert_eq!(
+            skills_dir_for_anchor(anchor, "pi", Scope::User),
+            PathBuf::from("/home/jd/.pi/agent/skills")
+        );
+        // Unknown harness → legacy `.<id>/skills` fallback.
+        assert_eq!(
+            skills_dir_for_anchor(anchor, "frobnicator", Scope::User),
+            PathBuf::from("/home/jd/.frobnicator/skills")
         );
     }
 
@@ -205,11 +225,11 @@ mod tests {
     fn user_scope_path_layout() {
         let fake_home = Path::new("/fake/home");
         assert_eq!(
-            skills_dir_for_anchor(fake_home, Surface::Claude),
+            skills_dir_for_anchor(fake_home, "claude-code", Scope::User),
             PathBuf::from("/fake/home/.claude/skills")
         );
         assert_eq!(
-            rules_dir_for_anchor(fake_home, Surface::Claude),
+            rules_dir_for_anchor(fake_home, "claude-code", Scope::User),
             PathBuf::from("/fake/home/.claude/rules")
         );
     }
@@ -219,7 +239,7 @@ mod tests {
     fn project_scope_path_layout() {
         let fake_root = Path::new("/repo/root");
         assert_eq!(
-            skills_dir_for_anchor(fake_root, Surface::Agents),
+            skills_dir_for_anchor(fake_root, "agents", Scope::Project),
             PathBuf::from("/repo/root/.agents/skills")
         );
     }

@@ -74,6 +74,13 @@ pub struct Profile {
     pub settings_filename: String,
     /// Personal, gitignored project settings filename, e.g. `settings.local.json`.
     pub settings_local_filename: String,
+    /// On-disk format of the settings/config file (REQ-YF-TUNE-014). Deserialized
+    /// from the embedded profile JSON's `format` key (`"json"` | `"toml"`);
+    /// **defaults to [`SettingsFormat::Json`]** when the key is absent, so the
+    /// existing `claude-code.json` (no `format` key) stays JSON. Selects the
+    /// read/merge/write adapter in [`super::run_core`].
+    #[serde(default)]
+    pub format: super::settings::SettingsFormat,
     /// Top-level key whose value tune must preserve untouched (the `bd setup
     /// claude` `SessionStart` hook block lives under this key). Preservation is
     /// automatic (tune writes only its own profile keys); this documents the
@@ -214,9 +221,108 @@ mod tests {
     // malformed-profile Err. The command-level refusal is tagged in mod.rs.
     #[test]
     fn unknown_harness_is_none() {
-        assert!(load_profile("codex").unwrap().is_none());
+        // pi ships NO config profile (REQ-YF-TUNE-017 — Pi config deferral).
+        assert!(load_profile("pi").unwrap().is_none());
         assert!(load_profile("nonesuch").unwrap().is_none());
-        // claude-code is the one available harness.
-        assert_eq!(available_harnesses(), vec!["claude-code".to_string()]);
+        // The three harnesses with an embedded CONFIG profile, sorted.
+        assert_eq!(
+            available_harnesses(),
+            vec![
+                "claude-code".to_string(),
+                "codex".to_string(),
+                "opencode".to_string(),
+            ]
+        );
+    }
+
+    // REQ-YF-TUNE-015: the codex TOML config profile loads, is well-formed, and its
+    // format is Toml so `run_core` dispatches to the delta-replay adapter. Codex has
+    // no native-tool deny surface, so it ships no set entry — the Agent-never-denied
+    // invariant holds structurally (no deny set can carry Agent).
+    #[test]
+    fn codex_profile_loads_toml_and_is_well_formed() {
+        let p = load_profile("codex")
+            .expect("load must not error")
+            .expect("codex profile must be embedded");
+        assert_eq!(p.harness, "codex");
+        assert_eq!(p.surface_dir, ".codex");
+        assert_eq!(p.settings_filename, "config.toml");
+        assert_eq!(p.settings_local_filename, "config.toml");
+        assert_eq!(p.format, super::super::settings::SettingsFormat::Toml);
+        assert_eq!(p.agent_tool, "Agent");
+        assert!(!p.entries.is_empty());
+        for e in &p.entries {
+            assert!(!e.path.is_empty());
+            assert!(
+                !e.rationale.is_empty(),
+                "entry {} needs a rationale",
+                e.path
+            );
+            assert!(e.segments().iter().all(|s| !s.is_empty()));
+        }
+        // Honest set: all scalar codex keys; no fabricated deny/set surface.
+        assert!(
+            p.deny_entry().is_none(),
+            "codex has no native-tool deny surface — must ship no deny set"
+        );
+        assert!(
+            p.entries.iter().all(|e| e.kind == Kind::Scalar),
+            "codex profile is scalar-only"
+        );
+        // The evidence-backed key set (real codex config.toml keys).
+        for key in [
+            "approval_policy",
+            "tui.notifications",
+            "project_doc_max_bytes",
+        ] {
+            assert!(
+                p.entries.iter().any(|e| e.path == key),
+                "codex profile missing {key}"
+            );
+        }
+    }
+
+    // REQ-YF-TUNE-016: the opencode JSON config profile loads and its format is Json
+    // so tune reuses the existing serde_json merge/write path unchanged.
+    #[test]
+    fn opencode_profile_loads_json() {
+        let p = load_profile("opencode")
+            .expect("load must not error")
+            .expect("opencode profile must be embedded");
+        assert_eq!(p.harness, "opencode");
+        assert_eq!(p.surface_dir, ".config/opencode");
+        assert_eq!(p.settings_filename, "opencode.json");
+        assert_eq!(p.format, super::super::settings::SettingsFormat::Json);
+        assert!(!p.entries.is_empty());
+        for e in &p.entries {
+            assert!(
+                !e.rationale.is_empty(),
+                "entry {} needs a rationale",
+                e.path
+            );
+        }
+        for key in ["permission.*", "share"] {
+            assert!(
+                p.entries.iter().any(|e| e.path == key),
+                "opencode profile missing {key}"
+            );
+        }
+    }
+
+    // REQ-YF-TUNE-017: Pi config tuning is deferred — NO `pi` config profile ships,
+    // so the loader returns None (the clean-refusal signal) while pi's skills+rules
+    // remain supported elsewhere. available_harnesses (the list a refusal surfaces)
+    // names the three config harnesses and never pi.
+    #[test]
+    fn pi_has_no_config_profile() {
+        assert!(
+            load_profile("pi").unwrap().is_none(),
+            "no pi CONFIG profile may ship (research-002 Q6: pi config surface [uncertain])"
+        );
+        let available = available_harnesses();
+        assert!(!available.contains(&"pi".to_string()));
+        assert!(available.contains(&"claude-code".to_string()));
+        assert!(available.contains(&"codex".to_string()));
+        assert!(available.contains(&"opencode".to_string()));
     }
 }

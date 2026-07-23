@@ -20,6 +20,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 tar = "0.4"
+# Trivia-preserving TOML editing for the codex `config.toml` delta-replay tune path
+# (REQ-YF-TUNE-013). Retains comments, key order, and formatting a from-scratch
+# `serde_json::Value` reserialization would destroy.
+toml_edit = "0.22"
 # Minimal synchronous HTTP for `yf self update` (plan-018 3.4). ureq + rustls — no
 # async runtime (decision 6: NOT reqwest/tokio), keeping the binary small (GR-011).
 ureq = { version = "2", features = ["tls"], default-features = false }

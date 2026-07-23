@@ -84,7 +84,12 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
             upgraded.push(name.clone());
             continue;
         }
-        common::deploy_skill(name, &skills_dir, /*prune=*/ true)?;
+        common::deploy_skill(
+            name,
+            &skills_dir,
+            /*prune=*/ true,
+            &args.primary_harness(),
+        )?;
         for e in &extras {
             pruned.push(format!("{name}/{e}"));
         }
@@ -247,7 +252,7 @@ fn yn(b: bool) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::{Scope, Surface};
+    use crate::cli::Scope;
     use crate::{embed, marker};
     use std::path::Path;
 
@@ -255,13 +260,15 @@ mod tests {
         SkillsArgs {
             names: vec!["yf-beads-extra".to_string()],
             scope: Scope::User,
-            surface: Surface::Claude,
+            harness: Vec::new(),
+            surface: None,
             target: Some(target.to_path_buf()),
             group: None,
             strict: false,
             force: false,
             dry_run: false,
             tune: false,
+            yes: false,
             json: true,
         }
     }
@@ -328,26 +335,16 @@ mod tests {
     }
 
     // REQ-YF-FLOW-004 (S3, supersedes REQ-YF-INSTALL-006): the aggregate is a fully
-    // yf-managed artifact — re-install ALWAYS rewrites the acted-on section to the
-    // embedded source, with no --force needed (no hand-edit tolerance).
+    // yf-managed artifact — re-running the aggregation ALWAYS rewrites the acted-on
+    // section to the embedded source, with no --force needed (no hand-edit
+    // tolerance). Since plan-033 install is skills-only (REQ-YF-INSTALL-008), this
+    // drives the aggregation engine directly (its invocation moves to `tune`).
     #[test]
     fn rule_section_always_regenerated() {
         let tmp = tempfile::tempdir().unwrap();
-        let skills_dir = tmp.path().join("skills");
-        let args = SkillsArgs {
-            names: vec!["yf-beads-init".to_string()],
-            scope: Scope::User,
-            surface: Surface::Claude,
-            target: Some(skills_dir.clone()),
-            group: None,
-            strict: false,
-            force: false,
-            dry_run: false,
-            tune: false,
-            json: true,
-        };
-        let rules_dir = skills_dir.parent().unwrap().join("rules");
-        super::super::install::run(&args).unwrap();
+        let rules_dir = tmp.path().join("rules");
+        let acted = ["yf-beads-init".to_string()];
+        common::install_rules_aggregate(&acted, &rules_dir, false).unwrap();
 
         // No standalone rule files — the rule lives only in YOSHIKO_FLOW.md.
         let flow_file = rules_dir.join(crate::flow::FLOW_FILENAME);
@@ -363,8 +360,8 @@ mod tests {
             .replace("# Beads", "# HAND EDIT");
         std::fs::write(&flow_file, &mangled).unwrap();
 
-        // Re-install WITHOUT --force: the section is regenerated to embedded (S3).
-        super::super::install::run(&args).unwrap();
+        // Re-run WITHOUT --force: the section is regenerated to embedded (S3).
+        common::install_rules_aggregate(&acted, &rules_dir, false).unwrap();
         let after = std::fs::read_to_string(&flow_file).unwrap();
         let sections = crate::flow::parse(&after);
         let body = &sections
@@ -419,16 +416,21 @@ mod tests {
         let args = SkillsArgs {
             names: vec!["yf-beads-init".to_string()],
             scope: Scope::User,
-            surface: Surface::Claude,
+            harness: Vec::new(),
+            surface: None,
             target: Some(skills_dir.clone()),
             group: None,
             strict: false,
             force: false,
             dry_run: false,
             tune: false,
+            yes: false,
             json: true,
         };
         super::super::install::run(&args).unwrap();
+        // plan-033: install is skills-only, so deploy the aggregate rules surface
+        // separately (its invocation moves to `tune`) to set up the remove test.
+        common::install_rules_aggregate(&["yf-beads-init".to_string()], &rules_dir, false).unwrap();
         let flow_file = rules_dir.join(crate::flow::FLOW_FILENAME);
         assert!(flow_file.is_file());
 
@@ -457,13 +459,15 @@ mod tests {
         let base_args = |names: Vec<String>| SkillsArgs {
             names,
             scope: Scope::User,
-            surface: Surface::Claude,
+            harness: Vec::new(),
+            surface: None,
             target: Some(skills_dir.clone()),
             group: None,
             strict: false,
             force: false,
             dry_run: false,
             tune: false,
+            yes: false,
             json: true,
         };
         // Install two rule-bearing skills.
@@ -471,6 +475,14 @@ mod tests {
             "yf-beads-init".to_string(),
             "yf-plan".to_string(),
         ]))
+        .unwrap();
+        // plan-033: install is skills-only — deploy the aggregate rules surface
+        // separately (its invocation moves to `tune`) for the remove test.
+        common::install_rules_aggregate(
+            &["yf-beads-init".to_string(), "yf-plan".to_string()],
+            &rules_dir,
+            false,
+        )
         .unwrap();
         let flow_file = rules_dir.join(crate::flow::FLOW_FILENAME);
 
