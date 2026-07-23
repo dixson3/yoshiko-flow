@@ -148,6 +148,26 @@ pub fn read_settings(path: &Path) -> SettingsRead {
     }
 }
 
+/// Read the settings/config file at `path` into a `serde_json::Value` view,
+/// dispatching on `format` (REQ-YF-TUNE-026). `Json` uses [`read_settings`]; `Toml`
+/// parses the `config.toml` and derives the decision-only `Value`
+/// ([`super::toml_adapter::parse_toml_to_json`]). An absent or malformed file yields
+/// `None` — the layer is skipped from the effective view, matching the drift axis's
+/// malformed-layer-skip semantics. Read-only: the derived `Value` is never written
+/// back (for TOML that would drop trivia; writes go through the delta-replay path).
+pub fn read_value_for_format(path: &Path, format: SettingsFormat) -> Option<Value> {
+    match format {
+        SettingsFormat::Json => match read_settings(path) {
+            SettingsRead::Parsed(v) => Some(v),
+            SettingsRead::Absent | SettingsRead::Malformed(_) => None,
+        },
+        SettingsFormat::Toml => match read_toml(path) {
+            TomlRead::Parsed(text) => super::toml_adapter::parse_toml_to_json(&text).ok(),
+            TomlRead::Absent | TomlRead::Malformed(_) => None,
+        },
+    }
+}
+
 /// Write `value` to `path` as pretty JSON with a trailing newline, creating parent
 /// dirs. Preserves key order (`serde_json` preserve-order).
 pub fn write_settings(path: &Path, value: &Value) -> std::io::Result<()> {

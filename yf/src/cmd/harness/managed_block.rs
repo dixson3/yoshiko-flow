@@ -377,6 +377,97 @@ pub fn rule_target(harness: &str) -> Option<&'static RuleTarget> {
     RULE_TARGETS.iter().find(|t| t.harness == harness)
 }
 
+// ---------------------------------------------------------------------------
+// 3. Codex `~/.codex/AGENTS.md` block-size budget (REQ-YF-TUNE-027).
+// ---------------------------------------------------------------------------
+//
+// Codex concatenates its AGENTS.md sources and caps the result at
+// `project_doc_max_bytes`, silently truncating past it. A yf managed rule block
+// competing with operator content could push the *global* `~/.codex/AGENTS.md` past
+// the cap, dropping rules. These pure helpers project the post-deploy size and flag it
+// against the operator's **effective on-disk** cap — a WARNING only: yf never truncates
+// or blocks. **Single-file scope:** this measures only the global `~/.codex/AGENTS.md`
+// yf writes, not codex's full multi-file AGENTS.md concatenation (project/cwd files the
+// operator controls are out of yf's lane) — a deliberate scope, documented in the
+// warning text.
+
+/// Codex's documented default AGENTS.md cap (`project_doc_max_bytes`, 32 KiB) when the
+/// operator's `config.toml` sets none — **not** the yf profile's tuned 65536, since the
+/// budget measures against the operator's real effective config (REQ-YF-TUNE-027).
+pub const CODEX_DEFAULT_DOC_MAX_BYTES: u64 = 32768;
+
+/// The budget warn threshold: warn when the projected size reaches ≥ 90% of the cap.
+pub const CODEX_BUDGET_WARN_RATIO: f64 = 0.90;
+
+/// The effective on-disk `project_doc_max_bytes` for codex, read from the operator's
+/// `config.toml` text, defaulting to [`CODEX_DEFAULT_DOC_MAX_BYTES`] (32768) when the
+/// key is absent, non-positive, or the file is unreadable/unparseable (REQ-YF-TUNE-027).
+pub fn codex_effective_doc_max_bytes(config_toml: Option<&str>) -> u64 {
+    let Some(text) = config_toml else {
+        return CODEX_DEFAULT_DOC_MAX_BYTES;
+    };
+    match super::toml_adapter::parse_document(text) {
+        Ok(doc) => doc
+            .get("project_doc_max_bytes")
+            .and_then(|item| item.as_integer())
+            .filter(|n| *n > 0)
+            .map(|n| n as u64)
+            .unwrap_or(CODEX_DEFAULT_DOC_MAX_BYTES),
+        Err(_) => CODEX_DEFAULT_DOC_MAX_BYTES,
+    }
+}
+
+/// The projected size (bytes) of `~/.codex/AGENTS.md` after deploying the managed
+/// `block_body` into `existing` — modeled through the exact deploy engine
+/// ([`merge_block`]) so the projection matches the bytes tune would actually write.
+/// Ambiguous markers (a deploy refusal, nothing written) fall back to the existing
+/// size. Read-only.
+pub fn projected_agents_md_bytes(existing: &str, block_body: &str) -> usize {
+    match merge_block(existing, block_body) {
+        Ok(BlockMerge::Unchanged) => existing.len(),
+        Ok(BlockMerge::Appended(s)) | Ok(BlockMerge::Replaced(s)) => s.len(),
+        Err(_) => existing.len(),
+    }
+}
+
+/// A codex block-size budget verdict (REQ-YF-TUNE-027).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CodexBudget {
+    /// Projected `~/.codex/AGENTS.md` size in bytes (content + managed block).
+    pub projected: usize,
+    /// The effective on-disk cap (`project_doc_max_bytes`).
+    pub cap: u64,
+    /// Whether the projected size is at/above the ≥90% warn threshold.
+    pub over_threshold: bool,
+}
+
+/// Evaluate the codex block-size budget: project the post-deploy size and flag it when
+/// it reaches ≥90% of the effective `cap`. **Never** truncates or blocks
+/// (REQ-YF-TUNE-027) — the caller only warns.
+pub fn codex_budget(existing: &str, block_body: &str, cap: u64) -> CodexBudget {
+    let projected = projected_agents_md_bytes(existing, block_body);
+    let threshold = (cap as f64 * CODEX_BUDGET_WARN_RATIO) as u64;
+    CodexBudget {
+        projected,
+        cap,
+        over_threshold: projected as u64 >= threshold,
+    }
+}
+
+/// The actionable warning text for an over-threshold budget — names **both** the cap
+/// and the projected size, and documents the single-file scope limitation
+/// (REQ-YF-TUNE-027).
+pub fn codex_budget_warning(b: &CodexBudget) -> String {
+    format!(
+        "codex ~/.codex/AGENTS.md projected at {} bytes — ≥90% of the effective \
+         project_doc_max_bytes cap ({} bytes); codex may truncate the concatenated \
+         AGENTS.md. Scope: this measures only the global ~/.codex/AGENTS.md yf writes, \
+         not codex's full multi-file AGENTS.md concatenation. Raise project_doc_max_bytes \
+         in ~/.codex/config.toml (a tune sets 65536) or trim operator content.",
+        b.projected, b.cap
+    )
+}
+
 /// The effective rule target for `harness`, honoring the pi `--pi-rule-target`
 /// override (REQ-YF-TUNE-020). Non-pi harnesses ignore `pi` and return their mapped
 /// row verbatim. For pi, the kind is the Issue 1.5-verified `AgentsMd` default or the
@@ -465,6 +556,90 @@ mod tests {
 
     fn block_body() -> &'static str {
         "rule one: always plan.\nrule two: never TodoWrite.\n"
+    }
+
+    // REQ-YF-TUNE-027: the effective cap reads project_doc_max_bytes from config.toml,
+    // and falls back to codex's documented 32768 default — NOT the profile's 65536 —
+    // when the key is absent, the file is malformed, or there is no config at all.
+    #[test]
+    fn codex_effective_cap_reads_config_else_defaults_32768() {
+        // Absent config → documented default.
+        assert_eq!(codex_effective_doc_max_bytes(None), 32768);
+        // Config without the key → default (not 65536).
+        assert_eq!(
+            codex_effective_doc_max_bytes(Some("model = \"gpt-5\"\n")),
+            32768
+        );
+        // Config WITH the key → that value.
+        assert_eq!(
+            codex_effective_doc_max_bytes(Some("project_doc_max_bytes = 65536\n")),
+            65536
+        );
+        // A smaller operator cap is honored.
+        assert_eq!(
+            codex_effective_doc_max_bytes(Some("project_doc_max_bytes = 16000\n")),
+            16000
+        );
+        // Malformed TOML → fail-safe default.
+        assert_eq!(
+            codex_effective_doc_max_bytes(Some("not = = valid toml")),
+            32768
+        );
+    }
+
+    // REQ-YF-TUNE-027: a block+content near the effective cap warns (≥90%); well under
+    // does not; the warning names both the cap and the projected size; never blocks.
+    #[test]
+    fn codex_budget_warns_near_cap_only() {
+        let body = block_body();
+
+        // Well under a generous cap → no warning.
+        let under = codex_budget("", body, 32768);
+        assert!(
+            !under.over_threshold,
+            "small block under a 32 KiB cap must not warn"
+        );
+
+        // A tiny cap makes even the small block ≥90% → warns.
+        let tiny_cap = (projected_agents_md_bytes("", body) as u64).saturating_sub(1);
+        let over = codex_budget("", body, tiny_cap);
+        assert!(
+            over.over_threshold,
+            "projected ≥ cap must be over the 90% threshold"
+        );
+
+        // The warning names both the projected size and the cap.
+        let msg = codex_budget_warning(&over);
+        assert!(
+            msg.contains(&over.projected.to_string()),
+            "warning must name the projected size: {msg}"
+        );
+        assert!(
+            msg.contains(&over.cap.to_string()),
+            "warning must name the cap: {msg}"
+        );
+        assert!(
+            msg.contains("truncate") && msg.contains("AGENTS.md"),
+            "warning must be actionable about codex truncation: {msg}"
+        );
+    }
+
+    // REQ-YF-TUNE-027: the projection models the exact deploy bytes — appending into
+    // existing operator content projects the full post-deploy size (content + block),
+    // and the absent-config path uses the 32768 default cap end-to-end.
+    #[test]
+    fn codex_budget_projects_post_deploy_size_with_default_cap() {
+        let body = block_body();
+        let existing = "# operator prose\nlots of context here\n";
+        let projected = projected_agents_md_bytes(existing, body);
+        assert!(
+            projected > existing.len() && projected > body.len(),
+            "projection must include BOTH existing content and the rendered block"
+        );
+        // Absent config → default 32768 cap drives the verdict.
+        let b = codex_budget(existing, body, codex_effective_doc_max_bytes(None));
+        assert_eq!(b.cap, 32768);
+        assert_eq!(b.projected, projected);
     }
 
     // REQ-YF-TUNE-019: appending into an AGENTS.md with pre-existing operator prose
