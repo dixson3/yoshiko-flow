@@ -136,6 +136,10 @@ enum RuleOutcome {
         path: PathBuf,
         action: &'static str,
         wrote: bool,
+        /// Codex block-size-budget warning (REQ-YF-TUNE-027): `Some(msg)` when the
+        /// projected `~/.codex/AGENTS.md` approaches `project_doc_max_bytes`. Only
+        /// codex carries a cap; opencode/pi are always `None`.
+        budget_warning: Option<String>,
     },
     /// No rule target maps to this harness (a genuinely unknown harness).
     NotApplicable,
@@ -285,11 +289,20 @@ fn compute_rules_subop(
         RuleTargetKind::AgentsMd | RuleTargetKind::AppendSystem => {
             let bundle = minimize::irreducible_core_bundle()?;
             let path = target.resolve_at(scope, home, root);
+            // Codex block-size budget (REQ-YF-TUNE-027): warn (never block) when the
+            // projected ~/.codex/AGENTS.md approaches project_doc_max_bytes. Only codex
+            // has this cap; opencode/pi carry no budget warning.
+            let budget_warning = if harness == "codex" {
+                codex_budget_warning_for(&path, &bundle)
+            } else {
+                None
+            };
             match managed_block::deploy_block(&path, &bundle, args.dry_run) {
                 Ok(d) => Ok(RuleOutcome::Block {
                     path: d.path,
                     action: d.action,
                     wrote: d.wrote,
+                    budget_warning,
                 }),
                 Err(e) => Ok(RuleOutcome::Refused {
                     message: e.to_string(),
@@ -297,6 +310,22 @@ fn compute_rules_subop(
             }
         }
     }
+}
+
+/// Codex block-size-budget warning for a resolved `~/.codex/AGENTS.md` path
+/// (REQ-YF-TUNE-027): read the sibling `config.toml` for the **effective on-disk** cap
+/// (default 32768 when absent — not the profile's 65536) and the existing AGENTS.md
+/// content, project the post-deploy size through the deploy engine, and return a warning
+/// iff it is at/above the ≥90% threshold. Read-only — never truncates or blocks.
+fn codex_budget_warning_for(agents_path: &Path, bundle: &str) -> Option<String> {
+    let existing = std::fs::read_to_string(agents_path).unwrap_or_default();
+    let config_path = agents_path.with_file_name("config.toml");
+    let config_text = std::fs::read_to_string(&config_path).ok();
+    let cap = managed_block::codex_effective_doc_max_bytes(config_text.as_deref());
+    let budget = managed_block::codex_budget(&existing, bundle, cap);
+    budget
+        .over_threshold
+        .then(|| managed_block::codex_budget_warning(&budget))
 }
 
 /// The tune-side **rule-deploy** sub-operation (REQ-YF-FLOW-007): deploy the
@@ -719,9 +748,13 @@ fn render_rules_human(rules: &RuleOutcome) {
             path,
             action,
             wrote,
+            budget_warning,
         } => {
             let dr = if *wrote { "" } else { " (no write)" };
             println!("  rules: block {action}{dr} → {}", path.display());
+            if let Some(w) = budget_warning {
+                println!("    warning: {w}");
+            }
         }
         RuleOutcome::NotApplicable => println!("  rules: (no rule target for this harness)"),
         RuleOutcome::Refused { message } => println!("  rules: refused — {message}"),
@@ -775,11 +808,13 @@ fn rules_json(rules: &RuleOutcome) -> Value {
             path,
             action,
             wrote,
+            budget_warning,
         } => json!({
             "kind": "block",
             "path": path.display().to_string(),
             "action": action,
             "wrote": wrote,
+            "budget_warning": budget_warning,
         }),
         RuleOutcome::NotApplicable => json!({ "kind": "not_applicable" }),
         RuleOutcome::Refused { message } => json!({ "kind": "refused", "message": message }),
@@ -1123,12 +1158,19 @@ mod tests {
                 path,
                 wrote,
                 action,
+                budget_warning,
             } => {
                 assert!(
                     path.ends_with(".codex/AGENTS.md"),
                     "codex rules land in AGENTS.md"
                 );
                 assert!(*wrote && *action == "appended");
+                // A small managed block into an empty AGENTS.md with the tuned/default
+                // cap is well under budget — no warning (REQ-YF-TUNE-027).
+                assert!(
+                    budget_warning.is_none(),
+                    "a small codex block must not trip the budget warning: {budget_warning:?}"
+                );
             }
             other => panic!("codex rules must be a Block, got {other:?}"),
         }

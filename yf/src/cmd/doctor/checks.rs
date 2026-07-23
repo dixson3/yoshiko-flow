@@ -426,9 +426,7 @@ impl SettingsDriftCheck {
     /// malformed layer is skipped (it does not contribute to the effective view);
     /// the profile itself is the reference set (no marker).
     fn evaluate(&self) -> CheckResult {
-        use crate::cmd::harness::{
-            audit, profile, settings::read_settings, settings::SettingsRead,
-        };
+        use crate::cmd::harness::{audit, profile, settings::read_value_for_format};
         let name = format!("settings:{}", self.harness);
         let Some(prof) = profile::load_profile(&self.harness).ok().flatten() else {
             return CheckResult::warn(
@@ -438,9 +436,12 @@ impl SettingsDriftCheck {
                 None,
             );
         };
+        // Format-aware read (REQ-YF-TUNE-026): JSON layers parse via serde_json; a
+        // codex `config.toml` layer parses via the TOML adapter into a decision-only
+        // Value. A malformed/absent layer is skipped (does not contribute).
         let mut parsed: Vec<serde_json::Value> = Vec::new();
         for path in &self.layers {
-            if let SettingsRead::Parsed(v) = read_settings(path) {
+            if let Some(v) = read_value_for_format(path, prof.format) {
                 parsed.push(v);
             }
         }
@@ -474,6 +475,205 @@ impl SettingsDriftCheck {
 }
 
 impl Check for SettingsDriftCheck {
+    fn run(&self) -> CheckResult {
+        self.evaluate()
+    }
+}
+
+/// `managed-block:<harness>` axis (REQ-YF-TUNE-026): a **read-only** check that the
+/// yf-managed `BEGIN`/`END` rule block in a single-file harness's `AGENTS.md` (codex,
+/// opencode, and pi's verified default) matches the current minimized irreducible-core
+/// bundle (`minimize::irreducible_core_bundle`, REQ-YF-TUNE-018/019). This is a
+/// **distinct axis** from the aggregate `rule_drift` reported by [`RuleCheck`] (which
+/// covers a skill's companion rules under a claude-code `rules/` dir): different axis
+/// name, different harnesses, different files — no overlap, no double-count.
+///
+/// The verdict reuses the exact deploy engine ([`managed_block::merge_block`]) against
+/// the current expected body, so "aligned" means byte-identical to what a tune would
+/// write:
+/// - `Unchanged` → **aligned** (ok warning);
+/// - `Appended` → **no block** where tune would deploy one (drift warning);
+/// - `Replaced` → managed block **stale / hand-edited** (drift warning);
+/// - `Err` → ambiguous/out-of-order markers (fail-safe report).
+///
+/// Non-required (a warning) and never writes — remediation is `yf harness tune`.
+pub struct ManagedBlockDriftCheck {
+    /// Target harness key, e.g. `codex`.
+    harness: String,
+    /// Resolved `AGENTS.md` (or `APPEND_SYSTEM.md`) path at user scope.
+    path: PathBuf,
+}
+
+impl ManagedBlockDriftCheck {
+    /// Build the check for `harness`, resolving the user-scope rule-target path. Returns
+    /// `None` for a harness with no single-file rule target — claude-code (a `RulesDir`
+    /// harness, served by the full aggregate, not a managed block) or an unmapped id.
+    pub fn from_env(harness: &str) -> Option<Self> {
+        use crate::cmd::harness::managed_block::{effective_rule_target, RuleTargetKind};
+        use crate::cmd::harness::settings::TuneScope;
+        let target = effective_rule_target(harness, crate::cli::PiRuleTarget::default())?;
+        if !matches!(
+            target.kind,
+            RuleTargetKind::AgentsMd | RuleTargetKind::AppendSystem
+        ) {
+            return None; // claude-code reads a rules/ dir — no managed block here.
+        }
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| PathBuf::from("."));
+        let root = crate::dest::git_root_or_cwd();
+        let path = target.resolve_at(TuneScope::User, &home, &root);
+        Some(Self {
+            harness: harness.to_string(),
+            path,
+        })
+    }
+
+    /// Evaluate the on-disk managed block against the current minimized bundle (I/O).
+    fn evaluate(&self) -> CheckResult {
+        use crate::cmd::harness::{managed_block, minimize};
+        let axis = format!("managed-block:{}", self.harness);
+        let body = match minimize::irreducible_core_bundle() {
+            Ok(b) => b,
+            Err(e) => {
+                // The bundle itself won't build (source/classifier disagreement,
+                // REQ-YF-TUNE-018). Surface it — read-only, never fatal.
+                return CheckResult::warn(
+                    axis,
+                    false,
+                    format!("cannot compute the minimized rule bundle: {e}"),
+                    Some("resolve the bundle↔source disagreement (REQ-YF-TUNE-018)".to_string()),
+                );
+            }
+        };
+        // Absent file → empty text → `merge_block` reports `Appended` (no block).
+        let existing = std::fs::read_to_string(&self.path).unwrap_or_default();
+        match managed_block::merge_block(&existing, &body) {
+            Ok(managed_block::BlockMerge::Unchanged) => CheckResult::warn(
+                axis,
+                true,
+                format!("managed rule block current at {}", self.path.display()),
+                None,
+            ),
+            Ok(managed_block::BlockMerge::Appended(_)) => CheckResult::warn(
+                axis,
+                false,
+                format!(
+                    "no yf-managed rule block at {} — tune would deploy one",
+                    self.path.display()
+                ),
+                Some("run `yf harness tune` to deploy the rule block".to_string()),
+            ),
+            Ok(managed_block::BlockMerge::Replaced(_)) => CheckResult::warn(
+                axis,
+                false,
+                format!(
+                    "yf-managed rule block at {} drifts from the current minimized \
+                     bundle (stale or hand-edited)",
+                    self.path.display()
+                ),
+                Some("run `yf harness tune` to re-deploy the current rule block".to_string()),
+            ),
+            Err(e) => CheckResult::warn(
+                axis,
+                false,
+                format!(
+                    "cannot classify the managed block at {}: {e}",
+                    self.path.display()
+                ),
+                Some(
+                    "resolve the marker problem by hand, then re-run `yf harness tune`".to_string(),
+                ),
+            ),
+        }
+    }
+}
+
+impl Check for ManagedBlockDriftCheck {
+    fn run(&self) -> CheckResult {
+        self.evaluate()
+    }
+}
+
+/// `codex-budget` axis (REQ-YF-TUNE-027): a **read-only** check that the projected
+/// global `~/.codex/AGENTS.md` size (existing content + the minimized managed block)
+/// stays under the operator's **effective on-disk** `project_doc_max_bytes` cap. Warns
+/// (never blocks) at ≥90% of the cap, naming both the cap and the projected size, so the
+/// operator can raise the cap (a tune sets 65536) or trim content before codex silently
+/// truncates. **Single-file scope**: the global `~/.codex/AGENTS.md` only, not codex's
+/// full multi-file concatenation (documented in the warning). Never writes.
+pub struct CodexBudgetCheck {
+    /// `~/.codex/AGENTS.md` (user scope).
+    agents_path: PathBuf,
+    /// `~/.codex/config.toml` (user scope) — the effective-cap source.
+    config_path: PathBuf,
+}
+
+impl CodexBudgetCheck {
+    /// Build the check, resolving the user-scope codex `AGENTS.md` + sibling
+    /// `config.toml` from the codex rule target. `None` if codex has no rule target.
+    pub fn from_env() -> Option<Self> {
+        use crate::cmd::harness::managed_block::rule_target;
+        use crate::cmd::harness::settings::TuneScope;
+        let target = rule_target("codex")?;
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| PathBuf::from("."));
+        let root = crate::dest::git_root_or_cwd();
+        let agents_path = target.resolve_at(TuneScope::User, &home, &root);
+        let config_path = agents_path.with_file_name("config.toml");
+        Some(Self {
+            agents_path,
+            config_path,
+        })
+    }
+
+    fn evaluate(&self) -> CheckResult {
+        use crate::cmd::harness::{managed_block, minimize};
+        let axis = "codex-budget".to_string();
+        let body = match minimize::irreducible_core_bundle() {
+            Ok(b) => b,
+            Err(e) => {
+                return CheckResult::warn(
+                    axis,
+                    false,
+                    format!("cannot compute the minimized rule bundle: {e}"),
+                    Some("resolve the bundle↔source disagreement (REQ-YF-TUNE-018)".to_string()),
+                );
+            }
+        };
+        let existing = std::fs::read_to_string(&self.agents_path).unwrap_or_default();
+        let config_text = std::fs::read_to_string(&self.config_path).ok();
+        let cap = managed_block::codex_effective_doc_max_bytes(config_text.as_deref());
+        let budget = managed_block::codex_budget(&existing, &body, cap);
+        if budget.over_threshold {
+            CheckResult::warn(
+                axis,
+                false,
+                managed_block::codex_budget_warning(&budget),
+                Some(
+                    "raise project_doc_max_bytes in ~/.codex/config.toml (a tune sets 65536) \
+                     or trim ~/.codex/AGENTS.md content"
+                        .to_string(),
+                ),
+            )
+        } else {
+            CheckResult::warn(
+                axis,
+                true,
+                format!(
+                    "projected ~/.codex/AGENTS.md {} bytes, under the {}-byte cap",
+                    budget.projected, budget.cap
+                ),
+                None,
+            )
+        }
+    }
+}
+
+impl Check for CodexBudgetCheck {
     fn run(&self) -> CheckResult {
         self.evaluate()
     }
@@ -530,9 +730,31 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
         }
     }
 
-    // Settings-drift axis (REQ-YF-TUNE-009): read-only report over the effective
-    // merged view. Claude Code is the one implemented harness.
-    if let Some(c) = SettingsDriftCheck::from_env("claude-code") {
+    // Settings-drift axis (REQ-YF-TUNE-009 / -026): read-only report over the
+    // effective merged view, for **every harness that ships a config profile**. The
+    // check is harness-generic and `from_env` is format-aware (JSON for claude-code /
+    // opencode, TOML for codex), so this is registration only — `from_env` returns
+    // `None` for a harness with no embedded profile (e.g. pi, config-deferred).
+    for harness in ["claude-code", "codex", "opencode"] {
+        if let Some(c) = SettingsDriftCheck::from_env(harness) {
+            out.push(Box::new(c));
+        }
+    }
+
+    // Managed-block drift axis (REQ-YF-TUNE-026): read-only, per single-file-rule
+    // harness (codex, opencode, pi — the AGENTS.md harnesses). Reported under the
+    // distinct `managed-block:<harness>` axis, NOT the aggregate `rule_drift`.
+    // `from_env` returns `None` for claude-code (a rules/ dir harness, no managed
+    // block) and any unmapped id, so only the AGENTS.md harnesses contribute.
+    for harness in ["codex", "opencode", "pi"] {
+        if let Some(c) = ManagedBlockDriftCheck::from_env(harness) {
+            out.push(Box::new(c));
+        }
+    }
+
+    // Codex block-size-budget axis (REQ-YF-TUNE-027): read-only warn when the projected
+    // ~/.codex/AGENTS.md approaches the effective project_doc_max_bytes cap.
+    if let Some(c) = CodexBudgetCheck::from_env() {
         out.push(Box::new(c));
     }
     out
@@ -593,6 +815,257 @@ mod tests {
         let r2 = check.run();
         assert!(r2.ok, "a fully-tuned layer must clear drift: {}", r2.detail);
         assert!(!r2.required);
+    }
+
+    // REQ-YF-TUNE-026: the drift axis runs format-aware for a codex TOML profile — a
+    // seeded drifted `config.toml` reports the injected divergence; a fully-tuned
+    // `config.toml` reports none. Exercises the TOML read path (`read_value_for_format`).
+    #[test]
+    fn settings_drift_axis_codex_toml_reports_and_clears() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = dir.path().join("config.toml");
+        let profile = crate::cmd::harness::profile::load_profile("codex")
+            .unwrap()
+            .unwrap();
+
+        // Drifted: a real-but-unaligned config.toml (an operator comment + one
+        // unrelated key) → the profile's recommended keys are missing → drift.
+        std::fs::write(&cfg, "# operator config\nmodel = \"gpt-5\"\n").unwrap();
+        let check = SettingsDriftCheck {
+            harness: "codex".to_string(),
+            layers: vec![cfg.clone()],
+        };
+        let r = check.run();
+        assert!(!r.required, "drift axis must be report-only (non-required)");
+        assert!(!r.ok, "a drifted codex config.toml must report drift");
+        assert_eq!(
+            r.remediation.as_deref(),
+            Some("run `yf harness tune` to align")
+        );
+
+        // Fully tune the config.toml via the TOML delta-replay engine, write it back
+        // → no drift, proving the axis reads TOML (not just JSON).
+        let (tuned, _) =
+            crate::cmd::harness::toml_adapter::merge_toml_text("", &profile, false).unwrap();
+        std::fs::write(&cfg, tuned).unwrap();
+        let r2 = check.run();
+        assert!(
+            r2.ok,
+            "a fully-tuned codex config.toml must clear drift: {}",
+            r2.detail
+        );
+    }
+
+    // REQ-YF-TUNE-026: the drift axis runs for the opencode JSON profile — a seeded
+    // drifted `opencode.json` reports divergence; a tuned one reports none. Confirms
+    // per-harness registration is not claude-code-only.
+    #[test]
+    fn settings_drift_axis_opencode_json_reports_and_clears() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = dir.path().join("opencode.json");
+        let profile = crate::cmd::harness::profile::load_profile("opencode")
+            .unwrap()
+            .unwrap();
+
+        std::fs::write(&cfg, "{}").unwrap();
+        let check = SettingsDriftCheck {
+            harness: "opencode".to_string(),
+            layers: vec![cfg.clone()],
+        };
+        let r = check.run();
+        assert!(!r.ok, "an empty opencode.json must report drift");
+        assert!(!r.required);
+
+        let (tuned, _) = crate::cmd::harness::merge::merge(&serde_json::json!({}), &profile, false);
+        std::fs::write(&cfg, serde_json::to_string_pretty(&tuned).unwrap()).unwrap();
+        let r2 = check.run();
+        assert!(
+            r2.ok,
+            "a fully-tuned opencode.json must clear drift: {}",
+            r2.detail
+        );
+    }
+
+    // REQ-YF-TUNE-026: registration is wired for every config-profile harness — the
+    // registry builds a `settings:<harness>` axis for claude-code, codex, and
+    // opencode (pi, config-deferred, contributes none).
+    #[test]
+    fn settings_drift_axes_registered_for_config_harnesses() {
+        let dir = tempfile::tempdir().unwrap();
+        let axes: Vec<String> = checks(dir.path(), dir.path())
+            .iter()
+            .map(|c| c.run().name)
+            .collect();
+        for h in ["claude-code", "codex", "opencode"] {
+            assert!(
+                axes.iter().any(|a| a == &format!("settings:{h}")),
+                "expected a settings:{h} drift axis in the registry; got {axes:?}"
+            );
+        }
+        assert!(
+            !axes.iter().any(|a| a == "settings:pi"),
+            "pi is config-deferred (no profile) — it must contribute no settings axis"
+        );
+    }
+
+    // REQ-YF-TUNE-026: the managed-block drift axis reports **aligned** when the
+    // on-disk AGENTS.md block byte-matches the current minimized bundle, and **drift**
+    // for a hand-edited block or an absent one — all read-only (non-required).
+    #[test]
+    fn managed_block_drift_aligned_stale_and_absent() {
+        use crate::cmd::harness::{managed_block, minimize};
+        let dir = tempfile::tempdir().unwrap();
+        let agents = dir.path().join("AGENTS.md");
+        let body = minimize::irreducible_core_bundle().unwrap();
+
+        // Absent file → "no managed block; tune would deploy one" (drift warning).
+        let check = ManagedBlockDriftCheck {
+            harness: "codex".to_string(),
+            path: agents.clone(),
+        };
+        let r = check.run();
+        assert!(!r.required, "managed-block axis must be report-only");
+        assert!(!r.ok, "an absent block must report drift");
+        assert!(
+            r.detail.contains("no yf-managed rule block"),
+            "absent detail: {}",
+            r.detail
+        );
+
+        // Deploy the current bundle → aligned (byte-identical), ok warning.
+        managed_block::deploy_block(&agents, &body, false).unwrap();
+        let r2 = check.run();
+        assert!(
+            r2.ok,
+            "a freshly-deployed block must be aligned: {}",
+            r2.detail
+        );
+        assert!(!r2.required);
+
+        // Hand-edit the block body → drift (stale/hand-edited).
+        let tampered = format!(
+            "# operator prose\n\n{}\nHAND EDITED — not the real bundle\n{}\n",
+            managed_block::BEGIN_MARKER,
+            managed_block::END_MARKER
+        );
+        std::fs::write(&agents, tampered).unwrap();
+        let r3 = check.run();
+        assert!(!r3.ok, "a hand-edited block must report drift");
+        assert!(
+            r3.detail
+                .contains("drifts from the current minimized bundle"),
+            "stale detail: {}",
+            r3.detail
+        );
+    }
+
+    // REQ-YF-TUNE-026: ambiguous/out-of-order markers are a fail-safe report, never a
+    // crash (mirrors the deploy engine's refusal).
+    #[test]
+    fn managed_block_drift_reports_ambiguous_markers() {
+        use crate::cmd::harness::managed_block;
+        let dir = tempfile::tempdir().unwrap();
+        let agents = dir.path().join("AGENTS.md");
+        // Two BEGIN markers, one END → ambiguous.
+        std::fs::write(
+            &agents,
+            format!(
+                "{b}\nx\n{b}\ny\n{e}\n",
+                b = managed_block::BEGIN_MARKER,
+                e = managed_block::END_MARKER
+            ),
+        )
+        .unwrap();
+        let check = ManagedBlockDriftCheck {
+            harness: "opencode".to_string(),
+            path: agents,
+        };
+        let r = check.run();
+        assert!(
+            !r.ok && !r.required,
+            "ambiguous markers report, never fatal"
+        );
+        assert!(
+            r.detail.contains("cannot classify the managed block"),
+            "ambiguous detail: {}",
+            r.detail
+        );
+    }
+
+    // REQ-YF-TUNE-026: the managed-block axis is registered for exactly the AGENTS.md
+    // harnesses (codex/opencode/pi) and is a DISTINCT axis from the aggregate
+    // `rule_drift` (RuleCheck's `rules:<skill>` axis) — no collision, no double-count,
+    // and claude-code (a rules/ dir harness) contributes NO managed-block axis.
+    #[test]
+    fn managed_block_axis_registered_distinct_from_rule_drift() {
+        let dir = tempfile::tempdir().unwrap();
+        let names: Vec<String> = checks(dir.path(), dir.path())
+            .iter()
+            .map(|c| c.run().name)
+            .collect();
+        for h in ["codex", "opencode", "pi"] {
+            assert!(
+                names.iter().any(|n| n == &format!("managed-block:{h}")),
+                "expected a managed-block:{h} axis; got {names:?}"
+            );
+        }
+        assert!(
+            !names.iter().any(|n| n == "managed-block:claude-code"),
+            "claude-code reads a rules/ dir — it must contribute no managed-block axis"
+        );
+        // Distinct axis namespace: no managed-block axis is named `rules:*`, and the
+        // `rules:*` companion-rule axis is untouched (no `managed-block:*` collision).
+        assert!(
+            !names
+                .iter()
+                .any(|n| n.starts_with("managed-block:") && n.contains("rules:")),
+            "managed-block axis must not overlap the rules: namespace"
+        );
+    }
+
+    // REQ-YF-TUNE-027: the codex-budget doctor axis warns when the projected
+    // ~/.codex/AGENTS.md approaches the effective cap read from the sibling config.toml,
+    // is aligned/ok well under it, and is read-only (never writes, non-required).
+    #[test]
+    fn codex_budget_axis_warns_near_cap_reads_effective_config() {
+        use crate::cmd::harness::{managed_block, minimize};
+        let dir = tempfile::tempdir().unwrap();
+        let agents = dir.path().join("AGENTS.md");
+        let config = dir.path().join("config.toml");
+        let body = minimize::irreducible_core_bundle().unwrap();
+
+        // A generous cap in config.toml → under threshold, ok warning.
+        std::fs::write(&config, "project_doc_max_bytes = 200000\n").unwrap();
+        let check = CodexBudgetCheck {
+            agents_path: agents.clone(),
+            config_path: config.clone(),
+        };
+        let r = check.run();
+        assert_eq!(r.name, "codex-budget");
+        assert!(!r.required, "budget axis must be report-only");
+        assert!(r.ok, "well under a 200 KiB cap must not warn: {}", r.detail);
+
+        // Shrink the effective cap just below the projected size → warns, naming both.
+        let projected = managed_block::projected_agents_md_bytes("", &body);
+        std::fs::write(
+            &config,
+            format!("project_doc_max_bytes = {}\n", projected.saturating_sub(1)),
+        )
+        .unwrap();
+        let r2 = check.run();
+        assert!(!r2.ok, "a cap below the projected size must warn");
+        assert!(!r2.required, "the warning never fails the command");
+        assert!(
+            r2.detail.contains(&projected.to_string()),
+            "warning names the projected size: {}",
+            r2.detail
+        );
+
+        // The AGENTS.md file was never written (read-only axis).
+        assert!(
+            !agents.exists(),
+            "codex-budget axis must not create AGENTS.md"
+        );
     }
 
     // REQ-YF-TUNE-009: a malformed layer is skipped (does not crash the axis) — the

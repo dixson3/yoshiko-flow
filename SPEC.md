@@ -200,6 +200,24 @@
 >   filed follow-on bead. Closes `yf-8agh` (multi-harness) and `yf-up7s` (`--revert`); reconciles
 >   local web beads `yf-8ayq` / `yf-ij06`. Engine work lands in later epics — this entry records the
 >   SPEC-first Epic 1 amendment.
+> - **plan-034 (2026-07-23):** post-plan-033 follow-ups. Added §3.10 **`REQ-YF-TUNE-026`** — the
+>   read-only `yf doctor` settings-drift axis (`SettingsDriftCheck`, `REQ-YF-TUNE-009`) runs for every
+>   config-profile harness (codex/opencode) via `from_env` registration reusing the shipped
+>   harness-generic check (not a new engine, and `harness/drift.rs`/`REQ-YF-TUNE-008` untouched), plus
+>   a new **per-harness managed-block drift** check reported distinctly from the aggregate `rule_drift`
+>   (each codex/opencode/pi AGENTS.md yf-managed block vs `minimize::irreducible_core_bundle()`); both
+>   read-only — the `REQ-YF-TUNE-009` analog `REQ-YF-TUNE-011` had deferred. Added **`REQ-YF-TUNE-027`**
+>   — a codex `project_doc_max_bytes` block-size-budget **warning** (never truncate/block): projected
+>   global `~/.codex/AGENTS.md` size (content + managed block) vs the effective on-disk cap (read from
+>   `~/.codex/config.toml`, default **32768** when absent — not the profile's 65536), warning at ≥90%
+>   and naming cap + projected size, with a documented single-file scope limitation (the global file
+>   only, not codex's full multi-file concatenation). Revised **`REQ-YF-TUNE-011`**'s deferral note to
+>   record the `-009` drift axis **delivered** (its follow-on bead closed). Closes local follow-on beads
+>   `yf-252c` (drift axis) and `yf-297v` (budget check); the `web/` documentation buildout (a
+>   workflow-vocabulary glossary, a beads & `yf-beads-*` concepts doc, `yf-plan`/`yf-research`
+>   subagent+workflow docs, and a managed-files reference) is documentation of shipped behavior and
+>   ships no new REQ. Engine work lands in later epics — this entry records the SPEC-first Epic 1
+>   amendment.
 
 ## 1. Purpose & scope
 
@@ -725,10 +743,13 @@ rule deployment.
   and concrete codex-TOML / opencode-JSON profiles (`REQ-YF-TUNE-015..016`) land the codex/opencode
   config engines the original text pre-declared as "a new engine, not merely a new profile"; rule
   deployment (`REQ-YF-TUNE-018..020`) and `--revert` (`REQ-YF-TUNE-021..022`) close **yf-8agh** and
-  **yf-up7s**. Pi **config** remains deferred (`REQ-YF-TUNE-017`). **Explicitly deferred:** the
-  per-harness `yf doctor` / `docs/recommended-settings.md` settings-drift axis (the `REQ-YF-TUNE-008`
-  / `REQ-YF-TUNE-009` analogs for codex/opencode) is **out of scope** here and tracked by a filed
-  follow-on bead (Epic 10); the plan-032 Claude-Code drift/doctor axes remain in force unchanged.
+  **yf-up7s**. Pi **config** remains deferred (`REQ-YF-TUNE-017`). **Delivered (plan-034):** the
+  per-harness `yf doctor` settings-drift axis (the `REQ-YF-TUNE-009` analog for codex/opencode), plus
+  a new per-harness managed-block drift check, are now **delivered** by `REQ-YF-TUNE-026` (the
+  follow-on bead this note deferred is closed). The `REQ-YF-TUNE-008` analog (a per-harness
+  `docs/recommended-settings.md` reference-baseline drift test) remains out of scope — those harnesses
+  carry per-harness prose only, no reference-baseline block. The plan-032 Claude-Code drift/doctor
+  axes remain in force unchanged.
 - **REQ-YF-TUNE-012** *(testable, plan-033)* `yf harness tune --harness <name>` shall own **two
   sub-operations** per harness: **(a) config alignment** (the kind-aware merge engine,
   `REQ-YF-TUNE-004..006`) and **(b) rule optimization + deployment** (the minimized irreducible-core
@@ -835,6 +856,35 @@ rule deployment.
   the profiles (`surface_dir` / `settings_filename` / `settings_local_filename` / `format`) + the
   rule-deploy target map for tune — and **fail** if the published `REQ-YF-TUNE-024` matrices diverge
   (missing row, wrong path, wrong file). Code is the oracle; the doc is the checked artifact.
+- **REQ-YF-TUNE-026** *(testable, plan-034)* the read-only `yf doctor` settings-drift axis
+  (`SettingsDriftCheck`, `REQ-YF-TUNE-009`) shall run for **every harness that ships a config
+  profile** — codex and opencode, not only claude-code — diffing each harness's on-disk merged
+  config against its embedded profile via the format-aware read (`REQ-YF-TUNE-013`/`-014`). Because
+  the check is already harness-generic and the read is already format-aware, this is **registration**
+  (`from_env("codex")` / `from_env("opencode")`) **+ tests**, reusing the shipped check — **not** a new
+  engine — and it does **not** touch `yf/src/cmd/harness/drift.rs` (the separate `REQ-YF-TUNE-008` CI
+  doc↔profile agreement test). **Separately**, a new **per-harness managed-block drift** check shall
+  report — **distinctly from**, named to disambiguate (e.g. "managed-block drift"), and never
+  double-counting — the existing aggregate `rule_drift` axis already emitted by `doctor/checks.rs`,
+  whether each rule-target AGENTS.md harness's (codex, opencode, pi) yf-managed `BEGIN`/`END` block
+  (`REQ-YF-TUNE-019`/`-020`) matches the current minimized irreducible-core bundle
+  (`REQ-YF-TUNE-018`, `minimize::irreducible_core_bundle()`): a stale/hand-edited block — or an absent
+  block where tune would deploy one — is reported as drift. Both halves are strictly **read-only**:
+  they report divergence and never write (remediation is "run `yf harness tune`"), decoupled from `yf
+  doctor --repair` per `REQ-YF-TUNE-009`. This is the `REQ-YF-TUNE-009` analog `REQ-YF-TUNE-011`
+  deferred.
+- **REQ-YF-TUNE-027** *(testable, plan-034)* codex rule deployment (and the drift axis,
+  `REQ-YF-TUNE-026`) shall compute the **projected size of the global `~/.codex/AGENTS.md`** — its
+  existing on-disk content plus the yf-managed block (`REQ-YF-TUNE-019`) — against the **effective
+  on-disk** `project_doc_max_bytes`, read from the operator's `~/.codex/config.toml` and **falling
+  back to codex's documented 32768-byte default when the key is absent** (NOT the profile's tuned
+  65536, which applies only after a tune), and shall emit a **warning** — never truncate, never block
+  — when the projected size reaches a documented threshold (**≥ 90%** of the effective cap), naming
+  **both** the cap and the projected size so the warning is actionable. The requirement documents a
+  deliberate **single-file scope limitation**: the check covers only the global `~/.codex/AGENTS.md`
+  yf writes, **not** the full multi-file `AGENTS.md` concatenation codex assembles (the project/cwd
+  `AGENTS.md` the operator controls are out of yf's lane) — a chosen single-file scope, not an
+  oversight.
 
 ## 4. Skill catalog (per-skill specs)
 

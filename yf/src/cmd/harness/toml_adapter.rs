@@ -39,6 +39,17 @@ pub fn parse_document(text: &str) -> Result<DocumentMut, String> {
     text.parse::<DocumentMut>().map_err(|e| e.to_string())
 }
 
+/// Parse `text` as TOML and derive a `serde_json::Value` object — the same
+/// decision-only derivation the tune merge uses ([`table_to_json`]), exposed for the
+/// **read-only** `yf doctor` settings-drift axis (REQ-YF-TUNE-026), which reads a
+/// codex `config.toml` into a `Value` so the profile audit (pure over `Value`) can
+/// run format-agnostically. This derivation is never written back — it drops TOML
+/// trivia/datetime/int-vs-float distinctions by design (see the module note).
+pub fn parse_toml_to_json(text: &str) -> Result<Value, String> {
+    let doc = parse_document(text)?;
+    Ok(table_to_json(doc.as_table()))
+}
+
 /// Run the config merge over a TOML `config.toml` via delta-replay.
 ///
 /// Parses `text` into a [`DocumentMut`], derives a `serde_json::Value` for the
