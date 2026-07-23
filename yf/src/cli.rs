@@ -21,7 +21,9 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Manage embedded skills (install / upgrade / remove / status).
+    /// Deprecated alias for `yf harness skills` (install / upgrade / remove /
+    /// status). Each verb delegates verb-for-verb to `yf harness skills <verb>`;
+    /// kept until the next major release (REQ-YF-CLI-001/002).
     Skills {
         #[command(subcommand)]
         command: SkillsCommand,
@@ -43,7 +45,9 @@ pub enum Command {
         #[command(subcommand)]
         command: SelfCommand,
     },
-    /// Align a harness's settings to the yf skill contracts (REQ-YF-TUNE).
+    /// Provision harnesses: install skills (`harness skills`) and align config +
+    /// deploy always-loaded rules (`harness tune`) for claude-code, codex,
+    /// opencode, and pi (REQ-YF-TUNE / REQ-YF-CLI-001/002).
     Harness {
         #[command(subcommand)]
         command: HarnessCommand,
@@ -52,21 +56,37 @@ pub enum Command {
     Version(VersionArgs),
 }
 
-/// `yf harness …` subcommands (plan-032).
+/// `yf harness …` subcommands (plan-032/033).
 #[derive(Debug, Subcommand)]
 pub enum HarnessCommand {
-    /// Idempotently align a harness `settings.json` to the recommended yf baseline
-    /// (deny competing native tools, disable competing features).
+    /// Align a harness's config AND deploy its always-loaded rules (two
+    /// sub-operations per `--harness`). Config alignment covers claude-code +
+    /// opencode (JSON) and codex (TOML delta-replay), honoring the kind-aware,
+    /// idempotent, `Agent`-never-denied merge; rule deployment writes the
+    /// minimized irreducible-core managed block into each harness's global-rule
+    /// surface (claude-code `~/.claude/rules/`, codex/opencode/pi `AGENTS.md`).
+    /// Pi config is deferred (rules still deploy). `--revert` reverses a prior
+    /// tune via the sidecar `.yf/` manifest (REQ-YF-TUNE-012..025).
     Tune(HarnessTuneArgs),
+    /// Manage embedded skills (install / upgrade / remove / status). This is the
+    /// **canonical** home; the top-level `yf skills` group is a deprecated alias
+    /// that delegates verb-for-verb here (REQ-YF-CLI-001/002).
+    Skills {
+        #[command(subcommand)]
+        command: SkillsCommand,
+    },
 }
 
 /// `yf harness tune` arguments (REQ-YF-TUNE-002/003/007).
 #[derive(Debug, Args)]
 pub struct HarnessTuneArgs {
-    /// Target harness (forward-compat lookup key). Only `claude-code` has an
-    /// embedded profile today; an unknown value is a clean refusal.
-    #[arg(long, default_value = "claude-code")]
-    pub harness: String,
+    /// Target harness(es), repeatable (REQ-YF-TUNE-012). Each value drives both tune
+    /// sub-operations: config alignment where a profile ships (claude-code / codex /
+    /// opencode) and rule deployment for every harness with a rule target (incl. pi,
+    /// which is config-deferred). An empty list defaults to `claude-code` (Issue 7.2
+    /// replaces that default with harness auto-detection).
+    #[arg(long)]
+    pub harness: Vec<String>,
 
     /// Target project scope (`<git-root>/.claude/…`) instead of the user scope.
     /// The project default is the personal, gitignored `settings.local.json`.
@@ -87,9 +107,38 @@ pub struct HarnessTuneArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Reverse a prior `yf harness tune` (REQ-YF-TUNE-022): read the sidecar `.yf/`
+    /// ownership manifest and undo **only** yf's own additions — restore each recorded
+    /// prior scalar (or remove a key that had none), remove only the set elements yf
+    /// unioned in, and remove the rule managed blocks (leaving operator prose). A
+    /// **touched-since-tune guard** conservative-keeps (and reports) any key an operator
+    /// hand-edited since the tune. Fail-safe on a malformed target; idempotent.
+    #[arg(long)]
+    pub revert: bool,
+
+    /// Pi's always-loaded rule-file target (REQ-YF-TUNE-020). The verified default
+    /// is `agents-md` (`~/.pi/agent/AGENTS.md`, resolved by Issue 1.5 against
+    /// earendil-works/pi first-party docs). `append-system` is the documented
+    /// override, retargeting to `~/.pi/agent/APPEND_SYSTEM.md` for an operator who
+    /// wants it. Ignored for non-pi harnesses.
+    #[arg(long, value_enum, default_value = "agents-md")]
+    pub pi_rule_target: PiRuleTarget,
+
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
     pub json: bool,
+}
+
+/// Pi's always-loaded global-rule file (REQ-YF-TUNE-020). The `agents-md` default
+/// is the Issue 1.5-verified target (`~/.pi/agent/AGENTS.md`); `append-system` is
+/// the explicit operator override (`~/.pi/agent/APPEND_SYSTEM.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum PiRuleTarget {
+    /// The verified default: `~/.pi/agent/AGENTS.md`.
+    #[default]
+    AgentsMd,
+    /// The explicit override: `~/.pi/agent/APPEND_SYSTEM.md`.
+    AppendSystem,
 }
 
 /// `yf self …` subcommands (plan-018 Epic 3).
@@ -165,9 +214,9 @@ pub struct SelfUninstallArgs {
     pub json: bool,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, PartialEq, Eq, Subcommand)]
 pub enum SkillsCommand {
-    /// Install skills into a scope/surface.
+    /// Install skills into a scope/harness.
     Install(SkillsArgs),
     /// Upgrade installed skills to the embedded version.
     Upgrade(SkillsArgs),
@@ -185,7 +234,9 @@ pub enum Scope {
     Project,
 }
 
-/// Harness surface (REQ-YF-CLI-002).
+/// Deprecated harness surface (REQ-YF-CLI-002). Retained only as a **deprecated
+/// alias** for `--harness`: `claude`→`claude-code`, `agents`→`agents`. New code
+/// resolves destinations through the [`crate::harness_desc`] descriptor table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 #[value(rename_all = "lower")]
 pub enum Surface {
@@ -193,8 +244,18 @@ pub enum Surface {
     Agents,
 }
 
+impl Surface {
+    /// The `--harness` id this deprecated surface maps to.
+    pub fn harness_id(self) -> &'static str {
+        match self {
+            Surface::Claude => "claude-code",
+            Surface::Agents => "agents",
+        }
+    }
+}
+
 /// Flags shared by every `skills` subcommand (REQ-YF-CLI-002/003).
-#[derive(Debug, Args)]
+#[derive(Debug, PartialEq, Eq, Args)]
 pub struct SkillsArgs {
     /// Explicit skill names to act on (default: resolved set).
     pub names: Vec<String>,
@@ -203,11 +264,19 @@ pub struct SkillsArgs {
     #[arg(long, value_enum, default_value_t = Scope::User)]
     pub scope: Scope,
 
-    /// Harness surface.
-    #[arg(long, value_enum, default_value_t = Surface::Claude)]
-    pub surface: Surface,
+    /// Target harness(es) (repeatable): `claude-code`, `codex`, `opencode`, `pi`,
+    /// `agents`. An unknown id falls back to the legacy `.<id>/skills` layout.
+    /// When omitted, resolution defaults to `claude-code` (Issue 2.1); harness
+    /// auto-detection lands in Issue 2.3.
+    #[arg(long, value_name = "NAME")]
+    pub harness: Vec<String>,
 
-    /// Explicit destination path (overrides scope/surface resolution).
+    /// Deprecated alias for `--harness` (`claude`→`claude-code`, `agents`→`agents`).
+    /// Kept until the next major release; prefer `--harness`.
+    #[arg(long, value_enum)]
+    pub surface: Option<Surface>,
+
+    /// Explicit destination path (overrides scope/harness resolution).
     #[arg(long, value_name = "PATH")]
     pub target: Option<std::path::PathBuf>,
 
@@ -233,9 +302,42 @@ pub struct SkillsArgs {
     #[arg(long)]
     pub tune: bool,
 
+    /// Assume-yes: bypass the bounded-blast-radius confirmation that the
+    /// no-`--harness --tune` multi-harness auto path prints before writing config
+    /// and rules to every auto-detected harness (F6, REQ-YF-TUNE-023). Ignored
+    /// unless the confirmation would otherwise fire.
+    #[arg(long)]
+    pub yes: bool,
+
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
     pub json: bool,
+}
+
+impl SkillsArgs {
+    /// The ordered, resolved set of harness ids this invocation targets. Explicit
+    /// `--harness` values come first, then a deprecated `--surface` (mapped to its
+    /// id); an empty selection defaults to `claude-code` (Issue 2.1). Per-path
+    /// dedupe and multi-write are Issue 2.2; auto-detection is Issue 2.3.
+    pub fn resolved_harnesses(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self.harness.clone();
+        if let Some(s) = self.surface {
+            ids.push(s.harness_id().to_string());
+        }
+        if ids.is_empty() {
+            ids.push("claude-code".to_string());
+        }
+        ids
+    }
+
+    /// The single harness id used for destination resolution in Issue 2.1 (the
+    /// first of [`Self::resolved_harnesses`]).
+    pub fn primary_harness(&self) -> String {
+        self.resolved_harnesses()
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| "claude-code".to_string())
+    }
 }
 
 #[derive(Debug, Args)]
@@ -311,6 +413,72 @@ mod tests {
         // clap's own internal consistency check (catches conflicting args, bad
         // defaults, duplicate flags).
         Cli::command().debug_assert();
+    }
+
+    // REQ-YF-CLI-002: the entire top-level `yf skills <verb>` group is a deprecated
+    // alias that parses **identically** to the canonical `yf harness skills <verb>`
+    // for every verb — so both dispatch through the same handler with identical
+    // behavior. (`main::run` sends both arms through the same `cmd_skills`.)
+    #[test]
+    fn skills_alias_parses_identically_to_harness_skills() {
+        for verb in ["install", "upgrade", "remove", "status"] {
+            let alias = Cli::try_parse_from([
+                "yf",
+                "skills",
+                verb,
+                "--scope",
+                "project",
+                "--harness",
+                "codex",
+                "--dry-run",
+            ])
+            .unwrap();
+            let canon = Cli::try_parse_from([
+                "yf",
+                "harness",
+                "skills",
+                verb,
+                "--scope",
+                "project",
+                "--harness",
+                "codex",
+                "--dry-run",
+            ])
+            .unwrap();
+            let alias_cmd = match alias.command {
+                Command::Skills { command } => command,
+                other => panic!("expected top-level skills, got {other:?}"),
+            };
+            let canon_cmd = match canon.command {
+                Command::Harness {
+                    command: HarnessCommand::Skills { command },
+                } => command,
+                other => panic!("expected harness skills, got {other:?}"),
+            };
+            assert_eq!(
+                alias_cmd, canon_cmd,
+                "`yf skills {verb}` must parse identically to `yf harness skills {verb}`"
+            );
+        }
+    }
+
+    // REQ-YF-CLI-002: `--surface` is retained as a deprecated alias for `--harness`.
+    #[test]
+    fn surface_flag_still_accepted_as_deprecated_alias() {
+        let cli =
+            Cli::try_parse_from(["yf", "harness", "skills", "install", "--surface", "agents"])
+                .unwrap();
+        let Command::Harness {
+            command:
+                HarnessCommand::Skills {
+                    command: SkillsCommand::Install(a),
+                },
+        } = cli.command
+        else {
+            panic!("expected harness skills install");
+        };
+        assert_eq!(a.surface, Some(Surface::Agents));
+        assert_eq!(a.primary_harness(), "agents");
     }
 
     #[test]

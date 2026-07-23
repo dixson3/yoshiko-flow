@@ -14,6 +14,8 @@ mod dirs;
 mod embed;
 mod flow;
 mod frontmatter;
+mod harness_desc;
+mod harness_detect;
 mod marker;
 #[cfg(test)]
 mod marker_tests;
@@ -26,7 +28,7 @@ mod tool;
 use anyhow::Result;
 use clap::Parser;
 
-use cli::{Cli, Command, SkillsCommand, VersionArgs};
+use cli::{Cli, Command, HarnessCommand, SkillsCommand, VersionArgs};
 
 /// Short git hash captured at build time by `build.rs` ("unknown" if absent).
 const GIT_HASH: &str = env!("YF_GIT_HASH");
@@ -75,7 +77,15 @@ fn run() -> Result<std::process::ExitCode> {
             cmd::self_cmd::nag::maybe_notify(&dirs::Dirs::from_env());
             r.map(|()| std::process::ExitCode::SUCCESS)
         }
+        // Deprecated alias group (REQ-YF-CLI-001/002): the whole top-level `yf
+        // skills` group delegates verb-for-verb to `yf harness skills <verb>` with
+        // identical behavior, emitting a deprecation notice (stderr only — never
+        // pollutes `--json` stdout). Removed at the next major release.
         Command::Skills { command } => {
+            eprintln!(
+                "warning: `yf skills <verb>` is deprecated and will be removed in the next \
+                 major release; use `yf harness skills <verb>`."
+            );
             cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
         }
         // Doctor owns its exit code (like preflight): a failing required check is
@@ -95,7 +105,11 @@ fn run() -> Result<std::process::ExitCode> {
         // `harness tune` owns its exit code: an unknown harness or a malformed
         // settings file is a refusal (non-zero verdict), not an error.
         Command::Harness { command } => match command {
-            cli::HarnessCommand::Tune(args) => cmd::harness::run(&args),
+            HarnessCommand::Tune(args) => cmd::harness::run(&args),
+            // Canonical skills lifecycle home (REQ-YF-CLI-001/002).
+            HarnessCommand::Skills { command } => {
+                cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
+            }
         },
     }
 }

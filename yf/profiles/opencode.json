@@ -1,0 +1,23 @@
+{
+  "harness": "opencode",
+  "surface_dir": ".config/opencode",
+  "settings_filename": "opencode.json",
+  "settings_local_filename": "opencode.json",
+  "format": "json",
+  "hook_preserve_key": "",
+  "agent_tool": "Agent",
+  "entries": [
+    {
+      "path": "permission.*",
+      "kind": "scalar",
+      "value": "allow",
+      "rationale": "Autonomy lever — the opencode analog of claude-code's bypassPermissions: opencode's permission map (per-tool values allow|ask|deny) with the global '*' key set to allow lets yf skill runs execute without per-tool prompts. Because it is a blanket allow, the Agent/subagent tool is never denied. Real opencode.json key. Source: research-002 Q2 (opencode ~/.config/opencode/opencode.json + permission surface) + opencode permissions docs."
+    },
+    {
+      "path": "share",
+      "kind": "scalar",
+      "value": "disabled",
+      "rationale": "Data-minimization / portability — the opencode analog of claude-code's autoUploadSessions=false / disableClaudeAiConnectors: share=disabled (default 'manual') prevents auto-sharing sessions off-machine, keeping yf state in portable repo/beads files. Real opencode.json key (manual|auto|disabled). Source: research-002 Q2 + opencode config reference."
+    }
+  ]
+}

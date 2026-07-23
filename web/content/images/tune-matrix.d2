@@ -1,0 +1,37 @@
+# yf harness tune — the config file + rule managed-block target per harness.
+# Source of truth: yf/profiles/*.json (surface_dir/settings_filename/settings_local_filename/format)
+# and yf/src/cmd/harness/managed_block.rs (RULE_TARGETS).
+direction: right
+
+cmd: {
+  label: "yf harness tune\n(config align + rule managed-block;\n--revert reverses it)"
+  shape: rectangle
+}
+
+config: {
+  label: "config file yf writes\n(profiles/*.json)"
+  shape: rectangle
+  cc: "claude-code\n~/.claude/settings.json\n(local: settings.local.json)"
+  codex: "codex\n~/.codex/config.toml (TOML)"
+  oc: "opencode\n~/.config/opencode/opencode.json"
+  pi: "pi -> DEFERRED\n(no config profile ships)"
+}
+
+rules: {
+  label: "rule managed-block target\n(managed_block.rs)"
+  shape: rectangle
+  cc: "claude-code\n~/.claude/rules/ (full aggregate)"
+  codex: "codex -> ~/.codex/AGENTS.md"
+  oc: "opencode -> ~/.config/opencode/AGENTS.md"
+  pi: "pi -> ~/.pi/agent/AGENTS.md\n(verified; --pi-rule-target override)"
+}
+
+manifest: {
+  label: ".yf/ ownership manifest\nrecords keys + markers yf wrote\n(--revert honors touched-since-tune guard)"
+  shape: cylinder
+}
+
+cmd -> config: "1. align config"
+cmd -> rules: "2. deploy rules block"
+config -> manifest: "record"
+rules -> manifest: "record"

@@ -34,12 +34,17 @@ use std::path::{Path, PathBuf};
 /// `(REQ id, reason)`. Keep this list small and reviewed: adding an entry is an
 /// explicit acknowledgement that the requirement is NOT unit-covered in-crate.
 const ALLOWLIST: &[(&str, &str)] = &[
+    // plan-033 note: REQ-YF-CLI-001 and REQ-YF-CLI-002 were revised to the
+    // annotated `*(testable, revised plan-033)*` marker, which the enforced-set
+    // parser (plain `*(testable)*` only, matching the pre-existing `#67`/`plan-027`
+    // annotated REQs) does not include — so they no longer need allowlist entries.
+    // REQ-YF-CLI-002 is now additionally tagged by cli.rs's alias-delegation test
+    // (`skills_alias_parses_identically_to_harness_skills`).
+    //
     // CLI surface *shape* (subcommands / global flags) is declared by the clap
     // derive structs in `cli.rs`; there is no standalone unit test asserting the
     // command tree. Exercised indirectly by every command's tests + the
     // integration/help surface.
-    ("REQ-YF-CLI-001", "covered by clap command-tree (cli.rs) + per-command tests; no dedicated structural unit test"),
-    ("REQ-YF-CLI-002", "covered by clap arg definitions (cli.rs SkillsCommon: --scope/--surface/--target/--dry-run); no dedicated structural unit test"),
     ("REQ-YF-CLI-003", "covered by the --json flags on every clap subcommand (cli.rs) and the non-zero exit path (REQ-YF-DOCTOR-002 / preflight exit semantics); no dedicated structural unit test"),
     // Distribution is a release-pipeline concern, not in-crate behavior.
     ("REQ-YF-DIST-001", "covered by CI: cargo-dist release workflow (.github/workflows/release.yml) builds the {darwin,linux}x{amd64,arm64} matrix; not unit-testable in-crate"),

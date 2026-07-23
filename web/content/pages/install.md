@@ -100,23 +100,84 @@ vendor release.
 `yf` embeds the whole skill tree, so a single command deploys them into your harness:
 
 ```bash
-yf skills install                                    # all skills + companion rules
-yf skills install --group workflows                  # yf-plan/research/incubator + the beads skills they need
-yf skills install --group beads                      # only the beads support skills (yf-beads-*)
-yf skills install --group utility                    # only the beads-free utility skills
-yf skills install yf-plan yf-research                # named skills (pull their deps)
-yf skills install --scope project --surface agents   # <git-root>/.agents/{skills,rules}/
-yf skills install --dry-run                          # preview without writing
+yf harness skills install                                    # all skills into every detected harness
+yf harness skills install --tune                             # skills + always-loaded rules + config (first-run)
+yf harness skills install --harness claude-code              # one specific harness
+yf harness skills install --harness codex --harness pi       # repeatable — several harnesses at once
+yf harness skills install --group workflows                  # yf-plan/research/incubator + the beads skills they need
+yf harness skills install --group beads                      # only the beads support skills (yf-beads-*)
+yf harness skills install --group utility                    # only the beads-free utility skills
+yf harness skills install yf-plan yf-research                # named skills (pull their deps)
+yf harness skills install --scope project --harness codex    # <git-root>/.agents/skills/
+yf harness skills install --dry-run                          # preview without writing
 ```
 
-By default this installs into the **user / claude** surface (`~/.claude/skills/`), with
-companion rules in the sibling `~/.claude/rules/`. Groups are computed from each skill's
-`skill-group` frontmatter (`workflows`, `beads`, `utility`, `markdown`) — the valid `--group`
-names are the union of all skills' values, never hardcoded. **Installing a skill or a group
-pulls its transitive `depends-on-skill` closure**, so `--group workflows` also installs the
-`beads` skills those workflows depend on; an unresolved/external dependency is logged, not
-fatal. A missing `depends-on-tool` is a warning and the install still proceeds (skill files are
-inert until the tool is present); `--strict` makes it a hard failure.
+> `yf harness skills install` is the **canonical** command. `yf skills install` is kept as a
+> **deprecated alias** (it still works, including `yf skills install --tune`) and will be
+> removed in the next major release — prefer the `yf harness` spelling.
+
+Groups are computed from each skill's `skill-group` frontmatter (`workflows`, `beads`,
+`utility`, `markdown`) — the valid `--group` names are the union of all skills' values, never
+hardcoded. **Installing a skill or a group pulls its transitive `depends-on-skill` closure**, so
+`--group workflows` also installs the `beads` skills those workflows depend on; an
+unresolved/external dependency is logged, not fatal. A missing `depends-on-tool` is a warning and
+the install still proceeds (skill files are inert until the tool is present); `--strict` makes it
+a hard failure.
+
+> **First run? Use `--tune`.** A **bare `yf harness skills install` (without `--tune`) deploys
+> skill bodies only — no always-loaded rules — and is non-functional for the trigger-based engine
+> skills.** `yf-change-validation`, `yf-drift-check`, `yf-markdown-lint`, and the
+> `yf-beads-upstream` close-time push all fire from always-loaded rules, and those rules are
+> deployed **only** by `yf harness tune`. Until tune runs, those skills are inert (their bodies
+> are present but nothing triggers them). A bare install prints a warning and states that rules
+> were **not** deployed. So on a fresh machine run `yf harness skills install --tune` (or run
+> `yf harness tune` after a plain install).
+
+### The install matrix — where skills land
+
+Each harness resolves to a skills directory under a scope anchor: **user** scope anchors at
+`$HOME` (`~`); **project** scope anchors at the **git root** (cwd fallback). The five shipped
+harnesses and their resolved skills directories:
+
+| `--harness` | User scope (anchor `$HOME`) | Project scope (anchor git root) | Skill-name transform |
+|:------------|:----------------------------|:--------------------------------|:---------------------|
+| `claude-code` (default) | `~/.claude/skills/` | `<git-root>/.claude/skills/` | — |
+| `codex` | `~/.agents/skills/` | `<git-root>/.agents/skills/` | — |
+| `opencode` | `~/.config/opencode/skills/` | `<git-root>/.opencode/skills/` | — |
+| `pi` | `~/.pi/agent/skills/` | `<git-root>/.pi/skills/` | `lowercase-hyphen,max64` |
+| `agents` | `~/.agents/skills/` | `<git-root>/.agents/skills/` | — |
+
+Companion rules land in the sibling `rules/` directory of each skills dir (e.g.
+`~/.claude/rules/` for `claude-code` user scope) — but only when `--tune` (or `yf harness tune`)
+runs; see the first-run note above.
+
+Notes on the matrix:
+
+- **`--harness` is repeatable** — `--harness codex --harness pi` installs into both in one run.
+- **`codex` and `agents` both resolve to `.agents/skills`.** When both are selected they
+  **dedupe to a single write** — the tree is deployed once, not twice.
+- **`pi` applies a `lowercase-hyphen,max64` transform** to each skill's on-disk directory name
+  (lowercase, every non-`[a-z0-9]` character → `-`, truncated to 64 chars). The `yf-*` skill
+  names are already lowercase-hyphenated and under 64 chars, so the transform is the identity on
+  them; it only matters for names that would otherwise violate pi's constraint.
+
+### Auto-detection (no `--harness`)
+
+With **no `--harness`**, `yf` **auto-detects** which harnesses are installed and targets those:
+
+- **User scope** — a harness is detected if its home directory is present **or** its binary is on
+  `PATH` (either signal hits).
+- **Project scope** — a harness is detected by the presence of its dot-directory in the git root.
+
+Explicit `--harness` always overrides detection. Because an unattended multi-harness `--tune` run
+writes config and rules, the no-`--harness --tune` auto path **prints the resolved target set and
+requires confirmation (or a dry-run-then-apply)** before any write; `--dry-run` surfaces the
+detected set without writing.
+
+> The install-matrix paths above are derived from the shipped harness descriptor table and scope
+> resolution in `yf` (`harness_desc.rs` / `dest.rs`) — a doc↔code agreement test keeps this page
+> in sync. This section reconciles the local web bead `yf-8ayq` (recommended per-harness settings
+> block).
 
 ## Verify the install
 
