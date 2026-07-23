@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-033-james-dixson-46aca2
 author: james-dixson
 created: '2026-07-22'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: b7e5727c53e7a9eb34ffd2d54d3b057cde9989427478f2e2d6e65d0ace837a42
+epic: yf-mol-y7f
 ---
 # Plan: yf multi-harness provisioning — harness skills install (--harness) + harness tune (config + rule deployment) + --tune bridge + --revert
 
 **ID:** plan-033-james-dixson-46aca2
 **Author:** james-dixson
 **Created:** 2026-07-22
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-y7f
 **Fingerprint:** b7e5727c53e7a9eb34ffd2d54d3b057cde9989427478f2e2d6e65d0ace837a42
 
 ## Objective
