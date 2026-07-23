@@ -1,0 +1,82 @@
+[
+  {
+    "id": "S-OC-1",
+    "url": "https://opencode.ai/docs/rules/",
+    "title": "Rules | opencode",
+    "snippet": "opencode's AGENTS.md rules mechanism: project root vs global ~/.config/opencode/AGENTS.md, /init, Claude Code compatibility fallbacks (CLAUDE.md, ~/.claude/skills), per-category precedence, and the instructions config key for reusing external rule files.",
+    "quote": "You can provide custom instructions to opencode by creating an `AGENTS.md` file. This is similar to Cursor's rules. It contains instructions that will be included in the LLM's context to customize its behavior for your specific project.",
+    "provider": "exa",
+    "credibility": "authoritative (official opencode.ai documentation)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-2",
+    "url": "https://opencode.ai/docs/config/",
+    "title": "Config | opencode",
+    "snippet": "opencode.json config: global location ~/.config/opencode/opencode.json, 8-tier precedence order (remote -> global -> custom -> project -> .opencode dirs -> inline -> managed -> MDM), configs merged not replaced, and .opencode subdirs agents/commands/modes/plugins/skills/tools/themes.",
+    "quote": "Config sources are loaded in this order (later sources override earlier ones): 1. Remote config (from `.well-known/opencode`) - organizational defaults 2. Global config (`~/.config/opencode/opencode.json`) - user preferences 3. Custom config (`OPENCODE_CONFIG` env var) - custom overrides 4. Project config (`opencode.json` in project) - project-specific settings 5. `.opencode` directories - agents, commands, plugins 6. Inline config (`OPENCODE_CONFIG_CONTENT` env var) - runtime overrides 7. Managed config files ... 8. macOS managed preferences (`.mobileconfig` via MDM) - highest priority, not user-overridable",
+    "provider": "exa",
+    "credibility": "authoritative (official opencode.ai documentation)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-3",
+    "url": "https://v2.opencode.ai/instructions",
+    "title": "Instructions | opencode (v2 docs)",
+    "snippet": "v2 docs stating global + project AGENTS.md files are combined, not a single winner: rendered global first, then project files from Location toward project root; opencode does not resolve conflicts.",
+    "quote": "The files are combined rather than selecting a single winner. They are rendered in this order: global, then project files from the Location toward the project root. OpenCode does not resolve conflicts between their contents, so keep broad guidance global and put scoped guidance in the relevant project directory.",
+    "provider": "exa",
+    "credibility": "authoritative (official opencode v2 documentation)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-4",
+    "url": "https://github.com/anomalyco/opencode/issues/9282",
+    "title": "docs: clarify that project and global AGENTS.md files are combined, not overridden (Issue #9282)",
+    "snippet": "Issue reporting the Rules docs 'Precedence' section is ambiguous and can mislead users into thinking project AGENTS.md overrides global, when they are actually combined.",
+    "quote": "The [Rules documentation](https://opencode.ai/docs/rules/) has an ambiguous \"Precedence\" section that can mislead users.",
+    "provider": "exa",
+    "credibility": "primary (project issue tracker, anomalyco/opencode)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-5",
+    "url": "https://github.com/anomalyco/opencode/issues/22020",
+    "title": "Bug: Global AGENTS.md not loaded when project AGENTS.md exists (Issue #22020)",
+    "snippet": "Bug report claiming global ~/.config/opencode/AGENTS.md is ignored when a project AGENTS.md exists, followed by an in-thread self-correction (verified via opencode-system-prompt-logger plugin) showing BOTH files are in fact loaded.",
+    "quote": "Correction: Issue is NOT valid — both AGENTS.md files ARE loaded. I installed the `opencode-system-prompt-logger` plugin and ran it from my project directory ... The output clearly shows [both loaded]",
+    "provider": "exa",
+    "credibility": "primary but uncertain (issue tracker; original claim self-corrected in-thread)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-6",
+    "url": "https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/config/config.ts",
+    "title": "packages/opencode/src/config/config.ts (dev)",
+    "snippet": "Source: globalConfigFile() checks candidates opencode.jsonc, opencode.json, config.json under the global config path; loadConfig routes through remote .well-known/opencode.",
+    "quote": "function globalConfigFile() { const candidates = [\"opencode.jsonc\", \"opencode.json\", \"config.json\"].map((file) => path.join(Global.Path.config, file), ) for (const file of candidates) { if (existsSync(file)) return file } return candidates[0] }",
+    "provider": "exa",
+    "credibility": "authoritative (canonical implementation source, anomalyco/opencode)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-7",
+    "url": "https://opencode.ai/docs/skills/",
+    "title": "Agent Skills | opencode",
+    "snippet": "Agent skills are loaded on-demand via the native `skill` tool (description-triggered, 1-1024 char description surfaced in tool description); search paths include .opencode/skills, ~/.config/opencode/skills, .claude/skills, ~/.claude/skills, .agents/skills, ~/.agents/skills; per-skill allow/deny/ask permissions.",
+    "quote": "Agent skills let OpenCode discover reusable instructions from your repo or home directory. Skills are loaded on-demand via the native `skill` tool—agents see available skills and can load the full content when needed.",
+    "provider": "exa",
+    "credibility": "authoritative (official opencode.ai documentation)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-OC-8",
+    "url": "https://opencode.ai/docs/commands/",
+    "title": "Commands | opencode",
+    "snippet": "Custom commands are /name-invoked prompt templates defined as markdown in commands/ (global ~/.config/opencode/commands/ or project .opencode/commands/) or via the config `command` key; on-demand, not always-loaded context.",
+    "quote": "Custom commands let you specify a prompt you want to run when that command is executed in the TUI. ... Create markdown files in the `commands/` directory to define custom commands.",
+    "provider": "exa",
+    "credibility": "authoritative (official opencode.ai documentation)",
+    "retrieved_at": "2026-07-22"
+  }
+]

@@ -1,0 +1,85 @@
+direction: down
+
+title: |md
+  # Harness rule minimization: two-tier model + rule taxonomy
+| {
+  near: top-center
+  style.font-size: 22
+}
+
+# ---- Tier model, per harness ----
+tiers: "Two-tier architecture (holds across all four harnesses)" {
+  style.font-size: 16
+  style.fill: "#f4f6fb"
+
+  prose: "Tier 1 — ALWAYS-LOADED prose surface\n(paid every turn)" {
+    style.fill: "#fde8e8"
+    cc_p: "Claude Code\nCLAUDE.md (+ @-import AGENTS.md)\n.claude/rules/*.md"
+    cx_p: "Codex\nAGENTS.md concatenated\ncap 32 KiB"
+    oc_p: "opencode\nAGENTS.md + instructions key"
+    pi_p: "Pi  [uncertain]\nAGENTS.md/CLAUDE.md concat\n(community-sourced only)"
+  }
+
+  config: "JSON/TOML config surface\n(enforcement + visibility, NEVER a trigger)" {
+    style.fill: "#fff4d6"
+    cc_c: "settings.json\ndisableBundledSkills, permissions.deny\ntodoFeatureEnabled*"
+    cx_c: "config.toml\nproject_doc_max_bytes"
+    oc_c: "opencode.json\n8-tier precedence"
+    pi_c: "settings/permissions/mcp.json\n[uncertain]"
+  }
+
+  skills: "Tier 2 — ON-DEMAND skill surface\n(body loads only when description matches)" {
+    style.fill: "#e3f2e3"
+    cc_s: "Claude Code\ndescription + paths frontmatter + hooks"
+    cx_s: "Codex\ndescription-matched SKILL.md"
+    oc_s: "opencode\nnative skill tool, description 1-1024"
+    pi_s: "Pi\nAgent Skills standard (first-party)"
+  }
+}
+
+# ---- Rule taxonomy: what can migrate out of Tier 1 ----
+taxonomy: "yf rule taxonomy — can it leave the always-loaded surface?" {
+  style.font-size: 16
+  style.fill: "#f4f6fb"
+
+  collapsed: "Already collapsed\n(description-only: 10 of 18 skills)" {
+    style.fill: "#e3f2e3"
+  }
+
+  reducible: "Reducible — Claude Code ONLY\n(paths frontmatter / FileChanged hook)" {
+    style.fill: "#e3f2e3"
+    r1: "CHANGE-VALIDATION (on-edit / pre-push)"
+    r2: "DRIFT-CHECK (on-edit)"
+    r3: "MARKDOWN_LINT (on-edit)"
+    r4: "INSTRUCTIONS (on-edit)"
+    note_r: "0 sources attest a Codex/opencode/Pi analog\n-> cross-harness these stay prose (absence finding)" {
+      style.fill: "#fff4d6"
+    }
+  }
+
+  enforce: "Partly reducible — enforce via settings\n(trigger text stays prose)" {
+    style.fill: "#fff4d6"
+    e1: "bd-for-all-tracking mandate\n-> todoFeatureEnabled:false*"
+  }
+
+  irreducible: "Irreducible core\n(no description can carry it — self-asserted, S-LC-1)" {
+    style.fill: "#fde8e8"
+    i1: "PLANS — override native plan mode"
+    i2: "RESEARCH — override built-in deep-research"
+    i3: "non-interactive shell flags (cross-cutting)"
+    i4: "UPSTREAM_TRACKING (close-time push)"
+    i5: "deterministic must-fire invariants"
+  }
+}
+
+tiers.prose -> taxonomy: "minimize:\nmigrate what a description CAN carry\nout of Tier 1" {
+  style.stroke-width: 3
+  style.stroke: "#c23"
+}
+
+legend: |md
+  **Legend** — red = always-loaded (costly / irreducible) · green = on-demand or already collapsed · amber = config/enforcement or absence caveat · `*` = key unverified vs first-party docs
+| {
+  near: bottom-center
+  style.font-size: 12
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "S-CX-1",
+    "url": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+    "title": "Custom instructions with AGENTS.md (Codex) | ChatGPT Learn",
+    "snippet": "Codex reads AGENTS.md before doing any work; global ~/.codex first, then project root down to cwd, concatenated root-down with later files overriding. Chain built once per run; combined size capped at project_doc_max_bytes (32 KiB default).",
+    "quote": "Codex concatenates files from the root down, joining them with blank lines. Files closer to your current directory override earlier guidance because they appear later in the combined prompt.",
+    "provider": "exa",
+    "credibility": "high (official OpenAI/Codex docs; 308-redirect from developers.openai.com/codex/guides/agents-md)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-CX-2",
+    "url": "https://learn.chatgpt.com/docs/customization/overview",
+    "title": "Customization (Codex) | ChatGPT Learn",
+    "snippet": "Customization layers: AGENTS.md (persistent instructions), Memories, Skills (reusable workflows), MCP, Subagents. AGENTS.md always-loaded/persistent; skills use progressive disclosure (metadata for discovery, SKILL.md loaded only when chosen). Complementary, not competing.",
+    "quote": "It starts with metadata (name, description) for discovery ... It loads SKILL.md only when a skill is chosen.",
+    "provider": "exa",
+    "credibility": "high (official OpenAI/Codex docs; 308-redirect from developers.openai.com/codex/concepts/customization)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-CX-3",
+    "url": "https://codex.danielvaughan.com/2026/05/07/codex-cli-instruction-stack-six-surfaces-agents-md-rules-hooks-skills/",
+    "title": "The Codex CLI Instruction Stack: How Six Configuration Surfaces Shape Agent Behaviour",
+    "snippet": "Independent analysis: ~/.codex/config.toml developer_instructions injects into system prompt; AGENTS.md re-read per turn; rules always-evaluated vs skills/hooks on-demand; skills list ~2% context (~8KB), AGENTS.md capped at 32 KiB.",
+    "quote": "A skill's SKILL.md instructions enter the context only when the agent determines the current task matches the skill's description.",
+    "provider": "exa",
+    "credibility": "medium (independent technical blog, not official; corroborates official docs on AGENTS.md/skills and 32 KiB cap, but developer_instructions and per-turn re-read are unverified against official docs)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-CX-4",
+    "url": "https://github.com/openai/codex/blob/main/codex-rs/core/src/agents_md.rs",
+    "title": "codex-rs/core/src/agents_md.rs at main - openai/codex",
+    "snippet": "Rust core module implementing AGENTS.md discovery and user-instruction assembly; canonical primary source for the instruction-file mechanism (global + project discovery, concatenation).",
+    "quote": "AGENTS.md discovery and user instruction assembly. Project-level documentation is primarily stored in files name[d] ...",
+    "provider": "exa",
+    "credibility": "high (primary source; openai/codex repository, main branch)",
+    "retrieved_at": "2026-07-22"
+  }
+]

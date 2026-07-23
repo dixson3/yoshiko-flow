@@ -1,0 +1,42 @@
+[
+  {
+    "id": "S-CC-1",
+    "url": "https://docs.anthropic.com/en/docs/claude-code/settings",
+    "title": "Claude Code settings - Claude Code Docs",
+    "snippet": "Configuration scopes, settings precedence (Managed > CLI args > Local > Project > User), settings files, and the full Available settings key reference including disableBundledSkills, skillOverrides, disableSkillShellExecution, claudeMd, claudeMdExcludes, autoMemoryEnabled.",
+    "quote": "When the same setting appears in multiple scopes, Claude Code applies them in priority order: 1. Managed (highest): can't be overridden by anything 2. Command line arguments: temporary session overrides 3. Local: overrides project and user settings 4. Project: overrides user settings 5. User (lowest): applies when nothing else specifies the setting",
+    "provider": "exa",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-CC-2",
+    "url": "https://docs.anthropic.com/en/docs/claude-code/skills",
+    "title": "Extend Claude with skills - Claude Code Docs",
+    "snippet": "SKILL.md frontmatter reference including description, when_to_use, paths, disable-model-invocation, user-invocable; how descriptions drive auto-activation; the 1,536-char cap and skillListingBudgetFraction; guidance that a CLAUDE.md procedure should become a skill; use hooks to enforce behavior deterministically.",
+    "quote": "paths | No | Glob patterns that limit when this skill is activated. Accepts a comma-separated string or a YAML list. When set, Claude loads the skill automatically only when working with files matching the patterns. Uses the same format as path-specific rules.",
+    "provider": "exa",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-CC-3",
+    "url": "https://docs.anthropic.com/en/docs/claude-code/memory",
+    "title": "How Claude remembers your project - Claude Code Docs",
+    "snippet": "CLAUDE.md vs auto memory; instruction surfaces and load/precedence order (Managed > User ~/.claude/CLAUDE.md > Project > Local); .claude/rules/ and ~/.claude/rules/ with paths frontmatter for conditional loading; CLAUDE.md is context not enforced configuration; AGENTS.md is read only via a CLAUDE.md import; move procedures to a skill or path-scoped rule.",
+    "quote": "Rules without `paths` frontmatter are loaded at launch with the same priority as `.claude/CLAUDE.md`. ... Rules can be scoped to specific files using YAML frontmatter with the `paths` field. These conditional rules only apply when Claude is working with files matching the specified patterns.",
+    "provider": "exa",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-CC-4",
+    "url": "https://docs.anthropic.com/en/docs/claude-code/hooks",
+    "title": "Hooks reference - Claude Code Docs",
+    "snippet": "Hook events reference including FileChanged (fires when a watched file changes on disk, matcher selects filenames), InstructionsLoaded (fires when CLAUDE.md or .claude/rules/*.md loads), and PreToolUse (before a tool call executes; can block it). These are the deterministic, shell-executed alternatives to probabilistic instruction text.",
+    "quote": "`FileChanged` | When a watched file changes on disk. The `matcher` field specifies which filenames to watch",
+    "provider": "exa",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  }
+]

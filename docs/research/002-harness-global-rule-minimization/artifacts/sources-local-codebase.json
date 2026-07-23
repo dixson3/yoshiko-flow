@@ -1,0 +1,82 @@
+[
+  {
+    "id": "S-LC-1",
+    "url": "file:///Users/james/.claude/rules/YOSHIKO_FLOW.md",
+    "title": "YOSHIKO_FLOW.md — installed aggregated always-loaded ruleset (8 companion protocols)",
+    "snippet": "Single yf-managed file aggregating one fenced section per rule-bearing skill's companion protocol: BEADS_INIT, CHANGE-VALIDATION-TRIGGER, DRIFT-CHECK-TRIGGER, INSTRUCTIONS, MARKDOWN_LINT, PLANS, RESEARCH, UPSTREAM_TRACKING.",
+    "quote": "The engine **executes** a repo's recorded validation recipe (build / test / lint) and reports a verdict from an exit code — so a `description` alone cannot reliably fire it; this rule binds the on-edit and pre-push triggers.",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-2",
+    "url": "file:///Users/james/workspace/dixson3/yoshiko-flow/SPEC.md",
+    "title": "yf SPEC.md §3.3.1 — Aggregated ruleset (REQ-YF-FLOW-001..006)",
+    "snippet": "Defines YOSHIKO_FLOW.md as the single operator-facing aggregate of every rule-bearing skill's companion protocol, one verbatim fenced section per protocol.",
+    "quote": "`yf` surfaces every rule-bearing skill's companion protocol as **one** operator-facing file in the rules dir, `YOSHIKO_FLOW.md`, instead of a scatter of standalone `*.md` files.",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-3",
+    "url": "file:///Users/james/.claude/skills/",
+    "title": "yf skills/protocols directory inventory",
+    "snippet": "18 yf skills; 8 carry a companion protocol .md (yf-beads-init, yf-beads-upstream, yf-change-validation, yf-drift-check, yf-markdown-lint, yf-optimal-instructions, yf-plan, yf-research) folded into the aggregate; the other 10 are description-only.",
+    "quote": "yf-beads-init: BEADS_INIT.md ... yf-beads-upstream: UPSTREAM_TRACKING.md ... yf-change-validation: CHANGE-VALIDATION-TRIGGER.md ... yf-drift-check: DRIFT-CHECK-TRIGGER.md ... yf-markdown-lint: MARKDOWN_LINT.md ... yf-optimal-instructions: INSTRUCTIONS.md ... yf-plan: PLANS.md ... yf-research: RESEARCH.md",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-4",
+    "url": "file:///Users/james/workspace/dixson3/yoshiko-flow/skills/",
+    "title": "yf-* SKILL.md frontmatter descriptions (TRIGGER/SKIP contracts)",
+    "snippet": "Every yf SKILL.md description follows a rich TRIGGER when: / SKIP for: contract. yf-beads-upstream's description explicitly states the close-time push trigger lives in the always-loaded companion rule, not the description.",
+    "quote": "The close-time / land-the-plane push trigger is NOT carried in this description — it lives in the always-loaded companion rule (protocols/UPSTREAM_TRACKING.md).",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-5",
+    "url": "file:///Users/james/workspace/dixson3/yoshiko-flow/docs/recommended-settings.md",
+    "title": "Recommended Claude Code settings.json baseline",
+    "snippet": "User-scope settings.json baseline that enforces yf contracts the prose only steers; bare-name permission.deny disables remove tool schemas from context; disableWorkflows + todoFeatureEnabled:false are the highest-impact alignment keys.",
+    "quote": "prose only steers the model; it does not remove the disallowed mechanism. Setting these keys aligns the runtime with the contracts so the model cannot reach for a mechanism a skill forbids.",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-6",
+    "url": "file:///Users/james/workspace/dixson3/naba/AGENTS.md",
+    "title": "naba AGENTS.md — single source of truth; delegates generic bd rules to user scope",
+    "snippet": "naba's AGENTS.md is the single source of truth; it explicitly delegates generic bd workflow conventions to user-scope agent rules rather than duplicating them in-repo.",
+    "quote": "Issue tracking uses **beads (`bd`)**; the generic bd workflow conventions live in your user-scope agent rules and are not duplicated here. naba-specific facts:",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-7",
+    "url": "file:///Users/james/workspace/dixson3/naba/CLAUDE.md",
+    "title": "naba CLAUDE.md — thin pointer to AGENTS.md (optimal-instructions K2 pattern)",
+    "snippet": "CLAUDE.md is intentionally a thin pointer; AGENTS.md primary, CLAUDE.md a thin @-include — the exact structure yf-optimal-instructions proposes.",
+    "quote": "CLAUDE.md is intentionally a thin pointer. AGENTS.md is the single source of truth for both project and agent guidance (optimal-instructions: AGENTS.md primary, CLAUDE.md a thin @-include).",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-LC-8",
+    "url": "file:///Users/james/workspace/dixson3/naba/",
+    "title": "naba repo directory layout — no per-harness rule scatter",
+    "snippet": "naba has .claude/ (worktrees only), a root .markdown-lint-on-edit opt-in marker, a root DRIFT-CHECK.md manifest, one embedded skill under skills/naba; no .agents/, no AGENTS/ rules dir, no codex/opencode/pi config.",
+    "quote": ".markdown-lint-on-edit ... DRIFT-CHECK.md ... skills/naba ... .claude/worktrees (no rules/ dir)",
+    "provider": "direct",
+    "credibility": "high",
+    "retrieved_at": "2026-07-22"
+  }
+]

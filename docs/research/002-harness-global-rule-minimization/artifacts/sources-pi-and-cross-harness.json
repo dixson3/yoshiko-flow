@@ -1,0 +1,132 @@
+[
+  {
+    "id": "S-PI-1",
+    "url": "https://pi.dev/",
+    "title": "Pi Coding Agent",
+    "snippet": "Pi is a minimal terminal coding harness customizable with extensions, skills, prompt templates, and themes; skips sub-agents and plan mode by default.",
+    "quote": "Pi is a minimal agent harness. Adapt Pi to your workflows, not the other way around. Customize Pi with extensions, skills, prompt templates, and themes. Bundle them as Pi packages and share via npm or git.",
+    "provider": "exa",
+    "credibility": "high (first-party product homepage)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-2",
+    "url": "https://github.com/earendil-works/pi",
+    "title": "earendil-works/pi: AI agent toolkit: unified LLM API, agent loop, TUI, coding agent CLI",
+    "snippet": "Monorepo home of the Pi agent harness and its self-extensible coding agent CLI. ~75k stars, MIT, actively released (v0.81.1, 2026-07-21).",
+    "quote": "AI agent toolkit: unified LLM API, agent loop, TUI, coding agent CLI ... Stars: 75444 ... License: MIT License (MIT) ... Latest release: v0.81.1 (2026-07-21T16:45:17Z)",
+    "provider": "exa",
+    "credibility": "high (first-party source repository)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-3",
+    "url": "https://pi.dev/docs/latest/skills",
+    "title": "Skills - Documentation - Pi",
+    "snippet": "Pi implements the Agent Skills standard and loads skills on-demand from global (~/.pi/agent/skills, ~/.agents/skills), project (.pi/skills, .agents/skills), packages, settings, and CLI.",
+    "quote": "Pi implements the Agent Skills standard, warning about most violations but remaining lenient. ... Pi loads skills from: - Global: `~/.pi/agent/skills/`, `~/.agents/skills/` - Project (only after the project is trusted): `.pi/skills/`, `.agents/skills/` in `cwd` and ancestor directories",
+    "provider": "exa",
+    "credibility": "high (first-party documentation)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-4",
+    "url": "https://github.com/yukukotani/pi-voice/blob/main/.agents/skills/pi-coding-agent-config/references/context-files.md",
+    "title": "pi-coding-agent-config / references / context-files.md",
+    "snippet": "Reference doc: Pi loads AGENTS.md (or CLAUDE.md) at startup from ~/.pi/agent/AGENTS.md (global), parent dirs, and cwd, all concatenated; system prompt via .pi/SYSTEM.md or ~/.pi/agent/SYSTEM.md, appendable via APPEND_SYSTEM.md.",
+    "quote": "Pi loads `AGENTS.md` (or `CLAUDE.md`) at startup from: - `~/.pi/agent/AGENTS.md` (global) - Parent directories (walking up from cwd) - Current directory ... All matching files are concatenated. ... Replace the default system prompt with `.pi/SYSTEM.md` (project) or `~/.pi/agent/SYSTEM.md` (global). Append without replacing via `APPEND_SYSTEM.md`.",
+    "provider": "exa",
+    "credibility": "medium-high (community pi-config skill reference; corroborated by S-PI-6)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-5",
+    "url": "https://registry.npmjs.org/@earendil-works/pi-coding-agent",
+    "title": "@earendil-works/pi-coding-agent (npm)",
+    "snippet": "Coding agent CLI with read, bash, edit, write tools and session management; 1.2M weekly downloads; author Mario Zechner.",
+    "quote": "Coding agent CLI with read, bash, edit, write tools and session management ... Weekly Downloads: 1.2M ... License: MIT ... Author: Mario Zechner",
+    "provider": "exa",
+    "credibility": "high (npm registry, first-party package metadata)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-6",
+    "url": "https://github.com/OrestesK/pi",
+    "title": "OrestesK/pi - Pi agent config",
+    "snippet": "Real-world personal Pi config: always-loaded policy in AGENTS.md, runtime behavior in settings.json/mcp.json/permissions.json, host facts in APPEND_SYSTEM.md, subagent roles in agents/.",
+    "quote": "Always-loaded policy starts in `AGENTS.md`; subagent role behavior is also defined in `agents/`. Runtime behavior comes from `settings.json`, `mcp.json`, enabled packages, and auto-discovered local `extensions/`. Host-specific facts are in `APPEND_SYSTEM.md` where possible.",
+    "provider": "exa",
+    "credibility": "medium (individual config repo, but concrete real-world corroboration of the mechanism)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-7",
+    "url": "https://agents.md/",
+    "title": "AGENTS.md",
+    "snippet": "Official site for the AGENTS.md open format: a predictable place for agent-focused instructions, deliberately non-proprietary so one file works across many agents.",
+    "quote": "Rather than introducing another proprietary file, we chose a name and format that could work for anyone. ... One AGENTS.md works across many agents",
+    "provider": "exa",
+    "credibility": "high (canonical standard site)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-8",
+    "url": "https://github.com/agentsmd/agents.md",
+    "title": "agentsmd/agents.md - a simple, open format for guiding coding agents",
+    "snippet": "Source repo for the AGENTS.md standard; ~23k stars, MIT, created 2025-08-19; 20 contributors including OpenAI staff.",
+    "quote": "AGENTS.md - a simple, open format for guiding coding agents - Stars: 23157 ... License: MIT License (MIT) ... Created: 2025-08-19T17:22:54Z",
+    "provider": "exa",
+    "credibility": "high (canonical standard repository)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-9",
+    "url": "https://agentpatterns.ai/standards/agents-md/",
+    "title": "AGENTS.md: Project-Level README for AI Coding Agents - AgentPatterns.ai",
+    "snippet": "Describes AGENTS.md as an open standard project-level instruction file; discovery convention is any supporting tool loads the file at repo root.",
+    "quote": "AGENTS.md is an open standard for a project-level instruction file that gives AI coding agents the context they need to work effectively in a codebase. ... any AI coding tool that supports AGENTS.md looks for the file at the repository root. The tool then loads the file",
+    "provider": "exa",
+    "credibility": "medium-high (secondary explainer)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-10",
+    "url": "https://www.infoq.com/news/2025/08/agents-md/",
+    "title": "AGENTS.md Emerges as Open Standard for AI Coding Agents - InfoQ",
+    "snippet": "News coverage: AGENTS.md adopted by 20,000+ GitHub repos, positioned as machine-readable companion to human docs.",
+    "quote": "Already adopted by more than 20,000 repositories on GitHub, the format is being positioned as a companion to traditional documentation, offering machine-readable context",
+    "provider": "exa",
+    "credibility": "high (established tech news outlet)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-11",
+    "url": "https://developers.openai.com/codex/guides/agents-md",
+    "title": "Custom instructions with AGENTS.md - Codex | OpenAI Developers",
+    "snippet": "Codex reads AGENTS.md before work; discovery precedence: global scope (~/.codex, AGENTS.override.md then AGENTS.md) then project scope walking root to cwd.",
+    "quote": "Codex reads `AGENTS.md` files before doing any work. ... Discovery follows this precedence order: 1. Global scope: In your Codex home directory (defaults to `~/.codex`...), Codex reads `AGENTS.override.md` if it exists. Otherwise, Codex reads `AGENTS.md`... 2. Project scope: Starting at the project root... Codex walks down to your current working directory.",
+    "provider": "exa",
+    "credibility": "high (first-party OpenAI Codex documentation)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-12",
+    "url": "https://github.blog/changelog/2025-08-28-copilot-coding-agent-now-supports-agents-md-custom-instructions/",
+    "title": "Copilot coding agent now supports AGENTS.md custom instructions",
+    "snippet": "GitHub Copilot coding agent supports root and nested AGENTS.md, alongside copilot-instructions.md, CLAUDE.md, and GEMINI.md.",
+    "quote": "You can create a single `AGENTS.md` file in the root of your repository. You can also create nested `AGENTS.md` files which apply to specific parts of your project. Alongside `AGENTS.md`, the agent continues to support GitHub's `.github/copilot-instructions.md` and `.github/instructions/**.instructions.md` formats, plus `CLAUDE.md` and `GEMINI.md` files.",
+    "provider": "exa",
+    "credibility": "high (first-party GitHub changelog)",
+    "retrieved_at": "2026-07-22"
+  },
+  {
+    "id": "S-PI-13",
+    "url": "https://blog.brightcoding.dev/2025/09/21/agents-md-an-open-format-for-guiding-ai-coding-agents-with-project-instructions",
+    "title": "AGENTS.md - An Open Format for Guiding AI Coding Agents with Project Instructions",
+    "snippet": "Explainer contrasting per-tool proprietary instruction files (CLAUDE.md, .cursor/rules, copilot-instructions.md, GEMINI.md) with a single AGENTS.md.",
+    "quote": "Until now every tool invented its own private instruction file: Claude `CLAUDE.md`, Cursor `.cursor/rules`, Copilot `.github/copilot-instructions.md`, Gemini `GEMINI.md`. Maintaining five hand-written cheat-sheets is silly. AGENTS.md replaces",
+    "provider": "exa",
+    "credibility": "medium (individual blog, corroborated by first-party sources above)",
+    "retrieved_at": "2026-07-22"
+  }
+]
