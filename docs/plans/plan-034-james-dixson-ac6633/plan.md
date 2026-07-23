@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-034-james-dixson-ac6633
 author: james-dixson
 created: '2026-07-23'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: f483788f3ba36ab81fbb8700ed5781456f13ce68fa9be08a6fe56f55462caacd
+epic: yf-mol-bju
 ---
 # Plan: Post-plan-033 follow-ups — per-harness drift axis + codex block-size-budget check + web/ docs buildout
 
 **ID:** plan-034-james-dixson-ac6633
 **Author:** james-dixson
 **Created:** 2026-07-23
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-bju
 **Fingerprint:** f483788f3ba36ab81fbb8700ed5781456f13ce68fa9be08a6fe56f55462caacd
 **Phase log:**
 - 2026-07-23 scoping: initial scope captured (6 beads; operator decisions)

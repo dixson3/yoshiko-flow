@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-07-23
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-bju poured
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE (pass-2) + audit pass
 - review: red-team pass-2 APPROVE — all C1–C5 resolved
