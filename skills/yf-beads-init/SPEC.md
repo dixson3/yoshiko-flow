@@ -219,9 +219,11 @@ storage (that is `bd`).
   trigger — with `protocols/manifest.json` (sha256 + semver; current `BEADS_INIT.md` v1.0.3).
   Verified against the macro per-rule hash axis (`REQ-YF-PRE-003`).
 - **Config / state:** none of its own today (the engine operates on `.beads/` and repo gitignore).
-  After the rename, any per-repo config/runtime state would live at `.yf-beads-init.local.json` /
-  `.yf/yf-beads-init/` per macro `REQ-YF-PRE-004`/`REQ-YF-PRE-005`; legacy `.bdinit.local.json` /
-  `.state/beads-init/` (if any) migrate via macro `REQ-YF-MIGRATE-001`.
+  After the rename, any per-repo config/runtime state would live at the canonical short-name
+  `.yf/beads-init/config.local.json` / `.yf/beads-init/` per macro `REQ-YF-PRE-004`/`REQ-YF-PRE-005`
+  (with the legacy root dotfile `.yf-beads-init.local.json` as a read-time fallback); legacy
+  `.bdinit.local.json` / `.state/beads-init/` (if any) migrate to the canonical layout via macro
+  `REQ-YF-MIGRATE-001` (`yf migrate`; preflight does not auto-migrate).
 
 ## 4. Guardrails (`GR-BINIT-NNN`)
 

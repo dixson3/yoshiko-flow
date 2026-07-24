@@ -486,7 +486,7 @@ fn read_config(
     serde_json::Map::new()
 }
 
-/// Per-skill runtime state file: `.yf/<skill>/preflight.json`.
+/// Per-skill runtime state file: `.yf/<short>/preflight.json`.
 fn state_path(env: &Env, short: &str) -> PathBuf {
     env.repo_root.join(".yf").join(short).join("preflight.json")
 }

@@ -66,6 +66,11 @@ completion:
 Because the state lives in beads, a crashed session **resumes**: the coordinator sweeps stuck
 beads, re-attaches the worktree, and continues where it left off.
 
+This is the shared five-stage skill lifecycle, not yf-plan's internal phase model. yf-plan's
+seven-phase model (UPSTREAM → SCOPE → INVESTIGATE → PLAN → INTAKE → EXECUTE → RECONCILE, with
+`complete` as RECONCILE's terminal status) is a finer decomposition of stage 4, documented on
+the [workflows](/workflows/) page.
+
 ## 5. Land the plane
 
 When the DAG drains, the skill lands its changes and pushes **open + deferred** beads upstream

@@ -85,9 +85,11 @@ is `bd`), and build planning (that is `yf-plan`).
 - **Companion rule:** `protocols/RESEARCH.md` (+ `protocols/manifest.json`, sha256+semver) — the
   always-loaded routing/trigger contract (yf-research vs built-in deep-research); verified by the
   preflight `rule_*` outcomes.
-- **Config / state:** `.yf-research.local.json` (operator config incl. `ignore-skill`); runtime
-  state under `.yf/yf-research/`. Legacy `.bdresearch.local.json` / `.state/bdresearch/` migrate via
-  macro `REQ-YF-MIGRATE-001`.
+- **Config / state:** canonical short-name layout — operator config (incl. `ignore-skill`) at
+  `.yf/research/config.local.json`, runtime state under `.yf/research/`. The legacy root dotfile
+  `.yf-research.local.json` survives as a read-time config fallback (declared by `config-basename`).
+  Legacy `.bdresearch.local.json` / `.state/bdresearch/` migrate to the canonical layout via macro
+  `REQ-YF-MIGRATE-001` (`yf migrate`); preflight does not auto-migrate.
 
 ## 4. Guardrails (`GR-RESEARCH-NNN`)
 

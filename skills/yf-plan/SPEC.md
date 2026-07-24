@@ -241,10 +241,14 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   macro `REQ-YF-PRE-*`; the domain subcommands stay in Python.
 - **Companion rule:** `protocols/PLANS.md` (+ `protocols/manifest.json`, sha256+semver) — the
   always-loaded trigger contract; verified by the preflight `rule_*` outcomes.
-- **Config / state:** `.yf-plan.local.json` (operator config incl. `ignore-skill`,
-  `execute.worktree`, `validate-cmd`, `landing-strategy`); runtime state under `.yf/yf-plan/`
-  (e.g. `preflight.json`).
-  Legacy `.bdplan.local.json` / `.state/bdplan/` migrate via macro `REQ-YF-MIGRATE-001`.
+- **Config / state:** canonical operator config is `.yf/plan/config.local.json` (`ignore-skill`,
+  `execute.worktree`, `validate-cmd`, `landing-strategy`), canonical runtime state is
+  `.yf/plan/preflight.json` — both short-name (`plan`), as the `yf` binary emits them. **Current
+  reality:** `plan_manager.py` still reads config only from the legacy root `.yf-plan.local.json`
+  and writes its own state (e.g. `landing.lock`) under full-name `.yf/yf-plan/` — a divergence
+  from the canonical short-name layout tracked in `dixson3/yoshiko-flow#100`. The legacy
+  `.yf-plan.local.json` remains a supported read-time fallback; legacy `.bdplan.local.json` /
+  `.state/bdplan/` migrate via macro `REQ-YF-MIGRATE-001`.
 
 ## 4. Guardrails (`GR-PLAN-NNN`)
 

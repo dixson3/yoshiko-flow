@@ -56,7 +56,7 @@ REQ-BRANCH-002: The execute worktree shall be cut from a **known pinned base** �
 Rationale: Cutting from ambient HEAD (whatever branch happened to be checked out) is the #47 root cause — it produced branch-of-a-branch topology and a mismatched merge target. Pinning **both** the base and the merge target closes #47.
 Verification: `_worktree_ensure` receives a base start-point; `test_worktree.py` asserts worktree base == configured base (not HEAD); SKILL.md §6.1 pins the merge target per strategy.
 
-REQ-BRANCH-003: A project-config **`landing-strategy`** switch (`main` default | `feature-branch`) drives both the execute base and the merge target, resolved by `_resolve_landing_strategy()` (parallel to `_resolve_validate_cmd`, read from `.yf-plan.local.json`). Under `main`, plans land by merging to `main`; under `feature-branch`, plans land on feature `<plan-id>` (preserved by teardown) for later operator integration.
+REQ-BRANCH-003: A project-config **`landing-strategy`** switch (`main` default | `feature-branch`) drives both the execute base and the merge target, resolved by `_resolve_landing_strategy()` (parallel to `_resolve_validate_cmd`, read from the legacy root `.yf-plan.local.json` today; canonical `.yf/plan/config.local.json` after `dixson3/yoshiko-flow#100`). Under `main`, plans land by merging to `main`; under `feature-branch`, plans land on feature `<plan-id>` (preserved by teardown) for later operator integration.
 Rationale: Teams differ on trunk-based vs feature-branch integration; a single switch selects the topology without per-plan improvisation.
 Verification: `_resolve_landing_strategy` returns `main|feature-branch` defaulting to `main`; `test_worktree.py` covers the strategy switch.
 

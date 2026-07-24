@@ -33,7 +33,7 @@ Verification: `_provider_warnings()` in `research_manager.py`; `warnings[]` in t
 
 ## Bootstrap
 
-REQ-PREREQ-006: `/yf-research init` handles consent-only per-project setup (prerequisite checking, the prereq-missing opt-out); all invocations gate on `research_manager.py check`, which both checks (operator config `.yf-research.local.json` + state `.yf/yf-research/` + installed-rule hash) and ensures the idempotent scaffold (`docs/research` dir + `.gitignore` anchors, additive-only, gated by `scaffold-ensured`). The companion rule is installed by the repo installer (`install.sh`), not by init.
+REQ-PREREQ-006: `/yf-research init` handles consent-only per-project setup (prerequisite checking, the prereq-missing opt-out); all invocations gate on `research_manager.py check`, which both checks (operator config `.yf/research/config.local.json`, with the legacy `.yf-research.local.json` as a read fallback, + state `.yf/research/` + installed-rule hash) and ensures the idempotent scaffold (`docs/research` dir + a single `/.yf/` `.gitignore` anchor, additive-only, gated by `scaffold-ensured`). The companion rule is installed by the repo installer (`install.sh`), not by init.
 Rationale: Running the pipeline without prerequisites produces confusing failures; the check caches its result. Ensuring the scaffold in preflight (not init) makes it self-healing. Installing the rule at install time keeps it present with the skill across all projects.
 Verification: SKILL.md Pre-flight section; `_update_state(prereqs-present=True)` on success and `_ensure_scaffold()` on the `ok` path (state, not config).
 

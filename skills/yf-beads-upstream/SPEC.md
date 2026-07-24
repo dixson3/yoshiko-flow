@@ -170,9 +170,11 @@ companion rule.
   rule, restamp via `manifest_update.py`.
 - **Config / state:** beads config under `custom.upstream.*` (`enabled`, `backend`,
   `granularity` [coarse|granular, REQ-BUP-043], `auto_hoist_followons` [default-deny, REQ-BUP-044])
-  and `github.*`/`gitlab.*`/`jira.*` (no token); `dolt.local-only`. Per-skill operator config moves to `.yf-beads-upstream.local.json`
-  and runtime state to `.yf/yf-beads-upstream/` under the macro preflight kernel; legacy
-  `.beads-upstream.local.json` / `.state/beads-upstream/` migrate via macro `REQ-YF-MIGRATE-001`.
+  and `github.*`/`gitlab.*`/`jira.*` (no token); `dolt.local-only`. Per-skill operator config moves to the canonical
+  short-name `.yf/beads-upstream/config.local.json` (with the legacy root dotfile `.yf-beads-upstream.local.json`
+  as a read-time fallback) and runtime state to `.yf/beads-upstream/` under the macro preflight kernel; legacy
+  `.beads-upstream.local.json` / `.state/beads-upstream/` migrate to the canonical layout via macro
+  `REQ-YF-MIGRATE-001` (`yf migrate`; preflight does not auto-migrate).
   Preflight/config moves to `yf` per macro `REQ-YF-PRE-*`.
 
 ## 4. Guardrails (`GR-BUP-NNN`)

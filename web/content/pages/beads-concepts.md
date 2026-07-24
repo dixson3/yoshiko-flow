@@ -4,8 +4,10 @@ Subtitle: what beads is, why yf builds on it, and how the six yf-beads-* skills 
 
 Beads (`bd`) is the task-tracking substrate under everything stateful in yoshiko-flow. A
 [`/yf-plan`](/lifecycle/) plan, a `/yf-research` project, and any multi-session skill all
-record their work as beads rather than scratch TODO lists — so work survives a crash, a new
-session, or a different machine. This page explains what beads is, why yf uses it, the beads
+record their work as beads rather than scratch TODO lists — so work survives a crash or a new
+session. That resumption is local to one clone; carrying work to a different machine goes through
+the git-committed plan and a coarse upstream issue, not the bead database itself (see the
+**upstream strategy** below). This page explains what beads is, why yf uses it, the beads
 features yf leans on, the distinctive **upstream strategy**, and how the six `yf-beads-*`
 skills each own a distinct slice of that story. For one-line definitions of the vocabulary,
 see the [glossary](/glossary/).
@@ -115,6 +117,13 @@ local-only Dolt database with **no remote**. yf explicitly configures repos loca
 adds a Dolt remote or runs `bd dolt push` on them. The DB is not a shared-over-git artifact:
 yf **never pushes beads via git** as the way to share work. Two agents on two clones do not see
 each other's in-flight beads — and that is by design.
+
+Cross-machine handoff therefore does not move the database. It moves the git-committed **plan
+folder** and a coarse **upstream issue**; a capable clone re-pours the plan's beads locally from
+those. The upstream issue is a coordination pointer, not the medium that transfers bead state.
+There is no live, shared bead state across machines — no shared ready-frontier, claims, or gate
+resolutions. The `bd dolt push` mechanism that *could* replicate the DB is deliberately left
+unused: yf configures every repo local-only with no Dolt remote.
 
 ### Follow-on work goes upstream, coarsely
 
