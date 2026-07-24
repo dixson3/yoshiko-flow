@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-07-24
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-3ct poured
 - approved: operator approved
 - ready-for-approval: ready-check green — red-team pass-2 APPROVE + audit pass
 - review: red-team pass-2 APPROVE — all pass-1 concerns resolved (schema-clean edges, field-set-subset contract, derived-side trigger); verified vs manifest/schema/plugin

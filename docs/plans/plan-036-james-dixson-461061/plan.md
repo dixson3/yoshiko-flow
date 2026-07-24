@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-036-james-dixson-461061
 author: james-dixson
 created: '2026-07-24'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: f6798ff44c396cca74e8ea1bfd1e3b2e9a207b1e517e949b500563aef456d841
+epic: yf-mol-3ct
 ---
 # Plan: Authored per-skill web pages (hybrid), drift-check-enforced
 
 **ID:** plan-036-james-dixson-461061
 **Author:** james-dixson
 **Created:** 2026-07-24
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-3ct
 **Fingerprint:** f6798ff44c396cca74e8ea1bfd1e3b2e9a207b1e517e949b500563aef456d841
 
 ## Objective
