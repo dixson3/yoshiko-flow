@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-035-james-dixson-74d7ae
 author: james-dixson
 created: '2026-07-23'
-status: reconciling
+status: complete
 deliverable_class: standard
 fingerprint: 33d82ea998db883444c466a80ec5b1937a78c12c3f56f8124b8b7a753ffd3115
 epic: yf-mol-6x8
@@ -14,7 +14,7 @@ epic: yf-mol-6x8
 **ID:** plan-035-james-dixson-74d7ae
 **Author:** james-dixson
 **Created:** 2026-07-23
-**Status:** reconciling
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-6x8
 **Fingerprint:** 33d82ea998db883444c466a80ec5b1937a78c12c3f56f8124b8b7a753ffd3115
