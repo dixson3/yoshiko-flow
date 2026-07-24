@@ -89,8 +89,8 @@ moved into the `yf` kernel. See docs/yf/preflight-contract.md.)
 - **`ignored`** (operator set `"ignore-skill": true` in `.yf-plan.local.json`): exit
   silently, fall back to native plan mode.
 - **`ok`**: proceed to the requested command. On `ok`, preflight also ensures the
-  idempotent project scaffold (the `docs/plans` dir + the `/.yf-plan.local.json` and
-  `/.state/` gitignore anchors); anything it created is listed in `scaffold_added`. The
+  idempotent project scaffold (the `docs/plans` dir + a single `/.yf/` gitignore
+  anchor); anything it created is listed in `scaffold_added`. The
   ensure is additive-only and runs once per scaffold version (gated by `scaffold-ensured`
   state) — it will not re-add an anchor an operator later removes. (`instructions` may
   carry a non-blocking `update available` note for `PLANS.md`.)
@@ -101,9 +101,14 @@ moved into the `yf` kernel. See docs/yf/preflight-contract.md.)
   these point at `install.sh` (e.g. re-run `install.sh --force` to restore a drifted rule),
   not `init`. Stop.
 
-Config vs state: `ignore-skill` is an operator decision in `.yf-plan.local.json` (repo
-root, gitignored). The `prereqs-present` and `scaffold-ensured` caches are runtime state in
-`.yf/yf-plan/preflight.json`. The companion rule is installed by the repo installer
+Config vs state: `ignore-skill` is an operator decision the manager reads from the legacy
+root dotfile `.yf-plan.local.json` (repo root, gitignored) today; the canonical location is
+`.yf/plan/config.local.json`, which `plan_manager.py` will read after
+dixson3/yoshiko-flow#100. The `prereqs-present` and `scaffold-ensured` caches are runtime
+state: the `yf` preflight kernel writes `.yf/plan/preflight.json` (canonical short-name),
+while the manager's own state still uses the full-name `.yf/yf-plan/` directory today
+(short-name `.yf/plan/` after #100). `yf migrate` moves legacy → canonical; preflight does
+not auto-migrate. The companion rule is installed by the repo installer
 (`install.sh`) to the scope+surface rules dir (user-scope `~/.<surface>/rules/PLANS.md`,
 project-scope `<git-root>/.<surface>/rules/PLANS.md`; `.claude` or `.agents`); preflight
 resolves it in precedence order (user/global copy first) and hash-checks it against
@@ -118,7 +123,7 @@ Run yf-plan init for Claude Code:
 
 1. Run `yf preflight yf-plan --json` and parse the JSON.
    On status "ok", preflight has already ensured the idempotent scaffold (the docs/plans dir
-   plus the `/.yf-plan.local.json` and `/.state/` gitignore anchors); `scaffold_added` lists
+   plus a single `/.yf/` gitignore anchor); `scaffold_added` lists
    what it created. Per-incubator plan roots (`Incubator/<slug>/plans/`) are created lazily.
    The companion rule `PLANS.md` is installed by the repo installer (`install.sh`), not here —
    never write to AGENTS/ and never edit CLAUDE.md.

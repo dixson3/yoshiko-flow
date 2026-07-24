@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-07-23
+- reconciling: DAG drained; exit gate green; entering merge-back
+- executing: start gate resolved
+- intake: epic yf-mol-6x8 poured
 - approved: operator approved
 - ready-for-approval: ready-check green — red-team pass-3 APPROVE + audit pass
 - review: red-team pass-3 APPROVE — all concerns resolved

@@ -18,7 +18,7 @@ Also required: an initialized beads database (`bd init`).
 
 Search providers are **advisory, not blocking**. Exa MCP is preferred; absent it, `TAVILY_API_KEY` / `PERPLEXITY_API_KEY` are used if set. Missing providers surface as warnings and never block init.
 
-The `RESEARCH.md` companion rule is installed by the repo installer (`install.sh`) alongside the skill. `/yf-research init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/research` dir + the `/.yf-research.local.json` and `/.state/` gitignore anchors) is ensured automatically by preflight on every healthy `check`.
+The `RESEARCH.md` companion rule is installed by the repo installer (`install.sh`) alongside the skill. `/yf-research init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/research` dir + a single `/.yf/` gitignore anchor) is ensured automatically by preflight on every healthy `check`.
 
 ## Install
 

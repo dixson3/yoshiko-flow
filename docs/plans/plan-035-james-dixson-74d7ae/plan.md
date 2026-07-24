@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-035-james-dixson-74d7ae
 author: james-dixson
 created: '2026-07-23'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: 33d82ea998db883444c466a80ec5b1937a78c12c3f56f8124b8b7a753ffd3115
+epic: yf-mol-6x8
 ---
 # Plan: Rework and expand the web/ documentation set for accuracy, voice, and completeness (beads/upstream workflow, formulas concept, VOICE.md + density reduction, phase-model validation + diagrams, harness-agnostic plan-mode framing + framework survey, .yf/ artifact-management reconciliation)
 
 **ID:** plan-035-james-dixson-74d7ae
 **Author:** james-dixson
 **Created:** 2026-07-23
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-6x8
 **Fingerprint:** 33d82ea998db883444c466a80ec5b1937a78c12c3f56f8124b8b7a753ffd3115
 
 ## Objective

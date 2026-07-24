@@ -58,10 +58,13 @@ project-local and project-committed scopes write **different** files. `codex` an
 carry the same filename in both fields, so their three scopes differ only by anchor
 (`$HOME` vs git root), not by filename.
 
-The config merge is **union-only and format-preserving**: it writes only the profile's own
-keys, leaves any `bd setup` hook block untouched, and — for `codex`'s TOML — replays deltas
-through a trivia-preserving editor so operator comments and key order survive. A
-present-but-unparseable file is refused (reported, never overwritten).
+The config merge is **union-only and format-preserving**. Three guarantees:
+
+- **Union-only** — it writes only the profile's own keys, and leaves any `bd setup` hook block
+  untouched.
+- **Trivia-preserving** — for `codex`'s TOML, it replays deltas through a trivia-preserving
+  editor, so operator comments and key order survive.
+- **Fail-safe** — a present-but-unparseable file is refused (reported, never overwritten).
 
 ### Rule managed-block target
 
@@ -101,13 +104,18 @@ A follow-on tracks re-verifying the Pi config surface.
 
 A config profile carries a **single `surface_dir`**, used at every scope. Where a harness's
 real project-scope config directory differs from its user directory, `tune` writes to that
-one `surface_dir` at both scopes rather than tracking a per-scope difference. Concretely:
-`opencode`'s config/rules resolve under `.config/opencode` at both user and project scope,
-even though opencode's project **skills** land under `.opencode` (per the [install
-matrix](/install/#the-install-matrix-where-skills-land)); and `codex`'s config/rules resolve
-under `.codex` while its skills land under `.agents`. The tables above state what the code
-actually writes — config and rules track the profile's `surface_dir`, which is not always the
-same directory the skill tree uses.
+one `surface_dir` at both scopes rather than tracking a per-scope difference.
+
+The consequence: a harness's config/rules directory is not always the same directory its skill
+tree uses (skills land per the [install matrix](/install/#the-install-matrix-where-skills-land)):
+
+| Harness | config/rules dir (`surface_dir`) | skills dir |
+|:--------|:---------------------------------|:-----------|
+| `opencode` | `.config/opencode` — both user and project scope | `.opencode` — project skills |
+| `codex` | `.codex` | `.agents` |
+
+The tables above state what the code actually writes: config and rules track the profile's
+`surface_dir`, not always the directory the skill tree uses.
 
 ## The `.yf/` ownership manifest
 

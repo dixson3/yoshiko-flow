@@ -1,0 +1,153 @@
+# Formula -> Molecule: the yf beads lifecycle.
+# Generic ER model of a yf formula and the concrete beads it pours into.
+direction: right
+
+title: {
+  label: "Formula -> Molecule: the yf beads lifecycle"
+  near: top-center
+  shape: text
+  style.font-size: 22
+  style.bold: true
+}
+
+# ---- Authored side: what work exists (the .formula.toml source of truth) ----
+authored: {
+  label: "AUTHORED  —  what work exists\n<skill>/formulas/<name>.formula.toml"
+  style.fill: "#eef4fb"
+  style.stroke: "#3b6ea5"
+
+  Formula: {
+    shape: sql_table
+    formula: "name"
+    description: text
+    version: int
+    type: workflow
+    phase: "liquid | vapor"
+  }
+
+  Var: {
+    shape: sql_table
+    name: string
+    required: bool
+    default: "enum / default"
+  }
+
+  Step: {
+    shape: sql_table
+    id: string
+    title: "Begin: {{...}}"
+    type: "task | epic | gate"
+    needs: "step id[]  (DAG)"
+  }
+
+  GateSpec: {
+    shape: sql_table
+    type: human
+    approvers: "operator[]"
+  }
+
+  Formula -> Var: "1 — N  declares"
+  Formula -> Step: "1 — N  declares"
+  Step -> Step: "N — N  needs (dependency DAG)" {
+    style.stroke-dash: 3
+  }
+  Step -> GateSpec: "gate step  1 — 1  configured by"
+}
+
+# ---- Poured side: concrete claimable beads (bd mol pour) ----
+poured: {
+  label: "POURED  —  concrete claimable work\nbd mol pour  /  bd mol wisp"
+  style.fill: "#eef7ee"
+  style.stroke: "#4a8a4a"
+
+  Molecule: {
+    shape: sql_table
+    new_epic_id: bead
+    id_mapping: "step id -> bead id"
+  }
+
+  Wisp: {
+    label: "Wisp (phase=vapor Molecule)"
+    shape: sql_table
+    ephemeral: "bd mol burn --force"
+  }
+
+  Epic: {
+    label: "Epic (bead)"
+    shape: sql_table
+    id: string
+    type: epic
+    status: "open | closed"
+  }
+
+  Bead: {
+    shape: sql_table
+    id: string
+    type: "task | epic | gate"
+    status: "open | in_progress | closed"
+  }
+
+  wrapper: {
+    label: "Bead: task wrapper\n<f>.<step-id>\n(the needs target)"
+    style.fill: "#fff6e0"
+    style.stroke: "#c79413"
+  }
+  realgate: {
+    label: "Bead: actual gate\n<f>.gate-<step-id>\n(bd gate resolve target)"
+    style.fill: "#fff6e0"
+    style.stroke: "#c79413"
+  }
+
+  Molecule -> Epic: "1 — 1  rooted at"
+  Epic -> Bead: "1 — N  parents"
+}
+
+Agent: {
+  label: "Agent\nagents/<name>.md\n(how, not what)"
+  shape: person
+  style.fill: "#f3eefb"
+  style.stroke: "#7a5aa5"
+}
+
+# ---- Cross-boundary edges: authored -> poured ----
+authored.Formula -> poured.Molecule: "1 — 1  poured via bd mol pour"
+authored.Formula -> poured.Wisp: "phase=vapor  ->  bd mol wisp" {
+  style.stroke-dash: 4
+}
+authored.Step -> poured.Bead: "1 — 1  instantiated as (id_mapping)"
+
+# The single most important non-obvious edge: a gate step compiles to TWO beads.
+authored.Step -> poured.wrapper: "gate step compiles to 2 (1)" {
+  style.stroke: "#c79413"
+  style.bold: true
+}
+authored.Step -> poured.realgate: "gate step compiles to 2 (2)" {
+  style.stroke: "#c79413"
+  style.bold: true
+}
+
+# Dynamic fan-out: beads with no declaring step, injected post-pour.
+injected: {
+  label: "injected post-pour\nbd create --parent --deps\n(no declaring Step)"
+  shape: rectangle
+  style.stroke-dash: 4
+  style.fill: "#f7f7f7"
+}
+injected -> poured.Bead: "fan-out" {
+  style.stroke-dash: 4
+}
+
+poured.Bead -> Agent: "1 — 1  dispatched to (metadata)" {
+  style.stroke-dash: 4
+  style.stroke: "#7a5aa5"
+}
+
+# ---- Inset: the three shipped standard formulas ----
+inset: {
+  label: "The three shipped standard formulas\n\nplan-execute     — 1 declared step (human start-gate);\n                   epics / issues / gates injected post-pour (liquid)\nplan-investigate — 0 declared steps; vapor WISP;\n                   N experiments injected, then burned\nyf-research      — 7 declared steps (linear chain);\n                   retrieve fan-out injected between tooling and triangulate (liquid)"
+  shape: rectangle
+  near: bottom-center
+  style.fill: "#ffffff"
+  style.stroke: "#888888"
+  style.font: mono
+}

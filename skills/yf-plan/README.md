@@ -49,7 +49,7 @@ Optional:
 - `gh` — GitHub CLI (for upstream issue tracking)
 - `glab` — GitLab CLI (for upstream issue tracking)
 
-The repo installer (`install.sh`) installs the `PLANS.md` companion rule alongside the skill, to a rules dir anchored by scope and surface — `--scope user` (default) → `~/.<surface>/rules/` (global, shared by every project), `--scope project` → `<git-root>/.<surface>/rules/` (`.claude` or `.agents` per `--surface`). `/yf-plan init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/plans` dir + the `/.yf-plan.local.json` and `/.state/` gitignore anchors) is ensured automatically by preflight on every healthy `check`.
+The repo installer (`install.sh`) installs the `PLANS.md` companion rule alongside the skill, to a rules dir anchored by scope and surface — `--scope user` (default) → `~/.<surface>/rules/` (global, shared by every project), `--scope project` → `<git-root>/.<surface>/rules/` (`.claude` or `.agents` per `--surface`). `/yf-plan init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/plans` dir + a single `/.yf/` gitignore anchor) is ensured automatically by preflight on every healthy `check`.
 
 ## Install
 

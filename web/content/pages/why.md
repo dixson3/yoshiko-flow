@@ -20,8 +20,9 @@ a good lens. The principles below generalize to every skill.
 
 ## Durable state lives in the repo
 
-Native plan mode produces output that disappears with the session. yoshiko-flow writes work as
-first-class artifacts: `/yf-plan` writes plans as markdown under `docs/plans/`, and tracks
+Many coding agents ship a plan mode, and its output is ephemeral — it disappears when the session
+ends. yoshiko-flow writes work as first-class artifacts instead: `/yf-plan` writes plans as
+markdown under `docs/plans/`, and tracks
 execution in **beads** — an issue database committed next to the code. Because the state is in
 the repo, it's versioned in git, reviewable in a PR, and searchable next year. Nothing important
 lives only in a chat transcript.
@@ -29,11 +30,23 @@ lives only in a chat transcript.
 ## Resumable across sessions and machines
 
 Work that spans environments can't assume one machine and one context. `/yf-plan` decomposes a
-plan into epics of dependency-wired issues with **gates**: a capability gate can block the tasks
-that need a platform you don't have while all other work proceeds. Push the repo, and someone on
-the right platform — or you, tomorrow, in a new session — picks up exactly where the gate left
-off. If a run crashes mid-execution, the next session detects the in-progress work, resets the
-stuck items, and continues; it never silently loses or double-does work.
+plan into epics of dependency-wired issues with **gates**. A capability gate blocks the tasks
+that need a platform you don't have, while all other work proceeds.
+
+Two kinds of resumption follow, and they run on different mechanisms:
+
+- **Same clone, new session.** The bead database is a local Dolt database under `.beads/`. It
+  survives a crash or a closed session. The next session reads it, resets any stuck in-progress
+  items, and continues — it never silently loses or double-does work.
+- **Across machines.** The bead database is local-only and gitignored, so pushing the repo does
+  **not** carry it. What travels is the git-committed **plan folder** plus a coarse **upstream
+  tracking issue** — one issue per plan, filed at land-the-plane. A capable machine reads the
+  committed plan, re-pours its beads locally, and works the gate that blocked the first machine.
+
+There is no live shared bead state across machines. Two clones do not see each other's in-flight
+beads, claims, or gate resolutions. Cross-machine handoff moves through the git-committed plan and
+the upstream issue, which point a capable clone at the work — they do not transfer the bead
+database itself.
 
 ## Investigate before you commit
 
@@ -47,8 +60,8 @@ report rather than a one-shot answer.
 
 yoshiko-flow deliberately **replaces** the harness built-ins that trap state in a single vendor:
 
-- **Planning** — `/yf-plan` overrides native plan mode with a scoped, reviewable, resumable
-  pipeline whose plans are durable files.
+- **Planning** — many coding agents have a plan mode. `/yf-plan` replaces the native one with a
+  scoped, reviewable, resumable pipeline whose plans are durable files.
 - **Task tracking** — `bd` (beads) replaces the native TODO list. Beads are portable, ordered by
   a real dependency graph, and pushable upstream.
 - **Memory** — durable decisions go to `AGENTS/` rules or beads, not a Claude-only memory store,
@@ -56,6 +69,92 @@ yoshiko-flow deliberately **replaces** the harness built-ins that trap state in 
 
 The skills install into whichever harness you use (Claude Code by default, or the `.agents`
 surface), so the same portable workflow follows you across tools.
+
+Replacing native built-ins is the low bar. Many coding agents already ship a plan mode, and other
+planning frameworks investigate before building and keep their state in files. What sets `/yf-plan`
+apart is narrower and concrete:
+
+- its bead state is single-machine and non-portable by design — cross-machine handoff moves through
+  the committed plan folder and a coarse upstream issue, not a shared database;
+- approval binds to the reviewed plan, so a plan that changed after sign-off cannot silently execute;
+- execution is re-validated against the merged tree, not only the branch it was written on;
+- upstream issues are reconciled after the work lands.
+
+A fuller framework comparison sets these against the wider field.
+
+## Where yf-plan sits in the field
+
+The planning landscape is crowded, and most of it is right. Spec-first development, PRD-to-task
+graphs, agent-team methods, plan/act modes, and context-rot loops have all converged on the same
+good instincts: decide before you build, keep state in files, decompose into a dependency graph,
+verify separately, and survive long runs. yf-plan agrees with the field on every one of those.
+The tools worth measuring against are real:
+
+- **[GitHub Spec Kit](https://github.com/github/spec-kit)** — the spec-driven-development
+  flagship, and widely adopted. A Markdown specification is the executable center of the workflow,
+  and a resumable workflow engine persists state across human review gates.
+- **[Kiro](https://kiro.dev/) (AWS)** — an enterprise spec-driven IDE and CLI. A prompt becomes
+  `requirements.md`, `design.md`, and `tasks.md`; it adds automated-reasoning contradiction checks
+  on requirements and a dependency-graph executor that runs tasks in concurrent waves.
+- **[BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD)** — a multi-agent agile team.
+  Specialized personas (Analyst, PM, Architect, Scrum Master, Dev, QA) drive a four-phase SDLC,
+  and a Scrum Master agent shards a monolithic PRD into per-story files so the Dev agent loads
+  only what a story needs.
+- **[Taskmaster](https://github.com/eyaltoledano/claude-task-master)** — parses a PRD into a
+  dependency-ordered `tasks.json` graph that the agent consults every session, giving a long build
+  an explicit, durable "what's next."
+- **[Aider architect mode](https://aider.chat/docs/usage/modes.html)** — splits reasoning from
+  editing across two models. An architect model describes the solution; an editor model turns it
+  into precise file edits, measurably improving edit accuracy with no project scaffolding.
+- **[Cline / Roo Plan-Act](https://docs.cline.bot/core-workflows/plan-and-act)** — a read-only
+  Plan mode explores and strategizes with no file writes, then carries full context into an Act
+  mode that executes. Roo adds per-mode tool and file permissions.
+- **[The Ralph loop](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum)** —
+  restarts the same agent with a fresh context each iteration. Each pass reads durable state from
+  disk, does exactly one task, verifies it, commits, and exits, making the iteration rather than
+  the chat session the unit of work.
+- **[GSD](https://github.com/chudeemeke/get-stuff-done)** — runs Plan, Execute, and Verify each in
+  its own fresh session, keeps all state in files, and spawns parallel sub-agents with isolated
+  contexts so the main context stays lean.
+- **[grill-me](https://agentpatterns.ai/agent-design/grill-me-technique/)** — inverts the flow:
+  the agent interrogates your plan one decision at a time, one question per turn, surfacing hidden
+  assumptions before any code commits to them.
+- **[claude-protocol](https://github.com/weselow/claude-protocol)** — the honest closest analog.
+  It tracks tasks in the same `bd` (beads) database yf-plan uses, runs one task per worktree per
+  PR, and enforces discipline with hooks that block rather than instruct: edits on `main` blocked,
+  completion without a checked checklist blocked.
+
+Spec Kit, Kiro, Taskmaster, Aider, Cline, and Roo are widely adopted; BMAD and the Ralph loop are
+heavily discussed; GSD, grill-me, and claude-protocol are niche (as of 2026-07). Adoption signals
+move fast, so treat these as direction, not scoreboard.
+
+**The sharpest difference is narrow and checkable: approval is bound to a content fingerprint, and
+that binding is enforced across the session boundary.** At approval, `/yf-plan` records a hash over
+the plan's reviewed sections. If the content later changes, the stored fingerprint goes stale and
+execution hard-blocks until a fresh review cycle re-approves it. No surveyed framework binds
+approval to reviewed content this way. Elsewhere the plan is a living file the agent can edit
+between sign-off and execution; in yf-plan, the plan that runs is the plan you approved, or the
+review cycle re-runs.
+
+The rest of the differences are combinations the field has in parts but not together:
+
+| Capability | Spec Kit | Kiro | BMAD | Taskmaster | Cline/Roo | Aider | Ralph | GSD | claude-protocol | yf-plan |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Plan/act separation | Phases | Phases | Phases | Loop | Modes | Modes | Loop | Phases | Phases | Phases (2-way) |
+| Spec/PRD as durable artifact | Yes | Yes | Yes | Yes (PRD) | No | No | — | Yes | — | Yes (SPEC-first, REQ-ID'd) |
+| Task graph / DAG | tasks.md | Waves | Stories | tasks.json | — | No | tasks.json | Plans/waves | Beads | Beads DAG + typed gates |
+| Resumable across sessions | Workflow resume | Spec sync | Files | Files | No | No | Files+git | Files | Files | Yes, fingerprint-gated |
+| Adversarial / consistency review | analyze/converge | Property tests + reasoning | QA agent | — | — | — | Test gate | Verifier phase | Reviewer agent | Red-team verdict gates phase |
+| Worktree-per-task isolation | — | — | — | Tags (approx) | — | — | — | — | Yes (1/task) | Yes (WT + pinned base) |
+| Merged-state re-validation | — | — | — | — | — | — | — | — | — | Yes (merge-first) |
+| Upstream issue reconcile | tasks to issues (1-way) | — | — | — | — | — | — | — | — | 2-way triage to resolve |
+| Portable / cross-harness state | Agent-agnostic | No (IDE) | Web bundles | Editor-agnostic | No | No | — | Files | No (CC hooks) | OKF bundle + audit |
+| Approval bound to reviewed content | — | — | — | — | — | — | — | — | — | Yes (fingerprint hard-gate) |
+
+The table is a directional read of each project's primary documentation as of 2026-07, and its
+cells compress nuance. Spec Kit's `analyze`/`converge` gates and Kiro's reasoning checks are real
+consistency checks, for instance, but neither binds approval to a content hash. yf-plan's own cells
+are verified against its `SKILL.md`.
 
 ## A shared kernel that gates every skill
 

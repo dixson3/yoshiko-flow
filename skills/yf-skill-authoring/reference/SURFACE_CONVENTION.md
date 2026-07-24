@@ -73,22 +73,37 @@ Manifest is hand-maintained by skill authors. The shared helper `scripts/manifes
 
 ## 3. Config files
 
-Persistent shared config at repo root: `.<skill>.json` (committed). Local-only overrides at `.<skill>.local.json` (gitignored). Both optional — most skills ship with no config at all.
+Per-repo config lives in a canonical per-skill subdirectory: `.yf/<short>/config.local.json`. It is optional — most skills ship with no config at all. Because the whole `.yf/` tree is gitignored (§6), this file is local-only by construction.
+
+`<short>` is the skill name with the `yf-` prefix stripped — `plan` for `yf-plan`, `research` for `yf-research`, `beads-init` for `yf-beads-init`. Every skill resolves `<short>` through one central resolver (`resolve_skill` / `skill_short_name`), so the on-disk name is uniform across skills and never carries the `yf-` prefix.
+
+**Read precedence.** Config is read from the first location that exists, in this order:
+
+| Order | Path | Role |
+|:--|:--|:--|
+| 1 | `.yf/<short>/config.local.json` | canonical per-repo config |
+| 2 | `.<skill>.local.json` (repo root) | legacy root dotfile, read-only fallback |
+
+Tier 2 is the pre-`.yf/` layout. It survives only as a read fallback: the binary still reads it so a repo that has not migrated keeps working, but nothing writes it. Once the operator runs `yf migrate` (see § Migration), config lives under `.yf/<short>/` and the fallback goes unused. A skill's `config-basename:` frontmatter names its legacy dotfile so the resolver knows which root file to fall back to.
 
 **Config vs state — the rule of thumb.**
 
 - **Config** = operator decisions: opt-out flags, default options, per-machine overrides the operator deliberately sets.
-- **State** = cache / derived: prereqs-cached flags, last-run timestamps, computed indexes. Belongs in `.state/<skill>/` (§4). Never in config.
+- **State** = cache / derived: prereqs-cached flags, last-run timestamps, computed indexes. Belongs in the skill's `.yf/<short>/` runtime files (§4). Never in config.
 
 If you can't decide which bucket a value belongs in, ask: *would a fresh clone of the repo on a new machine reasonably need this value?* Yes → config. No (it can be recomputed or it's tied to a specific machine's run history) → state.
 
 ## 4. Local state
 
-Per-skill state and cache at `.state/<skill>/`. The whole `.state/` dir is gitignored once at repo root (§6).
+Per-skill runtime state and cache live under the same canonical subdirectory as config: `.yf/<short>/`. The shared preflight cache is `.yf/<short>/preflight.json`. A skill's config and state therefore share one directory — for `yf-plan`, that is `.yf/plan/config.local.json` and `.yf/plan/preflight.json`. The whole `.yf/` dir is gitignored once at repo root (§6).
 
-Skill scripts that write runtime cache files **must** write under `.state/<skill>/`. Never under the skill's source directory, never under `.{claude,agents}/`. The skill's source dir is read-only at runtime; any file the skill writes is per-checkout state and belongs in `.state/`.
+`<short>` is resolved by the same central short-name resolver used for config (§3), so state is never written under the full `yf-<skill>` name.
 
-This rule extends to the Python helper convention in [SKILL](../SKILL.md) § Python helpers — runtime caches written by helper scripts go under `.state/<skill>/`, not adjacent to the script.
+Skill scripts that write runtime cache files **must** write under `.yf/<short>/`. Never under the skill's source directory, never under `.{claude,agents}/`. The skill's source dir is read-only at runtime; any file the skill writes is per-checkout state.
+
+This rule extends to the Python helper convention in [SKILL](../SKILL.md) § Python helpers — runtime caches written by helper scripts go under `.yf/<short>/`, not adjacent to the script.
+
+> **Forward-pointer — manager-script drift.** The Rust `yf` binary emits the canonical short-name paths above. Some Python manager scripts still lag: `yf-plan`'s `plan_manager.py` writes state to the full-name `.yf/yf-plan/` and reads config only from the legacy root dotfile, so it never sees `.yf/plan/config.local.json`. That divergence is tracked in `dixson3/yoshiko-flow#100`. The canonical layout in this section is the standard those scripts are converging on — describe and adopt it, not the lagging behavior.
 
 ## 5. Hook installation
 
@@ -110,16 +125,15 @@ This element is **spec; first implementor will validate.** The contract is captu
 
 ## 6. Gitignore stewardship
 
-The project's `.gitignore` must contain, as **enumerated anchored entries** (not a glob):
+The project's `.gitignore` needs one anchored entry:
 
 ```
-/.<skill>.local.json
-/.state/
+/.yf/
 ```
 
-One `.local.json` line per adopting skill. The `/.state/` line is added by the first adopting skill and is a no-op for the rest.
+A single `/.yf/` anchor covers every skill's config and state — the whole `.yf/` tree is gitignored at once. The first adopting skill adds the line; it is a no-op for every skill after. This replaces the pre-`.yf/` scheme of one `/.<skill>.local.json` line per skill plus a separate `/.state/` anchor, which `yf migrate` collapses to the single anchor (see § Migration).
 
-The `*.local.json` glob is **rejected** — it would silently ignore files anywhere in the tree (e.g., `tools/foo/config.local.json`). Enumeration keeps gitignore explicit and auditable.
+The `*.local.json` glob is still **rejected** for any config kept at the repo root — it would silently ignore files anywhere in the tree (e.g., `tools/foo/config.local.json`). The `/.yf/` anchor is directory-scoped, not a bare glob, so it stays explicit and auditable.
 
 **Preflight ensures these entries (§7), not just init.** Stewardship-as-prose-in-init is fragile: it runs once and nothing re-verifies it, so a project that never ran init (or whose init step was skipped) silently ships unignored state. Folding the ensure into preflight makes it self-healing.
 
@@ -137,14 +151,30 @@ The `*.local.json` glob is **rejected** — it would silently ignore files anywh
 **Ensures** (idempotent, additive-only scaffold — the safe parts of setup):
 
 - required project dirs exist (`mkdir … exist_ok=True`)
-- the §6 gitignore anchors are present — append any that are missing, **never remove or reorder** existing lines
+- the §6 `/.yf/` gitignore anchor is present — append it if missing, **never remove or reorder** existing lines
 - report every line/dir it added (don't mutate silently)
 
-Gate the ensure behind a `scaffold-ensured: <version>` key in `.state/<skill>/` so it runs once per scaffold version, not every invocation. Bumping the version re-runs it (e.g., when this convention adds a new anchor). Because ensure is additive and runs once, it **will not fight an operator** who later deletes an anchor by choice — the tradeoff is that post-ensure drift is not re-detected.
+Preflight scaffolds only — it **does not migrate**. It writes the `/.yf/` anchor and creates `.yf/<short>/`, but it never moves legacy state or config out of `.state/<skill>/` or the root dotfile. Migration is the separate, operator-invoked `yf migrate` command (see § Migration). Until the operator runs it, legacy config is reached only through the tier-2 read fallback (§3).
+
+Gate the ensure behind a `scaffold-ensured: <version>` key in `.yf/<short>/` so it runs once per scaffold version, not every invocation. Bumping the version re-runs it (e.g., when this convention adds a new anchor). Because ensure is additive and runs once, it **will not fight an operator** who later deletes an anchor by choice — the tradeoff is that post-ensure drift is not re-detected.
 
 **init shrinks to consent-only setup** — the steps preflight cannot safely auto-run: decisions requiring operator input (e.g., `bd_not_initialized` → "fix prereqs or set `ignore-skill`?"), interactive config seeding, hook installation prompts. init may also call the same ensure-scaffold function, but the scaffold is no longer init-exclusive.
 
 Returns structured JSON. Each skill's preflight is **independent**. When multiple skills are stale in a single session, the operator gets per-skill prompts in invocation order. Cross-skill preflight orchestration is a known limitation — revisit if/when more than three skills install rules.
+
+## Migration from the pre-`.yf/` layout
+
+The pre-`.yf/` layout put each skill's config in a root dotfile `.<skill>.local.json` and its state under `.state/<skill>/`, with a `/.<skill>.local.json` gitignore line per skill plus a `/.state/` anchor. The `yf migrate` command converts a repo to the canonical layout in one pass:
+
+| Legacy location | Canonical destination |
+|:--|:--|
+| `.state/<old>/` | `.yf/<short>/` |
+| `.<old>.local.json` (root dotfile) | `.yf/<short>/config.local.json` |
+| `/.<skill>.local.json` + `/.state/` anchors | single `/.yf/` anchor |
+
+`<short>` comes from the same central short-name resolver the binary uses at read time, so migration and reads agree on the directory name.
+
+Migration is **operator-invoked and one-time** — preflight never runs it (§7). A repo that has not been migrated keeps working because the read path falls back to the legacy root dotfile (§3, tier 2); migration removes the need for that fallback.
 
 ## Vendoring the manifest helper
 
@@ -176,11 +206,11 @@ A skill named `<skill>` that ships one rule file `<NAME>.md`, has runtime state,
 └── docs/                     # operator-facing notes (not loaded by SKILL.md)
 
 repo root/
-├── .<skill>.json             # committed config (optional)
-├── .<skill>.local.json       # gitignored local overrides (optional)
-├── .gitignore                # contains /.<skill>.local.json and /.state/
-├── .state/
-│   └── <skill>/              # runtime cache (e.g. preflight.json)
+├── .gitignore                # contains a single /.yf/ anchor
+├── .yf/
+│   └── <short>/              # <short> = yf-stripped name (plan, not yf-plan)
+│       ├── config.local.json # gitignored local config (optional)
+│       └── preflight.json    # runtime cache / state
 └── <surface>/                # .agents or .claude — matches the skill's install surface
     └── rules/
         └── <NAME>.md         # project-scope target (installed by install.sh); hash-checked by preflight

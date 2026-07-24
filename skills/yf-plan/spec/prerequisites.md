@@ -34,7 +34,7 @@ REQ-PREREQ-020: `/yf-plan init` is the sole entry point for prerequisite checkin
 Rationale: Centralizes all setup in one command; no manual steps required beyond `bd init`.
 Verification: SKILL.md Pre-flight runs `check` and directs to `init` on non-ok status.
 
-REQ-PREREQ-021: `plan_manager.py check` writes `{"prereqs-present": true}` to `.yf/yf-plan/preflight.json` on success, caching the result for subsequent invocations.
+REQ-PREREQ-021: `plan_manager.py check` writes `{"prereqs-present": true}` to its state file on success, caching the result for subsequent invocations. The canonical state path is short-name `.yf/plan/preflight.json` (as the `yf` binary emits); the manager script currently writes full-name `.yf/yf-plan/preflight.json` — the short/full divergence tracked in `dixson3/yoshiko-flow#100`.
 Rationale: Re-running prereq checks on every invocation wastes time; caching makes pre-flight a single file read.
 Verification: `_check_prerequisites()` in plan_manager.py calls `_update_state(prereqs-present=True)` on success (a merge-write that preserves sibling state keys such as `scaffold-ensured`).
 

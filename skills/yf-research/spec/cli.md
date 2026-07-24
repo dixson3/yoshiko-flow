@@ -23,7 +23,7 @@ REQ-CLI-004: Every invocation except `init` runs `yf preflight yf-research --jso
 Rationale: Running the pipeline without prerequisites — or against a drifted/missing rule — produces confusing failures. The preflight (config gating, state caching, installed-rule hash) moved out of `research_manager.py` into the `yf preflight` kernel in plan-010; the JSON contract is a superset of the legacy schema (same status values).
 Verification: SKILL.md Pre-flight section (the `yf preflight yf-research --json` invocation and its status branches).
 
-REQ-CLI-005: If `.yf-research.local.json` (repo root) contains `"ignore-skill": true`, the skill exits silently.
+REQ-CLI-005: If the operator config `.yf/research/config.local.json` (or the legacy root fallback `.yf-research.local.json`) contains `"ignore-skill": true`, the skill exits silently.
 Rationale: Projects that can't satisfy prerequisites need a clean opt-out without repeated errors.
 Verification: SKILL.md Pre-flight `ignored` branch; the `yf preflight` kernel returns `{"status": "ignored"}` for that config.
 

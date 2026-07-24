@@ -54,10 +54,12 @@ is `yf-drift-check`'s axis.
 - **REQ-SKAUTH-020** *(testable)* a skill adopting the Surface Convention shall adopt all seven
   points or none: (1) companion rules sourced from `protocols/<NAME>.md`, installed by the repo
   installer to the scope+surface rules dir, never to `AGENTS/`, never editing `CLAUDE.md`;
-  (2) a `protocols/manifest.json` hash manifest with the six preflight outcomes; (3) committed
-  `.<skill>.json` + gitignored `.<skill>.local.json` config; (4) runtime state under `.state/<skill>/`
-  only; (5) hook installation via `hooks/manifest.json` merged by `<skill> init`; (6) enumerated
-  anchored gitignore entries; (7) the preflight contract (checks + idempotent scaffold).
+  (2) a `protocols/manifest.json` hash manifest with the six preflight outcomes; (3) canonical
+  per-repo config `.yf/<short>/config.local.json` (`<short>` = `yf-`-stripped name), with the
+  legacy root dotfile `.<skill>.local.json` read only as a fallback; (4) runtime state under
+  `.yf/<short>/` only; (5) hook installation via `hooks/manifest.json` merged by `<skill> init`;
+  (6) a single anchored `/.yf/` gitignore entry; (7) the preflight contract (checks + idempotent
+  scaffold; `yf migrate`, not preflight, moves legacy paths).
 - **REQ-SKAUTH-021** *(testable)* an unknown `schema_version` in `protocols/manifest.json` shall
   make preflight FAIL.
 - **REQ-SKAUTH-022** config shall be operator decisions only; **state ≠ config**, and runtime
@@ -72,8 +74,8 @@ is `yf-drift-check`'s axis.
   inside the skill dir only when dep count >~10 or specific pins matter.
 - **REQ-SKAUTH-032** *(testable)* CLI argument parsing shall use `click`, `typer`, or stdlib
   `argparse` — never `sys.argv` slicing.
-- **REQ-SKAUTH-033** helpers that persist runtime state shall write to `.state/<skill>/` resolved
-  from a caller-supplied `project_root`, not a hardcoded cwd.
+- **REQ-SKAUTH-033** helpers that persist runtime state shall write to `.yf/<short>/` (`<short>` =
+  `yf-`-stripped skill name) resolved from a caller-supplied `project_root`, not a hardcoded cwd.
 
 ### 2.5 Agent roles & review (see `reference/AGENT_ROLES.md`, `reference/PIPELINE.md`)
 
@@ -116,8 +118,9 @@ is `yf-drift-check`'s axis.
   `agents/reviewer-python.md` — read-only, dispatched via the Agent tool; the caller applies fixes.
 - **Companion rule:** **none** (the conventions are loaded on demand when authoring skill-dir
   content; there is no always-loaded trigger rule for this skill).
-- **Config / state:** none for the skill itself; it *defines* the `.<skill>.json` /
-  `.<skill>.local.json` / `.state/<skill>/` conventions that adopting skills follow.
+- **Config / state:** none for the skill itself; it *defines* the `.yf/<short>/config.local.json`
+  config and `.yf/<short>/` state conventions (legacy root dotfile `.<skill>.local.json` read as a
+  fallback) that adopting skills follow.
 
 ## 4. Guardrails (`GR-SKAUTH-NNN`)
 

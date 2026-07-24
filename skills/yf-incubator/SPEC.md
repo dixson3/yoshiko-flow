@@ -132,8 +132,10 @@ selector.
   trigger contract.
 - **Config / state:** no `.local.json` operator config and no `.yf/` runtime state today; all
   durable state is the per-incubator markdown under `Incubator/`. If preflight/config under the
-  macro kernel (`REQ-YF-PRE-*`) later applies, it would use `.yf-incubator.local.json` /
-  `.yf/yf-incubator/`, with legacy paths migrated via macro `REQ-YF-MIGRATE-001`.
+  macro kernel (`REQ-YF-PRE-*`) later applies, it would use the canonical short-name
+  `.yf/incubator/config.local.json` / `.yf/incubator/` (with the legacy root dotfile
+  `.yf-incubator.local.json` as a read-time fallback), with legacy paths migrated to the
+  canonical layout via macro `REQ-YF-MIGRATE-001` (`yf migrate`; preflight does not auto-migrate).
 
 ## 4. Guardrails (`GR-INCUB-NNN`)
 

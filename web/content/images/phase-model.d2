@@ -1,0 +1,124 @@
+# yf-plan phase model — 7 phases, statuses banded under their owning phase.
+# COMPLETE is RECONCILE's terminal STATUS, not an 8th phase. UPSTREAM is a
+# once-per-project preamble. Phases surface only via status, log.md, and gate prompts.
+direction: right
+
+upstream: {
+  label: "PHASE 0 · UPSTREAM DISCOVERY\nonce per project · re-validated per plan\n(persisted to CLAUDE.md — not a per-plan step)"
+  shape: rectangle
+  style.stroke-dash: 4
+  style.stroke: "#6b7280"
+  style.font-color: "#374151"
+}
+
+plan_seq: {
+  label: "per-plan sequence"
+  style.stroke: "#9ca3af"
+  style.stroke-dash: 2
+  style.fill: "#f9fafb"
+
+  scope: {
+    label: "PHASE 1 · SCOPE"
+    status: {
+      label: "status:\nscoping (seeded by init)\n→ investigating"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+  }
+
+  investigate: {
+    label: "PHASE 2 · INVESTIGATE"
+    status: {
+      label: "status:\ninvestigating"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+  }
+
+  plan: {
+    label: "PHASE 3 · PLAN"
+    status: {
+      label: "status:\ndrafting → review\n→ ready-for-approval"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+    gate: {
+      label: "gate: ready-for-approval\nnon-execute-eligible\n(ready-check green =\nred-team APPROVE + audit pass)"
+      shape: hexagon
+      style.fill: "#fef9c3"
+    }
+    status -> gate: "REVISE loop\n(re-run red-team)" {
+      style.stroke-dash: 3
+      style.stroke: "#b45309"
+    }
+  }
+
+  intake: {
+    label: "PHASE 4 · INTAKE"
+    status: {
+      label: "status:\napproved\n(gate: re-run ready-check\nadjacency before flip)"
+      shape: hexagon
+      style.fill: "#fef9c3"
+    }
+    stale: {
+      label: "⚠ stale-approved\nfingerprint drift → blocks EXECUTE"
+      shape: rectangle
+      style.fill: "#fee2e2"
+      style.stroke: "#b91c1c"
+    }
+    parked: {
+      label: "⏸ parked\napproved · fresh fingerprint · never executed"
+      shape: rectangle
+      style.fill: "#f3f4f6"
+    }
+    status -> stale: "overlay" { style.stroke-dash: 3; style.stroke: "#b91c1c" }
+    status -> parked: "overlay" { style.stroke-dash: 3; style.stroke: "#6b7280" }
+  }
+
+  boundary: {
+    label: "║\nSESSION BOUNDARY\nhuman start gate\n(execute eligibility carried\nby the fingerprint)"
+    shape: diamond
+    style.fill: "#e0f2fe"
+    style.stroke: "#0369a1"
+  }
+
+  execute: {
+    label: "PHASE 5 · EXECUTE"
+    status: {
+      label: "status:\nexecuting\n(after start-gate resolve)"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+  }
+
+  reconcile: {
+    label: "PHASE 6 · RECONCILE"
+    status: {
+      label: "status:\nreconciling"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+    complete: {
+      label: "COMPLETE\nterminal STATUS (§6.4)\nnot a phase"
+      shape: oval
+      style.fill: "#dcfce7"
+      style.stroke: "#15803d"
+      style.bold: true
+    }
+    status -> complete: "cascade-close →\ncomplete-gate → set-complete"
+  }
+
+  # main forward flow
+  scope.status <-> investigate.status: "findings ⇄ scope"
+  investigate.status -> plan.status: "draft"
+  plan.gate -> intake.status: "approval prompt"
+  intake.status -> boundary: "consent"
+  boundary -> execute.status: "new session"
+  execute.status -> reconcile.status: "DAG drained"
+
+  # backtracks (dashed) — NO EXECUTE→PLAN edge
+  plan.status -> investigate.status: "gaps → re-investigate" { style.stroke-dash: 4; style.stroke: "#7c3aed" }
+  plan.status -> scope.status: "gaps → re-scope" { style.stroke-dash: 4; style.stroke: "#7c3aed" }
+}
+
+upstream -> plan_seq.scope.status: "start / re-validate"

@@ -65,11 +65,11 @@ Adopt the whole contract or none of it. Full spec + worked example: [reference/S
 
 1. **Companion rules.** Source: `${SKILL_DIR}/protocols/<NAME>.md`. Installed by the repo installer (`install.sh`), not `<skill> init`, to a rules dir anchored by install scope and surface — `--scope user` → `~/.<surface>/rules/<NAME>.md`, `--scope project` → `<git-root>/.<surface>/rules/<NAME>.md` (`--surface claude|agents`). Never write to `AGENTS/`. Never edit `CLAUDE.md`.
 2. **Hash manifest.** `protocols/manifest.json` (`schema_version`, `files[<NAME>] = {sha256, version, deprecated, previous_versions[]}`). Preflight checks installed-rule hash against manifest. Six outcomes: match / older-version / drift / deprecated / missing-from-disk / orphan. Unknown `schema_version` → preflight FAIL.
-3. **Config files.** `.<skill>.json` (committed) and `.<skill>.local.json` (gitignored), both at repo root, both optional. Config = operator decisions. State ≠ config.
-4. **Local state.** `.state/<skill>/`. Skill scripts write runtime cache here only. Never under the skill source dir. Never under `.{claude,agents}/`.
+3. **Config files.** Canonical per-repo config `.yf/<short>/config.local.json` (`<short>` = `yf-`-stripped name, from the central resolver), optional. Read precedence: canonical subdir first, then the legacy root dotfile `.<skill>.local.json` as a read-only fallback. Config = operator decisions. State ≠ config.
+4. **Local state.** `.yf/<short>/` (e.g. `.yf/<short>/preflight.json`), same short name as config. Skill scripts write runtime cache here only. Never under the skill source dir. Never under `.{claude,agents}/`. Manager-script drift (`plan_manager.py` still writes full-name `.yf/yf-plan/`) is tracked in `dixson3/yoshiko-flow#100`.
 5. **Hook installation.** Skills that register Claude Code hooks declare them in `hooks/manifest.json` and merge into `.claude/settings.json` via `<skill> init`. Idempotent. `<skill> uninstall` removes them.
-6. **Gitignore stewardship.** The `.gitignore` carries enumerated anchored entries `/.<skill>.local.json` and `/.state/` (no globs). **Preflight ensures these** (§7), not just init.
-7. **Preflight contract.** `<skill> preflight` both **checks** (deps, installed-rule hash, config readability, hooks) and **ensures** the idempotent scaffold (required dirs + §6 gitignore anchors — additive-only, reported, gated by a `scaffold-ensured` state version so it runs once and won't fight an operator who removes an anchor). Returns structured JSON; non-OK checks block verb execution (rule problems → re-run `install.sh`; deps/consent problems → `<skill> init`). init shrinks to consent-only setup.
+6. **Gitignore stewardship.** The `.gitignore` carries a single anchored `/.yf/` entry (no globs). **Preflight ensures this** (§7), not just init.
+7. **Preflight contract.** `<skill> preflight` both **checks** (deps, installed-rule hash, config readability, hooks) and **ensures** the idempotent scaffold (required dirs + the §6 `/.yf/` anchor — additive-only, reported, gated by a `scaffold-ensured` state version so it runs once and won't fight an operator who removes an anchor). Preflight scaffolds but does not migrate; `yf migrate` moves legacy `.state/<old>/` and root dotfiles into `.yf/<short>/`. Returns structured JSON; non-OK checks block verb execution (rule problems → re-run `install.sh`; deps/consent problems → `<skill> init`). init shrinks to consent-only setup.
 
 ### Manifest helper
 
@@ -157,18 +157,18 @@ Run as `uv run script.py <args>` or — with the shebang + `chmod +x` — as `./
 
 ### Runtime cache files
 
-Helpers that persist runtime state write to `.state/<skill>/` at the repo root. Never under the skill source dir, never under `.{claude,agents}/`. The skill source tree is read-only at runtime. Same rule as Skill Surface Convention §4; restated here because Python helpers are where the violation usually happens.
+Helpers that persist runtime state write to `.yf/<short>/` at the repo root, where `<short>` is the `yf-`-stripped skill name from the central resolver. Never under the skill source dir, never under `.{claude,agents}/`. The skill source tree is read-only at runtime. Same rule as Skill Surface Convention §4; restated here because Python helpers are where the violation usually happens.
 
 Resolve the target from caller-supplied `project_root`; do not hardcode `cwd`:
 
 ```python
 from pathlib import Path
 
-def _state_dir(project_root: Path, skill_name: str) -> Path:
-    return project_root / ".state" / skill_name
+def _state_dir(project_root: Path, short_name: str) -> Path:
+    return project_root / ".yf" / short_name
 ```
 
-Preflight ensures `/.state/` is in `.gitignore` (§ Skill Surface Convention point 7); `.state/<skill>/` is created on first state write.
+Preflight ensures `/.yf/` is in `.gitignore` (§ Skill Surface Convention point 7); `.yf/<short>/` is created on first state write.
 
 ### When PEP 723 isn't pleasant
 
