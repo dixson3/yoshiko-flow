@@ -1,20 +1,42 @@
-"""skill_pages — generate one site page per skill from ``skills/*/SKILL.md``.
+"""skill_pages — one site page per skill, HYBRID composition.
 
-The single source of truth for the skill catalog is the ``SKILL.md`` frontmatter that ships
-with each skill (``name``, ``description``, ``skill-group``, ``user-invocable``). This plugin
-reads every ``skills/*/SKILL.md`` under the repo root at build time and emits:
+The skill catalog's mechanical facts come from the ``SKILL.md`` frontmatter that ships with
+each skill (``name``, ``description``, ``skill-group``, ``user-invocable``, ``depends-on-*``).
+This plugin reads every ``skills/*/SKILL.md`` under the repo root at build time and emits:
 
 - one page per skill at ``/skills/<name>/`` (themed via the standard ``page`` template), and
-- a grouped index at ``/skills/`` listing every skill under its ``skill-group``.
+- a grouped index at ``/skills/`` listing every skill under its ``skill-group``,
 
-Because the pages are generated from the same frontmatter Claude Code loads, the site's skill
-count and descriptions can never drift from the installed skills. There is no separate
-``triggers`` field in the frontmatter — the ``TRIGGER when:`` / ``SKIP for:`` guidance lives in
-the ``description`` prose, so this plugin splits those clauses out of ``description``.
+and builds the theme's left-sidebar ``SKILL_NAV``.
 
-Optional per-skill intro override: if ``content/skills/<name>.md`` exists, its rendered body is
-layered ABOVE the generated frontmatter-derived content on that skill's page (hand-authored
-prose without giving up the always-current generated block).
+**Hybrid page composition.** Each skill page is, top to bottom:
+
+1. the skill title + one-line summary (frontmatter), then
+2. an auto-generated **"At a glance"** block (frontmatter: group, invocation, required tools,
+   ``depends-on-skill``, reverse dependents, source links) — mechanical facts that literally
+   cannot drift, then
+3. the **authored prose** body from ``content/skills/<name>.md`` — the hand-editable page
+   content, with its own headings (typically *when it fires*, *how it works*, *usage*,
+   behavior notes).
+
+The ``/skills/`` index, the per-skill "At a glance" block, and ``SKILL_NAV`` stay derived
+from frontmatter, so the skill count, groups, invocation, and dependency columns can never
+drift. Only the authored prose is hand-written; a repo-root ``DRIFT-CHECK.md`` edge
+(``e-skill-page-*``) keeps that prose honest against each skill's ``SKILL.md`` / ``README.md``
+/ ``SPEC.md``.
+
+**Fail-closed on a missing page.** Every skill MUST have an authored
+``content/skills/<name>.md``. A skill without one is a hard build error naming the missing
+skill(s) — a newly added skill cannot ship an ungoverned page. ``add_skill_pages`` raises
+before generating any page and reports the offending names in
+``generator.context["missing_authored_page"]``.
+
+**Orphan pages.** A stray ``content/skills/<name>.md`` with no matching ``skills/<name>/`` dir
+is simply never read — the plugin iterates skills, not content files — so it generates no page
+and lints/builds harmlessly.
+
+An authored page MAY carry a leading YAML frontmatter block; it is stripped before render, and
+the page title/subtitle stay plugin-set from frontmatter (unlike ordinary content pages).
 
 Pages are appended to the PagesGenerator in ``page_generator_finalized`` (which fires after the
 generator has read the on-disk pages but before ``generate_output`` writes them), so the
@@ -71,6 +93,11 @@ def _split_description(description):
 
     The convention: free prose, then ``TRIGGER when: …`` then optional ``SKIP for: …``.
     Whitespace/newlines from a folded YAML scalar are collapsed to single spaces.
+
+    Only ``summary`` reaches the rendered page (the title one-liner). ``trigger`` / ``skip``
+    are no longer surfaced as generated blocks — the authored prose folds trigger/skip
+    guidance into its own narrative — but are kept on the skill dict for the index/nav layer
+    and any future consumer.
     """
     text = " ".join((description or "").split())
     trigger = skip = ""
@@ -125,9 +152,18 @@ def _ordered_groups(skills):
     return [(g, sorted(by_group[g], key=lambda s: s["name"])) for g in ordered]
 
 
-def _skill_override_html(settings, name):
-    """Rendered body of content/skills/<name>.md, or '' if absent."""
-    path = os.path.join(settings["PATH"], "skills", name + ".md")
+def _authored_page_path(settings, name):
+    """Filesystem path of the authored content/skills/<name>.md (may not exist)."""
+    return os.path.join(settings["PATH"], "skills", name + ".md")
+
+
+def _authored_page_html(settings, name):
+    """Rendered prose body of the authored content/skills/<name>.md, or '' if absent/empty.
+
+    A leading YAML frontmatter block (if the author included one) is stripped before render —
+    the page title/subtitle stay plugin-set from the skill frontmatter, not the authored file.
+    """
+    path = _authored_page_path(settings, name)
     if not os.path.isfile(path):
         return ""
     md = _fresh_md()
@@ -138,69 +174,6 @@ def _skill_override_html(settings, name):
     return md.convert(text)
 
 
-# README sections that are repo-developer oriented, not useful on the public site.
-_DROP_SECTIONS = ("install", "file layout")
-# Markdown link / image: (optional !)[text](url optional-title)
-_MD_LINK = re.compile(r"(!?)\[([^\]]*)\]\(([^)\s]+)(\s+\"[^\"]*\")?\)")
-
-
-def _rewrite_readme_links(md_text, name, github):
-    """Rewrite skill-dir-relative links/images to GitHub so they resolve off-site.
-
-    Relative link → the skill dir's GitHub blob URL; relative image → the raw
-    (githubusercontent) URL so the diagram renders inline. Absolute (http/https),
-    root, anchor, and mailto targets are left untouched.
-    """
-    repo = github.split("github.com/", 1)[1].rstrip("/") if "github.com/" in github else ""
-    blob = f"{github}/blob/main/skills/{name}/"
-    raw = f"https://raw.githubusercontent.com/{repo}/main/skills/{name}/" if repo else ""
-
-    def repl(match):
-        bang, text, url, title = match.group(1), match.group(2), match.group(3), match.group(4) or ""
-        if url.lower().startswith(("http://", "https://", "/", "#", "mailto:")):
-            return match.group(0)
-        base = raw if bang else blob
-        if not base:
-            return match.group(0)
-        return f"{bang}[{text}]({base}{url}{title})"
-
-    return _MD_LINK.sub(repl, md_text)
-
-
-def _readme_body_md(repo_root, name):
-    """The skill README markdown from its first `##` on, with dev-only sections dropped.
-
-    Drops the H1 title and the intro one-liner (the SKILL `description` summary already
-    leads the page), and the `Install` / `File Layout` sections (repo-dev oriented).
-    """
-    path = os.path.join(repo_root, "skills", name, "README.md")
-    if not os.path.isfile(path):
-        return ""
-    with open(path, encoding="utf-8") as fh:
-        text = _FRONTMATTER.sub("", fh.read())
-
-    out, started, skipping = [], False, False
-    for line in text.splitlines():
-        if line.startswith("## "):
-            started = True
-            title = line[3:].strip().lower()
-            skipping = any(title.startswith(drop) for drop in _DROP_SECTIONS)
-            if skipping:
-                continue
-        if not started or skipping:
-            continue
-        out.append(line)
-    return "\n".join(out).strip()
-
-
-def _readme_html(repo_root, name, github):
-    """Rendered, link-rewritten skill README exposition, or '' if the README is absent."""
-    body = _readme_body_md(repo_root, name)
-    if not body:
-        return ""
-    return _fresh_md().convert(_rewrite_readme_links(body, name, github))
-
-
 def _skill_link(name, known):
     """A link to another skill's page when it is an in-repo skill, else plain code."""
     if name in known:
@@ -208,7 +181,13 @@ def _skill_link(name, known):
     return f"<code>{name}</code>"
 
 
-def _skill_page_html(settings, skill, repo_root, known):
+def _skill_page_html(settings, skill, known):
+    """Compose a skill page: summary + generated "At a glance" + authored prose body.
+
+    The prose body is the authored ``content/skills/<name>.md`` (guaranteed present by the
+    fail-closed guard in ``add_skill_pages``). The "At a glance" block is always generated from
+    frontmatter, so the mechanical catalog facts never drift.
+    """
     github = settings.get("GITHUB_URL", "")
     name = skill["name"]
     skmd = f"{github}/blob/main/skills/{name}/SKILL.md" if github else ""
@@ -219,9 +198,6 @@ def _skill_page_html(settings, skill, repo_root, known):
         else "auto (fires from its description conditions when relevant work appears)"
     )
     parts = []
-    override = _skill_override_html(settings, name)
-    if override:
-        parts.append(override)
     if skill["summary"]:
         parts.append(f"<p>{skill['summary']}</p>")
     parts.append("<h2>At a glance</h2>")
@@ -245,18 +221,12 @@ def _skill_page_html(settings, skill, repo_root, known):
             f' &middot; <a href="{rdme}"><code>README.md</code></a></li>'
         )
     parts.append("</ul>")
-    if skill["trigger"]:
-        parts.append("<h2>When it fires</h2>")
-        parts.append(f"<p>{skill['trigger']}</p>")
-    if skill["skip"]:
-        parts.append("<h2>When to skip it</h2>")
-        parts.append(f"<p>{skill['skip']}</p>")
-    # The skill's own README carries the real exposition (why it exists, how it works,
-    # usage, behavior model). Render it below the frontmatter-derived quick reference.
-    readme = _readme_html(repo_root, name, github)
-    if readme:
+    # Prose body: the authored content/skills/<name>.md (the fail-closed guard guarantees it
+    # exists; an intentionally empty file simply renders no body below the quick reference).
+    authored = _authored_page_html(settings, name)
+    if authored:
         parts.append("<hr>")
-        parts.append(readme)
+        parts.append(authored)
     return "\n".join(parts)
 
 
@@ -320,6 +290,20 @@ def add_skill_pages(generator):
     if not skills:
         return
 
+    # Fail-closed: every skill MUST have an authored content/skills/<name>.md. A skill without
+    # one would otherwise ship an ungoverned, drift-check-less page, so the build stops here and
+    # names the offenders. The signal is also recorded on the context for tests / diagnostics.
+    missing = sorted(
+        s["name"] for s in skills if not os.path.isfile(_authored_page_path(settings, s["name"]))
+    )
+    generator.context["missing_authored_page"] = missing
+    if missing:
+        raise RuntimeError(
+            "skill_pages: no authored web/content/skills/<name>.md for: "
+            + ", ".join(missing)
+            + ". Every skill needs an authored page (add one under web/content/skills/)."
+        )
+
     # Reverse the depends-on-skill graph so each skill page can show what depends on IT.
     known = {s["name"] for s in skills}
     for s in skills:
@@ -347,7 +331,7 @@ def add_skill_pages(generator):
                 generator,
                 f"skills/{skill['name']}",
                 skill["name"],
-                _skill_page_html(settings, skill, repo_root, known),
+                _skill_page_html(settings, skill, known),
                 subtitle=skill["summary"][:120] if skill["summary"] else "",
             )
         )
