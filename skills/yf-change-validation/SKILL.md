@@ -112,7 +112,8 @@ On explicit `init` in a repo with no approved manifest:
    `package.json`, `test_*.py` PEP-723 headers, repo `--check` scripts), construct the `fast`
    and `full` tiers + the §2 fingerprint, and emit a draft `CHANGE-VALIDATION.md` (filling
    `templates/manifest.md`). FULL is built as **CI ∪ repo-checks** (the superset invariant); an
-   existing `validate-cmd` in `.yf-plan.local.json` seeds FULL (the #27 migration clause).
+   existing `validate-cmd` in yf-plan's config (canonical tiers first, legacy
+   `.yf-plan.local.json` last) seeds FULL (the #27 migration clause).
 2. **Present** the draft to the operator. It is **inert until approved** (`§0 approved: no`) —
    it does not drive enforcement.
 3. **Operator approves** → set §0 `approved: yes`. The engine enforces it thereafter.

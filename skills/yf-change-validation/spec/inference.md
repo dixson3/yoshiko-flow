@@ -54,7 +54,9 @@ repo's `docs-deploy.yml` is double-disabled, `release.yml` is publish-only). Ver
 against a workflow fixture with an `if: false` job and a tag-only job omits both.
 
 **REQ-INFER-004: Seed the FULL tier from an existing `validate-cmd` (the #27 migration clause).**
-When `.yf-plan.local.json` contains a `validate-cmd`, `infer` seeds the FULL tier **from it** —
+When yf-plan's config supplies a `validate-cmd` — read across the canonical tiers
+`.yf/plan/config.local.json` → `.yf/plan/config.json` → legacy `.yf-plan.local.json`, first tier
+with the key winning — `infer` seeds the FULL tier **from it** —
 the existing operator-authored command becomes a FULL row (then augmented by the inferred CI ∪
 repo-checks per REQ-INFER-005). Rationale: #27 supersedes the static `validate-cmd`; a clean
 migration must not silently drop the validation the operator already configured. Verification:

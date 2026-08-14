@@ -41,7 +41,18 @@ import tomllib
 from pathlib import Path
 
 MANIFEST_NAME = "CHANGE-VALIDATION.md"
-VALIDATE_CMD_CONFIG = ".yf-plan.local.json"
+
+# yf-plan's config tiers, highest precedence first (REQ-YF-PRE-004 / -004a). The
+# `validate-cmd` seed must read the SAME tiers as `plan_manager.py::_read_config`
+# and `preflight.rs::read_config` — a third reader on the legacy-only surface is
+# exactly the drift #100 removes (#101).
+VALIDATE_CMD_CONFIG_TIERS = (
+    ".yf/plan/config.local.json",   # gitignored operator override
+    ".yf/plan/config.json",         # committed, shared
+    ".yf-plan.local.json",          # legacy root dotfile — read-only fallback
+)
+# Retained for back-compat with anything referencing the old single-path constant.
+VALIDATE_CMD_CONFIG = VALIDATE_CMD_CONFIG_TIERS[-1]
 
 # Exit codes — distinct so callers can tell refusal from fail.
 EXIT_OK = 0
@@ -388,24 +399,38 @@ def read_check_scripts(root: Path) -> dict | None:
 
 
 def read_validate_cmd(root: Path) -> dict | None:
-    """Migration clause M4 / REQ-INFER-004: an existing `.yf-plan.local.json`
-    `validate-cmd` SEEDS the FULL tier."""
-    p = root / VALIDATE_CMD_CONFIG
-    if not p.exists():
-        return None
-    try:
-        data = json.loads(p.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
-    vc = data.get("validate-cmd")
-    if not vc:
-        return None
-    return {
-        "source": VALIDATE_CMD_CONFIG,
-        "validate_cmd": vc,
-        "fingerprint": sha(vc),
-        "commands": [vc],
-    }
+    """Migration clause M4 / REQ-INFER-004: an existing yf-plan `validate-cmd`
+    SEEDS the FULL tier.
+
+    Reads yf-plan's canonical config tiers in precedence order (#101) —
+    `.yf/plan/config.local.json`, then the committed `.yf/plan/config.json`, then
+    the legacy `.yf-plan.local.json` root dotfile. The first tier that supplies a
+    `validate-cmd` wins, and `source` reports which one it came from so the
+    inferred manifest records its actual provenance.
+
+    Per-key merging is unnecessary here: only one key is read, so first-tier-wins
+    and a merge agree.
+    """
+    for rel in VALIDATE_CMD_CONFIG_TIERS:
+        p = root / rel
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        vc = data.get("validate-cmd")
+        if not vc:
+            continue
+        return {
+            "source": rel,
+            "validate_cmd": vc,
+            "fingerprint": sha(vc),
+            "commands": [vc],
+        }
+    return None
 
 
 def gather_signals(root: Path) -> dict:
