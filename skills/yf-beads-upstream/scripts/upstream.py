@@ -404,11 +404,33 @@ def enumerate_candidates(
     return candidate_filter([beads[bid] for bid in active.non_active if bid in beads])
 
 
+def owner_claim_exclusions(
+    beads: dict[str, dict], edges: list[Edge], ignore_owner_claim: bool
+) -> list[str]:
+    """Bead ids excluded from candidacy *solely* because of an owner-claim (REQ-BUP-049).
+
+    Pure. Returns [] when `ignore_owner_claim` is already True (nothing is excluded on
+    owner grounds), otherwise the set difference between candidacy computed with owner
+    claims ignored and candidacy as actually computed. Reuses the REQ-BUP-048 mechanism —
+    two classifications, diffed — so the shared plan-013 glossary stays untouched.
+    """
+    if ignore_owner_claim:
+        return []
+    effective = {r["id"] for r in enumerate_candidates(beads, edges, ignore_owner_claim=False) if r.get("id")}
+    relaxed = {r["id"] for r in enumerate_candidates(beads, edges, ignore_owner_claim=True) if r.get("id")}
+    return sorted(relaxed - effective)
+
+
 def cmd_enumerate(as_json: bool) -> int:
     rows = load_universe_rows()
     beads = {r["id"]: r for r in rows if r.get("id")}
     edges = collect_parent_edges(beads)
-    nonactive_rows = enumerate_candidates(beads, edges, ignore_owner_claim=owner_on_create())
+    ignore_owner = owner_on_create()
+    nonactive_rows = enumerate_candidates(beads, edges, ignore_owner_claim=ignore_owner)
+    # REQ-BUP-049: never silently drop owner-claimed beads. Keyed on the excluded COUNT,
+    # not on an empty candidate list — a plausible non-zero result can still hide most of
+    # the universe (#105: `1 candidate(s)` while ~36 open beads were excluded).
+    excluded = owner_claim_exclusions(beads, edges, ignore_owner)
     out = []
     for r in nonactive_rows:
         bid = r.get("id")
@@ -433,6 +455,17 @@ def cmd_enumerate(as_json: bool) -> int:
         for r in out:
             flag = r["external"] if r["mapped"] else "—"
             print(f"  {r['id']:<16} [{r['status']}/{r['type']}] {r['title']}  ({flag})")
+    # stderr in BOTH modes: stdout stays a pure JSON array for pipeline consumers, and the
+    # warning still reaches a human or an agent reading combined output.
+    if excluded:
+        print(
+            f"WARNING: {len(excluded)} open bead(s) excluded as owner-claimed and will never be "
+            f"pushed. If `bd create` auto-assigns owners in this repo, set "
+            f"`custom.upstream.owner_on_create true` (see REQ-BUP-048).",
+            file=sys.stderr,
+        )
+        preview = ", ".join(excluded[:5]) + (" …" if len(excluded) > 5 else "")
+        print(f"         excluded: {preview}", file=sys.stderr)
     return 0
 
 

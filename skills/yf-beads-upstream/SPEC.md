@@ -148,6 +148,21 @@ companion rule.
   preserved while owner-only "claims" fall through to candidacy. When **off** (default), enumerate
   behavior is byte-for-byte as before. *Why (#61):* in owner-on-create repos every open bead reads
   as claimed→active→excluded, so land-the-plane candidate discovery silently finds zero candidates.
+- **REQ-BUP-049** *(testable, #105)* `enumerate` shall **never silently exclude** owner-claimed
+  beads. When `owner_on_create` is **off** and at least one non-closed bead would be a candidate
+  under `ignore_owner_claim=True` but is excluded under the effective setting, enumerate shall emit
+  a warning naming the excluded **count** and the remedy
+  (`custom.upstream.owner_on_create true`). The trigger is `excluded_owner_claimed > 0`, **not**
+  `len(candidates) == 0` — a run may return a plausible non-zero candidate list while still
+  dropping most of the universe, and that case must warn too. The warning goes to **stderr** in
+  both human and `--json` modes, so `stdout` remains a pure JSON array for pipeline consumers and
+  the signal survives a `| jq`. Detection reuses the REQ-BUP-048 mechanism — classify twice and
+  diff the candidate sets — so the shared glossary still does not change. *Why (#105):* observed
+  live in `dixson3/yoshiko-flow` — with `owner_on_create` unset and `bd` auto-assigning owners,
+  enumerate reported `1 candidate(s)` while silently dropping ~36 open beads. A bare `0` at least
+  invites suspicion; a plausible small non-zero does not, so a zero-keyed guard would not have
+  fired. The silent path previously led to a hand-run `bd github push`, the exact anti-pattern
+  GR-BUP-002 forbids.
 
 ## 3. Interfaces
 
