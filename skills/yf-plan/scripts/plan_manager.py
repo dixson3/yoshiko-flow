@@ -2742,6 +2742,14 @@ def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
     and upper-cased. Returns ``(None, None)`` when no pass file exists, and
     ``(N, None)`` when the highest pass file has no parseable verdict line.
 
+    Per REQ-PLAN-071 the canonical emitted form is the level-2 heading ``## Verdict:``
+    (what ``agents/red-team.md`` writes and what 56 of the existing reviews use). The
+    parser additionally accepts a level-3 ``### Verdict:`` as **defence in depth**: a
+    template that drifts back to ``###`` would otherwise degrade to a silent "no
+    verdict" — unobservable at the point of failure, which is exactly how #116 hid.
+    Accepting ``###`` is a tolerance, not a second canonical form; emitting it is
+    still non-conformant.
+
     "Highest N" is the *last recorded* red-team cycle — REQ-PLAN-030 keys readiness
     on that being ``APPROVE`` (an earlier APPROVE followed by an unre-reviewed REVISE
     is not ready).
@@ -2763,7 +2771,7 @@ def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
         return (None, None)
     verdict: str | None = None
     for line in best_file.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"##\s+Verdict:\s*([A-Za-z-]+)", line.strip())
+        m = re.match(r"#{2,3}\s+Verdict:\s*([A-Za-z-]+)", line.strip(), re.IGNORECASE)
         if m:
             verdict = m.group(1).upper()
             break
