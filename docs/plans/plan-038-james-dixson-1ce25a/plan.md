@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-038-james-dixson-1ce25a
 author: james-dixson
 created: '2026-08-14'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: f1c212431f7a1462de0c7133f5c991a666192bc0ddc4d47cac26633399b896f2
+epic: yf-mol-g83
 ---
 # Plan: Make yf-beads-upstream enforce its own never-hand-run invariant
 
 **ID:** plan-038-james-dixson-1ce25a
 **Author:** james-dixson
 **Created:** 2026-08-14
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-g83
 **Fingerprint:** f1c212431f7a1462de0c7133f5c991a666192bc0ddc4d47cac26633399b896f2
 
 ## Objective
