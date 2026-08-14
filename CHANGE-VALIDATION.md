@@ -21,6 +21,7 @@ approved: yes
 | `uv` | `uv run --with pytest python3 -m pytest _shared/test_sync.py -q` |  |  |
 | `uv-run` | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 | `uv-with` | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
+| `bup-prescriptive-push` | `uv run skills/yf-beads-upstream/scripts/check_prescriptive_push.py` |  |  |
 | `uv-skills` | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 | `uv-pytest` | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 | `uv-yf` | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
@@ -42,6 +43,7 @@ approved: yes
 |  | `uv run --with pytest python3 -m pytest _shared/test_sync.py -q` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
+|  | `uv run skills/yf-beads-upstream/scripts/check_prescriptive_push.py` |  |  |
 |  | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
@@ -74,8 +76,9 @@ approved: yes
 | `_shared/test_sync.py` | `uv` |
 | `skills/yf-beads-hygiene/scripts/**` | `uv-run` |
 | `skills/yf-beads-hygiene/scripts/test_beads_hygiene.py` | `uv-run` |
-| `skills/yf-beads-upstream/scripts/**` | `uv-with` |
+| `skills/yf-beads-upstream/scripts/**` | `uv-with`, `bup-prescriptive-push` |
 | `skills/yf-beads-upstream/scripts/test_upstream.py` | `uv-with` |
+| `skills/yf-beads-upstream/SKILL.md` | `bup-prescriptive-push`, `uv-with` |
 | `skills/yf-change-validation/scripts/**` | `uv-skills` |
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |

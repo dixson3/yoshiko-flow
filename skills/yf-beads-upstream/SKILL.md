@@ -525,7 +525,12 @@ your behalf, so you can read and verify the emitted sequence. Run the verb; do n
 issue types, required fields) differs from GitHub/GitLab labels — the stub is unverified and
 will likely need field mapping before a real push. The verb emits the dedicated
 `bd jira push <ids>` form, which mirrors the others' positional-IDs shape, rather than the
-`sync --push` form; `upstream.py push --backend jira` is still the path to run.
+`sync --push` form.
+
+> **Jira auth is not wired.** `BACKEND_AUTH` maps only `github` and `gitlab`; a
+> `--backend jira` push falls back to the GitHub token (`GITHUB_TOKEN=$(gh auth token)`),
+> which is wrong for Jira. Read the emitted sequence before running anything against Jira.
+> This is part of the config-only-stub status, not a regression — tracked separately.
 
 The `--issues` / `--parent` / `--dry-run` flags are confirmed present on backend-generic
 `bd <backend> sync` for all three (plan-003 Investigation Finding; re-verified here via

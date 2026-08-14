@@ -482,6 +482,10 @@ def test_upstream_enabled_default_deny():
         "custom.upstream.enabled": "true\n", "custom.upstream.backend": "github\n"})) is True
     # unset
     assert up.upstream_enabled(fake_config({})) is False
+    # enabled=true with an UNSET backend stays ENABLED — the docs are explicit that the
+    # explicit `none` marker is never required for the short-circuit, so only an explicit
+    # `none` disables. (Caught by drift-check: an earlier two-key AND contradicted them.)
+    assert up.upstream_enabled(fake_config({"custom.upstream.enabled": "true\n"})) is True
     # enabled but backend none
     assert up.upstream_enabled(fake_config({
         "custom.upstream.enabled": "true\n", "custom.upstream.backend": "none\n"})) is False

@@ -252,7 +252,7 @@ companion rule.
   `scripts/manifest_update.py` restamps the companion-rule manifest hash. Upstream pushes use bd's
   first-class `bd github|gitlab|jira push <ids>` (≡ scoped `sync --push-only`).
 - **Companion rule:** `protocols/UPSTREAM_TRACKING.md` (+ `protocols/manifest.json`,
-  sha256 + semver `1.0.0`) — the always-loaded close-time/land-the-plane trigger contract,
+  sha256 + semver, currently `1.3.0`) — the always-loaded close-time/land-the-plane trigger contract,
   carrying the silent-no-op-when-disabled clause and the safety invariant. After editing the
   rule, restamp via `manifest_update.py`.
 - **Config / state:** beads config under `custom.upstream.*` (`enabled`, `backend`,

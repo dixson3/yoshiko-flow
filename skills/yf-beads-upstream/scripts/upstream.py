@@ -122,18 +122,21 @@ def auto_hoist_followons(config_get=_config_get) -> bool:
 def upstream_enabled(config_get=_config_get) -> bool:
     """Return True only when upstream tracking is actually enabled (REQ-BUP-010).
 
-    Default-DENY, and BOTH keys must agree: `custom.upstream.enabled` is the literal
-    "true" AND `custom.upstream.backend` is neither unset nor "none". Unset / empty /
-    "false" / any other value resolves disabled, mirroring the auto_hoist_followons
-    short-circuit shape (reads the config TEXT for the `(not set)` sentinel, never the
-    exit code — the false-negative invariant). `config_get` is injectable.
+    Default-DENY: `custom.upstream.enabled` must be the literal "true"; unset / empty /
+    "false" / any other value resolves disabled. Backend `none` also disables, matching
+    the documented test ("unconfigured, `false`, or backend `none`").
+
+    An UNSET backend does NOT disable — the docs are explicit that the explicit `none`
+    marker is never required for the short-circuit, so only an explicit `none` (or an
+    empty value) counts. Reads the config TEXT for the `(not set)` sentinel, never the
+    exit code (the false-negative invariant). `config_get` is injectable.
     """
     raw = config_get("custom.upstream.enabled")
     if raw is None or NOT_SET_SENTINEL in raw or raw.strip() != "true":
         return False
     backend = config_get("custom.upstream.backend")
     if backend is None or NOT_SET_SENTINEL in backend:
-        return False
+        return True  # unset backend is not a disable signal (see docstring)
     return backend.strip() not in ("", "none")
 
 
@@ -866,8 +869,8 @@ def owner_claim_warning_lines() -> list[str]:
         return []
     preview = ", ".join(excluded[:5]) + (" …" if len(excluded) > 5 else "")
     return [
-        f"WARNING: {len(excluded)} open bead(s) are excluded as owner-claimed and will "
-        f"never be pushed. If `bd create` auto-assigns owners in this repo, set "
+        f"WARNING: {len(excluded)} open bead(s) excluded as owner-claimed and will never "
+        f"be pushed. If `bd create` auto-assigns owners in this repo, set "
         f"`custom.upstream.owner_on_create true` (see REQ-BUP-048).",
         f"         excluded: {preview}",
     ]
