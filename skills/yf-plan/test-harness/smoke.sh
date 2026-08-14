@@ -358,32 +358,38 @@ cmd_drive() {
 # One-shot: setup -> drive -> verify -> Tier-1, with a single combined verdict.
 cmd_gate() {
   local scratch_home="${1:-}"
-  echo "==================== [1/4] SETUP (build + sandbox install) ===================="
+  echo "==================== [1/5] SETUP (build + sandbox install) ===================="
   cmd_setup "${scratch_home}"
   local project repo_root
   project="$(_env_get SMOKE_PROJECT)"
   repo_root="$(_env_get REPO_ROOT)"
 
   echo ""
-  echo "==================== [2/4] DRIVE (mechanical lifecycle) ======================="
+  echo "==================== [2/5] DRIVE (mechanical lifecycle) ======================="
   cmd_drive "${project}"
 
   echo ""
-  echo "==================== [3/4] VERIFY (topology assertions) ======================="
+  echo "==================== [3/5] VERIFY (topology assertions) ======================="
   local verify_rc=0
   cmd_verify "${project}" || verify_rc=$?
 
   echo ""
-  echo "==================== [4/4] TIER-1 (test_worktree.py, repo tree) ==============="
+  echo "==================== [4/5] CONFIG TIERS (REQ-YF-PRE-004 / REQ-PLAN-073) ======="
+  local cfg_rc=0
+  cmd_config "${project}" || cfg_rc=$?
+
+  echo ""
+  echo "==================== [5/5] TIER-1 (test_worktree.py, repo tree) ==============="
   local t1_rc=0
   ( cd "${repo_root}" && env -u VIRTUAL_ENV uv run skills/yf-plan/scripts/test_worktree.py ) || t1_rc=$?
 
   echo ""
   echo "======================================= VERDICT ==============================="
   echo "  Tier-2 scratch smoke (topology): $([ "${verify_rc}" -eq 0 ] && echo PASS || echo FAIL)"
+  echo "  Tier-2 config tiers + roots:     $([ "${cfg_rc}" -eq 0 ] && echo PASS || echo FAIL)"
   echo "  Tier-1 test_worktree.py:         $([ "${t1_rc}" -eq 0 ] && echo PASS || echo FAIL)"
   echo "  topology artifact:               ${HARNESS_DIR}/topology.txt"
-  if [ "${verify_rc}" -eq 0 ] && [ "${t1_rc}" -eq 0 ]; then
+  if [ "${verify_rc}" -eq 0 ] && [ "${cfg_rc}" -eq 0 ] && [ "${t1_rc}" -eq 0 ]; then
     echo ""
     echo "  ✅ CAPABILITY GATE SATISFIED. Resolve it with:"
     echo "       bd gate resolve yf-mol-al2.10"
@@ -394,13 +400,86 @@ cmd_gate() {
   return 1
 }
 
+# ------------------------------------------------------------- config-tiers ----
+# Mechanically drive the THREE-TIER config reader (REQ-YF-PRE-004 / -004a) and the
+# configurable roots (REQ-PLAN-073) with the MODIFIED skill, under the sandbox HOME.
+#
+# Tier-1 (test_config_tiers.py) covers this by importing the module; this phase is
+# the Tier-2 counterpart — a real `plan_manager.py init` subprocess resolving real
+# config files on disk, which is what an operator actually hits. The distinction
+# matters because the roots bind at IMPORT time: an in-process test can be fooled by
+# module caching in a way a fresh subprocess cannot.
+cmd_config() {
+  local project="${1:-$(_env_get SMOKE_PROJECT)}"
+  local skill; skill="$(_env_get YF_SANDBOX_SKILL)"
+  [ -d "${project}/.git" ] || { echo "ERROR: no sandbox project — run 'setup' first" >&2; exit 1; }
+  [ -d "${skill}/scripts" ] || { echo "ERROR: sandbox skill missing (${skill})" >&2; exit 1; }
+
+  # Isolated sub-project so this phase cannot perturb the topology walk's repo.
+  local proj="${project}-config"
+  rm -rf "${proj}"; mkdir -p "${proj}/.yf/plan"
+  git -C "${proj}" init -q .
+  git -C "${proj}" config user.email "smoke@yoshiko.test"
+  git -C "${proj}" config user.name  "yf-plan smoke"
+
+  local PM=(env -u VIRTUAL_ENV uv run "${skill}/scripts/plan_manager.py")
+  local jget=(env -u VIRTUAL_ENV uv run "${skill}/scripts/plan_manager.py" json-get)
+  local rc=0
+
+  pushd "${proj}" >/dev/null
+
+  # Committed tier carries the LAYOUT; local tier overrides ONE unrelated key.
+  # Under the old whole-file first-match this masked plans-root entirely.
+  printf '%s' '{"plans-root":"Notes/plans","incubator-root":"Notes/Inc","landing-strategy":"main"}' \
+    > .yf/plan/config.json
+  printf '%s' '{"landing-strategy":"feature-branch"}' > .yf/plan/config.local.json
+  printf '%s' '{"validate-cmd":"legacy-only-cmd"}'   > .yf-plan.local.json
+
+  echo ">> [config] init under a committed non-default plans-root"
+  local pj plan_dir
+  pj="$("${PM[@]}" init "smoke: configurable roots")" || rc=1
+  plan_dir="$(printf '%s' "${pj}" | "${jget[@]}" plan_dir)"
+
+  case "${plan_dir}" in
+    Notes/plans/*) _ok "committed tier drove plans-root: ${plan_dir}" ;;
+    *)             _bad "plans-root ignored — plan landed at ${plan_dir}"; rc=1 ;;
+  esac
+  if [ -d "${plan_dir}" ]; then _ok "bundle created under the configured root"
+  else _bad "bundle missing at ${plan_dir}"; rc=1; fi
+  if [ -d docs/plans ]; then _bad "default docs/plans was created despite config"; rc=1
+  else _ok "default docs/plans NOT created"; fi
+
+  # The assertions above ARE the merge proof, and this is the whole point of the
+  # phase: a `.yf/plan/config.local.json` exists and sets only `landing-strategy`.
+  # Under the OLD whole-file first-match-wins reader that local file would have won
+  # outright, `plans-root` would never have been seen, and the plan would have landed
+  # in the default `docs/plans`. It landed in `Notes/plans`, so the committed tier
+  # was merged rather than masked. `landing-strategy` / `validate-cmd` have no CLI
+  # verbs of their own (they are internal resolvers), so per-key precedence for those
+  # keys is asserted in Tier-1 (`test_config_tiers.py`) rather than re-probed here.
+
+  # State dir is the short name, and a pre-#100 full-name dir migrates.
+  mkdir -p .yf/yf-plan && printf '%s' '{"plan":"legacy"}' > .yf/yf-plan/landing.lock
+  "${PM[@]}" list >/dev/null 2>&1 || true
+  if [ -f .yf/plan/landing.lock ] && [ ! -d .yf/yf-plan ]; then
+    _ok "pre-#100 .yf/yf-plan state migrated to short-name .yf/plan"
+  else
+    _bad "state migration did not run (.yf/plan/landing.lock or leftover .yf/yf-plan)"; rc=1
+  fi
+
+  popd >/dev/null
+  [ "${rc}" -eq 0 ] && echo ">> CONFIG-TIER PASS" || echo ">> CONFIG-TIER FAIL" >&2
+  return "${rc}"
+}
+
 # ------------------------------------------------------------------- main ------
 case "${1:-gate}" in
   setup)  shift; cmd_setup  "${1:-}" ;;
   drive)  shift; cmd_drive  "${1:-}" ;;
   verify) shift; cmd_verify "${1:-}" ;;
+  config) shift; cmd_config "${1:-}" ;;
   gate)   shift; cmd_gate   "${1:-}" ;;
   all)    shift; cmd_setup "${1:-}"
           echo ">> 'all' completed setup only; run 'smoke.sh verify' after the walk." ;;
-  *)      echo "usage: smoke.sh {gate|setup|drive|verify|all} [arg]" >&2; exit 2 ;;
+  *)      echo "usage: smoke.sh {gate|setup|drive|verify|config|all} [arg]" >&2; exit 2 ;;
 esac
