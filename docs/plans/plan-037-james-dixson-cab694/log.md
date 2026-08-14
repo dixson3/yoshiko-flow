@@ -1,6 +1,10 @@
 # Log
 
 ## 2026-08-13
+- approved: operator approved (rescoped: repo-first, redeploy deferred)
+- ready-for-approval: ready-check green after rescope — pass-3 APPROVE + audit pass
+- review: red-team pass-3 presented (post-rescope re-review)
+- drafting: operator rescope: repo-first, user-scope deferred to explicit post-plan redeploy; fold in #116
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE + audit pass
 - review: red-team pass-2 presented (post-REVISE re-review)
