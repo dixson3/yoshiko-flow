@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-13
+- executing: start gate resolved
+- intake: epic yf-mol-dh9 poured
 - approved: operator approved (rescoped: repo-first, redeploy deferred)
 - ready-for-approval: ready-check green after rescope — pass-3 APPROVE + audit pass
 - review: red-team pass-3 presented (post-rescope re-review)

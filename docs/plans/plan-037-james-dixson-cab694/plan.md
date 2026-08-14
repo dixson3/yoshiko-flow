@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-037-james-dixson-cab694
 author: james-dixson
 created: '2026-08-13'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: c13a0f572818ae81b23436837dcc64974de01a8ceaa348142f815a52a820990c
+epic: yf-mol-dh9
 ---
 # Plan: Land the user-scope divergence into the repo (redeploy deferred)
 
 **ID:** plan-037-james-dixson-cab694
 **Author:** james-dixson
 **Created:** 2026-08-13
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-dh9
 **Fingerprint:** c13a0f572818ae81b23436837dcc64974de01a8ceaa348142f815a52a820990c
 
 ## Objective
