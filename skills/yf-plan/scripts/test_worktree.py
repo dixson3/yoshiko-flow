@@ -1587,13 +1587,16 @@ def _stub_audit_status(monkeypatch, status):
 def test_latest_review_verdict_picks_highest_pass(tmp_path):
     # An earlier APPROVE followed by a later REVISE → last verdict is REVISE.
     pd = _mk_review_plan(tmp_path, ["APPROVE", "REVISE"])
-    assert pm._latest_review_verdict(pd) == (2, "REVISE")
+    # Third element is the pass file itself (REQ-PLAN-072).
+    n, verdict, path = pm._latest_review_verdict(pd)
+    assert (n, verdict) == (2, "REVISE")
+    assert path is not None and path.name == "pass-2.md"
 
 
 def test_latest_review_verdict_none_when_absent(tmp_path):
     pd = tmp_path / "p"
     pd.mkdir()
-    assert pm._latest_review_verdict(pd) == (None, None)
+    assert pm._latest_review_verdict(pd) == (None, None, None)
 
 
 def test_ready_check_not_ready_on_last_verdict_revise(tmp_path, monkeypatch):

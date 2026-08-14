@@ -92,9 +92,12 @@ of scope — the engine routes **as a skill** (crate GR-005 kernel/skill boundar
   (REQ-INFER-002).
 - **REQ-CHGVAL-022** *(testable)* inference shall **skip** CI jobs that are `if: ${{ false }}` or
   tag-only (REQ-INFER-003).
-- **REQ-CHGVAL-023** *(testable)* when an existing `validate-cmd` is present in
-  `.yf-plan.local.json`, inference shall **seed the FULL tier from it** (the #27 migration clause)
-  — REQ-INFER-004.
+- **REQ-CHGVAL-023** *(testable)* when an existing `validate-cmd` is present in yf-plan's config,
+  inference shall **seed the FULL tier from it** (the #27 migration clause) — REQ-INFER-004. The
+  seed shall read yf-plan's **canonical config tiers** in precedence order (REQ-YF-PRE-004 /
+  -004a): `.yf/plan/config.local.json`, then the committed `.yf/plan/config.json`, then the legacy
+  `.yf-plan.local.json`. Reading the legacy dotfile alone would make this a third reader on the
+  deprecated surface — the drift #100 removes (#101).
 - **REQ-CHGVAL-024** *(testable)* the inferred FULL tier shall satisfy **FULL ⊇ CI ∪ repo-checks**
   (REQ-INFER-005), the same superset invariant as REQ-CHGVAL-013, enforced at inference time.
 
@@ -115,7 +118,9 @@ of scope — the engine routes **as a skill** (crate GR-005 kernel/skill boundar
   the always-loaded on-edit (FAST) + pre-push/land-the-plane (FULL) trigger; silent no-op unless an
   approved manifest exists.
 - **Config / state:** the per-repo `CHANGE-VALIDATION.md` manifest at the repo root (canonical
-  home). Reads `.yf-plan.local.json` `validate-cmd` at inference time only (the migration seed).
+  home). Reads yf-plan's `validate-cmd` at inference time only (the migration seed), across the
+  canonical config tiers (`.yf/plan/config.local.json` → `.yf/plan/config.json` → legacy
+  `.yf-plan.local.json`).
   `templates/manifest.md` is the bootstrap draft template.
 
 ## 4. Guardrails (`GR-CHGVAL-NNN`)

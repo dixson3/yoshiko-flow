@@ -26,6 +26,7 @@ Optional (detected at runtime):
 - `d2` — diagram renderer for the `yf-diagram-authoring` skill (`.d2` → `.png`; `brew install d2`)
 - `pandoc` + `xelatex` — PDF rendering for the `yf-markdown-pdf` skill (a LaTeX distribution provides `xelatex`)
 - `pandoc` — HTML rendering for the `yf-markdown-html` skill (no `xelatex` needed)
+- `herdr` — terminal multiplexer for coding agents, required by the `yf-herdr` skill (which is inert without it) — https://github.com/dixson3/herdr
 
 ## Install
 
@@ -247,11 +248,14 @@ skill — that keeps `--group utility` provably beads-free. (`workflows` deliber
 | [yf-beads-init](skills/yf-beads-init/README.md) | `/yf-beads-init` | Verify/initialize/repair a functioning beads config — the dependency-verification home other beads skills' preflights route to; fixes wedged migrations and the `bd status` error-JSON false-negative |
 | [yf-beads-extra](skills/yf-beads-extra/) | auto | Advanced/gotcha layer for using the `bd` CLI directly — issue-type semantics, gates, bulk intake, JSON parsing |
 | [yf-beads-authoring](skills/yf-beads-authoring/) | auto | Conventions for building beads-backed skills — `.formula.toml`, `bd mol pour`, coordinator dispatch |
+| [yf-beads-hygiene](skills/yf-beads-hygiene/README.md) | `/yf-beads-hygiene` | Safe, read-only-first audit and gated repair of a beads dependency graph — finds orphaned beads and dangling edges without mistaking a live gate for one |
+| [yf-okf](skills/yf-okf/README.md) | `/yf-okf` | Constructs and conformance-checks the OKF artifact bundles the yf workflow skills emit, and owns the versioned OKF-\* spec family |
 | [yf-skill-authoring](skills/yf-skill-authoring/README.md) | auto | How to author, structure, and optimize Claude Code skills themselves |
 | [yf-optimal-instructions](skills/yf-optimal-instructions/README.md) | auto | Auto-fix skill for project instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) — token-efficiency cuts + AGENTS.md-primacy structural proposals |
 | [yf-drift-check](skills/yf-drift-check/README.md) | auto | Verifies content agreement across a repo's declared source-of-truth edges (impl ↔ docs ↔ spec) via a per-repo DRIFT-CHECK.md manifest; reports drift, never auto-fixes |
 | [yf-change-validation](skills/yf-change-validation/README.md) | `/yf-change-validation` | Per-repo change-set validation engine — runs a repo's recorded validation recipe over a merged tree, manifest-driven, self-maintaining |
 | [yf-diagram-authoring](skills/yf-diagram-authoring/README.md) | `/yf-diagram-authoring` | Render light-mode, white-background diagram PNGs from d2 source, with the `.d2` kept beside every `.png`; location-agnostic for plans, research, skill specs, and top-level docs |
+| [yf-herdr](skills/yf-herdr/README.md) | `/yf-herdr` | Delegate an approved `yf-plan` or gated `yf-research` project to a new herdr tab running a fresh session of the same agent kind, then observe that subordinate and mine its deviations for planning-process defects |
 | [yf-beads-upstream](skills/yf-beads-upstream/README.md) | `/yf-beads-upstream` | Configurable, GitHub-first upstream tracking — push open/deferred beads to an issue tracker as a land-the-plane step; upstream issues as the worklist |
 | [yf-markdown-lint](skills/yf-markdown-lint/README.md) | `/yf-markdown-lint` | Conventional GitHub-Flavored-Markdown linter — no Obsidian wiki-links/embeds, resolvable relative links/anchors, well-formed tables |
 | [yf-markdown-pdf](skills/yf-markdown-pdf/README.md) | `/yf-markdown-pdf` | Render a `.md` file to PDF via pandoc + xelatex, tuned for Unicode glyphs and relative image paths |
@@ -357,6 +361,14 @@ See [skills/yf-beads-upstream/README.md](skills/yf-beads-upstream/README.md).
 Repo-agnostic engine that detects drift between a source of truth and its derivatives (implementation ↔ docs ↔ spec) on edit. The engine is fixed and carries no repo vocabulary; each repository supplies a thin markdown manifest (`DRIFT-CHECK.md` at the repo root) declaring its artifact graph — nodes, source-of-truth edges, per-edge contracts (a fixed six-term vocabulary), changed-path trigger globs, and the fixed-authority policy. On a covered edit the engine dispatches an isolated, report-only sub-agent (`agents/drift-verifier.md`) that checks each scoped edge under a strict evidence standard and returns PASS / FAIL / INCONCLUSIVE / CONFLICT; it never auto-fixes. No approved manifest → silent no-op (no nag); bootstrap is offered only on explicit invocation or first install. Ships an always-loaded companion rule (`protocols/DRIFT-CHECK-TRIGGER.md`) as the firing surface. This repo is the reference instance: its manifest is `DRIFT-CHECK.md` (repo root), the generalized successor to the former `AGENTS/CONSISTENCY.md` + `AGENTS/DOCUMENTATION.md`. Frontmatter: `skill-group: utility`, `depends-on-tool: []`, `depends-on-skill: []` — pulls no `beads` skill, so the no-`utility`→`beads` invariant holds. Scope vs. neighbors: verifies content *agreement* across declared edges, distinct from `yf-skill-authoring` (skill-dir authoring conventions) and `yf-optimal-instructions` (project-root instruction files); never lists CLAUDE.md/AGENTS.md as nodes, so it is structurally silent on the project-root axis.
 
 See [skills/yf-drift-check/README.md](skills/yf-drift-check/README.md).
+
+### yf-herdr
+
+Delegates an **already-approved** `yf-plan` or **already-gated** `yf-research` project to a subordinate agent session in a new herdr tab, then observes that session on the operator's behalf and mines its deviations for defects in the *planning* workflow. It fires only when all four conditions hold: `HERDR_ENV=1`, `herdr` on `PATH`, a **mechanically verified** readiness assertion (for a plan: status `approved` **and** `resume-scan` reporting `stale_approved: false` — never inferred from conversation), and a **context-dirty** parent session (a fresh session executes in place, since it has no session boundary to cross). Failure of any condition produces an explanation, never a speculative tab. The subordinate runs the **same agent kind** as the parent, resolved at run time from `$HERDR_PANE_ID` against `herdr agent list`; at most one subordinate per target, because two sessions racing one bead DAG is a corruption hazard. Observation is honest about its limits: it happens at **operator turn boundaries and on demand, never continuously**, reads `blocked` before sending any prompt (a prompt to a blocked agent is swallowed by its dialog and lost), and never treats `idle`/`done` as completion without checking remaining beads. It never resolves a capability gate and never auto-files an issue — improvements are reported and filed only on explicit authorisation. Frontmatter: `skill-group: utility`, `depends-on-tool: [herdr, uv]`, and deliberately **no** `depends-on-skill`: `herdr` is a third-party skill this repo does not ship, so the relationship is a prose soft-dep (the `yf-plan` ↔ `yf-change-validation` pattern) rather than a force-install.
+
+**Usage:** `/yf-herdr` (or "execute the plan" / "run it in a new session" with the four conditions met).
+
+See [skills/yf-herdr/README.md](skills/yf-herdr/README.md).
 
 ### yf-change-validation
 

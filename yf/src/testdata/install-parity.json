@@ -9,6 +9,7 @@
     "yf-change-validation": "utility",
     "yf-diagram-authoring": "utility",
     "yf-drift-check": "utility",
+    "yf-herdr": "utility",
     "yf-incubator": "workflows",
     "yf-markdown-format": "markdown",
     "yf-markdown-html": "markdown",
@@ -44,6 +45,7 @@
       "yf-change-validation",
       "yf-diagram-authoring",
       "yf-drift-check",
+      "yf-herdr",
       "yf-okf",
       "yf-optimal-instructions",
       "yf-skill-authoring"
@@ -72,6 +74,7 @@
       "yf-change-validation",
       "yf-diagram-authoring",
       "yf-drift-check",
+      "yf-herdr",
       "yf-okf",
       "yf-optimal-instructions",
       "yf-skill-authoring"

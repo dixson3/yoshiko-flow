@@ -46,12 +46,20 @@ const MANIFEST_SCHEMA: i64 = 1;
 /// now also writes the `/.beads/formulas/` anchor, so already-preflighted repos
 /// (whose cached `scaffold-ensured` equals the old version) must re-run the ensure
 /// to pick up the new anchor rather than silently short-circuiting.
-const SCAFFOLD_VERSION: i64 = 2;
+const SCAFFOLD_VERSION: i64 = 3; // 3: + the REQ-YF-PRE-004a committed-config carve-out
 
 /// The single gitignore anchor under the `.yf/` tree (REQ-YF-PRE-005, revised
 /// #67). One anchor covers both config (`.yf/<short>/config.local.json`) and state
 /// (`.yf/<short>/preflight.json`); no per-skill top-level dotfile anchor is added.
 const YF_ANCHOR: &str = "/.yf/";
+
+/// Gitignore carve-out for the COMMITTED shared config tier `.yf/<short>/config.json`
+/// (REQ-YF-PRE-004a). Git will not descend into an ignored directory, so re-including
+/// a file beneath `/.yf/` needs the two directory un-ignores before the file rule —
+/// the trailing `/.yf/*/*` re-ignores everything else in the skill dir (all state,
+/// every `*.local.json`) so ONLY `config.json` is committable.
+const YF_SHARED_CONFIG_ANCHORS: [&str; 4] =
+    ["!/.yf/", "!/.yf/*/", "/.yf/*/*", "!/.yf/*/config.json"];
 
 /// Gitignore anchor for the yf-owned formula staging dir (REQ-YF-PRE-011). Preflight
 /// stages a beads-backed skill's embedded formulas into `.beads/formulas/` so
@@ -463,27 +471,43 @@ fn skill_tools(skill_dir: &str) -> Vec<String> {
 // Config + state (REQ-YF-PRE-004)
 // ---------------------------------------------------------------------------
 
-/// Read per-skill operator config. Precedence: the canonical
-/// `.yf/<short>/config.local.json`, then the legacy `.<config-basename>` at repo root.
+/// Read per-skill operator config, merging three tiers key by key.
+///
+/// Precedence, highest first: the canonical local override
+/// `.yf/<short>/config.local.json`, the canonical **committed**
+/// `.yf/<short>/config.json`, then the legacy `.<config-basename>` at repo root.
 fn read_config(
     env: &Env,
     short: &str,
     config_basename: Option<&str>,
 ) -> serde_json::Map<String, serde_json::Value> {
-    // REQ-YF-PRE-004 resolution precedence, first match wins:
-    // 1. canonical subdir `.yf/<short>/config.local.json` (co-located with state);
-    // 2. legacy root dotfile named by the skill's `config_basename` descriptor.
-    let yf = env.repo_root.join(".yf");
-    let subdir_path = yf.join(short).join("config.local.json");
-    if let Some(m) = read_json_obj(&subdir_path) {
-        return m;
-    }
+    // REQ-YF-PRE-004 resolution precedence, merged PER KEY (revised plan-037 —
+    // previously whole-file first-match-wins):
+    // 1. canonical local override `.yf/<short>/config.local.json` (gitignored);
+    // 2. canonical committed `.yf/<short>/config.json` (REQ-YF-PRE-004a, the one
+    //    carve-out in the otherwise fully-ignored `.yf/` tree);
+    // 3. legacy root dotfile named by the skill's `config_basename` descriptor.
+    //
+    // Merge, not first-match, so a local override setting one key cannot mask the
+    // committed tier's other keys. With a single tier present the two semantics
+    // coincide, so this is backward compatible. `plan_manager.py::_read_config`
+    // implements the same three tiers — the two readers must not disagree.
+    let skill_dir = env.repo_root.join(".yf").join(short);
+    let mut merged = serde_json::Map::new();
+
+    // Applied lowest-tier first so a higher tier overwrites per key.
     if let Some(base) = config_basename {
         if let Some(m) = read_json_obj(&env.repo_root.join(base)) {
-            return m;
+            merged.extend(m);
         }
     }
-    serde_json::Map::new()
+    if let Some(m) = read_json_obj(&skill_dir.join("config.json")) {
+        merged.extend(m);
+    }
+    if let Some(m) = read_json_obj(&skill_dir.join("config.local.json")) {
+        merged.extend(m);
+    }
+    merged
 }
 
 /// Per-skill runtime state file: `.yf/<short>/preflight.json`.
@@ -1009,6 +1033,10 @@ fn ensure_scaffold(
     // `.yf/` by `yf migrate`), not a location this scaffold creates or anchors.
     let _ = config_basename; // retained in the signature; no longer anchored
     let mut anchors: Vec<String> = vec![YF_ANCHOR.to_string()];
+    // REQ-YF-PRE-004a: the committed `.yf/<short>/config.json` tier must be
+    // committable, so the blanket `/.yf/` anchor above is followed by its carve-out.
+    // Order matters — the negations only take effect after the directory is ignored.
+    anchors.extend(YF_SHARED_CONFIG_ANCHORS.iter().map(|s| s.to_string()));
     // REQ-YF-PRE-011: a beads-backed skill (one shipping embedded formulas) also
     // gets the `/.beads/formulas/` staging dir anchored in the ROOT .gitignore, so
     // the protos preflight stages there are never committed.

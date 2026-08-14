@@ -68,6 +68,19 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   preserving `count(reviews/pass-*.md) == count(log.md review: lines)` (REQ-PORT-006).
 - **REQ-PLAN-032** a `pass-N.md` shall be mutable until all concerns resolve, then frozen; each
   full REVISE cycle yields exactly one pass file.
+- **REQ-PLAN-071** *(testable)* **verdict-line contract.** The canonical verdict line in a
+  `reviews/pass-N.md` is a level-2 ATX heading — `## Verdict: <APPROVE|REVISE|INVESTIGATE-MORE>`.
+  The red-team agent template (`agents/red-team.md`) shall **emit** that form, and the
+  `ready-check` parser shall **accept** it. Template and parser are a single contract: a review
+  written exactly as the template prescribes must parse. Because a silent mismatch between the two
+  is unobservable (it degrades to "no verdict"), the parser shall additionally accept a level-3
+  heading (`^#{2,3}\s+Verdict:`) as defence in depth — a tolerance for a template that drifts back,
+  not a second canonical form. Emitting `###` remains non-conformant.
+- **REQ-PLAN-072** *(testable)* **a malformed verdict shall fail loud.** `ready-check` shall
+  distinguish *no review exists* from *a review exists but its verdict did not parse*. When
+  `review_pass > 0` and no verdict parses, it shall report a **malformed-review error naming the
+  offending file** rather than a null verdict. The `review_pass > 0 && verdict == null` state is a
+  contradiction and shall never be presented as a merely-absent verdict.
 - **REQ-PLAN-033** *(testable)* the portability `audit` shall be a **precondition of the approval
   prompt**, not a post-approval step: it runs as the last PLAN step, before the operator is asked to
   approve, so approval is consent to an already-verified plan (not "approve, then verify"). The
@@ -221,6 +234,17 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `plan.md` `**Phase log:**` fallback for un-migrated bundles) and matches the `- validated:` bullet
   form. `validated:` shall be a recognized **non-status** `log.md` token (alongside `intake:`): no
   review-count (REQ-PORT-006), grandfather-date, or status parser keys on it.
+
+- **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
+  **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`
+  (default `Incubator`) are read through the **same** three-tier config reader as every other
+  yf-plan config key (REQ-YF-PRE-004), with the committed `.yf/plan/config.json` as their
+  expected home (REQ-YF-PRE-004a) — they are a repository-level decision, since plan-id numbering
+  is global across roots. Resolution shall be **import-safe**: the roots are bound before most of
+  the module exists, so the reader used for them shall be dependency-free, shall fall back to the
+  defaults when no config is present, and shall tolerate malformed JSON at import rather than
+  raising. Motivating case (#107): a repo that is also an Obsidian vault, where a visible
+  top-level `Incubator/` trips the vault's structure linter.
 
 ### 2.8 Capture (manual)
 

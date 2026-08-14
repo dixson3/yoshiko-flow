@@ -31,61 +31,8 @@ import click
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import okf  # noqa: E402
 
-# --- Config tiers (REQ-YF-PRE-004 / REQ-YF-PRE-004a) --------------------------
-# The short name (`plan`, not `yf-plan`) is what the `yf` binary emits, so the
-# canonical dirs below match `preflight.rs` exactly. Three tiers, merged KEY BY KEY
-# with the highest present tier winning each key:
-#
-#   1. .yf/plan/config.local.json   gitignored — machine-specific operator overrides
-#   2. .yf/plan/config.json         COMMITTED  — shared, repo-carried decisions
-#   3. .yf-plan.local.json          gitignored — legacy root dotfile, read-only fallback
-#
-# Merge (not whole-file first-match) is required for tier 2 to be useful: a local
-# file setting only `landing-strategy` must not mask a committed `plans-root`.
-# With a single tier present the two semantics coincide, so this is backward
-# compatible. `yf/src/preflight.rs::read_config` implements the same three tiers —
-# two readers disagreeing about precedence is the drift #100 exists to remove.
-SKILL_SHORT = "plan"
-YF_DIR = Path(".yf") / SKILL_SHORT
-CONFIG_LOCAL_FILE = YF_DIR / "config.local.json"
-CONFIG_SHARED_FILE = YF_DIR / "config.json"
-LEGACY_CONFIG_FILE = Path(".yf-plan.local.json")
-CONFIG_TIERS = (CONFIG_LOCAL_FILE, CONFIG_SHARED_FILE, LEGACY_CONFIG_FILE)
-
-
-def _bootstrap_config() -> dict:
-    """Read + merge the config tiers with no module-level dependencies.
-
-    Called at import time because `PLANS_DIR` / `INCUBATOR_PARENT` are module
-    constants bound before most of this module exists (REQ-PLAN-073, import-safe
-    resolution). Deliberately dependency-free — it runs before `_read_json` is
-    defined — and deliberately total: a malformed or unreadable tier is skipped,
-    never raised, so a bad config file cannot make the module unimportable.
-
-    Tiers are applied lowest-first so the highest tier wins each key.
-    """
-    cfg: dict = {}
-    for path in reversed(CONFIG_TIERS):
-        try:
-            if path.exists():
-                loaded = json.loads(path.read_text())
-                if isinstance(loaded, dict):
-                    cfg.update(loaded)
-        except (json.JSONDecodeError, OSError, ValueError):
-            continue
-    return cfg
-
-
-_CONFIG = _bootstrap_config()
-
-# Repo layout is configurable (REQ-PLAN-073 / #107): a project whose plan or
-# incubator roots are not the defaults — e.g. a repo that is also an Obsidian
-# vault, where a visible top-level `Incubator/` trips the vault's structure
-# linter — sets `plans-root` / `incubator-root`. These belong in the COMMITTED
-# tier: plan-id numbering is global across roots, so two clones disagreeing about
-# the root would silently fragment it.
-PLANS_DIR = Path(str(_CONFIG.get("plans-root") or "docs/plans"))
-INCUBATOR_PARENT = Path(str(_CONFIG.get("incubator-root") or "Incubator"))
+PLANS_DIR = Path("docs/plans")
+INCUBATOR_PARENT = Path("Incubator")
 
 # Dual-field model (REQ-DATA-015 / OKF-EXTENSION.md §4): a single in-memory model
 # maps each frontmatter key to its human `**Field:**` label. Reads are
@@ -192,49 +139,9 @@ def _write_plan_fields(plan_dir: Path, updates: dict[str, str]) -> None:
 # idempotent gitignore scaffold) moved to the `yf preflight` kernel (plan-010);
 # the constants below are what the surviving domain commands still need.
 SKILL_NAME = "yf-plan"
-# Config tiers are defined at the top of the module (they must resolve before
-# PLANS_DIR / INCUBATOR_PARENT bind). `CONFIG_FILE` is retained as an alias for
-# the legacy root dotfile so existing references keep working.
-CONFIG_FILE = LEGACY_CONFIG_FILE
-# Runtime cache, SHORT-name (`.yf/plan/`) as of #100 — the same dir the `yf`
-# preflight kernel writes `preflight.json` into. State written by an earlier
-# version under the full-name `.yf/yf-plan/` is migrated by `_migrate_state_dir`.
-STATE_DIR = YF_DIR
-LEGACY_STATE_DIR = Path(".yf") / SKILL_NAME               # pre-#100 full-name dir
+CONFIG_FILE = Path(f".{SKILL_NAME}.local.json")          # operator decisions (gitignored)
+STATE_DIR = Path(".yf") / SKILL_NAME                      # runtime cache (gitignored)
 GITIGNORE_FILE = Path(".gitignore")
-
-
-def _migrate_state_dir() -> list[str]:
-    """Move pre-#100 full-name `.yf/yf-plan/` state into short-name `.yf/plan/`.
-
-    Idempotent and non-destructive: an entry already present at the destination is
-    left alone (the canonical copy wins) and the legacy one is removed. The legacy
-    dir is removed only once empty. Returns the names moved, for reporting.
-
-    State is a gitignored cache, so a failure here is never fatal — a migration
-    error leaves the legacy file in place and the caller simply starts cold.
-    """
-    moved: list[str] = []
-    if not LEGACY_STATE_DIR.is_dir() or LEGACY_STATE_DIR == STATE_DIR:
-        return moved
-    try:
-        STATE_DIR.mkdir(parents=True, exist_ok=True)
-        for src in LEGACY_STATE_DIR.iterdir():
-            dst = STATE_DIR / src.name
-            if dst.exists():
-                if src.is_file():
-                    src.unlink()
-                continue
-            src.replace(dst)
-            moved.append(src.name)
-        if not any(LEGACY_STATE_DIR.iterdir()):
-            LEGACY_STATE_DIR.rmdir()
-    except OSError:
-        return moved
-    return moved
-
-
-_migrate_state_dir()
 
 
 # >>> BEGIN defensive json extractor (generated by _shared/sync.py — edit _shared/json_extract.py) >>>
@@ -458,9 +365,8 @@ def make_plan_id(objective: str) -> str:
 def make_plan_dir(plan_id: str, plans_dir: Path | None = None) -> Path:
     """Create plan directory structure under the given root.
 
-    `plans_dir` defaults to the configured `PLANS_DIR` (`plans-root`, default
-    `docs/plans` — REQ-PLAN-073); callers that target an incubator should pass
-    `resolve_plans_dir(incubator)`.
+    `plans_dir` defaults to `docs/plans` for back-compat; callers that
+    target an incubator should pass `resolve_plans_dir(incubator)`.
     """
     root = plans_dir if plans_dir is not None else PLANS_DIR
     plan_dir = root / plan_id
@@ -885,18 +791,8 @@ def _read_json(path: Path) -> dict:
 
 
 def _read_config() -> dict:
-    """Operator config, merged across the three tiers (REQ-YF-PRE-004).
-
-    Precedence, highest first: `.yf/plan/config.local.json` (gitignored override) →
-    `.yf/plan/config.json` (committed, shared) → `.yf-plan.local.json` (legacy root
-    dotfile, never removed). Merged **key by key**, matching
-    `yf/src/preflight.rs::read_config`.
-
-    Re-read on every call rather than reusing the import-time `_CONFIG`, so a config
-    written during a run (or a test that rewrites it) is observed. `_CONFIG` exists
-    only because `PLANS_DIR` / `INCUBATOR_PARENT` bind at import.
-    """
-    return _bootstrap_config()
+    """Operator config (.yf-plan.local.json) — operator decisions only (e.g. ignore-skill)."""
+    return _read_json(CONFIG_FILE) if CONFIG_FILE.exists() else {}
 
 
 @click.group()
@@ -2839,28 +2735,12 @@ def _plan_review_line_count(plan_dir: Path) -> int:
     return count
 
 
-def _latest_review_verdict(
-    plan_dir: Path,
-) -> tuple[int | None, str | None, Path | None]:
-    """Return (N, verdict, path) of the highest-numbered ``reviews/pass-N.md`` file.
+def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
+    """Return (N, verdict) of the highest-numbered ``reviews/pass-N.md`` file.
 
     The verdict is parsed from the first ``## Verdict: <V>`` line (case-insensitive)
-    and upper-cased. Returns ``(None, None, None)`` when no pass file exists, and
-    ``(N, None, path)`` when the highest pass file has no parseable verdict line.
-
-    The third element is what makes REQ-PLAN-072 possible: ``(N, None, path)`` is a
-    *malformed* review — a file exists but its verdict did not parse — and is a
-    materially different condition from ``(None, None, None)`` (no review at all).
-    Callers must report the former as an error naming ``path``, never as a merely
-    absent verdict.
-
-    Per REQ-PLAN-071 the canonical emitted form is the level-2 heading ``## Verdict:``
-    (what ``agents/red-team.md`` writes and what 56 of the existing reviews use). The
-    parser additionally accepts a level-3 ``### Verdict:`` as **defence in depth**: a
-    template that drifts back to ``###`` would otherwise degrade to a silent "no
-    verdict" — unobservable at the point of failure, which is exactly how #116 hid.
-    Accepting ``###`` is a tolerance, not a second canonical form; emitting it is
-    still non-conformant.
+    and upper-cased. Returns ``(None, None)`` when no pass file exists, and
+    ``(N, None)`` when the highest pass file has no parseable verdict line.
 
     "Highest N" is the *last recorded* red-team cycle — REQ-PLAN-030 keys readiness
     on that being ``APPROVE`` (an earlier APPROVE followed by an unre-reviewed REVISE
@@ -2868,7 +2748,7 @@ def _latest_review_verdict(
     """
     reviews_dir = plan_dir / "reviews"
     if not reviews_dir.is_dir():
-        return (None, None, None)
+        return (None, None)
     best_n: int | None = None
     best_file: Path | None = None
     for f in reviews_dir.glob("pass-*.md"):
@@ -2880,14 +2760,14 @@ def _latest_review_verdict(
             best_n = n
             best_file = f
     if best_file is None:
-        return (None, None, None)
+        return (None, None)
     verdict: str | None = None
     for line in best_file.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"#{2,3}\s+Verdict:\s*([A-Za-z-]+)", line.strip(), re.IGNORECASE)
+        m = re.match(r"##\s+Verdict:\s*([A-Za-z-]+)", line.strip())
         if m:
             verdict = m.group(1).upper()
             break
-    return (best_n, verdict, best_file)
+    return (best_n, verdict)
 
 
 def _plan_non_exclude_upstream_numbers(plan_md_text: str) -> list[str]:
@@ -3243,32 +3123,14 @@ def ready_check(plan_dir: str, as_json: bool):
       2. the portability ``audit`` passes (REQ-PLAN-033).
 
     Emits ``{"ready": bool, "reasons": [...], "verdict": ..., "review_pass": ...,
-    "malformed_review": ..., "audit_status": ...}``. Exits ``3`` when not ready (a
-    gate signal, distinct from a ``1`` crash), ``0`` when ready.
-
-    ``malformed_review`` (REQ-PLAN-072) is the path of a review file that exists but
-    whose verdict did not parse, else ``null``. It disambiguates the two ways
-    ``verdict`` can be ``null``: no review at all (``review_pass: null``) versus a
-    review present but unparseable (``review_pass: N``). The latter used to surface
-    as a bare null verdict — a contradiction that read as "no review has run".
+    "audit_status": ...}``. Exits ``3`` when not ready (a gate signal, distinct from
+    a ``1`` crash), ``0`` when ready.
     """
     pdir = Path(plan_dir)
     reasons: list[str] = []
 
-    n, verdict, review_file = _latest_review_verdict(pdir)
-    malformed_review: str | None = None
-    if verdict is None and review_file is not None:
-        # REQ-PLAN-072: a review EXISTS but its verdict did not parse. This is a
-        # malformed review, not an absent one — reporting it as `verdict: null`
-        # alongside `review_pass: N` is a self-contradiction that hides the real
-        # cause (the trap #116 sprang). Name the offending file.
-        malformed_review = str(review_file)
-        reasons.append(
-            f"malformed review: {review_file} exists (pass-{n}) but contains no "
-            "parseable verdict line — expected '## Verdict: APPROVE|REVISE|"
-            "INVESTIGATE-MORE' (REQ-PLAN-071). This is NOT an absent verdict; "
-            "fix the verdict line in that file")
-    elif verdict is None:
+    n, verdict = _latest_review_verdict(pdir)
+    if verdict is None:
         reasons.append(
             "no red-team verdict found — expected reviews/pass-N.md with a "
             "'## Verdict:' line")
@@ -3289,7 +3151,6 @@ def ready_check(plan_dir: str, as_json: bool):
         "reasons": reasons,
         "verdict": verdict,
         "review_pass": n,
-        "malformed_review": malformed_review,
         "audit_status": audit["status"],
     }
     if as_json:

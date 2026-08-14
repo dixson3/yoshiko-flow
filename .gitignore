@@ -16,6 +16,14 @@ __pycache__/
 
 # Skill runtime state + local config (never committed; per Skill Surface Convention)
 /.yf/
+# ...with ONE carve-out (REQ-YF-PRE-004a): the COMMITTED shared config tier
+# `.yf/<short>/config.json`. Everything else under /.yf/ — all runtime state and
+# every *.local.json — stays ignored. Git will not descend into an ignored
+# directory, so the two `!` directory lines are required before the file rule.
+!/.yf/
+!/.yf/*/
+/.yf/*/*
+!/.yf/*/config.json
 /.yf-plan.local.json
 /.yf-research.local.json
 /.agent-shell/

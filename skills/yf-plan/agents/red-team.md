@@ -29,23 +29,28 @@ Adversarial review of a plan before approval. No access to investigation worktre
 ## Output
 
 ```markdown
-## Plan Red-Team: <plan-id>
+# Plan Red-Team: <plan-id>
 
-### Verdict: APPROVE | REVISE | INVESTIGATE-MORE
+## Verdict: APPROVE | REVISE | INVESTIGATE-MORE
 
-### Strengths
+## Strengths
 - <what's solid>
 
-### Concerns
+## Concerns
 - <issue> — severity: high|medium|low
   Recommendation: <what to change>
 
-### Missing
+## Missing
 - <gaps>
 
-### Gate Assessment
-### Upstream Assessment
+## Gate Assessment
+## Upstream Assessment
 ```
+
+**The verdict line is a contract, not a style choice (REQ-PLAN-071).** `## Verdict: <V>` is the
+form `ready-check` parses. Emitting `### Verdict:` makes the review **silently unparseable** —
+`ready-check` reports no verdict at all rather than an error, so the mismatch is invisible until
+approval is blocked for no stated reason (#116).
 
 ## Rules
 
