@@ -493,6 +493,109 @@ def test_upstream_enabled_default_deny():
         "custom.upstream.enabled": "yes\n", "custom.upstream.backend": "github\n"})) is False
 
 
+# --- REQ-BUP-052: the `closable` verb (#117, partial) --------------------------
+
+ISSUE_A = "https://github.com/o/r/issues/1"
+ISSUE_B = "https://github.com/o/r/issues/2"
+
+
+def test_closable_when_every_mapped_bead_is_closed():
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": ISSUE_A},
+        {"id": "b", "status": "closed", "external": ISSUE_A},
+    ])
+    assert len(report) == 1
+    assert report[0]["closable"] is True
+    assert report[0]["blocking"] == []
+    assert report[0]["beads"] == ["a", "b"]
+
+
+def test_not_closable_when_any_mapped_bead_is_open_and_names_it():
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": ISSUE_A},
+        {"id": "b", "status": "open", "external": ISSUE_A},
+    ])
+    assert report[0]["closable"] is False
+    assert report[0]["blocking"] == ["b"]
+    assert "b" in report[0]["reason"]
+
+
+def test_unmapped_beads_are_absent_from_the_report():
+    """A bead with no External: maps to no issue — and, per the recorded gap, a
+    hand-filed coarse tracker has no bead pointing at it and can never appear."""
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": None},
+        {"id": "b", "status": "closed", "external": ""},
+    ])
+    assert report == []
+
+
+def test_closable_groups_independent_issues_separately():
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": ISSUE_A},
+        {"id": "b", "status": "open", "external": ISSUE_B},
+    ])
+    by = {r["external"]: r for r in report}
+    assert by[ISSUE_A]["closable"] is True
+    assert by[ISSUE_B]["closable"] is False
+
+
+def test_closable_short_circuits_cleanly_when_disabled(capsys, monkeypatch):
+    monkeypatch.setattr(up, "upstream_enabled", lambda: False)
+    def boom(*a, **k):
+        raise AssertionError("queried bd while upstream tracking is disabled")
+    monkeypatch.setattr(up, "load_universe_rows", boom)
+    rc = up.cmd_closable(as_json=False)
+    assert rc == 0
+    assert "disabled" in capsys.readouterr().out
+
+
+def test_closable_never_closes_anything(capsys, monkeypatch):
+    """Propose-only: it emits `gh issue close` commands and executes NOTHING."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "status": "closed"}, {"id": "b", "status": "closed"}])
+    monkeypatch.setattr(up, "external_for", lambda bid: ISSUE_A)
+    def boom(cmd):
+        raise AssertionError(f"closable executed {cmd!r} — it must never close")
+    monkeypatch.setattr(up, "run", boom)
+    rc = up.cmd_closable(as_json=False)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "gh issue close 1" in out
+    assert "NOT executed" in out
+
+
+def test_issue_number_parsed_for_the_close_proposal():
+    assert up.issue_number_from_url("https://github.com/o/r/issues/117") == "117"
+    assert up.issue_number_from_url("https://github.com/o/r/issues/117/") == "117"
+    assert up.issue_number_from_url("not-a-url") is None
+
+
+def test_closable_caveat_survives_in_skill_md():
+    """Cheap insurance on this plan's most misreadable output (Issue 4.4).
+
+    If a future edit softens or drops the limitation, a clean `closable` run starts
+    reading as 'nothing needs closing' — which is exactly wrong, and silently so.
+    """
+    raw = (Path(__file__).parent.parent / "SKILL.md").read_text()
+    # Normalize wrapping and markdown emphasis: the contract is that the caveat
+    # SURVIVES, not that it keeps any particular line breaks or bolding.
+    skill = " ".join(raw.replace("*", "").replace(">", " ").split())
+    assert "Known limitation" in skill
+    assert "does NOT mean" in skill and "nothing needs closing" in skill
+    assert "coarse" in skill.lower()
+    # the four stale trackers that motivated #117 are named as NOT caught
+    for n in ("#103", "#95", "#96", "#98"):
+        assert n in skill, f"the motivating tracker {n} must stay named in the caveat"
+
+
+def test_closable_json_carries_the_caveat():
+    """An agent reading --json must get the caveat too, not just a human reader."""
+    assert "coarse" in up.CLOSABLE_CAVEAT.lower()
+    assert "does NOT mean" in up.CLOSABLE_CAVEAT
+
+
 # --- REQ-BUP-053: the procedure/explanation boundary is real -------------------
 
 

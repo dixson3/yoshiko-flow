@@ -448,6 +448,32 @@ uv run ${SKILL_DIR}/scripts/upstream.py unhoist --record <file-of-ids> [--apply]
 This runs `bd update <id> --status open` per bead. Dry-run by default; `--apply` executes. The
 `--record` file (one bead ID per line) supports the gated reconcile batch round-trip.
 
+### 9 — Proposing upstream issue closure (`closable`)
+
+Every other verb here pushes work *up*. `closable` is the one that looks the other way: it reports
+which upstream issues can now be **closed**, so finished work stops sitting open in the tracker.
+
+```bash
+uv run ${SKILL_DIR}/scripts/upstream.py closable [--json]
+```
+
+**The signal is per-bead:** an issue is `closable` when **every** bead carrying an `External:`
+mapping to it is closed. One open mapped bead makes it `not-closable`, and that bead is named as
+the reason. Run it at land-the-plane, after the push step — the beads you just closed are exactly
+the ones that may have made a tracker closable.
+
+**It never closes anything.** Closing an upstream issue is outward-facing, so it gets the same
+confirm contract as a push: the verb emits the `gh issue close <N>` commands and stops. Read them,
+then run the ones you agree with.
+
+> **Known limitation — read this before trusting a clean run.** The per-bead signal is deliberately
+> zero-coupled to `yf-plan`'s configurable plans-root, and the price is that it is **forward-looking
+> only**. `yf-plan` files its coarse plan trackers with a direct `gh issue create`, so **no bead ever
+> maps to them** and `closable` cannot see them. It would not have caught any of the four stale
+> trackers (#103, #95, #96, #98) that motivated this verb. **A clean `closable` run therefore does
+> NOT mean "nothing needs closing"** — it means nothing *with a bead mapping* needs closing. Coarse
+> plan trackers still need a human sweep. This is why #117 stays open.
+
 ## Status / pull
 
 First read the config and apply the **default-deny** test — enabled only when the value is

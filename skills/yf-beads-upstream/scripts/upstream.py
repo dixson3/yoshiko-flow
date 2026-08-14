@@ -910,6 +910,95 @@ def cmd_push(issues_csv: str, backend: str, apply: bool) -> int:
     return 0
 
 
+# --- closable: propose upstream issues whose work is done (REQ-BUP-052, #117) ---
+
+CLOSABLE_CAVEAT = (
+    "Hand-filed coarse plan trackers carry NO bead mapping and are invisible to this "
+    "signal — a clean run does NOT mean nothing needs closing."
+)
+
+
+def closable_candidates(beads: list[dict]) -> list[dict]:
+    """Group beads by the upstream issue they map to and report which are closable (pure).
+
+    `beads` is a list of {"id", "status", "external"} dicts. An issue is **closable**
+    when EVERY bead carrying an `External:` mapping to it is closed; a single open
+    mapped bead makes it **not-closable**, and that bead is named as the reason.
+
+    Beads with no `external` are ignored entirely — they map to no issue. This is the
+    deliberate zero-coupling choice of REQ-BUP-052: the signal is per-bead, so it needs
+    nothing from `yf-plan`'s configurable plans-root. The price is the recorded gap —
+    a hand-filed coarse tracker has no bead pointing at it and can never appear here.
+    """
+    by_issue: dict[str, list[dict]] = {}
+    for b in beads:
+        ext = b.get("external")
+        if not ext:
+            continue
+        by_issue.setdefault(ext, []).append(b)
+
+    out: list[dict] = []
+    for ext in sorted(by_issue):
+        mapped = by_issue[ext]
+        open_ids = sorted(b["id"] for b in mapped if not _is_closed(b))
+        out.append(
+            {
+                "external": ext,
+                "beads": sorted(b["id"] for b in mapped),
+                "closable": not open_ids,
+                "blocking": open_ids,
+                "reason": (
+                    "all mapped beads are closed"
+                    if not open_ids
+                    else f"still open: {', '.join(open_ids)}"
+                ),
+            }
+        )
+    return out
+
+
+def issue_number_from_url(url: str) -> str | None:
+    """Trailing issue number of an upstream issue URL, for the `gh issue close` proposal."""
+    m = re.search(r"/(\d+)/?$", url or "")
+    return m.group(1) if m else None
+
+
+def cmd_closable(as_json: bool) -> int:
+    """Propose which upstream issues can be closed. NEVER closes anything (REQ-BUP-052).
+
+    Closing an upstream issue is outward-facing, so it gets the same confirm contract
+    as a push: this verb emits the `gh issue close` commands for operator confirmation
+    and stops.
+    """
+    if not upstream_enabled():
+        print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to report.")
+        return 0
+    rows = load_universe_rows()
+    beads = [
+        {"id": r["id"], "status": r.get("status", ""), "external": external_for(r["id"])}
+        for r in rows
+        if r.get("id")
+    ]
+    report = closable_candidates(beads)
+    closable = [r for r in report if r["closable"]]
+
+    if as_json:
+        print(json.dumps({"caveat": CLOSABLE_CAVEAT, "issues": report}, indent=2))
+    else:
+        print(f"{len(report)} mapped upstream issue(s); {len(closable)} closable:")
+        for r in report:
+            tag = "closable    " if r["closable"] else "not-closable"
+            print(f"  [{tag}] {r['external']}  ({r['reason']})")
+        if closable:
+            print("\nProposed (NOT executed — confirm each before running):")
+            for r in closable:
+                num = issue_number_from_url(r["external"])
+                if num:
+                    print(f"  gh issue close {num}")
+        print(f"\nNOTE: {CLOSABLE_CAVEAT}")
+    return 0
+
+
 def cmd_unhoist(issues_csv: str | None, record: str | None, apply: bool) -> int:
     if record:
         with open(record, encoding="utf-8") as fh:
@@ -955,6 +1044,12 @@ def main() -> int:
     p_fo.add_argument("--intake", required=True, help="epic intake timestamp (RFC3339)")
     p_fo.add_argument("--json", action="store_true", dest="as_json")
 
+    p_clos = sub.add_parser(
+        "closable",
+        help="propose upstream issues whose mapped beads are all closed (never closes)",
+    )
+    p_clos.add_argument("--json", action="store_true", dest="as_json")
+
     p_push = sub.add_parser(
         "push",
         help="THE documented push path: scoped, dry-run-first, fail-closed (beads stay open)",
@@ -994,6 +1089,8 @@ def main() -> int:
         return cmd_config(args.as_json)
     if args.cmd == "followons":
         return cmd_followons(args.parent, args.intake, args.as_json)
+    if args.cmd == "closable":
+        return cmd_closable(args.as_json)
     if args.cmd == "push":
         return cmd_push(args.issues, args.backend, args.apply)
     if args.cmd == "hoist":
