@@ -225,6 +225,13 @@
 >   file, never as a null verdict). Driven by a live defect: the template emitted `### Verdict:` while
 >   the parser matched `## Verdict:`, so a review written exactly as prescribed was silently
 >   unparseable and `ready-check` reported `review_pass: 2` alongside `verdict: null`.
+> - **plan-037 (#110, partial):** added the **`yf-herdr`** skill (`skills/yf-herdr/SPEC.md`, spec key
+>   `HERDR`, group `utility`) to the §4 catalog — delegating an approved `yf-plan` or gated
+>   `yf-research` to a subordinate session in a new herdr tab and observing it. Authored outside
+>   version control in `~/.claude/skills/` and imported here; its `REQ-HERDR-*` requirements carry
+>   over unchanged, plus `REQ-HERDR-040/041` recording the third-party-`herdr` dependency posture
+>   (`depends-on-tool`, never `depends-on-skill`; prose soft-dep). Delivers the *skill surface* of
+>   #110 only — the `herdr agent *` fan-out primitive it proposes stays open.
 
 ## 1. Purpose & scope
 
@@ -909,6 +916,7 @@ The macro spec composes these. `REQ-<KEY>-*` ids live in each skill's `SPEC.md`.
 | yf-incubator            | incubator            | beads    | INCUB    | `skills/yf-incubator/SPEC.md`            |
 | yf-change-validation    | _(new)_              | utility  | CHGVAL   | `skills/yf-change-validation/SPEC.md`    |
 | yf-diagram-authoring    | diagram-authoring    | utility  | DIAG     | `skills/yf-diagram-authoring/SPEC.md`    |
+| yf-herdr                | _(new, plan-037)_    | utility  | HERDR    | `skills/yf-herdr/SPEC.md`                |
 | yf-drift-check          | drift-check          | utility  | DRIFT    | `skills/yf-drift-check/SPEC.md`          |
 | yf-optimal-instructions | optimal-instructions | utility  | OPTINST  | `skills/yf-optimal-instructions/SPEC.md` |
 | yf-skill-authoring      | skill-authoring      | utility  | SKAUTH   | `skills/yf-skill-authoring/SPEC.md`      |
