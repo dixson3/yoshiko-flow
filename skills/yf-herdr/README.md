@@ -4,9 +4,6 @@ Delegates an approved `yf-plan` or gated `yf-research` project to a new herdr ta
 session of the **same agent kind**, then observes that subordinate and mines its deviations for
 defects in the *planning* workflow.
 
-- **`SKILL.md`** — trigger contract, launch procedure, observation contract, deviation taxonomy.
-- **`SPEC.md`** — `REQ-HERDR-NNN` requirements and taxonomy provenance.
-
 ## Why it exists
 
 `yf-plan` and `yf-research` both require a session boundary for execution — the fingerprint, not
@@ -30,9 +27,59 @@ The **`herdr` binary** on `PATH`, and a session running inside a herdr-managed p
 (`HERDR_ENV=1`). Both are trigger preconditions, so where `herdr` is absent this skill is inert
 rather than broken.
 
+`uv` is also declared (`depends-on-tool: [herdr, uv]`) because the readiness check shells out to
+`yf-plan`'s `plan_manager.py resume-scan`.
+
 CLI semantics come from the third-party **`herdr` skill**, which this repo does not ship. That
 relationship is a **prose soft-dep**, not a `depends-on-skill` entry — see SKILL.md
 "Relationship to the `herdr` skill".
+
+## Install
+
+Installed by `yf skills install` / the repo-level `install.sh`, which auto-discover every
+`skills/*/` directory. This skill ships **no companion rule**, **no hook**, and **no scripts**,
+so no installer change is needed — it is picked up automatically. It belongs to the `utility`
+install group, so `yf skills install --group utility` includes it. See the project
+[README](../../README.md) for installer flags.
+
+## Usage
+
+User-invocable (`user-invocable: true`). There are no subcommands.
+
+```
+/yf-herdr                 # delegate the plan or research project this session just readied
+```
+
+It also fires without the explicit slash command when the operator says "execute the plan" /
+"execute the research" / "run it in a new session" **and** all four preflight conditions hold:
+`HERDR_ENV=1`, `herdr` on `PATH`, a mechanically verified readiness assertion, and a
+context-dirty parent session. Any condition failing produces an explanation, never a
+speculative tab. SKILL.md carries the checks in order.
+
+## Behavior model
+
+| Phase | What it does |
+| :--- | :--- |
+| Preflight | Checks the four conditions in order, stopping at the first failure. Readiness is verified mechanically (`resume-scan`), never inferred from the conversation. |
+| Launch | Resolves the parent's agent kind from `$HERDR_PANE_ID` against `herdr agent list`, opens a tab in `$HERDR_WORKSPACE_ID` with `--cwd` at the repo root and `--no-focus`, and records the subordinate's name + pane id as the delegation handle. |
+| Observe | At operator turn boundaries and on demand — never continuously. Reads `blocked` before sending any prompt, and never treats `idle`/`done` as completion without checking remaining beads. |
+| Mine | Records each divergence from a plan assumption, classified one-off vs recurring class, with the skill that owns the fix. |
+| Report | Surfaces gates and escalations to the operator. Improvements are filed upstream only on explicit authorisation. |
+
+At most **one** subordinate per plan or research project; a second spawn for the same target is
+refused.
+
+## Layout
+
+```
+skills/yf-herdr/
+├── SKILL.md        # trigger contract, launch procedure, observation contract, deviation taxonomy
+├── README.md       # this file
+└── SPEC.md         # REQ-HERDR-NNN requirements, taxonomy provenance, dependency posture
+```
+
+No `scripts/`, `agents/`, `formulas/`, `templates/`, or `protocols/` — the skill is prose only
+and drives the third-party `herdr` CLI directly.
 
 ## Status
 
