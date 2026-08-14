@@ -226,6 +226,154 @@ def test_plan_hoist_gitlab_backend_uses_glab_auth():
     assert all("GITLAB_TOKEN=$(glab auth token)" in c for c in push_cmds)
 
 
+# --- #129 / REQ-BUP-050: push-command construction is a CONTRACT ---------------
+#
+# These assert the CONTRACT, never the emitted string. The defect that made #129
+# survive a green 48-test suite was exactly the opposite style: fixtures comparing
+# an emitted command against an expected string that contained the same comma.
+# An expected-string test cannot fail when the bug is in the expectation too, so
+# every assertion below is phrased over a PROPERTY of the emitted command.
+
+
+def _push_ids_segment(cmd: str, backend: str = "github") -> str:
+    """The argument text between `bd <backend> push` and the next flag (or end).
+
+    Isolating the id segment is what lets the tests below assert over the ids
+    themselves rather than over the whole command string.
+    """
+    marker = f"bd {backend} push "
+    assert marker in cmd, f"not a push command: {cmd!r}"
+    tail = cmd.split(marker, 1)[1]
+    # stop at the first flag, a shell pipe, or the end of the command
+    for stop in (" --", " |", " ||", " &&"):
+        idx = tail.find(stop)
+        if idx != -1:
+            tail = tail[:idx]
+    return tail.strip()
+
+
+def _push_commands(cmds, backend="github"):
+    return [c for c in cmds if f"bd {backend} push " in c]
+
+
+def test_push_ids_are_space_separated_never_comma_joined():
+    """REQ-BUP-050: ids are POSITIONAL args. A comma-joined list matches ZERO
+    beads while bd exits 0 — the #129 silent-data-loss signature."""
+    cmds = up.plan_hoist(["yf-aaa", "yf-bbb", "yf-ccc"], "plan-038",
+                         backend="github", gran="coarse")
+    pushes = _push_commands(cmds)
+    assert pushes, "expected the dry-run + real push"
+    for cmd in pushes:
+        seg = _push_ids_segment(cmd)
+        # THE assertion #129 needed and the old fixture style could not produce:
+        assert "," not in seg, (
+            f"comma found between push ids ({seg!r}) — bd would match ZERO beads "
+            "and still exit 0 (#129)"
+        )
+        assert seg.split() == ["yf-aaa", "yf-bbb", "yf-ccc"]
+
+
+def test_push_ids_space_separated_for_plan_push_too():
+    """The same contract holds for the plain `push` verb (REQ-BUP-051), which
+    must inherit the fix rather than re-derive it."""
+    cmds = up.plan_push(["yf-aaa", "yf-bbb"], backend="github")
+    for cmd in _push_commands(cmds):
+        seg = _push_ids_segment(cmd)
+        assert "," not in seg
+        assert seg.split() == ["yf-aaa", "yf-bbb"]
+
+
+def test_single_bead_push_has_no_separator_at_all():
+    """Single-bead hoist was never broken (a one-element join has no comma),
+    which is why #129 survived. Pin that it stays correct."""
+    cmds = up.plan_hoist(["yf-solo"], "plan-038", backend="github", gran="coarse")
+    for cmd in _push_commands(cmds):
+        assert _push_ids_segment(cmd) == "yf-solo"
+
+
+def test_parse_pushed_count_reads_bd_success_line():
+    """REQ-BUP-050 verification parse (bd 1.1.2 shape)."""
+    assert up.parse_pushed_count("✓ Pushed 2 issues") == 2
+    assert up.parse_pushed_count("✓ Pushed 1 issue") == 1
+    assert up.parse_pushed_count("noise\n✓ Pushed 11 issues\nmore") == 11
+
+
+def test_parse_pushed_count_unrecognized_output_is_unverified_not_zero():
+    """An unparseable output must read as UNVERIFIED (None), never as 'pushed
+    nothing' — the distinction is what makes an unknown bd version fail CLOSED."""
+    assert up.parse_pushed_count("") is None
+    assert up.parse_pushed_count("some future bd wording") is None
+    # the exact #129 signature: bd printed no success line and exited 0
+    assert up.parse_pushed_count("Syncing...\n") is None
+
+
+def test_hoist_close_stage_is_guarded_by_push_verification():
+    """REQ-BUP-050 fail-closed: the destructive `bd close` stage must not be
+    reachable unless the push verified. Contract: every close command is ordered
+    AFTER a push command that carries a halting verification for the expected count."""
+    cmds = up.plan_hoist(["a", "b"], "plan-038", backend="github", gran="coarse")
+    closes = [i for i, c in enumerate(cmds) if c.startswith("bd close")]
+    assert closes, "expected the local-close stage"
+    verified = [
+        i for i, c in enumerate(cmds)
+        if "bd github push " in c and "grep -qE" in c and "exit 1" in c
+    ]
+    assert len(verified) == 2, "both the dry-run and the real push must be verified"
+    assert max(verified) < min(closes), "close stage must follow the verified push"
+    # the verification must key on the number of beads actually being pushed
+    assert all("2 issues?" in cmds[i] for i in verified)
+
+
+def test_push_verification_halts_on_under_count():
+    """Behavioral proof of the guard: run the emitted real-push command against a
+    faked bd that reports FEWER issues than requested, and assert it exits
+    non-zero — so `run()` raises and the close stage never executes."""
+    import subprocess
+    cmds = up.plan_push(["a", "b", "c"], backend="github")
+    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
+    # Replace the auth + bd invocation with a stub reporting only 2 of 3 pushed.
+    stub = real.split("|", 1)[1]
+    faked = "echo '✓ Pushed 2 issues' |" + stub
+    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
+    assert proc.returncode != 0, "an under-count push must fail closed"
+    assert "FAIL-CLOSED" in proc.stderr
+
+
+def test_push_verification_passes_on_exact_count():
+    """The guard must not be a blanket refusal — an exact-count push proceeds."""
+    import subprocess
+    cmds = up.plan_push(["a", "b", "c"], backend="github")
+    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
+    stub = real.split("|", 1)[1]
+    faked = "echo '✓ Pushed 3 issues' |" + stub
+    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
+    assert proc.returncode == 0
+    assert "FAIL-CLOSED" not in proc.stderr
+
+
+def test_push_verification_halts_when_bd_prints_nothing_but_exits_zero():
+    """The literal #129 shape: bd matched zero beads, printed no success line,
+    and exited 0. The sequence must still halt."""
+    import subprocess
+    cmds = up.plan_push(["a", "b"], backend="github")
+    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
+    stub = real.split("|", 1)[1]
+    faked = "true |" + stub
+    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
+    assert proc.returncode != 0
+    assert "FAIL-CLOSED" in proc.stderr
+
+
+def test_plan_unhoist_carries_no_separator_or_destructive_stage():
+    """Issue 2.3 audit, pinned: the sibling builder emits ONE command per bead
+    (no multi-id argument, so no separator hazard) and nothing destructive."""
+    cmds = up.plan_unhoist(["a", "b", "c"])
+    assert len(cmds) == 3, "one command per bead — no joined id list"
+    for c in cmds:
+        assert "," not in c
+        assert "bd close" not in c and "bd delete" not in c
+
+
 # --- C.4 un-hoist round-trip --------------------------------------------------
 
 def test_plan_unhoist_reopens_each_id():

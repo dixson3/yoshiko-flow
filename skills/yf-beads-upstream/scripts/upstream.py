@@ -569,6 +569,65 @@ BACKEND_AUTH = {
 DEFAULT_BACKEND = "github"
 
 
+# REQ-BUP-050: bd reports a successful push as e.g. "✓ Pushed 2 issues" (measured on
+# bd 1.1.2). This parse is a BD-VERSION-DEPENDENT ASSUMPTION about a human-readable string
+# emitted by a third-party binary, NOT a stable API — see skills/yf-beads-upstream/SPEC.md
+# REQ-BUP-050 "Verification-mechanism assumption" for the documented place this breaks.
+# The failure mode is safe by construction: unrecognized output parses as UNVERIFIED, which
+# HALTS the sequence rather than proceeding to the destructive local-close stage.
+PUSHED_COUNT_RE = re.compile(r"[Pp]ushed\s+(\d+)\s+issues?\b")
+# Shell-side equivalent of the parse above, used inside the emitted command sequence.
+_PUSHED_COUNT_GREP = "[Pp]ushed {n} issues?"
+
+
+def parse_pushed_count(output: str) -> int | None:
+    """Number of issues a `bd <backend> push` reported pushing, or None if the
+    output carries no recognizable success line (REQ-BUP-050).
+
+    None means UNVERIFIED, never zero: an unparseable output must halt a sequence
+    with a destructive follow-on stage, not be read as 'pushed nothing'.
+    """
+    m = PUSHED_COUNT_RE.search(output or "")
+    return int(m.group(1)) if m else None
+
+
+def verified_push(push_cmd: str, expected: int) -> str:
+    """Wrap an emitted push command so it FAILS CLOSED (REQ-BUP-050).
+
+    The wrapped command exits non-zero unless the push reports `expected` issues,
+    so `run()` (which raises on a non-zero exit) halts the sequence BEFORE any
+    destructive follow-on stage. `tee /dev/stderr` keeps bd's own output visible.
+    """
+    pattern = _PUSHED_COUNT_GREP.format(n=expected)
+    return (
+        f"{push_cmd} | tee /dev/stderr | grep -qE '{pattern}'"
+        f' || {{ echo "FAIL-CLOSED: push did not report {expected} pushed issue(s)'
+        f' — halting before any local close (REQ-BUP-050)" >&2; exit 1; }}'
+    )
+
+
+def push_command_sequence(
+    bead_ids: list[str], *, backend: str, verify: bool = True
+) -> list[str]:
+    """The scoped, dry-run-first, inline-auth push pair shared by `hoist` and `push`.
+
+    REQ-BUP-050: bead ids are POSITIONAL arguments and MUST be separated by SPACES.
+    A comma-joined list is matched by bd to ZERO beads while the process still exits 0
+    (bd 1.1.2), so a comma here is silent data loss, not a formatting nit.
+    """
+    ids = " ".join(bead_ids)
+    auth_cli, env_var = BACKEND_AUTH.get(backend, ("gh", "GITHUB_TOKEN"))
+    auth = f"{env_var}=$({auth_cli} auth token)"
+    expected = len(bead_ids)
+    # 1. Dry-run the push FIRST (REQ-BUP-013 / REQ-SAFE-001) — scoped, never bare sync.
+    dry = f"{auth} bd {backend} push {ids} --dry-run"
+    # 2. Real push (create-or-map via External:; dedup keeps coarse trackers).
+    real = f"{auth} bd {backend} push {ids}"
+    if not verify:
+        return [dry, real]
+    return [verified_push(dry, expected), verified_push(real, expected)]
+
+
 def plan_hoist(bead_ids: list[str], dest: str, *, backend: str, gran: str) -> list[str]:
     """Build the EXACT command sequence a hoist would run (no execution).
 
@@ -576,20 +635,30 @@ def plan_hoist(bead_ids: list[str], dest: str, *, backend: str, gran: str) -> li
     push first, then the real push, then per-bead reversible close. Auth is
     inline-only (never written to config). Used both for the dry-run preview and
     as the command list executed under --apply.
+
+    REQ-BUP-050 (#129): ids are space-separated, and BOTH push stages are wrapped
+    fail-closed so the destructive `bd close` stage below cannot run on a push that
+    matched fewer beads than expected. Before this, a comma-joined id list matched
+    ZERO beads while exiting 0, and stage 3 then tombstoned every bead with a
+    close_reason asserting an upstream hoist that never happened.
     """
-    ids_csv = ",".join(bead_ids)
-    auth_cli, env_var = BACKEND_AUTH.get(backend, ("gh", "GITHUB_TOKEN"))
-    auth = f"{env_var}=$({auth_cli} auth token)"
-    cmds: list[str] = []
-    # 1. Dry-run the push FIRST (REQ-BUP-013 / REQ-SAFE-001) — scoped, never bare sync.
-    cmds.append(f"{auth} bd {backend} push {ids_csv} --dry-run")
-    # 2. Real push (create-or-map via External:; dedup keeps coarse trackers).
-    cmds.append(f"{auth} bd {backend} push {ids_csv}")
-    # 3. Remove locally — reversible tombstone, never bd delete.
+    cmds: list[str] = push_command_sequence(bead_ids, backend=backend)
+    # 3. Remove locally — reversible tombstone, never bd delete. Guarded by the
+    #    fail-closed wrappers above: an unverified push halts before reaching here.
     reason = close_reason(dest)
     for bid in bead_ids:
         cmds.append(f'bd close {bid} -r "{reason}"')
     return cmds
+
+
+def plan_push(bead_ids: list[str], *, backend: str) -> list[str]:
+    """Build the command sequence for a PLAIN upstream push (REQ-BUP-051).
+
+    `plan_hoist` stages 1–2 WITHOUT stage 3: a plain push leaves the bead open and
+    mirrored, where `hoist` removes it locally with a reversible tombstone. Inherits
+    the REQ-BUP-050 space-separated ids and fail-closed verification by construction.
+    """
+    return push_command_sequence(bead_ids, backend=backend)
 
 
 def plan_unhoist(bead_ids: list[str]) -> list[str]:
