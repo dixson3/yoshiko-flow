@@ -1,0 +1,57 @@
+# Isolated #107 local patch
+#
+# Base:  0b0cc78c skills/yf-plan/scripts/plan_manager.py
+#        (plan-030: REQ-PLAN-069 ci-release completion criterion — the closest
+#        historical ancestor of the user-scope copy; see findings/exp-01)
+# Head:  references/user-scope/plan_manager.py (the locally patched user-scope copy)
+#
+# One hunk. Adds _bootstrap_layout() and makes PLANS_DIR / INCUBATOR_PARENT
+# configurable via a committed .yf-plan.json plus a .yf-plan.local.json override.
+#
+# This is the SPECIFICATION of the behavior Issue 2.3 (#107) re-implements —
+# NOT a patch to apply. The legacy root-dotfile idiom below is exactly what
+# #100 supersedes; 2.3 must express the same behavior through the canonical
+# .yf/plan/config.local.json reader that Issue 2.2 lands.
+#
+# Properties to preserve: defaults when unconfigured, malformed JSON tolerated
+# at import time, and resolution before the module constants are bound.
+
+--- a/skills/yf-plan/scripts/plan_manager.py (0b0cc78c)
++++ b/skills/yf-plan/scripts/plan_manager.py (user-scope, patched)
+@@ -31,8 +31,34 @@
+ sys.path.insert(0, str(Path(__file__).resolve().parent))
+ import okf  # noqa: E402
+ 
+-PLANS_DIR = Path("docs/plans")
+-INCUBATOR_PARENT = Path("Incubator")
++PROJECT_CONFIG_FILE = Path(".yf-plan.json")        # committed layout decisions
++LOCAL_CONFIG_FILE = Path(".yf-plan.local.json")    # operator overrides (gitignored)
++
++
++def _bootstrap_layout() -> dict:
++    """Layout config: committed `.yf-plan.json`, then `.yf-plan.local.json` override.
++
++    Read at import time because PLANS_DIR / INCUBATOR_PARENT are module constants.
++    Deliberately dependency-free — it runs before `_read_json` is defined. Both
++    paths are CWD-relative, matching the constants they configure.
++    """
++    cfg: dict = {}
++    for path in (PROJECT_CONFIG_FILE, LOCAL_CONFIG_FILE):
++        try:
++            if path.exists():
++                cfg.update(json.loads(path.read_text()))
++        except (json.JSONDecodeError, OSError):
++            pass
++    return cfg
++
++
++_LAYOUT = _bootstrap_layout()
++
++# Repo layout is configurable: a project whose plan/incubator roots are not the
++# defaults (e.g. a vault that must keep them out of a visible top-level folder)
++# sets `plans-root` / `incubator-root` in `.yf-plan.json`.
++PLANS_DIR = Path(_LAYOUT.get("plans-root", "docs/plans"))
++INCUBATOR_PARENT = Path(_LAYOUT.get("incubator-root", "Incubator"))
+ 
+ # Dual-field model (REQ-DATA-015 / OKF-EXTENSION.md §4): a single in-memory model
+ # maps each frontmatter key to its human `**Field:**` label. Reads are
