@@ -11,6 +11,7 @@ plan_hoist / plan_unhoist command builders) are exercised WITHOUT a live bd or
 network — every bd interaction is faked.
 """
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -452,3 +453,87 @@ def test_cmd_land_auto_path_narrow_only(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "NO-PROMPT auto-hoist (narrow only): ['t1']" in out
     assert "Still gated (broad" in out and "t2" in out
+
+
+# --- REQ-BUP-049: never silently exclude owner-claimed beads (#105) -----------
+
+def test_owner_claim_exclusions_reports_the_dropped_set():
+    """#105/REQ-BUP-049: with the knob OFF, the owner-only bead is excluded and must be
+    reported. This is the set enumerate has to warn about."""
+    beads, edges = make_enumerate_universe()
+    excluded = up.owner_claim_exclusions(beads, edges, ignore_owner_claim=False)
+    assert excluded == ["t_claimed"]
+
+
+def test_owner_claim_exclusions_empty_when_knob_on():
+    """Knob ON → nothing is excluded on owner grounds, so there is nothing to warn about."""
+    beads, edges = make_enumerate_universe()
+    assert up.owner_claim_exclusions(beads, edges, ignore_owner_claim=True) == []
+
+
+def test_owner_claim_exclusions_excludes_only_owner_grounds():
+    """Genuinely-active work (in_progress, ancestor-of-active) and closed beads are NOT
+    reported as owner-claim exclusions — they would be excluded either way, so warning
+    about them would be noise."""
+    beads, edges = make_enumerate_universe()
+    excluded = set(up.owner_claim_exclusions(beads, edges, ignore_owner_claim=False))
+    assert "t_ip" not in excluded        # excluded by status, not by owner
+    assert "epic_anc" not in excluded    # excluded as ancestor-of-active
+    assert "t_closed" not in excluded    # closed beads are in neither bucket
+
+
+def test_owner_claim_exclusions_does_not_mutate_input():
+    """Guards the shared-classifier byte-identity invariant at the call boundary
+    (same contract as REQ-BUP-048's copy semantics)."""
+    beads, edges = make_enumerate_universe()
+    before = {bid: dict(b) for bid, b in beads.items()}
+    up.owner_claim_exclusions(beads, edges, ignore_owner_claim=False)
+    assert beads == before
+
+
+def test_enumerate_warns_on_nonzero_candidates_with_exclusions(monkeypatch, capsys):
+    """The #105 regression proper: a PLAUSIBLE NON-ZERO candidate list that still hides
+    owner-claimed beads must warn. A guard keyed on `len(candidates) == 0` would not fire
+    here — that is exactly why the real repo's `1 candidate(s)` went unnoticed."""
+    beads, edges = make_enumerate_universe()
+    monkeypatch.setattr(up, "load_universe_rows", lambda: list(beads.values()))
+    monkeypatch.setattr(up, "collect_parent_edges", lambda _b: edges)
+    monkeypatch.setattr(up, "owner_on_create", lambda: False)
+    monkeypatch.setattr(up, "external_for", lambda _bid: None)
+
+    rc = up.cmd_enumerate(as_json=False)
+    cap = capsys.readouterr()
+    assert rc == 0
+    # Non-zero candidate list — the case a zero-keyed guard misses.
+    assert "3 candidate(s)" in cap.out
+    assert "WARNING: 1 open bead(s) excluded as owner-claimed" in cap.err
+    assert "custom.upstream.owner_on_create true" in cap.err
+    assert "t_claimed" in cap.err
+
+
+def test_enumerate_json_stdout_stays_a_pure_array(monkeypatch, capsys):
+    """REQ-BUP-049: the warning goes to stderr so `--json` stdout survives a `| jq`."""
+    beads, edges = make_enumerate_universe()
+    monkeypatch.setattr(up, "load_universe_rows", lambda: list(beads.values()))
+    monkeypatch.setattr(up, "collect_parent_edges", lambda _b: edges)
+    monkeypatch.setattr(up, "owner_on_create", lambda: False)
+    monkeypatch.setattr(up, "external_for", lambda _bid: None)
+
+    up.cmd_enumerate(as_json=True)
+    cap = capsys.readouterr()
+    parsed = json.loads(cap.out)          # must parse — no warning text mixed in
+    assert isinstance(parsed, list)
+    assert {r["id"] for r in parsed} == {"t_open", "t_blocked", "t_deferred"}
+    assert "WARNING:" in cap.err          # ...and the signal is still emitted
+
+
+def test_enumerate_silent_when_nothing_owner_excluded(monkeypatch, capsys):
+    """No spurious warning when the knob is ON — silence is correct here."""
+    beads, edges = make_enumerate_universe()
+    monkeypatch.setattr(up, "load_universe_rows", lambda: list(beads.values()))
+    monkeypatch.setattr(up, "collect_parent_edges", lambda _b: edges)
+    monkeypatch.setattr(up, "owner_on_create", lambda: True)
+    monkeypatch.setattr(up, "external_for", lambda _bid: None)
+
+    up.cmd_enumerate(as_json=False)
+    assert "WARNING:" not in capsys.readouterr().err

@@ -270,6 +270,20 @@ The helper (see `scripts/upstream.py`) lists candidate bead IDs and flags those 
 an `External:` mapping (parsed defensively per `yf-beads-extra`). Present the set; the operator
 confirms the scoped IDs.
 
+**Heed an owner-claimed warning on stderr (REQ-BUP-049).** In repos where `bd create`
+auto-assigns an owner, owner-claimed beads are read as active work and excluded from candidacy.
+Enumerate warns whenever that exclusion is non-empty:
+
+```
+WARNING: 36 open bead(s) excluded as owner-claimed and will never be pushed. If `bd create`
+auto-assigns owners in this repo, set `custom.upstream.owner_on_create true` (see REQ-BUP-048).
+```
+
+The remedy is `bd config set custom.upstream.owner_on_create true`, then re-run enumerate. Do
+**not** treat a short candidate list as "nothing to push" while this warning is present — the
+count is not the signal, the warning is. The warning goes to **stderr**, so `--json` stdout stays
+a pure array; a `| jq` pipeline will hide it unless stderr is also read.
+
 ### 3 — Dry-run, then scoped push
 
 Use the dedicated `bd github push` (≡ `bd github sync --push-only --issues <ids>`); **never a bare
