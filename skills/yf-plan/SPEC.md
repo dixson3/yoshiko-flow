@@ -68,6 +68,19 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   preserving `count(reviews/pass-*.md) == count(log.md review: lines)` (REQ-PORT-006).
 - **REQ-PLAN-032** a `pass-N.md` shall be mutable until all concerns resolve, then frozen; each
   full REVISE cycle yields exactly one pass file.
+- **REQ-PLAN-071** *(testable)* **verdict-line contract.** The canonical verdict line in a
+  `reviews/pass-N.md` is a level-2 ATX heading — `## Verdict: <APPROVE|REVISE|INVESTIGATE-MORE>`.
+  The red-team agent template (`agents/red-team.md`) shall **emit** that form, and the
+  `ready-check` parser shall **accept** it. Template and parser are a single contract: a review
+  written exactly as the template prescribes must parse. Because a silent mismatch between the two
+  is unobservable (it degrades to "no verdict"), the parser shall additionally accept a level-3
+  heading (`^#{2,3}\s+Verdict:`) as defence in depth — a tolerance for a template that drifts back,
+  not a second canonical form. Emitting `###` remains non-conformant.
+- **REQ-PLAN-072** *(testable)* **a malformed verdict shall fail loud.** `ready-check` shall
+  distinguish *no review exists* from *a review exists but its verdict did not parse*. When
+  `review_pass > 0` and no verdict parses, it shall report a **malformed-review error naming the
+  offending file** rather than a null verdict. The `review_pass > 0 && verdict == null` state is a
+  contradiction and shall never be presented as a merely-absent verdict.
 - **REQ-PLAN-033** *(testable)* the portability `audit` shall be a **precondition of the approval
   prompt**, not a post-approval step: it runs as the last PLAN step, before the operator is asked to
   approve, so approval is consent to an already-verified plan (not "approve, then verify"). The

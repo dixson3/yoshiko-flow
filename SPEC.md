@@ -218,6 +218,13 @@
 >   subagent+workflow docs, and a managed-files reference) is documentation of shipped behavior and
 >   ships no new REQ. Engine work lands in later epics — this entry records the SPEC-first Epic 1
 >   amendment.
+> - **plan-037 (#116):** added **`REQ-PLAN-071`** (verdict-line contract — the red-team template and
+>   the `ready-check` parser are one contract: the template emits `## Verdict:`, the parser accepts
+>   `^#{2,3}\s+Verdict:` as defence in depth) and **`REQ-PLAN-072`** (a malformed verdict fails loud —
+>   `review_pass > 0` with an unparseable verdict is reported as a malformed-review error naming the
+>   file, never as a null verdict). Driven by a live defect: the template emitted `### Verdict:` while
+>   the parser matched `## Verdict:`, so a review written exactly as prescribed was silently
+>   unparseable and `ready-check` reported `review_pass: 2` alongside `verdict: null`.
 
 ## 1. Purpose & scope
 
