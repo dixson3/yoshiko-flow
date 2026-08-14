@@ -27,6 +27,7 @@ approved: yes
 | `uv-yf-cascade` | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 | `uv-yf-complete-gate` | `uv run skills/yf-plan/scripts/test_complete_gate.py` |  |  |
 | `uv-yf-review-verdict` | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
+| `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
@@ -47,6 +48,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_complete_gate.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
