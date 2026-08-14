@@ -2735,12 +2735,20 @@ def _plan_review_line_count(plan_dir: Path) -> int:
     return count
 
 
-def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
-    """Return (N, verdict) of the highest-numbered ``reviews/pass-N.md`` file.
+def _latest_review_verdict(
+    plan_dir: Path,
+) -> tuple[int | None, str | None, Path | None]:
+    """Return (N, verdict, path) of the highest-numbered ``reviews/pass-N.md`` file.
 
     The verdict is parsed from the first ``## Verdict: <V>`` line (case-insensitive)
-    and upper-cased. Returns ``(None, None)`` when no pass file exists, and
-    ``(N, None)`` when the highest pass file has no parseable verdict line.
+    and upper-cased. Returns ``(None, None, None)`` when no pass file exists, and
+    ``(N, None, path)`` when the highest pass file has no parseable verdict line.
+
+    The third element is what makes REQ-PLAN-072 possible: ``(N, None, path)`` is a
+    *malformed* review — a file exists but its verdict did not parse — and is a
+    materially different condition from ``(None, None, None)`` (no review at all).
+    Callers must report the former as an error naming ``path``, never as a merely
+    absent verdict.
 
     Per REQ-PLAN-071 the canonical emitted form is the level-2 heading ``## Verdict:``
     (what ``agents/red-team.md`` writes and what 56 of the existing reviews use). The
@@ -2756,7 +2764,7 @@ def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
     """
     reviews_dir = plan_dir / "reviews"
     if not reviews_dir.is_dir():
-        return (None, None)
+        return (None, None, None)
     best_n: int | None = None
     best_file: Path | None = None
     for f in reviews_dir.glob("pass-*.md"):
@@ -2768,14 +2776,14 @@ def _latest_review_verdict(plan_dir: Path) -> tuple[int | None, str | None]:
             best_n = n
             best_file = f
     if best_file is None:
-        return (None, None)
+        return (None, None, None)
     verdict: str | None = None
     for line in best_file.read_text(encoding="utf-8").splitlines():
         m = re.match(r"#{2,3}\s+Verdict:\s*([A-Za-z-]+)", line.strip(), re.IGNORECASE)
         if m:
             verdict = m.group(1).upper()
             break
-    return (best_n, verdict)
+    return (best_n, verdict, best_file)
 
 
 def _plan_non_exclude_upstream_numbers(plan_md_text: str) -> list[str]:
@@ -3131,14 +3139,32 @@ def ready_check(plan_dir: str, as_json: bool):
       2. the portability ``audit`` passes (REQ-PLAN-033).
 
     Emits ``{"ready": bool, "reasons": [...], "verdict": ..., "review_pass": ...,
-    "audit_status": ...}``. Exits ``3`` when not ready (a gate signal, distinct from
-    a ``1`` crash), ``0`` when ready.
+    "malformed_review": ..., "audit_status": ...}``. Exits ``3`` when not ready (a
+    gate signal, distinct from a ``1`` crash), ``0`` when ready.
+
+    ``malformed_review`` (REQ-PLAN-072) is the path of a review file that exists but
+    whose verdict did not parse, else ``null``. It disambiguates the two ways
+    ``verdict`` can be ``null``: no review at all (``review_pass: null``) versus a
+    review present but unparseable (``review_pass: N``). The latter used to surface
+    as a bare null verdict — a contradiction that read as "no review has run".
     """
     pdir = Path(plan_dir)
     reasons: list[str] = []
 
-    n, verdict = _latest_review_verdict(pdir)
-    if verdict is None:
+    n, verdict, review_file = _latest_review_verdict(pdir)
+    malformed_review: str | None = None
+    if verdict is None and review_file is not None:
+        # REQ-PLAN-072: a review EXISTS but its verdict did not parse. This is a
+        # malformed review, not an absent one — reporting it as `verdict: null`
+        # alongside `review_pass: N` is a self-contradiction that hides the real
+        # cause (the trap #116 sprang). Name the offending file.
+        malformed_review = str(review_file)
+        reasons.append(
+            f"malformed review: {review_file} exists (pass-{n}) but contains no "
+            "parseable verdict line — expected '## Verdict: APPROVE|REVISE|"
+            "INVESTIGATE-MORE' (REQ-PLAN-071). This is NOT an absent verdict; "
+            "fix the verdict line in that file")
+    elif verdict is None:
         reasons.append(
             "no red-team verdict found — expected reviews/pass-N.md with a "
             "'## Verdict:' line")
@@ -3159,6 +3185,7 @@ def ready_check(plan_dir: str, as_json: bool):
         "reasons": reasons,
         "verdict": verdict,
         "review_pass": n,
+        "malformed_review": malformed_review,
         "audit_status": audit["status"],
     }
     if as_json:
