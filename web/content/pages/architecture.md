@@ -26,14 +26,14 @@ markdown — those are the skills themselves. Its jobs:
 
 The **entire skill tree is embedded in the `yf` binary at build time**, so installing skills
 needs no network access and no repo clone — the skills you get always match the binary you
-already have. `yf` ships **18 skills**. Grouped by what they do:
+already have. `yf` ships **19 skills**. Grouped by what they do:
 
 - **workflows (3)** — the end-to-end, beads-tracked skills you invoke to get work done:
   `yf-plan`, `yf-research`, `yf-incubator`.
 - **beads (5)** — the `bd` (beads) support layer the workflows build on: `yf-beads-init`,
   `yf-beads-extra`, `yf-beads-authoring`, `yf-beads-hygiene`, `yf-beads-upstream`.
-- **utility (6)** — beads-free helpers: skill authoring, drift checking, diagram authoring,
-  OKF folders, optimal instructions, change validation.
+- **utility (7)** — beads-free helpers: skill authoring, drift checking, diagram authoring,
+  OKF folders, optimal instructions, change validation, herdr delegation.
 - **markdown (4)** — standalone GFM tooling: lint, format, PDF, HTML.
 
 Those four are the **install groups** — each skill's `skill-group` frontmatter — so
