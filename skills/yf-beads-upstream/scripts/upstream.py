@@ -119,6 +119,27 @@ def auto_hoist_followons(config_get=_config_get) -> bool:
     return raw.strip() == "true"
 
 
+def upstream_enabled(config_get=_config_get) -> bool:
+    """Return True only when upstream tracking is actually enabled (REQ-BUP-010).
+
+    Default-DENY: `custom.upstream.enabled` must be the literal "true"; unset / empty /
+    "false" / any other value resolves disabled. Backend `none` also disables, matching
+    the documented test ("unconfigured, `false`, or backend `none`").
+
+    An UNSET backend does NOT disable — the docs are explicit that the explicit `none`
+    marker is never required for the short-circuit, so only an explicit `none` (or an
+    empty value) counts. Reads the config TEXT for the `(not set)` sentinel, never the
+    exit code (the false-negative invariant). `config_get` is injectable.
+    """
+    raw = config_get("custom.upstream.enabled")
+    if raw is None or NOT_SET_SENTINEL in raw or raw.strip() != "true":
+        return False
+    backend = config_get("custom.upstream.backend")
+    if backend is None or NOT_SET_SENTINEL in backend:
+        return True  # unset backend is not a disable signal (see docstring)
+    return backend.strip() not in ("", "none")
+
+
 def owner_on_create(config_get=_config_get) -> bool:
     """Return True only when custom.upstream.owner_on_create is literal "true" (#61, REQ-BUP-048).
 
@@ -569,6 +590,65 @@ BACKEND_AUTH = {
 DEFAULT_BACKEND = "github"
 
 
+# REQ-BUP-050: bd reports a successful push as e.g. "✓ Pushed 2 issues" (measured on
+# bd 1.1.2). This parse is a BD-VERSION-DEPENDENT ASSUMPTION about a human-readable string
+# emitted by a third-party binary, NOT a stable API — see skills/yf-beads-upstream/SPEC.md
+# REQ-BUP-050 "Verification-mechanism assumption" for the documented place this breaks.
+# The failure mode is safe by construction: unrecognized output parses as UNVERIFIED, which
+# HALTS the sequence rather than proceeding to the destructive local-close stage.
+PUSHED_COUNT_RE = re.compile(r"[Pp]ushed\s+(\d+)\s+issues?\b")
+# Shell-side equivalent of the parse above, used inside the emitted command sequence.
+_PUSHED_COUNT_GREP = "[Pp]ushed {n} issues?"
+
+
+def parse_pushed_count(output: str) -> int | None:
+    """Number of issues a `bd <backend> push` reported pushing, or None if the
+    output carries no recognizable success line (REQ-BUP-050).
+
+    None means UNVERIFIED, never zero: an unparseable output must halt a sequence
+    with a destructive follow-on stage, not be read as 'pushed nothing'.
+    """
+    m = PUSHED_COUNT_RE.search(output or "")
+    return int(m.group(1)) if m else None
+
+
+def verified_push(push_cmd: str, expected: int) -> str:
+    """Wrap an emitted push command so it FAILS CLOSED (REQ-BUP-050).
+
+    The wrapped command exits non-zero unless the push reports `expected` issues,
+    so `run()` (which raises on a non-zero exit) halts the sequence BEFORE any
+    destructive follow-on stage. `tee /dev/stderr` keeps bd's own output visible.
+    """
+    pattern = _PUSHED_COUNT_GREP.format(n=expected)
+    return (
+        f"{push_cmd} | tee /dev/stderr | grep -qE '{pattern}'"
+        f' || {{ echo "FAIL-CLOSED: push did not report {expected} pushed issue(s)'
+        f' — halting before any local close (REQ-BUP-050)" >&2; exit 1; }}'
+    )
+
+
+def push_command_sequence(
+    bead_ids: list[str], *, backend: str, verify: bool = True
+) -> list[str]:
+    """The scoped, dry-run-first, inline-auth push pair shared by `hoist` and `push`.
+
+    REQ-BUP-050: bead ids are POSITIONAL arguments and MUST be separated by SPACES.
+    A comma-joined list is matched by bd to ZERO beads while the process still exits 0
+    (bd 1.1.2), so a comma here is silent data loss, not a formatting nit.
+    """
+    ids = " ".join(bead_ids)
+    auth_cli, env_var = BACKEND_AUTH.get(backend, ("gh", "GITHUB_TOKEN"))
+    auth = f"{env_var}=$({auth_cli} auth token)"
+    expected = len(bead_ids)
+    # 1. Dry-run the push FIRST (REQ-BUP-013 / REQ-SAFE-001) — scoped, never bare sync.
+    dry = f"{auth} bd {backend} push {ids} --dry-run"
+    # 2. Real push (create-or-map via External:; dedup keeps coarse trackers).
+    real = f"{auth} bd {backend} push {ids}"
+    if not verify:
+        return [dry, real]
+    return [verified_push(dry, expected), verified_push(real, expected)]
+
+
 def plan_hoist(bead_ids: list[str], dest: str, *, backend: str, gran: str) -> list[str]:
     """Build the EXACT command sequence a hoist would run (no execution).
 
@@ -576,20 +656,30 @@ def plan_hoist(bead_ids: list[str], dest: str, *, backend: str, gran: str) -> li
     push first, then the real push, then per-bead reversible close. Auth is
     inline-only (never written to config). Used both for the dry-run preview and
     as the command list executed under --apply.
+
+    REQ-BUP-050 (#129): ids are space-separated, and BOTH push stages are wrapped
+    fail-closed so the destructive `bd close` stage below cannot run on a push that
+    matched fewer beads than expected. Before this, a comma-joined id list matched
+    ZERO beads while exiting 0, and stage 3 then tombstoned every bead with a
+    close_reason asserting an upstream hoist that never happened.
     """
-    ids_csv = ",".join(bead_ids)
-    auth_cli, env_var = BACKEND_AUTH.get(backend, ("gh", "GITHUB_TOKEN"))
-    auth = f"{env_var}=$({auth_cli} auth token)"
-    cmds: list[str] = []
-    # 1. Dry-run the push FIRST (REQ-BUP-013 / REQ-SAFE-001) — scoped, never bare sync.
-    cmds.append(f"{auth} bd {backend} push {ids_csv} --dry-run")
-    # 2. Real push (create-or-map via External:; dedup keeps coarse trackers).
-    cmds.append(f"{auth} bd {backend} push {ids_csv}")
-    # 3. Remove locally — reversible tombstone, never bd delete.
+    cmds: list[str] = push_command_sequence(bead_ids, backend=backend)
+    # 3. Remove locally — reversible tombstone, never bd delete. Guarded by the
+    #    fail-closed wrappers above: an unverified push halts before reaching here.
     reason = close_reason(dest)
     for bid in bead_ids:
         cmds.append(f'bd close {bid} -r "{reason}"')
     return cmds
+
+
+def plan_push(bead_ids: list[str], *, backend: str) -> list[str]:
+    """Build the command sequence for a PLAIN upstream push (REQ-BUP-051).
+
+    `plan_hoist` stages 1–2 WITHOUT stage 3: a plain push leaves the bead open and
+    mirrored, where `hoist` removes it locally with a reversible tombstone. Inherits
+    the REQ-BUP-050 space-separated ids and fail-closed verification by construction.
+    """
+    return push_command_sequence(bead_ids, backend=backend)
 
 
 def plan_unhoist(bead_ids: list[str]) -> list[str]:
@@ -763,6 +853,155 @@ def cmd_hoist(issues_csv: str, dest: str, backend: str, apply: bool) -> int:
     return 0
 
 
+def owner_claim_warning_lines() -> list[str]:
+    """The REQ-BUP-049 owner-claimed exclusion warning as text lines, or [].
+
+    Factored out of `cmd_enumerate`'s stderr write so `push` can surface the same
+    signal INLINE in its own stdout (REQ-BUP-051, #105 residual): the shipped
+    warning is stderr-only, so an agent piping `--json` to `jq` never sees it, and
+    `push` is now the routed path every operator and agent is sent through.
+    """
+    rows = load_universe_rows()
+    beads = {r["id"]: r for r in rows if r.get("id")}
+    edges = collect_parent_edges(beads)
+    excluded = owner_claim_exclusions(beads, edges, owner_on_create())
+    if not excluded:
+        return []
+    preview = ", ".join(excluded[:5]) + (" …" if len(excluded) > 5 else "")
+    return [
+        f"WARNING: {len(excluded)} open bead(s) excluded as owner-claimed and will never "
+        f"be pushed. If `bd create` auto-assigns owners in this repo, set "
+        f"`custom.upstream.owner_on_create true` (see REQ-BUP-048).",
+        f"         excluded: {preview}",
+    ]
+
+
+def cmd_push(issues_csv: str, backend: str, apply: bool) -> int:
+    """THE documented push path (REQ-BUP-051).
+
+    Scoped (`--issues`, never a bare sync), dry-run first, inline auth, ids
+    space-separated and fail-closed (REQ-BUP-050). Leaves each bead OPEN and
+    mirrored — removing it locally is `hoist`, a different verb.
+
+    Matches the existing `--apply`-only idiom: there is no `--dry-run` flag,
+    because absent `--apply` IS the dry run.
+    """
+    if not upstream_enabled():
+        print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to push.")
+        return 0
+    ids = [s.strip() for s in issues_csv.split(",") if s.strip()]
+    if not ids:
+        print("No bead IDs given; nothing to push.")
+        return 1
+    cmds = plan_push(ids, backend=backend)
+
+    print(f"Push plan: {len(ids)} bead(s) -> {backend} (beads stay open and mirrored)")
+    print("Command sequence (dry-run push always runs first; both stages fail closed):")
+    for c in cmds:
+        print(f"  {c}")
+    # #105 residual: surface the owner-claimed exclusion warning INLINE on stdout,
+    # so it survives a `| jq` on the routed path.
+    for line in owner_claim_warning_lines():
+        print(line)
+    if not apply:
+        print("\nDry run. Re-run with --apply to execute the sequence above.")
+        return 0
+    for c in cmds:
+        print(f"+ {c}")
+        run(["bash", "-c", c])
+    print("Push complete (beads remain open, now mirrored upstream).")
+    return 0
+
+
+# --- closable: propose upstream issues whose work is done (REQ-BUP-052, #117) ---
+
+CLOSABLE_CAVEAT = (
+    "Hand-filed coarse plan trackers carry NO bead mapping and are invisible to this "
+    "signal — a clean run does NOT mean nothing needs closing."
+)
+
+
+def closable_candidates(beads: list[dict]) -> list[dict]:
+    """Group beads by the upstream issue they map to and report which are closable (pure).
+
+    `beads` is a list of {"id", "status", "external"} dicts. An issue is **closable**
+    when EVERY bead carrying an `External:` mapping to it is closed; a single open
+    mapped bead makes it **not-closable**, and that bead is named as the reason.
+
+    Beads with no `external` are ignored entirely — they map to no issue. This is the
+    deliberate zero-coupling choice of REQ-BUP-052: the signal is per-bead, so it needs
+    nothing from `yf-plan`'s configurable plans-root. The price is the recorded gap —
+    a hand-filed coarse tracker has no bead pointing at it and can never appear here.
+    """
+    by_issue: dict[str, list[dict]] = {}
+    for b in beads:
+        ext = b.get("external")
+        if not ext:
+            continue
+        by_issue.setdefault(ext, []).append(b)
+
+    out: list[dict] = []
+    for ext in sorted(by_issue):
+        mapped = by_issue[ext]
+        open_ids = sorted(b["id"] for b in mapped if not _is_closed(b))
+        out.append(
+            {
+                "external": ext,
+                "beads": sorted(b["id"] for b in mapped),
+                "closable": not open_ids,
+                "blocking": open_ids,
+                "reason": (
+                    "all mapped beads are closed"
+                    if not open_ids
+                    else f"still open: {', '.join(open_ids)}"
+                ),
+            }
+        )
+    return out
+
+
+def issue_number_from_url(url: str) -> str | None:
+    """Trailing issue number of an upstream issue URL, for the `gh issue close` proposal."""
+    m = re.search(r"/(\d+)/?$", url or "")
+    return m.group(1) if m else None
+
+
+def cmd_closable(as_json: bool) -> int:
+    """Propose which upstream issues can be closed. NEVER closes anything (REQ-BUP-052).
+
+    Closing an upstream issue is outward-facing, so it gets the same confirm contract
+    as a push: this verb emits the `gh issue close` commands for operator confirmation
+    and stops.
+    """
+    if not upstream_enabled():
+        print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to report.")
+        return 0
+    rows = load_universe_rows()
+    beads = [
+        {"id": r["id"], "status": r.get("status", ""), "external": external_for(r["id"])}
+        for r in rows
+        if r.get("id")
+    ]
+    report = closable_candidates(beads)
+    closable = [r for r in report if r["closable"]]
+
+    if as_json:
+        print(json.dumps({"caveat": CLOSABLE_CAVEAT, "issues": report}, indent=2))
+    else:
+        print(f"{len(report)} mapped upstream issue(s); {len(closable)} closable:")
+        for r in report:
+            tag = "closable    " if r["closable"] else "not-closable"
+            print(f"  [{tag}] {r['external']}  ({r['reason']})")
+        if closable:
+            print("\nProposed (NOT executed — confirm each before running):")
+            for r in closable:
+                num = issue_number_from_url(r["external"])
+                if num:
+                    print(f"  gh issue close {num}")
+        print(f"\nNOTE: {CLOSABLE_CAVEAT}")
+    return 0
+
+
 def cmd_unhoist(issues_csv: str | None, record: str | None, apply: bool) -> int:
     if record:
         with open(record, encoding="utf-8") as fh:
@@ -808,6 +1047,20 @@ def main() -> int:
     p_fo.add_argument("--intake", required=True, help="epic intake timestamp (RFC3339)")
     p_fo.add_argument("--json", action="store_true", dest="as_json")
 
+    p_clos = sub.add_parser(
+        "closable",
+        help="propose upstream issues whose mapped beads are all closed (never closes)",
+    )
+    p_clos.add_argument("--json", action="store_true", dest="as_json")
+
+    p_push = sub.add_parser(
+        "push",
+        help="THE documented push path: scoped, dry-run-first, fail-closed (beads stay open)",
+    )
+    p_push.add_argument("--issues", required=True, help="comma-separated bead IDs")
+    p_push.add_argument("--backend", default=DEFAULT_BACKEND, help="bd push backend (default: github)")
+    p_push.add_argument("--apply", action="store_true", help="Execute (default: dry-run/plan only).")
+
     p_hoist = sub.add_parser("hoist", help="ensure upstream issue per granularity, then close locally")
     p_hoist.add_argument("--issues", required=True, help="comma-separated bead IDs")
     p_hoist.add_argument("--dest", required=True, help="plan id or upstream URL recorded in close reason")
@@ -839,6 +1092,10 @@ def main() -> int:
         return cmd_config(args.as_json)
     if args.cmd == "followons":
         return cmd_followons(args.parent, args.intake, args.as_json)
+    if args.cmd == "closable":
+        return cmd_closable(args.as_json)
+    if args.cmd == "push":
+        return cmd_push(args.issues, args.backend, args.apply)
     if args.cmd == "hoist":
         return cmd_hoist(args.issues, args.dest, args.backend, args.apply)
     if args.cmd == "land":

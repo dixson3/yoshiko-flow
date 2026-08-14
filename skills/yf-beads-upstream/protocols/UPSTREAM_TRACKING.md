@@ -41,13 +41,32 @@ commands.** The skill performs the scoped, dry-run-first, inline-auth push corre
 `bd <backend> push --dry-run` looks safe but skips the skill's enumeration, mapping, and
 follow-on handling).
 
+**The concrete verb is `upstream.py push`** — `push --issues <csv> [--apply]`, where absent
+`--apply` *is* the dry run. The skill's Push step routes through it, so following `SKILL.md` end
+to end is compliant by construction; there is no longer a documented step that asks you to type a
+`bd` push yourself.
+
 The constraints below are what the skill's push **guarantees** — they describe why the routing
 exists, not a recipe to reproduce by hand:
 
 - **never a bare `bd <backend> sync`** — a bare sync re-imports every upstream issue as a
   duplicate bead and pushes the whole local DB; the skill only ever pushes **scoped**
   (`--issues <ids>` / `--parent <id>`), **`--push-only`** (Jira: `--push`), **`--dry-run` first**;
-- **auth is inline-only** (`TOKEN=$(...) bd <backend> …`), never written to config.
+- **auth is inline-only** (`TOKEN=$(...) bd <backend> …`), never written to config;
+- **bead ids are space-separated and the push is verified** — ids are positional arguments, and a
+  comma-joined list matches **zero** beads while `bd` still exits **0**. A `bd` push that exited 0
+  is therefore *not* proof it pushed anything. The skill's sequences are **fail-closed**: a push
+  that does not report the expected bead count halts before any destructive follow-on stage. This
+  is why hand-running is unsafe even when it looks like it worked.
 
 If `/yf-beads-upstream` is unavailable, stop and report — do not substitute a hand-run push. For
 config, backends, and failure handling, see the `yf-beads-upstream` SKILL.
+
+## Closable check (close-time, propose-only)
+
+At land-the-plane, after the push step, run `upstream.py closable` to report which upstream issues
+have all their mapped beads closed. It **proposes** `gh issue close` commands and never closes
+anything — closing an upstream issue is outward-facing and needs the same confirmation a push does.
+
+**A clean run does not mean nothing needs closing.** The signal is per-bead, so hand-filed coarse
+plan trackers — which carry no bead mapping — are invisible to it and still need a human sweep.

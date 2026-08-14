@@ -241,6 +241,25 @@
 >   the full-name dir; `change_validation.py`'s `validate-cmd` seed reads the same reader (#101).
 >   Operator decision recorded at `docs/plans/plan-037-james-dixson-cab694/decisions/config-tier.md`.
 >   Does **not** settle #102 — it carves out one file rather than generalizing the rule.
+> - **plan-038 (2026-08-14, #129/#106/#117/#105):** `yf-beads-upstream` made to enforce its own
+>   never-hand-run invariant, and its push machinery corrected. Added **`REQ-BUP-050`** — emitted
+>   `bd <backend> push` commands use **space-separated** positional ids (a comma-joined list matches
+>   **zero** beads while exiting 0, measured on bd 1.1.2) and any sequence with a destructive
+>   follow-on stage is **fail-closed**, verifying the push matched the expected bead count before
+>   the `bd close` tombstone runs. Records the output-parse as an explicitly bd-version-dependent
+>   assumption whose failure mode is safe (unrecognized output ⇒ unverified ⇒ halt). Added
+>   **`REQ-BUP-051`** (the first-class `push` verb — dry-run first, scoped `--issues`, inline auth,
+>   `--apply`-only idiom, and the #105 owner-claimed warning surfaced inline), **`REQ-BUP-052`**
+>   (the propose-only `closable` verb on the per-bead `External:` signal, with its coarse-tracker
+>   gap recorded — #117 stays **open**), and **`REQ-BUP-053`** (the mechanical procedure/explanation
+>   boundary: fenced ` ```bash ` blocks in the Push step and Backend generalization sections are
+>   procedure; prose, tables, and blockquotes — including the invariant statements that quote the
+>   forbidden command *in order to forbid it* — are explanation). Added guardrails **`GR-BUP-005`**
+>   (never document a hand-run push as the procedure; never check it with a global grep),
+>   **`GR-BUP-006`** (a zero-exit `bd` push is not evidence of a push), and **`GR-BUP-007`**
+>   (emitted-command tests assert a contract, never the emitted string — the defect that let #129
+>   survive a green suite). Engine work lands in later epics — this entry records the SPEC-first
+>   Epic 1 amendment.
 
 ## 1. Purpose & scope
 

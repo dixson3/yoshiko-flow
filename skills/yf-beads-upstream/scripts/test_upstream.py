@@ -15,6 +15,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 _spec = importlib.util.spec_from_file_location(
     "upstream", Path(__file__).parent / "upstream.py"
 )
@@ -224,6 +226,405 @@ def test_plan_hoist_gitlab_backend_uses_glab_auth():
     push_cmds = [c for c in cmds if "push" in c]
     assert all("bd gitlab push" in c for c in push_cmds)
     assert all("GITLAB_TOKEN=$(glab auth token)" in c for c in push_cmds)
+
+
+# --- #129 / REQ-BUP-050: push-command construction is a CONTRACT ---------------
+#
+# These assert the CONTRACT, never the emitted string. The defect that made #129
+# survive a green 48-test suite was exactly the opposite style: fixtures comparing
+# an emitted command against an expected string that contained the same comma.
+# An expected-string test cannot fail when the bug is in the expectation too, so
+# every assertion below is phrased over a PROPERTY of the emitted command.
+
+
+def _push_ids_segment(cmd: str, backend: str = "github") -> str:
+    """The argument text between `bd <backend> push` and the next flag (or end).
+
+    Isolating the id segment is what lets the tests below assert over the ids
+    themselves rather than over the whole command string.
+    """
+    marker = f"bd {backend} push "
+    assert marker in cmd, f"not a push command: {cmd!r}"
+    tail = cmd.split(marker, 1)[1]
+    # stop at the first flag, a shell pipe, or the end of the command
+    for stop in (" --", " |", " ||", " &&"):
+        idx = tail.find(stop)
+        if idx != -1:
+            tail = tail[:idx]
+    return tail.strip()
+
+
+def _push_commands(cmds, backend="github"):
+    return [c for c in cmds if f"bd {backend} push " in c]
+
+
+def test_push_ids_are_space_separated_never_comma_joined():
+    """REQ-BUP-050: ids are POSITIONAL args. A comma-joined list matches ZERO
+    beads while bd exits 0 — the #129 silent-data-loss signature."""
+    cmds = up.plan_hoist(["yf-aaa", "yf-bbb", "yf-ccc"], "plan-038",
+                         backend="github", gran="coarse")
+    pushes = _push_commands(cmds)
+    assert pushes, "expected the dry-run + real push"
+    for cmd in pushes:
+        seg = _push_ids_segment(cmd)
+        # THE assertion #129 needed and the old fixture style could not produce:
+        assert "," not in seg, (
+            f"comma found between push ids ({seg!r}) — bd would match ZERO beads "
+            "and still exit 0 (#129)"
+        )
+        assert seg.split() == ["yf-aaa", "yf-bbb", "yf-ccc"]
+
+
+def test_push_ids_space_separated_for_plan_push_too():
+    """The same contract holds for the plain `push` verb (REQ-BUP-051), which
+    must inherit the fix rather than re-derive it."""
+    cmds = up.plan_push(["yf-aaa", "yf-bbb"], backend="github")
+    for cmd in _push_commands(cmds):
+        seg = _push_ids_segment(cmd)
+        assert "," not in seg
+        assert seg.split() == ["yf-aaa", "yf-bbb"]
+
+
+def test_single_bead_push_has_no_separator_at_all():
+    """Single-bead hoist was never broken (a one-element join has no comma),
+    which is why #129 survived. Pin that it stays correct."""
+    cmds = up.plan_hoist(["yf-solo"], "plan-038", backend="github", gran="coarse")
+    for cmd in _push_commands(cmds):
+        assert _push_ids_segment(cmd) == "yf-solo"
+
+
+def test_parse_pushed_count_reads_bd_success_line():
+    """REQ-BUP-050 verification parse (bd 1.1.2 shape)."""
+    assert up.parse_pushed_count("✓ Pushed 2 issues") == 2
+    assert up.parse_pushed_count("✓ Pushed 1 issue") == 1
+    assert up.parse_pushed_count("noise\n✓ Pushed 11 issues\nmore") == 11
+
+
+def test_parse_pushed_count_unrecognized_output_is_unverified_not_zero():
+    """An unparseable output must read as UNVERIFIED (None), never as 'pushed
+    nothing' — the distinction is what makes an unknown bd version fail CLOSED."""
+    assert up.parse_pushed_count("") is None
+    assert up.parse_pushed_count("some future bd wording") is None
+    # the exact #129 signature: bd printed no success line and exited 0
+    assert up.parse_pushed_count("Syncing...\n") is None
+
+
+def test_hoist_close_stage_is_guarded_by_push_verification():
+    """REQ-BUP-050 fail-closed: the destructive `bd close` stage must not be
+    reachable unless the push verified. Contract: every close command is ordered
+    AFTER a push command that carries a halting verification for the expected count."""
+    cmds = up.plan_hoist(["a", "b"], "plan-038", backend="github", gran="coarse")
+    closes = [i for i, c in enumerate(cmds) if c.startswith("bd close")]
+    assert closes, "expected the local-close stage"
+    verified = [
+        i for i, c in enumerate(cmds)
+        if "bd github push " in c and "grep -qE" in c and "exit 1" in c
+    ]
+    assert len(verified) == 2, "both the dry-run and the real push must be verified"
+    assert max(verified) < min(closes), "close stage must follow the verified push"
+    # the verification must key on the number of beads actually being pushed
+    assert all("2 issues?" in cmds[i] for i in verified)
+
+
+def test_push_verification_halts_on_under_count():
+    """Behavioral proof of the guard: run the emitted real-push command against a
+    faked bd that reports FEWER issues than requested, and assert it exits
+    non-zero — so `run()` raises and the close stage never executes."""
+    import subprocess
+    cmds = up.plan_push(["a", "b", "c"], backend="github")
+    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
+    # Replace the auth + bd invocation with a stub reporting only 2 of 3 pushed.
+    stub = real.split("|", 1)[1]
+    faked = "echo '✓ Pushed 2 issues' |" + stub
+    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
+    assert proc.returncode != 0, "an under-count push must fail closed"
+    assert "FAIL-CLOSED" in proc.stderr
+
+
+def test_push_verification_passes_on_exact_count():
+    """The guard must not be a blanket refusal — an exact-count push proceeds."""
+    import subprocess
+    cmds = up.plan_push(["a", "b", "c"], backend="github")
+    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
+    stub = real.split("|", 1)[1]
+    faked = "echo '✓ Pushed 3 issues' |" + stub
+    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
+    assert proc.returncode == 0
+    assert "FAIL-CLOSED" not in proc.stderr
+
+
+def test_push_verification_halts_when_bd_prints_nothing_but_exits_zero():
+    """The literal #129 shape: bd matched zero beads, printed no success line,
+    and exited 0. The sequence must still halt."""
+    import subprocess
+    cmds = up.plan_push(["a", "b"], backend="github")
+    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
+    stub = real.split("|", 1)[1]
+    faked = "true |" + stub
+    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
+    assert proc.returncode != 0
+    assert "FAIL-CLOSED" in proc.stderr
+
+
+def test_plan_unhoist_carries_no_separator_or_destructive_stage():
+    """Issue 2.3 audit, pinned: the sibling builder emits ONE command per bead
+    (no multi-id argument, so no separator hazard) and nothing destructive."""
+    cmds = up.plan_unhoist(["a", "b", "c"])
+    assert len(cmds) == 3, "one command per bead — no joined id list"
+    for c in cmds:
+        assert "," not in c
+        assert "bd close" not in c and "bd delete" not in c
+
+
+# --- REQ-BUP-051: the `push` verb ---------------------------------------------
+
+
+def test_push_always_dry_runs_before_the_real_push():
+    cmds = up.plan_push(["a", "b"], backend="github")
+    dry = next(i for i, c in enumerate(cmds) if "--dry-run" in c)
+    real = next(i for i, c in enumerate(cmds) if "bd github push " in c and "--dry-run" not in c)
+    assert dry < real
+
+
+def test_push_is_scoped_and_never_a_bare_sync():
+    cmds = up.plan_push(["a", "b"], backend="github")
+    assert all("sync" not in c for c in cmds)
+    for c in cmds:
+        assert "bd github push " in c
+
+
+def test_push_leaves_beads_open_no_close_stage():
+    """The contract that distinguishes `push` from `hoist`: no local removal."""
+    cmds = up.plan_push(["a", "b"], backend="github")
+    assert all("bd close" not in c for c in cmds)
+    assert all("bd delete" not in c for c in cmds)
+    # ...whereas hoist DOES close, so the two verbs are genuinely different.
+    hoisted = up.plan_hoist(["a", "b"], "plan-038", backend="github", gran="coarse")
+    assert any(c.startswith("bd close") for c in hoisted)
+
+
+def test_push_inline_auth_per_backend():
+    gh = up.plan_push(["a"], backend="github")
+    assert all("GITHUB_TOKEN=$(gh auth token)" in c for c in gh)
+    gl = up.plan_push(["a"], backend="gitlab")
+    assert all("GITLAB_TOKEN=$(glab auth token)" in c for c in gl)
+    # never persisted to config
+    assert all("bd config set" not in c for c in gh + gl)
+
+
+def test_push_without_apply_executes_nothing(capsys, monkeypatch):
+    """Absent --apply IS the dry run — matching the hoist/land/unhoist idiom.
+    Any execution attempt fails the test outright."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    def boom(cmd):
+        raise AssertionError(f"push executed {cmd!r} without --apply")
+    monkeypatch.setattr(up, "run", boom)
+    rc = up.cmd_push("a,b", "github", apply=False)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "--dry-run" in out
+    assert "Dry run" in out
+
+
+def test_push_has_no_dry_run_flag_of_its_own():
+    """The idiom is --apply-only; a --dry-run flag would be a second, conflicting
+    way to say the same thing."""
+    import argparse
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+        with pytest.raises(SystemExit):
+            up_main_with(["push", "--issues", "a", "--dry-run"])
+    assert "--dry-run" in buf.getvalue() or "unrecognized" in buf.getvalue()
+
+
+def up_main_with(argv):
+    import sys as _s
+    old = _s.argv
+    _s.argv = ["upstream.py"] + argv
+    try:
+        return up.main()
+    finally:
+        _s.argv = old
+
+
+def test_push_short_circuits_cleanly_when_tracking_disabled(capsys, monkeypatch):
+    """REQ-BUP-010 default-deny: clean exit 0, no upstream call."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: False)
+    def boom(cmd):
+        raise AssertionError("made an upstream call while disabled")
+    monkeypatch.setattr(up, "run", boom)
+    rc = up.cmd_push("a,b", "github", apply=True)
+    assert rc == 0
+    assert "disabled" in capsys.readouterr().out
+
+
+def test_push_surfaces_owner_claimed_warning_inline_on_stdout(capsys, monkeypatch):
+    """#105 residual (REQ-BUP-051): the enumerate warning is stderr-only, so an
+    agent piping --json to jq misses it. On the routed path it must be INLINE
+    on stdout."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(
+        up, "owner_claim_warning_lines",
+        lambda: ["WARNING: 36 open bead(s) are excluded as owner-claimed", "         excluded: a, b"],
+    )
+    monkeypatch.setattr(up, "run", lambda cmd: "")
+    up.cmd_push("a", "github", apply=False)
+    captured = capsys.readouterr()
+    assert "excluded as owner-claimed" in captured.out, "warning must reach STDOUT, not just stderr"
+
+
+def test_upstream_enabled_default_deny():
+    """Both keys must agree, and the read is on config TEXT not exit code."""
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "true\n", "custom.upstream.backend": "github\n"})) is True
+    # unset
+    assert up.upstream_enabled(fake_config({})) is False
+    # enabled=true with an UNSET backend stays ENABLED — the docs are explicit that the
+    # explicit `none` marker is never required for the short-circuit, so only an explicit
+    # `none` disables. (Caught by drift-check: an earlier two-key AND contradicted them.)
+    assert up.upstream_enabled(fake_config({"custom.upstream.enabled": "true\n"})) is True
+    # enabled but backend none
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "true\n", "custom.upstream.backend": "none\n"})) is False
+    # backend set but not enabled
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "false\n", "custom.upstream.backend": "github\n"})) is False
+    # any other value denies
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "yes\n", "custom.upstream.backend": "github\n"})) is False
+
+
+# --- REQ-BUP-052: the `closable` verb (#117, partial) --------------------------
+
+ISSUE_A = "https://github.com/o/r/issues/1"
+ISSUE_B = "https://github.com/o/r/issues/2"
+
+
+def test_closable_when_every_mapped_bead_is_closed():
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": ISSUE_A},
+        {"id": "b", "status": "closed", "external": ISSUE_A},
+    ])
+    assert len(report) == 1
+    assert report[0]["closable"] is True
+    assert report[0]["blocking"] == []
+    assert report[0]["beads"] == ["a", "b"]
+
+
+def test_not_closable_when_any_mapped_bead_is_open_and_names_it():
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": ISSUE_A},
+        {"id": "b", "status": "open", "external": ISSUE_A},
+    ])
+    assert report[0]["closable"] is False
+    assert report[0]["blocking"] == ["b"]
+    assert "b" in report[0]["reason"]
+
+
+def test_unmapped_beads_are_absent_from_the_report():
+    """A bead with no External: maps to no issue — and, per the recorded gap, a
+    hand-filed coarse tracker has no bead pointing at it and can never appear."""
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": None},
+        {"id": "b", "status": "closed", "external": ""},
+    ])
+    assert report == []
+
+
+def test_closable_groups_independent_issues_separately():
+    report = up.closable_candidates([
+        {"id": "a", "status": "closed", "external": ISSUE_A},
+        {"id": "b", "status": "open", "external": ISSUE_B},
+    ])
+    by = {r["external"]: r for r in report}
+    assert by[ISSUE_A]["closable"] is True
+    assert by[ISSUE_B]["closable"] is False
+
+
+def test_closable_short_circuits_cleanly_when_disabled(capsys, monkeypatch):
+    monkeypatch.setattr(up, "upstream_enabled", lambda: False)
+    def boom(*a, **k):
+        raise AssertionError("queried bd while upstream tracking is disabled")
+    monkeypatch.setattr(up, "load_universe_rows", boom)
+    rc = up.cmd_closable(as_json=False)
+    assert rc == 0
+    assert "disabled" in capsys.readouterr().out
+
+
+def test_closable_never_closes_anything(capsys, monkeypatch):
+    """Propose-only: it emits `gh issue close` commands and executes NOTHING."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "status": "closed"}, {"id": "b", "status": "closed"}])
+    monkeypatch.setattr(up, "external_for", lambda bid: ISSUE_A)
+    def boom(cmd):
+        raise AssertionError(f"closable executed {cmd!r} — it must never close")
+    monkeypatch.setattr(up, "run", boom)
+    rc = up.cmd_closable(as_json=False)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "gh issue close 1" in out
+    assert "NOT executed" in out
+
+
+def test_issue_number_parsed_for_the_close_proposal():
+    assert up.issue_number_from_url("https://github.com/o/r/issues/117") == "117"
+    assert up.issue_number_from_url("https://github.com/o/r/issues/117/") == "117"
+    assert up.issue_number_from_url("not-a-url") is None
+
+
+def test_closable_caveat_survives_in_skill_md():
+    """Cheap insurance on this plan's most misreadable output (Issue 4.4).
+
+    If a future edit softens or drops the limitation, a clean `closable` run starts
+    reading as 'nothing needs closing' — which is exactly wrong, and silently so.
+    """
+    raw = (Path(__file__).parent.parent / "SKILL.md").read_text()
+    # Normalize wrapping and markdown emphasis: the contract is that the caveat
+    # SURVIVES, not that it keeps any particular line breaks or bolding.
+    skill = " ".join(raw.replace("*", "").replace(">", " ").split())
+    assert "Known limitation" in skill
+    assert "does NOT mean" in skill and "nothing needs closing" in skill
+    assert "coarse" in skill.lower()
+    # the four stale trackers that motivated #117 are named as NOT caught
+    for n in ("#103", "#95", "#96", "#98"):
+        assert n in skill, f"the motivating tracker {n} must stay named in the caveat"
+
+
+def test_closable_json_carries_the_caveat():
+    """An agent reading --json must get the caveat too, not just a human reader."""
+    assert "coarse" in up.CLOSABLE_CAVEAT.lower()
+    assert "does NOT mean" in up.CLOSABLE_CAVEAT
+
+
+# --- REQ-BUP-053: the procedure/explanation boundary is real -------------------
+
+
+def test_skill_md_procedure_blocks_route_through_the_verb():
+    """Issue 5.1's contract, asserted here too: no fenced bash PROCEDURE block in
+    SKILL.md instructs a raw `bd <backend>` push/sync."""
+    import re
+    skill = (Path(__file__).parent.parent / "SKILL.md").read_text()
+    offenders = []
+    for m in re.finditer(r"```bash\n(.*?)```", skill, re.S):
+        if re.search(r"\bbd (github|gitlab|jira) (push|sync)\b", m.group(1)):
+            offenders.append(m.group(1).strip()[:80])
+    assert not offenders, f"raw push/sync in fenced procedure block(s): {offenders}"
+
+
+def test_skill_md_keeps_the_explanatory_mentions():
+    """The counter-assertion: a global 'zero occurrences' check would be WRONG.
+    The invariant statements quote the command in order to forbid it, and the
+    dated verification blockquotes are provenance — both must survive."""
+    skill = (Path(__file__).parent.parent / "SKILL.md").read_text()
+    assert "Verified (bd 1.0.5" in skill, "dated verification blockquotes must survive"
+    assert skill.count("Verified (bd 1.0.5") == 2
+    assert "bd <backend> sync" in skill, "the never-bare-sync invariant must still name the command"
+    assert "Would update in GitHub" in skill, "the mapping-lost tripwire must survive"
+    assert "Would create" in skill
 
 
 # --- C.4 un-hoist round-trip --------------------------------------------------

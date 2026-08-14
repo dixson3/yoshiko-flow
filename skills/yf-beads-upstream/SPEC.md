@@ -164,6 +164,74 @@ companion rule.
   fired. The silent path previously led to a hand-run `bd github push`, the exact anti-pattern
   GR-BUP-002 forbids.
 
+### 2.6 Push-command construction, the `push` verb, and `closable` (plan-038)
+
+- **REQ-BUP-050** *(testable, #129)* every emitted `bd <backend> push` command shall separate
+  bead ids with **spaces** — they are positional arguments, not a comma-separated value. A
+  comma-joined id list is matched by `bd` to **zero** beads while the process still **exits 0**
+  (measured on bd 1.1.2: `bd github push yf-m78m yf-252c --dry-run` → `✓ Pushed 2 issues`;
+  `bd github push yf-m78m,yf-252c --dry-run` → no `✓ Pushed` line, exit 0). Furthermore, any
+  emitted sequence containing a **destructive follow-on stage** (`hoist`/`land`'s per-bead
+  `bd close -r` tombstone) shall be **fail-closed**: the sequence shall **verify the push
+  succeeded for the expected number of beads** before that stage runs, and shall **halt** —
+  non-zero, with the destructive stage unexecuted — when the push is unverified. *Why:* without
+  both halves, a multi-bead `hoist --apply` / `land --apply` tombstones every bead with a
+  `close_reason` asserting an upstream hoist that never happened — silent data loss whose every
+  visible step looks correct. Single-bead hoist was unaffected (a one-element join has no comma),
+  which is why the defect survived.
+  - **Verification-mechanism assumption (bd-version-dependent).** The fail-closed check is
+    implemented by parsing the push command's output for bd's success line and the count it
+    reports (the `Pushed N issues` shape measured on bd 1.1.2). This is an assumption about a
+    **human-readable string emitted by a third-party binary**, not a stable API: a future `bd`
+    release that rewords, re-cases, or restructures that line will break the check. It is
+    recorded here so the breakage has a documented home. The failure mode is **safe by
+    construction** — an unrecognized output parses as *unverified*, which halts the sequence
+    rather than proceeding to the destructive stage. The parse is pinned by the REQ-BUP-050
+    contract tests; re-verify it per bd binary alongside the §5 idempotency checkpoint.
+
+- **REQ-BUP-051** *(testable, #106)* the skill shall expose a first-class **`push`** verb —
+  `upstream.py push --issues <csv> [--apply]` — as **the** documented push path, so that
+  following `SKILL.md` never requires hand-running a `bd <backend>` command (the action the
+  companion rule's Safety invariant forbids). It shall: always emit the **dry-run push first**
+  (REQ-BUP-013 / REQ-SAFE-001); be **scoped** via `--issues`, never a bare `sync`
+  (REQ-BUP-030); use **inline auth** via `BACKEND_AUTH`, never config-persisted (REQ-BUP-031);
+  construct ids space-separated and fail-closed per REQ-BUP-050; and match the existing
+  `--apply`-only idiom — there is **no `--dry-run` flag**, because *absent `--apply` is the dry
+  run* (as with `hoist`/`land`/`unhoist`). It is `plan_hoist` stages 1–2 **without** stage 3:
+  a plain push leaves the bead **open and mirrored**, where `hoist` removes it locally with a
+  reversible tombstone. `push` shall additionally surface the REQ-BUP-049 owner-claimed
+  exclusion warning **inline in its own output** (#105 residual): the shipped warning is
+  stderr-only, so an agent piping `--json` to `jq` misses it, and `push` is now the routed path.
+
+- **REQ-BUP-052** *(testable, #117 partial)* the skill shall expose a **`closable`** verb
+  proposing which upstream issues can be closed, on the **per-bead signal**: an issue is
+  `closable` when **every** bead carrying an `External:` mapping to it is closed; any open
+  mapped bead makes it `not-closable` with that bead named as the reason. It shall be
+  **propose-only** — it emits the `gh issue close` commands for operator confirmation and
+  **never closes anything itself** (closing an upstream issue is outward-facing and gets the
+  same confirm contract as a push) — and shall honor the shared default-deny short-circuit
+  (REQ-BUP-010): a clean exit 0 with no upstream call when tracking is disabled.
+  - **Known gap (recorded, not fixed).** The per-bead signal is deliberately **zero-coupled** to
+    `yf-plan`'s configurable `plans-root`, and the price is that it is **forward-looking only**.
+    `yf-plan` §4.5 files coarse plan trackers with a direct `gh issue create`, so **no bead ever
+    maps to them** and `closable` cannot see them. It would **not** have caught any of the four
+    stale trackers (#103, #95, #96, #98) that motivated #117. The prose shall state this plainly
+    so a clean `closable` run is never read as "nothing needs closing", and **#117 stays open**
+    with the gap recorded. The zero-coupling remedy is `yf-plan`-side: stamping the coarse
+    tracker URL onto the plan epic would make future trackers visible to this signal.
+
+- **REQ-BUP-053** *(testable, #106)* the operator-facing **procedure** in `SKILL.md` shall not
+  instruct a raw `bd <backend>` push, while **explanatory** and **invariant-stating** mentions
+  are **expected and shall survive verbatim** — the Safety invariant quotes the command *in
+  order to forbid it*, and the dated empirical verification blockquotes are provenance. The
+  procedure/explanation boundary is defined **mechanically**, so the guardrail is checkable:
+  **fenced ` ```bash ` blocks inside the Push step and Backend generalization sections are
+  procedure**; all prose, tables, and blockquotes are explanation. A check asserting *zero*
+  occurrences of `bd github push` anywhere in the skill is therefore **wrong by construction**
+  and shall not be written — it would fail on the invariant statements themselves, pressuring a
+  future editor into deleting the very rule this requirement enforces.
+  *(Also captured as guardrail GR-BUP-005.)*
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (non-active push candidates via
@@ -176,11 +244,15 @@ companion rule.
   `hoist --issues <csv> --dest <d> [--apply]` (ensure issue per granularity → reversible
   `bd close -r`, dry-run-first), `land --parent <id> --intake <ts> --dest <d> [--apply]`
   (land-the-plane follow-on hoist; propose-with-confirm default), and
-  `unhoist (--issues <csv> | --record <file>) [--apply]` (reopen from tombstone).
+  `unhoist (--issues <csv> | --record <file>) [--apply]` (reopen from tombstone),
+  `push --issues <csv> [--apply]` (**the** documented push path — dry-run first, scoped, inline
+  auth, space-separated ids, fail-closed; REQ-BUP-050/051), and
+  `closable [--json]` (propose-only upstream-issue closure on the per-bead `External:` signal;
+  never closes — REQ-BUP-052).
   `scripts/manifest_update.py` restamps the companion-rule manifest hash. Upstream pushes use bd's
   first-class `bd github|gitlab|jira push <ids>` (≡ scoped `sync --push-only`).
 - **Companion rule:** `protocols/UPSTREAM_TRACKING.md` (+ `protocols/manifest.json`,
-  sha256 + semver `1.0.0`) — the always-loaded close-time/land-the-plane trigger contract,
+  sha256 + semver, currently `1.3.0`) — the always-loaded close-time/land-the-plane trigger contract,
   carrying the silent-no-op-when-disabled clause and the safety invariant. After editing the
   rule, restamp via `manifest_update.py`.
 - **Config / state:** beads config under `custom.upstream.*` (`enabled`, `backend`,
@@ -206,6 +278,25 @@ companion rule.
   REQ-BUP-021). *Why:* disabling is a supported configuration, not an error state.
 - **GR-BUP-004** *Drift:* presenting GitLab/Jira as working. *Rule:* only GitHub is tested; the
   others are config-only stubs (REQ-BUP-040). *Why:* honesty about coverage.
+- **GR-BUP-005** *Drift:* documenting a hand-run `bd <backend> push` **as the procedure**, so an
+  operator or agent that follows `SKILL.md` faithfully violates the companion rule's never-hand-run
+  Safety invariant. *Rule:* prescriptive steps route through `upstream.py push` (REQ-BUP-051);
+  explanatory and invariant-stating mentions stay verbatim; the boundary is the mechanical one in
+  REQ-BUP-053 (fenced ` ```bash ` blocks in the Push step and Backend generalization sections are
+  procedure). *Why:* this is the observed #106 failure — the skill's own documented path was the
+  non-compliant one, and it stayed that way because nothing checked it. The counter-drift is equally
+  real: a global "zero occurrences" grep would delete the invariant statements, so the check is
+  **scoped to fenced procedure blocks**, never global.
+- **GR-BUP-006** *Drift:* trusting a `bd` push that exited 0, then running a destructive stage on
+  it. *Rule:* verify the push matched the expected number of beads before any `bd close`; an
+  unverified push **halts** the sequence (REQ-BUP-050). *Why:* `bd` exits 0 on a push that matched
+  **zero** beads, so exit code alone is not evidence of a push — the same false-negative shape as
+  the beads-init `bd status` invariant.
+- **GR-BUP-007** *Drift:* a test that asserts an emitted command equals an expected string. *Rule:*
+  emitted-command tests assert a **contract** (ids are space-separated; *no comma appears between
+  ids*; the close stage does not run on an under-count) — never a restatement of what the code
+  produces. *Why:* the pre-existing fixture tests compared emitted strings against expected strings
+  containing the same comma defect, so a passing suite documented #129 rather than catching it.
 
 ## 5. Verification
 
@@ -219,6 +310,24 @@ companion rule.
   *.token`. GitLab/Jira are unverified and must be live-tested before REQ-BUP-014 is claimed for
   them. Each *(testable)* requirement maps to a plan-010 Epic 6 integration test naming the
   REQ id.
+- **REQ-BUP-050** is checked by contract tests over `plan_hoist`/`plan_push` asserting the id
+  segment of the emitted push command is space-separated and that **no comma appears between
+  ids**, plus a test that the destructive close stage does **not** run when the push stage
+  reports fewer than the expected count. These assert the contract, never the emitted string
+  (GR-BUP-007). The `Pushed N issues` parse is a bd-version-dependent assumption recorded under
+  REQ-BUP-050 and must be re-verified per bd binary.
+- **REQ-BUP-051** is checked by contract tests: the dry-run command always precedes the real
+  push; the emitted commands are scoped (`push <ids>`) and contain no bare `sync`; inline auth
+  matches `BACKEND_AUTH` per backend; absent `--apply` executes nothing; and the REQ-BUP-049
+  owner-claimed warning appears inline in `push` output. All `bd` interaction is faked.
+- **REQ-BUP-052** is checked by fixture tests: all mapped beads closed → `closable`; any mapped
+  bead open → `not-closable` naming it; an issue with no mapped bead is absent from the report;
+  the disabled short-circuit is a clean no-op; and no `gh issue close` is ever executed. A
+  caveat-survival test asserts the coarse-tracker limitation is still stated in `SKILL.md`.
+- **REQ-BUP-053** is checked by the scoped acceptance check: no prescriptive raw `bd <backend>`
+  push survives inside fenced ` ```bash ` blocks within the Push step and Backend generalization
+  sections. It is **deliberately not** a global grep — prose, tables, and blockquotes are out of
+  scope, and the check passes on the invariant statements and dated verification blockquotes.
 
 ## 6. References
 
