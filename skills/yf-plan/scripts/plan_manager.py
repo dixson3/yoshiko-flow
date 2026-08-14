@@ -458,8 +458,9 @@ def make_plan_id(objective: str) -> str:
 def make_plan_dir(plan_id: str, plans_dir: Path | None = None) -> Path:
     """Create plan directory structure under the given root.
 
-    `plans_dir` defaults to `docs/plans` for back-compat; callers that
-    target an incubator should pass `resolve_plans_dir(incubator)`.
+    `plans_dir` defaults to the configured `PLANS_DIR` (`plans-root`, default
+    `docs/plans` — REQ-PLAN-073); callers that target an incubator should pass
+    `resolve_plans_dir(incubator)`.
     """
     root = plans_dir if plans_dir is not None else PLANS_DIR
     plan_dir = root / plan_id
