@@ -463,27 +463,43 @@ fn skill_tools(skill_dir: &str) -> Vec<String> {
 // Config + state (REQ-YF-PRE-004)
 // ---------------------------------------------------------------------------
 
-/// Read per-skill operator config. Precedence: the canonical
-/// `.yf/<short>/config.local.json`, then the legacy `.<config-basename>` at repo root.
+/// Read per-skill operator config, merging three tiers key by key.
+///
+/// Precedence, highest first: the canonical local override
+/// `.yf/<short>/config.local.json`, the canonical **committed**
+/// `.yf/<short>/config.json`, then the legacy `.<config-basename>` at repo root.
 fn read_config(
     env: &Env,
     short: &str,
     config_basename: Option<&str>,
 ) -> serde_json::Map<String, serde_json::Value> {
-    // REQ-YF-PRE-004 resolution precedence, first match wins:
-    // 1. canonical subdir `.yf/<short>/config.local.json` (co-located with state);
-    // 2. legacy root dotfile named by the skill's `config_basename` descriptor.
-    let yf = env.repo_root.join(".yf");
-    let subdir_path = yf.join(short).join("config.local.json");
-    if let Some(m) = read_json_obj(&subdir_path) {
-        return m;
-    }
+    // REQ-YF-PRE-004 resolution precedence, merged PER KEY (revised plan-037 —
+    // previously whole-file first-match-wins):
+    // 1. canonical local override `.yf/<short>/config.local.json` (gitignored);
+    // 2. canonical committed `.yf/<short>/config.json` (REQ-YF-PRE-004a, the one
+    //    carve-out in the otherwise fully-ignored `.yf/` tree);
+    // 3. legacy root dotfile named by the skill's `config_basename` descriptor.
+    //
+    // Merge, not first-match, so a local override setting one key cannot mask the
+    // committed tier's other keys. With a single tier present the two semantics
+    // coincide, so this is backward compatible. `plan_manager.py::_read_config`
+    // implements the same three tiers — the two readers must not disagree.
+    let skill_dir = env.repo_root.join(".yf").join(short);
+    let mut merged = serde_json::Map::new();
+
+    // Applied lowest-tier first so a higher tier overwrites per key.
     if let Some(base) = config_basename {
         if let Some(m) = read_json_obj(&env.repo_root.join(base)) {
-            return m;
+            merged.extend(m);
         }
     }
-    serde_json::Map::new()
+    if let Some(m) = read_json_obj(&skill_dir.join("config.json")) {
+        merged.extend(m);
+    }
+    if let Some(m) = read_json_obj(&skill_dir.join("config.local.json")) {
+        merged.extend(m);
+    }
+    merged
 }
 
 /// Per-skill runtime state file: `.yf/<short>/preflight.json`.

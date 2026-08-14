@@ -235,6 +235,17 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   form. `validated:` shall be a recognized **non-status** `log.md` token (alongside `intake:`): no
   review-count (REQ-PORT-006), grandfather-date, or status parser keys on it.
 
+- **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
+  **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`
+  (default `Incubator`) are read through the **same** three-tier config reader as every other
+  yf-plan config key (REQ-YF-PRE-004), with the committed `.yf/plan/config.json` as their
+  expected home (REQ-YF-PRE-004a) — they are a repository-level decision, since plan-id numbering
+  is global across roots. Resolution shall be **import-safe**: the roots are bound before most of
+  the module exists, so the reader used for them shall be dependency-free, shall fall back to the
+  defaults when no config is present, and shall tolerate malformed JSON at import rather than
+  raising. Motivating case (#107): a repo that is also an Obsidian vault, where a visible
+  top-level `Incubator/` trips the vault's structure linter.
+
 ### 2.8 Capture (manual)
 
 - **REQ-PLAN-070** `capture` shall be re-entrant and status-agnostic (pre-intake phases only), purely

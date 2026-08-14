@@ -42,18 +42,24 @@ Verification: SKILL.md Phase 3 plan.md template; reconciler.md Execute step 1.
 
 REQ-DATA-020: Operator config and runtime state are separate buckets per the Surface Convention (skill-authoring). The canonical layout — the `yf` binary's ground truth — is short-name (`<short>` = `plan`): config at `.yf/plan/config.local.json` and state at `.yf/plan/preflight.json`. The legacy root dotfile `.yf-plan.local.json` survives only as a read-time config fallback (declared by the `config-basename` descriptor). `yf migrate` moves legacy → canonical; preflight does **not** auto-migrate.
 
-Two transitional caveats hold **today** — `plan_manager.py` has not yet been aligned to the binary (dixson3/yoshiko-flow#100):
-- the `yf` preflight kernel already writes `.yf/plan/preflight.json` canonically, but `plan_manager.py`'s own state (e.g. `landing.lock`) still lands in the full-name `.yf/yf-plan/` directory — full-name `.yf/yf-plan/` today, short-name `.yf/plan/` after #100;
-- `plan_manager.py` reads config **only** from the legacy root dotfile `.yf-plan.local.json`, not the canonical `.yf/plan/config.local.json` — also aligned by #100.
+`plan_manager.py` is **aligned to the binary as of #100** (plan-037 Issue 2.2). Both readers now resolve the same three tiers, merged **key by key** with the highest present tier winning each key (REQ-YF-PRE-004):
 
-Rationale: Config = operator decisions a fresh clone would need; state = caches/derived values tied to one checkout. Conflating them commits machine-specific state or loses operator intent.
-Verification: plan_manager.py `CONFIG_FILE` / `STATE_DIR` constants (legacy/full-name today, per #100); `yf/src/preflight.rs` `read_config` / `state_path` (canonical short-name); SKILL.md Pre-flight section.
+| Tier | Path | Committed? |
+|:--|:--|:--|
+| 1 | `.yf/plan/config.local.json` | no — gitignored, machine-specific |
+| 2 | `.yf/plan/config.json` | **yes** — shared, repo-carried (REQ-YF-PRE-004a) |
+| 3 | `.yf-plan.local.json` | no — legacy root dotfile, read-only fallback |
+
+`plan_manager.py`'s own state (e.g. `landing.lock`) now lands in the short-name `.yf/plan/` directory, matching where the preflight kernel writes `preflight.json`; state written by an earlier version under the full-name `.yf/yf-plan/` is migrated on first use.
+
+Rationale: Config = operator decisions a fresh clone would need; state = caches/derived values tied to one checkout. Conflating them commits machine-specific state or loses operator intent. The committed tier exists because some of those decisions — the plan/incubator roots — are properties of the repository, not of a checkout: plan-id numbering is global across roots, so two clones disagreeing about the root silently fragments it.
+Verification: plan_manager.py `_read_config()` (three-tier merge) and `STATE_DIR` (short-name `.yf/plan/`); `yf/src/preflight.rs` `read_config` / `state_path`; `scripts/test_config_tiers.py` (Tier-1, tagged REQ-YF-PRE-004/-004a, REQ-PLAN-073); SKILL.md Pre-flight section.
 
 REQ-DATA-021: `ignore-skill` (operator opt-out) is the only config key; `prereqs-present` (deps cache) and `scaffold-ensured` (scaffold-version marker) are state, not config.
 Rationale: Minimal config surface; the only operator decision is whether to opt out. Both state keys are recomputable caches, so they are state.
 Verification: plan_manager.py `_read_config()` (ignore-skill) vs `_read_state()`/`_update_state()` (prereqs-present, scaffold-ensured); SKILL.md Pre-flight.
 
-REQ-DATA-022: A single anchored entry `/.yf/` is present in `.gitignore` (no globs), ensured by preflight, not by `/yf-plan init`. It covers both config (`.yf/plan/config.local.json`) and state (`.yf/plan/preflight.json`); the legacy per-skill dotfile and `/.state/` anchors are no longer scaffolded.
+REQ-DATA-022: A single anchored entry `/.yf/` is present in `.gitignore` (no globs), ensured by preflight, not by `/yf-plan init`. It covers both config (`.yf/plan/config.local.json`) and state (`.yf/plan/preflight.json`); the legacy per-skill dotfile and `/.state/` anchors are no longer scaffolded. **One carve-out** (plan-037, REQ-YF-PRE-004a): the committed tier `.yf/<short>/config.json` is un-ignored — everything else under `.yf/`, including all state and every `*.local.json`, stays ignored.
 Rationale: Machine-specific config and all runtime state must not be committed; one anchor keeps `.gitignore` auditable and collapses the old per-skill dotfile + `/.state/` pair. Folding the ensure into preflight makes it self-healing rather than dependent on init having been run. The write is additive-only and gated by `scaffold-ensured` so it runs once per scaffold version (Surface Convention §7).
 Verification: `yf/src/preflight.rs` scaffold (single `/.yf/` anchor, additive append, scaffold-version gate), run on the `ok` path; SKILL.md Pre-flight `ok` bullet.
 

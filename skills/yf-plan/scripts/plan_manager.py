@@ -31,8 +31,61 @@ import click
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import okf  # noqa: E402
 
-PLANS_DIR = Path("docs/plans")
-INCUBATOR_PARENT = Path("Incubator")
+# --- Config tiers (REQ-YF-PRE-004 / REQ-YF-PRE-004a) --------------------------
+# The short name (`plan`, not `yf-plan`) is what the `yf` binary emits, so the
+# canonical dirs below match `preflight.rs` exactly. Three tiers, merged KEY BY KEY
+# with the highest present tier winning each key:
+#
+#   1. .yf/plan/config.local.json   gitignored — machine-specific operator overrides
+#   2. .yf/plan/config.json         COMMITTED  — shared, repo-carried decisions
+#   3. .yf-plan.local.json          gitignored — legacy root dotfile, read-only fallback
+#
+# Merge (not whole-file first-match) is required for tier 2 to be useful: a local
+# file setting only `landing-strategy` must not mask a committed `plans-root`.
+# With a single tier present the two semantics coincide, so this is backward
+# compatible. `yf/src/preflight.rs::read_config` implements the same three tiers —
+# two readers disagreeing about precedence is the drift #100 exists to remove.
+SKILL_SHORT = "plan"
+YF_DIR = Path(".yf") / SKILL_SHORT
+CONFIG_LOCAL_FILE = YF_DIR / "config.local.json"
+CONFIG_SHARED_FILE = YF_DIR / "config.json"
+LEGACY_CONFIG_FILE = Path(".yf-plan.local.json")
+CONFIG_TIERS = (CONFIG_LOCAL_FILE, CONFIG_SHARED_FILE, LEGACY_CONFIG_FILE)
+
+
+def _bootstrap_config() -> dict:
+    """Read + merge the config tiers with no module-level dependencies.
+
+    Called at import time because `PLANS_DIR` / `INCUBATOR_PARENT` are module
+    constants bound before most of this module exists (REQ-PLAN-073, import-safe
+    resolution). Deliberately dependency-free — it runs before `_read_json` is
+    defined — and deliberately total: a malformed or unreadable tier is skipped,
+    never raised, so a bad config file cannot make the module unimportable.
+
+    Tiers are applied lowest-first so the highest tier wins each key.
+    """
+    cfg: dict = {}
+    for path in reversed(CONFIG_TIERS):
+        try:
+            if path.exists():
+                loaded = json.loads(path.read_text())
+                if isinstance(loaded, dict):
+                    cfg.update(loaded)
+        except (json.JSONDecodeError, OSError, ValueError):
+            continue
+    return cfg
+
+
+_CONFIG = _bootstrap_config()
+
+# Repo layout is configurable (REQ-PLAN-073 / #107): a project whose plan or
+# incubator roots are not the defaults — e.g. a repo that is also an Obsidian
+# vault, where a visible top-level `Incubator/` trips the vault's structure
+# linter — sets `plans-root` / `incubator-root`. These belong in the COMMITTED
+# tier: plan-id numbering is global across roots, so two clones disagreeing about
+# the root would silently fragment it.
+PLANS_DIR = Path(str(_CONFIG.get("plans-root") or "docs/plans"))
+INCUBATOR_PARENT = Path(str(_CONFIG.get("incubator-root") or "Incubator"))
 
 # Dual-field model (REQ-DATA-015 / OKF-EXTENSION.md §4): a single in-memory model
 # maps each frontmatter key to its human `**Field:**` label. Reads are
@@ -139,9 +192,49 @@ def _write_plan_fields(plan_dir: Path, updates: dict[str, str]) -> None:
 # idempotent gitignore scaffold) moved to the `yf preflight` kernel (plan-010);
 # the constants below are what the surviving domain commands still need.
 SKILL_NAME = "yf-plan"
-CONFIG_FILE = Path(f".{SKILL_NAME}.local.json")          # operator decisions (gitignored)
-STATE_DIR = Path(".yf") / SKILL_NAME                      # runtime cache (gitignored)
+# Config tiers are defined at the top of the module (they must resolve before
+# PLANS_DIR / INCUBATOR_PARENT bind). `CONFIG_FILE` is retained as an alias for
+# the legacy root dotfile so existing references keep working.
+CONFIG_FILE = LEGACY_CONFIG_FILE
+# Runtime cache, SHORT-name (`.yf/plan/`) as of #100 — the same dir the `yf`
+# preflight kernel writes `preflight.json` into. State written by an earlier
+# version under the full-name `.yf/yf-plan/` is migrated by `_migrate_state_dir`.
+STATE_DIR = YF_DIR
+LEGACY_STATE_DIR = Path(".yf") / SKILL_NAME               # pre-#100 full-name dir
 GITIGNORE_FILE = Path(".gitignore")
+
+
+def _migrate_state_dir() -> list[str]:
+    """Move pre-#100 full-name `.yf/yf-plan/` state into short-name `.yf/plan/`.
+
+    Idempotent and non-destructive: an entry already present at the destination is
+    left alone (the canonical copy wins) and the legacy one is removed. The legacy
+    dir is removed only once empty. Returns the names moved, for reporting.
+
+    State is a gitignored cache, so a failure here is never fatal — a migration
+    error leaves the legacy file in place and the caller simply starts cold.
+    """
+    moved: list[str] = []
+    if not LEGACY_STATE_DIR.is_dir() or LEGACY_STATE_DIR == STATE_DIR:
+        return moved
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        for src in LEGACY_STATE_DIR.iterdir():
+            dst = STATE_DIR / src.name
+            if dst.exists():
+                if src.is_file():
+                    src.unlink()
+                continue
+            src.replace(dst)
+            moved.append(src.name)
+        if not any(LEGACY_STATE_DIR.iterdir()):
+            LEGACY_STATE_DIR.rmdir()
+    except OSError:
+        return moved
+    return moved
+
+
+_migrate_state_dir()
 
 
 # >>> BEGIN defensive json extractor (generated by _shared/sync.py — edit _shared/json_extract.py) >>>
@@ -791,8 +884,18 @@ def _read_json(path: Path) -> dict:
 
 
 def _read_config() -> dict:
-    """Operator config (.yf-plan.local.json) — operator decisions only (e.g. ignore-skill)."""
-    return _read_json(CONFIG_FILE) if CONFIG_FILE.exists() else {}
+    """Operator config, merged across the three tiers (REQ-YF-PRE-004).
+
+    Precedence, highest first: `.yf/plan/config.local.json` (gitignored override) →
+    `.yf/plan/config.json` (committed, shared) → `.yf-plan.local.json` (legacy root
+    dotfile, never removed). Merged **key by key**, matching
+    `yf/src/preflight.rs::read_config`.
+
+    Re-read on every call rather than reusing the import-time `_CONFIG`, so a config
+    written during a run (or a test that rewrites it) is observed. `_CONFIG` exists
+    only because `PLANS_DIR` / `INCUBATOR_PARENT` bind at import.
+    """
+    return _bootstrap_config()
 
 
 @click.group()

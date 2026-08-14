@@ -232,6 +232,15 @@
 >   over unchanged, plus `REQ-HERDR-040/041` recording the third-party-`herdr` dependency posture
 >   (`depends-on-tool`, never `depends-on-skill`; prose soft-dep). Delivers the *skill surface* of
 >   #110 only — the `herdr agent *` fan-out primitive it proposes stays open.
+> - **plan-037 (#100, #107, #101):** revised **`REQ-YF-PRE-004`** from two-tier first-match-wins to a
+>   **three-tier key-by-key merge**, and added **`REQ-YF-PRE-004a`** introducing the **committed**
+>   `.yf/<short>/config.json` tier — the single carve-out in the otherwise fully-ignored `.yf/` tree,
+>   for decisions that are properties of the repository rather than of a checkout. Added
+>   **`REQ-PLAN-073`** (configurable, import-safe `plans-root` / `incubator-root`). `plan_manager.py`
+>   is now aligned to the binary: same three tiers, short-name `.yf/plan/` state with migration from
+>   the full-name dir; `change_validation.py`'s `validate-cmd` seed reads the same reader (#101).
+>   Operator decision recorded at `docs/plans/plan-037-james-dixson-cab694/decisions/config-tier.md`.
+>   Does **not** settle #102 — it carves out one file rather than generalizing the rule.
 
 ## 1. Purpose & scope
 
@@ -438,10 +447,25 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
 - **REQ-YF-PRE-004** *(testable, revised #67)* the kernel shall read per-skill config (including
   `ignore-skill`) and maintain runtime state under the **short-name** `.yf/<short>/` namespace.
   The **canonical** config location is `.yf/<short>/config.local.json` — co-located with the
-  `.yf/<short>/` state dir. `read_config` shall resolve in precedence order, first match wins:
-  1. the canonical subdir `.yf/<short>/config.local.json`;
-  2. the legacy root dotfile named by the skill's `config_basename` descriptor field
-     (e.g. `.yf-plan.local.json`).
+  `.yf/<short>/` state dir. `read_config` shall resolve **three** tiers and merge them
+  **key by key**, the highest tier present winning each key (revised plan-037):
+  1. the canonical local override `.yf/<short>/config.local.json` — gitignored, machine-specific;
+  2. the canonical **committed** `.yf/<short>/config.json` — the shared, repo-carried tier
+     (REQ-YF-PRE-004a);
+  3. the legacy root dotfile named by the skill's `config_basename` descriptor field
+     (e.g. `.yf-plan.local.json`) — a read-time fallback that is never removed.
+
+  Merge is **per key**, not whole-file first-match: a local override setting one key shall not
+  mask the committed tier's other keys. With a single tier present the two semantics coincide, so
+  the revision is backward-compatible.
+- **REQ-YF-PRE-004a** *(testable, plan-037)* the **committed** config tier
+  `.yf/<short>/config.json` shall hold decisions that are properties of the **repository** rather
+  than of a checkout — layout being the motivating case (`plans-root` / `incubator-root`,
+  REQ-PLAN-073). It is the single exception to the otherwise fully-ignored `.yf/` tree: the
+  gitignore shall keep `/.yf/` ignored and carve out **only** `.yf/<short>/config.json`, never
+  state and never a `*.local.json`. Both the kernel (`preflight.rs`) and any skill-side reader
+  (`plan_manager.py`) shall implement the same three-tier merge — two readers disagreeing about
+  precedence is the drift REQ-YF-PRE-004 exists to remove.
 
   The **short name** is resolved by a single centralized `resolve_skill` (skill-arg → `(dir,
   short)`); `migrate` shall consume the **same** resolver so the state dir it writes and the state
