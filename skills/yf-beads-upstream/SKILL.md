@@ -281,21 +281,37 @@ auto-assigns owners in this repo, set `custom.upstream.owner_on_create true` (se
 
 The remedy is `bd config set custom.upstream.owner_on_create true`, then re-run enumerate. Do
 **not** treat a short candidate list as "nothing to push" while this warning is present — the
-count is not the signal, the warning is. The warning goes to **stderr**, so `--json` stdout stays
-a pure array; a `| jq` pipeline will hide it unless stderr is also read.
+count is not the signal, the warning is. From `enumerate` the warning goes to **stderr**, so
+`--json` stdout stays a pure array; a `| jq` pipeline will hide it unless stderr is also read.
+The `push` verb (step 3) therefore repeats the same warning **inline on stdout**, so the signal
+survives a `| jq` on the routed path (REQ-BUP-051, #105).
 
 ### 3 — Dry-run, then scoped push
 
-Use the dedicated `bd github push` (≡ `bd github sync --push-only --issues <ids>`); **never a bare
-`bd github sync`**:
+**Run the `push` verb — never hand-run the underlying `bd` command.** This is the routed path the
+companion rule's Safety invariant requires (REQ-BUP-051):
 
 ```bash
-GITHUB_TOKEN=$(gh auth token) bd github push <id1> <id2> … --dry-run   # confirm only intended beads
-GITHUB_TOKEN=$(gh auth token) bd github push <id1> <id2> …             # real push
+uv run ${SKILL_DIR}/scripts/upstream.py push --issues <id1>,<id2>,… [--apply]
 ```
 
-(For a whole subtree: `bd github sync --push-only --parent <id> --dry-run`.) After a successful
-push, bd records the new issue URL on each bead as a single `External:` line in `bd show <id>`:
+Without `--apply` this prints the exact sequence and executes nothing — **absent `--apply` *is* the
+dry run**, matching `hoist`/`land`/`unhoist`. With `--apply` it runs the dry-run push first, then
+the real push. Beads stay **open and mirrored**; removing them locally is `hoist`, a different verb.
+
+What the verb emits and why it is compliant by construction: the push is scoped (`--issues`, never
+a bare sync), auth is inline-only, bead ids are **space-separated positional arguments**, and both
+stages are **fail-closed** — a push that does not report the expected number of beads exits
+non-zero and halts the sequence (REQ-BUP-050). That last property is not decoration: a
+comma-separated id list matches **zero** beads while `bd` still exits 0, so "it exited 0" is not
+evidence that anything was pushed (#129).
+
+For a whole subtree, pass the subtree's bead ids to the same verb (enumerate them with
+`upstream.py enumerate --json` filtered to the parent). There is deliberately no hand-run
+`--parent` recipe here — the subtree form is the same routed verb with a different id set.
+
+After a successful push, bd records the new issue URL on each bead as a single `External:` line in
+`bd show <id>`:
 
 ```
 External: https://github.com/<owner>/<repo>/issues/<N>
@@ -305,15 +321,33 @@ This mapping is what suppresses duplicate creation on re-push (verified live on 
 
 ### 4 — Partial-push / failure handling
 
-On non-zero `bd github push` exit: re-enumerate `External:` mappings, report **pushed-vs-remaining**
-beads, and surface (never swallow) the error:
+The verb's failure surface is a **non-zero exit from `upstream.py push`**, which has two distinct
+causes worth telling apart:
+
+- **The push itself errored** (network, auth, a rejected bead). bd exits non-zero and the sequence
+  stops there.
+- **The push "succeeded" but did not match the expected beads** — the fail-closed guard fired and
+  printed `FAIL-CLOSED: push did not report N pushed issue(s)`. This is the case that used to be
+  invisible: `bd` exits **0** on a push that matched **zero** beads, so before REQ-BUP-050 this
+  path looked like success (#129). If you see it, the ids did not resolve — check them against
+  `bd list` before retrying, rather than assuming a transient failure.
+
+In both cases: re-enumerate `External:` mappings, report **pushed-vs-remaining** beads, and
+surface (never swallow) the error:
 
 ```bash
 uv run ${SKILL_DIR}/scripts/upstream.py mappings --issues <id1>,<id2>,… --json
 ```
 
-Do not blind-retry — a re-run on already-mapped beads is safe (step 5) but must be a *deliberate*
-re-push of the remaining set, not a bare sync.
+Beads carrying an `External:` URL went up; the rest did not. Do not blind-retry — a re-run on
+already-mapped beads is safe (step 5), but recovery must be a *deliberate* scoped re-push of the
+**remaining** set through the same verb:
+
+```bash
+uv run ${SKILL_DIR}/scripts/upstream.py push --issues <remaining-ids> --apply
+```
+
+Never widen the scope to "just sync everything" to clear a partial failure.
 
 ### 5 — Idempotency checkpoint (gates this step)
 
@@ -340,9 +374,14 @@ bumps the issue's `updatedAt` on the next push but the text never reaches the bo
    that must travel upstream — keep `description` the single canonical place. (Alternative when the
    description should stay terse: post the text as a `gh issue comment` directly — but that comment
    is *not* bead-synced and won't update on future pushes; prefer folding into `description`.)
-2. **Re-push** — `bd github push <id>`. The dry-run must read **`Would update in GitHub`**, not
-   `Would create` (confirms the `External:` mapping is in force; a `create` means the mapping was
-   lost — stop and investigate before duplicating).
+2. **Re-push** — `uv run ${SKILL_DIR}/scripts/upstream.py push --issues <id> --apply`. Read the
+   dry-run stage's output before letting it proceed: it must say **`Would update in GitHub`**, not
+   `Would create`. `Would update` confirms the `External:` mapping is in force; a `Would create`
+   means the mapping was **lost** — stop and investigate before duplicating the issue.
+   **This tripwire is more load-bearing now, not less.** The fail-closed guard (REQ-BUP-050)
+   catches a push that matched *no* beads, but a push that matched the right *number* of beads
+   while having lost their mappings would satisfy the count and still create duplicates. The
+   count check and the `Would update`/`Would create` check catch different failures; read both.
 3. **Verify** the new text is in the body: `gh issue view <N> --json body --jq '.body' | grep …`,
    and that the open-issue count is unchanged.
 
@@ -442,8 +481,10 @@ GitHub is the implemented, dry-run-and-live-tested path (see Push step step 5). 
 Jira are **config-only stubs** — the config keys and verb shape are wired, but no push has
 been exercised against a live GitLab/Jira instance. Do not present them as tested.
 
-All three backends expose `push` / `pull` / `status` / `sync` subcommands. Scoped-push
-translation (verified against `bd <backend> sync --help` on 1.0.5):
+All three backends expose `push` / `pull` / `status` / `sync` subcommands. The table below is
+**reference, not procedure** — it documents what `upstream.py push --backend <backend>` emits on
+your behalf, so you can read and verify the emitted sequence. Run the verb; do not hand-run these
+(REQ-BUP-053). Scoped-push translation (verified against `bd <backend> sync --help` on 1.0.5):
 
 | Step          | GitHub                              | GitLab                              | Jira (unverified)                          |
 |:--------------|:------------------------------------|:------------------------------------|:-------------------------------------------|
@@ -456,8 +497,9 @@ translation (verified against `bd <backend> sync --help` on 1.0.5):
 ⚠ **Jira divergence:** `bd jira sync` uses `--push` / `--pull` (not `--push-only` /
 `--pull-only`) and adds `--create-only` for new-issues-only. Jira's field model (projects,
 issue types, required fields) differs from GitHub/GitLab labels — the stub is unverified and
-will likely need field mapping before a real push. Prefer the dedicated `bd jira push <ids>`
-subcommand, which mirrors the others' positional-IDs shape.
+will likely need field mapping before a real push. The verb emits the dedicated
+`bd jira push <ids>` form, which mirrors the others' positional-IDs shape, rather than the
+`sync --push` form; `upstream.py push --backend jira` is still the path to run.
 
 The `--issues` / `--parent` / `--dry-run` flags are confirmed present on backend-generic
 `bd <backend> sync` for all three (plan-003 Investigation Finding; re-verified here via
@@ -465,6 +507,18 @@ The `--issues` / `--parent` / `--dry-run` flags are confirmed present on backend
 
 ## Safety invariants
 
+- **Never hand-run a `bd <backend>` push — run `upstream.py push`.** The verb is the compliant
+  path: scoped, dry-run-first, inline-auth, space-separated ids, fail-closed (REQ-BUP-051). Every
+  *procedure* in this skill routes through it. The raw commands still appear throughout this
+  document as **explanation** — in the translation table, the dated verification blockquotes, and
+  in these invariants, which quote the command precisely **in order to forbid it**. That is
+  deliberate: an acceptance check asserting zero occurrences of `bd github push` anywhere would
+  fail on this very bullet, so the check is scoped to fenced `bash` procedure blocks in the Push
+  step and Backend generalization sections (REQ-BUP-053), never a global grep.
+- **A `bd` push that exits 0 is not proof it pushed anything.** It exits 0 having matched zero
+  beads if the ids do not resolve. Verify the reported count before any destructive follow-on
+  (REQ-BUP-050 / GR-BUP-006) — this is the same false-negative shape as the beads-init
+  `bd status` invariant.
 - **Never run a bare `bd <backend> sync`.** A bare sync re-imports every upstream issue as a
   duplicate bead and pushes the entire local DB (closed epics, gates, dupes) upstream. Always
   `--push-only` + scoped `--issues <ids>` (or `--parent <id>`), `--dry-run` first.

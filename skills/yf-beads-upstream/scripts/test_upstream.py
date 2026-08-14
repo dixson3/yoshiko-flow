@@ -15,6 +15,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 _spec = importlib.util.spec_from_file_location(
     "upstream", Path(__file__).parent / "upstream.py"
 )
@@ -372,6 +374,150 @@ def test_plan_unhoist_carries_no_separator_or_destructive_stage():
     for c in cmds:
         assert "," not in c
         assert "bd close" not in c and "bd delete" not in c
+
+
+# --- REQ-BUP-051: the `push` verb ---------------------------------------------
+
+
+def test_push_always_dry_runs_before_the_real_push():
+    cmds = up.plan_push(["a", "b"], backend="github")
+    dry = next(i for i, c in enumerate(cmds) if "--dry-run" in c)
+    real = next(i for i, c in enumerate(cmds) if "bd github push " in c and "--dry-run" not in c)
+    assert dry < real
+
+
+def test_push_is_scoped_and_never_a_bare_sync():
+    cmds = up.plan_push(["a", "b"], backend="github")
+    assert all("sync" not in c for c in cmds)
+    for c in cmds:
+        assert "bd github push " in c
+
+
+def test_push_leaves_beads_open_no_close_stage():
+    """The contract that distinguishes `push` from `hoist`: no local removal."""
+    cmds = up.plan_push(["a", "b"], backend="github")
+    assert all("bd close" not in c for c in cmds)
+    assert all("bd delete" not in c for c in cmds)
+    # ...whereas hoist DOES close, so the two verbs are genuinely different.
+    hoisted = up.plan_hoist(["a", "b"], "plan-038", backend="github", gran="coarse")
+    assert any(c.startswith("bd close") for c in hoisted)
+
+
+def test_push_inline_auth_per_backend():
+    gh = up.plan_push(["a"], backend="github")
+    assert all("GITHUB_TOKEN=$(gh auth token)" in c for c in gh)
+    gl = up.plan_push(["a"], backend="gitlab")
+    assert all("GITLAB_TOKEN=$(glab auth token)" in c for c in gl)
+    # never persisted to config
+    assert all("bd config set" not in c for c in gh + gl)
+
+
+def test_push_without_apply_executes_nothing(capsys, monkeypatch):
+    """Absent --apply IS the dry run — matching the hoist/land/unhoist idiom.
+    Any execution attempt fails the test outright."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    def boom(cmd):
+        raise AssertionError(f"push executed {cmd!r} without --apply")
+    monkeypatch.setattr(up, "run", boom)
+    rc = up.cmd_push("a,b", "github", apply=False)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "--dry-run" in out
+    assert "Dry run" in out
+
+
+def test_push_has_no_dry_run_flag_of_its_own():
+    """The idiom is --apply-only; a --dry-run flag would be a second, conflicting
+    way to say the same thing."""
+    import argparse
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+        with pytest.raises(SystemExit):
+            up_main_with(["push", "--issues", "a", "--dry-run"])
+    assert "--dry-run" in buf.getvalue() or "unrecognized" in buf.getvalue()
+
+
+def up_main_with(argv):
+    import sys as _s
+    old = _s.argv
+    _s.argv = ["upstream.py"] + argv
+    try:
+        return up.main()
+    finally:
+        _s.argv = old
+
+
+def test_push_short_circuits_cleanly_when_tracking_disabled(capsys, monkeypatch):
+    """REQ-BUP-010 default-deny: clean exit 0, no upstream call."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: False)
+    def boom(cmd):
+        raise AssertionError("made an upstream call while disabled")
+    monkeypatch.setattr(up, "run", boom)
+    rc = up.cmd_push("a,b", "github", apply=True)
+    assert rc == 0
+    assert "disabled" in capsys.readouterr().out
+
+
+def test_push_surfaces_owner_claimed_warning_inline_on_stdout(capsys, monkeypatch):
+    """#105 residual (REQ-BUP-051): the enumerate warning is stderr-only, so an
+    agent piping --json to jq misses it. On the routed path it must be INLINE
+    on stdout."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(
+        up, "owner_claim_warning_lines",
+        lambda: ["WARNING: 36 open bead(s) are excluded as owner-claimed", "         excluded: a, b"],
+    )
+    monkeypatch.setattr(up, "run", lambda cmd: "")
+    up.cmd_push("a", "github", apply=False)
+    captured = capsys.readouterr()
+    assert "excluded as owner-claimed" in captured.out, "warning must reach STDOUT, not just stderr"
+
+
+def test_upstream_enabled_default_deny():
+    """Both keys must agree, and the read is on config TEXT not exit code."""
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "true\n", "custom.upstream.backend": "github\n"})) is True
+    # unset
+    assert up.upstream_enabled(fake_config({})) is False
+    # enabled but backend none
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "true\n", "custom.upstream.backend": "none\n"})) is False
+    # backend set but not enabled
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "false\n", "custom.upstream.backend": "github\n"})) is False
+    # any other value denies
+    assert up.upstream_enabled(fake_config({
+        "custom.upstream.enabled": "yes\n", "custom.upstream.backend": "github\n"})) is False
+
+
+# --- REQ-BUP-053: the procedure/explanation boundary is real -------------------
+
+
+def test_skill_md_procedure_blocks_route_through_the_verb():
+    """Issue 5.1's contract, asserted here too: no fenced bash PROCEDURE block in
+    SKILL.md instructs a raw `bd <backend>` push/sync."""
+    import re
+    skill = (Path(__file__).parent.parent / "SKILL.md").read_text()
+    offenders = []
+    for m in re.finditer(r"```bash\n(.*?)```", skill, re.S):
+        if re.search(r"\bbd (github|gitlab|jira) (push|sync)\b", m.group(1)):
+            offenders.append(m.group(1).strip()[:80])
+    assert not offenders, f"raw push/sync in fenced procedure block(s): {offenders}"
+
+
+def test_skill_md_keeps_the_explanatory_mentions():
+    """The counter-assertion: a global 'zero occurrences' check would be WRONG.
+    The invariant statements quote the command in order to forbid it, and the
+    dated verification blockquotes are provenance — both must survive."""
+    skill = (Path(__file__).parent.parent / "SKILL.md").read_text()
+    assert "Verified (bd 1.0.5" in skill, "dated verification blockquotes must survive"
+    assert skill.count("Verified (bd 1.0.5") == 2
+    assert "bd <backend> sync" in skill, "the never-bare-sync invariant must still name the command"
+    assert "Would update in GitHub" in skill, "the mapping-lost tripwire must survive"
+    assert "Would create" in skill
 
 
 # --- C.4 un-hoist round-trip --------------------------------------------------

@@ -119,6 +119,24 @@ def auto_hoist_followons(config_get=_config_get) -> bool:
     return raw.strip() == "true"
 
 
+def upstream_enabled(config_get=_config_get) -> bool:
+    """Return True only when upstream tracking is actually enabled (REQ-BUP-010).
+
+    Default-DENY, and BOTH keys must agree: `custom.upstream.enabled` is the literal
+    "true" AND `custom.upstream.backend` is neither unset nor "none". Unset / empty /
+    "false" / any other value resolves disabled, mirroring the auto_hoist_followons
+    short-circuit shape (reads the config TEXT for the `(not set)` sentinel, never the
+    exit code — the false-negative invariant). `config_get` is injectable.
+    """
+    raw = config_get("custom.upstream.enabled")
+    if raw is None or NOT_SET_SENTINEL in raw or raw.strip() != "true":
+        return False
+    backend = config_get("custom.upstream.backend")
+    if backend is None or NOT_SET_SENTINEL in backend:
+        return False
+    return backend.strip() not in ("", "none")
+
+
 def owner_on_create(config_get=_config_get) -> bool:
     """Return True only when custom.upstream.owner_on_create is literal "true" (#61, REQ-BUP-048).
 
@@ -832,6 +850,66 @@ def cmd_hoist(issues_csv: str, dest: str, backend: str, apply: bool) -> int:
     return 0
 
 
+def owner_claim_warning_lines() -> list[str]:
+    """The REQ-BUP-049 owner-claimed exclusion warning as text lines, or [].
+
+    Factored out of `cmd_enumerate`'s stderr write so `push` can surface the same
+    signal INLINE in its own stdout (REQ-BUP-051, #105 residual): the shipped
+    warning is stderr-only, so an agent piping `--json` to `jq` never sees it, and
+    `push` is now the routed path every operator and agent is sent through.
+    """
+    rows = load_universe_rows()
+    beads = {r["id"]: r for r in rows if r.get("id")}
+    edges = collect_parent_edges(beads)
+    excluded = owner_claim_exclusions(beads, edges, owner_on_create())
+    if not excluded:
+        return []
+    preview = ", ".join(excluded[:5]) + (" …" if len(excluded) > 5 else "")
+    return [
+        f"WARNING: {len(excluded)} open bead(s) are excluded as owner-claimed and will "
+        f"never be pushed. If `bd create` auto-assigns owners in this repo, set "
+        f"`custom.upstream.owner_on_create true` (see REQ-BUP-048).",
+        f"         excluded: {preview}",
+    ]
+
+
+def cmd_push(issues_csv: str, backend: str, apply: bool) -> int:
+    """THE documented push path (REQ-BUP-051).
+
+    Scoped (`--issues`, never a bare sync), dry-run first, inline auth, ids
+    space-separated and fail-closed (REQ-BUP-050). Leaves each bead OPEN and
+    mirrored — removing it locally is `hoist`, a different verb.
+
+    Matches the existing `--apply`-only idiom: there is no `--dry-run` flag,
+    because absent `--apply` IS the dry run.
+    """
+    if not upstream_enabled():
+        print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to push.")
+        return 0
+    ids = [s.strip() for s in issues_csv.split(",") if s.strip()]
+    if not ids:
+        print("No bead IDs given; nothing to push.")
+        return 1
+    cmds = plan_push(ids, backend=backend)
+
+    print(f"Push plan: {len(ids)} bead(s) -> {backend} (beads stay open and mirrored)")
+    print("Command sequence (dry-run push always runs first; both stages fail closed):")
+    for c in cmds:
+        print(f"  {c}")
+    # #105 residual: surface the owner-claimed exclusion warning INLINE on stdout,
+    # so it survives a `| jq` on the routed path.
+    for line in owner_claim_warning_lines():
+        print(line)
+    if not apply:
+        print("\nDry run. Re-run with --apply to execute the sequence above.")
+        return 0
+    for c in cmds:
+        print(f"+ {c}")
+        run(["bash", "-c", c])
+    print("Push complete (beads remain open, now mirrored upstream).")
+    return 0
+
+
 def cmd_unhoist(issues_csv: str | None, record: str | None, apply: bool) -> int:
     if record:
         with open(record, encoding="utf-8") as fh:
@@ -877,6 +955,14 @@ def main() -> int:
     p_fo.add_argument("--intake", required=True, help="epic intake timestamp (RFC3339)")
     p_fo.add_argument("--json", action="store_true", dest="as_json")
 
+    p_push = sub.add_parser(
+        "push",
+        help="THE documented push path: scoped, dry-run-first, fail-closed (beads stay open)",
+    )
+    p_push.add_argument("--issues", required=True, help="comma-separated bead IDs")
+    p_push.add_argument("--backend", default=DEFAULT_BACKEND, help="bd push backend (default: github)")
+    p_push.add_argument("--apply", action="store_true", help="Execute (default: dry-run/plan only).")
+
     p_hoist = sub.add_parser("hoist", help="ensure upstream issue per granularity, then close locally")
     p_hoist.add_argument("--issues", required=True, help="comma-separated bead IDs")
     p_hoist.add_argument("--dest", required=True, help="plan id or upstream URL recorded in close reason")
@@ -908,6 +994,8 @@ def main() -> int:
         return cmd_config(args.as_json)
     if args.cmd == "followons":
         return cmd_followons(args.parent, args.intake, args.as_json)
+    if args.cmd == "push":
+        return cmd_push(args.issues, args.backend, args.apply)
     if args.cmd == "hoist":
         return cmd_hoist(args.issues, args.dest, args.backend, args.apply)
     if args.cmd == "land":
