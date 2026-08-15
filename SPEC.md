@@ -260,6 +260,39 @@
 >   (emitted-command tests assert a contract, never the emitted string — the defect that let #129
 >   survive a green suite). Engine work lands in later epics — this entry records the SPEC-first
 >   Epic 1 amendment.
+> - **plan-039 (2026-08-15, #112/#113/#114):** yf-plan review-quality hardening along the structural
+>   and factual axes. Added **`REQ-AGENT-046`** (red-team **gate reachability** — a `Condition`
+>   depending on evidence produced inside its own `Blocks` set is a cycle; gate the mutating step),
+>   **`REQ-AGENT-047`** (red-team **precondition cross-check** — each issue's assumed artifacts,
+>   tools, and capabilities are produced by a declared `depends-on` predecessor or established by a
+>   gate; #113's cheap branch, explicitly **without** a `requires:` schema key or a DAG-walk engine,
+>   which measurement against the same corpus found unjustified), and **`REQ-AGENT-048`** (red-team
+>   **premise check** — measured vs inferred, corroboration, and *what would falsify this and was it
+>   checked*). Revised **`REQ-AGENT-021`** so investigator findings mark load-bearing conclusions
+>   `measured` or `inferred` and require corroboration for any inference the plan builds on. All
+>   four are prompt-level contracts: the evidence is that four of the five structural defects
+>   observed in d3-pxe plan-013 — including an unsatisfiable gate that survived conformance and two
+>   red-team cycles — had their preconditions written out in prose and only the dependency edge
+>   missing.
+> - **plan-039 (2026-08-15, #108):** revised **`REQ-CLI-015`** to the corrected deliverable-class
+>   classifier contract — the scan region is the Epics / Upstream Issues / Success Criteria sections
+>   rather than the whole file; fenced blocks and inline code spans are stripped before matching (a
+>   quoted token is not a claim); negative-context guards ship with an explicit stop rule; a
+>   `ci-release` suggestion **requires a high-tier signal**, with low-only matches reported
+>   informationally; and the result carries an `evidence` basis (`path-backed` | `prose-only`)
+>   because `confidence` is constant at intake, where `--changed` is empty. Measured on 53 real
+>   plans: the prior heuristic suggested `ci-release` on 40, and on the 17 operator-labeled plans it
+>   was wrong 16 times with zero correct negatives, at `confidence: high`. `FN=0` is preserved at
+>   every step — a false negative silently disarms `complete-gate`, so recall is the safety-critical
+>   direction.
+> - **plan-039 (2026-08-15, frontmatter integrity):** added **`REQ-YF-EMBED-003`** — every embedded
+>   `skills/*/SKILL.md` and `skills/*/agents/*.md` carries a well-formed, **terminated** YAML
+>   frontmatter block, enforced repo-wide by `scripts/check_frontmatter.py` in the fast and full
+>   validation tiers. Homed in §3.2 Embedding rather than under a per-skill key because the
+>   invariant constrains the shape of the whole embedded `skills/` tree. Prompted by
+>   `skills/yf-plan/agents/reviewer.md`, whose closing `---` had been replaced by `:--` — a GFM
+>   table-alignment marker — leaving the block unterminated and the agent's metadata unparsed, with
+>   no visible symptom. Audited at the time across all 20 skills: it was the only offender.
 
 ## 1. Purpose & scope
 
@@ -325,6 +358,17 @@ requirement lives only in code (GUARDRAILS GR-010).
   (no network or repo clone required to install).
 - **REQ-YF-EMBED-002** *(testable)* `yf` shall enumerate embedded skill names and per-skill file
   lists, and read any embedded file, from the binary alone.
+- **REQ-YF-EMBED-003** *(testable)* every embedded `skills/*/SKILL.md` and `skills/*/agents/*.md`
+  shall carry a well-formed, **terminated** YAML frontmatter block — an opening `---` on line 1, a
+  closing `---` delimiter, and a body that parses as YAML. A repo check shall enforce this across
+  the whole `skills/` tree and run in the fast and full validation tiers. Rationale: the block is
+  the file's only machine-readable metadata (a skill's `name`/`description` triggers, an agent's
+  `name`/`role`/`stance`), and a corrupted delimiter fails **silently** — the file still renders as
+  markdown while its metadata stops parsing. The observed corruption replaced a closing `---` with
+  `:--`, a GFM table-alignment marker, consistent with a table-alignment autofix applied to a
+  frontmatter delimiter; it went undetected until a human read the file. The invariant is repo-wide
+  rather than per-skill because the failure mode is identical in every skill and a rule homed under
+  one skill's key would be undiscoverable from the others.
 
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 
