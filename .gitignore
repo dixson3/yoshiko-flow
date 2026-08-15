@@ -39,3 +39,6 @@ __pycache__/
 
 # Skill runtime state + local config (yf-plan; Surface Convention §6)
 /.beads/formulas/
+
+# beads-init: required exclusions
+.beads/proxieddb/
