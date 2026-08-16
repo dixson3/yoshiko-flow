@@ -8,7 +8,7 @@ status: approved
 deliverable_class: ci-release
 fingerprint: c7c43ef490e5adfb1147ac9174f03d1fe64b312845e2de6700c15ce0f5bd94c3
 ---
-# Plan: Make `yf self install` a complete, self-consistent sync (#137)
+# Plan: Fix the embed addition blind spot and version-stamp staleness in `yf/build.rs` (#137)
 
 **ID:** plan-041-james-dixson-a9d837
 **Author:** james-dixson
