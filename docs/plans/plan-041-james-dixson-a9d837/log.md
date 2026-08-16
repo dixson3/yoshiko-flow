@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-16
+- validated: baked embed conformance (embed-in-debug) green on b0868b6 — cargo test --workspace --features yf/embed-in-debug, 358+10 passed 0 failed — https://github.com/dixson3/yoshiko-flow/actions/runs/31974384667
 - complete: plan complete
 - reconciling: post-execution reconciliation
 - executing: start gate resolved
