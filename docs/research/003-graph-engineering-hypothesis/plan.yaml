@@ -1,0 +1,56 @@
+topic: "Graph engineering as an emerging practice, and yoshiko-flow's implicit graph-engineering in yf-plan / yf-research"
+mode: deep
+priority: 1
+research_dir: "docs/research/003-graph-engineering-hypothesis"
+
+questions:
+  primary:
+    - "Is 'graph engineering' a coherent, converging practice with identifiable primitives, or a loose label applied post-hoc to existing orchestration ideas?"
+    - "Do yf-plan and yf-research CONSTRUCT their programs via graph-engineering procedures (fan-out investigation, parallel review, validation loops)?"
+    - "Are the produced artifacts themselves executable graphs that exercise those primitives — or graph-shaped data executed linearly?"
+  secondary:
+    - "Where and why does yf execution degenerate to a linear walk of a DAG?"
+    - "What do comparable systems do at the graph layer that yf does not?"
+    - "Which refactoring opportunities would streamline/robustify plan+research creation and execution?"
+
+source_clusters:
+  - name: practitioner-trend
+    targets: ["X/Twitter agentic-coding practitioners", "engineering blogs with shipped artifacts", "conference talks"]
+    method: exa
+    expected_artifacts: 8
+  - name: framework-evidence
+    targets: ["LangGraph docs/source", "DSPy", "agent-graph runtimes", "shipped specs and code"]
+    method: exa
+    expected_artifacts: 8
+  - name: yf-codebase
+    targets: ["skills/yf-plan", "skills/yf-research", "formulas/*.formula.toml", "agents/coordinator.md", "SPEC.md", "docs/plans/*"]
+    method: direct
+    expected_artifacts: 12
+  - name: comparative-execution
+    targets: ["fan-out/join semantics", "loop and retry constructs", "resume/checkpoint", "gate and human-in-the-loop patterns"]
+    method: exa
+    expected_artifacts: 6
+
+exclusions:
+  - "Generic AI-agent thought-leadership with no artifact behind it"
+  - "Academic / scientific workflow-DAG literature (Airflow, Dagster, Pegasus lineage)"
+
+seed_sources:
+  - url: "https://x.com/0xwhrrari/status/2086784668003598356"
+    note: "operator-provided; best-effort fetch"
+  - url: "https://x.com/reiraxbt/status/2088295022194004138/video/1"
+    note: "operator-provided; video, likely unfetchable"
+  - url: "https://x.com/norvex1029/status/2087230353035440452/video/1"
+    note: "operator-provided; video, likely unfetchable"
+
+seed_handling: "best-effort fetch; on block, record as operator-provided provenance with credibility flag 'content unverified'"
+deliverable: "Evidence-backed refactoring opportunity assessment — no target design"
+
+constraints:
+  - "beads/bd is NOT held fixed — the execution-graph store is in scope for the refactor assessment"
+
+execution:
+  estimated_beads: 11
+  estimated_budget_usd: 9.00
+  session_mode: new
+epic: yf-mol-62k

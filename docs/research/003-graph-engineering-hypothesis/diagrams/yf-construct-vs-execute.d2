@@ -1,0 +1,92 @@
+direction: down
+
+title: |md
+  # yoshiko-flow: a real graph, constructed conversationally and executed linearly
+  Findings of research 003. Layer 1 and Layer 3 are where the graph is *absent*; Layer 2 is where it is genuine.
+| {near: top-center}
+
+construct: "LAYER 1 — CONSTRUCTION (yf-plan / yf-research authoring)\nno durable beads emitted; no graph code" {
+  style.fill: "#fdf3f3"
+  style.stroke: "#c0504d"
+
+  scope: "SCOPE / PLAN\nconversational program"
+  investigate: "INVESTIGATE\nthe one real fan-out"
+  redteam: "RED-TEAM CYCLES\n(plan-033: 5 cycles, 0 beads)"
+  compile: "COMPILE\nLLM reads plan.md ->\nemits bd create / bd dep add"
+
+  scope -> investigate
+  investigate -> redteam
+  redteam -> compile
+
+  serialize: "SPEC contradiction:\n'both writes BEFORE next\nsub-agent spawns'" {
+    style.fill: "#fff4d6"
+    style.stroke: "#bf8f00"
+    style.stroke-dash: 3
+  }
+  investigate -> serialize: "[uncertain] undone\none paragraph later" {style.stroke: "#bf8f00"}
+
+  vapor: "vapor wisp\ncreated + discarded,\nnever walked" {
+    style.fill: "#f2f2f2"
+    style.stroke-dash: 3
+  }
+  investigate -> vapor
+}
+
+graph_layer: "LAYER 2 — THE ARTIFACT (beads / Dolt store)\ngenuine graph engineering" {
+  style.fill: "#f2f7f2"
+  style.stroke: "#4f81a3"
+
+  store: "bd graph store" {shape: cylinder}
+
+  nodes: "typed nodes\n(task / epic / gate)"
+  edges: "typed edges\n(blocks, discovered-from,\nreconcile predicate)"
+  fanout: "dynamic fan-out\n1 bead per source cluster"
+  join: "batched join wiring\nbd batch, one transaction"
+  gates: "gates as first-class beads\ncapability gate carries\nan executable Test:"
+  ready: "server-side readiness\n(bd ready)"
+
+  store -> nodes
+  store -> edges
+  store -> fanout
+  store -> join
+  store -> gates
+  store -> ready
+}
+
+execute: "LAYER 3 — EXECUTION (coordinator loop)\nstrictly sequential; never reads graph structure" {
+  style.fill: "#fdf3f3"
+  style.stroke: "#c0504d"
+
+  loop: "bd ready -> claim -> dispatch -> close\none bead at a time\n(specified this way: REQ-AGENT-*)" {shape: queue}
+  loop -> loop: "repeat until empty" {style.stroke-dash: 3}
+}
+
+construct -> graph_layer: "pours the molecule\nat EXECUTE start" {style.stroke-width: 2}
+graph_layer -> execute: "reads the ready SET,\ntakes ONE" {style.stroke-width: 2}
+
+gaps: "REFACTORING OPPORTUNITIES (ranked, evidence-backed — not a design)" {
+  style.fill: "#eef3fa"
+  style.stroke: "#4f81a3"
+  direction: right
+
+  r1: "R1 pre-run structural\nvalidator (clearest gap)"
+  r2: "R2 artifact-layer join\n(sources.json)"
+  r3: "R3 dropped feedback\nedge in REFINE [uncertain]"
+  r4: "R4 INVESTIGATE\nparallel-vs-serial [uncertain]"
+  r5: "R5 parallel dispatch\nof the ready set"
+  r6: "R6 serialized reviewers\n+ orphan swarm node"
+}
+
+graph_layer -> gaps.r1: "no cycle detector,\nno topological sort" {style.stroke: "#4f81a3"; style.stroke-dash: 3}
+execute -> gaps.r5: "ready set has N,\nexecutor takes 1" {style.stroke: "#4f81a3"; style.stroke-dash: 3}
+construct -> gaps.r6: {style.stroke: "#4f81a3"; style.stroke-dash: 3}
+
+nomeasure: |md
+  **No verified outcome number exists** in the whole corpus about
+  graph-vs-loop performance. Every recommendation above is an
+  argument from design, never from measurement.
+| {
+  style.fill: "#fff4d6"
+  style.stroke: "#bf8f00"
+  near: bottom-center
+}
