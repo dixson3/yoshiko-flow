@@ -30,6 +30,7 @@ approved: yes
 | `uv-yf-review-verdict` | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
+| `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
@@ -53,6 +54,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
+|  | `uv run scripts/check_frontmatter.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
@@ -93,6 +95,9 @@ approved: yes
 | `skills/yf-plan/scripts/test_config_tiers.py` | `uv-yf-config-tiers` |
 | `skills/yf-plan/scripts/test_classify_deliverable.py` | `uv-yf-classify` |
 | `skills/yf-plan/scripts/fixtures/classify/**` | `uv-yf-classify` |
+| `skills/*/SKILL.md` | `frontmatter` |
+| `skills/*/agents/*.md` | `frontmatter` |
+| `scripts/check_frontmatter.py` | `frontmatter` |
 | `skills/yf-plan/agents/**` | `uv-yf-review-verdict` |
 | `skills/yf-research/scripts/**` | `uv-research`, `uv-research-cred` |
 | `skills/yf-research/scripts/test_link_normalizer.py` | `uv-research` |
