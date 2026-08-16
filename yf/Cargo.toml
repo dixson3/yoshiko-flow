@@ -8,6 +8,25 @@ authors = ["James Dixson <dixson3@gmail.com>"]
 repository = "https://github.com/dixson3/yoshiko-flow"
 homepage = "https://github.com/dixson3/yoshiko-flow"
 
+[features]
+# Bake the `skills/` tree into DEBUG builds too (plan-041, #137).
+#
+# `rust-embed` is declared WITHOUT `debug-embed`, so a debug binary resolves embedded
+# paths from `skills/` ON DISK at runtime. That is a deliberate development-loop trade —
+# a skills edit costs no recompile — but it means `cargo test` exercises the ON-DISK tree
+# and never the BAKED one, so the whole embed surface (including REQ-YF-EMBED-003's
+# frontmatter integrity check) asserts against something the shipped binary does not use.
+# It also means the debug binary does not satisfy REQ-YF-EMBED-001/-002 ("from the binary
+# alone"); §3.2's profile carve-out records that, and names THIS feature as how
+# conformance is demonstrated.
+#
+# OPT-IN ON PURPOSE — do not flip it on by default. Measured (plan-041 E3): enabling it
+# breaks zero tests but costs the zero-rebuild skills-edit loop (~1.3 s per edit) and
+# imports the REQ-YF-EMBED-004 addition defect into the dev loop, since that defect is
+# profile-independent. CI runs one job with it enabled; local development keeps the fast
+# default.
+embed-in-debug = ["rust-embed/debug-embed"]
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

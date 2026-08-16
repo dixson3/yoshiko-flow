@@ -77,10 +77,17 @@ The `SKILL_DIR` resolver searches `~/.claude/skills` **first** (`head -1`), so a
 silently run the *old* skill (RT2-1). The fix is a **sandboxed `HOME`**:
 
 ```bash
-HOME=<sandbox> cargo build            # re-embeds the MODIFIED ../skills
+HOME=<sandbox> cargo build            # debug build (see note: it reads ../skills at RUNTIME)
 HOME=<sandbox> yf skills install      # lands the modified skill at <sandbox>/.claude/skills
 HOME=<sandbox> <drive + verify>       # resolver's first hit IS the modified copy
 ```
+
+> **The debug build does not bake the tree in.** `rust-embed` is declared without
+> `debug-embed`, so a **debug** `yf` resolves `skills/` **from disk at runtime** — repo edits
+> are picked up with no rebuild at all, which is why `./target/debug/yf` is always current.
+> The `cargo build` above is only needed when `yf`'s own Rust code changed. **Release** builds
+> bake the tree at compile time; that is the profile the `embed-in-debug` feature exists to
+> exercise under test.
 
 `bootstrap.sh` does this and **asserts** the resolved skill dir is the sandbox path (aborts
 if shadowed). Note the binary is at the workspace-root `target/debug/yf` (this is a cargo

@@ -1,7 +1,23 @@
 //! Embedded `skills/` tree and its enumeration API (REQ-YF-EMBED-001/002).
 //!
 //! The repo's `skills/` directory is compiled into the binary at build time via
-//! [`rust_embed`], so installation needs no network access or repo clone.
+//! [`rust_embed`], so installation needs no network access or repo clone
+//! (REQ-YF-EMBED-001/-002).
+//!
+//! **Profile-dependent, and the difference is load-bearing.** [`rust_embed`] is
+//! declared **without** its `debug-embed` feature, so this holds for **release**
+//! builds only. A **debug** binary resolves these paths from `skills/` **on disk at
+//! runtime** — it is always current without a rebuild (handy for the dev loop) but
+//! it does **not** satisfy "from the binary alone" and would fail outside a repo
+//! checkout. `SPEC.md` §3.2 records that as an explicit profile carve-out; the
+//! opt-in `embed-in-debug` cargo feature bakes the tree into debug builds and is
+//! how conformance is demonstrated under `cargo test`.
+//!
+//! Because `skills/` lives **outside** the `yf/` package and `rust_embed` is a proc
+//! macro (it cannot emit `cargo:rerun-if-changed`), `yf/build.rs` declares the watch
+//! on `../skills` that lets an incremental build observe **additions** here
+//! (REQ-YF-EMBED-004, #137). Keep the `#[folder]` literal below in sync with that
+//! watch — `yf/tests/embed_watch_drift.rs` asserts they agree.
 //!
 //! ## Path scheme
 //!

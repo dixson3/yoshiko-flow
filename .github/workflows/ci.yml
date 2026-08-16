@@ -45,3 +45,40 @@ jobs:
 
       - name: Test
         run: cargo test --workspace
+
+  baked-embed:
+    # Exercise the SHIPPING embed path (plan-041, #137).
+    #
+    # `rust-embed` is declared without `debug-embed`, so the `test` job above builds
+    # DEBUG and every embed assertion — including REQ-YF-EMBED-003's frontmatter
+    # integrity check and the enumeration tests — reads `skills/` FROM DISK. They
+    # therefore assert against the repo checkout, never the payload a released binary
+    # actually carries. This job enables the opt-in `embed-in-debug` feature so those
+    # same tests assert against the BAKED tree, which is how REQ-YF-EMBED-001/-002/-003
+    # conformance is demonstrated (see SPEC.md §3.2's profile carve-out).
+    #
+    # HONEST SCOPE: this job canNOT catch a #137-class defect. #137 is an
+    # INCREMENTAL-rebuild bug, and CI builds clean every run — `actions/checkout@v4`
+    # gives fresh mtimes and `Swatinem/rust-cache@v2` prunes workspace crate artifacts,
+    # so the embed is always freshly baked here. A clean build cannot exhibit an
+    # incremental staleness bug. The guard against #137 is the addition-propagation
+    # test (`yf/tests/embed_addition.rs`, REQ-YF-EMBED-004), which runs in the job
+    # above. What THIS job buys is closing a spec-conformance hole, which is a real but
+    # different claim.
+    #
+    # The `yf/` prefix on the feature is a package-qualified name, unambiguous at the
+    # virtual workspace root; `-p yf --features embed-in-debug` is the equivalent form.
+    name: baked embed conformance (embed-in-debug)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Test against the baked embed tree
+        run: cargo test --workspace --features yf/embed-in-debug

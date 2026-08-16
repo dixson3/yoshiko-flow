@@ -36,46 +36,52 @@ artifacts, and the gap is silent.
 **Default land-the-plane step.** Once changes are pushed to `main`, sync local user scope:
 
 ```bash
-touch yf/src/embed.rs                  # 0. force the re-embed — see below, this is NOT optional
 yf self install --from-build --build   # 1. rebuild + promote the binary to ~/.local/bin/yf
 yf skills install                      # 2. deploy skills → ~/.claude/skills/
 yf harness tune                        # 3. deploy always-loaded rules + align config
 ```
 
-**Step 0 is the common case, not a fallback.** `--build` runs a plain `cargo build`, which
-re-runs `yf/build.rs` only when a file under `yf/` changes. Any commit touching only `skills/`,
-`docs/`, or `AGENTS.md` — i.e. most commits in this repo — leaves both the embedded tree and the
-version stamp stale while every command still exits `0`. Measured live: after committing an
-`AGENTS.md` change, `--build --force` produced `yf 0.4.0 (5c747c0-dirty)` against `HEAD`
-`39b09f3`; with step 0 it produced `39b09f3`.
+**No manual cache-bust step is needed** (plan-041, #137). `yf/build.rs` now declares
+`cargo:rerun-if-changed=../skills` and `cargo:rerun-if-changed=.`, so an incremental
+`cargo build` observes additions under `skills/` and re-stamps the version on any change under
+`yf/` or `skills/`. The former `touch yf/src/embed.rs` step 0 is **retired** — it hardcoded a
+filename with no reason to be stable, and if `embed.rs` were ever renamed the touch would still
+succeed, the build would still exit 0, and staleness would return silently.
 
 **All three are required, in that order.** Step 2 is easy to omit and its absence is silent —
 REQ-YF-SELF-005 auto-refreshes skills only after a **vendor update**, and states explicitly that
 *"a from-build install shall NOT auto-refresh"* (verified: a probe file promoted into the binary
 did not appear in `~/.claude/skills/`). Step 3 is separate because rules and config are not
-skills. Order matters: step 2 must run from the **freshly promoted** binary, and `tune` reads the
-skill contracts step 2 installed.
+skills. Step 2 must run from the **freshly promoted** binary — that ordering is real. Steps 2 and
+3 are **not** ordered relative to each other: `tune` takes its content from the **binary's**
+embedded tree (`tune_acted_skills()` = `embed::skill_names()`) and its config profiles from a
+separate `rust-embed` root (`yf/profiles/`), never from the skills step 2 wrote to disk. Verified:
+`tune` deploys the full rules aggregate into a virgin directory containing no skills at all.
 
-**Verify, do not assume** (#137 — the promote path can ship a stale embedded tree):
+**One sanity check remains** — for a residue the fix does *not* cover:
 
 ```bash
-yf --version                                                    # git hash must equal HEAD
-                                                                # (a `-dirty` suffix just means
-                                                                #  uncommitted files; the hash
-                                                                #  itself is what must match)
-diff ~/.claude/skills/yf-plan/scripts/plan_manager.py \
-     ./skills/yf-plan/scripts/plan_manager.py                   # must be empty
+yf --version   # git hash should equal HEAD (a `-dirty` suffix just means uncommitted files;
+               # the hash itself is what must match)
 ```
 
-A stale sync is **silent**: `cargo build` exits 0, `self install` reports `status: ok`, and only
-the version stamp betrays it. If the hash still lags `HEAD`, step 0 was skipped — repeat from
-there with `--force`.
+The build watches `yf/` and `skills/`, so `HEAD` moving for any *other* reason — a docs-only
+commit, a `SPEC.md` commit, a `git checkout`, a rebase — touches nothing watched and can still
+leave an incremental build carrying a stale hash. This one line is the only detector for that
+case. Note the ordering caveat when reading it by hand: `git commit` moves `HEAD` without
+touching a watched file, so a no-op rebuild legitimately shows the pre-commit hash.
 
-**Why** (measured, see #137): `skills/` sits outside the `yf/` package and `yf/build.rs`
-deliberately emits no `rerun-if-changed`, so an **incremental release rebuild does not observe
-`skills/` edits**. Release bakes the tree at compile time; debug reads it from disk at runtime
-(no `debug-embed` feature), so `./target/debug/yf` is always current and `--release` is the
-exposed path.
+**Why the fix was needed** (measured, #137): `skills/` sits outside the `yf/` package, and
+`rust-embed` is a **proc macro** — it cannot emit `rerun-if-changed`, and its only staleness
+signal is `include_bytes!` dep-info, which tracks file **content** but never **the directory
+listing**. So an incremental release rebuild missed **additions** under `skills/` specifically —
+content edits, deletes and renames always propagated correctly. A second, separate defect shared
+the cause: `build.rs` never re-ran on a skills-only change, so the **version stamp** went stale
+even when the embed was fresh. (The `5c747c0-dirty` vs `39b09f3` evidence this section used to
+cite was an instance of that *stamp* defect, not of a stale embed.)
+
+Release bakes the tree at compile time; debug reads it from disk at runtime (the `embed-in-debug`
+feature is opt-in), so `./target/debug/yf` is always current and `--release` is the exposed path.
 
 **Never run step 2 on its own** to pick up local changes. `yf` on `PATH` deploys whatever tree
 *its* binary embeds, so without step 1 first it will quietly overwrite newer skills with older

@@ -48,12 +48,56 @@ fn main() {
         if dirty { "-dirty" } else { "" }
     );
 
-    // Deliberately emit NO `rerun-if-changed` narrowing (REQ-YF-PRE-009, red-team
-    // C7): the previous `.git/HEAD` / `.git/refs` pins did not move on a tracked
-    // source edit, so `build.rs` would not re-run and the dirty flag would go
-    // stale. With no rerun-if instructions, cargo re-runs this script whenever any
-    // file in the `yf/` package changes — the best dev-loop accuracy achievable.
-    // Known limit (documented, not over-promised): it still cannot observe
-    // repo-wide changes outside the `yf/` package on an incremental rebuild. The
-    // clean CI/release build (a fresh full build) is unaffected and authoritative.
+    // Watch declarations (REQ-YF-EMBED-004; REQ-YF-PRE-009 constraint; #137).
+    //
+    // WHY THIS IS NEEDED (measured, plan-041 E2/E5): `skills/` lives OUTSIDE the
+    // `yf/` package, and `rust-embed` is a PROC MACRO — it cannot emit build
+    // directives, and `grep -rn "rerun" rust-embed-impl-*/src/` returns nothing.
+    // Its only staleness signal is the `include_bytes!` dep-info the macro expands
+    // to, which tracks each embedded file's CONTENT but never THE DIRECTORY
+    // LISTING. So cargo had no reason to re-expand the macro when a *new* path
+    // appeared: a file ADDED under `skills/` was invisible to an incremental
+    // release rebuild (0.17 s no-op, the new file absent from the binary), while
+    // content edits, deletes and renames all propagated correctly. The defect is
+    // ADDITION-SCOPED, not universal. A second, distinct defect shared the root
+    // cause: this script never re-ran on a skills-only change, so YF_GIT_HASH /
+    // YF_GIT_DIRTY went stale even when the embed was fresh.
+    //
+    // BOTH LINES ARE LOAD-BEARING. Emitting ANY `rerun-if-changed` disables cargo's
+    // implicit whole-package watch, so `../skills` ALONE would stop this script
+    // re-running on changes under `yf/` itself — measured: `touch yf/src/main.rs`
+    // left it un-re-run, staling YF_GIT_DIRTY, which REQ-YF-PRE-009's first
+    // short-circuit consumes. The `.` line re-declares the package directory and
+    // restores that coverage. It also PRESERVES (not adds) addition coverage for
+    // `yf/profiles/`, the second `rust-embed` root: that folder is INSIDE the
+    // package, so the implicit watch already covered it (measured — additions there
+    // never had the blind spot), and `../skills` alone would have silently REMOVED
+    // that coverage. This is a regression guard, not a bonus.
+    //
+    // FORM: a DIRECTORY watch, not per-file emission. Per-file lines mirroring
+    // `embed.rs`'s `#[exclude]` set were spiked (plan-041 E6) and REFUTED: a
+    // per-file watch list can only name files that existed when this script last
+    // ran, so a NEWLY ADDED file is never watched and the addition case fails
+    // exactly as before (0.13 s no-op, marker absent). A listing snapshot cannot
+    // observe a change to the listing — the same reason the `include_bytes!`
+    // dep-info fails above.
+    //
+    // KNOWN COSTS, documented rather than over-promised:
+    //  - `rerun-if-changed` has no exclude mechanism and cargo walks a watched
+    //    directory RECURSIVELY, so gitignored churn under `skills/` (the ~40
+    //    `__pycache__`/`*.pyc` entries this repo's `uv`/pytest rules generate)
+    //    forces a full recompile: measured 5.23 s where a 0.20 s no-op is expected.
+    //    Fully eliminable from the other side by keeping bytecode out of the tree
+    //    (`PYTHONPYCACHEPREFIX` outside the repo measured the tax back to zero).
+    //  - Repo-wide `HEAD` movement is still NOT observed: a docs-only commit, a
+    //    `SPEC.md` commit, a `git checkout` or a rebase touches nothing watched, so
+    //    the stamp can still go stale on an incremental build. `yf --version` vs
+    //    `HEAD` remains the only detector for that residue. Watching `.git/` was
+    //    tried before and rejected (the pins did not move on a tracked source
+    //    edit). The clean CI/release build is unaffected and authoritative.
+    //  - `../skills` does not exist under `cargo package`/`publish`, where cargo
+    //    treats a missing path as permanently dirty. Harmless today:
+    //    `#[folder = "../skills"]` already precludes publishing this crate.
+    println!("cargo:rerun-if-changed=../skills");
+    println!("cargo:rerun-if-changed=.");
 }

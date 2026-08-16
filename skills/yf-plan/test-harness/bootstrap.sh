@@ -46,12 +46,14 @@ YF_SANDBOX_HOME="$(cd "${YF_SANDBOX_HOME}" && pwd)"   # absolutize
 echo ">> repo root:     ${REPO_ROOT}"
 echo ">> sandbox HOME:  ${YF_SANDBOX_HOME}"
 
-# --- build: re-embed the MODIFIED ../skills into the yf binary -----------------
-# rust-embed bakes `../skills` at compile time (yf/src/embed.rs `#[folder]`), so
-# a rebuild is REQUIRED for repo edits to reach the installed skill. Build under
-# the sandbox HOME so nothing touches the operator's cargo/home state beyond the
-# shared target dir.
-echo ">> cargo build (re-embedding ${REPO_ROOT}/skills) ..."
+# --- build: make sure the yf binary is current ---------------------------------
+# NOTE: this is a DEBUG build, and `rust-embed` is declared WITHOUT `debug-embed`,
+# so the debug `yf` reads `../skills` FROM DISK AT RUNTIME (yf/src/embed.rs
+# `#[folder]` bakes the tree only in release). Repo edits under `skills/` therefore
+# reach the installed skill with NO rebuild; this build is needed only when `yf`'s
+# own Rust code changed. Build under the sandbox HOME so nothing touches the
+# operator's cargo/home state beyond the shared target dir.
+echo ">> cargo build (debug; reads ${REPO_ROOT}/skills at runtime) ..."
 HOME="${YF_SANDBOX_HOME}" cargo build --manifest-path "${MANIFEST}"
 
 # Resolve the built binary. This is a cargo WORKSPACE (root Cargo.toml has

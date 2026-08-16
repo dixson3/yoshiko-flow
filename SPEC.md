@@ -361,6 +361,45 @@
 >   `hoist`/`land`'s destructive `bd close -r` stage now reachable only after every write verified.
 >   Guarded by a new `check_gh_direct.py` acceptance check (code-vs-comment boundary, so the
 >   comments recording *why* the mechanism was deleted survive) wired into both validation tiers.
+> - **plan-041 (2026-08-16, #137 — the embed addition blind spot):** added
+>   **`REQ-YF-EMBED-004`** — a build shall observe **additions** under `skills/`, so a newly added
+>   file or directory reaches the embedded tree without a manual cache-bust. This is the first
+>   requirement to constrain the *build's* observation of `skills/`, as opposed to the embedded
+>   tree's contents (`-001`/`-002`) or its shape (`-003`). Prompted by a **measured** defect:
+>   `skills/` sits outside the `yf/` package and `rust-embed` is a **proc macro**, so it emits no
+>   `cargo:rerun-if-changed` and structurally cannot; its only staleness signal is the
+>   `include_bytes!` dep-info the macro expands to, which tracks **file content** but never **the
+>   directory listing**. Consequence, measured on this repo: a file *added* under `skills/` is
+>   invisible to an incremental release rebuild (`Finished in 0.10s`, new file absent from the
+>   binary), while content edits, deletes **and** renames all propagate correctly — the defect is
+>   **addition-scoped**, not universal. A second, distinct defect shares the root cause: `build.rs`
+>   never re-runs on a skills-only change, so `YF_GIT_HASH` / `YF_GIT_DIRTY` go stale even when the
+>   embed is fresh. Both are closed by two lines in `yf/build.rs`
+>   (`rerun-if-changed=../skills` plus `rerun-if-changed=.`); see the `REQ-YF-PRE-009` constraint
+>   below for why the second line is load-bearing rather than decorative.
+>   Resolved in the same pass a **pre-existing, undocumented conformance violation**:
+>   `REQ-YF-EMBED-001`/`-002` say "from the binary alone", but `rust-embed` is declared **without**
+>   `debug-embed`, so a **debug** binary reads `skills/` from disk at runtime and does not satisfy
+>   them. Rather than silently tolerate it, §3.2 gains an explicit **profile carve-out**: `-001`/
+>   `-002` bind the **release** artifact (what cargo-dist, Homebrew and `self install --from-build`
+>   ship), the debug profile is a deliberate development-loop trade, and the new opt-in
+>   **`embed-in-debug`** feature is the named mechanism by which conformance is *demonstrated* under
+>   `cargo test`. `REQ-YF-EMBED-003`'s invariant needed no rewording, but its **enforcement
+>   surfaces** did: the on-disk repo check and the baked-tree embed test are complementary, and the
+>   on-disk check alone can be green while the shipping binary carries a stale payload.
+>   **`REQ-YF-PRE-009` is not amended** — a **constraint** is recorded under it instead. The earlier
+>   draft of this plan claimed PRE-009 carried a "deliberately emit no `rerun-if-changed`" stance;
+>   it does not (`grep -n "rerun-if\|build\.rs" SPEC.md` returned nothing before this amendment).
+>   That stance lived only in a `build.rs` **comment**, which cites PRE-009 because narrowing the
+>   watch would break the `YF_GIT_DIRTY` value PRE-009's first short-circuit consumes. The comment
+>   is rewritten in `build.rs`; the SPEC records the constraint, the residual `HEAD`-movement limit,
+>   and the `cargo package` caveat. One believed-but-unmeasured claim was **refuted by probe** in the
+>   same pass: `yf/profiles/`, the second `rust-embed` root, does **not** share the addition blind
+>   spot — it sits *inside* the `yf/` package, so the implicit whole-package watch already covers it
+>   (measured: 6.74 s recompile and the new profile present, against a 0.17 s no-op with the marker
+>   absent for the `skills/` control). The `rerun-if-changed=.` line therefore **preserves** that
+>   coverage rather than adding it, which makes it a regression guard rather than the "free coverage"
+>   the plan had assumed.
 
 ## 1. Purpose & scope
 
@@ -422,10 +461,27 @@ requirement lives only in code (GUARDRAILS GR-010).
 
 ### 3.2 Embedding (`REQ-YF-EMBED`)
 
-- **REQ-YF-EMBED-001** *(testable)* the binary shall embed the entire `skills/` tree at build time
-  (no network or repo clone required to install).
-- **REQ-YF-EMBED-002** *(testable)* `yf` shall enumerate embedded skill names and per-skill file
-  lists, and read any embedded file, from the binary alone.
+> **Profile carve-out (added plan-041).** `REQ-YF-EMBED-001` and `-002` bind the **distribution
+> artifact** — any `--release` build, which is what `cargo-dist`, Homebrew, and `yf self
+> install --from-build` promote. They do **not** bind the default `--debug` build. `rust-embed` is
+> declared **without** its `debug-embed` feature, so a debug binary resolves embedded paths from
+> `skills/` **on disk at runtime**: it does not satisfy "from the binary alone" and would fail
+> outside a repo checkout. That is a deliberate development-loop trade (a skills edit costs no
+> recompile), and it is recorded here rather than left as a silent latent violation. The
+> **`embed-in-debug` cargo feature** (`yf/Cargo.toml`, opt-in, added plan-041) re-enables baking
+> under the debug profile and is **how `-001`/`-002`/`-003` conformance is demonstrated under
+> `cargo test`** — a CI job runs `cargo test --workspace --features yf/embed-in-debug` so the
+> embed tests assert against the **baked** tree rather than the on-disk one. The feature ships
+> **opt-in, not on by default**: enabling it by default would import the `REQ-YF-EMBED-004`
+> addition defect into the dev loop (measured: profile-independent, it reproduces in debug with
+> `debug-embed` on) while costing the zero-rebuild skills-edit loop.
+
+- **REQ-YF-EMBED-001** *(testable, carve-out plan-041)* the binary shall embed the entire `skills/`
+  tree at build time (no network or repo clone required to install). Binds the release profile; see
+  the profile carve-out above.
+- **REQ-YF-EMBED-002** *(testable, carve-out plan-041)* `yf` shall enumerate embedded skill names
+  and per-skill file lists, and read any embedded file, from the binary alone. Binds the release
+  profile; see the profile carve-out above.
 - **REQ-YF-EMBED-003** *(testable)* every embedded `skills/*/SKILL.md` and `skills/*/agents/*.md`
   shall carry a well-formed, **terminated** YAML frontmatter block — an opening `---` on line 1, a
   closing `---` delimiter, and a body that parses as YAML. A repo check shall enforce this across
@@ -437,6 +493,29 @@ requirement lives only in code (GUARDRAILS GR-010).
   frontmatter delimiter; it went undetected until a human read the file. The invariant is repo-wide
   rather than per-skill because the failure mode is identical in every skill and a rule homed under
   one skill's key would be undiscoverable from the others.
+  **Two enforcement surfaces, not one (clarified plan-041).** The requirement is stated over the
+  **embedded** files, and it is enforced from both sides: (a) the repo check
+  (`scripts/check_frontmatter.py`, fast + full tiers) walks the **on-disk** `skills/` tree, which is
+  the authoring-time guard and the only one that runs on every edit; and (b) the embed tests, when
+  run under `--features yf/embed-in-debug`, assert the same invariant against the **baked** tree.
+  These are complementary rather than conflicting: (a) catches a bad file the moment it is written,
+  (b) catches a baked payload that disagrees with the tree it was built from — the failure class
+  `REQ-YF-EMBED-004` addresses. No wording change to the invariant itself was required; only the
+  enforcement surface needed stating, because (a) alone can be green while the shipping binary
+  carries a stale payload.
+- **REQ-YF-EMBED-004** *(testable, added plan-041)* a build shall observe **additions** under
+  `skills/`: a file or directory newly added to the tree shall reach the embedded payload without
+  a manual cache-bust (no `touch`, no `cargo clean`), on an **incremental** rebuild of an
+  already-built target directory. Rationale: `skills/` lives outside the `yf/` package, and
+  `rust-embed` is a proc macro that cannot emit `cargo:rerun-if-changed` — its only staleness
+  signal is the `include_bytes!` dep-info it expands to, which tracks each embedded file's
+  **content** but never the **directory listing**, so cargo has no reason to re-expand the macro
+  when a *new* path appears. Measured: content edits, deletes and renames propagate correctly;
+  additions do not. The requirement is stated over the **build**, not over `yf`'s runtime, because
+  the failure is invisible from the binary alone — the embedded tree is internally consistent, it
+  is merely one file short. Verification shall exercise the **addition** case specifically: a
+  content-edit test passes with the defect present and is therefore not a guard for this
+  requirement.
 
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 
@@ -644,6 +723,38 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   mutation beyond the gitignore scaffold. The offer names `yf self update` (noting it also refreshes
   skill definitions/rules) and that the operator likely needs `/reload-skills` afterward. Verified by
   a test tagged `REQ-YF-PRE-009`.
+  **Build-observation constraint on the `YF_GIT_DIRTY` input (recorded plan-041, #137).** This
+  requirement is **not amended** — its dirty-build short-circuit stands unchanged. What plan-041
+  records is that PRE-009 *consumes* `YF_GIT_DIRTY`, a value stamped by `yf/build.rs`, and therefore
+  **constrains how `build.rs` may declare its watches**. Emitting **any** `cargo:rerun-if-changed`
+  disables cargo's implicit whole-package watch; a `build.rs` that emitted only
+  `rerun-if-changed=../skills` would stop re-running on changes under `yf/` itself, leaving
+  `YF_GIT_DIRTY` stale and this short-circuit reading a value that no longer describes the tree.
+  Measured: with only the `../skills` line, `touch yf/src/main.rs` left `build.rs` un-re-run. The
+  companion `cargo:rerun-if-changed=.` line re-declares the package directory and restores that
+  coverage — it is **load-bearing, not decorative**, and exists precisely to hold this requirement's
+  input honest. Three consequences are recorded rather than left to be rediscovered:
+  - **Residual limit (not closed).** The two lines make the stamp current for changes under `yf/`
+    and `skills/` **only**. `HEAD` moving for any other reason — a docs-only commit, a `SPEC.md`
+    commit, a `git checkout`, a rebase — touches nothing watched, so an incremental build can still
+    carry a stale hash. Watching `.git/` was considered and rejected. The `yf --version` vs `HEAD`
+    check remains the only detector for this residue, which is why it survives in `AGENTS.md` as a
+    one-line sanity note.
+  - **`cargo package` / `publish` caveat.** `../skills` does not exist inside a packaged crate, and
+    cargo treats a missing `rerun-if-changed` path as **permanently dirty** (the build script
+    re-runs every time). Harmless today: `#[folder = "../skills"]` already precludes publishing this
+    crate. Recorded so a future packaging attempt is not mystified by it.
+  - **`yf/profiles/` — the second `rust-embed` root — is NOT affected, measured.**
+    `yf/src/cmd/harness/profile.rs:26` declares `#[folder = "profiles"]`, and plan-041 initially
+    *believed* it carried the same addition blind spot as `skills/`. **A probe refuted that.**
+    Because `yf/profiles/` sits **inside** the `yf/` package, cargo's implicit whole-package watch
+    already observes additions there: adding a new `yf/profiles/*.json` to a warm release target
+    recompiled the crate (6.74 s, not a 0.27 s no-op) and the new profile **reached the embedded
+    payload** — whereas the identical control against `skills/` was a 0.17 s no-op with the marker
+    **absent**. The blind spot is specific to `skills/` *because it is outside the package*. This
+    inverts the significance of the `.` line for this root: it is not free *new* coverage, it is
+    what **preserves existing** coverage that emitting `../skills` alone would have silently
+    removed — a regression, not an improvement, and one no test would have caught.
 - **REQ-YF-PRE-010** *(testable, #58)* the kernel shall assert a canonical **minimal-local beads
   profile** and **detect** drift from it **read-only** (no silent mutation), folded into
   `detect_canonicalization_drift`. The profile is three invariants:
