@@ -1,0 +1,121 @@
+[
+  {
+    "fixture": "yoshiko-flow-plan-031",
+    "truth": "ci-release",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 9168
+  },
+  {
+    "fixture": "yoshiko-flow-plan-032",
+    "truth": "standard",
+    "form": "full",
+    "prefix_class": "ci-release",
+    "bytes": 15692
+  },
+  {
+    "fixture": "yoshiko-flow-plan-033",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 39920
+  },
+  {
+    "fixture": "yoshiko-flow-plan-034",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 10634
+  },
+  {
+    "fixture": "yoshiko-flow-plan-035",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 15417
+  },
+  {
+    "fixture": "yoshiko-flow-plan-036",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 10913
+  },
+  {
+    "fixture": "yoshiko-flow-plan-037",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 15456
+  },
+  {
+    "fixture": "yoshiko-flow-plan-038",
+    "truth": "standard",
+    "form": "full",
+    "prefix_class": "ci-release",
+    "bytes": 24003
+  },
+  {
+    "fixture": "d3-pxe-plan-009",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 11567
+  },
+  {
+    "fixture": "d3-pxe-plan-013",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 31379
+  },
+  {
+    "fixture": "d3-pxe-plan-014",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 21044
+  },
+  {
+    "fixture": "d3-pxe-plan-007",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 12212
+  },
+  {
+    "fixture": "d3-pxe-plan-010",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 46440
+  },
+  {
+    "fixture": "d3-pxe-plan-006",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 11207
+  },
+  {
+    "fixture": "d3-pxe-plan-008",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 6584
+  },
+  {
+    "fixture": "d3-pxe-plan-011",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 50514
+  },
+  {
+    "fixture": "d3-pxe-plan-012",
+    "truth": "standard",
+    "form": "reduced",
+    "prefix_class": "ci-release",
+    "bytes": 34394
+  }
+]

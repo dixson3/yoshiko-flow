@@ -24,6 +24,12 @@ Adversarial review of a plan before approval. No access to investigation worktre
 
 **Gates:** Only used where genuinely needed? Test commands valid? Instructions sufficient?
 
+- **Gate reachability:** For each capability gate, can its `Condition` be satisfied given what it `Blocks`? A condition depending on evidence produced inside its own `Blocks` set is a cycle — gate the mutating step, not the step producing the evidence.
+
+**Precondition cross-check:** For each issue, are the artifacts, tools, and capabilities its text assumes either produced by a declared `depends-on` predecessor or established by a gate? Report each unmet precondition with the node that needed it.
+
+**Premise check:** For each finding an epic, gate, or success criterion depends on — is it a **measurement** or an **inference**? If inferred, is it corroborated by an independent signal? **What would falsify it, and was that checked?**
+
 **Upstream:** Dispositions reasonable? Supersedes justified? Partials specific about in/out?
 
 ## Output

@@ -87,12 +87,23 @@ def test_classify_standard_default(plan_dir):
     assert r["signals"] == []
 
 
-def test_classify_high_on_release_keyword(plan_dir):
-    _write_body(plan_dir, "## Objective\nCut a release and notarize the artifact.\n")
+def test_classify_ci_release_on_release_keyword_in_region(plan_dir):
+    # plan-039 (REQ-CLI-015): the signal must sit in the SCAN REGION — Objective is out
+    # of region under F1 — and a prose-only match is `low`/`prose-only`, never `high`.
+    _write_body(plan_dir, "## Epics\nCut a release and notarize the artifact.\n")
     r = pm._classify_deliverable(plan_dir)
     assert r["suggested_class"] == "ci-release"
-    assert r["confidence"] == "high"
+    assert r["confidence"] == "low"
+    assert r["evidence"] == "prose-only"
     assert "release" in r["signals"] and "notarize" in r["signals"]
+
+
+def test_classify_ignores_out_of_region_release_keyword(plan_dir):
+    # F1: the same sentence in Objective is context, not a claim about the deliverable.
+    _write_body(plan_dir, "## Objective\nCut a release and notarize the artifact.\n")
+    r = pm._classify_deliverable(plan_dir)
+    assert r["suggested_class"] == "standard"
+    assert r["signals"] == []
 
 
 def test_classify_high_on_workflow_path(plan_dir):
@@ -103,11 +114,15 @@ def test_classify_high_on_workflow_path(plan_dir):
     assert any(s.startswith("path:.github/workflows/") for s in r["signals"])
 
 
-def test_classify_low_on_keyword_only(plan_dir):
-    _write_body(plan_dir, "## Objective\nUpdate the deploy pipeline runner notes.\n")
+def test_classify_low_tier_only_does_not_suggest_ci_release(plan_dir):
+    # plan-039 F3 (REQ-CLI-015): low-tier keywords alone are INFORMATIONAL — they are
+    # reported in `signals` but do not carry a suggestion. Measured across 53 plans,
+    # keying the suggestion on them made the output a constant.
+    _write_body(plan_dir, "## Epics\nUpdate the deploy pipeline runner notes.\n")
     r = pm._classify_deliverable(plan_dir)
-    assert r["suggested_class"] == "ci-release"
+    assert r["suggested_class"] == "standard"
     assert r["confidence"] == "low"
+    assert r["signals"], "low-tier matches must still be reported, not discarded"
 
 
 def test_classify_no_false_positive_on_signal_word(plan_dir):

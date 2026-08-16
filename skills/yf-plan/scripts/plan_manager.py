@@ -1215,6 +1215,77 @@ _CI_RELEASE_LOW_KEYWORDS = (
 #: a merged-tree changed path under this prefix is a strong ci-release signal.
 _CI_RELEASE_PATH_MARKER = ".github/workflows/"
 
+#: F2 (REQ-CLI-015) — negative-context guards. Phrases matching these are removed from
+#: the scan region before signal matching: each is a measured collision where a trigger
+#: token appears in prose that says nothing about shipping a release.
+#:
+#: STOP RULE — no keyword is added to this list without a corpus re-measurement showing
+#: it moves `FP`. This list is a known-incomplete blocklist, not a general solution. It
+#: structurally CANNOT cover the residual class: plan text that *consumes or references*
+#: a release rather than producing one. Measured examples still false-positive with this
+#: list in place — "pinned release binary", "pinned signed static binary via get_url",
+#: "kept until the next major release of yf" — because the distinguishing feature is the
+#: VERB, not the noun, and a noun blocklist cannot see verbs. Chasing them one phrase at
+#: a time grows this list without bound and was measured to remove ZERO false positives
+#: from the labeled corpus. The structural alternative is F5 (code spans are not claims,
+#: exempt from this rule because it does not enumerate); the honest remedy for what
+#: remains is the `evidence` basis reported by F4, not another pattern here.
+_CI_RELEASE_NEGATIVE_CONTEXT = (
+    r"\bself[- ]signed\b",
+    r"\bsigned certificate\b",
+    r"\brelease (?:notes|cycle|cadence)\b",
+    r"\b(?:metrics|logs|traces) pipeline\b",
+    r"\bdeployed by\b",
+)
+
+
+#: F1 (REQ-CLI-015): the `##` sections the ci-release prose scan reads. The plan's own
+#: docstring always claimed this region; the implementation scanned the whole file, so a
+#: verb in the H1 (`# Plan: Deploy ...`), a Motivation paragraph, or a Risks-table cell
+#: scored as if the plan announced it ships releases.
+_CI_RELEASE_SCAN_SECTIONS = ("epics", "upstream issues", "success criteria")
+
+
+def _ci_release_scan_region(text: str) -> str:
+    """Return the lowercased ci-release scan region of a plan.md (REQ-CLI-015).
+
+    **F1 — section scope.** Only the Epics / Upstream Issues / Success Criteria `##`
+    sections are read. Everything else (title, Objective, Motivation, Approach,
+    Investigation Findings, Risks) is out of region: those sections describe context and
+    hazards, not the deliverable.
+
+    **F5 — code is not prose.** Fenced blocks and inline code spans are stripped. A
+    trigger word inside a command, a regex, or a quoted example is not a claim that the
+    plan ships releases. Structural rather than enumerated, so it cannot grow.
+
+    **F2 — negative-context guards.** Measured collision phrases are removed before
+    matching. Known-incomplete by construction; see the stop rule on the pattern list.
+
+    None of this closes the **self-reference class**: a plan whose *subject* is releases,
+    signing, or the deliverable class itself matches in ordinary prose, and no keyword
+    approach can distinguish that from a plan that ships one. plan-039 is the worked
+    demonstration. The honest remedy is the reported `evidence` basis, not more patterns.
+
+    An empty result (no recognized sections) is a scan over nothing, not a scan over
+    everything — a malformed plan yields no signal rather than a false positive.
+    """
+    region: list[str] = []
+    for chunk in re.split(r"^## ", text, flags=re.M)[1:]:
+        head, _, body = chunk.partition("\n")
+        if head.strip().lower() in _CI_RELEASE_SCAN_SECTIONS:
+            region.append(body)
+    hay = "\n".join(region).lower()
+    # F5: strip fenced blocks first (they may themselves contain backticks), then inline
+    # code spans. Structural, not a blocklist — it enumerates nothing, so it is exempt
+    # from F2's stop rule and cannot grow.
+    hay = re.sub(r"^ {0,3}(`{3,}|~{3,}).*?^ {0,3}\1", " ", hay, flags=re.S | re.M)
+    hay = re.sub(r"(`+)(?:(?!\1).)*?\1", " ", hay, flags=re.S)
+    # F2: drop measured collision phrases before matching. See the stop rule beside
+    # `_CI_RELEASE_NEGATIVE_CONTEXT` — this list is known-incomplete by construction.
+    for pat in _CI_RELEASE_NEGATIVE_CONTEXT:
+        hay = re.sub(pat, " ", hay)
+    return hay
+
 
 def _read_deliverable_class(plan_md_text: str) -> str:
     """Return the plan's deliverable class (REQ-PLAN-069a), default `standard`.
@@ -1242,9 +1313,7 @@ def _classify_deliverable(plan_dir: Path, changed: tuple[str, ...] = ()) -> dict
     """
     plan_md = plan_dir / "plan.md"
     text = plan_md.read_text() if plan_md.exists() else ""
-    # Scan the epics/upstream/success-criteria region — in practice the whole body
-    # below the header block; a superset that never misses those sections.
-    hay = text.lower()
+    hay = _ci_release_scan_region(text)
 
     high: set[str] = set()
     low: set[str] = set()
@@ -1261,12 +1330,32 @@ def _classify_deliverable(plan_dir: Path, changed: tuple[str, ...] = ()) -> dict
             low.add(kw)
 
     signals = sorted(high) + sorted(low)
-    if not signals:
-        return {"suggested_class": "standard", "signals": [], "confidence": "low"}
+    # F4 (REQ-CLI-015): report the EVIDENCE BASIS, not just a severity word. The path
+    # marker is the only non-prose signal, and `changed` is empty at intake (SKILL.md
+    # §4.1.5) — so `confidence` is effectively constant at the point an operator reads
+    # it. `evidence` is what actually distinguishes a suggestion worth acting on from a
+    # keyword that appeared in a sentence.
+    path_backed = any(s.startswith("path:") for s in high)
+    evidence = "path-backed" if path_backed else "prose-only"
+
+    # F3: a ci-release suggestion requires a HIGH-tier signal. Low-tier keywords are
+    # reported as informational, never as a suggestion on their own — `runner`,
+    # `deploy`, `pipeline`, and `workflow` appear throughout ordinary infrastructure
+    # prose, so keying the suggestion on them made the field a constant.
+    if not high:
+        return {
+            "suggested_class": "standard",
+            "signals": signals,
+            "confidence": "low",
+            "evidence": evidence,
+        }
     return {
         "suggested_class": "ci-release",
         "signals": signals,
-        "confidence": "high" if high else "low",
+        # `high` is reserved for the path marker. A prose-only match is `low` however
+        # many keywords hit: quantity of prose is not quality of evidence.
+        "confidence": "high" if path_backed else "low",
+        "evidence": evidence,
     }
 
 

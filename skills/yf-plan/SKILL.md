@@ -523,12 +523,27 @@ field (REQ-DATA-015).
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" --json
-# → {suggested_class, signals, confidence}. Present it and ask the operator to confirm/override.
+# → {suggested_class, signals, confidence, evidence}. Present it — INCLUDING `evidence` —
+#   and ask the operator to confirm/override.
 uv run ${SKILL_DIR}/scripts/plan_manager.py set-deliverable-class "${plan_dir}" "<ci-release|standard>"
 ```
 
-At intake no merged tree exists yet, so path signals (`.github/workflows/**`) may be absent; the
-class is **re-confirmable at reconcile** (§6.4) once changed paths are available. When unset the
+**Read `evidence`, not `confidence` (REQ-CLI-015).** At intake no merged tree exists yet, so
+`--changed` is empty and the `.github/workflows/**` path marker — the only non-prose signal —
+cannot fire. `confidence` is therefore **effectively always `low` here**, which makes it useless
+for deciding. `evidence` is the field that carries information:
+
+| `evidence` | Means | How to read it |
+| :-- | :-- | :-- |
+| `path-backed` | a `.github/workflows/**` path matched | strong; the plan really does touch runner-only config |
+| `prose-only` | keywords matched in the plan's Epics / Upstream Issues / Success Criteria | **weak** — check the quoted signals before accepting |
+
+A `prose-only` suggestion is a prompt to look, not a verdict. A plan whose *subject* is releases,
+signing, or the deliverable class itself will match in ordinary prose — the **self-reference
+class**, a structural limit of keyword matching that no blocklist closes. Confirm `ci-release`
+only when the plan's *deliverable* is CI/release configuration, not when its *text discusses* one.
+
+The class is **re-confirmable at reconcile** (§6.4) once changed paths are available. When unset the
 completion gate is a strict no-op — a `standard` plan is never gated. See
 `spec/ci-release-completion.md` for the criterion and the `workflow_dispatch` no-publish test-build
 pattern.
@@ -1037,6 +1052,13 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
   $(printf ' --changed %q' ${CHANGED}) --json
 # On operator override: set-deliverable-class "${plan_dir}" "<ci-release|standard>"
 ```
+
+**This is the one place `evidence` can be `path-backed`.** At intake `--changed` is empty, so a
+suggestion there is always `prose-only` (§4.1.5). Here the merged tree exists, so a
+`.github/workflows/**` path can actually match — and `evidence: path-backed` with
+`confidence: high` is the only combination that carries real weight. A re-confirm that still
+reports `prose-only` says the merged tree touched no runner-only config, which is evidence
+*against* `ci-release` however many keywords the plan's prose contains.
 
 ```bash
 bd close ${RECONCILE_STEP} --reason "Upstream issues reconciled" --json

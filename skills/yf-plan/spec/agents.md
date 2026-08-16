@@ -34,9 +34,9 @@ REQ-AGENT-020: Investigators run in disposable worktrees. No code from an invest
 Rationale: Experiments may install dependencies, write throwaway code, or modify config — none of this should pollute the project.
 Verification: SKILL.md Phase 2 dispatches with `isolation="worktree"`; investigator.md header states "disposable worktree".
 
-REQ-AGENT-021: Investigator output follows a structured finding format: Finding title, Approach Tested, Result, Implications for Plan, Recommendations.
-Rationale: Structured output allows the planner agent to mechanically incorporate findings.
-Verification: investigator.md Execute section shows the template.
+REQ-AGENT-021: Investigator output follows a structured finding format: Finding title, Approach Tested, Result, Implications for Plan, Recommendations. Every load-bearing conclusion in Result and Implications is marked **measured** (a command ran; this was its output) or **inferred** (what the author concluded from that output). Any inference the plan will build on must be corroborated by a second independent signal, or recorded as uncorroborated.
+Rationale: Structured output allows the planner agent to mechanically incorporate findings. The measured/inferred split exists because an inference recorded with the confidence of a measurement propagates undetectably: in d3-pxe plan-014 the inference "the CT rebooted" was written as if `uptime -s` had been read, and reached five plan artifacts — one of which would have restarted a production database to reproduce a bug that did not exist. Four independent signals were available and any one would have caught it, so corroboration is cheap where it matters.
+Verification: investigator.md Execute section shows the template with the measured/inferred marking and the corroboration requirement.
 
 ## Reconciler
 
@@ -67,6 +67,18 @@ Verification: red-team.md Rules: "High blocks approval."
 REQ-AGENT-043: The red-team agent is read-only. It never writes files. `reviews/pass-N.md` and the `log.md` `review:` line are written by the main session **at red-team presentation** (create-on-present, #4) as a single atomic step, then the same file is updated in place as the operator resolves concerns (REQ-PORT-006/008).
 Rationale: Agents that write files outside their dispatch scope violate agent isolation (REQ-AGENT-050 sibling) and make the review capture path non-auditable. Keeping the red-team read-only lets the main session atomically write the review artifact and the phase-log entry together; writing at presentation (not after resolution) makes the verdict portable while the plan is still parked in `review`.
 Verification: red-team.md Rules: "Read-only — never writes files" + "writes ... at presentation"; SKILL.md Phase 3 Review section "Write the report at presentation" states the main session writes `reviews/pass-N.md` + phase-log line atomically at red-team presentation.
+
+REQ-AGENT-046: The red-team checks **gate reachability**, not only gate well-formedness: for each capability gate, its `Condition` must be satisfiable given what the gate `Blocks`. A condition that depends on evidence produced by an issue inside its own `Blocks` set is a cycle and is reported as a defect; the remedy is to gate the *mutating* step rather than the step that produces the evidence.
+Rationale: A well-formed gate can still be unsatisfiable. In d3-pxe plan-013 a capability gate whose condition required a preview of the output of the very issue it blocked survived conformance and **two** red-team cycles, because every pass checked that the gate declared a type, approvers, a condition, and a test — none checked whether the condition could ever become true. The same cycle was independently reproduced in this skill's own plan-039 draft.
+Verification: red-team.md Evaluate → Gates carries a "Gate reachability" item asking whether each `Condition` is satisfiable given its `Blocks` set.
+
+REQ-AGENT-047: The red-team performs a **precondition cross-check**: for each issue, the artifacts, tools, and capabilities its text assumes are either produced by a declared `depends-on` predecessor or established by a gate. Each unmet precondition is reported together with the node that needed it.
+Rationale: Across the five defects observed in d3-pxe plan-013, the precondition was written out in plain English in the issue body every time; only the machine-readable dependency edge was missing. A prose-vs-DAG cross-check therefore has enough information to catch them without a schema change. This is deliberately the prose check, not a topological DAG walk: the expensive branch (a `requires:` key plus a walk engine) was measured against the same corpus and found to buy nothing, and 2 of the 5 defects are not reachability failures a graph walk would find at all.
+Verification: red-team.md Evaluate carries a "Precondition cross-check" item; it introduces no `requires:` schema key and no DAG-walk engine.
+
+REQ-AGENT-048: The red-team performs a **premise check**: for each finding an epic, gate, or success criterion depends on, it asks whether the finding is a measurement or an inference; if inferred, whether an independent signal corroborates it; and **what would falsify it, and whether that was checked**.
+Rationale: Both review passes reason about a plan's internal coherence, so a plan can be perfectly coherent and rest on a false premise — no pass re-tests the facts underneath it. The falsification prompt is the load-bearing part: it is answerable in seconds and askable with no domain expertise. Pairs with REQ-AGENT-021, which makes the measured/inferred distinction visible in the finding the red-team reads.
+Verification: red-team.md Evaluate carries a "Premise check" item including the falsification question.
 
 ## Reviewer (conformance)
 

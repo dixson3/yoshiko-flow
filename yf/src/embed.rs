@@ -133,4 +133,63 @@ mod tests {
     fn read_missing_file_is_none() {
         assert!(read_file("does-not-exist/nope.md").is_none());
     }
+
+    // REQ-YF-EMBED-003: every embedded SKILL.md and agents/*.md carries a well-formed,
+    // TERMINATED YAML frontmatter block. Checked against the embedded tree, since that
+    // is what §3.2 governs and what ships to every consumer.
+    //
+    // The failure this guards is silent: the observed corruption replaced a closing
+    // `---` with `:--` (a GFM table-alignment marker, consistent with a table-alignment
+    // autofix applied to a frontmatter delimiter). The file still rendered as markdown
+    // while the agent's name/role/stance metadata stopped parsing, and nothing warned.
+    #[test]
+    fn embedded_instruction_files_have_terminated_frontmatter() {
+        let mut checked = 0usize;
+        let mut bad: Vec<String> = Vec::new();
+
+        for skill in skill_names() {
+            for file in skill_files(&skill) {
+                let is_target =
+                    file == "SKILL.md" || (file.starts_with("agents/") && file.ends_with(".md"));
+                if !is_target {
+                    continue;
+                }
+                let path = format!("{skill}/{file}");
+                let Some(data) = read_file(&path) else {
+                    bad.push(format!("{path}: listed but unreadable"));
+                    continue;
+                };
+                let text = String::from_utf8_lossy(&data);
+                let mut lines = text.lines();
+
+                match lines.next() {
+                    Some(first) if first.trim() == "---" => {}
+                    Some(first) => {
+                        bad.push(format!("{path}: line 1 is {first:?}, expected '---'"));
+                        continue;
+                    }
+                    None => {
+                        bad.push(format!("{path}: empty file"));
+                        continue;
+                    }
+                }
+                if !lines.any(|l| l.trim() == "---") {
+                    bad.push(format!(
+                        "{path}: unterminated frontmatter (no closing '---')"
+                    ));
+                    continue;
+                }
+                checked += 1;
+            }
+        }
+
+        assert!(
+            bad.is_empty(),
+            "malformed frontmatter in embedded instruction file(s): {bad:#?}"
+        );
+        assert!(
+            checked > 0,
+            "no embedded SKILL.md/agents/*.md found — the check would pass vacuously"
+        );
+    }
 }
