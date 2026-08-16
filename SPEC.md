@@ -400,6 +400,40 @@
 >   absent for the `skills/` control). The `rerun-if-changed=.` line therefore **preserves** that
 >   coverage rather than adding it, which makes it a regression guard rather than the "free coverage"
 >   the plan had assumed.
+> - **plan-043 (2026-08-16, #136/#140/#145 — the Phase 6.4 close-step contract):** amended
+>   `spec/phases.md` **`REQ-COMPLETE-001`** from a *"fixed three-step order"* to an **extensible
+>   ordered gate chain** defined by four named **ordering constraints** (read-before-write,
+>   reconcile-before-verification, cascade-before-completion-gate, status-transition-last) rather
+>   than by a step count, and de-positionalised its `Verification:` clause. The prior wording was
+>   *count-bearing and positional*: it named an exact sequence and pinned complete-gate to an exact
+>   slot, so **any** additional step made the requirement false the moment it landed. Three separate
+>   issues each need to add a step there, so one amendment unblocks all three rather than each
+>   re-amending the same sentence. Added **`REQ-COMPLETE-003`**, the **step convention** every chain
+>   step honours: a single verdict envelope emitted as JSON **to stdout on every path** (stderr is a
+>   contract violation, because SKILL.md's documented `X=$(…)` idiom captures stdout only); a
+>   **tri-state** `verdict: pass|fail|inconclusive` with `passed` retained as a *derived*
+>   compatibility key; the halting rule stated per state — **`inconclusive` never halts and is
+>   always reported**; two step classes on the **halting axis alone** (`halting`/`advisory`); and
+>   **remediation-kind** (`command|prose|adjudication`) as a **separate** attribute, with all six
+>   combinations legal and **`halting` + `prose` explicitly permitted**. The axis split is
+>   load-bearing, not tidiness: a single fail-loud/propose-only axis cannot classify a step that
+>   must *enforce* while its remediation is *authoring* — the shape #145's escape capture needs —
+>   and conflating the two is a category error. The tri-state is likewise load-bearing: the first
+>   new halting step calls the network, so without `inconclusive` a GitHub outage would halt
+>   completion on healthy work. Also required a **bounded timeout** on any network-calling step
+>   (expiry → `inconclusive`), since an unbounded call can hang land-the-plane, which is worse than
+>   either verdict. Corrected `spec/cli.md` **`REQ-CLI-016`**, which already *claimed*
+>   `complete-gate` mirrors `close_cascade.py` while `complete-gate` in fact wrote its fail verdict
+>   to **stderr** — a **measured live defect** that silently emptied the documented capture on
+>   exactly the path that matters. The contract's enforcement is deliberately **mechanical rather
+>   than prose**: `scripts/test_close_contract.py` **enumerates every script invocation** in
+>   SKILL.md's §6.4 block from source (boundary `### 6.4` → next `###`), requiring each to be
+>   envelope-capturing or on a named exempt list. Enumerating only the capture idiom would be
+>   circular — it would see only steps *already shaped like* conformant ones, while the likeliest
+>   non-conformance is an author who adds a step *without* the idiom, which takes less effort. This
+>   is the plan's own thesis applied to itself: its central finding is that a prose instruction that
+>   already existed (`reconciler.md` step 4) was skipped, so a contract enforced only by "a future
+>   author will read it" would reproduce the defect it exists to fix.
 
 ## 1. Purpose & scope
 

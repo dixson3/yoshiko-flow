@@ -86,13 +86,64 @@ Verification: SKILL.md §5.3 pours only on `found=false` and calls `record-epic`
 
 ## Completion Gate (ci-release deliverables, §6.4)
 
-REQ-COMPLETE-001: The RECONCILE close step (§6.4) runs a fixed three-step order: **cascade-close → complete-gate → set complete**. `close_cascade.py` (REQ-PLAN-067) closes every all-terminal container bottom-up and fail-louds on any open plan-tree child; only if that succeeds does `plan_manager.py complete-gate` run; only if *that* passes does `update-status complete` run. The complete-gate is inserted **after** cascade-close and **before** the status transition, mirroring the `close_cascade.py` fail-loud contract (exit non-zero + JSON verdict halts completion).
-Rationale: cascade-close and complete-gate are distinct concerns — container-closure vs. behavioral-validation — so complete-gate is its own verb, not folded into `close_cascade.py`. Ordering cascade-close first means the plan tree is already closed when complete-gate consults the out-of-tree deferred bead by label filter.
-Verification: SKILL.md §6.4 calls `complete-gate` between the cascade-close block and `update-status complete`, halting on non-zero exactly as the cascade block does; `scripts/test_complete_gate.py` asserts the halt/pass/no-op verdicts.
+REQ-COMPLETE-001: The RECONCILE close step (§6.4) runs an **extensible ordered gate chain** — an open-ended sequence of contract-conformant steps (REQ-COMPLETE-003) terminating in `update-status complete`. The chain is defined by **ordering constraints**, not by a step count; a new step may be added at any position that satisfies them. The constraints are:
+
+1. **Read-before-write.** Any step that *observes* plan-folder artifacts (`plan.md`, `log.md`, `reviews/`, `references/`) runs **above** every step that *writes* them — including `set-deliverable-class`, which is a `plan.md` dual-write (REQ-DATA-015), not merely above the `log.md` write. A step placed below a writer judges artifacts the close step itself created.
+2. **Reconcile-before-verification.** Any step verifying the outcome of RECONCILE (§6.3) runs **after** the reconcile bead is closed and **before** the first destructive step (cascade-close).
+3. **Cascade-before-completion-gate.** `close_cascade.py` (REQ-PLAN-067) closes every all-terminal container bottom-up and fail-louds on any open plan-tree child; `plan_manager.py complete-gate` runs after it, so the plan tree is already closed when the gate consults the out-of-tree deferred bead by label filter.
+4. **Status-transition last.** `update-status complete` is the **sole** status writer and the **terminal** link; no step follows it. A `halting` step anywhere in the chain that returns `fail` prevents it from running.
+
+Rationale: the previous fixed three-step wording was *count-bearing and positional* — it named an exact sequence and pinned complete-gate to an exact slot — so any additional step made the requirement false on landing. Three separate issues (#136, #140, #145) each need to add a step here; stating constraints instead of a count lets all three attach without re-amending this requirement, and makes the ordering rationale (rather than the historical sequence) the thing implementers must satisfy. cascade-close and complete-gate remain distinct concerns — container-closure vs. behavioral-validation — so complete-gate stays its own verb, not folded into `close_cascade.py`.
+Verification: `scripts/test_close_contract.py` enumerates every script invocation in SKILL.md's documented §6.4 block (REQ-COMPLETE-003) and asserts each is envelope-conformant or explicitly exempt; `scripts/test_complete_gate.py` asserts the halt/pass/no-op verdicts; SKILL.md §6.4 orders `update-status complete` last and places every observing step above `set-deliverable-class`.
 
 REQ-COMPLETE-002: `complete-gate` is a strict **no-op** (clean pass) for a plan whose `deliverable_class` is `standard` or absent (REQ-PLAN-069a); it hard-gates only `ci-release` plans. For a `ci-release` plan it passes iff **either** a `log.md` `- validated:` bullet exists (REQ-PLAN-069b / REQ-DATA-016) **or** an open, out-of-tree bead with label `deferred-validation` + metadata `{"plan":"<plan-id>"}` exists; otherwise it halts with an actionable message (how to attest, or how to file the standalone deferred bead). At reconcile the `deliverable_class` is re-confirmable from the now-available merged-tree changed paths before the gate runs (paths may be absent at intake time — REQ-PLAN-069a).
 Rationale: ordinary plans, whose deliverable is observable in merged-state validation (REQ-PLAN-060), are never gated — the criterion targets only runner-only-observable CI/infra/release behavior. The two satisfaction paths let an operator either attest a real green run or explicitly carry the unverified behavior forward as tracked debt.
 Verification: `scripts/test_complete_gate.py` covers ci-release-halt-with-neither, pass-with-`validated:`-bullet, pass-with-out-of-tree-deferred-bead, and no-op-for-standard/absent.
+
+## The §6.4 close-step convention (the contract every chain step honours)
+
+REQ-COMPLETE-003: Every step in the §6.4 ordered gate chain (REQ-COMPLETE-001) shall honour a single **verdict envelope** and be classified on a single **halting axis**, as follows.
+
+**(a) Verdict envelope — JSON to STDOUT on every path.** A step emits one JSON object to **stdout** on *every* path, including failure and including its own internal errors. Writing a verdict to stderr is a contract violation: SKILL.md captures steps with `X=$(…)`, which captures stdout only, so a stderr verdict silently yields an empty capture and an unreportable failure. The envelope is:
+
+```json
+{ "verdict": "pass|fail|inconclusive", "passed": true|false,
+  "reason": "<one-line human-readable>", "remediation": "<what the operator should do>" }
+```
+
+**(b) Tri-state verdict.** `verdict` is one of:
+
+- **`pass`** — the step ran and its condition holds.
+- **`fail`** — the step ran and its condition definitely does **not** hold.
+- **`inconclusive`** — the step **could not determine** the answer (a network error, an unavailable dependency such as `gh` or `bd`, a timeout). This is *not* a failure and must never be reported as one.
+
+`passed` is retained as a **derived compatibility key** for existing callers, defined as `verdict == "pass"`. It is derived, never authoritative: a boolean cannot express `inconclusive`, which is exactly why the tri-state exists. New consumers read `verdict`.
+
+**(c) Halting rule, per verdict state.** `fail` **halts** the chain if and only if the step is `halting`. `inconclusive` **NEVER halts**, for any step of any class, and is **always reported** — loudly, so the operator sees that a check did not run. `pass` never halts. Exit code mirrors the halting decision: a `halting` step exits non-zero on `fail` and zero otherwise; an `advisory` step always exits zero.
+
+**(d) Step classes — the HALTING axis only.** Every step is exactly one of:
+
+| Class | Meaning |
+| :-- | :-- |
+| `halting` | A `fail` verdict **stops** completion; `update-status complete` does not run. |
+| `advisory` | The step **reports** and completion proceeds regardless of verdict. It must not use the `FAIL-LOUD:` banner vocabulary reserved for halting steps. |
+
+The class is a property of **authority**, not of output shape: an `advisory` step still emits the full envelope on every path. The halting axis governs whether a step *stops* completion, not whether it emits a well-formed verdict.
+
+**(e) Remediation-kind — a SEPARATE attribute.** Independently of its class, each step declares a `remediation-kind`:
+
+| Kind | Meaning | Example |
+| :-- | :-- | :-- |
+| `command` | The operator runs a named command to fix the state. | `verify-reconcile` → run the named `gh` commands |
+| `prose` | The operator must **author** something (a document, a record, an analysis). | escape capture (#145) |
+| `adjudication` | The operator must **decide** between valid readings; no mechanical fix exists. | a conformance finding an operator may accept |
+
+**All six combinations of class × remediation-kind are legal.** In particular **`halting` + `prose`** is explicitly permitted and is a real, intended shape: a step may *enforce* that a record exists while the remediation for its absence is authoring that record. Conflating the two axes — treating "remediation is authoring" as implying "cannot halt" — is a category error and cannot classify that shape.
+
+**(f) Bounded timeout for network-calling steps.** Any step that makes a network call shall impose a **bounded timeout** on it. Timeout expiry yields `inconclusive`, never `fail`. A step without a bound can hang land-the-plane indefinitely, which is a worse outcome than either verdict.
+
+Rationale: §6.4 has no dispatcher and, per the repo's standing prohibition on harness hooks, will not get one — the chain is prose executed by an LLM calling flat CLI verbs. A convention with no runtime enforcer needs its semantics stated once, precisely, so that three queued issues (#136, #140, #145) inherit an answer instead of each inventing one. The tri-state is load-bearing rather than decorative: `verify-reconcile` calls the network from inside a halting step, so without a distinct `inconclusive` a GitHub outage would halt completion on healthy work. Splitting halting from remediation-kind is what makes the contract usable by an inheriting skill: #145's escape capture must enforce while its remediation is authoring, a combination a single fail-loud/propose-only axis cannot express.
+Verification: `scripts/test_close_contract.py` enumerates every script invocation in SKILL.md's documented §6.4 block and asserts each is envelope-capturing or explicitly exempt, and that each capturing step emits a non-empty envelope-conformant JSON object on stdout on its **failing** path; `spec/cli.md` REQ-CLI-016 states the same stdout-on-every-path contract for `complete-gate`.
 
 ## Coarse-Tracker Stamp (§5.2a/§5.2b)
 

@@ -1061,10 +1061,17 @@ authorized and completed.
 
 Read `${SKILL_DIR}/agents/reconciler.md` and follow its procedure. The reconciler parses plan.md dispositions, verifies execution, updates upstream issues, and reports results.
 
-### 6.4 — Close (cascade-close containers → complete-gate → set complete)
+### 6.4 — Close (the ordered gate chain, terminating in `set complete`)
 
-The close step runs a fixed order (REQ-COMPLETE-001): **cascade-close → complete-gate → set
-complete**. Close the reconcile step, then **cascade-close every container in the plan tree** —
+The close step runs an **extensible ordered gate chain** (REQ-COMPLETE-001) — a sequence of
+contract-conformant steps (REQ-COMPLETE-003) governed by ordering constraints rather than by a
+step count, terminating in `update-status complete`. The constraints, in force here: observing
+steps run above every plan-folder writer (including the `classify-deliverable` block, which
+contains the `set-deliverable-class` dual-write); reconcile-verifying steps run after the
+reconcile bead closes and before the first destructive step; cascade-close precedes
+complete-gate; and `update-status complete` is last and is the sole status writer.
+
+Close the reconcile step, then **cascade-close every container in the plan tree** —
 intermediate epics **and the top-level plan molecule** `${EPIC}` — whose children are all
 terminal, bottom-up. The cascade **replaces the bare `bd close ${EPIC}`**: leaving intermediate
 epics open under a closed molecule is exactly the #73 defect (stale "ready" containers polluting
@@ -1080,7 +1087,8 @@ present it and let the operator confirm/override:
 CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
   $(printf ' --changed %q' ${CHANGED}) --json
-# On operator override: set-deliverable-class "${plan_dir}" "<ci-release|standard>"
+# On operator override:
+# uv run ${SKILL_DIR}/scripts/plan_manager.py set-deliverable-class "${plan_dir}" "<ci-release|standard>"
 ```
 
 **This is the one place `evidence` can be `path-backed`.** At intake `--changed` is empty, so a
@@ -1092,6 +1100,21 @@ reports `prose-only` says the merged tree touched no runner-only config, which i
 
 ```bash
 bd close ${RECONCILE_STEP} --reason "Upstream issues reconciled" --json
+
+# Verify RECONCILE actually reached each row's upstream end state (REQ-PLAN-074, #136).
+# HALTING. Runs after the reconcile bead closes and before the first destructive step —
+# the only point where §6.3 is done and nothing has been torn down yet.
+VERIFY=$(uv run ${SKILL_DIR}/scripts/plan_manager.py verify-reconcile "${plan_dir}" --json)
+VERIFY_RC=$?
+echo "$VERIFY"
+if [ "$VERIFY_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: an upstream row did not reach the end state its disposition requires."
+  echo "Completion HALTS; do NOT set 'complete'. Run the exact 'gh' commands in the verdict's"
+  echo "'remediation' field, then re-run §6.4."
+  exit 1
+fi
+# NOTE: an `inconclusive` verdict exits 0 and does NOT halt — a `gh` outage must never block
+# completion on healthy work (R1). It is still printed above; read it.
 
 # Cascade-close all-terminal containers under the plan molecule (incl. ${EPIC} itself).
 # "Terminal" = closed, or a resolved/verified gate; an unsatisfied gate is a genuine open

@@ -105,7 +105,9 @@ yf-plan has **seven phases**: UPSTREAM, SCOPE, INVESTIGATE, PLAN, INTAKE, EXECUT
   updates the incorporated upstream issues per their dispositions. See
   [reconcile](/glossary/#reconcile).
 
-  RECONCILE then closes out in a fixed order: **cascade-close → complete-gate → set complete**.
+  RECONCILE then closes out through an **extensible ordered gate chain** — steps governed by
+  ordering constraints rather than a fixed count, terminating in `set complete`. Today's chain
+  includes cascade-close and the completion gate:
   - [cascade-close](/glossary/#cascade-close) closes every container in the plan tree
     (intermediate epics and the top-level plan molecule) whose children are all terminal,
     bottom-up. It is **fail-loud**: a container with any still-open child halts completion.

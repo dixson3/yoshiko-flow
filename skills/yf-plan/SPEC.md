@@ -202,8 +202,10 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   **deliverable class is `ci-release`** (REQ-PLAN-069a) yf-plan shall **hard-gate `complete`** on
   evidence that the deliverable's runner-only-observable behavior has been exercised: after the
   container cascade-close (REQ-PLAN-067) and **before** `update-status complete`, a `complete-gate`
-  verb shall **halt completion** (exit non-zero + JSON verdict + actionable message, mirroring the
-  `close_cascade.py` fail-loud contract) unless **at least one** of — (a) a **green-execution
+  verb shall **halt completion** (exit non-zero + JSON verdict **on stdout** + actionable message,
+  mirroring the `close_cascade.py` fail-loud contract and honouring the REQ-COMPLETE-003 envelope —
+  the mirroring is now literal; both failing paths previously wrote to stderr, which the documented
+  `GATE=$(…)` capture idiom cannot see) unless **at least one** of — (a) a **green-execution
   attestation**: a `log.md` `- validated:` bullet (REQ-PLAN-069b) recording one observed green run;
   **or** (b) an **open, out-of-tree, upstream-tracked deferred-validation bead** carrying the
   unverified-behavior signal forward (a standalone `bd` issue with label `deferred-validation` and
@@ -234,6 +236,37 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `plan.md` `**Phase log:**` fallback for un-migrated bundles) and matches the `- validated:` bullet
   form. `validated:` shall be a recognized **non-status** `log.md` token (alongside `intake:`): no
   review-count (REQ-PORT-006), grandfather-date, or status parser keys on it.
+
+- **REQ-PLAN-074** *(testable, plan-043 / #136)* on COMPLETE (the §6.4 ordered gate chain,
+  REQ-COMPLETE-001), yf-plan shall **verify that RECONCILE actually reached the upstream end
+  state each disposition promises**, via a `verify-reconcile` verb that is a **`halting`** step
+  with **`command`** remediation-kind, honouring the REQ-COMPLETE-003 envelope. It runs **after**
+  the reconcile bead is closed and **before** the first destructive step (cascade-close). For
+  every **non-`exclude`** row of plan.md's `## Upstream Issues` table it shall assert:
+  `include` → the issue is **CLOSED and carries a comment mentioning the plan id**;
+  `supersede` → **CLOSED with `stateReason == NOT_PLANNED`**; `partial` → **OPEN and carries a
+  plan-id mention**. The mention requirement is not redundant with state: state alone would
+  **pass** the very defect this requirement exists to catch, since the issue in question is
+  CLOSED today — closed by a human 15 hours later as manual repair. Matching may be normalized
+  (case/punctuation tolerant) but shall **never** be a time-window heuristic, which would also
+  have passed it. The verdict shall carry **per-row** results
+  `rows: [{issue, disposition, verdict, detail}]` with the aggregate rule stated explicitly:
+  **any row `fail` → `fail` (halt), even alongside `inconclusive` rows**; inconclusive-only →
+  `inconclusive` (report, never halt). Every checker failure — binary absent, non-zero exit,
+  unparseable output, or timeout on the REQ-COMPLETE-003(f) bound — shall be `inconclusive`, so
+  an outage never halts completion on healthy work. The table shall be parsed by the **single
+  shared parser** (`parse_upstream_rows`), never a second one: this step is fail-loud, so two
+  parsers disagreeing on row shape would produce a fail-loud **false positive**.
+  Rationale: `agents/reconciler.md` step 4 already prescribed this verification **in prose** and
+  it was skipped anyway — not via a swallowed error, filtering, or non-dispatch, but via a
+  **false success assertion**: the reconciler parsed the table correctly, then reported success
+  without performing the writes. Adding a sixth instruction to a five-instruction list that was
+  partially ignored is a null change, so the check is mechanical.
+  Verification: `scripts/test_verify_reconcile.py` covers each disposition's pass and fail case,
+  the historical scenario (correct state, **no** plan-id mention) **failing**, `exclude` rows
+  skipped, a checker error yielding `inconclusive` rather than `fail`, the **mixed** case (one
+  row `fail` + one `inconclusive` → aggregate `fail`), and row-shape variants (`[#N]` vs `#N`)
+  pinning the shared parser. No network in tests.
 
 - **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
   **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`
