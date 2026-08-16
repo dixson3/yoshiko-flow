@@ -27,6 +27,57 @@ drive** of the modified skill under a sandboxed `HOME` (never trust the installe
 the old, `rust-embed`-baked skill). Do not hand-roll an interactive-agent smoke; drive the
 manager verbs directly.
 
+## Syncing local `yf` to the repo
+
+This repo is **both the source and a consumer** of its own skills. Editing `skills/` changes
+nothing about the `yf` you are running until you rebuild and redeploy — they are separate
+artifacts, and the gap is silent.
+
+**Default land-the-plane step.** Once changes are pushed to `main`, sync local user scope:
+
+```bash
+yf self install --from-build --build   # 1. rebuild + promote the binary to ~/.local/bin/yf
+yf skills install                      # 2. deploy skills → ~/.claude/skills/
+yf harness tune                        # 3. deploy always-loaded rules + align config
+```
+
+**All three are required, in that order.** Step 2 is easy to omit and its absence is silent —
+REQ-YF-SELF-005 auto-refreshes skills only after a **vendor update**, and states explicitly that
+*"a from-build install shall NOT auto-refresh"* (verified: a probe file promoted into the binary
+did not appear in `~/.claude/skills/`). Step 3 is separate because rules and config are not
+skills. Order matters: step 2 must run from the **freshly promoted** binary, and `tune` reads the
+skill contracts step 2 installed.
+
+**Verify, do not assume** (#137 — the promote path can ship a stale embedded tree):
+
+```bash
+yf --version                                                    # git hash must equal HEAD
+                                                                # (a `-dirty` suffix just means
+                                                                #  uncommitted files; the hash
+                                                                #  itself is what must match)
+diff ~/.claude/skills/yf-plan/scripts/plan_manager.py \
+     ./skills/yf-plan/scripts/plan_manager.py                   # must be empty
+```
+
+A stale sync is **silent**: `cargo build` exits 0, `self install` reports `status: ok`, and only
+the version stamp betrays it. If the hash lags `HEAD`, force a re-embed and repeat:
+
+```bash
+touch yf/src/embed.rs && yf self install --from-build --build --force
+```
+
+**Why** (measured, see #137): `skills/` sits outside the `yf/` package and `yf/build.rs`
+deliberately emits no `rerun-if-changed`, so an **incremental release rebuild does not observe
+`skills/` edits**. Release bakes the tree at compile time; debug reads it from disk at runtime
+(no `debug-embed` feature), so `./target/debug/yf` is always current and `--release` is the
+exposed path.
+
+**Never run step 2 on its own** to pick up local changes. `yf` on `PATH` deploys whatever tree
+*its* binary embeds, so without step 1 first it will quietly overwrite newer skills with older
+ones. Step 2 is safe only because step 1 precedes it. To deploy without promoting a binary, run
+`./target/debug/yf skills install` explicitly — debug reads `skills/` from disk, so it is always
+current.
+
 ## Upstream Tracking
 
 - **Source / repo / tool:** github · `dixson3/yoshiko-flow` · `gh issue`
