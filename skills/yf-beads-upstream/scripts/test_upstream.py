@@ -196,305 +196,388 @@ def test_close_reason_records_destination():
     assert "tombstone" in reason.lower()
 
 
-def test_plan_hoist_dry_run_push_first_then_real_then_close():
-    cmds = up.plan_hoist(["a", "b"], "plan-013", backend="github", gran="coarse")
-    # dry-run push must precede the real push
-    dry_idx = next(i for i, c in enumerate(cmds) if "push" in c and "--dry-run" in c)
-    real_idx = next(i for i, c in enumerate(cmds) if "push" in c and "--dry-run" not in c)
-    assert dry_idx < real_idx
-    # never a bare sync
-    assert all("sync" not in c for c in cmds)
-    # inline auth only, never config
-    assert all("$(gh auth token)" in c for c in cmds if "push" in c)
-    # reversible close (never delete), one per bead, records destination
-    closes = [c for c in cmds if c.startswith("bd close")]
-    assert len(closes) == 2
-    assert all("plan-013" in c for c in closes)
-    assert all("bd delete" not in c for c in cmds)
+def test_plan_hoist_returns_only_the_local_close_stage():
+    """Under gh-direct the upstream write is no longer a shell command string.
 
-
-def test_plan_hoist_backend_threads_into_push_and_auth():
-    cmds = up.plan_hoist(["x"], "plan-013", backend="github", gran="granular")
-    push_cmds = [c for c in cmds if "push" in c]
-    assert push_cmds, "expected at least the dry-run + real push"
-    assert all("bd github push" in c for c in push_cmds)
-    assert all("$(gh auth token)" in c for c in push_cmds)
-
-
-def test_plan_hoist_gitlab_backend_uses_glab_auth():
-    cmds = up.plan_hoist(["x"], "plan-013", backend="gitlab", gran="coarse")
-    push_cmds = [c for c in cmds if "push" in c]
-    assert all("bd gitlab push" in c for c in push_cmds)
-    assert all("GITLAB_TOKEN=$(glab auth token)" in c for c in push_cmds)
-
-
-# --- #129 / REQ-BUP-050: push-command construction is a CONTRACT ---------------
-#
-# These assert the CONTRACT, never the emitted string. The defect that made #129
-# survive a green 48-test suite was exactly the opposite style: fixtures comparing
-# an emitted command against an expected string that contained the same comma.
-# An expected-string test cannot fail when the bug is in the expectation too, so
-# every assertion below is phrased over a PROPERTY of the emitted command.
-
-
-def _push_ids_segment(cmd: str, backend: str = "github") -> str:
-    """The argument text between `bd <backend> push` and the next flag (or end).
-
-    Isolating the id segment is what lets the tests below assert over the ids
-    themselves rather than over the whole command string.
+    A hoist is now two phases — `create_or_update` (the write) then the local tombstone
+    — so `plan_hoist` carries only the second. What must NOT change is the tombstone
+    contract: reversible `bd close -r`, one per bead, recording the destination, never
+    `bd delete`.
     """
-    marker = f"bd {backend} push "
-    assert marker in cmd, f"not a push command: {cmd!r}"
-    tail = cmd.split(marker, 1)[1]
-    # stop at the first flag, a shell pipe, or the end of the command
-    for stop in (" --", " |", " ||", " &&"):
-        idx = tail.find(stop)
-        if idx != -1:
-            tail = tail[:idx]
-    return tail.strip()
-
-
-def _push_commands(cmds, backend="github"):
-    return [c for c in cmds if f"bd {backend} push " in c]
-
-
-def test_push_ids_are_space_separated_never_comma_joined():
-    """REQ-BUP-050: ids are POSITIONAL args. A comma-joined list matches ZERO
-    beads while bd exits 0 — the #129 silent-data-loss signature."""
-    cmds = up.plan_hoist(["yf-aaa", "yf-bbb", "yf-ccc"], "plan-038",
-                         backend="github", gran="coarse")
-    pushes = _push_commands(cmds)
-    assert pushes, "expected the dry-run + real push"
-    for cmd in pushes:
-        seg = _push_ids_segment(cmd)
-        # THE assertion #129 needed and the old fixture style could not produce:
-        assert "," not in seg, (
-            f"comma found between push ids ({seg!r}) — bd would match ZERO beads "
-            "and still exit 0 (#129)"
-        )
-        assert seg.split() == ["yf-aaa", "yf-bbb", "yf-ccc"]
-
-
-def test_push_ids_space_separated_for_plan_push_too():
-    """The same contract holds for the plain `push` verb (REQ-BUP-051), which
-    must inherit the fix rather than re-derive it."""
-    cmds = up.plan_push(["yf-aaa", "yf-bbb"], backend="github")
-    for cmd in _push_commands(cmds):
-        seg = _push_ids_segment(cmd)
-        assert "," not in seg
-        assert seg.split() == ["yf-aaa", "yf-bbb"]
-
-
-def test_single_bead_push_has_no_separator_at_all():
-    """Single-bead hoist was never broken (a one-element join has no comma),
-    which is why #129 survived. Pin that it stays correct."""
-    cmds = up.plan_hoist(["yf-solo"], "plan-038", backend="github", gran="coarse")
-    for cmd in _push_commands(cmds):
-        assert _push_ids_segment(cmd) == "yf-solo"
-
-
-def test_parse_pushed_count_reads_bd_success_line():
-    """REQ-BUP-050 verification parse (bd 1.1.2 shape)."""
-    assert up.parse_pushed_count("✓ Pushed 2 issues") == 2
-    assert up.parse_pushed_count("✓ Pushed 1 issue") == 1
-    assert up.parse_pushed_count("noise\n✓ Pushed 11 issues\nmore") == 11
-
-
-def test_parse_pushed_count_unrecognized_output_is_unverified_not_zero():
-    """An unparseable output must read as UNVERIFIED (None), never as 'pushed
-    nothing' — the distinction is what makes an unknown bd version fail CLOSED."""
-    assert up.parse_pushed_count("") is None
-    assert up.parse_pushed_count("some future bd wording") is None
-    # the exact #129 signature: bd printed no success line and exited 0
-    assert up.parse_pushed_count("Syncing...\n") is None
-
-
-def test_hoist_close_stage_is_guarded_by_push_verification():
-    """REQ-BUP-050 fail-closed: the destructive `bd close` stage must not be
-    reachable unless the push verified. Contract: every close command is ordered
-    AFTER a push command that carries a halting verification for the expected count."""
-    cmds = up.plan_hoist(["a", "b"], "plan-038", backend="github", gran="coarse")
-    closes = [i for i, c in enumerate(cmds) if c.startswith("bd close")]
-    assert closes, "expected the local-close stage"
-    verified = [
-        i for i, c in enumerate(cmds)
-        if "bd github push " in c and "grep -qE" in c and "exit 1" in c
-    ]
-    assert len(verified) == 2, "both the dry-run and the real push must be verified"
-    assert max(verified) < min(closes), "close stage must follow the verified push"
-    # the verification must key on the number of beads actually being pushed
-    assert all("2 issues?" in cmds[i] for i in verified)
-
-
-def test_push_verification_halts_on_under_count():
-    """Behavioral proof of the guard: run the emitted real-push command against a
-    faked bd that reports FEWER issues than requested, and assert it exits
-    non-zero — so `run()` raises and the close stage never executes."""
-    import subprocess
-    cmds = up.plan_push(["a", "b", "c"], backend="github")
-    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
-    # Replace the auth + bd invocation with a stub reporting only 2 of 3 pushed.
-    stub = real.split("|", 1)[1]
-    faked = "echo '✓ Pushed 2 issues' |" + stub
-    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
-    assert proc.returncode != 0, "an under-count push must fail closed"
-    assert "FAIL-CLOSED" in proc.stderr
-
-
-def test_push_verification_passes_on_exact_count():
-    """The guard must not be a blanket refusal — an exact-count push proceeds."""
-    import subprocess
-    cmds = up.plan_push(["a", "b", "c"], backend="github")
-    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
-    stub = real.split("|", 1)[1]
-    faked = "echo '✓ Pushed 3 issues' |" + stub
-    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
-    assert proc.returncode == 0
-    assert "FAIL-CLOSED" not in proc.stderr
-
-
-def test_push_verification_halts_when_bd_prints_nothing_but_exits_zero():
-    """The literal #129 shape: bd matched zero beads, printed no success line,
-    and exited 0. The sequence must still halt."""
-    import subprocess
-    cmds = up.plan_push(["a", "b"], backend="github")
-    real = [c for c in _push_commands(cmds) if "--dry-run" not in c][0]
-    stub = real.split("|", 1)[1]
-    faked = "true |" + stub
-    proc = subprocess.run(["bash", "-c", faked], capture_output=True, text=True)
-    assert proc.returncode != 0
-    assert "FAIL-CLOSED" in proc.stderr
-
-
-def test_plan_unhoist_carries_no_separator_or_destructive_stage():
-    """Issue 2.3 audit, pinned: the sibling builder emits ONE command per bead
-    (no multi-id argument, so no separator hazard) and nothing destructive."""
-    cmds = up.plan_unhoist(["a", "b", "c"])
-    assert len(cmds) == 3, "one command per bead — no joined id list"
-    for c in cmds:
-        assert "," not in c
-        assert "bd close" not in c and "bd delete" not in c
-
-
-# --- REQ-BUP-051: the `push` verb ---------------------------------------------
-
-
-def test_push_always_dry_runs_before_the_real_push():
-    cmds = up.plan_push(["a", "b"], backend="github")
-    dry = next(i for i, c in enumerate(cmds) if "--dry-run" in c)
-    real = next(i for i, c in enumerate(cmds) if "bd github push " in c and "--dry-run" not in c)
-    assert dry < real
-
-
-def test_push_is_scoped_and_never_a_bare_sync():
-    cmds = up.plan_push(["a", "b"], backend="github")
-    assert all("sync" not in c for c in cmds)
-    for c in cmds:
-        assert "bd github push " in c
-
-
-def test_push_leaves_beads_open_no_close_stage():
-    """The contract that distinguishes `push` from `hoist`: no local removal."""
-    cmds = up.plan_push(["a", "b"], backend="github")
-    assert all("bd close" not in c for c in cmds)
+    cmds = up.plan_hoist(["a", "b"], "plan-013", gran="coarse")
+    assert len(cmds) == 2
+    assert all(c.startswith("bd close") for c in cmds)
+    assert all("plan-013" in c for c in cmds)
     assert all("bd delete" not in c for c in cmds)
-    # ...whereas hoist DOES close, so the two verbs are genuinely different.
-    hoisted = up.plan_hoist(["a", "b"], "plan-038", backend="github", gran="coarse")
-    assert any(c.startswith("bd close") for c in hoisted)
 
 
-def test_push_inline_auth_per_backend():
-    gh = up.plan_push(["a"], backend="github")
-    assert all("GITHUB_TOKEN=$(gh auth token)" in c for c in gh)
-    gl = up.plan_push(["a"], backend="gitlab")
-    assert all("GITLAB_TOKEN=$(glab auth token)" in c for c in gl)
-    # never persisted to config
-    assert all("bd config set" not in c for c in gh + gl)
+def test_no_bd_backend_push_command_is_ever_constructed():
+    """SC3, as a contract rather than a grep over prose.
+
+    The #129 defect was born in the translation between a comma-separated `--issues`
+    and bd's positional ids. gh-direct removes the translation entirely, so the
+    invariant is now the stronger one: NO `bd <backend> push` string is emitted at all.
+    """
+    emitted = up.plan_hoist(["a", "b"], "plan-013", gran="coarse")
+    emitted += up.hoist_close_commands(["a"], "plan-013")
+    for c in emitted:
+        assert "bd github push" not in c
+        assert "bd gitlab push" not in c
+        assert " sync" not in c
 
 
-def test_push_without_apply_executes_nothing(capsys, monkeypatch):
-    """Absent --apply IS the dry run — matching the hoist/land/unhoist idiom.
-    Any execution attempt fails the test outright."""
+def test_the_deleted_bd_push_machinery_is_actually_gone():
+    """Guard against a half-finished migration leaving both mechanisms in place.
+
+    Two coexisting write paths with different failure modes is the exact condition
+    that produced #129, so its absence is asserted rather than assumed.
+    """
+    for dead in ("BACKEND_AUTH", "push_command_sequence", "verified_push",
+                 "parse_pushed_count", "plan_push", "DEFAULT_BACKEND"):
+        assert not hasattr(up, dead), f"{dead} should have been deleted by plan-040"
+
+
+# --- REQ-BUP-054: the field mapping ------------------------------------------
+
+def test_field_mapping_derives_type_and_priority_labels():
+    labels = up.issue_labels_for(
+        {"id": "a", "issue_type": "bug", "priority": 1, "labels": []})
+    assert labels == ["type::bug", "priority::high"]
+
+
+def test_priority_table_covers_every_row_including_the_unmapped_ones():
+    """P0 and P4 have NO label in this repo — the mapping still names them.
+
+    Naming them is what makes a P0/P4 bead's dropped label a REPORTED drop rather than
+    a silent absence.
+    """
+    assert up.PRIORITY_LABELS == {
+        0: "priority::critical", 1: "priority::high", 2: "priority::medium",
+        3: "priority::low", 4: "priority::backlog",
+    }
+
+
+def test_bead_labels_pass_through_alongside_derived_labels():
+    labels = up.issue_labels_for(
+        {"id": "a", "issue_type": "task", "priority": 2, "labels": ["web", "docs"]})
+    assert labels == ["type::task", "priority::medium", "web", "docs"]
+
+
+def test_mapping_never_duplicates_a_label():
+    labels = up.issue_labels_for(
+        {"id": "a", "issue_type": "task", "priority": 2, "labels": ["type::task"]})
+    assert labels.count("type::task") == 1
+
+
+def test_title_and_body_map_verbatim_and_notes_design_do_not_sync():
+    """REQ-BUP-054: `description` is the ONLY body source; notes/design never sync."""
+    plan = up.plan_write(
+        {"id": "a", "title": "T", "description": "B", "issue_type": "task",
+         "priority": 2, "notes": "SECRET-NOTES", "design": "SECRET-DESIGN"},
+        {"type::task", "priority::medium"})
+    assert plan["title"] == "T"
+    assert plan["body"] == "B"
+    assert "SECRET-NOTES" not in plan["body"]
+    assert "SECRET-DESIGN" not in plan["body"]
+
+
+# --- REQ-BUP-056: restrict-and-drop, and the drop is REPORTED -----------------
+
+def test_restrict_and_drop_keeps_existing_drops_unknown():
+    kept, dropped = up.restrict_labels(
+        ["type::task", "type::chore", "priority::medium"],
+        {"type::task", "priority::medium"})
+    assert kept == ["type::task", "priority::medium"]
+    assert dropped == ["type::chore"]
+
+
+def test_restrict_and_drop_never_creates_a_label(monkeypatch):
+    """The policy's whole cost argument is that it takes no label-write scope."""
+    def boom(cmd):
+        assert "label" not in cmd or "create" not in cmd, \
+            f"restrict-and-drop must never create a label: {cmd!r}"
+        return "[]"
+    monkeypatch.setattr(up, "run", boom)
+    up.restrict_labels(["nope"], set())
+
+
+def test_dropped_label_is_reported_in_the_preview():
+    """GR-BUP-008's revisit trigger is THIS LINE. Without it the mitigation for the
+    growing-uncovered-set risk has no producer at all (pass-2 D4)."""
+    plans = [up.plan_write(
+        {"id": "yf-abcd", "title": "T", "description": "B",
+         "issue_type": "decision", "priority": 2}, {"priority::medium"})]
+    rendered = up.render_plan(plans)
+    assert "yf-abcd" in rendered
+    assert "type::decision" in rendered
+    assert "dropping label" in rendered
+
+
+def test_drop_report_names_both_the_bead_and_the_label():
+    plans = [up.plan_write(
+        {"id": "yf-zzzz", "title": "T", "description": "B",
+         "issue_type": "chore", "priority": 4}, set())]
+    assert plans[0]["dropped_labels"] == ["type::chore", "priority::backlog"]
+    assert plans[0]["labels"] == []
+
+
+# --- REQ-BUP-057: create-vs-update idempotency on external_ref ----------------
+
+def test_a_bead_with_external_ref_produces_an_UPDATE():
+    """The `yf-uz5k` -> #92 behavior: the mapping alone drives create-vs-update."""
+    plan = up.plan_write(
+        {"id": "a", "title": "T", "description": "B", "external_ref": ISSUE_A}, set())
+    assert plan["action"] == "update"
+    assert plan["external"] == ISSUE_A
+
+
+def test_a_bead_without_external_ref_produces_a_CREATE():
+    plan = up.plan_write({"id": "a", "title": "T", "description": "B"}, set())
+    assert plan["action"] == "create"
+    assert plan["external"] is None
+
+
+def test_create_records_the_mapping_so_a_repush_updates_not_duplicates(monkeypatch):
+    """Idempotency is what prevents duplicates — so the write-back is not optional."""
+    calls = []
+    def _run(cmd):
+        calls.append(list(cmd))
+        if cmd[:3] == ["gh", "issue", "create"]:
+            return f"{ISSUE_A}\n"
+        return ""
+    monkeypatch.setattr(up, "run", _run)
+    url = up.apply_write({"id": "a", "action": "create", "external": None,
+                          "title": "T", "body": "B", "labels": [],
+                          "dropped_labels": []})
+    assert url == ISSUE_A
+    assert ["bd", "update", "a", "--external-ref", ISSUE_A, "-q"] in calls
+
+
+# --- REQ-BUP-057: verification is STRUCTURAL and fails closed ----------------
+
+def test_create_with_no_returned_url_FAILS_CLOSED(monkeypatch):
+    """A create whose output carries no parseable URL is UNVERIFIED, never 'probably ok'."""
+    monkeypatch.setattr(up, "run", lambda cmd: "created something, trust me\n")
+    with pytest.raises(up.WriteError) as exc:
+        up.apply_write({"id": "a", "action": "create", "external": None,
+                        "title": "T", "body": "B", "labels": [], "dropped_labels": []})
+    assert "UNVERIFIED" in str(exc.value)
+
+
+def test_no_test_parses_the_pushed_n_issues_string():
+    """SC7, asserted against the implementation.
+
+    plan-040 Issue 1.1 measured that `bd github push --dry-run` ALSO prints the success
+    line — it is emitted when nothing was pushed. Any code reintroducing that parse
+    would be pinning a string that cannot distinguish a real write from a no-op, so the
+    check is that the IMPLEMENTATION contains no such parse.
+    """
+    impl = (Path(__file__).parent / "upstream.py").read_text()
+    assert "PUSHED_COUNT_RE" not in impl
+    assert "def parse_pushed_count" not in impl
+    assert "def verified_push" not in impl
+
+
+def test_parse_issue_url_extracts_only_a_real_issue_url():
+    assert up.parse_issue_url(f"{ISSUE_A}\n") == ISSUE_A
+    assert up.parse_issue_url("no url here") is None
+    assert up.parse_issue_url("") is None
+    assert up.parse_issue_url(None) is None
+
+
+def test_a_failed_gh_call_raises_WriteError_not_SystemExit(monkeypatch):
+    """`run()` raises SystemExit (a BaseException).
+
+    A handler catching only `Exception` would let it escape and bypass the fail-closed
+    path entirely — the destructive stage's guard would simply not run.
+    """
+    def _boom(cmd):
+        raise SystemExit("command failed (1): gh issue create")
+    monkeypatch.setattr(up, "run", _boom)
+    with pytest.raises(up.WriteError):
+        up.apply_write({"id": "a", "action": "create", "external": None,
+                        "title": "T", "body": "B", "labels": [], "dropped_labels": []})
+
+
+def test_external_ref_writeback_failure_is_loud_and_names_the_duplicate_risk(monkeypatch):
+    """Issue created but mapping unrecorded is the ONE unrecoverable-by-retry state:
+    re-running would create a second issue. It must say so, with the repair command."""
+    def _run(cmd):
+        if cmd[:3] == ["gh", "issue", "create"]:
+            return f"{ISSUE_A}\n"
+        raise SystemExit("bd exploded")
+    monkeypatch.setattr(up, "run", _run)
+    with pytest.raises(up.WriteError) as exc:
+        up.apply_write({"id": "a", "action": "create", "external": None,
+                        "title": "T", "body": "B", "labels": [], "dropped_labels": []})
+    msg = str(exc.value)
+    assert "DUPLICATE" in msg
+    assert "bd update a --external-ref" in msg
+
+
+# --- SC13: the live already-mapped population survives the swap ---------------
+
+def test_stale_or_deleted_issue_ref_is_an_update_that_fails_closed(monkeypatch):
+    """SC13, driven by a REAL fixture rather than a synthetic one.
+
+    Bead `yf-nzdv` carries an external_ref pointing at issue #139, which plan-040 Issue
+    1.1 created and then DELETED. A stale ref must fail closed with a named reason —
+    never silently fall back to creating a duplicate.
+    """
+    monkeypatch.setattr(up, "run", lambda cmd: (_ for _ in ()).throw(
+        SystemExit("command failed (1): gh issue edit")))
+    with pytest.raises(up.WriteError) as exc:
+        up.apply_write({"id": "yf-nzdv", "action": "update",
+                        "external": "https://github.com/dixson3/yoshiko-flow/issues/139",
+                        "title": "T", "body": "B", "labels": [], "dropped_labels": []})
+    assert "yf-nzdv" in str(exc.value)
+    assert "edit failed" in str(exc.value)
+
+
+def test_a_non_url_external_ref_is_still_treated_as_mapped():
+    """Bead `yf-4d7s` carries the bare form `gh-91` (38 of 39 refs are full URLs).
+
+    It must NOT read as unmapped — that would create a duplicate issue for a bead that
+    already has one. It reads as an update, which then fails closed upstream if the ref
+    does not resolve. Wrong-but-loud beats silently-duplicating.
+    """
+    plan = up.plan_write({"id": "yf-4d7s", "title": "T", "description": "B",
+                          "external_ref": "gh-91"}, set())
+    assert plan["action"] == "update"
+    assert plan["external"] == "gh-91"
+
+
+# --- REQ-BUP-051: the `push` verb, preview-first and preview-local ------------
+
+def test_push_without_apply_writes_nothing(monkeypatch, capsys):
     monkeypatch.setattr(up, "upstream_enabled", lambda: True)
-    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "title": "T", "description": "B", "issue_type": "task",
+         "priority": 2}])
+    monkeypatch.setattr(up, "existing_labels", lambda: {"type::task", "priority::medium"})
     def boom(cmd):
         raise AssertionError(f"push executed {cmd!r} without --apply")
     monkeypatch.setattr(up, "run", boom)
-    rc = up.cmd_push("a,b", "github", apply=False)
-    assert rc == 0
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    assert up.cmd_push("a", apply=False) == 0
     out = capsys.readouterr().out
-    assert "--dry-run" in out
-    assert "Dry run" in out
+    assert "Preview only" in out
+    assert "[create]" in out
 
 
-def test_push_has_no_dry_run_flag_of_its_own():
-    """The idiom is --apply-only; a --dry-run flag would be a second, conflicting
-    way to say the same thing."""
-    import argparse
-    import contextlib
-    import io
-    buf = io.StringIO()
-    with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
-        with pytest.raises(SystemExit):
-            up_main_with(["push", "--issues", "a", "--dry-run"])
-    assert "--dry-run" in buf.getvalue() or "unrecognized" in buf.getvalue()
+def test_push_preview_needs_no_network_or_credentials(monkeypatch):
+    """The preview is rendered LOCALLY (REQ-BUP-057).
 
-
-def up_main_with(argv):
-    import sys as _s
-    old = _s.argv
-    _s.argv = ["upstream.py"] + argv
-    try:
-        return up.main()
-    finally:
-        _s.argv = old
-
-
-def test_push_short_circuits_cleanly_when_tracking_disabled(capsys, monkeypatch):
-    """REQ-BUP-010 default-deny: clean exit 0, no upstream call."""
-    monkeypatch.setattr(up, "upstream_enabled", lambda: False)
+    The old mechanism asked bd to ask GitHub what it *would* do; this one does not, so
+    a preview is readable without credentials and costs no round-trip.
+    """
+    rows = [{"id": "a", "title": "T", "description": "B", "issue_type": "task",
+             "priority": 2}]
+    monkeypatch.setattr(up, "load_universe_rows", lambda: rows)
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
     def boom(cmd):
-        raise AssertionError("made an upstream call while disabled")
+        raise AssertionError(f"preview made a subprocess call: {cmd!r}")
     monkeypatch.setattr(up, "run", boom)
-    rc = up.cmd_push("a,b", "github", apply=True)
-    assert rc == 0
+    result = up.create_or_update(["a"], apply=False)
+    assert result["plans"][0]["action"] == "create"
+    assert result["written"] == []
+
+
+def test_push_leaves_beads_open_no_close_stage(monkeypatch, capsys):
+    """`push` is plan_hoist stages 1-2 WITHOUT stage 3 — no tombstone."""
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "title": "T", "description": "B"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    monkeypatch.setattr(up, "run", lambda cmd: "")
+    up.cmd_push("a", apply=False)
+    assert "bd close" not in capsys.readouterr().out
+
+
+def test_push_short_circuits_cleanly_when_tracking_disabled(monkeypatch, capsys):
+    monkeypatch.setattr(up, "upstream_enabled", lambda: False)
+    def boom(*a, **k):
+        raise AssertionError("queried bd while upstream tracking is disabled")
+    monkeypatch.setattr(up, "load_universe_rows", boom)
+    assert up.cmd_push("a", apply=False) == 0
     assert "disabled" in capsys.readouterr().out
 
 
-def test_push_surfaces_owner_claimed_warning_inline_on_stdout(capsys, monkeypatch):
-    """#105 residual (REQ-BUP-051): the enumerate warning is stderr-only, so an
-    agent piping --json to jq misses it. On the routed path it must be INLINE
-    on stdout."""
+def test_push_surfaces_owner_claimed_warning_inline_on_stdout(monkeypatch, capsys):
+    """#105 residual: the shipped warning is stderr-only, so `| jq` loses it."""
     monkeypatch.setattr(up, "upstream_enabled", lambda: True)
-    monkeypatch.setattr(
-        up, "owner_claim_warning_lines",
-        lambda: ["WARNING: 36 open bead(s) are excluded as owner-claimed", "         excluded: a, b"],
-    )
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "title": "T", "description": "B"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "owner_claim_warning_lines",
+                        lambda: ["WARNING: 36 open bead(s) excluded as owner-claimed"])
     monkeypatch.setattr(up, "run", lambda cmd: "")
-    up.cmd_push("a", "github", apply=False)
-    captured = capsys.readouterr()
-    assert "excluded as owner-claimed" in captured.out, "warning must reach STDOUT, not just stderr"
+    up.cmd_push("a", apply=False)
+    assert "owner-claimed" in capsys.readouterr().out
 
 
-def test_upstream_enabled_default_deny():
-    """Both keys must agree, and the read is on config TEXT not exit code."""
-    assert up.upstream_enabled(fake_config({
-        "custom.upstream.enabled": "true\n", "custom.upstream.backend": "github\n"})) is True
-    # unset
-    assert up.upstream_enabled(fake_config({})) is False
-    # enabled=true with an UNSET backend stays ENABLED — the docs are explicit that the
-    # explicit `none` marker is never required for the short-circuit, so only an explicit
-    # `none` disables. (Caught by drift-check: an earlier two-key AND contradicted them.)
-    assert up.upstream_enabled(fake_config({"custom.upstream.enabled": "true\n"})) is True
-    # enabled but backend none
-    assert up.upstream_enabled(fake_config({
-        "custom.upstream.enabled": "true\n", "custom.upstream.backend": "none\n"})) is False
-    # backend set but not enabled
-    assert up.upstream_enabled(fake_config({
-        "custom.upstream.enabled": "false\n", "custom.upstream.backend": "github\n"})) is False
-    # any other value denies
-    assert up.upstream_enabled(fake_config({
-        "custom.upstream.enabled": "yes\n", "custom.upstream.backend": "github\n"})) is False
+def test_push_on_unknown_bead_fails_closed(monkeypatch, capsys):
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    assert up.cmd_push("nope", apply=False) == 1
+
+
+# --- the destructive stage is guarded (REQ-BUP-050 contract, new evidence) ----
+
+def test_hoist_closes_NO_bead_when_the_write_fails(monkeypatch, capsys):
+    """The #129 lesson, re-asserted against the new mechanism.
+
+    A hoist whose upstream write failed must not tombstone a single bead — a
+    close_reason asserting an upstream hoist that never happened is silent data loss
+    whose every visible step looks correct.
+    """
+    monkeypatch.setattr(up, "granularity", lambda: "coarse")
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "title": "T", "description": "B"},
+        {"id": "b", "title": "T2", "description": "B2"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    def _run(cmd):
+        if cmd[:3] == ["gh", "issue", "create"]:
+            return "no url in this output"      # -> UNVERIFIED
+        if cmd[:2] == ["bd", "close"] or cmd[:1] == ["bash"]:
+            raise AssertionError(f"closed a bead after a failed write: {cmd!r}")
+        return ""
+    monkeypatch.setattr(up, "run", _run)
+    rc = up.cmd_hoist("a,b", "plan-013", apply=True)
+    assert rc == 1
+    assert "No bead was closed" in capsys.readouterr().err
+
+
+def test_hoist_dry_run_default_does_not_apply(monkeypatch, capsys):
+    monkeypatch.setattr(up, "granularity", lambda: "coarse")
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "a", "title": "T", "description": "B"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    def boom(cmd):
+        raise AssertionError(f"hoist executed {cmd!r} without --apply")
+    monkeypatch.setattr(up, "run", boom)
+    assert up.cmd_hoist("a", "plan-013", apply=False) == 0
+    out = capsys.readouterr().out
+    assert "Preview only" in out
+    assert "bd close a" in out          # shown as a plan, not executed
+
+
+# --- REQ-BUP-059 / SC14: the removed --backend fails INFORMATIVELY ------------
+
+def test_removed_backend_flag_is_explained_not_bare_argparse_error():
+    """An existing `--backend gitlab` caller must learn WHY, and where it went."""
+    import subprocess as sp
+    proc = sp.run(
+        [sys.executable, str(Path(__file__).parent / "upstream.py"),
+         "push", "--issues", "x", "--backend", "gitlab"],
+        capture_output=True, text=True)
+    assert proc.returncode != 0
+    combined = proc.stdout + proc.stderr
+    assert "--backend was removed" in combined
+    assert "#51" in combined and "#52" in combined and "#53" in combined
+    assert "unrecognized arguments" not in combined
 
 
 # --- REQ-BUP-052: the `closable` verb (#117, partial) --------------------------
@@ -555,11 +638,16 @@ def test_closable_short_circuits_cleanly_when_disabled(capsys, monkeypatch):
 
 
 def test_closable_never_closes_anything(capsys, monkeypatch):
-    """Propose-only: it emits `gh issue close` commands and executes NOTHING."""
+    """Propose-only: it emits `gh issue close` commands and executes NOTHING.
+
+    The mapping now arrives ON THE ROW (`external_ref`) rather than via a patched
+    `external_for` — that is the REQ-BUP-052 bulk-read change, not a change to what
+    this test asserts. `run` is still booby-trapped: propose-only is the contract.
+    """
     monkeypatch.setattr(up, "upstream_enabled", lambda: True)
     monkeypatch.setattr(up, "load_universe_rows", lambda: [
-        {"id": "a", "status": "closed"}, {"id": "b", "status": "closed"}])
-    monkeypatch.setattr(up, "external_for", lambda bid: ISSUE_A)
+        {"id": "a", "status": "closed", "external_ref": ISSUE_A},
+        {"id": "b", "status": "closed", "external_ref": ISSUE_A}])
     def boom(cmd):
         raise AssertionError(f"closable executed {cmd!r} — it must never close")
     monkeypatch.setattr(up, "run", boom)
@@ -568,6 +656,101 @@ def test_closable_never_closes_anything(capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "gh issue close 1" in out
     assert "NOT executed" in out
+
+
+# --- REQ-BUP-052: the bulk read is a SCALE-INDEPENDENT invariant ---------------
+
+def _counting_run(calls):
+    """A `run` stand-in that records every bd argv and serves `bd list --all --json`."""
+    def _run(cmd):
+        calls.append(list(cmd))
+        if cmd[:2] == ["bd", "list"]:
+            return json.dumps([
+                {"id": f"b{i}", "status": "closed",
+                 **({"external_ref": ISSUE_A} if i == 0 else {})}
+                for i in range(500)
+            ])
+        raise AssertionError(f"unexpected bd call in closable: {cmd!r}")
+    return _run
+
+
+def test_closable_issues_one_bd_list_and_zero_bd_show(capsys, monkeypatch):
+    """EXP-002's defect, pinned as an invariant rather than a wall-clock threshold.
+
+    The shipped implementation called `external_for` — a fresh `bd show` subprocess —
+    once per bead, across 991 beads, to read a field `bd list --all --json` already
+    returns. It produced zero output in four minutes and had to be killed.
+
+    Asserting a DURATION would rot: it passes on a small DB and silently regresses as
+    the DB grows, which is the exact shape of the original defect. So assert the
+    invariant instead — exactly one `bd list`, and zero per-bead `bd show` — which is
+    independent of universe size.
+
+    NOTE the bound is on `bd list`/`bd show`, NOT on total `bd` invocations:
+    `upstream_enabled()` shells `bd config get`, a second subprocess this change does
+    not remove. "Exactly one bd invocation" would fail on correct code.
+    """
+    calls = []
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "run", _counting_run(calls))
+    rc = up.cmd_closable(as_json=False)
+    assert rc == 0
+
+    lists = [c for c in calls if c[:2] == ["bd", "list"]]
+    shows = [c for c in calls if c[:2] == ["bd", "show"]]
+    assert len(lists) == 1, f"expected exactly one `bd list`, got {len(lists)}: {lists}"
+    assert shows == [], f"expected ZERO per-bead `bd show`, got {len(shows)}"
+
+
+def test_closable_bd_show_count_does_not_grow_with_universe_size(monkeypatch):
+    """Scale-independence, stated as a comparison rather than a constant.
+
+    A regression that reintroduced the N+1 would still pass a fixed-size fixture if the
+    fixture were small. Running two universes an order of magnitude apart and asserting
+    the bd-call count is IDENTICAL catches it whatever the constant happens to be.
+    """
+    def count_for(n):
+        calls = []
+        def _run(cmd):
+            calls.append(list(cmd))
+            if cmd[:2] == ["bd", "list"]:
+                return json.dumps([
+                    {"id": f"b{i}", "status": "closed",
+                     **({"external_ref": ISSUE_A} if i == 0 else {})}
+                    for i in range(n)
+                ])
+            raise AssertionError(f"unexpected bd call: {cmd!r}")
+        monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+        monkeypatch.setattr(up, "run", _run)
+        up.cmd_closable(as_json=True)
+        return len(calls)
+
+    assert count_for(10) == count_for(1000)
+
+
+def test_external_from_row_is_omitempty_safe():
+    """`external_ref` is serialized omitempty — the KEY IS ABSENT, not null.
+
+    Measured on bd 1.1.2: missing from 998 of 1019 rows, including the first. A
+    key-presence test or `row["external_ref"]` would see zero mappings on a real DB
+    while passing any fixture that always sets the key.
+    """
+    assert up.external_from_row({"id": "a"}) is None          # key absent entirely
+    assert up.external_from_row({"id": "a", "external_ref": None}) is None
+    assert up.external_from_row({"id": "a", "external_ref": ""}) is None
+    assert up.external_from_row({"id": "a", "external_ref": "   "}) is None
+    assert up.external_from_row({"id": "a", "external_ref": ISSUE_A}) == ISSUE_A
+    assert up.external_from_row({"id": "a", "external_ref": f"  {ISSUE_A} "}) == ISSUE_A
+
+
+def test_external_for_helper_is_retained_for_its_other_callers():
+    """`external_for` must NOT be deleted along with closable's use of it.
+
+    It has two other live call sites (`mappings`, and the enumerate mapping flag) and is
+    monkeypatched by three existing tests. Removing it while fixing the N+1 would break
+    callers the fix never touched — pass-2 D7.
+    """
+    assert callable(getattr(up, "external_for", None))
 
 
 def test_issue_number_parsed_for_the_close_proposal():
@@ -644,14 +827,6 @@ def test_unhoist_record_round_trip(tmp_path, capsys):
     assert "bd update a --status open" in out
     assert "bd update b --status open" in out
     assert "bd update c --status open" in out
-    assert "Dry run" in out
-
-
-def test_hoist_dry_run_default_does_not_apply(capsys):
-    rc = up.cmd_hoist("a,b", "plan-013", "github", apply=False)
-    assert rc == 0
-    out = capsys.readouterr().out
-    assert "--dry-run" in out
     assert "Dry run" in out
 
 
@@ -830,11 +1005,15 @@ def test_cmd_land_default_dry_run_no_apply(monkeypatch, capsys):
     )
     executed = []
     monkeypatch.setattr(up, "run", lambda cmd: executed.append(cmd) or "[]")
-    rc = up.cmd_land("m", "2026-06-24T00:00:00Z", "plan-013", "github", apply=False)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "t1", "title": "T1", "description": "B1"},
+        {"id": "t2", "title": "T2", "description": "B2"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    rc = up.cmd_land("m", "2026-06-24T00:00:00Z", "plan-013", apply=False)
     assert rc == 0
     out = capsys.readouterr().out
     assert "single confirm required" in out
-    assert "Dry run" in out
+    assert "Preview only" in out
     # NOTHING was hoisted (no bash -c executed) without --apply.
     assert not any(c[:2] == ["bash", "-c"] for c in executed)
 
@@ -849,7 +1028,11 @@ def test_cmd_land_auto_path_narrow_only(monkeypatch, capsys):
         lambda *a, **k: {"narrow": ["t1"], "broad": ["t1", "t2"]},
     )
     monkeypatch.setattr(up, "run", lambda cmd: "[]")
-    rc = up.cmd_land("m", "2026-06-24T00:00:00Z", "plan-013", "github", apply=False)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "t1", "title": "T1", "description": "B1"},
+        {"id": "t2", "title": "T2", "description": "B2"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    rc = up.cmd_land("m", "2026-06-24T00:00:00Z", "plan-013", apply=False)
     assert rc == 0
     out = capsys.readouterr().out
     assert "NO-PROMPT auto-hoist (narrow only): ['t1']" in out

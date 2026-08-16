@@ -293,6 +293,74 @@
 >   `skills/yf-plan/agents/reviewer.md`, whose closing `---` had been replaced by `:--` — a GFM
 >   table-alignment marker — leaving the block unterminated and the agent's metadata unparsed, with
 >   no visible symptom. Audited at the time across all 20 skills: it was the only offender.
+> - **plan-040 (2026-08-16, #133/#117/#131/#132):** `yf-beads-upstream` upstream writes moved from
+>   `bd <backend> push` to **gh-direct** — `bd` reads bead content, `gh` writes the issue,
+>   `bd update --external-ref` records the mapping — across all three write paths
+>   (`push`/`hoist`/`land`), plus the read and coverage sides of the same `external_ref` mechanism.
+>   Added **`REQ-BUP-054`** (the bead→issue **field mapping**, specified for the first time: title
+>   and description verbatim, `type::`/`priority::` derived labels with the full numeric→word
+>   table including the unmapped P0/P4 rows, `notes`/`design` explicitly not synced, `external_ref`
+>   written back; the mapping existed nowhere in the repo and is reverse-engineered from two
+>   measured samples) and **`REQ-BUP-055`** (bd **1.1.2 version floor** for `--external-ref` and for
+>   `bd list --all --json` carrying `external_ref` — labelled an **assertion**, since it is the only
+>   version verified rather than the version below which failure was shown, plus the measured
+>   **omitempty** serialization caveat that forbids a key-presence read).
+>   *Premise falsified first (plan-040 Issue 1.1, behind a scratch-write capability gate):* `gh
+>   issue create --label <nonexistent>` **fails, exit 1, atomically** — no orphan issue — while `bd
+>   github push` **creates the label on demand**. So restrict-and-drop is a **deliberate divergence**
+>   from bd, not parity. Incidentally measured: bd's `--dry-run` also prints `✓ Pushed 1 issues`,
+>   confirming that success string is not evidence of a write.
+>   Added **`REQ-BUP-056`** + **`GR-BUP-008`** (**restrict-and-drop**: emit only labels that already
+>   exist, never create one; every drop **reported** on the push preview naming the bead and the
+>   label, because that report line — not memory — is the revisit trigger for a policy justified by
+>   a population of **3 beads in 991**).
+>   Revised **`REQ-BUP-030`** / **`GR-BUP-001`** — the never-hand-run invariant **survives, its
+>   rationale replaced**: it was written against a *destructive* mechanism (a bare `bd sync`
+>   re-imports every upstream issue as a duplicate bead and pushes the whole local DB), and a raw
+>   `gh issue create` has no such blast radius. It now rests on **routing** — a hand-run write skips
+>   enumeration, the create-vs-update decision, the label policy, and the fail-closed guard, and
+>   **records no `external_ref`**, producing exactly the invisible issue #117/#131 exist to
+>   eliminate. `protocols/UPSTREAM_TRACKING.md` revised and **re-stamped in the same change-set**
+>   (`1.3.0` → `1.4.0`; the rule is hash-pinned, so a revision without a re-stamp is a preflight
+>   `rule_drift` failure for every consuming repo). Also corrected a pre-existing misreference at
+>   `skills/yf-beads-upstream/SPEC.md` §2.5, which attributed the hand-run-push anti-pattern to
+>   `GR-BUP-002` (the token/inline-auth guardrail); the correct id is `GR-BUP-001`. #133 inherited
+>   the same misnaming. Revised the requirements the swap **invalidates**, so nothing is implemented
+>   against a requirement still mandating the deleted mechanism: **`REQ-BUP-040`** / **`GR-BUP-004`**
+>   (GitHub-only — `--backend` and `BACKEND_AUTH` deleted; this **removes a stub surface** rather
+>   than withdrawing support, since all three of REQ-BUP-040, GR-BUP-004 and `spec/backends.md`
+>   REQ-BE-001 already said GitLab/Jira were unverified config-only stubs), **`REQ-BUP-031`** /
+>   **`GR-BUP-002`** (the **auth model**: the skill no longer supplies a token inline — `gh` owns
+>   its own credential store, so the skill handles no token at all; a behavior and invariant change,
+>   which is why it lands in the requirements and not in a prose pass), **`REQ-BUP-041`**
+>   (superseded — the scoped-push translation table is dead, retained as history because a future
+>   "add a backend" still needs to know backend CLIs do not share a flag vocabulary),
+>   **`REQ-BUP-051`** (the `push` verb and its `--apply`-only idiom survive; every clause beneath
+>   them is replaced, and only **fail-closed** must not be read as relaxed), and **`REQ-BUP-052`**
+>   (`closable`: one universe query and **zero** per-bead lookups as a scale-independent invariant,
+>   plus the coarse-tracker gap discharged `yf-plan`-side). Added **`REQ-BUP-057`** (the gh-direct
+>   core: `create_or_update` keyed on `external_ref`, a **locally rendered** preview absent
+>   `--apply`, and **structural** verification — a returned issue URL, not a scraped success line)
+>   and **`REQ-BUP-059`** (a removed `--backend` fails **informatively**, naming the removal and
+>   pointing at #51/#52/#53). The two **sibling spec files** written entirely in `bd <backend>` terms
+>   were updated in the same pass — `spec/safety.md` (`REQ-SAFE-001` no-bd-write / rationale
+>   replacement, `REQ-SAFE-002` auth) and `spec/backends.md` (`REQ-BE-001` GitHub-only, `REQ-BE-002`
+>   superseded-but-retained-as-history, `REQ-BE-003` two backend states). On the coverage side,
+>   added **`REQ-PLAN-073`** (`yf-plan` stamps the coarse tracker URL onto the plan epic as
+>   `external_ref` at §5.2a, immediately after `record-epic`, and again on the §5.2b resume as a
+>   repair) — idempotent, non-clobbering, and **fail-soft at exit 0** on every failure path, because
+>   it runs inside the pour sequence where "no tracker yet" is a normal state. This discharges
+>   #117's coarse signal with **no `plans-root` coupling in either direction**: a stamped tracker is
+>   just an ordinary mapped bead. Placement is a **correction to #131 as filed**, which specifies
+>   §4.5 — impossible, since §4.5 runs at INTAKE, §4.6 states "No pour happened at intake", and
+>   §5.2 owns the pour, so no epic id exists there to stamp. Live round-trip verified: after
+>   stamping, plan-040's own tracker #138 appears in `closable` output for the first time.
+>   Implementation: `upstream.py` gains `create_or_update` / `plan_write` / `apply_write` and loses
+>   `BACKEND_AUTH`, `push_command_sequence`, `verified_push`, `parse_pushed_count`, `plan_push` and
+>   the `--backend` flag; `cmd_push`/`cmd_hoist`/`cmd_land` all route through the one core, with
+>   `hoist`/`land`'s destructive `bd close -r` stage now reachable only after every write verified.
+>   Guarded by a new `check_gh_direct.py` acceptance check (code-vs-comment boundary, so the
+>   comments recording *why* the mechanism was deleted survive) wired into both validation tiers.
 
 ## 1. Purpose & scope
 

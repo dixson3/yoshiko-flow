@@ -1140,6 +1140,133 @@ def update_status(plan_dir: str, status: str, message: str):
     click.echo(json.dumps({"status": status, "date": today, "log_entry": log_entry}))
 
 
+_TRACKER_ROW_RE = re.compile(
+    r"^\|\s*\[?#(\d+)\]?[^|]*\|[^|]*\|\s*tracker\s*\|", re.MULTILINE
+)
+
+
+def _tracker_url_from_plan_md(plan_md_text: str, repo_slug: str | None) -> str | None:
+    """Find the coarse tracker URL in plan.md's Upstream Issues table.
+
+    The tracker row is the one whose Disposition is literally `tracker` (as distinct
+    from include/exclude/partial/supersede, which are work dispositions). Prefer a full
+    URL already present in the row; otherwise rebuild one from the issue number.
+    """
+    m = _TRACKER_ROW_RE.search(plan_md_text or "")
+    if not m:
+        return None
+    num = m.group(1)
+    url_m = re.search(rf"https://github\.com/[\w.-]+/[\w.-]+/issues/{num}\b",
+                      plan_md_text)
+    if url_m:
+        return url_m.group(0)
+    return f"https://github.com/{repo_slug}/issues/{num}" if repo_slug else None
+
+
+def _repo_slug() -> str | None:
+    """`owner/repo` from the git remote, or None when it cannot be determined."""
+    try:
+        url = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"],
+            text=True, stderr=subprocess.DEVNULL).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+    m = re.search(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?$", url)
+    return m.group(1) if m else None
+
+
+def _bd_external_ref(bead_id: str) -> str | None:
+    """Read a bead's existing external_ref, or None. Never raises."""
+    try:
+        out = subprocess.check_output(["bd", "show", bead_id, "--json"],
+                                      text=True, stderr=subprocess.DEVNULL)
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+    rows = _parse_bd_json(out)
+    if not rows:
+        return None
+    val = rows[0].get("external_ref")
+    return val.strip() if isinstance(val, str) and val.strip() else None
+
+
+@cli.command("stamp-tracker")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--epic", "epic_id", default=None,
+              help="Epic to stamp. Default: the plan's recorded **Epic:** field.")
+@click.option("--url", "tracker_url", default=None,
+              help="Tracker issue URL. Default: derived from plan.md's Upstream Issues table.")
+@click.option("--json", "as_json", is_flag=True, help="Emit a JSON verdict.")
+def stamp_tracker(plan_dir: str, epic_id: str | None, tracker_url: str | None,
+                  as_json: bool):
+    """Stamp the coarse tracker URL onto the plan epic as `external_ref` (REQ-PLAN-073).
+
+    WHY THIS EXISTS (#131). `yf-plan` §4.5 files one coarse tracking issue per plan with
+    a bare `gh issue create` and records the URL on **no bead**. `yf-beads-upstream`'s
+    `closable` verb groups beads by their `external_ref`, so a tracker nothing points at
+    is **structurally invisible** to it — five have gone stale and been closed by hand
+    (#103, #95, #96, #98, #134). Stamping the URL onto the epic makes the tracker an
+    ordinary mapped bead, visible to `closable` with no new signal and no `plans-root`
+    coupling in either direction.
+
+    WHERE IT RUNS. #131 as filed says to stamp "in Phase 4.5, after creating the tracking
+    issue". That is **impossible**: §4.5 runs at INTAKE, §4.6 states "No pour happened at
+    intake", and §5.2 owns the pour — §4.5's own text says the issue links the plan folder
+    and "(once poured)" its epic. There is no epic id at §4.5 to stamp. The correct place
+    is **§5.2a, immediately after `record-epic`**, where the epic id is first known; and
+    also on the **§5.2b resume** branch, so a plan whose tracker was filed late (or whose
+    stamp failed) is repaired on the next execute rather than staying invisible forever.
+
+    FAIL-SOFT BY CONTRACT. Every failure mode — no epic, no tracker, no bd — returns a
+    skip verdict with a reason and exit 0. This runs inside the pour sequence, and a plan
+    with no tracker yet is a normal state, not an error: it must never fail the pour.
+
+    Idempotent: re-stamping the same URL is a no-op.
+    """
+    pdir = Path(plan_dir)
+    text = (pdir / "plan.md").read_text(encoding="utf-8") if (pdir / "plan.md").exists() else ""
+
+    epic_id = epic_id or _read_plan_epic_field(text)
+    if not epic_id:
+        return _stamp_verdict(as_json, "skipped", None, None,
+                              "no epic recorded for this plan (pour has not run yet)")
+
+    tracker_url = tracker_url or _tracker_url_from_plan_md(text, _repo_slug())
+    if not tracker_url:
+        return _stamp_verdict(as_json, "skipped", epic_id, None,
+                              "no coarse tracker found in plan.md Upstream Issues "
+                              "(no row with disposition `tracker`)")
+
+    existing = _bd_external_ref(epic_id)
+    if existing == tracker_url:
+        return _stamp_verdict(as_json, "unchanged", epic_id, tracker_url,
+                              "epic already carries this tracker URL")
+    if existing:
+        return _stamp_verdict(as_json, "skipped", epic_id, existing,
+                              f"epic already mapped to a DIFFERENT ref ({existing}); "
+                              "refusing to overwrite — resolve by hand")
+
+    try:
+        subprocess.run(["bd", "update", epic_id, "--external-ref", tracker_url, "-q"],
+                       check=True, capture_output=True, text=True)
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
+        return _stamp_verdict(as_json, "skipped", epic_id, tracker_url,
+                              f"bd update failed: {exc}")
+    return _stamp_verdict(as_json, "stamped", epic_id, tracker_url,
+                          "epic is now visible to `upstream.py closable`")
+
+
+def _stamp_verdict(as_json: bool, status: str, epic: str | None,
+                   url: str | None, reason: str):
+    """Emit the stamp-tracker verdict. ALWAYS exit 0 — this never fails a pour."""
+    if as_json:
+        click.echo(json.dumps({"status": status, "epic": epic,
+                               "tracker": url, "reason": reason}))
+    else:
+        click.echo(f"stamp-tracker: {status} — {reason}"
+                   + (f" (epic {epic} -> {url})" if status == "stamped" else ""))
+    return 0
+
+
 @cli.command("record-epic")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.argument("epic_id")

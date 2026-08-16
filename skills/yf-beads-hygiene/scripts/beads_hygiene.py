@@ -577,7 +577,10 @@ def delegate_hoist(bead_id: str, dest: str, *, script: str, runner) -> list[str]
     """Delegate ONE bead's hoist to yf-beads-upstream (never push from hygiene).
 
     Builds and runs `uv run <upstream.py> hoist --issues <id> --dest <dest> --apply`. The
-    upstream `hoist` op dry-runs the push first, then `bd close -r` a reversible tombstone.
+    upstream `hoist` op previews the write first (gh-direct, plan-040 REQ-BUP-057), then
+    `bd close -r` a reversible tombstone. The argv is UNCHANGED by that swap — but note
+    that argv-compatibility is exactly what a mocked runner verifies, so it is not
+    evidence the delegation still works (see the hygiene SPEC §5 note).
     `runner` is injected (subprocess.run by default) so tests stub the shell-out entirely.
     Returns the exact argv that was (or would be) run, for the round-trip record.
     """

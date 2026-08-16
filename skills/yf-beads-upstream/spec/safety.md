@@ -4,14 +4,26 @@ Non-negotiable constraints. A change that violates one of these is a defect, not
 
 ## Requirements
 
-- **REQ-SAFE-001:** Never run a bare `bd <backend> sync`. Every push is `--push-only` (Jira:
-  `--push`) + scoped `--issues <ids>` or `--parent <id>`, with `--dry-run` first. — *Rationale:* a
-  bare sync re-imports all upstream issues as duplicate beads and pushes the entire local DB upstream.
-  — *Verify:* SKILL.md Safety invariants § + push step 3; protocols/UPSTREAM_TRACKING.md.
+- **REQ-SAFE-001 (revised plan-040):** The skill issues **no `bd <backend>` write command at all** —
+  not a bare `sync`, not a scoped `push`. Writes are **gh-direct**: `bd` reads bead content, `gh`
+  creates or edits the issue, `bd update --external-ref` records the mapping. Every write is scoped
+  to an explicit bead set and **previewed first** (absent `--apply` renders the planned actions
+  locally). — *Rationale:* **the rule outlived its original reason and is retained on a new one.**
+  It was written against a *destructive* mechanism: a bare sync re-imports all upstream issues as
+  duplicate beads and pushes the entire local DB upstream. A raw `gh issue create` has no such blast
+  radius — its worst case is one unmapped duplicate issue. What still justifies the prohibition is
+  **routing**: a hand-run write skips enumeration, the `external_ref` create-vs-update decision, the
+  label policy, and the fail-closed guard on the destructive `hoist`/`land` close stage — and
+  records **no `external_ref`**, producing exactly the invisible unmapped issue #117/#131 exist to
+  eliminate. — *Verify:* SKILL.md Safety invariants § + Push step; protocols/UPSTREAM_TRACKING.md;
+  SPEC.md REQ-BUP-030/057.
 
-- **REQ-SAFE-002:** Auth tokens are passed inline at call time (`TOKEN=$(...) bd <backend> …`) and
-  never written to config. — *Rationale:* tokens must not land in a version-controlled config store.
-  — *Verify:* SKILL.md init step 3 + push step 1; absence of any `bd config set *.token`.
+- **REQ-SAFE-002 (revised plan-040):** Auth tokens are **never written to config**, and under
+  gh-direct the skill supplies **no token at all** on the write path — `gh` owns its own credential
+  store (`gh auth login` / `gh auth status`). The pre-write check is `gh auth status`, not a token
+  probe. — *Rationale:* tokens must not land in a version-controlled config store, and the surest
+  way not to mishandle a credential is never to hold one. — *Verify:* SKILL.md init + Push step;
+  absence of any `bd config set *.token` and of a `BACKEND_AUTH` table; SPEC.md REQ-BUP-031.
 
 - **REQ-SAFE-003:** Re-pushing an already-mapped bead must not create a duplicate upstream issue;
   the recovery story depends on the recorded `External:` mapping suppressing re-push. — *Rationale:*
@@ -30,5 +42,12 @@ Non-negotiable constraints. A change that violates one of these is a defect, not
 
 `External:` mapping format and idempotency (REQ-SAFE-003) were verified live on bd 1.0.5 against a
 throwaway repo on 2026-06-01: `bd github push <id>` records `External: …/issues/N`; a second push
-of the same bead left the upstream count at 1. GitLab/Jira are unverified config-only stubs and
-must be live-tested before REQ-SAFE-003 is claimed for them.
+of the same bead left the upstream count at 1.
+
+**Updated plan-040.** GitLab/Jira are no longer "unverified stubs to be live-tested" — they are
+**removed from the surface** (REQ-BE-001), so there is nothing left to claim REQ-SAFE-003 for. The
+idempotency contract itself is unchanged and now rests on `external_ref` directly: #133 measured
+that the create-vs-update decision was **always** driven by that one field and never by a hidden
+sync table — a bead mapped **by hand** to an issue `bd` had never pushed still read as
+*"Would update"*. Moving the writer from `bd` to `gh` therefore does not change what prevents
+duplicates.

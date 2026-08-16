@@ -21,11 +21,11 @@ Subcommands the SKILL.md push / reconcile steps call:
   followons --parent <id> --intake <rfc3339> [--json]
                                 Detect follow-on beads under a plan subtree; returns
                                 the narrow (auto-eligible) and broad (gated-only) sets.
-  hoist --issues <csv> --dest <plan-or-url> [--backend gh] [--apply]
+  hoist --issues <csv> --dest <plan-or-url> [--apply]
                                 Ensure an upstream issue exists per granularity, then
                                 close the bead(s) locally with a destination-recording
                                 reason. Dry-run (emit-only) by default; --apply executes.
-  land --parent <id> --intake <rfc3339> --dest <plan-or-url> [--backend gh] [--apply]
+  land --parent <id> --intake <rfc3339> --dest <plan-or-url> [--apply]
                                 Land-the-plane: detect follow-on beads under the subtree
                                 and hoist them. DEFAULT proposes the batch for a single
                                 confirm; the NO-PROMPT path runs only when
@@ -40,13 +40,19 @@ stdout; we parse defensively (see the `beads-extra` skill → defensive JSON). T
 upstream mapping is read from `bd show <id>` text — a single line anchored as
 `External: <url>` — verified stable on bd 1.0.5.
 
+WRITES ARE gh-DIRECT (REQ-BUP-057, plan-040). `bd` reads bead content, `gh` creates or
+edits the issue, and `bd update --external-ref` records the mapping. GitHub is the only
+supported backend — the `--backend` flag and the per-backend auth table are gone.
+
 SAFETY INVARIANTS preserved (see spec/safety.md):
   - Removal is `bd close -r` (reversible tombstone), NEVER `bd delete`.
-  - Hoist ALWAYS dry-runs the push first (`bd <backend> push <ids> --dry-run`)
-    before the real push (REQ-BUP-013 / REQ-SAFE-001).
-  - Never a bare `bd <backend> sync` — push is scoped to explicit `--issues`.
-  - Auth is inline-only (`GITHUB_TOKEN=$(gh auth token) bd github push …`),
-    never written to config.
+  - NO `bd <backend>` write command is issued at all — not a bare sync, not a scoped
+    push. Every write is scoped to explicit ids and PREVIEWED FIRST: absent `--apply`
+    the plan is rendered LOCALLY (no round-trip, no credentials needed to read it).
+  - Verification is STRUCTURAL — a returned issue URL on create, a clean exit on edit —
+    never a scraped success line. An unverified write raises WriteError and HALTS
+    before the destructive local-close stage (REQ-BUP-050's contract, new evidence).
+  - Auth is `gh`'s own credential store; this script handles NO token (REQ-BUP-031).
 """
 
 from __future__ import annotations
@@ -338,9 +344,30 @@ def _first_balanced(text: str) -> str | None:
 
 
 def external_for(bead_id: str) -> str | None:
+    """Read one bead's external_ref via `bd show`. One subprocess per call.
+
+    Fine for the handful of ids `mappings`/`plan_hoist` resolve; NEVER call this in a
+    loop over the whole universe — see external_from_row (REQ-BUP-052).
+    """
     out = run(["bd", "show", bead_id])
     m = EXTERNAL_RE.search(out)
     return m.group(1) if m else None
+
+
+def external_from_row(row: dict) -> str | None:
+    """Read external_ref off a `bd list --json` row — no subprocess (REQ-BUP-052).
+
+    `bd list --all --json` already carries `external_ref`, so resolving it per bead with
+    `bd show` is a removable N+1. Measured on this repo (991 beads): `closable` produced
+    zero output in 4 minutes and was killed; only 20 beads had a mapping at all, so 991
+    subprocesses were spent to find 20 values the bulk query had already returned.
+
+    The field is serialized **omitempty** (measured on bd 1.1.2): the key is *absent* from
+    rows with no mapping — missing from 998 of 1019 rows, including the first. Hence a
+    defaulting `.get`, never `row["external_ref"]` and never a key-presence test.
+    """
+    val = row.get("external_ref")
+    return val.strip() if isinstance(val, str) and val.strip() else None
 
 
 CONTAINER_TYPES = frozenset({"epic", "molecule", "gate"})
@@ -355,13 +382,19 @@ def candidate_filter(rows: list[dict]) -> list[dict]:
 
 
 def load_universe_rows() -> list[dict]:
-    """All non-closed beads (open/in_progress/blocked/deferred) as raw rows.
+    """EVERY bead as a raw row — `bd list --all --json`, closed ones included.
 
-    The active-set classifier needs the FULL non-closed universe — not just the
-    status-only candidate slice — because an active bead's open ancestor (which may
-    itself be open-unclaimed) must be resolvable to exclude it. We pull every status
-    so in_progress and claimed-open beads are present to seed the active set and to
-    anchor the ancestor walk.
+    The active-set classifier needs the FULL universe — not just the status-only
+    candidate slice — because an active bead's open ancestor (which may itself be
+    open-unclaimed) must be resolvable to exclude it. We pull every status so
+    in_progress and claimed-open beads are present to seed the active set and to anchor
+    the ancestor walk.
+
+    Note the docstring previously read "All non-closed beads
+    (open/in_progress/blocked/deferred)", which `--all` contradicts: closed beads ARE
+    returned. Corrected rather than narrowed, because `cmd_closable` depends on closed
+    rows being present — an issue is closable precisely when its mapped beads are closed,
+    so filtering them out here would make every issue read as not-closable (REQ-BUP-052).
     """
     return parse_json_array(run(["bd", "list", "--all", "--json"]))
 
@@ -582,104 +615,231 @@ def close_reason(dest: str) -> str:
     return f"hoisted upstream to {dest} (reversible tombstone; un-hoist to restore)"
 
 
-# Map the bd push backend -> (auth-token CLI, env var) for inline auth.
-BACKEND_AUTH = {
-    "github": ("gh", "GITHUB_TOKEN"),
-    "gitlab": ("glab", "GITLAB_TOKEN"),
+# --- gh-direct write core (REQ-BUP-054/056/057) -------------------------------
+#
+# `bd` reads bead content, `gh` writes the issue, `bd update --external-ref` records the
+# mapping. There is NO backend dispatch and NO token handling: GitHub is the only
+# supported backend (REQ-BUP-040) and `gh` owns its own credential store
+# (REQ-BUP-031) — the old per-backend auth table is deliberately gone.
+
+#: bead `priority` (numeric) -> `priority::<word>` label (REQ-BUP-054).
+#: P0 and P4 have no label in this repo; restrict-and-drop drops them WITH A REPORT.
+PRIORITY_LABELS = {
+    0: "priority::critical",
+    1: "priority::high",
+    2: "priority::medium",
+    3: "priority::low",
+    4: "priority::backlog",
 }
-DEFAULT_BACKEND = "github"
 
 
-# REQ-BUP-050: bd reports a successful push as e.g. "✓ Pushed 2 issues" (measured on
-# bd 1.1.2). This parse is a BD-VERSION-DEPENDENT ASSUMPTION about a human-readable string
-# emitted by a third-party binary, NOT a stable API — see skills/yf-beads-upstream/SPEC.md
-# REQ-BUP-050 "Verification-mechanism assumption" for the documented place this breaks.
-# The failure mode is safe by construction: unrecognized output parses as UNVERIFIED, which
-# HALTS the sequence rather than proceeding to the destructive local-close stage.
-PUSHED_COUNT_RE = re.compile(r"[Pp]ushed\s+(\d+)\s+issues?\b")
-# Shell-side equivalent of the parse above, used inside the emitted command sequence.
-_PUSHED_COUNT_GREP = "[Pp]ushed {n} issues?"
+def issue_labels_for(bead: dict) -> list[str]:
+    """Derive the issue label set from a bead (REQ-BUP-054).
 
-
-def parse_pushed_count(output: str) -> int | None:
-    """Number of issues a `bd <backend> push` reported pushing, or None if the
-    output carries no recognizable success line (REQ-BUP-050).
-
-    None means UNVERIFIED, never zero: an unparseable output must halt a sequence
-    with a destructive follow-on stage, not be read as 'pushed nothing'.
+    `issue_type` -> `type::<t>`, `priority` -> `priority::<word>`, plus the bead's own
+    labels passed through unchanged. Order is stable so previews diff cleanly.
     """
-    m = PUSHED_COUNT_RE.search(output or "")
-    return int(m.group(1)) if m else None
+    labels: list[str] = []
+    itype = (bead.get("issue_type") or "").strip()
+    if itype:
+        labels.append(f"type::{itype}")
+    prio = bead.get("priority")
+    if isinstance(prio, int) and prio in PRIORITY_LABELS:
+        labels.append(PRIORITY_LABELS[prio])
+    for lab in bead.get("labels") or []:
+        if isinstance(lab, str) and lab.strip() and lab not in labels:
+            labels.append(lab.strip())
+    return labels
 
 
-def verified_push(push_cmd: str, expected: int) -> str:
-    """Wrap an emitted push command so it FAILS CLOSED (REQ-BUP-050).
+def restrict_labels(labels: list[str], existing: set[str]) -> tuple[list[str], list[str]]:
+    """Restrict-and-drop (REQ-BUP-056): keep labels that exist, drop the rest.
 
-    The wrapped command exits non-zero unless the push reports `expected` issues,
-    so `run()` (which raises on a non-zero exit) halts the sequence BEFORE any
-    destructive follow-on stage. `tee /dev/stderr` keeps bd's own output visible.
+    Returns `(kept, dropped)`. The dropped list is NOT diagnostic noise — it is the
+    producer of the GR-BUP-008 revisit signal, and the caller MUST surface it. A silent
+    drop would leave that guardrail with no trigger at all.
+
+    Measured (plan-040 Issue 1.1): `gh issue create --label <nonexistent>` fails with
+    exit 1 and creates NO issue, while `bd github push` created the label on demand. So
+    this is a DELIBERATE DIVERGENCE from bd, not parity — chosen because the genuinely
+    uncovered population is 3 beads in 991, and matching bd would cost label-write token
+    scope the skill otherwise never needs.
     """
-    pattern = _PUSHED_COUNT_GREP.format(n=expected)
-    return (
-        f"{push_cmd} | tee /dev/stderr | grep -qE '{pattern}'"
-        f' || {{ echo "FAIL-CLOSED: push did not report {expected} pushed issue(s)'
-        f' — halting before any local close (REQ-BUP-050)" >&2; exit 1; }}'
-    )
+    kept = [l for l in labels if l in existing]
+    dropped = [l for l in labels if l not in existing]
+    return kept, dropped
 
 
-def push_command_sequence(
-    bead_ids: list[str], *, backend: str, verify: bool = True
-) -> list[str]:
-    """The scoped, dry-run-first, inline-auth push pair shared by `hoist` and `push`.
+def existing_labels() -> set[str]:
+    """Label names that already exist upstream. Empty set on any failure.
 
-    REQ-BUP-050: bead ids are POSITIONAL arguments and MUST be separated by SPACES.
-    A comma-joined list is matched by bd to ZERO beads while the process still exits 0
-    (bd 1.1.2), so a comma here is silent data loss, not a formatting nit.
+    ONE `gh label list` for the whole run — never one call per label (that would be the
+    same N+1 shape REQ-BUP-052 exists to forbid).
     """
-    ids = " ".join(bead_ids)
-    auth_cli, env_var = BACKEND_AUTH.get(backend, ("gh", "GITHUB_TOKEN"))
-    auth = f"{env_var}=$({auth_cli} auth token)"
-    expected = len(bead_ids)
-    # 1. Dry-run the push FIRST (REQ-BUP-013 / REQ-SAFE-001) — scoped, never bare sync.
-    dry = f"{auth} bd {backend} push {ids} --dry-run"
-    # 2. Real push (create-or-map via External:; dedup keeps coarse trackers).
-    real = f"{auth} bd {backend} push {ids}"
-    if not verify:
-        return [dry, real]
-    return [verified_push(dry, expected), verified_push(real, expected)]
+    try:
+        # NB: run() raises SystemExit (a BaseException) on a non-zero exit, so
+        # `except Exception` alone would NOT catch a failed `gh` call.
+        out = run(["gh", "label", "list", "--limit", "500", "--json", "name"])
+    except (Exception, SystemExit):
+        return set()
+    try:
+        return {r["name"] for r in json.loads(out) if r.get("name")}
+    except (json.JSONDecodeError, TypeError, KeyError):
+        return set()
 
 
-def plan_hoist(bead_ids: list[str], dest: str, *, backend: str, gran: str) -> list[str]:
-    """Build the EXACT command sequence a hoist would run (no execution).
+ISSUE_URL_RE = re.compile(r"https://\S+/issues/\d+")
 
-    `backend` is the bd push backend (github|gitlab). ALWAYS emits the dry-run
-    push first, then the real push, then per-bead reversible close. Auth is
-    inline-only (never written to config). Used both for the dry-run preview and
-    as the command list executed under --apply.
 
-    REQ-BUP-050 (#129): ids are space-separated, and BOTH push stages are wrapped
-    fail-closed so the destructive `bd close` stage below cannot run on a push that
-    matched fewer beads than expected. Before this, a comma-joined id list matched
-    ZERO beads while exiting 0, and stage 3 then tombstoned every bead with a
-    close_reason asserting an upstream hoist that never happened.
+def parse_issue_url(output: str) -> str | None:
+    """The issue URL `gh issue create` prints, or None (REQ-BUP-057).
+
+    None means UNVERIFIED and MUST fail closed. This is the structural replacement for
+    scraping bd's `Pushed N issues` line — which plan-040 Issue 1.1 measured is also
+    printed by `--dry-run`, i.e. emitted when nothing was pushed at all.
     """
-    cmds: list[str] = push_command_sequence(bead_ids, backend=backend)
-    # 3. Remove locally — reversible tombstone, never bd delete. Guarded by the
-    #    fail-closed wrappers above: an unverified push halts before reaching here.
+    m = ISSUE_URL_RE.search(output or "")
+    return m.group(0) if m else None
+
+
+class WriteError(RuntimeError):
+    """A gh-direct write failed verification. Always fail closed, never continue."""
+
+
+def plan_write(bead: dict, existing: set[str]) -> dict:
+    """Resolve the exact action for one bead WITHOUT touching the network.
+
+    This is the preview (REQ-BUP-057): absent `--apply`, rendering these dicts IS the
+    dry run. Nothing here calls `gh`, so a preview needs no credentials and costs no
+    round-trip — the old mechanism asked bd to ask GitHub what it *would* do.
+    """
+    ref = external_from_row(bead)
+    labels, dropped = restrict_labels(issue_labels_for(bead), existing)
+    return {
+        "id": bead.get("id"),
+        "action": "update" if ref else "create",
+        "external": ref,
+        "title": bead.get("title") or "",
+        "body": bead.get("description") or "",
+        "labels": labels,
+        "dropped_labels": dropped,
+    }
+
+
+def render_plan(plans: list[dict]) -> str:
+    """Human-readable preview of the planned writes, including every dropped label."""
+    lines = []
+    for p in plans:
+        target = p["external"] if p["action"] == "update" else "(new issue)"
+        lines.append(f"  [{p['action']:<6}] {p['id']}  -> {target}")
+        lines.append(f"             title: {p['title']}")
+        if p["labels"]:
+            lines.append(f"             labels: {', '.join(p['labels'])}")
+        for lab in p["dropped_labels"]:
+            # GR-BUP-008: the drop is REPORTED, never silent — this line is the
+            # revisit trigger for restrict-and-drop.
+            lines.append(
+                f"             dropping label {lab!r} (does not exist upstream)")
+    return "\n".join(lines)
+
+
+def apply_write(plan: dict) -> str:
+    """Execute one planned write via `gh`, verify STRUCTURALLY, record the mapping.
+
+    Verification is a returned issue URL on create / a clean exit on update — never a
+    scraped success string (REQ-BUP-057). A create whose output carries no parseable URL
+    raises WriteError so the caller halts BEFORE any destructive follow-on stage
+    (REQ-BUP-050's fail-closed contract, preserved with new evidence).
+    """
+    if plan["action"] == "update":
+        cmd = ["gh", "issue", "edit", plan["external"],
+               "--title", plan["title"], "--body", plan["body"]]
+        for lab in plan["labels"]:
+            cmd += ["--add-label", lab]
+        try:
+            run(cmd)
+        except (Exception, SystemExit) as exc:
+            raise WriteError(f"{plan['id']}: gh issue edit failed: {exc}") from exc
+        return plan["external"]
+
+    cmd = ["gh", "issue", "create", "--title", plan["title"], "--body", plan["body"]]
+    for lab in plan["labels"]:
+        cmd += ["--label", lab]
+    try:
+        out = run(cmd)
+    except (Exception, SystemExit) as exc:
+        raise WriteError(f"{plan['id']}: gh issue create failed: {exc}") from exc
+
+    url = parse_issue_url(out)
+    if not url:
+        raise WriteError(
+            f"{plan['id']}: gh issue create returned no issue URL — treating as "
+            f"UNVERIFIED and halting (REQ-BUP-057). Output: {out!r}")
+
+    # Record the mapping. Without this the issue exists but nothing points at it —
+    # exactly the invisibility #117/#131 exist to remove.
+    try:
+        run(["bd", "update", plan["id"], "--external-ref", url, "-q"])
+    except (Exception, SystemExit) as exc:
+        raise WriteError(
+            f"{plan['id']}: issue created at {url} but recording external_ref FAILED "
+            f"({exc}). Re-running would create a DUPLICATE — record it by hand: "
+            f"bd update {plan['id']} --external-ref {url}") from exc
+    return url
+
+
+def create_or_update(bead_ids: list[str], *, apply: bool) -> dict:
+    """The gh-direct write core (REQ-BUP-057). Idempotent on `external_ref`.
+
+    Absent `apply`, renders the plan and writes nothing. Fail-closed: the first
+    WriteError aborts the run and is re-raised, so a caller with a destructive
+    follow-on stage never reaches it on an unverified write.
+    """
+    if not bead_ids:
+        return {"plans": [], "written": [], "dropped": []}
+    rows = {r["id"]: r for r in load_universe_rows() if r.get("id")}
+    missing = [b for b in bead_ids if b not in rows]
+    if missing:
+        raise WriteError(f"unknown bead id(s): {', '.join(missing)}")
+
+    existing = existing_labels()
+    plans = [plan_write(rows[b], existing) for b in bead_ids]
+    dropped = [(p["id"], lab) for p in plans for lab in p["dropped_labels"]]
+    if not apply:
+        return {"plans": plans, "written": [], "dropped": dropped}
+    written = [{"id": p["id"], "action": p["action"], "url": apply_write(p)}
+               for p in plans]
+    return {"plans": plans, "written": written, "dropped": dropped}
+
+
+
+
+# REQ-BUP-050's fail-closed CONTRACT survives; its EVIDENCE moved (REQ-BUP-057).
+# The old `Pushed N issues` scrape is deleted along with the `bd <backend> push` it
+# parsed. plan-040 Issue 1.1 measured why that string was never sound evidence anyway:
+# `bd github push --dry-run` prints "✓ Pushed 1 issues" too — the success line is
+# emitted when NOTHING was pushed. Verification is now structural: a returned issue URL
+# on create (see parse_issue_url / apply_write), which cannot be produced by a no-op.
+
+def hoist_close_commands(bead_ids: list[str], dest: str) -> list[str]:
+    """Stage 3 of a hoist: the per-bead reversible tombstone (REQ-BUP-045).
+
+    Kept as `bd close -r` — this is a LOCAL bead operation, not an upstream write, so
+    gh-direct does not touch it. It is also the destructive stage REQ-BUP-050 guards:
+    the caller must not reach it on an unverified write.
+    """
     reason = close_reason(dest)
-    for bid in bead_ids:
-        cmds.append(f'bd close {bid} -r "{reason}"')
-    return cmds
+    return [f'bd close {bid} -r "{reason}"' for bid in bead_ids]
 
 
-def plan_push(bead_ids: list[str], *, backend: str) -> list[str]:
-    """Build the command sequence for a PLAIN upstream push (REQ-BUP-051).
+def plan_hoist(bead_ids: list[str], dest: str, *, gran: str) -> list[str]:
+    """DEPRECATED SHAPE — retained for the un-hoist/close half only.
 
-    `plan_hoist` stages 1–2 WITHOUT stage 3: a plain push leaves the bead open and
-    mirrored, where `hoist` removes it locally with a reversible tombstone. Inherits
-    the REQ-BUP-050 space-separated ids and fail-closed verification by construction.
+    Under gh-direct the upstream write is no longer a shell command string, so a hoist
+    is two phases rather than one command list: `create_or_update` (REQ-BUP-057) then
+    `hoist_close_commands`. This helper returns only the second, local, phase.
     """
-    return push_command_sequence(bead_ids, backend=backend)
+    return hoist_close_commands(bead_ids, dest)
 
 
 def plan_unhoist(bead_ids: list[str]) -> list[str]:
@@ -770,7 +930,7 @@ def plan_land_hoist(followons: dict, *, auto: bool) -> dict:
     }
 
 
-def cmd_land(parent_id: str, intake_ts: str, dest: str, backend: str, apply: bool) -> int:
+def cmd_land(parent_id: str, intake_ts: str, dest: str, apply: bool) -> int:
     """Land-the-plane: detect follow-ons under the plan subtree and hoist them.
 
     Default = propose-with-confirm (emit the batch + require --apply). No-prompt
@@ -796,8 +956,14 @@ def cmd_land(parent_id: str, intake_ts: str, dest: str, backend: str, apply: boo
 
     if decision["mode"] == "auto" and decision["auto_eligible"]:
         ids = decision["auto_eligible"]
-        cmds = plan_hoist(ids, dest, backend=backend, gran=gran)
+        try:
+            auto_result = create_or_update(ids, apply=apply)
+        except WriteError as exc:
+            print(f"FAIL-CLOSED: {exc}\n  No bead was closed.", file=sys.stderr)
+            return 1
+        cmds = hoist_close_commands(ids, dest)
         print(f"\nNO-PROMPT auto-hoist (narrow only): {ids}")
+        print(render_plan(auto_result["plans"]))
         for c in cmds:
             print(f"  {c}")
         if decision["requires_confirm"]:
@@ -816,37 +982,61 @@ def cmd_land(parent_id: str, intake_ts: str, dest: str, backend: str, apply: boo
     if not proposed:
         print("\nNo follow-on beads detected; nothing to hoist.")
         return 0
-    cmds = plan_hoist(proposed, dest, backend=backend, gran=gran)
+    try:
+        result = create_or_update(proposed, apply=apply)
+    except WriteError as exc:
+        print(f"FAIL-CLOSED: {exc}\n  No bead was closed.", file=sys.stderr)
+        return 1
     print(f"\nProposed follow-on hoist (single confirm required): {proposed}")
-    for c in cmds:
+    _render_write_phase(result, apply=apply,
+                        verb="hoist the proposed follow-on batch")
+    closes = hoist_close_commands(proposed, dest)
+    print("Then, locally (reversible tombstone):")
+    for c in closes:
         print(f"  {c}")
     if not apply:
-        print("\nDry run. Re-run with --apply to hoist the proposed follow-on batch.")
         return 0
-    for c in cmds:
+    for w in result["written"]:
+        print(f"+ {w['action']}: {w['id']} -> {w['url']}")
+    for c in closes:
         print(f"+ {c}")
         run(["bash", "-c", c])
     print("Follow-on hoist complete (closed with reversible tombstone).")
     return 0
 
 
-def cmd_hoist(issues_csv: str, dest: str, backend: str, apply: bool) -> int:
+def cmd_hoist(issues_csv: str, dest: str, apply: bool) -> int:
+    """Ensure the upstream issue, then remove the bead locally (REQ-BUP-045).
+
+    Two phases now that the write is gh-direct: `create_or_update` (REQ-BUP-057), then
+    the reversible `bd close -r` tombstone. The tombstone is the DESTRUCTIVE stage
+    REQ-BUP-050 guards, so it runs ONLY after every write verified — a WriteError
+    returns before any bead is closed. Local-close semantics are unchanged.
+    """
     ids = [s.strip() for s in issues_csv.split(",") if s.strip()]
     if not ids:
         print("No bead IDs given; nothing to hoist.")
         return 1
     gran = granularity()
     n_issues = hoist_issue_count(ids, gran)
-    cmds = plan_hoist(ids, dest, backend=backend, gran=gran)
+    try:
+        result = create_or_update(ids, apply=apply)
+    except WriteError as exc:
+        # Fail closed: NOT ONE bead is closed on an unverified write.
+        print(f"FAIL-CLOSED: {exc}\n  No bead was closed.", file=sys.stderr)
+        return 1
 
     print(f"Hoist plan ({gran}): {len(ids)} bead(s) -> {n_issues} upstream issue(s) at {dest}")
-    print("Command sequence (dry-run push always runs first):")
-    for c in cmds:
+    _render_write_phase(result, apply=apply, verb="write upstream and close locally")
+    closes = hoist_close_commands(ids, dest)
+    print("Then, locally (reversible tombstone, never bd delete):")
+    for c in closes:
         print(f"  {c}")
     if not apply:
-        print("\nDry run. Re-run with --apply to execute the sequence above.")
         return 0
-    for c in cmds:
+    for w in result["written"]:
+        print(f"+ {w['action']}: {w['id']} -> {w['url']}")
+    for c in closes:
         print(f"+ {c}")
         run(["bash", "-c", c])
     print("Hoist complete (beads closed with reversible tombstone reason).")
@@ -876,15 +1066,28 @@ def owner_claim_warning_lines() -> list[str]:
     ]
 
 
-def cmd_push(issues_csv: str, backend: str, apply: bool) -> int:
-    """THE documented push path (REQ-BUP-051).
+def _render_write_phase(result: dict, *, apply: bool, verb: str) -> None:
+    """Shared preview/report rendering for the three write paths."""
+    print(render_plan(result["plans"]))
+    for bead_id, lab in result["dropped"]:
+        pass  # already rendered per-plan by render_plan; kept for the summary below
+    if result["dropped"]:
+        # GR-BUP-008: surface the drops as a SUMMARY too, so the revisit signal
+        # survives a long preview an operator skims.
+        print(f"\n{len(result['dropped'])} label(s) dropped as non-existent upstream "
+              f"(restrict-and-drop, REQ-BUP-056):")
+        for bead_id, lab in result["dropped"]:
+            print(f"  {bead_id}: {lab}")
+    if not apply:
+        print(f"\nPreview only — nothing was written. Re-run with --apply to {verb}.")
 
-    Scoped (`--issues`, never a bare sync), dry-run first, inline auth, ids
-    space-separated and fail-closed (REQ-BUP-050). Leaves each bead OPEN and
-    mirrored — removing it locally is `hoist`, a different verb.
 
-    Matches the existing `--apply`-only idiom: there is no `--dry-run` flag,
-    because absent `--apply` IS the dry run.
+def cmd_push(issues_csv: str, apply: bool) -> int:
+    """THE documented push path (REQ-BUP-051), now gh-direct (REQ-BUP-057).
+
+    Scoped to explicit ids — never a bare sync. Absent `--apply` IS the dry run, and
+    the preview is rendered LOCALLY: no network round-trip and no credentials needed
+    to read it. Leaves each bead OPEN and mirrored — removing it locally is `hoist`.
     """
     if not upstream_enabled():
         print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to push.")
@@ -893,23 +1096,22 @@ def cmd_push(issues_csv: str, backend: str, apply: bool) -> int:
     if not ids:
         print("No bead IDs given; nothing to push.")
         return 1
-    cmds = plan_push(ids, backend=backend)
+    try:
+        result = create_or_update(ids, apply=apply)
+    except WriteError as exc:
+        print(f"FAIL-CLOSED: {exc}", file=sys.stderr)
+        return 1
 
-    print(f"Push plan: {len(ids)} bead(s) -> {backend} (beads stay open and mirrored)")
-    print("Command sequence (dry-run push always runs first; both stages fail closed):")
-    for c in cmds:
-        print(f"  {c}")
+    print(f"Push plan: {len(ids)} bead(s) -> GitHub (beads stay open and mirrored)")
+    _render_write_phase(result, apply=apply, verb="write")
     # #105 residual: surface the owner-claimed exclusion warning INLINE on stdout,
     # so it survives a `| jq` on the routed path.
     for line in owner_claim_warning_lines():
         print(line)
-    if not apply:
-        print("\nDry run. Re-run with --apply to execute the sequence above.")
-        return 0
-    for c in cmds:
-        print(f"+ {c}")
-        run(["bash", "-c", c])
-    print("Push complete (beads remain open, now mirrored upstream).")
+    if apply:
+        for w in result["written"]:
+            print(f"+ {w['action']}: {w['id']} -> {w['url']}")
+        print("Push complete (beads remain open, now mirrored upstream).")
     return 0
 
 
@@ -976,11 +1178,15 @@ def cmd_closable(as_json: bool) -> int:
     if not upstream_enabled():
         print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to report.")
         return 0
+    # ONE `bd list` for the whole universe; ZERO per-bead `bd show` (REQ-BUP-052).
+    # Filtering to mapped beads here — rather than after building the full list — keeps
+    # the unmapped majority (998 of 1019 on this repo) out of closable_candidates, which
+    # only groups by external ref anyway.
     rows = load_universe_rows()
     beads = [
-        {"id": r["id"], "status": r.get("status", ""), "external": external_for(r["id"])}
+        {"id": r["id"], "status": r.get("status", ""), "external": ext}
         for r in rows
-        if r.get("id")
+        if r.get("id") and (ext := external_from_row(r))
     ]
     report = closable_candidates(beads)
     closable = [r for r in report if r["closable"]]
@@ -1058,13 +1264,11 @@ def main() -> int:
         help="THE documented push path: scoped, dry-run-first, fail-closed (beads stay open)",
     )
     p_push.add_argument("--issues", required=True, help="comma-separated bead IDs")
-    p_push.add_argument("--backend", default=DEFAULT_BACKEND, help="bd push backend (default: github)")
     p_push.add_argument("--apply", action="store_true", help="Execute (default: dry-run/plan only).")
 
     p_hoist = sub.add_parser("hoist", help="ensure upstream issue per granularity, then close locally")
     p_hoist.add_argument("--issues", required=True, help="comma-separated bead IDs")
     p_hoist.add_argument("--dest", required=True, help="plan id or upstream URL recorded in close reason")
-    p_hoist.add_argument("--backend", default=DEFAULT_BACKEND, help="bd push backend (default: github)")
     p_hoist.add_argument("--apply", action="store_true", help="Execute (default: dry-run/plan only).")
 
     p_land = sub.add_parser(
@@ -1073,13 +1277,29 @@ def main() -> int:
     p_land.add_argument("--parent", required=True, help="plan molecule/epic id")
     p_land.add_argument("--intake", required=True, help="epic intake timestamp (RFC3339)")
     p_land.add_argument("--dest", required=True, help="plan id or upstream URL recorded in close reason")
-    p_land.add_argument("--backend", default=DEFAULT_BACKEND, help="bd push backend (default: github)")
     p_land.add_argument("--apply", action="store_true", help="Execute (default: dry-run/plan only).")
 
     p_unh = sub.add_parser("unhoist", help="reopen wrongly-hoisted bead(s) from tombstone")
     p_unh.add_argument("--issues", help="comma-separated bead IDs")
     p_unh.add_argument("--record", help="file of hoisted bead IDs (one per line) for batch round-trip")
     p_unh.add_argument("--apply", action="store_true", help="Execute (default: dry-run/plan only).")
+
+    # REQ-BUP-059 / SC14: `--backend` was REMOVED (REQ-BUP-040, GitHub-only). Detect the
+    # literal flag in argv and explain it, rather than letting argparse emit a bare
+    # "unrecognized arguments" error that tells an existing caller nothing about why.
+    #
+    # NB: the acceptance check greps for the deleted auth table and for an
+    # argparse registration of that flag, NOT for the bare string `--backend` — a
+    # blanket grep would forbid the very code that makes the removal legible.
+    if any(a == "--backend" or a.startswith("--backend=") for a in sys.argv[1:]):
+        parser.exit(2, (
+            "error: --backend was removed. GitHub is now the only supported backend:\n"
+            "  upstream writes are gh-direct (gh creates/edits the issue; bd records the\n"
+            "  mapping in external_ref), so there is no backend to dispatch on.\n"
+            "  The GitLab/Jira entries were unverified config-only stubs — this deleted a\n"
+            "  stub surface, it did not withdraw working support.\n"
+            "  Adding a backend is tracked as #51 (GitLab) / #52 (Jira) / #53 (Linear).\n"
+            "  Re-run the same command without --backend.\n"))
 
     args = parser.parse_args()
     if args.cmd == "enumerate":
@@ -1095,11 +1315,11 @@ def main() -> int:
     if args.cmd == "closable":
         return cmd_closable(args.as_json)
     if args.cmd == "push":
-        return cmd_push(args.issues, args.backend, args.apply)
+        return cmd_push(args.issues, args.apply)
     if args.cmd == "hoist":
-        return cmd_hoist(args.issues, args.dest, args.backend, args.apply)
+        return cmd_hoist(args.issues, args.dest, args.apply)
     if args.cmd == "land":
-        return cmd_land(args.parent, args.intake, args.dest, args.backend, args.apply)
+        return cmd_land(args.parent, args.intake, args.dest, args.apply)
     if args.cmd == "unhoist":
         if not args.issues and not args.record:
             parser.error("unhoist requires --issues or --record")

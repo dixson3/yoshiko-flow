@@ -22,12 +22,14 @@ approved: yes
 | `uv-run` | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 | `uv-with` | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
 | `bup-prescriptive-push` | `uv run skills/yf-beads-upstream/scripts/check_prescriptive_push.py` |  |  |
+| `bup-gh-direct` | `uv run skills/yf-beads-upstream/scripts/check_gh_direct.py` |  |  |
 | `uv-skills` | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 | `uv-pytest` | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 | `uv-yf` | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
 | `uv-yf-cascade` | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 | `uv-yf-complete-gate` | `uv run skills/yf-plan/scripts/test_complete_gate.py` |  |  |
 | `uv-yf-review-verdict` | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
+| `uv-yf-stamp-tracker` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q` |  |  |
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
 | `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
@@ -46,10 +48,12 @@ approved: yes
 |  | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
 |  | `uv run skills/yf-beads-upstream/scripts/check_prescriptive_push.py` |  |  |
+|  | `uv run skills/yf-beads-upstream/scripts/check_gh_direct.py` |  |  |
 |  | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
+|  | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_complete_gate.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
@@ -80,14 +84,14 @@ approved: yes
 | `_shared/test_sync.py` | `uv` |
 | `skills/yf-beads-hygiene/scripts/**` | `uv-run` |
 | `skills/yf-beads-hygiene/scripts/test_beads_hygiene.py` | `uv-run` |
-| `skills/yf-beads-upstream/scripts/**` | `uv-with`, `bup-prescriptive-push` |
+| `skills/yf-beads-upstream/scripts/**` | `uv-with`, `bup-prescriptive-push`, `bup-gh-direct` |
 | `skills/yf-beads-upstream/scripts/test_upstream.py` | `uv-with` |
-| `skills/yf-beads-upstream/SKILL.md` | `bup-prescriptive-push`, `uv-with` |
+| `skills/yf-beads-upstream/SKILL.md` | `bup-prescriptive-push`, `uv-with`, `bup-gh-direct` |
 | `skills/yf-change-validation/scripts/**` | `uv-skills` |
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_complete_gate.py` | `uv-yf-complete-gate` |

@@ -2,7 +2,7 @@
 name: yf-beads-upstream
 description: >
   Configurable, GitHub-first upstream-tracking skill for beads. Pushes open/deferred
-  beads to an issue tracker (GitHub/GitLab/Jira) as a land-the-plane step, and enumerates
+  beads to GitHub Issues as a land-the-plane step, and enumerates
   upstream issues as the authoritative worklist on status/pull.
   TRIGGER when: /yf-beads-upstream invoked; "set up upstream tracking" / "configure upstream"
   (init); mid-session intent to send beads to the issue tracker — "push beads upstream" /
@@ -36,12 +36,13 @@ preflight:
 A **utility skill** (no formula / `bd mol pour` / coordinator) that binds a beads workspace
 to an upstream issue tracker. It owns three operations: `init` (configure a backend), the
 **push step** (land-the-plane: push open/deferred beads upstream), and **status/pull**
-(treat upstream issues as the worklist). GitHub is fully implemented; GitLab/Jira ship as
-config-only stubs sharing the same verb shape.
+(treat upstream issues as the worklist). **GitHub is the only supported backend** — the GitLab
+and Jira config-only stubs were removed in plan-040 (see Backends).
 
-Built on bd 1.0.5's first-class `bd github` / `bd gitlab` / `bd jira` upstream sync. For the
-`bd` CLI gotchas these steps rely on (defensive `--json` parsing, issue-type semantics) see
-`yf-beads-extra`.
+Writes are **gh-direct**: `bd` reads bead content, `gh` writes the issue, and
+`bd update --external-ref` records the mapping (plan-040, REQ-BUP-057). `bd`'s own
+`bd <backend> sync`/`push` is no longer used for writes. For the `bd` CLI gotchas these steps rely
+on (defensive `--json` parsing, issue-type semantics) see `yf-beads-extra`.
 
 ## SKILL_DIR
 
@@ -77,7 +78,7 @@ Two distinct trigger classes, deliberately routed to two different surfaces:
 
 **Not `bd dolt push` (#61).** "push/sync upstream" means **this `gh`-based issue mirror**, which
 is orthogonal to `bd dolt push` (Dolt DB replication). On push-upstream intent, reach for this
-skill's scoped `bd <backend> push` / `hoist` — never `bd dolt push`. The full three-mechanism
+skill's scoped `push` / `hoist` verbs — never `bd dolt push`. The full three-mechanism
 disambiguation (`git push` vs `bd dolt push` vs this `gh` mirror) is in the *Upstream vs Dolt
 remote vs git* table below.
 
@@ -90,7 +91,7 @@ intent this skill's `gh`-based issue mirror is the target — **not** `bd dolt p
 |:--|:--|:--|:--|
 | `git push` | repo content (code, docs, the plan folder) | the **git** remote (`origin`) | normal; how the repo itself syncs |
 | `bd dolt push` | the **Dolt DB** itself (versioned bead replication) | a **Dolt** remote (`dolt_remotes`) | **none** — a local-only repo holds no Dolt remote; a stray one wedges bd 1.1.0's remote-migrate gate (clear it with `yf doctor --repair --local-only --remove-remote`) |
-| **this skill** (`bd <backend> push` / `hoist`) | selected beads → tracker **issues** | the **`gh`/`glab`/Jira** issue tracker | **the** upstream path — beads mirror to GitHub issues, independent of Dolt |
+| **this skill** (`upstream.py push` / `hoist`) | selected beads → tracker **issues** | the **GitHub** issue tracker, written by `gh` | **the** upstream path — beads mirror to GitHub issues, independent of Dolt |
 
 The three are independent: `bd dolt push` (DB replication) and this skill's issue mirror share
 the word "push" but touch different systems. yf beads is **always local-only** — interchange is
@@ -99,12 +100,23 @@ Dolt remote. So "push these upstream" ⇒ this skill, never `bd dolt push`.
 
 ## Backends
 
-| Backend  | Config namespace                         | Status      |
-|:---------|:-----------------------------------------|:------------|
-| `github` | `github.owner` / `github.repo` / token   | implemented, dry-run-tested |
-| `gitlab` | `gitlab.*`                               | config-only stub (unverified) |
-| `jira`   | `jira.*`                                 | config-only stub (unverified; field model differs) |
-| `none`   | `custom.upstream.enabled` ≠ `true`       | first-class **default**: upstream tracking disabled |
+| Backend  | Config namespace                   | Status      |
+|:---------|:-----------------------------------|:------------|
+| `github` | `github.owner` / `github.repo`     | **the only supported backend** — writes go through `gh` |
+| `none`   | `custom.upstream.enabled` ≠ `true` | first-class **default**: upstream tracking disabled |
+
+**GitLab and Jira were removed (plan-040, REQ-BUP-040).** They were never working backends —
+this table previously marked both *"config-only stub (unverified)"*, so the **stated** capability
+was already zero. What existed was a `--backend` flag implying a choice that led nowhere, plus a
+`BACKEND_AUTH` table with no `jira` row (so `--backend jira` silently emitted a `GITHUB_TOKEN`,
+#132). Removing the surface **deletes a stub; it does not withdraw support**, and it avoids
+keeping two write mechanisms with different conventions side by side — the condition that
+produced #129.
+
+`--backend` is gone. An invocation that still passes it gets a **named error** pointing at
+#51/#52/#53, not a bare argparse failure (REQ-BUP-059). Adding a real backend is now a clean
+feature request against a single-mechanism write path: **#51** (GitLab), **#52** (Jira),
+**#53** (Linear) stay open, reframed.
 
 **Default-deny.** Upstream is enabled only when `custom.upstream.enabled` is the literal string
 `true`. Anything else — key **absent/empty** (unconfigured), `false`, or `none` — resolves to
@@ -113,7 +125,9 @@ repo initialized before this default existed still fails closed. The explicit `n
 (`custom.upstream.backend none`) is **disambiguation only** — it records a deliberate opt-out so
 the preflight offer (init §0) stays silent; it is never required for the disabled short-circuit.
 
-Auth is always passed **inline, never persisted**: `TOKEN=$(...) bd <backend> sync …`.
+**Auth: the skill handles no token at all.** Writes are performed by `gh`, which owns its own
+credential store, so there is nothing to pass inline and nothing that could be persisted. The
+pre-write check is `gh auth status`. Never write a token to config (REQ-BUP-031/GR-BUP-002).
 
 ## `/yf-beads-upstream init`
 
@@ -125,8 +139,9 @@ trigger contract ships as this skill's companion rule (installed by `yf skills i
 This is the **procedure** behind the gated trigger declared in `protocols/UPSTREAM_TRACKING.md`.
 It fires at most once, and only when **both** gates hold:
 
-1. **Origin is github/gitlab.** `git config --get remote.origin.url` matches `github.com` or a
-   `gitlab.*` host. (A non-github/gitlab origin — or no origin — never offers.)
+1. **Origin is github.** `git config --get remote.origin.url` matches `github.com`. (Any other
+   origin — including `gitlab.*` — or no origin never offers, since GitHub is the only supported
+   backend.)
 2. **Upstream is unconfigured.** The **same key/precedence as the §0 push short-circuit**:
    `bd config get custom.upstream.enabled` is neither `true` (already enabled) nor a value the
    operator already chose. "Unconfigured" means the key is **absent/empty** — no
@@ -164,19 +179,20 @@ never re-offered.
 REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null)
 ```
 
-- `github.com` → propose `github`; `gitlab.*` → propose `gitlab`; otherwise propose `none`.
+- `github.com` → propose `github`; anything else (including `gitlab.*`) → propose `none`, since
+  GitHub is the only supported backend.
 - Parse `owner`/`repo` from the URL (`…/<owner>/<repo>(.git)`).
 
 ### 2 — Confirm with the operator
 
-Use `AskUserQuestion`: backend = `github` | `gitlab` | `jira` | `none` (detected default first).
+Use `AskUserQuestion`: backend = `github` | `none` (detected default first).
 `none` is a first-class choice — upstream tracking fully disabled. Declining without writing any
 key also resolves to disabled (default-deny), but prefer writing the explicit `none` marker (§3)
 so the gated offer (§0) stays silent thereafter.
 
 ### 3 — Write config
 
-**GitHub** (analogous keys for `gitlab.*` / `jira.*`):
+**GitHub** (the only supported backend):
 
 ```bash
 bd config set github.owner "<owner>"
@@ -185,7 +201,8 @@ bd config set custom.upstream.enabled true
 bd config set custom.upstream.backend github
 ```
 
-Never write a token to config. Auth is inline at call time: `GITHUB_TOKEN=$(gh auth token) bd github …`.
+Never write a token to config — and note there is no token to write: writes go through `gh`,
+which owns its own credential store (REQ-BUP-031).
 
 **`none`** — write an explicit *opted-out* marker. Default-deny already makes an unconfigured repo
 disabled, so this marker is **not** what disables sync — it records a *deliberate* opt-out so the
@@ -253,11 +270,11 @@ If the value is anything other than the literal `true` (unconfigured, `false`, o
 
 ### 1 — Auth pre-flight
 
-Verify the token resolves **before** any push; fail fast on empty/expired:
+Verify authentication resolves **before** any write; fail fast if not. `gh` performs the writes
+and owns the credential, so this checks `gh`'s own auth rather than extracting a token:
 
 ```bash
-GITHUB_TOKEN=$(gh auth token 2>/dev/null)
-[ -z "$GITHUB_TOKEN" ] && { echo "ERROR: no GitHub token (run: gh auth login)"; exit 1; }
+gh auth status >/dev/null 2>&1 || { echo "ERROR: gh is not authenticated (run: gh auth login)"; exit 1; }
 ```
 
 ### 2 — Enumerate candidates
@@ -286,25 +303,57 @@ count is not the signal, the warning is. From `enumerate` the warning goes to **
 The `push` verb (step 3) therefore repeats the same warning **inline on stdout**, so the signal
 survives a `| jq` on the routed path (REQ-BUP-051, #105).
 
-### 3 — Dry-run, then scoped push
+### 3 — Preview, then scoped push
 
-**Run the `push` verb — never hand-run the underlying `bd` command.** This is the routed path the
+**Run the `push` verb — never hand-run the underlying commands.** This is the routed path the
 companion rule's Safety invariant requires (REQ-BUP-051):
 
 ```bash
 uv run ${SKILL_DIR}/scripts/upstream.py push --issues <id1>,<id2>,… [--apply]
 ```
 
-Without `--apply` this prints the exact sequence and executes nothing — **absent `--apply` *is* the
-dry run**, matching `hoist`/`land`/`unhoist`. With `--apply` it runs the dry-run push first, then
-the real push. Beads stay **open and mirrored**; removing them locally is `hoist`, a different verb.
+Without `--apply` this renders the planned actions and executes nothing — **absent `--apply` *is*
+the dry run**, matching `hoist`/`land`/`unhoist`. Beads stay **open and mirrored**; removing them
+locally is `hoist`, a different verb.
 
-What the verb emits and why it is compliant by construction: the push is scoped (`--issues`, never
-a bare sync), auth is inline-only, bead ids are **space-separated positional arguments**, and both
-stages are **fail-closed** — a push that does not report the expected number of beads exits
-non-zero and halts the sequence (REQ-BUP-050). That last property is not decoration: a
-comma-separated id list matches **zero** beads while `bd` still exits 0, so "it exited 0" is not
-evidence that anything was pushed (#129).
+**Writes are gh-direct (REQ-BUP-057).** `bd` reads the bead, `gh` creates or edits the issue, and
+`bd update --external-ref` records the mapping. Per bead:
+
+| `external_ref` | Action |
+|:--|:--|
+| present | `gh issue edit <ref>` |
+| absent  | `gh issue create`, then record the returned URL on the bead |
+
+**The preview is rendered locally.** It needs no credentials and makes no network round-trip —
+the previous mechanism asked `bd` to ask GitHub what it *would* do. A preview looks like:
+
+```
+  [create] yf-abcd  -> (new issue)
+             title: <bead title>
+             labels: type::bug, priority::medium
+             dropping label 'type::chore' (does not exist upstream)
+```
+
+Why the verb is compliant by construction:
+
+- **scoped** — an explicit `--issues` set, never a bare sync; no `bd <backend>` write at all;
+- **no token handled** — `gh` owns the credential (REQ-BUP-031);
+- **idempotent** — `external_ref` alone decides create-vs-update, so a re-push updates in place
+  rather than duplicating (REQ-BUP-014);
+- **fail-closed** — verification is **structural**: a returned issue URL on create, a clean exit
+  on edit. A create returning no parseable URL is treated as UNVERIFIED and **halts** before any
+  destructive follow-on stage (REQ-BUP-050's contract, new evidence).
+
+That last property is not decoration. The old check scraped `bd`'s `Pushed N issues` line — and
+`bd github push --dry-run` prints that line too, so it was emitted when **nothing was pushed**
+(measured, plan-040). A returned issue URL cannot be produced by a no-op.
+
+**Labels are restrict-and-drop (REQ-BUP-056).** Only labels that already exist upstream are
+emitted; unknown ones are **skipped and reported**, naming the bead and the label. The skill never
+creates a label. This is a *deliberate divergence* from the old `bd` path, which created labels on
+demand — chosen because the uncovered population is 3 beads in 991, and matching it would cost
+label-write scope the skill otherwise never needs. **Watch the drop lines**: they are the revisit
+trigger if that population grows (GR-BUP-008).
 
 For a whole subtree, pass the subtree's bead ids to the same verb (enumerate them with
 `upstream.py enumerate --json` filtered to the parent). There is deliberately no hand-run
@@ -351,23 +400,30 @@ Never widen the scope to "just sync everything" to clear a partial failure.
 
 ### 5 — Idempotency checkpoint (gates this step)
 
-A re-push of an already-mapped bead must **not** create a duplicate upstream issue. This rests on
-bd recording the `External:` mapping and suppressing re-push for mapped beads. **Verify on the live
-binary against a throwaway repo before relying on it** (see `spec/` / the build-time check): dry-run
-+ real scoped push of a fresh bead, then re-push the same bead and confirm no second issue. If
-`bd github push` does not record the mapping the way bare `sync` does, redesign the recovery story
-before trusting re-push.
+A re-push of an already-mapped bead must **not** create a duplicate upstream issue. Under
+gh-direct this rests on **`external_ref` and nothing else**: a bead with a ref is edited, a bead
+without one is created and then has its ref recorded (REQ-BUP-057).
 
-> **Verified (bd 1.0.5, throwaway repo, 2026-06-01):** `bd github push <id>` records
-> `External: …/issues/N` on the bead; a second `bd github push <id>` left the upstream issue count
-> at 1 (no duplicate — it updates the mapped issue). The dedicated `push` subcommand records the
-> mapping identically to bare `sync`, so scoped re-push is safe for partial-failure recovery.
+**There is no hidden sync table to desynchronize** — that is measured, not assumed. Bead
+`yf-uz5k` was mapped to #92 **by hand**, `bd` had never pushed it, and `bd github push --dry-run`
+still reported *"Would **update**"*. The create-vs-update decision was always driven by that one
+field, so moving the writer from `bd` to `gh` changes who writes the issue and nothing about what
+prevents duplicates.
+
+The one state a retry cannot fix: an issue created whose `external_ref` write-back then failed.
+Re-running would create a second issue, so the skill **fails loudly** in that case and prints the
+exact `bd update … --external-ref <url>` needed to repair it by hand. Do not blind-retry past it.
+
+> **Verified (bd 1.0.5, throwaway repo, 2026-06-01):** re-push of a mapped bead left the upstream
+> issue count at 1 (no duplicate). Retained as provenance for the *contract*; the mechanism it
+> describes has since been replaced (plan-040), and the contract is now pinned by fixture tests
+> rather than by that binary's behavior.
 
 ### 6 — Updating a mapped bead (only the `description` field syncs)
 
 **The accepted pattern for getting new content onto an already-mapped bead's upstream issue: put
-it in the bead's `description`, then re-push.** bd's GitHub sync maps **`description` → issue body
-only**. The `notes` (and `design`) fields are **not** synced — editing them via `bd update --notes`
+it in the bead's `description`, then re-push.** The field mapping (REQ-BUP-054) sends
+**`description` → issue body**, verbatim, and nothing else. The `notes` (and `design`) fields are **not** synced — editing them via `bd update --notes`
 bumps the issue's `updatedAt` on the next push but the text never reaches the body. So:
 
 1. **Fold the content into `description`** (the synced field). Don't rely on `--notes` for anything
@@ -415,9 +471,11 @@ uv run ${SKILL_DIR}/scripts/upstream.py land --parent <plan-molecule-id> \
   may catch a bead still being worked, so it is **never** auto-hoisted; it stays in the gated
   proposal. Non-follow-on reconcile is always gated.
 
-The hoist itself reuses the Push step machinery (dry-run push first, scoped `--issues`, inline
-auth, reversible close). Narrow vs broad detection is `followons`; the gating decision is pure
-(`plan_land_hoist`, fixture-tested). To reverse a wrong hoist, see un-hoist below.
+The hoist itself reuses the Push step machinery (gh-direct write, previewed first, scoped to an
+explicit bead set, then the reversible local close). The destructive close stage runs **only after
+every write verified** — an unverified write halts with *no bead closed*. Narrow vs broad detection
+is `followons`; the gating decision is pure (`plan_land_hoist`, fixture-tested). To reverse a wrong
+hoist, see un-hoist below.
 
 ### 8 — Standalone hoist & un-hoist
 
@@ -467,12 +525,21 @@ confirm contract as a push: the verb emits the `gh issue close <N>` commands and
 then run the ones you agree with.
 
 > **Known limitation — read this before trusting a clean run.** The per-bead signal is deliberately
-> zero-coupled to `yf-plan`'s configurable plans-root, and the price is that it is **forward-looking
-> only**. `yf-plan` files its coarse plan trackers with a direct `gh issue create`, so **no bead ever
-> maps to them** and `closable` cannot see them. It would not have caught any of the four stale
-> trackers (#103, #95, #96, #98) that motivated this verb. **A clean `closable` run therefore does
-> NOT mean "nothing needs closing"** — it means nothing *with a bead mapping* needs closing. Coarse
-> plan trackers still need a human sweep. This is why #117 stays open.
+> zero-coupled to `yf-plan`'s configurable plans-root. Historically the price was that coarse plan
+> trackers were **structurally invisible**: `yf-plan` filed them with a direct `gh issue create`, so
+> **no bead mapped to them** and this verb could not see them. It would not have caught the stale
+> trackers (#103, #95, #96, #98) that motivated it.
+>
+> **Narrowed, not removed (plan-040).** `yf-plan` now stamps the tracker URL onto the plan epic as
+> its `external_ref` (REQ-PLAN-073), so a stamped tracker is an **ordinary mapped bead** and shows
+> up here with no new signal and no plans-root coupling. But **a clean `closable` run still does NOT
+> mean "nothing needs closing"** — it means nothing *with a bead mapping* needs closing, and any
+> tracker filed before the stamp (or in a repo that has not backfilled) is still invisible. Coarse
+> trackers outside the mapped set still need a human sweep.
+>
+> **Also: this verb does not check upstream state.** It proposes closing issues on the bead signal
+> alone, so an issue already closed by hand is still proposed. Read the proposals; do not run them
+> blind.
 
 ## Status / pull
 
@@ -499,69 +566,88 @@ Order the execution sequence by the issues' labels (severity/priority, `bug` bef
 `enhancement`, blocked-by relationships). Local beads are a convenience view over this list.
 `bd github status` shows sync state (config + last-sync) but is not the worklist.
 
-(GitLab/Jira: substitute `glab issue list` / Jira JQL — see Backend generalization.)
+(GitHub only — `--backend` was removed; see Backends.)
 
 ## Backend generalization
 
-GitHub is the implemented, dry-run-and-live-tested path (see Push step step 5). GitLab and
-Jira are **config-only stubs** — the config keys and verb shape are wired, but no push has
-been exercised against a live GitLab/Jira instance. Do not present them as tested.
+**There is no backend dispatch any more (plan-040, REQ-BUP-040).** GitHub is the only supported
+backend; writes go through `gh`. The `--backend` flag and the per-backend auth table are deleted,
+so there is nothing to generalize over and nothing to translate between CLIs.
 
-All three backends expose `push` / `pull` / `status` / `sync` subcommands. The table below is
-**reference, not procedure** — it documents what `upstream.py push --backend <backend>` emits on
-your behalf, so you can read and verify the emitted sequence. Run the verb; do not hand-run these
-(REQ-BUP-053). Scoped-push translation (verified against `bd <backend> sync --help` on 1.0.5):
+**This deleted a stub surface — it did not withdraw support.** GitLab and Jira were always
+documented here as *config-only stubs* with no push ever exercised against a live instance, so the
+stated capability was already zero. Two concrete problems went away with the surface:
 
-| Step          | GitHub                              | GitLab                              | Jira (unverified)                          |
-|:--------------|:------------------------------------|:------------------------------------|:-------------------------------------------|
-| Config        | `github.owner` / `github.repo`      | `gitlab.*` (+ `--project` group id) | `jira.*`                                    |
-| Scoped push   | `bd github push <ids>`              | `bd gitlab push <ids>`              | `bd jira push <ids>`                        |
-| ≡ sync form   | `sync --push-only --issues <ids>`   | `sync --push-only --issues <ids>`   | `sync --push --issues <ids>` ⚠             |
-| Subtree push  | `sync --push-only --parent <id>`    | `sync --push-only --parent <id>`    | `sync --push --parent <id>` ⚠              |
-| Dry-run       | `--dry-run`                         | `--dry-run`                         | `--dry-run`                                 |
+- **#132** — the auth table had no `jira` row, so `--backend jira` silently emitted a
+  `GITHUB_TOKEN`, which is wrong for Jira. **Mooted, not fixed**: the table no longer exists.
+- **#129's shape** — two write mechanisms with different id-separator conventions living side by
+  side is what produced it. One mechanism cannot disagree with itself.
 
-⚠ **Jira divergence:** `bd jira sync` uses `--push` / `--pull` (not `--push-only` /
-`--pull-only`) and adds `--create-only` for new-issues-only. Jira's field model (projects,
-issue types, required fields) differs from GitHub/GitLab labels — the stub is unverified and
-will likely need field mapping before a real push. The verb emits the dedicated
-`bd jira push <ids>` form, which mirrors the others' positional-IDs shape, rather than the
-`sync --push` form.
+**Adding a backend is now a clean feature request** against a single-mechanism write path, rather
+than "finish wiring a half-present bd backend". Those issues stay **open**: **#51** (GitLab),
+**#52** (Jira), **#53** (Linear).
 
-> **Jira auth is not wired.** `BACKEND_AUTH` maps only `github` and `gitlab`; a
-> `--backend jira` push falls back to the GitHub token (`GITHUB_TOKEN=$(gh auth token)`),
-> which is wrong for Jira. Read the emitted sequence before running anything against Jira.
-> This is part of the config-only-stub status, not a regression — tracked separately.
+An invocation still passing `--backend` gets a **named error** explaining the removal and pointing
+at those issues — never a bare argparse failure (REQ-BUP-059):
 
-The `--issues` / `--parent` / `--dry-run` flags are confirmed present on backend-generic
-`bd <backend> sync` for all three (plan-003 Investigation Finding; re-verified here via
-`bd <backend> sync --help`). The never-bare-`sync` invariant applies to every backend.
+```
+error: --backend was removed. GitHub is now the only supported backend:
+  upstream writes are gh-direct (gh creates/edits the issue; bd records the
+  mapping in external_ref), so there is no backend to dispatch on.
+  …
+  Adding a backend is tracked as #51 (GitLab) / #52 (Jira) / #53 (Linear).
+```
+
+**Historical note, retained deliberately.** The old translation table recorded a *measured*
+divergence — `bd jira sync` used `--push`/`--pull` and `--create-only` where GitHub/GitLab used
+`--push-only`. That measurement is preserved in `spec/backends.md` (REQ-BE-002, marked superseded)
+rather than deleted, because whoever implements #51/#52/#53 will need to know that backend CLIs do
+not share a flag vocabulary.
 
 ## Safety invariants
 
-- **Never hand-run a `bd <backend>` push — run `upstream.py push`.** The verb is the compliant
-  path: scoped, dry-run-first, inline-auth, space-separated ids, fail-closed (REQ-BUP-051). Every
-  *procedure* in this skill routes through it. The raw commands still appear throughout this
-  document as **explanation** — in the translation table, the dated verification blockquotes, and
-  in these invariants, which quote the command precisely **in order to forbid it**. That is
-  deliberate: an acceptance check asserting zero occurrences of `bd github push` anywhere would
-  fail on this very bullet, so the check is scoped to fenced `bash` procedure blocks in the Push
-  step and Backend generalization sections (REQ-BUP-053), never a global grep.
-- **A `bd` push that exits 0 is not proof it pushed anything.** It exits 0 having matched zero
-  beads if the ids do not resolve. Verify the reported count before any destructive follow-on
-  (REQ-BUP-050 / GR-BUP-006) — this is the same false-negative shape as the beads-init
-  `bd status` invariant.
-- **Never run a bare `bd <backend> sync`.** A bare sync re-imports every upstream issue as a
-  duplicate bead and pushes the entire local DB (closed epics, gates, dupes) upstream. Always
-  `--push-only` + scoped `--issues <ids>` (or `--parent <id>`), `--dry-run` first.
-- **Auth is inline-only.** `TOKEN=$(...) bd <backend> sync …` — never write a token to config.
+- **Never hand-run the underlying write — run `upstream.py push`.** The verb is the compliant
+  path: scoped, previewed first, no token handled, fail-closed (REQ-BUP-051). Every *procedure* in
+  this skill routes through it. A raw `gh issue create` typed by hand skips enumeration, the
+  create-vs-update decision, the label policy, and the fail-closed guard — and above all **records
+  no `external_ref`**, producing exactly the invisible unmapped issue #117/#131 exist to eliminate.
+  Raw `bd <backend>` commands still appear in this document as **explanation** — in the dated
+  verification blockquotes and in these invariants, which quote the command precisely **in order to
+  forbid it**. That is deliberate: an acceptance check asserting zero occurrences of
+  `bd github push` anywhere would fail on this very bullet, so the check is scoped to fenced `bash`
+  procedure blocks (REQ-BUP-053), never a global grep.
+- **The skill issues no `bd <backend>` write at all** — not a bare `sync`, not a scoped `push`.
+  `bd` is read-only on the write path; `gh` performs every upstream mutation and
+  `bd update --external-ref` records it (REQ-BUP-030/057).
+
+  This subsumes, and does not repeal, the original rule: **never run a bare `bd <backend> sync`.**
+
+  *The rule outlived its original reason, deliberately.* It was written against a **destructive**
+  mechanism: a bare `bd <backend> sync` re-imports every upstream issue as a duplicate bead and
+  pushes the entire local DB (closed epics, gates, dupes) upstream. A raw `gh issue create` has no
+  such blast radius — worst case is one unmapped duplicate. The prohibition is retained on the
+  **routing** ground above, not carried over unexamined.
+- **A write that exited 0 is not proof it wrote anything.** Verification is **structural** — a
+  returned issue URL on create, a clean exit on edit — never a scraped success line. The old check
+  parsed `bd`'s `Pushed N issues`, which `--dry-run` also prints: the success string was emitted
+  when nothing was pushed (measured, plan-040). An unverified write **halts** before any
+  destructive follow-on (REQ-BUP-050 / GR-BUP-006) — the same false-negative shape as the
+  beads-init `bd status` invariant.
+- **Auth is `gh`'s, not the skill's.** The skill handles **no token at all**; never write one to
+  config (REQ-BUP-031). The pre-write check is `gh auth status`.
+- **Labels are restrict-and-drop, and drops are reported.** Only existing labels are emitted;
+  unknown ones are skipped and **named on the preview**. The skill never creates a label. Those
+  report lines are the revisit trigger if the uncovered set grows (GR-BUP-008) — not anyone's
+  memory.
 - **Disabled (`none`) is honored everywhere.** Push and status no-op cleanly; the close-time
   rule trigger is a silent no-op.
 - **Only `description` syncs upstream.** Content that must reach the issue body goes in the bead's
   `description`, not `notes`/`design`; `bd update --description` replaces (never appends), and
   `bd show --json` is a list — see Push step §6.
 - **Hoist removes reversibly, never destructively.** Hoist closes a bead with `bd close -r`
-  (a tombstone recording the upstream destination), **never** `bd delete`; the dry-run push still
-  runs first and the push stays scoped to `--issues`. Un-hoist reopens it from that tombstone.
+  (a tombstone recording the upstream destination), **never** `bd delete`. That close stage is
+  reachable **only after every write verified** — an unverified write halts with *no bead closed*.
+  Un-hoist reopens it from that tombstone.
   The unattended no-prompt hoist is opt-in (`custom.upstream.auto_hoist_followons`, default-deny)
   and narrow-signal-only — an in-progress bead is never auto-hoisted.
 
