@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # SC6 — plan-039 self-test residual signals
 
 Enumerated at execution time (2026-08-15), after all Epic 3 fixes landed. Re-derived from

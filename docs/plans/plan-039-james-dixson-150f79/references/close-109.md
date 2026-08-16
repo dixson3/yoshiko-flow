@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 Closing this after re-testing it against the full plan corpus in plan-039. The short
 version: **the mechanism you described is real, but the path that would display it is
 unreachable, so the symptom does not occur.** Closing on that distinction rather than

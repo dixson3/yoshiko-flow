@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Plan: Harden the ansible tree and re-assert A–D priority
 
 **ID:** plan-013-james-dixson-1692d0

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 plan-039 shipped this issue's **cheap precursor** and is leaving the issue open, re-scoped
 to the DAG-walk engine only. Recording what shipped, what did not, and the evidence for the
 split — this is a narrowing, not a closure.

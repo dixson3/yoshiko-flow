@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Plan: Restore otel_agent telemetry on CT 107
 
 **ID:** plan-014-james-dixson-763edc

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Issue 2.5 — replay results
 
 Falsifiability check for the amended `red-team.md` (plan-039 R1). Four fixtures, each
