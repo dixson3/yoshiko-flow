@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-041-james-dixson-a9d837
 author: james-dixson
 created: '2026-08-16'
-status: approved
+status: reconciling
 deliverable_class: ci-release
 fingerprint: c7c43ef490e5adfb1147ac9174f03d1fe64b312845e2de6700c15ce0f5bd94c3
+epic: yf-mol-1ww
 ---
 # Plan: Fix the embed addition blind spot and version-stamp staleness in `yf/build.rs` (#137)
 
 **ID:** plan-041-james-dixson-a9d837
 **Author:** james-dixson
 **Created:** 2026-08-16
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** ci-release
+**Epic:** yf-mol-1ww
 **Fingerprint:** c7c43ef490e5adfb1147ac9174f03d1fe64b312845e2de6700c15ce0f5bd94c3
 
 ## Objective

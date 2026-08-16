@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-16
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-1ww poured
 - approved: operator approved
 - review: pass-3 red-team APPROVE — 4 low concerns (workstream count, two
   over-reported resolution rows, unmeasured yf/profiles claim, invalid --features
