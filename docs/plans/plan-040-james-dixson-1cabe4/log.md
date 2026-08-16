@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-16
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-win poured
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE (pass 3) + audit pass
 - review: red-team pass 3 (independent) — APPROVE

@@ -147,6 +147,16 @@ over each active/non-active case incl. the open-ancestor walk (REQ-HYG-012/013),
 the gated `--apply` delegating via an injected `runner`/`script` so the hoist shell-out to
 `yf-beads-upstream` is asserted without a live push (REQ-HYG-015).
 
+**Known limit of the mocked runner (plan-040 Issue 3.3).** Those tests assert the **argv**, so
+they pass for any `upstream.py hoist` that still *accepts* `--issues/--dest/--apply` — including
+one whose **semantics** diverged. plan-040 swapped the upstream write from `bd <backend> push` to
+gh-direct without changing the argv, so the suite would have stayed green either way. The
+delegation was therefore re-verified **end to end against the real `hoist`** at that time
+(preview form, no `--apply`): the argv is accepted, the write is planned as a create, labels are
+derived per REQ-BUP-054, restrict-and-drop reports its drops, and the local `bd close -r`
+tombstone stage is unchanged. Re-do that check — not just the mocked one — whenever the upstream
+write mechanism changes again.
+
 ## 6. References
 
 - `skills/yf-beads-hygiene/SKILL.md`; `skills/yf-beads-hygiene/scripts/beads_hygiene.py`.

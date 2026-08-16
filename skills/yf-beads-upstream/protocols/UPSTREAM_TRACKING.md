@@ -35,11 +35,18 @@ un-persisted decline would re-fire). Procedure: `yf-beads-upstream` SKILL.md ini
 
 ## Safety invariant
 
-**Route every upstream push through `/yf-beads-upstream` — do not hand-run `bd <backend>` push
-commands.** The skill performs the scoped, dry-run-first, inline-auth push correctly; typing the
-`bd` commands by hand bypasses that routing and is **not** the compliant path (a raw
-`bd <backend> push --dry-run` looks safe but skips the skill's enumeration, mapping, and
-follow-on handling).
+**Route every upstream write through `/yf-beads-upstream` — do not hand-run the underlying
+commands.** Writes are **gh-direct**: `bd` reads bead content, `gh` creates or edits the issue,
+and `bd update --external-ref` records the mapping. The skill performs that sequence correctly;
+typing it by hand is **not** the compliant path — a raw `gh issue create` looks harmless but
+skips enumeration, the create-vs-update decision, the label policy, and follow-on handling, and
+**records no `external_ref`**, leaving an issue nothing can ever map back to a bead.
+
+**The rule outlived its original reason, deliberately.** It was written when the mechanism was
+`bd <backend> sync`, which is *destructive* — a bare sync re-imports every upstream issue as a
+duplicate bead. `gh issue create` is not destructive; its worst case is one unmapped duplicate.
+The prohibition is retained on the weaker-but-still-real ground above, not carried over
+unexamined.
 
 **The concrete verb is `upstream.py push`** — `push --issues <csv> [--apply]`, where absent
 `--apply` *is* the dry run. The skill's Push step routes through it, so following `SKILL.md` end
@@ -49,9 +56,11 @@ to end is compliant by construction; there is no longer a documented step that a
 The constraints below are what the skill's push **guarantees** — they describe why the routing
 exists, not a recipe to reproduce by hand:
 
-- **never a bare `bd <backend> sync`** — a bare sync re-imports every upstream issue as a
-  duplicate bead and pushes the whole local DB; the skill only ever pushes **scoped**
-  (`--issues <ids>` / `--parent <id>`), **`--push-only`** (Jira: `--push`), **`--dry-run` first**;
+- **no `bd <backend>` write command is issued at all** — not a bare `sync`, not a scoped `push`.
+  `bd` is read-only on the write path; `gh` performs every upstream mutation and `bd update
+  --external-ref` records it. The skill's writes are always **scoped** to an explicit bead set and
+  always **previewed first** (absent `--apply` renders the planned create/update per issue,
+  locally — no network round-trip);
 - **auth is inline-only** (`TOKEN=$(...) bd <backend> …`), never written to config;
 - **bead ids are space-separated and the push is verified** — ids are positional arguments, and a
   comma-joined list matches **zero** beads while `bd` still exits **0**. A `bd` push that exited 0

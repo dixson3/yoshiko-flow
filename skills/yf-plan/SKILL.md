@@ -722,7 +722,29 @@ bd update ${EPIC} --metadata "$(jq -nc --arg d "${plan_dir}" '{plan_dir:$d}')" -
 #     `- DATE intake: epic <id> poured` phase-log line (matches neither the
 #     review: nor scoping: audit regexes). Idempotent.
 uv run ${SKILL_DIR}/scripts/plan_manager.py record-epic "${plan_dir}" "${EPIC}"
+
+# (c) Stamp the coarse tracker URL onto the epic as `external_ref` (REQ-PLAN-073, #131).
+#     This is the FIRST MOMENT the epic id exists, which is why the stamp lives here and
+#     not at §4.5 — see below. Fail-soft: no tracker yet is a normal state, never a pour
+#     failure.
+uv run ${SKILL_DIR}/scripts/plan_manager.py stamp-tracker "${plan_dir}" --json
 ```
+
+**Why the stamp is here and not at §4.5 (REQ-PLAN-073).** #131 as filed asks for the stamp
+"in Phase 4.5, after creating the tracking issue". That is **impossible**: §4.5 runs at INTAKE,
+§4.6 states *"No pour happened at intake"*, and §5.2 owns the pour — §4.5's own text says the
+issue links the plan folder and *"(once poured)"* its epic. There is no epic id at §4.5 to stamp.
+
+Without the stamp, a coarse tracker is **structurally invisible** to `upstream.py closable`,
+which groups beads by `external_ref`: `yf-plan` files the tracker with a bare `gh issue create`
+and records the URL on no bead. Five trackers have gone stale and been closed by hand (#103,
+#95, #96, #98, #134). The stamp makes the tracker an **ordinary mapped bead** — no new signal, no
+`plan.md`-status reader, and no `plans-root` coupling in either direction.
+
+`stamp-tracker` is **idempotent and fail-soft**: it re-runs harmlessly, refuses to overwrite a
+different existing ref, and returns a skip verdict (exit 0) when there is no epic, no tracker, or
+no `bd`. It is **forward-looking only** — pre-existing unstamped trackers stay invisible until
+backfilled.
 
 **Create beads from plan.md.** Never block a child epic on the start gate: `${START_GATE}` is a
 task, and bd rejects a task blocking an epic (`epics can only block other epics, not tasks` —
@@ -858,6 +880,14 @@ If the verdict is `dirty`, report the `dirty_files` list and pause for the opera
 *crashed-worktree* mitigation in plan-009 §Risks) — do not auto-resolve. A non-viable verdict
 means this resume runs in-place (worktree mode off for the session). On re-attach the `base`
 field is `null` — the base was pinned when the branch was first created.
+
+**Tracker stamp (repair-on-resume).** Run the same idempotent stamp on the resume branch, so a
+plan whose tracker was filed *after* its pour — or whose stamp failed — is repaired on the next
+execute rather than staying invisible forever:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py stamp-tracker "${plan_dir}" --json
+```
 
 **Orphan sweep.** Run it **strictly before the ready loop and before any reconcile-trigger
 evaluation** — resetting beads keeps the epic non-terminal, so reconcile cannot fire on a

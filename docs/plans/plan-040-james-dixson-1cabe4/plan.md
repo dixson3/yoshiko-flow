@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-040-james-dixson-1cabe4
 author: james-dixson
 created: '2026-08-16'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: bab20550855b8b7b8416bf7248376ff113b206797a5578fab0b3552f189fed62
+epic: yf-mol-win
 ---
 # Plan: Replace bd-backend push with gh-direct issue creation across push/hoist/land, and close the coarse-tracker visibility gap
 
 **ID:** plan-040-james-dixson-1cabe4
 **Author:** james-dixson
 **Created:** 2026-08-16
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-win
 **Fingerprint:** bab20550855b8b7b8416bf7248376ff113b206797a5578fab0b3552f189fed62
 
 ## Objective
