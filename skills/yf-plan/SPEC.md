@@ -268,6 +268,35 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   row `fail` + one `inconclusive` → aggregate `fail`), and row-shape variants (`[#N]` vs `#N`)
   pinning the shared parser. No network in tests.
 
+- **REQ-PLAN-075** *(testable, plan-043 / #140)* on COMPLETE (the §6.4 ordered gate chain,
+  REQ-COMPLETE-001), yf-plan shall run the **bundle-conformance audit at close** via an
+  `audit-close` verb that is an **`advisory`** step with **`prose`** remediation-kind, honouring
+  the REQ-COMPLETE-003 envelope. It shall report the **absolute** finding set and shall **never**
+  gate `set complete`: it exits **0 unconditionally**, with no option to make that conditional.
+  It shall reuse the existing `_audit_plan` engine rather than reimplement it, so close-time and
+  plan-time findings cannot diverge. Its position in the chain is governed by REQ-COMPLETE-001
+  constraint 1: it runs **above the `classify-deliverable` block**, which contains the
+  `set-deliverable-class` plan.md dual-write — above the *dual-write*, not merely above the
+  `log.md` write. It shall not use the `FAIL-LOUD:` banner vocabulary reserved for halting steps.
+  Rationale: the plan-phase `audit` runs at Phase 3 and in `/yf-plan capture`, both **before**
+  INTAKE — but `references/` and `reviews/` are largely authored during EXECUTE, so those files
+  are created *after* the only gate that would check them and no later gate re-runs it. Close is
+  where the evidence is complete. Advisory rather than halting because a fail-loud close-time
+  audit, measured against the completed corpus, would have blocked **22%** of plans that
+  legitimately completed — including one **proven false positive** (a Windows-drive-letter regex
+  matching inside a quoted fixture body) and one failure the close step **inflicted on itself**
+  via its own `log.md` write. The absolute set rather than a delta-since-approval because the
+  plan-phase audit is a *precondition of approval*, making the stored baseline an empty fail set
+  by construction on every non-`--force` approval — the delta would equal the absolute set in the
+  normal path, and a step that cannot block pays nothing for noise. The ordering constraint is
+  not theoretical: the audit's grandfather downgrade keys on `log.md` `scoping:` entries, so a
+  close-step `log.md` write that drops them silently promotes `warn` findings to `fail`.
+  Verification: `scripts/test_audit_close.py` asserts a failing bundle still exits 0 and that
+  `set complete` proceeds; that the verdict is never `halting` regardless of findings; that
+  findings match the plan-phase `audit` engine exactly; and that the §6.4 invocation order places
+  `audit-close` above the `classify-deliverable`/`set-deliverable-class` block, parsed from
+  SKILL.md source.
+
 - **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
   **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`
   (default `Incubator`) are read through the **same** three-tier config reader as every other

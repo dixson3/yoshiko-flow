@@ -3679,6 +3679,82 @@ def audit(plan_dir: str, as_json: bool, retro: bool):
     sys.exit(0 if result["status"] == "pass" else 1)
 
 
+@cli.command("audit-close")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def audit_close(plan_dir: str, as_json: bool):
+    """Close-time bundle-conformance audit — ADVISORY (REQ-PLAN-075 / #140).
+
+    Reports the **absolute** finding set and NEVER gates `set complete`.
+
+    WHY A SEPARATE VERB FROM `audit`
+    --------------------------------
+    `audit` is a PLAN-phase gate: it exits non-zero on `fail` because a plan must not
+    reach INTAKE unportable. Reusing it at close would inherit that halting exit code.
+    This verb wraps the SAME `_audit_plan` engine (identical findings, no second
+    implementation) and re-frames the verdict as advisory: it exits 0 unconditionally.
+    The halting difference is structural, not a flag an author can get wrong.
+
+    WHY ADVISORY AND NOT FAIL-LOUD
+    ------------------------------
+    Measured across the completed corpus, a fail-loud close-time audit would have
+    blocked 22% of plans that legitimately completed — including one proven false
+    positive (a Windows-drive-letter regex matching inside a quoted fixture body) and
+    one failure the close step INFLICTED ON ITSELF via its own `log.md` write. Blocking
+    completion on that record would be worse than the drift it detects.
+
+    WHY THE ABSOLUTE SET AND NOT A DELTA
+    ------------------------------------
+    A delta-since-approval was considered and dropped. The Phase-3 audit is a
+    *precondition of approval*, so the stored baseline is an empty fail set by
+    construction on every non-`--force` approval — the delta EQUALS the absolute set in
+    the normal path. Its entire measured benefit was suppressing one legacy case out of
+    ten. And because this step cannot block, noise costs nothing.
+    """
+    pdir = Path(plan_dir)
+    result = _audit_plan(pdir)
+    findings = result.get("findings", []) or []
+    fails = [f for f in findings if f.get("status") == "fail"]
+    warns = [f for f in findings if f.get("status") == "warn"]
+
+    if fails:
+        verdict = "fail"
+        reason = (f"{len(fails)} bundle-conformance finding(s) at close "
+                  f"({len(warns)} warn). Completion is NOT blocked.")
+        remediation = (
+            "Advisory only — `set complete` proceeds regardless. To resolve, run "
+            f"`/yf-plan capture {pdir.name}` and address:\n"
+            + "\n".join(f"  - {f.get('item')}: {f.get('detail')}" for f in fails)
+        )
+    elif warns:
+        verdict = "pass"
+        reason = f"no failing findings at close ({len(warns)} warn)"
+        remediation = None
+    else:
+        verdict = "pass"
+        reason = "bundle is conformant at close"
+        remediation = None
+
+    click.echo(json.dumps({
+        "verdict": verdict,
+        "passed": verdict == "pass",
+        "advisory": True,
+        "audit_status": result.get("status"),
+        "findings": findings,
+        "fail_count": len(fails),
+        "warn_count": len(warns),
+        "grandfathered": result.get("grandfathered"),
+        "reason": reason,
+        "remediation": remediation,
+    }, indent=2))
+
+    # REQ-PLAN-075: an `advisory` step ALWAYS exits 0. This is not conditional on the
+    # verdict, and deliberately has no flag to make it conditional — the guarantee is
+    # what makes the step safe to run at close given the 22% measured block rate.
+    sys.exit(0)
+
+
 @cli.command("ready-check")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "as_json", is_flag=True,

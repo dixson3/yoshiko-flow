@@ -1083,6 +1083,25 @@ the merged-tree changed paths are now available (they may have been absent at in
 Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
 present it and let the operator confirm/override:
 
+**Close-time bundle-conformance audit (ADVISORY, REQ-PLAN-075 / #140) — runs FIRST.** Its
+position is the chain's read-before-write constraint (REQ-COMPLETE-001 constraint 1): it must
+sit **above the `classify-deliverable` block below**, because that block contains the
+`set-deliverable-class` **plan.md dual-write**. Placing it merely above the `log.md` write is
+not enough, and placing it at the *bottom* of this block would make it judge artifacts the
+close step itself wrote microseconds earlier — a real, previously-observed failure.
+
+```bash
+AUDIT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py audit-close "${plan_dir}" --json)
+echo "$AUDIT"
+# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. Findings are a
+# recommendation to run `/yf-plan capture <plan-id>`, not a halt. Do NOT add a
+# `FAIL-LOUD:` banner here — that vocabulary is reserved for halting steps.
+```
+
+> **Grandfathering caveat.** The audit's legacy downgrade keys on `log.md`'s `scoping:`
+> entries. A `log.md` write that drops them silently promotes `warn` findings to `fail` — which
+> is another reason this step reads *before* the close step writes.
+
 ```bash
 CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
