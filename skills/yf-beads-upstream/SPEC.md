@@ -513,7 +513,7 @@ companion rule.
   `gh issue create` / `gh issue edit`, with `bd update --external-ref` recording the mapping; no
   `bd <backend>` write command is issued (REQ-BUP-030/057).
 - **Companion rule:** `protocols/UPSTREAM_TRACKING.md` (+ `protocols/manifest.json`,
-  sha256 + semver, currently `1.4.0`) — the always-loaded close-time/land-the-plane trigger contract,
+  sha256 + semver, currently `1.5.0`) — the always-loaded close-time/land-the-plane trigger contract,
   carrying the silent-no-op-when-disabled clause and the safety invariant. After editing the
   rule, restamp via `manifest_update.py`.
 - **Config / state:** beads config under `custom.upstream.*` (`enabled`, `backend`,

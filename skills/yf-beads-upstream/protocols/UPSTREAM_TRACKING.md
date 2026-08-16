@@ -61,12 +61,14 @@ exists, not a recipe to reproduce by hand:
   --external-ref` records it. The skill's writes are always **scoped** to an explicit bead set and
   always **previewed first** (absent `--apply` renders the planned create/update per issue,
   locally — no network round-trip);
-- **auth is inline-only** (`TOKEN=$(...) bd <backend> …`), never written to config;
-- **bead ids are space-separated and the push is verified** — ids are positional arguments, and a
-  comma-joined list matches **zero** beads while `bd` still exits **0**. A `bd` push that exited 0
-  is therefore *not* proof it pushed anything. The skill's sequences are **fail-closed**: a push
-  that does not report the expected bead count halts before any destructive follow-on stage. This
-  is why hand-running is unsafe even when it looks like it worked.
+- **the skill handles no auth token at all** — `gh` owns its own credential store, so there is
+  nothing to pass inline and nothing that could be persisted; never write a token to config;
+- **the write is verified STRUCTURALLY, and an exit 0 is not proof** — success is a returned issue
+  URL on create and a clean exit on edit, never a scraped success line. The old check parsed bd's
+  `Pushed N issues`, which `--dry-run` also prints — it was emitted when **nothing** was pushed.
+  The skill's sequences are **fail-closed**: an unverified write halts before any destructive
+  follow-on stage (`hoist`/`land`'s `bd close -r` tombstone). This is why hand-running is unsafe
+  even when it looks like it worked.
 
 If `/yf-beads-upstream` is unavailable, stop and report — do not substitute a hand-run push. For
 config, backends, and failure handling, see the `yf-beads-upstream` SKILL.

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "files": {
     "UPSTREAM_TRACKING.md": {
-      "sha256": "8553e6cda2cb427582a3d2dfcc476eb1db933cb8a3a7a114744da3d0864ed61b",
-      "version": "1.4.0",
+      "sha256": "c9dc2d2c4155af73a2a46bd09197d560f11150967f840aed633f5164da371ad5",
+      "version": "1.5.0",
       "deprecated": false,
       "previous_versions": [
         {
@@ -29,6 +29,10 @@
         {
           "sha256": "92ac7c2842cd3038c4ad68ed1aaaf407c4b35088d8c09bf4cf7a70a3c5b4af0e",
           "version": "1.3.0"
+        },
+        {
+          "sha256": "8553e6cda2cb427582a3d2dfcc476eb1db933cb8a3a7a114744da3d0864ed61b",
+          "version": "1.4.0"
         }
       ]
     }
