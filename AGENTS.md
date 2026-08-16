@@ -36,10 +36,18 @@ artifacts, and the gap is silent.
 **Default land-the-plane step.** Once changes are pushed to `main`, sync local user scope:
 
 ```bash
+touch yf/src/embed.rs                  # 0. force the re-embed — see below, this is NOT optional
 yf self install --from-build --build   # 1. rebuild + promote the binary to ~/.local/bin/yf
 yf skills install                      # 2. deploy skills → ~/.claude/skills/
 yf harness tune                        # 3. deploy always-loaded rules + align config
 ```
+
+**Step 0 is the common case, not a fallback.** `--build` runs a plain `cargo build`, which
+re-runs `yf/build.rs` only when a file under `yf/` changes. Any commit touching only `skills/`,
+`docs/`, or `AGENTS.md` — i.e. most commits in this repo — leaves both the embedded tree and the
+version stamp stale while every command still exits `0`. Measured live: after committing an
+`AGENTS.md` change, `--build --force` produced `yf 0.4.0 (5c747c0-dirty)` against `HEAD`
+`39b09f3`; with step 0 it produced `39b09f3`.
 
 **All three are required, in that order.** Step 2 is easy to omit and its absence is silent —
 REQ-YF-SELF-005 auto-refreshes skills only after a **vendor update**, and states explicitly that
@@ -60,11 +68,8 @@ diff ~/.claude/skills/yf-plan/scripts/plan_manager.py \
 ```
 
 A stale sync is **silent**: `cargo build` exits 0, `self install` reports `status: ok`, and only
-the version stamp betrays it. If the hash lags `HEAD`, force a re-embed and repeat:
-
-```bash
-touch yf/src/embed.rs && yf self install --from-build --build --force
-```
+the version stamp betrays it. If the hash still lags `HEAD`, step 0 was skipped — repeat from
+there with `--force`.
 
 **Why** (measured, see #137): `skills/` sits outside the `yf/` package and `yf/build.rs`
 deliberately emits no `rerun-if-changed`, so an **incremental release rebuild does not observe
