@@ -123,6 +123,29 @@ pub struct HarnessTuneArgs {
     #[arg(long)]
     pub rules_only: bool,
 
+    /// Authorize applying a profile entry declared `consent_required: true`, and
+    /// creating a config file where none exists (`REQ-YF-SELF-008`, D-N).
+    ///
+    /// **Distinct from `--yes` on purpose.** `--yes` means "bypass the
+    /// `REQ-YF-TUNE-023` multi-harness fan-out prompt" and keeps that meaning
+    /// unchanged; it does **not** authorize a consent-bearing write. Two gates that
+    /// authorize materially different things must not share one token — an operator
+    /// passing `--yes` to silence a fan-out prompt would otherwise silently
+    /// authorize a `bypassPermissions` write.
+    #[arg(long)]
+    pub allow_permissions_write: bool,
+
+    /// Internal (not a CLI flag): is the `REQ-YF-SELF-008` consent gate ACTIVE for
+    /// this invocation?
+    ///
+    /// Set by the `--tune` bridge (`tune_bridge_at`) — the programmatic entry point
+    /// the install-time sync execs. A direct, interactive `yf harness tune` is a
+    /// deliberate operator action and keeps its existing, tested contract
+    /// unchanged; the gate exists to stop an *automatic* write reaching a machine
+    /// that never asked for one.
+    #[arg(skip)]
+    pub consent_gated: bool,
+
     /// Reverse a prior `yf harness tune` (REQ-YF-TUNE-022): read the sidecar `.yf/`
     /// ownership manifest and undo **only** yf's own additions — restore each recorded
     /// prior scalar (or remove a key that had none), remove only the set elements yf
@@ -341,6 +364,13 @@ pub struct SkillsArgs {
     /// a binary can never write a consent-bearing config key as a side effect.
     #[arg(long, requires = "tune")]
     pub rules_only: bool,
+
+    /// With `--tune`, authorize a consent-bearing config write (`REQ-YF-SELF-008`,
+    /// D-N) — applying an entry declared `consent_required: true`, or creating a
+    /// config file where none exists. Distinct from `--yes`, which only bypasses
+    /// the multi-harness fan-out prompt and never authorizes this.
+    #[arg(long, requires = "tune")]
+    pub allow_permissions_write: bool,
 
     /// Assume-yes: bypass the bounded-blast-radius confirmation that the
     /// no-`--harness --tune` multi-harness auto path prints before writing config

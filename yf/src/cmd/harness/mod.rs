@@ -116,6 +116,15 @@ enum ConfigOutcome {
     /// No config profile ships for this harness (pi, REQ-YF-TUNE-017), but it has a
     /// rule target — config is **deferred**, cleanly, NOT a failure.
     Deferred { reason: String },
+    /// The consent gate (`REQ-YF-SELF-008`, plan-042) blocked an automatic config
+    /// write: the file would be CREATED, and/or the change set touches an entry
+    /// declared `consent_required: true`. The delta is reported and NOTHING is
+    /// written. Not a refusal of the harness — a request for authorization.
+    ConsentRequired {
+        path: PathBuf,
+        reasons: Vec<consent::ConsentReason>,
+        report: merge::MergeReport,
+    },
     /// The operator asked for a **rules-only** run (`--rules-only`,
     /// REQ-YF-TUNE-028), so config alignment did not run at all. Distinct from
     /// [`ConfigOutcome::Deferred`]: deferred means *no profile ships*, skipped means
@@ -228,7 +237,10 @@ fn record_manifest(
         ConfigOutcome::Aligned { path, report, .. } => {
             Some(manifest::config_record_from_report(path, report))
         }
-        ConfigOutcome::Deferred { .. } | ConfigOutcome::Refused { .. } | ConfigOutcome::Skipped => None,
+        ConfigOutcome::Deferred { .. }
+        | ConfigOutcome::Refused { .. }
+        | ConfigOutcome::Skipped
+        | ConfigOutcome::ConsentRequired { .. } => None,
     };
     let rule_rec = match rules {
         RuleOutcome::Block { path, .. } => Some(manifest::RuleRecord {
@@ -248,6 +260,49 @@ fn record_manifest(
     manifest::record_tune(harness, scope, home, root, config_rec, rule_rec, dry_run)
 }
 
+/// Evaluate the `REQ-YF-SELF-008` consent gate for one harness, returning
+/// `Some(ConfigOutcome::ConsentRequired)` when the automatic write is blocked.
+///
+/// Returns `None` — i.e. proceed — when the gate is inactive (a direct, interactive
+/// `yf harness tune`), when the operator passed the explicit D-N flag, or when the
+/// change set is genuinely benign.
+///
+/// **`--yes` is deliberately not consulted.** It authorizes bypassing the
+/// `REQ-YF-TUNE-023` multi-harness fan-out prompt and nothing else; letting it
+/// satisfy this gate would mean an operator silencing a fan-out prompt had
+/// unknowingly authorized a `bypassPermissions` write (D-N).
+fn gate_config(
+    args: &HarnessTuneArgs,
+    profile: &profile::Profile,
+    path: &Path,
+) -> Option<ConfigOutcome> {
+    if !args.consent_gated || args.allow_permissions_write {
+        return None;
+    }
+    // The dry-run pass before the real one (Issue 3.4). Pure: this computes the
+    // change set via `merge` and writes nothing — `record_manifest` is separately
+    // dry-run-guarded, so no ownership record is produced either.
+    let read = match profile.format {
+        settings::SettingsFormat::Json => settings::read_settings(path),
+        settings::SettingsFormat::Toml => match settings::read_value_for_format(
+            path,
+            settings::SettingsFormat::Toml,
+        ) {
+            Some(v) => SettingsRead::Parsed(v),
+            None => SettingsRead::Absent,
+        },
+    };
+    let report = consent::compute_change_set(profile, &read);
+    match consent::evaluate(profile, &read, &report, &path.display().to_string()) {
+        consent::ConsentVerdict::AutoApply => None,
+        consent::ConsentVerdict::Required(reasons) => Some(ConfigOutcome::ConsentRequired {
+            path: path.to_path_buf(),
+            reasons,
+            report,
+        }),
+    }
+}
+
 /// The config sub-op: align the config where a profile ships; else defer (pi — a rule
 /// target but no config profile) or refuse (a genuinely unknown harness).
 fn compute_config_subop(
@@ -260,6 +315,12 @@ fn compute_config_subop(
     match profile::load_profile(harness)? {
         Some(profile) => {
             let path = settings::settings_path_at(&profile, scope, home, root);
+            // REQ-YF-SELF-008: the consent gate. Active only on the `--tune` bridge
+            // (the sync's entry point) and satisfiable only by the explicit D-N
+            // flag — never by `--yes`, which is not consulted here at all.
+            if let Some(blocked) = gate_config(args, &profile, &path) {
+                return Ok(blocked);
+            }
             compute_config(args, &profile, &path)
         }
         None if managed_block::rule_target(harness).is_some() => Ok(ConfigOutcome::Deferred {
@@ -562,11 +623,20 @@ pub fn tune_for_install_harnesses(
     project: bool,
     dry_run: bool,
     rules_only: bool,
+    allow_permissions_write: bool,
 ) -> Result<Value> {
     let scope = TuneScope::resolve(project, false);
     let home = home_dir();
     let root = crate::dest::git_root_or_cwd();
-    tune_bridge_at(harnesses, scope, &home, &root, dry_run, rules_only)
+    tune_bridge_at(
+        harnesses,
+        scope,
+        &home,
+        &root,
+        dry_run,
+        rules_only,
+        allow_permissions_write,
+    )
 }
 
 /// Env-free core of [`tune_for_install_harnesses`] (the test seam): loop
@@ -581,6 +651,7 @@ fn tune_bridge_at(
     root: &Path,
     dry_run: bool,
     rules_only: bool,
+    allow_permissions_write: bool,
 ) -> Result<Value> {
     let bridge_args = HarnessTuneArgs {
         harness: harnesses.to_vec(),
@@ -589,6 +660,9 @@ fn tune_bridge_at(
         force: false,
         dry_run,
         rules_only,
+        allow_permissions_write,
+        // The bridge IS the sync's entry point, so the consent gate is active here.
+        consent_gated: true,
         revert: false,
         pi_rule_target: crate::cli::PiRuleTarget::AgentsMd,
         json: true,
@@ -613,8 +687,17 @@ fn tune_bridge_at(
             })
         })
         .collect();
+    // A blocked consent gate is NOT `ok`: the sync's caller-side check treats any
+    // non-"ok" status as a failure (REQ-YF-SELF-008), which is exactly right here —
+    // config was not deployed, and reporting "ok" would be the same exit-0
+    // false-success shape this plan exists to close.
+    let consent_blocked = verdicts
+        .iter()
+        .any(|v| matches!(v.config, ConfigOutcome::ConsentRequired { .. }));
     let status = if verdicts.iter().any(HarnessVerdict::is_failure) {
         "refused"
+    } else if consent_blocked {
+        "consent_required"
     } else if dry_run {
         "dry_run"
     } else {
@@ -746,6 +829,25 @@ fn render_config_human(config: &ConfigOutcome) {
         ConfigOutcome::Skipped => {
             println!("  config: skipped (--rules-only; no config file read or written)")
         }
+        ConfigOutcome::ConsentRequired {
+            path,
+            reasons,
+            report,
+        } => {
+            println!("  config: CONSENT REQUIRED — nothing written to {}", path.display());
+            for r in reasons {
+                println!("    - {}", r.describe());
+            }
+            // The per-key delta, so a bypassPermissions write is never invisible.
+            for line in consent::render_delta(report) {
+                println!("      {line}");
+            }
+            println!(
+                "    re-run with {} to authorize (NOT --yes, which only bypasses the \
+                 multi-harness fan-out prompt)",
+                consent::CONSENT_FLAG
+            );
+        }
         ConfigOutcome::Refused { reason, message } => {
             println!("  config: refused ({reason}): {message}")
         }
@@ -808,6 +910,17 @@ fn config_json(config: &ConfigOutcome) -> Value {
         ConfigOutcome::Skipped => json!({
             "status": "skipped",
             "reason": "--rules-only (REQ-YF-TUNE-028): config sub-operation not run"
+        }),
+        ConfigOutcome::ConsentRequired {
+            path,
+            reasons,
+            report,
+        } => json!({
+            "status": "consent_required",
+            "path": path.display().to_string(),
+            "reasons": reasons.iter().map(consent::ConsentReason::describe).collect::<Vec<_>>(),
+            "changes": consent::render_delta(report),
+            "flag": consent::CONSENT_FLAG,
         }),
         ConfigOutcome::Refused { reason, message } => {
             json!({ "status": "refused", "reason": reason, "message": message })
@@ -909,6 +1022,8 @@ mod tests {
             force,
             dry_run,
             rules_only: false,
+            allow_permissions_write: false,
+            consent_gated: false,
             revert: false,
             pi_rule_target: crate::cli::PiRuleTarget::AgentsMd,
             json: false,
@@ -929,6 +1044,13 @@ mod tests {
     // auto path surfaces for confirmation is READ-ONLY — it writes nothing. Both
     // seams are env-free (hermetic HOME/root), matching the crate's REQ-tagging
     // convention.
+    //
+    // plan-042 (REQ-YF-SELF-008): the bridge is now consent-gated, and codex's
+    // `approval_policy` is a declared consent-bearing entry on a machine with no
+    // config.toml — so BOTH sub-operations running is now conditional on the
+    // explicit D-N flag. Passing it here preserves what this test is about (the
+    // bridge runs both sub-ops); the gated case is covered by the consent_gate
+    // module.
     #[test]
     fn tune_bridge_runs_both_subops_and_plan_writes_nothing() {
         let dir = tempfile::tempdir().unwrap();
@@ -944,6 +1066,7 @@ mod tests {
                 root,
                 false,
                 false,
+                /*allow_permissions_write=*/ true,
             )
             .unwrap();
         assert_eq!(
@@ -1653,6 +1776,7 @@ mod tests {
             dry_run: false,
             tune: false,
             rules_only: false,
+            allow_permissions_write: false,
             yes: false,
             json: true,
         };
@@ -1789,6 +1913,7 @@ mod tests {
             &root,
             /*dry_run=*/ false,
             /*rules_only=*/ true,
+            /*allow_permissions_write=*/ false,
         )
         .unwrap();
 
@@ -1903,6 +2028,7 @@ mod tests {
             dry_run: false,
             tune: false,
             rules_only: false,
+            allow_permissions_write: false,
             yes: false,
             json: true,
         };
