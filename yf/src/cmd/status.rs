@@ -268,6 +268,7 @@ mod tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
             yes: false,
             json: true,
         }
@@ -424,6 +425,7 @@ mod tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
             yes: false,
             json: true,
         };
@@ -467,6 +469,7 @@ mod tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
             yes: false,
             json: true,
         };

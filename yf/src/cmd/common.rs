@@ -824,6 +824,7 @@ mod dest_dedupe_tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
             yes: false,
             json: false,
         }

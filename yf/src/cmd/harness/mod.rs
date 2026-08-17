@@ -115,6 +115,12 @@ enum ConfigOutcome {
     /// No config profile ships for this harness (pi, REQ-YF-TUNE-017), but it has a
     /// rule target — config is **deferred**, cleanly, NOT a failure.
     Deferred { reason: String },
+    /// The operator asked for a **rules-only** run (`--rules-only`,
+    /// REQ-YF-TUNE-028), so config alignment did not run at all. Distinct from
+    /// [`ConfigOutcome::Deferred`]: deferred means *no profile ships*, skipped means
+    /// *a profile may well ship but was not consulted*. Never a failure, and the
+    /// config file is guaranteed untouched.
+    Skipped,
     /// A refusal for this harness's config sub-op — a malformed/unparseable config
     /// (fail-safe, never overwritten) or a genuinely unknown harness.
     Refused { reason: String, message: String },
@@ -174,7 +180,17 @@ fn tune_one_harness_at(
     home: &Path,
     root: &Path,
 ) -> Result<HarnessVerdict> {
-    let config = compute_config_subop(args, harness, scope, home, root)?;
+    // REQ-YF-TUNE-028 (a named exception to REQ-YF-TUNE-012's both-sub-operations
+    // rule): `--rules-only` skips config alignment ENTIRELY. The short-circuit is
+    // here — before `compute_config_subop` — precisely so no config code path runs
+    // at all: nothing reads the settings file, nothing computes a merge, and
+    // nothing can write. That is what makes "touches no config file" a structural
+    // property rather than a promise about the write step.
+    let config = if args.rules_only {
+        ConfigOutcome::Skipped
+    } else {
+        compute_config_subop(args, harness, scope, home, root)?
+    };
     let rules = compute_rules_subop(args, harness, scope, home, root)?;
     // Epic 8 seam (Issue 8.1): record what this tune wrote into the sidecar `.yf/`
     // ownership manifest so Issue 8.2's `--revert` can reverse it precisely. A
@@ -211,7 +227,7 @@ fn record_manifest(
         ConfigOutcome::Aligned { path, report, .. } => {
             Some(manifest::config_record_from_report(path, report))
         }
-        ConfigOutcome::Deferred { .. } | ConfigOutcome::Refused { .. } => None,
+        ConfigOutcome::Deferred { .. } | ConfigOutcome::Refused { .. } | ConfigOutcome::Skipped => None,
     };
     let rule_rec = match rules {
         RuleOutcome::Block { path, .. } => Some(manifest::RuleRecord {
@@ -544,23 +560,26 @@ pub fn tune_for_install_harnesses(
     harnesses: &[String],
     project: bool,
     dry_run: bool,
+    rules_only: bool,
 ) -> Result<Value> {
     let scope = TuneScope::resolve(project, false);
     let home = home_dir();
     let root = crate::dest::git_root_or_cwd();
-    tune_bridge_at(harnesses, scope, &home, &root, dry_run)
+    tune_bridge_at(harnesses, scope, &home, &root, dry_run, rules_only)
 }
 
 /// Env-free core of [`tune_for_install_harnesses`] (the test seam): loop
 /// [`tune_one_harness_at`] over `harnesses` at explicit `home`/`root` anchors and
 /// build the combined `--tune`-bridge JSON summary. Runs both sub-operations per
-/// harness; `dry_run` projects without writing.
+/// harness; `dry_run` projects without writing. `rules_only` (REQ-YF-TUNE-028)
+/// runs the rule sub-operation alone, so the bridge touches no config file.
 fn tune_bridge_at(
     harnesses: &[String],
     scope: TuneScope,
     home: &Path,
     root: &Path,
     dry_run: bool,
+    rules_only: bool,
 ) -> Result<Value> {
     let bridge_args = HarnessTuneArgs {
         harness: harnesses.to_vec(),
@@ -568,6 +587,7 @@ fn tune_bridge_at(
         committed: matches!(scope, TuneScope::ProjectCommitted),
         force: false,
         dry_run,
+        rules_only,
         revert: false,
         pi_rule_target: crate::cli::PiRuleTarget::AgentsMd,
         json: true,
@@ -722,6 +742,9 @@ fn render_config_human(config: &ConfigOutcome) {
             }
         }
         ConfigOutcome::Deferred { reason } => println!("  config: deferred ({reason})"),
+        ConfigOutcome::Skipped => {
+            println!("  config: skipped (--rules-only; no config file read or written)")
+        }
         ConfigOutcome::Refused { reason, message } => {
             println!("  config: refused ({reason}): {message}")
         }
@@ -781,6 +804,10 @@ fn config_json(config: &ConfigOutcome) -> Value {
             })
         }
         ConfigOutcome::Deferred { reason } => json!({ "status": "deferred", "reason": reason }),
+        ConfigOutcome::Skipped => json!({
+            "status": "skipped",
+            "reason": "--rules-only (REQ-YF-TUNE-028): config sub-operation not run"
+        }),
         ConfigOutcome::Refused { reason, message } => {
             json!({ "status": "refused", "reason": reason, "message": message })
         }
@@ -880,9 +907,18 @@ mod tests {
             committed: false,
             force,
             dry_run,
+            rules_only: false,
             revert: false,
             pi_rule_target: crate::cli::PiRuleTarget::AgentsMd,
             json: false,
+        }
+    }
+
+    /// A `--rules-only` variant of [`args`] (REQ-YF-TUNE-028).
+    fn rules_only_args(harness: &str) -> HarnessTuneArgs {
+        HarnessTuneArgs {
+            rules_only: true,
+            ..args(harness, false, false)
         }
     }
 
@@ -900,7 +936,15 @@ mod tests {
 
         // Seeded single harness (codex): the bridge runs config AND rules.
         let summary =
-            tune_bridge_at(&["codex".to_string()], TuneScope::User, home, root, false).unwrap();
+            tune_bridge_at(
+                &["codex".to_string()],
+                TuneScope::User,
+                home,
+                root,
+                false,
+                false,
+            )
+            .unwrap();
         assert_eq!(
             summary["status"],
             json!("ok"),
@@ -1607,6 +1651,7 @@ mod tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
             yes: false,
             json: true,
         };
@@ -1632,6 +1677,128 @@ mod tests {
             std::fs::read(&tune_flow).unwrap(),
             std::fs::read(&engine_flow).unwrap(),
             "tune's aggregate must be byte-identical to the install-time engine output"
+        );
+    }
+
+    // REQ-YF-TUNE-028 (plan-042 Issue 2.1): a **rules-only** tune writes the rules
+    // and touches NO config file. This is the seam that makes the sync's safe half
+    // shippable without its consent-bearing half — before this mode existed,
+    // `tune_one_harness_at` ran both sub-operations unconditionally, so "deploy
+    // rules without config" was unreachable by any verb.
+    //
+    // Both halves are asserted on claude-code, the harness whose profile applies
+    // `permissions.defaultMode: "bypassPermissions"` and CREATES settings.json where
+    // none exists — i.e. exactly the write this mode must not perform.
+    #[test]
+    fn rules_only_tune_writes_rules_and_touches_no_config() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path().join("home");
+        let root = tmp.path().join("root");
+        std::fs::create_dir_all(&home).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+
+        let settings = settings::settings_path_at(
+            &profile::load_profile("claude-code").unwrap().unwrap(),
+            TuneScope::User,
+            &home,
+            &root,
+        );
+        assert!(!settings.exists(), "precondition: no settings file yet");
+
+        let verdict =
+            tune_one_harness_at(&rules_only_args("claude-code"), "claude-code", TuneScope::User, &home, &root)
+                .unwrap();
+
+        // (a) config was SKIPPED — not deferred (no profile) and not refused.
+        assert!(
+            matches!(verdict.config, ConfigOutcome::Skipped),
+            "rules-only must report config skipped, got {:?}",
+            verdict.config
+        );
+        assert!(
+            !verdict.is_failure(),
+            "a rules-only run is not a failure verdict"
+        );
+
+        // (b) NO config file was created — the whole point. claude-code's profile
+        // would otherwise CREATE this file carrying bypassPermissions.
+        assert!(
+            !settings.exists(),
+            "rules-only must not create {} — that is the unconsented \
+             bypassPermissions write this mode exists to prevent",
+            settings.display()
+        );
+
+        // (c) the rules DID deploy.
+        assert!(
+            !matches!(verdict.rules, RuleOutcome::NotApplicable | RuleOutcome::Refused { .. }),
+            "rules-only must still deploy rules, got {:?}",
+            verdict.rules
+        );
+        let flow = home.join(".claude/rules").join(crate::flow::FLOW_FILENAME);
+        assert!(
+            flow.is_file(),
+            "rules-only must write the aggregate at {}",
+            flow.display()
+        );
+
+        // (d) an EXISTING config file is not modified either — skipping must mean
+        // "not consulted", not merely "not created".
+        std::fs::create_dir_all(settings.parent().unwrap()).unwrap();
+        let sentinel = br#"{"operatorKey": "untouched"}"#;
+        std::fs::write(&settings, sentinel).unwrap();
+        tune_one_harness_at(&rules_only_args("claude-code"), "claude-code", TuneScope::User, &home, &root)
+            .unwrap();
+        assert_eq!(
+            std::fs::read(&settings).unwrap(),
+            sentinel,
+            "rules-only must leave an EXISTING config file byte-identical"
+        );
+    }
+
+    // REQ-YF-TUNE-028: the `--rules-only` JSON verdict is `skipped`, distinct from
+    // pi's `deferred`. A caller (the sync) must be able to tell "you asked me not to"
+    // apart from "this harness ships no profile".
+    #[test]
+    fn rules_only_config_json_is_skipped_not_deferred() {
+        let v = config_json(&ConfigOutcome::Skipped);
+        assert_eq!(v["status"], "skipped");
+        let d = config_json(&ConfigOutcome::Deferred {
+            reason: "no profile".to_string(),
+        });
+        assert_eq!(d["status"], "deferred");
+        assert_ne!(v["status"], d["status"]);
+    }
+
+    // REQ-YF-TUNE-028: the bridge threads `rules_only` through, so
+    // `harness skills install --tune --rules-only` (the sync's exec) reports
+    // status "ok" while writing no config.
+    #[test]
+    fn bridge_rules_only_reports_ok_and_writes_no_config() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path().join("home");
+        let root = tmp.path().join("root");
+        std::fs::create_dir_all(&home).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+
+        let out = tune_bridge_at(
+            &["claude-code".to_string()],
+            TuneScope::User,
+            &home,
+            &root,
+            /*dry_run=*/ false,
+            /*rules_only=*/ true,
+        )
+        .unwrap();
+
+        assert_eq!(
+            out["status"], "ok",
+            "a rules-only bridge run is a success, not a refusal: {out}"
+        );
+        assert_eq!(out["harnesses"][0]["config"]["status"], "skipped");
+        assert!(
+            !home.join(".claude/settings.json").exists(),
+            "the bridge's rules-only path must write no config file"
         );
     }
 
@@ -1734,6 +1901,7 @@ mod tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
             yes: false,
             json: true,
         };

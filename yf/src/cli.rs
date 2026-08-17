@@ -107,6 +107,22 @@ pub struct HarnessTuneArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Run **only** the rule sub-operation, skipping config alignment entirely
+    /// (`REQ-YF-TUNE-028`) — a named exception to `REQ-YF-TUNE-012`'s
+    /// both-sub-operations rule.
+    ///
+    /// A rules-only run writes the rules aggregate to the correct per-harness
+    /// target and **touches no config file** — neither creating one nor modifying
+    /// an existing one — reporting config as `skipped` (distinct from pi's
+    /// `deferred`, which reflects an absent profile rather than an operator
+    /// request).
+    ///
+    /// This is what lets the `REQ-YF-SELF-005` install-time sync deploy its
+    /// **safe half** (skills + rules, no security semantics) independently of its
+    /// consent-bearing half, and is also how `CI` suppression is implemented.
+    #[arg(long)]
+    pub rules_only: bool,
+
     /// Reverse a prior `yf harness tune` (REQ-YF-TUNE-022): read the sidecar `.yf/`
     /// ownership manifest and undo **only** yf's own additions — restore each recorded
     /// prior scalar (or remove a key that had none), remove only the set elements yf
@@ -301,6 +317,15 @@ pub struct SkillsArgs {
     /// it, install reports that tuning is available and changes no settings.
     #[arg(long)]
     pub tune: bool,
+
+    /// With `--tune`, run **only** the rule sub-operation and skip config
+    /// alignment entirely (`REQ-YF-TUNE-028`). The bridge deploys skills and the
+    /// rules aggregate and **touches no config file**.
+    ///
+    /// This is the form the `REQ-YF-SELF-005` install-time sync uses, so promoting
+    /// a binary can never write a consent-bearing config key as a side effect.
+    #[arg(long, requires = "tune")]
+    pub rules_only: bool,
 
     /// Assume-yes: bypass the bounded-blast-radius confirmation that the
     /// no-`--harness --tune` multi-harness auto path prints before writing config
