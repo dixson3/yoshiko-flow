@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-17
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-7n9 poured
 - approved: operator approved
 - review: pass-3 red-team APPROVE — both cycle-2 highs and all four mediums verified landed by
   grep; 1 medium (R5 still named the pre-M1 blocked issue) and 3 lows, all fixed
