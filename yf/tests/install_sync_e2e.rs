@@ -265,6 +265,131 @@ fn no_sync_deploys_nothing() {
     assert!(!h.join(".claude/rules").join(FLOW).exists());
 }
 
+/// REQ-YF-TUNE-012 / SC9 (D-G, plan-042 Issue 3.5): **the composite
+/// tune-idempotence test** — run the WHOLE `yf harness tune` command twice and
+/// assert every surface it writes is byte-identical.
+///
+/// All four tune sub-operations are individually proven byte-stable (97 harness
+/// tests), but no test ran the whole command twice and compared surfaces. That gap
+/// mattered little when `tune` was a rare manual step; the install-time sync makes
+/// it run on every promote, so composite idempotence becomes load-bearing.
+///
+/// Run across **every** config-bearing harness plus pi (rules-only, config
+/// deferred), because idempotence has to hold on the TOML delta-replay path
+/// (codex) and the managed-block path as well as claude-code's JSON + rules-dir.
+#[test]
+fn harness_tune_run_twice_is_byte_identical_on_every_surface() {
+    for harness in ["claude-code", "codex", "opencode", "pi"] {
+        let home = tempfile::tempdir().unwrap();
+        let h = home.path();
+
+        // The consent flag is required because a fresh sandbox has no config file;
+        // this test is about IDEMPOTENCE, not about the gate.
+        let args = [
+            "harness",
+            "tune",
+            "--harness",
+            harness,
+            "--allow-permissions-write",
+            "--json",
+        ];
+
+        let (ok1, _) = yf_at(h, &args);
+        assert!(ok1, "{harness}: first tune must succeed");
+        let first = snapshot(h);
+        assert!(
+            !first.is_empty(),
+            "{harness}: the first tune must have written something"
+        );
+
+        let (ok2, _) = yf_at(h, &args);
+        assert!(ok2, "{harness}: second tune must succeed");
+        let second = snapshot(h);
+
+        assert_eq!(
+            first.iter().map(|(p, _)| p).collect::<Vec<_>>(),
+            second.iter().map(|(p, _)| p).collect::<Vec<_>>(),
+            "{harness}: the second tune changed the FILE SET"
+        );
+        for ((p1, b1), (_p2, b2)) in first.iter().zip(second.iter()) {
+            assert_eq!(
+                b1,
+                b2,
+                "{harness}: {p1} is NOT byte-identical across two tune runs\n\
+                 first:  {}\nsecond: {}",
+                String::from_utf8_lossy(b1),
+                String::from_utf8_lossy(b2)
+            );
+        }
+    }
+}
+
+/// REQ-YF-SELF-008 / SC5: on a fresh sandboxed `HOME`, the `--tune` bridge
+/// **refuses to write config without the consent flag** — the end-to-end form of
+/// the gate, through the real binary rather than the in-crate seam.
+///
+/// Asserted on all three config-bearing profiles, and paired with the positive
+/// case so "requires consent" is distinguishable from "never works".
+#[test]
+fn bridge_requires_consent_flag_before_writing_config() {
+    for (harness, config_rel) in [
+        ("claude-code", ".claude/settings.json"),
+        ("codex", ".codex/config.toml"),
+        ("opencode", ".config/opencode/opencode.json"),
+    ] {
+        // (a) WITHOUT the flag: refused, and no config file appears.
+        let home = tempfile::tempdir().unwrap();
+        let h = home.path();
+        let (_ok, stdout) = yf_at(
+            h,
+            &[
+                "harness", "skills", "install", "--scope", "user", "--harness", harness,
+                "--tune", "--json",
+            ],
+        );
+        let v: Value = serde_json::from_str(&stdout)
+            .unwrap_or_else(|e| panic!("{harness}: non-JSON output ({e}): {stdout}"));
+        let tune = v.get("tune").unwrap_or(&v);
+        assert_eq!(
+            tune["status"], "consent_required",
+            "{harness}: the bridge must refuse without the consent flag: {v}"
+        );
+        assert!(
+            !h.join(config_rel).exists(),
+            "{harness}: NO config file may be created without consent"
+        );
+
+        // (b) WITH the flag: the config is written.
+        let home2 = tempfile::tempdir().unwrap();
+        let h2 = home2.path();
+        let (_ok2, stdout2) = yf_at(
+            h2,
+            &[
+                "harness",
+                "skills",
+                "install",
+                "--scope",
+                "user",
+                "--harness",
+                harness,
+                "--tune",
+                "--allow-permissions-write",
+                "--json",
+            ],
+        );
+        let v2: Value = serde_json::from_str(&stdout2).unwrap();
+        let tune2 = v2.get("tune").unwrap_or(&v2);
+        assert_eq!(
+            tune2["status"], "ok",
+            "{harness}: the explicit flag must authorize the write: {v2}"
+        );
+        assert!(
+            h2.join(config_rel).exists(),
+            "{harness}: the config file must exist once authorized"
+        );
+    }
+}
+
 /// REQ-YF-SELF-008 / SC3: `codex` is reachable and its rules land at **its own**
 /// target (`~/.codex/AGENTS.md` managed block), not claude-code's rules dir.
 /// codex was one of three harnesses the vendor path could never refresh at all.
