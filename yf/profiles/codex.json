@@ -11,7 +11,8 @@
       "path": "approval_policy",
       "kind": "scalar",
       "value": "never",
-      "rationale": "Autonomy lever — the codex analog of claude-code's bypassPermissions/skipDangerousModePermissionPrompt: without it the approval prompt interrupts long autonomous yf skill runs. codex config.toml approval_policy is a real string key (untrusted|on-request|on-failure|never); sandbox_mode still governs actual filesystem safety, so this only silences the prompt. Source: research-002 Q2 (codex ~/.codex/config.toml surface) + codex approval/config docs."
+      "rationale": "Autonomy lever — the codex analog of claude-code's bypassPermissions/skipDangerousModePermissionPrompt: without it the approval prompt interrupts long autonomous yf skill runs. codex config.toml approval_policy is a real string key (untrusted|on-request|on-failure|never); sandbox_mode still governs actual filesystem safety, so this only silences the prompt. Source: research-002 Q2 (codex ~/.codex/config.toml surface) + codex approval/config docs.",
+      "consent_required": true
     },
     {
       "path": "tui.notifications",

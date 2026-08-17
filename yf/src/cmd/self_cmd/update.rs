@@ -217,64 +217,13 @@ fn unique_suffix() -> u64 {
 }
 
 // ---- Post-update skills/rules refresh (Issue 3.7) ---------------------------
+//
+// The routine itself now lives in the shared `sync` module (plan-042 Issue 1.1),
+// so `yf self update` and `yf self install --from-build` share ONE implementation
+// (`REQ-YF-SELF-005`). Re-exported here for backward compatibility with existing
+// call sites and tests.
 
-/// User-scope surfaces yf may have installed skills/rules into, as
-/// `(--surface value, home-relative dir)`.
-const USER_SURFACES: &[(&str, &str)] = &[("claude", ".claude"), ("agents", ".agents")];
-
-/// Outcome of the post-update refresh — which surfaces re-deployed, which failed.
-#[derive(Debug, Default, Clone)]
-pub struct RefreshReport {
-    pub refreshed: Vec<String>,
-    /// `"<surface>: <reason>"` for each surface whose refresh failed.
-    pub failures: Vec<String>,
-}
-
-/// Detect which user-scope surfaces actually exist (a `skills` or `rules` dir
-/// under `~/.claude` / `~/.agents`). Pure — drives the per-surface refresh and is
-/// unit-tested directly. (Concern C: `skills upgrade` is `--surface`-singular, so
-/// we invoke once per *present* surface rather than assuming `claude`.)
-pub fn present_user_surfaces(home: &Path) -> Vec<&'static str> {
-    USER_SURFACES
-        .iter()
-        .filter_map(|(name, dir)| {
-            let base = home.join(dir);
-            (base.join("skills").is_dir() || base.join("rules").is_dir()).then_some(*name)
-        })
-        .collect()
-}
-
-/// The `yf skills upgrade` args for a surface (user scope). Pure/testable.
-pub fn upgrade_args(surface: &str) -> [&str; 6] {
-    ["skills", "upgrade", "--scope", "user", "--surface", surface]
-}
-
-/// Re-deploy user-scope skills/rules by exec'ing the **updated** binary at
-/// `install_target` once per present surface.
-///
-/// `install_target` MUST be the swap-destination path (Concern B) — NOT a
-/// post-swap `current_exe()`, which `self-replace` leaves pointing at the
-/// moved-aside OLD binary, silently deploying stale embedded content. Exec'ing the
-/// freshly written binary is what makes the new embed take effect.
-///
-/// Fail-soft: a per-surface failure is recorded, never fatal to the (already
-/// successful) swap.
-fn refresh_user_skills(install_target: &Path, home: &Path) -> RefreshReport {
-    let mut report = RefreshReport::default();
-    for surface in present_user_surfaces(home) {
-        let result = std::process::Command::new(install_target)
-            .args(upgrade_args(surface))
-            .status();
-        match result {
-            Ok(s) if s.success() => report.refreshed.push(surface.to_string()),
-            Ok(s) => report
-                .failures
-                .push(format!("{surface}: exited {:?}", s.code())),
-            Err(e) => report.failures.push(format!("{surface}: {e}")),
-        }
-    }
-    report
-}
+pub use super::sync::RefreshReport;
 
 // ---- URL construction -------------------------------------------------------
 
@@ -306,8 +255,10 @@ pub fn run(args: &SelfUpdateArgs) -> Result<ExitCode> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     // Real refresh: exec the updated binary at its install path per present surface.
-    let refresh =
-        |install_target: &Path| -> RefreshReport { refresh_user_skills(install_target, &home) };
+    let allow = args.allow_permissions_write;
+    let refresh = |install_target: &Path| -> RefreshReport {
+        super::sync::run_sync(install_target, &home, allow)
+    };
     run_inner(args, &dirs, &fetcher, &swap, &refresh)
 }
 
@@ -685,6 +636,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
 
@@ -726,6 +678,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
         let refresh = |_: &Path| RefreshReport::default();
@@ -756,40 +709,13 @@ mod tests {
             check: true,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
         let refresh = |_: &Path| RefreshReport::default();
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();
         assert_eq!(format!("{code:?}"), format!("{:?}", ExitCode::SUCCESS));
         assert!(!swapped.get(), "--check must not download or swap");
-    }
-
-    // ---- Issue 3.7: post-update refresh ------------------------------------
-
-    #[test]
-    fn present_surfaces_detects_skills_or_rules() {
-        let tmp = tempfile::tempdir().unwrap();
-        let home = tmp.path();
-        assert!(present_user_surfaces(home).is_empty());
-        std::fs::create_dir_all(home.join(".claude").join("skills")).unwrap();
-        std::fs::create_dir_all(home.join(".agents").join("rules")).unwrap();
-        let s = present_user_surfaces(home);
-        assert!(s.contains(&"claude") && s.contains(&"agents"));
-    }
-
-    #[test]
-    fn upgrade_args_are_user_scoped_per_surface() {
-        assert_eq!(
-            upgrade_args("agents"),
-            [
-                "skills",
-                "upgrade",
-                "--scope",
-                "user",
-                "--surface",
-                "agents"
-            ]
-        );
     }
 
     /// Shared fixture: a manifest + `.tar.gz` + correct `.sha256` for the host.
@@ -828,6 +754,7 @@ mod tests {
             RefreshReport {
                 refreshed: vec!["claude".to_string()],
                 failures: vec![],
+                config_changes: vec![],
             }
         };
         let home = tmp.path().to_path_buf();
@@ -837,6 +764,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: false,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();
@@ -875,6 +803,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();
@@ -900,6 +829,7 @@ mod tests {
             RefreshReport {
                 refreshed: vec![],
                 failures: vec!["claude: exited Some(1)".to_string()],
+                config_changes: vec![],
             }
         };
         let home = tmp.path().to_path_buf();
@@ -909,6 +839,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: false,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();

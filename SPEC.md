@@ -458,6 +458,44 @@
 >   `- complete:` bullet. Not cosmetic: `log.md` bullets are what the status, review-count and
 >   grandfather-date parsers read. Idempotence suppresses re-emission, not history — a later date or
 >   a different message still appends.
+> - **plan-042 (2026-08-17, #157 — install-time sync for `self install` / `self update`):** five
+>   SPEC items, all landed before any implementation. Revised **`REQ-YF-SELF-005`** from *"A
+>   from-build install shall NOT auto-refresh"* to the **install-time sync contract**, specifying
+>   `yf self update` and `yf self install --from-build` **separately** (they start from different
+>   states, so an undifferentiated requirement would be untestable) and each over all three
+>   sub-operations — skills, rules aggregate, harness config. The measured gap was **asymmetric**:
+>   the vendor path deployed skills + rules but never config, the developer path deployed **none of
+>   the three**. Exec-the-captured-path and fail-soft are preserved, with *fail-soft ≠ silent* made
+>   explicit — the non-zero exit on the sync alone is required, since omitting it recreates the
+>   silent-divergence defect the requirement now forbids. Added **`REQ-YF-SELF-008`** — the sync
+>   contract surface: `--no-sync` on both commands (`--binary-only` retained as a documented alias);
+>   a **config-home-directory** presence predicate that is explicitly **not**
+>   `effective_harnesses`/`detect_from_env` (a binary on `PATH` is not evidence a harness was ever
+>   configured) and must not regress the incumbent `~/.agents/{skills,rules}` signal; the consent
+>   gate keyed on the settings **read classification** rather than `path.exists()` (a whitespace-only
+>   file classifies absent and takes the consent-required branch); a consent flag **distinct from
+>   `--yes`**, whose fan-out-bypass meaning is unchanged; `CI` suppression of the config half via
+>   `--rules-only`; and the caller's obligation to treat **any** `tune.status` other than `"ok"` as a
+>   failure — both `confirmation_required` **and** `refused`. That last clause is measured, not
+>   defensive: `install --tune --json` without `--harness` writes **no rules and no config** and
+>   **exits 0**, having written skill *bodies* first, so the exit code alone is not evidence of
+>   success. Amended **`REQ-YF-TUNE-001`** so a profile entry may carry an optional
+>   **`consent_required`** boolean (default `false`) — a schema change to a REQ that enumerates the
+>   entry fields **exhaustively**, hence SPEC-first rather than an implementation detail. Consent is
+>   **profile-declared, not key-path-matched**: a `permissions.*` prefix test is claude-code-specific
+>   and would silently auto-apply codex's `approval_policy = "never"` and opencode's `permission.* =
+>   "allow"` — the profiles' own rationale text already called both *"the analog of claude-code's
+>   `bypassPermissions`"*, so the codebase knew they were one class and the predicate did not. Added
+>   **`REQ-YF-TUNE-028`** — a **rules-only** tune mode, recorded as a **named exception to
+>   `REQ-YF-TUNE-012`** (which requires tune own *both* sub-operations per harness); it is what makes
+>   the sync's safe half (skills + rules) shippable independently of its consent-bearing half, and is
+>   the mechanism implementing `CI` suppression. Amended **`REQ-YF-TUNE-023`** **honestly** rather
+>   than by loophole: the sync path *may* write to detected harnesses without a per-run fan-out
+>   prompt — the prohibited *outcome* does occur, and passing explicit `--harness` flags after
+>   auto-detecting is that outcome by another name — so the requirement now names the exception and
+>   its five compensating controls instead of claiming the prohibition is preserved intact.
+>   Implementation lands in later epics; this entry records the SPEC-first Epic 0 amendment.
+
 ## 1. Purpose & scope
 
 Yoshiko Flow is a family of portable, cross-harness agent **skills** plus a single compiled CLI,
@@ -963,12 +1001,27 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   `yf self update --force` shall round-trip back to a vendor release. `yf self uninstall` shall remove
   the binary, the yf-owned XDG dirs, and the installer's `PATH` line, and shall **never** touch
   installed skills/rules (`~/.claude`, `~/.agents`).
-- **REQ-YF-SELF-005** *(testable)* after a successful vendor update — unless `--binary-only` — `yf`
-  shall re-deploy user-scope skills/rules by exec'ing the **swap-destination** binary (the path
-  captured before the swap, NOT a post-swap `current_exe()`) once per **present** surface
-  (`--surface claude` / `--surface agents`). A refresh failure shall be **fail-soft**: reported with
-  the manual re-run command, exiting non-zero on the refresh alone, **never** rolling back the
-  (successful) swap. A from-build install shall NOT auto-refresh.
+- **REQ-YF-SELF-005** *(testable, revised plan-042)* both install paths shall leave the machine's
+  **deployed** surface matching the binary they just promoted, by running an **install-time sync**.
+  The two commands are specified **separately** because they start from different states, and each
+  is specified over all **three** sub-operations (skills, rules aggregate, harness config):
+
+  - **`yf self update`** (vendor path) — unless `--no-sync` (or its retained alias `--binary-only`),
+    after a successful vendor update `yf` shall deploy **skills**, the **rules aggregate**, and
+    **harness config** (subject to the `REQ-YF-SELF-008` consent gate) for every harness the sync's
+    presence predicate selects. This replaces the former once-per-`--surface` refresh, whose
+    `--surface claude` / `--surface agents` alias spanned only two of the five supported harnesses.
+  - **`yf self install --from-build`** (developer path) — unless `--no-sync`, a from-build install
+    shall run **the same sync**, via the same single shared implementation. This **supersedes** the
+    former *"A from-build install shall NOT auto-refresh"*, which is the defect plan-042 exists to
+    fix: the from-build path previously deployed none of the three.
+
+  In both cases the sync shall exec the **swap-destination** binary (the path captured before the
+  swap, NOT a post-swap `current_exe()`), because the running binary is precisely the one that may
+  carry a stale embed. A sync failure shall be **fail-soft**: reported with the manual re-run
+  command, exiting non-zero on the sync alone, **never** rolling back the (successful) swap.
+  Fail-soft is **not** silent — the non-zero exit is required, since a silent sync failure recreates
+  the binary/deployment divergence this requirement now forbids.
 - **REQ-YF-SELF-006** *(testable)* `yf version` and `yf doctor` shall emit a **throttled** (24h),
   **fail-open** (short timeout, errors swallowed), **vendor-only** upgrade nudge to stderr after the
   real output, cached in `~/.cache/yf/update-check.json`, suppressed by `YF_NO_UPDATE_CHECK=1` and
@@ -982,6 +1035,41 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   does nothing special); it is covered by the shared `REQ-YF-PRE-008` stamp-mismatch test — the
   coverage gate matches a REQ id wherever it is named in a `.rs` source, so a single test may tag
   both `REQ-YF-PRE-008` and `REQ-YF-SELF-007`.
+- **REQ-YF-SELF-008** *(testable, plan-042)* the `REQ-YF-SELF-005` install-time sync shall expose the
+  following contract surface, shared by **one** implementation across both commands:
+
+  - **Opt-out.** `--no-sync` shall be accepted on **both** `yf self install --from-build` and `yf
+    self update`, suppressing all three sub-operations. `--binary-only` shall be **retained as a
+    documented alias** on `yf self update` so existing usage does not break. The opt-out shall land
+    **with or before** the sync wiring it guards — never trailing it.
+  - **Presence predicate.** The sync shall select its target harnesses by an existing **config home
+    directory**, **not** by a binary on `PATH` (i.e. **not** `effective_harnesses` /
+    `REQ-YF-INSTALL-009`'s `detect_from_env`). A machine carrying a harness binary but no config home
+    has never been configured, and creating one as a side effect of promoting a binary is precisely
+    the surprise the consent gate exists to prevent. The predicate shall be defined explicitly for
+    every supported harness id, and shall not regress the incumbent `~/.agents/{skills,rules}` signal
+    — a machine with `~/.agents/skills` and no `~/.codex` shall still be refreshed.
+  - **The consent gate.** The config sub-operation shall apply automatically **only** when the target
+    config file already **exists** *and* the **computed change set** contains no entry declaring
+    `consent_required: true` (`REQ-YF-TUNE-001`). Otherwise the sync shall print the config **delta**
+    — the per-key change set, not merely the affected file paths — and require an **explicit consent
+    flag**. Existence shall be determined by the settings **read classification**, not by
+    `path.exists()`: a whitespace-only or otherwise unparseable file classifies as absent and shall
+    take the consent-required branch.
+  - **A distinct consent flag.** The consent flag shall be **separate from `--yes`**, whose existing
+    meaning (bypass the `REQ-YF-TUNE-023` multi-harness fan-out prompt) is preserved **unchanged**.
+    `--yes` alone shall **never** authorize a `consent_required` write. Two gates that authorize
+    materially different things shall not share one token.
+  - **`CI` / non-interactive suppression.** Under `CI` or a non-interactive context (reusing the
+    `REQ-YF-SELF-006` precedent), the **config** sub-operation shall be suppressed while **skills and
+    the rules aggregate still deploy** — implemented by emitting `--rules-only`
+    (`REQ-YF-TUNE-028`), not by a second suppression mechanism. Without this the consent flag could
+    never be satisfied non-interactively and the sync would hang or hard-fail in CI.
+  - **Non-`ok` tune status is a caller-side failure.** The sync shall treat **any** `tune.status`
+    other than `"ok"` as a **failure** — explicitly including both `"confirmation_required"` **and**
+    `"refused"` (the malformed-settings fail-safe path). Both return `Ok(())` and exit 0 while
+    writing **no rules and no config**, so an exit code alone is not evidence of success. Skill
+    *bodies* are written first in that case, which is what makes the false success plausible.
 
 ### 3.8 Rename invariants (`REQ-YF-RENAME`)
 
@@ -1024,10 +1112,23 @@ with a sidecar `.yf/` ownership manifest and a `--revert` that reverses only yf'
 rust-embedded profile would commit a guess into a released binary; Pi still receives skills **and**
 rule deployment.
 
-- **REQ-YF-TUNE-001** *(testable)* `yf` shall embed a **machine-readable settings profile** as the
+- **REQ-YF-TUNE-001** *(testable, revised plan-042)* `yf` shall embed a **machine-readable settings
+  profile** as the
   single source of truth for the recommended Claude Code baseline. Each profile **entry** shall
   carry: a JSON **path** (e.g. `permissions.deny`, `todoFeatureEnabled`), a recommended **value**, a
-  **kind** (`scalar` or `set-valued`), and a one-line **rationale**. Boolean **polarity** is encoded
+  **kind** (`scalar` or `set-valued`), a one-line **rationale**, and an optional
+  **`consent_required`** boolean (**default `false`** when absent, so every existing entry and every
+  existing profile file remains valid unchanged). An entry with `consent_required: true` declares
+  that applying it materially escalates the operator's security posture, and is the sole signal the
+  `REQ-YF-SELF-008` consent gate tests the computed change set against.
+
+  The flag is **profile-declared rather than key-path-matched** by design. A syntactic
+  `permissions.*` prefix test is claude-code-specific: the same class of autonomy lever is
+  `approval_policy = "never"` on codex and `permission.* = "allow"` (singular) on opencode, neither
+  of which matches that prefix — so a prefix test would auto-apply a blanket-allow on two of the
+  three config-bearing harnesses with no consent. Declaring the requirement **per entry** is
+  self-maintaining: a newly added lever declares its own consent requirement instead of relying on a
+  prefix that only ever matched one harness. Boolean **polarity** is encoded
   in the entry's value itself (mixed: `disable*` keys are `true`; `*Enabled` off-switches are
   `false`), so it cannot be hand-fumbled. The profile shall be embedded via a **separate embed root**
   (NOT under `../skills`, which treats every top-level dir as a skill and would pollute
@@ -1186,6 +1287,28 @@ rule deployment.
   end-to-end; the no-`--harness` multi-harness auto path shall **print the resolved target set and
   require confirmation, or run dry-run-then-apply**, before writing config/rules — it shall **never**
   fan out writes to all detected harnesses unconfirmed.
+
+  **Named exception (plan-042): the install-time sync.** The `REQ-YF-SELF-005` sync path **may write
+  to multiple detected harnesses without a per-run fan-out prompt**. This is stated plainly rather
+  than framed as compliance: the sync passes an explicit `--harness` per harness, which bypasses the
+  no-`--harness` confirmation branch by construction, so the *prohibited outcome* — unconfirmed
+  writes to a set of auto-detected harnesses — does occur, and calling that "a SPEC-compliant call
+  shape" would be loophole-lawyering. The prohibition above is **not** preserved intact for this
+  path; it is superseded by the following **compensating controls**, which are what make the
+  exception acceptable:
+
+  1. **Explicit per-harness selection** — the sync resolves its own target set via the
+     `REQ-YF-SELF-008` presence predicate (an existing config **home directory**, not a binary on
+     `PATH`) and passes each id explicitly; it never falls through to tune's hard-coded default.
+  2. **The consent gate** (`REQ-YF-SELF-008`, `REQ-YF-TUNE-001` `consent_required`) — no
+     consent-declaring entry is applied, and no config file is created, without the explicit consent
+     flag, which is **distinct from `--yes`** (whose fan-out-bypass meaning is unchanged).
+  3. **`--no-sync`** — a documented opt-out on both commands.
+  4. **The config delta report** — the change set is printed before it is applied.
+  5. **`CI`/non-interactive suppression** of the config sub-operation.
+
+  Interactive `yf harness skills install --tune` invocations retain the unchanged separability and
+  fan-out-confirmation contract above; the exception is scoped to the sync path alone.
 - **REQ-YF-TUNE-024** *(testable, plan-033)* the `web/` site shall publish **code-accurate**
   provisioning matrices: an **install matrix** (harness × scope → resolved skills dir, from the
   descriptor table / `dest.rs` / `REQ-YF-INSTALL-002`) and a **tune matrix** (harness × scope →
@@ -1228,6 +1351,23 @@ rule deployment.
   yf writes, **not** the full multi-file `AGENTS.md` concatenation codex assembles (the project/cwd
   `AGENTS.md` the operator controls are out of yf's lane) — a chosen single-file scope, not an
   oversight.
+- **REQ-YF-TUNE-028** *(testable, plan-042)* `yf harness tune` shall support a **rules-only mode** —
+  a `--rules-only` flag (and the equivalent internal parameter on the tune bridge) that runs the
+  **rule optimization + deployment** sub-operation (`REQ-YF-TUNE-018..020`) **without** the config
+  alignment sub-operation (`REQ-YF-TUNE-004..006`). A rules-only run shall write the rules aggregate
+  to the correct per-harness target and shall **touch no config file** — neither creating one nor
+  modifying an existing one — and shall report config as **skipped** (distinct from the pi
+  **deferred** verdict of `REQ-YF-TUNE-017`, which reflects an absent profile rather than an operator
+  request).
+
+  This is a **named exception to `REQ-YF-TUNE-012`**, which requires that tune *"own **two**
+  sub-operations per harness… reporting a per-harness verdict covering both"*. Rules-only runs
+  exactly one of the two by design. The exception exists because `tune_one_harness_at` unconditionally
+  runs both, making "deploy rules without config" unreachable by any verb — and the `REQ-YF-SELF-005`
+  sync needs precisely that capability to deploy its **safe half** (skills + rules, which carry no
+  security semantics) independently of the **consent-bearing half** (config, which can write
+  `permissions.defaultMode: "bypassPermissions"`). Rules-only is also the mechanism by which the
+  `REQ-YF-SELF-008` `CI` suppression is implemented — not a second, separate suppression path.
 
 ## 4. Skill catalog (per-skill specs)
 

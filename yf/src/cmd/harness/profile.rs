@@ -51,6 +51,23 @@ pub struct Entry {
     /// Surfaced by the `yf doctor` drift axis (Epic 4).
     #[allow(dead_code)]
     pub rationale: String,
+    /// Does applying this entry **materially escalate the operator's security
+    /// posture**? (`REQ-YF-TUNE-001`, plan-042 D-R.)
+    ///
+    /// Optional, defaulting to `false`, so every pre-existing entry and profile
+    /// file stays valid unchanged. When `true`, the `REQ-YF-SELF-008` consent gate
+    /// requires an explicit consent flag before the install-time sync may apply it.
+    ///
+    /// **Profile-declared, not key-path-matched.** A syntactic `permissions.*`
+    /// prefix test is claude-code-specific: the same class of lever is
+    /// `approval_policy = "never"` on codex and `permission.* = "allow"` on
+    /// opencode, neither of which matches that prefix — so a prefix test would
+    /// auto-apply a blanket-allow on two of the three config-bearing harnesses
+    /// with no consent. Declaring it per entry is self-maintaining: a new lever
+    /// declares its own requirement instead of relying on a prefix that only ever
+    /// matched one harness.
+    #[serde(default)]
+    pub consent_required: bool,
 }
 
 impl Entry {
@@ -135,6 +152,73 @@ pub fn available_harnesses() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// REQ-YF-TUNE-001 (plan-042 D-R / Issue 3.0): exactly the four
+    /// consent-bearing entries declare `consent_required: true`, one per
+    /// config-bearing harness path the plan names — and every other entry defaults
+    /// to `false`.
+    ///
+    /// Pinned as an exact set in both directions. Dropping a flag would silently
+    /// re-open the unconsented-write hole; adding one elsewhere would start
+    /// demanding consent for a benign key.
+    #[test]
+    fn consent_required_is_set_on_exactly_the_four_autonomy_levers() {
+        let expected: &[(&str, &[&str])] = &[
+            (
+                "claude-code",
+                &[
+                    "permissions.defaultMode",
+                    "skipDangerousModePermissionPrompt",
+                ],
+            ),
+            ("codex", &["approval_policy"]),
+            ("opencode", &["permission.*"]),
+        ];
+
+        let mut total = 0;
+        for (harness, paths) in expected {
+            let p = load_profile(harness)
+                .expect("load must not error")
+                .unwrap_or_else(|| panic!("{harness} profile must be embedded"));
+
+            let flagged: Vec<&str> = p
+                .entries
+                .iter()
+                .filter(|e| e.consent_required)
+                .map(|e| e.path.as_str())
+                .collect();
+            assert_eq!(
+                flagged, *paths,
+                "{harness}: consent_required set on the wrong entries"
+            );
+            total += flagged.len();
+
+            // Every OTHER entry defaults to false — the field is opt-in, so an
+            // absent key must never read as "requires consent".
+            for e in &p.entries {
+                if !paths.contains(&e.path.as_str()) {
+                    assert!(
+                        !e.consent_required,
+                        "{harness}: {} must not require consent",
+                        e.path
+                    );
+                }
+            }
+        }
+        assert_eq!(total, 4, "exactly four consent-bearing entries ship");
+    }
+
+    /// REQ-YF-TUNE-001: `consent_required` is **optional** with a `false` default,
+    /// so a profile entry written before the field existed still deserializes.
+    /// This is what makes the schema change backward-compatible.
+    #[test]
+    fn consent_required_defaults_to_false_when_absent() {
+        let e: Entry = serde_json::from_str(
+            r#"{"path":"someKey","kind":"scalar","value":true,"rationale":"x"}"#,
+        )
+        .expect("an entry without consent_required must still parse");
+        assert!(!e.consent_required);
+    }
 
     // REQ-YF-TUNE-001: the machine-readable profile loads from the embedded
     // separate root, and every entry carries path / value / kind / rationale with

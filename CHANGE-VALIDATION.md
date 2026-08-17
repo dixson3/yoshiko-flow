@@ -5,6 +5,12 @@
 > not a validation gate), and approved. yf-plan §6.1.5 layer (b) now delegates here.
 > Executable-only: `yf-drift-check` is excluded (prose/LLM trigger, not a runnable
 > command). To roll delegation back to `validate-cmd`/notice, set `approved: no`.
+>
+> plan-042 (#157): added the `sync-e2e` row and `yf/profiles/**` trigger scope. The
+> profiles had NO glob, so editing a `consent_required` entry — the flag the install-time
+> consent gate keys on — fired no validation at all. The row names a **test target**
+> (`--test install_sync_e2e`) rather than a name filter on purpose: a missing target is a
+> hard error, whereas a name filter matching nothing exits 0 and passes vacuously.
 
 ## 0. Status
 
@@ -18,6 +24,7 @@ approved: yes
 |:--|:--|:--|--:|
 | `cargo-fmt` | `cargo fmt --all -- --check` |  |  |
 | `cargo` | `cargo test --workspace` |  |  |
+| `sync-e2e` | `cargo test -p yf --test install_sync_e2e` |  |  |
 | `uv` | `uv run --with pytest python3 -m pytest _shared/test_sync.py -q` |  |  |
 | `uv-run` | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 | `uv-with` | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
@@ -50,6 +57,7 @@ approved: yes
 |  | `cargo fmt --all -- --check` |  |  |
 |  | `cargo clippy --workspace --all-targets -- -D warnings` |  |  |
 |  | `cargo test --workspace` |  |  |
+|  | `cargo test -p yf --test install_sync_e2e` |  |  |
 |  | `uv run --with pytest python3 -m pytest _shared/test_sync.py -q` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
@@ -92,6 +100,11 @@ approved: yes
 | `**/*.rs` | `cargo-fmt`, `cargo` |
 | `Cargo.toml` | `cargo-fmt`, `cargo` |
 | `**/Cargo.toml` | `cargo-fmt`, `cargo` |
+| `yf/profiles/**` | `cargo`, `sync-e2e` |
+| `yf/profiles/*.json` | `cargo`, `sync-e2e` |
+| `yf/src/cmd/self_cmd/**` | `cargo-fmt`, `cargo`, `sync-e2e` |
+| `yf/src/cmd/harness/**` | `cargo-fmt`, `cargo`, `sync-e2e` |
+| `yf/tests/install_sync_e2e.rs` | `sync-e2e` |
 | `_shared/**` | `uv`, `uv-_shared` |
 | `_shared/test_sync.py` | `uv` |
 | `skills/yf-beads-hygiene/scripts/**` | `uv-run` |

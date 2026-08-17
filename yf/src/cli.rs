@@ -107,6 +107,45 @@ pub struct HarnessTuneArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Run **only** the rule sub-operation, skipping config alignment entirely
+    /// (`REQ-YF-TUNE-028`) — a named exception to `REQ-YF-TUNE-012`'s
+    /// both-sub-operations rule.
+    ///
+    /// A rules-only run writes the rules aggregate to the correct per-harness
+    /// target and **touches no config file** — neither creating one nor modifying
+    /// an existing one — reporting config as `skipped` (distinct from pi's
+    /// `deferred`, which reflects an absent profile rather than an operator
+    /// request).
+    ///
+    /// This is what lets the `REQ-YF-SELF-005` install-time sync deploy its
+    /// **safe half** (skills + rules, no security semantics) independently of its
+    /// consent-bearing half, and is also how `CI` suppression is implemented.
+    #[arg(long)]
+    pub rules_only: bool,
+
+    /// Authorize applying a profile entry declared `consent_required: true`, and
+    /// creating a config file where none exists (`REQ-YF-SELF-008`, D-N).
+    ///
+    /// **Distinct from `--yes` on purpose.** `--yes` means "bypass the
+    /// `REQ-YF-TUNE-023` multi-harness fan-out prompt" and keeps that meaning
+    /// unchanged; it does **not** authorize a consent-bearing write. Two gates that
+    /// authorize materially different things must not share one token — an operator
+    /// passing `--yes` to silence a fan-out prompt would otherwise silently
+    /// authorize a `bypassPermissions` write.
+    #[arg(long)]
+    pub allow_permissions_write: bool,
+
+    /// Internal (not a CLI flag): is the `REQ-YF-SELF-008` consent gate ACTIVE for
+    /// this invocation?
+    ///
+    /// Set by the `--tune` bridge (`tune_bridge_at`) — the programmatic entry point
+    /// the install-time sync execs. A direct, interactive `yf harness tune` is a
+    /// deliberate operator action and keeps its existing, tested contract
+    /// unchanged; the gate exists to stop an *automatic* write reaching a machine
+    /// that never asked for one.
+    #[arg(skip)]
+    pub consent_gated: bool,
+
     /// Reverse a prior `yf harness tune` (REQ-YF-TUNE-022): read the sidecar `.yf/`
     /// ownership manifest and undo **only** yf's own additions — restore each recorded
     /// prior scalar (or remove a key that had none), remove only the set elements yf
@@ -167,9 +206,26 @@ pub struct SelfUpdateArgs {
     #[arg(long)]
     pub force: bool,
 
-    /// Skip the post-update skills/rules refresh (3.7); swap the binary only.
-    #[arg(long)]
+    /// Skip the install-time sync entirely (`REQ-YF-SELF-008`); swap the binary
+    /// only, deploying no skills, no rules aggregate and no harness config.
+    ///
+    /// `--binary-only` is a **retained documented alias**: the flag predates the
+    /// sync, when "skip the refresh" and "binary only" meant the same thing. It
+    /// keeps working unchanged so existing usage and scripts do not break, but
+    /// `--no-sync` is the name that describes what the flag now does, since the
+    /// sync covers skills + rules + config rather than just the binary (D-J).
+    #[arg(long = "no-sync", visible_alias = "binary-only")]
     pub binary_only: bool,
+
+    /// Authorize the install-time sync's **config half** (`REQ-YF-SELF-008`, D-N):
+    /// applying a profile entry declared `consent_required: true`, or creating a
+    /// harness config file where none exists.
+    ///
+    /// Without it the sync still deploys skills and the rules aggregate, then
+    /// reports the per-key config delta and exits non-zero on the sync alone —
+    /// config is never written silently. Distinct from `--yes`.
+    #[arg(long)]
+    pub allow_permissions_write: bool,
 
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
@@ -197,6 +253,24 @@ pub struct SelfInstallArgs {
     /// Overwrite an existing `~/.local/bin/yf`.
     #[arg(long)]
     pub force: bool,
+
+    /// Skip the install-time sync (`REQ-YF-SELF-008`); promote the binary only,
+    /// deploying no skills, no rules aggregate and no harness config.
+    ///
+    /// The developer path has no `--binary-only` history to preserve, so it
+    /// carries only the `--no-sync` spelling.
+    #[arg(long = "no-sync")]
+    pub no_sync: bool,
+
+    /// Authorize the install-time sync's **config half** (`REQ-YF-SELF-008`, D-N):
+    /// applying a profile entry declared `consent_required: true`, or creating a
+    /// harness config file where none exists.
+    ///
+    /// Without it the sync still deploys skills and the rules aggregate, then
+    /// reports the per-key config delta and exits non-zero on the sync alone —
+    /// config is never written silently. Distinct from `--yes`.
+    #[arg(long)]
+    pub allow_permissions_write: bool,
 
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
@@ -301,6 +375,22 @@ pub struct SkillsArgs {
     /// it, install reports that tuning is available and changes no settings.
     #[arg(long)]
     pub tune: bool,
+
+    /// With `--tune`, run **only** the rule sub-operation and skip config
+    /// alignment entirely (`REQ-YF-TUNE-028`). The bridge deploys skills and the
+    /// rules aggregate and **touches no config file**.
+    ///
+    /// This is the form the `REQ-YF-SELF-005` install-time sync uses, so promoting
+    /// a binary can never write a consent-bearing config key as a side effect.
+    #[arg(long, requires = "tune")]
+    pub rules_only: bool,
+
+    /// With `--tune`, authorize a consent-bearing config write (`REQ-YF-SELF-008`,
+    /// D-N) — applying an entry declared `consent_required: true`, or creating a
+    /// config file where none exists. Distinct from `--yes`, which only bypasses
+    /// the multi-harness fan-out prompt and never authorizes this.
+    #[arg(long, requires = "tune")]
+    pub allow_permissions_write: bool,
 
     /// Assume-yes: bypass the bounded-blast-radius confirmation that the
     /// no-`--harness --tune` multi-harness auto path prints before writing config
@@ -479,6 +569,98 @@ mod tests {
         };
         assert_eq!(a.surface, Some(Surface::Agents));
         assert_eq!(a.primary_harness(), "agents");
+    }
+
+    /// REQ-YF-SELF-008 (D-J): `--no-sync` exists on **both** commands, and
+    /// `--binary-only` is retained as a working alias on `self update` so existing
+    /// usage does not break. The developer path carries only `--no-sync`.
+    #[test]
+    fn no_sync_on_both_commands_with_binary_only_alias() {
+        let parse_update = |flag: &str| {
+            let cli = Cli::try_parse_from(["yf", "self", "update", flag]).unwrap();
+            let Command::SelfCmd {
+                command: SelfCommand::Update(a),
+            } = cli.command
+            else {
+                panic!("expected self update");
+            };
+            a.binary_only
+        };
+        // The new canonical name and the retained alias both set the same field.
+        assert!(parse_update("--no-sync"), "--no-sync must be accepted");
+        assert!(
+            parse_update("--binary-only"),
+            "--binary-only must keep working (documented alias)"
+        );
+
+        // The developer path takes --no-sync.
+        let cli =
+            Cli::try_parse_from(["yf", "self", "install", "--from-build", "--no-sync"]).unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Install(a),
+        } = cli.command
+        else {
+            panic!("expected self install");
+        };
+        assert!(a.no_sync);
+        assert!(a.from_build);
+
+        // ...and NOT --binary-only, which never existed there.
+        assert!(
+            Cli::try_parse_from(["yf", "self", "install", "--from-build", "--binary-only"])
+                .is_err(),
+            "--binary-only is not a self install flag"
+        );
+
+        // Absent the flag, the sync is ON by default (D-E).
+        let cli = Cli::try_parse_from(["yf", "self", "install", "--from-build"]).unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Install(a),
+        } = cli.command
+        else {
+            panic!("expected self install");
+        };
+        assert!(!a.no_sync, "sync is on by default; --no-sync opts out");
+    }
+
+    /// REQ-YF-TUNE-028: `--rules-only` is accepted on `harness tune`, and on
+    /// `harness skills install` only together with `--tune` (it modifies the
+    /// bridge, so it is meaningless alone).
+    #[test]
+    fn rules_only_parses_on_tune_and_requires_tune_on_install() {
+        let cli = Cli::try_parse_from([
+            "yf",
+            "harness",
+            "tune",
+            "--harness",
+            "codex",
+            "--rules-only",
+        ])
+        .unwrap();
+        let Command::Harness {
+            command: HarnessCommand::Tune(a),
+        } = cli.command
+        else {
+            panic!("expected harness tune");
+        };
+        assert!(a.rules_only);
+
+        assert!(
+            Cli::try_parse_from([
+                "yf",
+                "harness",
+                "skills",
+                "install",
+                "--tune",
+                "--rules-only"
+            ])
+            .is_ok(),
+            "--rules-only is valid with --tune"
+        );
+        assert!(
+            Cli::try_parse_from(["yf", "harness", "skills", "install", "--rules-only"]).is_err(),
+            "--rules-only without --tune must be rejected"
+        );
     }
 
     #[test]

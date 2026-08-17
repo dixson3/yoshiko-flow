@@ -263,7 +263,11 @@ fn compute_tune_bridge(args: &SkillsArgs, project: bool) -> Result<Option<serde_
     // Dry-run: project the writes for every harness, write nothing.
     if args.dry_run {
         return Ok(Some(crate::cmd::harness::tune_for_install_harnesses(
-            &harnesses, project, /*dry_run=*/ true,
+            &harnesses,
+            project,
+            /*dry_run=*/ true,
+            args.rules_only,
+            args.allow_permissions_write,
         )?));
     }
 
@@ -285,7 +289,11 @@ fn compute_tune_bridge(args: &SkillsArgs, project: bool) -> Result<Option<serde_
     }
 
     Ok(Some(crate::cmd::harness::tune_for_install_harnesses(
-        &harnesses, project, /*dry_run=*/ false,
+        &harnesses,
+        project,
+        /*dry_run=*/ false,
+        args.rules_only,
+        args.allow_permissions_write,
     )?))
 }
 
@@ -348,6 +356,8 @@ mod tests {
             force: false,
             dry_run: false,
             tune: false,
+            rules_only: false,
+            allow_permissions_write: false,
             yes: false,
             json: true,
         }
