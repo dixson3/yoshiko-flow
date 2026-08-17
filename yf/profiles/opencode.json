@@ -11,7 +11,8 @@
       "path": "permission.*",
       "kind": "scalar",
       "value": "allow",
-      "rationale": "Autonomy lever — the opencode analog of claude-code's bypassPermissions: opencode's permission map (per-tool values allow|ask|deny) with the global '*' key set to allow lets yf skill runs execute without per-tool prompts. Because it is a blanket allow, the Agent/subagent tool is never denied. Real opencode.json key. Source: research-002 Q2 (opencode ~/.config/opencode/opencode.json + permission surface) + opencode permissions docs."
+      "rationale": "Autonomy lever — the opencode analog of claude-code's bypassPermissions: opencode's permission map (per-tool values allow|ask|deny) with the global '*' key set to allow lets yf skill runs execute without per-tool prompts. Because it is a blanket allow, the Agent/subagent tool is never denied. Real opencode.json key. Source: research-002 Q2 (opencode ~/.config/opencode/opencode.json + permission surface) + opencode permissions docs.",
+      "consent_required": true
     },
     {
       "path": "share",

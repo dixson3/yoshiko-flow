@@ -10,7 +10,8 @@
       "path": "permissions.defaultMode",
       "kind": "scalar",
       "value": "bypassPermissions",
-      "rationale": "Highest-leverage efficiency lever: bare tool names, schema removed from context. bypassPermissions makes the deny globs call-time safety only."
+      "rationale": "Highest-leverage efficiency lever: bare tool names, schema removed from context. bypassPermissions makes the deny globs call-time safety only.",
+      "consent_required": true
     },
     {
       "path": "permissions.deny",
@@ -49,7 +50,8 @@
       "path": "skipDangerousModePermissionPrompt",
       "kind": "scalar",
       "value": true,
-      "rationale": "bypassPermissions companion: without it the dangerous-mode prompt still interrupts long autonomous runs."
+      "rationale": "bypassPermissions companion: without it the dangerous-mode prompt still interrupts long autonomous runs.",
+      "consent_required": true
     },
     {
       "path": "disableWorkflows",
