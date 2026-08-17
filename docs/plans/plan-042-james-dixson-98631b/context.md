@@ -10,23 +10,33 @@ records the machine and date of capture._
 
 ## Project environment
 
-**yoshiko-flow** — a repository of beads-backed agent skills for Claude Code and other
-harnesses, plus `yf`, the Rust CLI that installs and maintains them.
+**yoshiko-flow** — beads-backed agent skills for Claude Code and other harnesses, plus `yf`,
+a Rust CLI (edition 2021, `clap`, `rust-embed`) that embeds the `skills/` tree and deploys it.
 
-Two artifacts, deliberately separate:
+This plan touches the **install/deploy path** of that CLI. Layout that matters here:
 
-- `skills/` — portable skill directories (`SKILL.md`, `agents/*.md`, `scripts/*.py` run via
-  `uv` with PEP-723 inline deps, `protocols/*.md` always-loaded rules).
-- `yf/` — a Rust crate (edition 2021, `clap`, `rust-embed`, `serde`) that **embeds the
-  entire `skills/` tree at build time** and deploys it to `~/.claude/skills/`.
+- `yf/src/cmd/self_cmd/install.rs` — `yf self install --from-build` (developer path).
+- `yf/src/cmd/self_cmd/update.rs` — `yf self update` (end-user vendor path), including
+  `refresh_user_skills`, the routine this plan factors out and shares.
+- `yf/src/cmd/install.rs` — `harness skills install` (+ the `--tune` bridge).
+- `yf/src/cmd/status.rs` — `harness skills upgrade` (what the vendor path execs today).
+- `yf/src/cmd/harness/` — `harness tune`: config alignment + rule deployment, per harness.
+- `yf/profiles/*.json` — a **second** `rust-embed` root holding the per-harness config profiles.
+- `SPEC.md` + `skills/yf-plan/spec/` — the requirement surface (`REQ-YF-SELF-*`,
+  `REQ-YF-TUNE-*`, `REQ-YF-MARK-*`, `REQ-YF-INSTALL-*`, `REQ-YF-FLOW-*`).
 
-The repo is **both the source and a consumer of its own skills**: editing `skills/` changes
-nothing about the `yf` you are running until you rebuild and redeploy. That gap is the
-subject of this plan.
+**Non-obvious, and load-bearing:**
 
-Non-obvious setup: `skills/` sits **outside** the `yf/` cargo package, reached via
-`#[folder = "../skills"]`. `rust-embed` is declared **without** `debug-embed`, so release
-builds bake the tree in at compile time while debug builds read it from disk at runtime.
+- **`yf self install` and `yf self update` share no code path.** `self install` is from-build
+  only (a bare invocation refuses, exit 1); `self update` is the vendor path. Converging them
+  on one routine is this plan's structural move.
+- **`harness tune` reads content from the BINARY's embedded tree, never from deployed skills**
+  — so skills-then-tune ordering is conventional, not required.
+- **A promoted binary must be exec'd at its captured install path**, never via a post-swap
+  `current_exe()`, or the sync deploys the *old* embedded tree.
+- **`harness skills upgrade` is single-destination** and writes the rules aggregate to a
+  skills-sibling dir — wrong for every harness but claude-code. This is why the plan uses
+  `install --tune` instead.
 
 ## Tool inventory
 
@@ -54,36 +64,39 @@ builds bake the tree in at compile time while debug builds read it from disk at 
 
 ## Runtime assumptions
 
-- **OS/shell:** macOS (Darwin 25.5.0), `zsh`. The plan's build measurements are
-  macOS/aarch64; rebuild timings will differ elsewhere, though the cargo semantics under
-  test are platform-independent.
-- **Toolchain:** a working Rust toolchain with `cargo` on `PATH` (measured against cargo
-  1.97.1). `cargo build --release` must succeed from a clean checkout.
-- **Network:** not required for the fix itself. Required once if `rust-embed` is not already
-  in the local registry cache — relevant to Issue 1.2a, which needs an offline-resolvable
-  scratch crate.
-- **Credentials:** `gh` authenticated, for Issue 4.4 (posting the correction to #137). No
-  other network credentials needed.
-- **Side effects:** this plan writes **only** inside the repo — `yf/build.rs`,
-  `yf/Cargo.toml`, tests, CI config, and docs. It changes **no command behavior** and
-  deliberately does **not** write to `~/.claude/`, `~/.local/bin/`, or any harness config.
-  That is what distinguishes it from plan-042.
-- **Destructive operations:** none. The riskiest action is a `cargo build`, and experiments
-  that build should run in an isolated worktree with their own `CARGO_TARGET_DIR`.
-- **Beads:** `bd` >= 1.1.0, initialized and healthy in this repo.
+- **OS/shell:** macOS (Darwin 25.5.0), `zsh`. Harness detection and config paths are
+  platform-sensitive; the plan's measurements are macOS.
+- **Toolchain:** Rust with `cargo` on `PATH`; `uv` for Python entry points.
+- **`bd` >= 1.1.0**, initialized. `.beads/` is gitignored (local-only).
+- **`gh` authenticated** — for Issue 4.3's upstream filing and the intake tracker only. The
+  sync itself makes no network calls.
+- **THIS PLAN WRITES OUTSIDE THE REPO.** Unlike plan-041, its entire deliverable is deploying
+  to operator surfaces: `~/.claude/skills/`, `~/.claude/rules/YOSHIKO_FLOW.md`,
+  `~/.claude/settings.json`, and the codex / opencode / pi equivalents. **Every test that
+  exercises deployment MUST use a sandboxed `HOME` or an explicit `--target`.** No test may
+  write to the operator's real config surfaces.
+- **Security-relevant:** the claude-code profile carries
+  `permissions.defaultMode: "bypassPermissions"` and `skipDangerousModePermissionPrompt: true`.
+  The consent gate (D-C1's split + **D-R**'s profile-declared predicate + D-N's flag) exists precisely to keep those from landing unrequested.
+- **Destructive operations: none in this plan.** (`--prune` was scoped in as D-P, then struck at
+  pass-1 review and moved to https://github.com/dixson3/yoshiko-flow/issues/155.) The sync
+  writes and overwrites operator surfaces but deletes nothing.
 
 ## Adjacent-concept glossary
 
-- **embed / embedded tree** — the copy of `skills/` compiled into the `yf` binary by
-  `rust-embed`, as opposed to the on-disk `skills/` or the deployed `~/.claude/skills/`.
-- **dep-info** — rustc's record of files an compilation unit read (here, via
-  `include_bytes!`). Tracks file *content*, never a *directory listing* — the root of #137.
-- **`rerun-if-changed`** — a build-script directive telling cargo when to re-run it.
-  Emitting *any* disables cargo's implicit whole-package watch.
-- **defect 1a / 1b** — this plan's shorthand: 1a = embed staleness (additions only),
-  1b = version-stamp staleness (every skills-only change). Two distinct defects that #137
-  conflates.
-- **land the plane** — the session-close ritual: push open work upstream, sync, verify.
+- **the sync** — deploying skills + the rules aggregate + harness config so the operator's
+  surfaces match the promoted binary. This plan's whole subject.
+- **safe half / consent-bearing half** — skills + rules (idempotent, no security semantics) vs.
+  harness config alignment (can write `permissions.*`). D-C1 splits them by default; Epics 2
+  and 3 follow that seam.
+- **halting authority** — whether a failure stops the operation. Here: a sync failure is
+  **fail-soft** and never invalidates a successful binary promote.
+- **the rules aggregate** — `YOSHIKO_FLOW.md`, generated from every embedded skill's
+  `protocols/*.md`. Regenerated wholesale (see #154).
+- **the confirmation trap** — `install --tune --json` with no `--harness` returns
+  `confirmation_required`, writes nothing, and **exits 0**. D-M makes it a caller-side failure.
+- **captured install path** — the destination path recorded *before* a binary swap; the only
+  safe thing to exec afterwards.
 
 ## Additional context
 
