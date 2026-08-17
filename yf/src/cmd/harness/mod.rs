@@ -16,6 +16,7 @@ use anyhow::Result;
 use serde_json::{json, Value};
 
 pub mod audit;
+pub mod consent;
 pub mod doc_agreement;
 pub mod drift;
 pub mod managed_block;
