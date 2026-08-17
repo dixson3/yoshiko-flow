@@ -184,6 +184,16 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   consumed by yf-plan §6.4; extraction to `_shared/` is **deferred** until a genuine second in-repo
   runtime consumer exists (rule-of-three — yf-beads-authoring carries a doctrine cross-reference
   only, not a code consumer). Cross-reference REQ-PLAN-063 (the reconcile/close step this hardens).
+  **Root resolution (plan-043 Epic 3).** The cascade shall **distinguish "`bd` answered and the
+  root bead does not exist" from "`bd` did not answer"**, and shall not collapse them. A root that
+  `bd` positively reports absent is a **`fail`**: it exits non-zero, because a typo'd or stale root
+  otherwise walks an empty tree and reports a clean cascade over nothing — a silent pass that looks
+  exactly like success. A root that could not be resolved **because `bd` was unavailable** (binary
+  absent, non-zero exit, wedged DB, unparseable output) is **`inconclusive`** under
+  REQ-COMPLETE-003: it is reported loudly and does **not** halt. Collapsing the two would convert a
+  `bd` outage into a hard completion halt on healthy work — the same failure mode the network-calling
+  halting step is required to avoid, and a regression this requirement's own fix would otherwise
+  introduce.
 - **REQ-PLAN-068** *(testable)* yf-plan shall detect and surface **parked** plans — approved-but-never-
   executed plans that otherwise silently masquerade as complete (#86). A plan is **parked** iff its
   status is `approved` (coarse filter) **and** its stored content fingerprint is **present and fresh**
@@ -296,6 +306,26 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   findings match the plan-phase `audit` engine exactly; and that the §6.4 invocation order places
   `audit-close` above the `classify-deliverable`/`set-deliverable-class` block, parsed from
   SKILL.md source.
+
+- **REQ-PLAN-076** *(testable, plan-043 / Epic 3)* the §6.4 close of the **reconcile step bead**
+  shall **re-derive that bead from `bd`**, scoped to the plan's epic, rather than relying on a
+  shell variable bound only on the pour path (§5.2a). It shall **check the close's exit code**,
+  and shall treat a reconcile bead it cannot resolve as a REQ-COMPLETE-003 verdict rather than
+  proceeding silently.
+  Rationale: the variable is assigned in exactly one place — the pour branch — and the **resume**
+  branch (§5.2b) never re-derives it, so on any resumed execution the close step runs with it
+  **unset**. The consequence was **measured live, and it is worse than an unset-variable failure**:
+  `bd close` with no id argument does not error — it exits **0** and closes a *different*,
+  in-progress bead, then reports success. During this plan's own verification probe it closed the
+  very bead that was running the probe. So the resume path does not merely skip the reconcile
+  close; it **silently closes the wrong bead and asserts success** — structurally the same
+  false-success shape as the reconcile defect this plan exists to fix, in the step immediately
+  adjacent to it. This is why the fix re-derives from `bd` rather than propagating the variable:
+  a propagated variable can still be empty, and an empty one is actively destructive here.
+  Verification: `scripts/test_reconcile_step_resolution.py` asserts the reconcile bead is resolved
+  from the epic rather than from an environment variable, that an unresolvable reconcile bead
+  yields a reported verdict rather than a bare `bd close`, and — as a regression pin on the
+  measured behavior — that no code path can emit a `bd close` whose id argument is empty.
 
 - **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
   **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`

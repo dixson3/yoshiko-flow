@@ -435,6 +435,29 @@
 >   already existed (`reconciler.md` step 4) was skipped, so a contract enforced only by "a future
 >   author will read it" would reproduce the defect it exists to fix.
 
+> - **plan-043 Epic 3 (2026-08-16 — adjacent close-step defects):** three defects the §6.4 surface
+>   audit surfaced, each of which would bite a chain step. Added **`REQ-PLAN-076`** — the reconcile
+>   step bead shall be **re-derived from `bd`**, scoped to the plan epic, instead of read from a
+>   shell variable bound only on the pour path, with the close's exit code checked. The variable is
+>   assigned in exactly one place (§5.2a) and the **resume** branch never re-derives it, so any
+>   resumed execution reaches the close step with it unset. The plan had recorded this as *inferred
+>   from grep, not run live*, and required live verification before any fix — that verification
+>   **confirmed the defect and corrected its severity**: `bd close` with no id argument does not
+>   fail, it exits **0 and closes a different in-progress bead**, then reports success. The probe
+>   closed the very bead running the probe. The resume path therefore does not skip the reconcile
+>   close, it **silently closes the wrong bead and asserts success** — the same false-success shape
+>   as the reconcile defect this plan exists to fix, one step away from it. Revised
+>   **`REQ-PLAN-067`** so `close_cascade.py` **distinguishes "`bd` answered, bead absent" (a `fail`,
+>   exit non-zero — a typo'd root otherwise walks an empty tree and reports a clean cascade over
+>   nothing) from "`bd` did not answer" (`inconclusive`, reported, never halting). `_bd()` collapsed
+>   `CalledProcessError`, `FileNotFoundError` **and** `OSError` into an empty list, so a typo, a
+>   missing binary and a wedged Dolt DB were indistinguishable; without the split, fixing the
+>   silent-pass would have converted a `bd` outage into a hard completion halt on healthy work.
+>   Added **`REQ-DATA-017`** — `update-status` is **idempotent per (date, status token, message)**,
+>   so the documented "resolve and re-run §6.4" recovery no longer appends a duplicate
+>   `- complete:` bullet. Not cosmetic: `log.md` bullets are what the status, review-count and
+>   grandfather-date parsers read. Idempotence suppresses re-emission, not history — a later date or
+>   a different message still appends.
 ## 1. Purpose & scope
 
 Yoshiko Flow is a family of portable, cross-harness agent **skills** plus a single compiled CLI,

@@ -1118,7 +1118,12 @@ reports `prose-only` says the merged tree touched no runner-only config, which i
 *against* `ci-release` however many keywords the plan's prose contains.
 
 ```bash
-bd close ${RECONCILE_STEP} --reason "Upstream issues reconciled" --json
+# Close the reconcile bead, RE-DERIVED from bd (REQ-PLAN-076) — never from a shell
+# variable. `RECONCILE_STEP` is bound only on the §5.2a pour path; the §5.2b resume path
+# never re-derives it, and `bd close` with an empty id does not fail — it exits 0 and
+# closes a DIFFERENT in-progress bead, then reports success (measured).
+RSTEP=$(uv run ${SKILL_DIR}/scripts/plan_manager.py close-reconcile-step "${plan_dir}" --json)
+echo "$RSTEP"
 
 # Verify RECONCILE actually reached each row's upstream end state (REQ-PLAN-074, #136).
 # HALTING. Runs after the reconcile bead closes and before the first destructive step —

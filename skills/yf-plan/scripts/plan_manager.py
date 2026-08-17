@@ -1135,9 +1135,48 @@ def update_status(plan_dir: str, status: str, message: str):
     # `## YYYY-MM-DD` heading (or reuses today's) and adds a `- <status>: <message>`
     # bullet retaining the `<status>:` token the review/scoping/audit readers key on.
     # It creates `log.md` on first write. The phase log no longer lives in plan.md.
-    okf.append_log(Path(plan_dir), f"{status}: {message or status}", date=today)
-    log_entry = f"- {status}: {message or status}"
-    click.echo(json.dumps({"status": status, "date": today, "log_entry": log_entry}))
+    entry = f"{status}: {message or status}"
+    log_entry = f"- {entry}"
+
+    # REQ-DATA-017 — idempotent per (date, status token, message).
+    #
+    # Re-running §6.4 is a DOCUMENTED recovery path: the halting steps' fail-loud banners
+    # explicitly instruct the operator to resolve and re-run. So duplicate bullets are
+    # produced by the normal remediation flow, not by misuse. They are not cosmetic —
+    # `log.md` bullets are what the status, review-count (REQ-PORT-006) and grandfather-date
+    # parsers read, so a duplicated status bullet corrupts the record those parsers derive
+    # their answers from.
+    #
+    # The scope is deliberately narrow: only an EXACT (today's date heading, identical
+    # bullet) match is suppressed. The same status on a LATER date, or with a different
+    # message, still appends — this suppresses re-emission, never history.
+    already = _log_has_entry_today(Path(plan_dir), log_entry, today)
+    if not already:
+        okf.append_log(Path(plan_dir), entry, date=today)
+
+    click.echo(json.dumps({
+        "status": status, "date": today, "log_entry": log_entry,
+        "appended": not already, "deduped": already,
+    }))
+
+
+def _log_has_entry_today(plan_dir: Path, log_entry: str, today: str) -> bool:
+    """Is this exact bullet already present under today's `## YYYY-MM-DD` heading?
+
+    Scanning only today's section is what keeps the check a *re-emission* guard rather
+    than a history-suppressing one: the same status legitimately recurs on a later date.
+    """
+    log_md = plan_dir / "log.md"
+    if not log_md.exists():
+        return False
+    in_today = False
+    for line in log_md.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            in_today = line.strip() == f"## {today}"
+            continue
+        if in_today and line.strip() == log_entry.strip():
+            return True
+    return False
 
 
 _TRACKER_ROW_RE = re.compile(
@@ -3677,6 +3716,109 @@ def audit(plan_dir: str, as_json: bool, retro: bool):
             click.echo("\n(retro mode: conversation mining is performed by the "
                        "captor agent, not this audit.)")
     sys.exit(0 if result["status"] == "pass" else 1)
+
+
+@cli.command("close-reconcile-step")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--reason", default="Upstream issues reconciled",
+              help="Close reason recorded on the reconcile bead.")
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
+    """Close the plan's reconcile bead, re-derived from `bd` (REQ-PLAN-076).
+
+    WHY THIS IS A VERB AND NOT `bd close ${RECONCILE_STEP}`
+    ------------------------------------------------------
+    `RECONCILE_STEP` is assigned in exactly one place — SKILL.md §5.2a, the POUR path.
+    The §5.2b RESUME path never re-derives it, so every resumed execution reaches §6.4
+    with it unset.
+
+    The consequence was measured live, and it is worse than "the close silently fails":
+    `bd close` with no id argument does NOT error. It exits 0 and closes a DIFFERENT,
+    in-progress bead, then reports success. (During this fix's own verification probe it
+    closed the very bead running the probe.) So the resume path silently closes the wrong
+    bead and asserts success — the same false-success shape as the reconcile defect this
+    plan exists to fix, one step away from it.
+
+    Propagating the variable would not be enough: a propagated variable can still be
+    empty, and an empty one is actively destructive here. So the bead is re-derived from
+    the epic, and an id is NEVER passed through to `bd` unresolved.
+    """
+    pdir = Path(plan_dir)
+    plan_md = pdir / "plan.md"
+    if not plan_md.exists():
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False,
+            "reason": f"plan.md not found under {plan_dir}",
+            "remediation": "Check the plan_dir argument, then re-run §6.4.",
+        }))
+        sys.exit(1)
+
+    epic = _read_plan_epic_field(plan_md.read_text())
+    if not epic:
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": None, "bead": None,
+            "reason": "no **Epic:** field on plan.md — the reconcile bead cannot be "
+                      "re-derived",
+            "remediation": "Run `plan_manager.py record-epic <plan_dir> <epic-id>` if the "
+                           "plan was poured before the field existed, then re-run §6.4.",
+        }))
+        sys.exit(0)
+
+    candidates = [
+        b for b in _all_plan_beads().values()
+        if str(b.get("id", "")).startswith(f"{epic}.")
+        and (b.get("issue_type") or b.get("type")) == "task"
+        and str(b.get("title", "")).startswith("Reconcile:")
+    ]
+
+    if not candidates:
+        # Distinguishable from "bd did not answer": if bd is down, _all_plan_beads is
+        # empty for every plan, so report rather than halt. Either way we never guess.
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": epic, "bead": None,
+            "reason": f"no reconcile bead found under {epic} (bd may be unavailable, or "
+                      "this plan incorporated no upstream issues)",
+            "remediation": "If this plan has upstream rows, check `bd list --all` and "
+                           "close the reconcile bead by hand; otherwise no action.",
+        }))
+        sys.exit(0)
+
+    already = [b for b in candidates if b.get("status") == "closed"]
+    open_ones = [b for b in candidates if b.get("status") != "closed"]
+
+    if not open_ones:
+        click.echo(json.dumps({
+            "verdict": "pass", "passed": True, "epic": epic,
+            "bead": already[0].get("id"), "already_closed": True,
+            "reason": "reconcile bead already closed (idempotent re-run)",
+            "remediation": None,
+        }))
+        return
+
+    bead = open_ones[0]["id"]
+    try:
+        r = subprocess.run(["bd", "close", bead, "--reason", reason],
+                           capture_output=True, text=True, timeout=60)
+        rc, err = r.returncode, (r.stderr or "").strip()
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as e:
+        rc, err = None, str(e)
+
+    if rc != 0:
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": epic, "bead": bead,
+            "reason": f"could not close reconcile bead {bead}: "
+                      f"{err or 'bd exited ' + str(rc)}",
+            "remediation": f"Close it by hand: bd close {bead} --reason '{reason}'",
+        }))
+        sys.exit(0)
+
+    click.echo(json.dumps({
+        "verdict": "pass", "passed": True, "epic": epic, "bead": bead,
+        "already_closed": False,
+        "reason": f"closed reconcile bead {bead}",
+        "remediation": None,
+    }))
 
 
 @cli.command("audit-close")
