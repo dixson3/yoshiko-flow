@@ -146,6 +146,13 @@ pub fn config_half_suppressed(present: impl Fn(&str) -> bool) -> bool {
 /// **`CI` suppression is implemented BY EMITTING `--rules-only`** (D-H via D-Q),
 /// not by a second suppression mechanism: there is exactly one way to say "deploy
 /// the safe half only", so the two callers cannot drift apart (pass-2 M3).
+///
+/// Issue 3.8 flipped the sync off passing `rules_only` unconditionally: it is now
+/// `false` by default, i.e. the consent-gated FULL tune. That flip is the single
+/// thing in this plan that can ship a config write, and it is safe because the
+/// write is gated on the far side — without `--allow-permissions-write` the bridge
+/// returns `consent_required`, writes nothing, and (not being `"ok"`) is counted a
+/// failure by [`classify_tune_status`].
 pub fn install_args_with(harness: &str, rules_only: bool) -> Vec<String> {
     let mut v: Vec<String> = [
         "harness",
@@ -165,21 +172,6 @@ pub fn install_args_with(harness: &str, rules_only: bool) -> Vec<String> {
     }
     v.push("--json".to_string());
     v
-}
-
-/// The exec args for the real sync: the consent-gated **full** tune, degrading to
-/// `--rules-only` when the config half is suppressed (`CI` / `YF_NO_CONFIG_SYNC`).
-///
-/// Issue 3.8 flipped this off an unconditional `--rules-only`. It is the single
-/// place that can ship a config write, and it is safe because the write is
-/// consent-gated on the far side: without `--allow-permissions-write` the bridge
-/// returns `consent_required`, writes nothing, and — since that is not `"ok"` —
-/// [`classify_tune_status`] counts it as a failure the operator sees.
-pub fn install_args(harness: &str) -> Vec<String> {
-    install_args_with(
-        harness,
-        config_half_suppressed(|k| std::env::var_os(k).is_some()),
-    )
 }
 
 /// Should the sync's exec carry the consent flag?

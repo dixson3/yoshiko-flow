@@ -390,6 +390,111 @@ fn bridge_requires_consent_flag_before_writing_config() {
     }
 }
 
+/// REQ-YF-SELF-008 / SC7 (Issue 3.7, D-H): under **`CI`** the config half is
+/// suppressed while **skills and the rules aggregate still deploy** — the
+/// end-to-end form, through the real binary.
+///
+/// This is the case that makes the whole sync usable on a runner: the consent gate
+/// can never be satisfied non-interactively (nobody is there to pass the flag), so
+/// without suppression the sync would hard-fail on every CI install.
+#[test]
+fn ci_suppresses_config_half_while_skills_and_rules_still_deploy() {
+    let home = tempfile::tempdir().unwrap();
+    let h = home.path();
+    std::fs::create_dir_all(h.join(".claude/skills")).unwrap();
+
+    // CI set: the sync's exec degrades to --rules-only.
+    let out = Command::new(YF)
+        .args([
+            "harness",
+            "skills",
+            "install",
+            "--scope",
+            "user",
+            "--harness",
+            "claude-code",
+            "--tune",
+            "--rules-only",
+            "--json",
+        ])
+        .env("HOME", h)
+        .env("CI", "1")
+        .output()
+        .expect("spawn yf");
+    assert!(out.status.success(), "CI install must succeed");
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let tune = v.get("tune").unwrap_or(&v);
+
+    // Success, not a consent refusal — the gate is not even reached.
+    assert_eq!(tune["status"], "ok", "CI must not hit the consent gate: {v}");
+    assert_eq!(tune["harnesses"][0]["config"]["status"], "skipped");
+
+    // Skills AND rules still deployed...
+    assert!(
+        h.join(".claude/skills/yf-plan/SKILL.md").is_file(),
+        "CI must still deploy skills"
+    );
+    assert!(
+        h.join(".claude/rules").join(FLOW).is_file(),
+        "CI must still deploy the rules aggregate"
+    );
+    // ...and NO config was written.
+    assert!(
+        !h.join(".claude/settings.json").exists(),
+        "CI must never write config"
+    );
+}
+
+/// REQ-YF-SELF-008 / Issue 3.7 (with 3.4): the **config delta is surfaced** in the
+/// report — the per-key change set, so `bypassPermissions` is never applied, or
+/// even refused, without being named.
+#[test]
+fn config_delta_appears_in_the_report() {
+    let home = tempfile::tempdir().unwrap();
+    let h = home.path();
+
+    let (_ok, stdout) = yf_at(
+        h,
+        &[
+            "harness", "skills", "install", "--scope", "user", "--harness",
+            "claude-code", "--tune", "--json",
+        ],
+    );
+    let v: Value = serde_json::from_str(&stdout).unwrap();
+    let cfg = &v.get("tune").unwrap_or(&v)["harnesses"][0]["config"];
+
+    assert_eq!(cfg["status"], "consent_required");
+    let changes = cfg["changes"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no changes array in the report: {v}"));
+    assert!(!changes.is_empty(), "the delta must not be empty: {v}");
+
+    let joined = changes
+        .iter()
+        .map(|c| c.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    // The dangerous key is NAMED, with its value.
+    assert!(
+        joined.contains("permissions.defaultMode") && joined.contains("bypassPermissions"),
+        "the delta must name the bypassPermissions write: {joined}"
+    );
+    // And the reasons name the consent-declaring entries, not just a file path.
+    let reasons = cfg["reasons"].as_array().unwrap();
+    let rjoined = reasons
+        .iter()
+        .map(|r| r.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        rjoined.contains("consent_required"),
+        "reasons must cite the profile-declared flag: {rjoined}"
+    );
+    // The operator is told which flag authorizes it — and it is NOT --yes.
+    assert_eq!(cfg["flag"], "--allow-permissions-write");
+    assert!(!rjoined.contains("--yes"));
+}
+
 /// REQ-YF-SELF-008 / SC3: `codex` is reachable and its rules land at **its own**
 /// target (`~/.codex/AGENTS.md` managed block), not claude-code's rules dir.
 /// codex was one of three harnesses the vendor path could never refresh at all.
