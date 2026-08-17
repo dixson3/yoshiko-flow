@@ -255,8 +255,11 @@ pub fn run(args: &SelfUpdateArgs) -> Result<ExitCode> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     // Real refresh: exec the updated binary at its install path per present surface.
+    let allow = args.allow_permissions_write;
     let refresh =
-        |install_target: &Path| -> RefreshReport { super::sync::run_sync(install_target, &home) };
+        |install_target: &Path| -> RefreshReport {
+        super::sync::run_sync(install_target, &home, allow)
+    };
     run_inner(args, &dirs, &fetcher, &swap, &refresh)
 }
 
@@ -634,6 +637,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
 
@@ -675,6 +679,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
         let refresh = |_: &Path| RefreshReport::default();
@@ -705,6 +710,7 @@ mod tests {
             check: true,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
         let refresh = |_: &Path| RefreshReport::default();
@@ -759,6 +765,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: false,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();
@@ -797,6 +804,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: true,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();
@@ -832,6 +840,7 @@ mod tests {
             check: false,
             force: true,
             binary_only: false,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_inner(&args, &dirs, &fetcher, &swap, &refresh).unwrap();

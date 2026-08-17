@@ -120,14 +120,34 @@ pub fn sync_harnesses(home: &Path) -> Vec<&'static str> {
         .collect()
 }
 
-/// The `yf harness skills install` args for one harness (user scope), running the
-/// `--tune` bridge in **rules-only** mode (`REQ-YF-TUNE-028`).
+/// Is the **config half** suppressed for this run (`REQ-YF-SELF-008`, D-H)?
 ///
-/// Rules-only is the Epic-2 form: it deploys skills and the rules aggregate and
-/// **cannot write config**, so the sync carries no consent burden until the
-/// consent gate ships and the exec flips off `--rules-only`.
-pub fn install_args(harness: &str) -> Vec<String> {
-    [
+/// Pure: `present(key)` reports whether an env var is set, mirroring the
+/// `REQ-YF-SELF-006` nag-suppression precedent (`nag::suppressed`) rather than
+/// inventing a second convention.
+///
+/// Under `CI` the config half MUST be suppressed while skills and the rules
+/// aggregate still deploy. Without this the sync would either hang or hard-fail in
+/// CI, because the consent gate can never be satisfied non-interactively — an
+/// unattended runner has nobody to pass `--allow-permissions-write`.
+///
+/// `YF_NO_CONFIG_SYNC` is the explicit per-run opt-out for the same behavior
+/// outside CI.
+pub fn config_half_suppressed(present: impl Fn(&str) -> bool) -> bool {
+    present("CI") || present("YF_NO_CONFIG_SYNC")
+}
+
+/// The `yf harness skills install` args for one harness (user scope), running the
+/// `--tune` bridge.
+///
+/// `rules_only` selects the safe half — skills + the rules aggregate, and **no
+/// config file touched** (`REQ-YF-TUNE-028`).
+///
+/// **`CI` suppression is implemented BY EMITTING `--rules-only`** (D-H via D-Q),
+/// not by a second suppression mechanism: there is exactly one way to say "deploy
+/// the safe half only", so the two callers cannot drift apart (pass-2 M3).
+pub fn install_args_with(harness: &str, rules_only: bool) -> Vec<String> {
+    let mut v: Vec<String> = [
         "harness",
         "skills",
         "install",
@@ -136,12 +156,40 @@ pub fn install_args(harness: &str) -> Vec<String> {
         "--harness",
         harness,
         "--tune",
-        "--rules-only",
-        "--json",
     ]
     .iter()
     .map(|s| s.to_string())
-    .collect()
+    .collect();
+    if rules_only {
+        v.push("--rules-only".to_string());
+    }
+    v.push("--json".to_string());
+    v
+}
+
+/// The exec args for the real sync: the consent-gated **full** tune, degrading to
+/// `--rules-only` when the config half is suppressed (`CI` / `YF_NO_CONFIG_SYNC`).
+///
+/// Issue 3.8 flipped this off an unconditional `--rules-only`. It is the single
+/// place that can ship a config write, and it is safe because the write is
+/// consent-gated on the far side: without `--allow-permissions-write` the bridge
+/// returns `consent_required`, writes nothing, and — since that is not `"ok"` —
+/// [`classify_tune_status`] counts it as a failure the operator sees.
+pub fn install_args(harness: &str) -> Vec<String> {
+    install_args_with(
+        harness,
+        config_half_suppressed(|k| std::env::var_os(k).is_some()),
+    )
+}
+
+/// Should the sync's exec carry the consent flag?
+///
+/// Only when the operator asked for it AND the config half is not suppressed —
+/// passing an authorization for a sub-operation that is not running would be
+/// meaningless, and under `CI` there is nobody to have authorized it.
+fn consent_args(allow_permissions_write: bool, rules_only: bool) -> Option<String> {
+    (allow_permissions_write && !rules_only)
+        .then(|| crate::cmd::harness::consent::CONSENT_FLAG.to_string())
 }
 
 /// Outcome of the sync — which surfaces re-deployed, which failed, and what the
@@ -251,10 +299,17 @@ fn classify_tune_status(stdout: &str) -> Result<(), String> {
 /// Fail-soft: a per-harness failure is recorded, never fatal to the (already
 /// successful) swap. Fail-soft is **not** silent — the caller reports failures and
 /// exits non-zero on the sync alone (`REQ-YF-SELF-005`).
-pub fn run_sync(install_target: &Path, home: &Path) -> RefreshReport {
+pub fn run_sync(install_target: &Path, home: &Path, allow_permissions_write: bool) -> RefreshReport {
+    let rules_only = config_half_suppressed(|k| std::env::var_os(k).is_some());
     run_sync_with(home, |harness| {
+        let mut argv = install_args_with(harness, rules_only);
+        if let Some(flag) = consent_args(allow_permissions_write, rules_only) {
+            // Insert before --json so the arg order stays conventional.
+            let at = argv.len() - 1;
+            argv.insert(at, flag);
+        }
         std::process::Command::new(install_target)
-            .args(install_args(harness))
+            .args(argv)
             .output()
             .map(|o| {
                 (
@@ -441,32 +496,80 @@ mod tests {
         assert!(sync_harnesses(td.path()).is_empty());
     }
 
-    /// REQ-YF-SELF-008 / REQ-YF-TUNE-028: the exec passes an **explicit
-    /// `--harness`** (which bypasses the `REQ-YF-TUNE-023` fan-out gate by
-    /// construction) and, until Issue 3.8 flips it, `--rules-only` — so the sync
-    /// cannot write config.
+    /// REQ-YF-SELF-008 / REQ-YF-TUNE-023: the exec always passes an **explicit
+    /// `--harness`**, which bypasses the multi-harness fan-out gate by
+    /// construction — so the `confirmation_required` exit-0 no-write trap cannot be
+    /// reached at all.
     #[test]
-    fn install_args_are_explicit_per_harness_and_rules_only() {
-        let args = install_args("codex");
-        assert_eq!(
-            args,
-            [
-                "harness",
-                "skills",
-                "install",
-                "--scope",
-                "user",
-                "--harness",
-                "codex",
-                "--tune",
-                "--rules-only",
-                "--json"
-            ]
+    fn install_args_are_explicit_per_harness() {
+        for rules_only in [true, false] {
+            let args = install_args_with("codex", rules_only);
+            let i = args.iter().position(|a| a == "--harness").expect(
+                "the exec must always name the harness explicitly (bypasses the fan-out gate)",
+            );
+            assert_eq!(args[i + 1], "codex");
+            assert!(args.iter().any(|a| a == "--tune"));
+            assert!(args.iter().any(|a| a == "--json"));
+        }
+    }
+
+    /// REQ-YF-TUNE-028 / REQ-YF-SELF-008 (Issues 3.3 + 3.8): `--rules-only` is
+    /// emitted **iff** the config half is suppressed.
+    ///
+    /// Issue 3.8 flipped the exec off an unconditional `--rules-only`; Issue 3.3
+    /// implements `CI` suppression **by emitting that same flag**, not by a second
+    /// mechanism — so there is exactly one way to say "safe half only" and the two
+    /// callers cannot drift apart (pass-2 M3).
+    #[test]
+    fn rules_only_is_emitted_iff_the_config_half_is_suppressed() {
+        assert!(
+            install_args_with("codex", true)
+                .iter()
+                .any(|a| a == "--rules-only"),
+            "suppressed → --rules-only"
         );
-        // The explicit --harness is what bypasses the no---harness confirmation
-        // branch that returns `confirmation_required` while writing nothing.
-        assert!(args.iter().any(|a| a == "--harness"));
-        assert!(args.iter().any(|a| a == "--rules-only"));
+        assert!(
+            !install_args_with("codex", false)
+                .iter()
+                .any(|a| a == "--rules-only"),
+            "not suppressed → the consent-gated FULL tune (Issue 3.8's flip)"
+        );
+    }
+
+    /// REQ-YF-SELF-008 (D-H): the config half is suppressed under `CI` and under
+    /// the explicit `YF_NO_CONFIG_SYNC` opt-out, and NOT otherwise.
+    ///
+    /// Pure over an injected env probe (mirroring the `REQ-YF-SELF-006`
+    /// `nag::suppressed` precedent), so the test never reads ambient env.
+    #[test]
+    fn config_half_is_suppressed_under_ci() {
+        assert!(config_half_suppressed(|k| k == "CI"));
+        assert!(config_half_suppressed(|k| k == "YF_NO_CONFIG_SYNC"));
+        assert!(!config_half_suppressed(|_| false));
+        // An unrelated variable must not suppress it.
+        assert!(!config_half_suppressed(|k| k == "SOME_OTHER_VAR"));
+    }
+
+    /// REQ-YF-SELF-008 (D-H): under `CI`, **skills and rules still deploy** — the
+    /// suppression removes the config half only, never the whole sync.
+    #[test]
+    fn ci_suppression_still_deploys_skills_and_rules() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+
+        let seen = std::cell::RefCell::new(Vec::<Vec<String>>::new());
+        let report = run_sync_with(home, |h| {
+            let args = install_args_with(h, /*suppressed=*/ true);
+            seen.borrow_mut().push(args);
+            Ok((true, Some(0), r#"{"status":"ok"}"#.to_string()))
+        });
+
+        // The sync RAN (skills + rules deployed) rather than being skipped.
+        assert_eq!(report.refreshed, vec!["claude-code"]);
+        assert!(report.failures.is_empty());
+        // ...via the rules-only form, so no config was written.
+        assert!(seen.borrow()[0].iter().any(|a| a == "--rules-only"));
     }
 
     // ---- Issue 1.3: exit 0 is not proof (D-M, widened per pass-1 C6) -------

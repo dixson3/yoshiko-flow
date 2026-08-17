@@ -217,6 +217,17 @@ pub struct SelfUpdateArgs {
     #[arg(long = "no-sync", visible_alias = "binary-only")]
     pub binary_only: bool,
 
+    /// Authorize the install-time sync's **config half** (`REQ-YF-SELF-008`, D-N):
+    /// applying a profile entry declared `consent_required: true`, or creating a
+    /// harness config file where none exists.
+    ///
+    /// Without it the sync still deploys skills and the rules aggregate, then
+    /// reports the per-key config delta and exits non-zero on the sync alone —
+    /// config is never written silently. Distinct from `--yes`.
+    #[arg(long)]
+    pub allow_permissions_write: bool,
+
+
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
     pub json: bool,
@@ -251,6 +262,17 @@ pub struct SelfInstallArgs {
     /// carries only the `--no-sync` spelling.
     #[arg(long = "no-sync")]
     pub no_sync: bool,
+
+    /// Authorize the install-time sync's **config half** (`REQ-YF-SELF-008`, D-N):
+    /// applying a profile entry declared `consent_required: true`, or creating a
+    /// harness config file where none exists.
+    ///
+    /// Without it the sync still deploys skills and the rules aggregate, then
+    /// reports the per-key config delta and exits non-zero on the sync alone —
+    /// config is never written silently. Distinct from `--yes`.
+    #[arg(long)]
+    pub allow_permissions_write: bool,
+
 
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]

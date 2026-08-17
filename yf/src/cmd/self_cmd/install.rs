@@ -162,7 +162,11 @@ fn run_with(args: &SelfInstallArgs, dirs: &Dirs) -> Result<ExitCode> {
     let sync_report = if args.no_sync {
         None
     } else {
-        Some(super::sync::run_sync(&dst, &home_dir()))
+        Some(super::sync::run_sync(
+            &dst,
+            &home_dir(),
+            args.allow_permissions_write,
+        ))
     };
 
     report(
@@ -378,6 +382,7 @@ mod tests {
             build: false,
             force: false,
             no_sync: true,
+            allow_permissions_write: false,
             json: true,
         };
         let code = run_with(&args, &dirs).unwrap();
