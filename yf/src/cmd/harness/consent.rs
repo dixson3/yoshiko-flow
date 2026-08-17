@@ -86,6 +86,8 @@ pub enum ConsentVerdict {
 }
 
 impl ConsentVerdict {
+    /// Is the automatic path blocked? Used by the `consent_gate` evidence module.
+    #[cfg(test)]
     pub fn is_required(&self) -> bool {
         matches!(self, ConsentVerdict::Required(_))
     }
@@ -175,21 +177,21 @@ pub fn render_delta(report: &MergeReport) -> Vec<String> {
         .collect()
 }
 
-/// The machine-readable consent verdict for `--json`.
-pub fn verdict_json(verdict: &ConsentVerdict, report: &MergeReport) -> serde_json::Value {
-    match verdict {
-        ConsentVerdict::AutoApply => serde_json::json!({
-            "status": "auto",
-            "changes": render_delta(report),
-        }),
-        ConsentVerdict::Required(reasons) => serde_json::json!({
-            "status": "consent_required",
-            "reasons": reasons.iter().map(ConsentReason::describe).collect::<Vec<_>>(),
-            // The per-key delta, so bypassPermissions is never applied invisibly.
-            "changes": render_delta(report),
-            "flag": CONSENT_FLAG,
-        }),
-    }
+/// The machine-readable consent-blocked verdict for `--json` — the SINGLE source
+/// of this shape, so the human and JSON reports cannot drift apart.
+pub fn blocked_json(
+    path: &std::path::Path,
+    reasons: &[ConsentReason],
+    report: &MergeReport,
+) -> serde_json::Value {
+    serde_json::json!({
+        "status": "consent_required",
+        "path": path.display().to_string(),
+        "reasons": reasons.iter().map(ConsentReason::describe).collect::<Vec<_>>(),
+        // The per-key delta, so bypassPermissions is never applied invisibly.
+        "changes": render_delta(report),
+        "flag": CONSENT_FLAG,
+    })
 }
 
 /// Compute the change set for `profile` against `read` without writing anything —
@@ -208,8 +210,28 @@ pub fn compute_change_set(profile: &Profile, read: &SettingsRead) -> MergeReport
     report
 }
 
+/// The Capability Gate's evidence module (plan-042 Issue 3.6).
+///
+/// **The module name is load-bearing.** The plan's Capability Gate runs
+/// `cargo test -p yf consent_gate`, and a name filter that matches nothing is an
+/// exit-0 PASS — measured: `running 0 tests … 0 passed; 4 filtered out`, exit 0.
+/// That is the exact exit-0-means-nothing shape R1 defends against, reproduced
+/// inside the gate guarding this plan's most dangerous edge. The gate therefore
+/// proves the filter NON-EMPTY (`--list | grep -c ': test$' >= 6`) before trusting
+/// the run, and this module must keep the name `consent_gate` for that filter to
+/// select it.
+///
+/// The count is a FLOOR against the empty-filter trap, not a coverage measure.
+/// Coverage is the four scenario classes below, each exercised across **all three**
+/// config-bearing profiles (claude-code, codex, opencode — pi and `agents` ship no
+/// config profile, SC5a):
+///
+/// 1. a fresh machine with no config file **requires** the flag;
+/// 2. an existing file whose change set declares **no** consent entry does **not**;
+/// 3. a change set that **does** declare one requires the flag **on every profile**;
+/// 4. `--yes` alone **never** authorizes it.
 #[cfg(test)]
-mod tests {
+mod consent_gate {
     use super::*;
     use crate::cmd::harness::profile::load_profile;
 
@@ -440,6 +462,85 @@ mod tests {
         );
     }
 
+    /// **Scenario class (d): `--yes` alone NEVER authorizes a consent-bearing
+    /// write** (D-N / E5 defect B).
+    ///
+    /// Asserted two ways, because the behavioral half alone could be satisfied by
+    /// an implementation that merely happens not to read `--yes` today:
+    ///
+    /// 1. **Structurally** — `--yes` lives on `SkillsArgs` and is consumed by the
+    ///    fan-out gate in `install.rs`; it is not a field of `HarnessTuneArgs` at
+    ///    all, so the consent gate *cannot* see it. That is a stronger guarantee
+    ///    than "does not currently consult it".
+    /// 2. **Behaviorally** — driving the bridge with the fan-out concern fully
+    ///    satisfied (a single explicit harness, which bypasses the fan-out gate the
+    ///    way `--yes` would) still yields `consent_required`, on every profile.
+    #[test]
+    fn yes_alone_never_authorizes_a_consent_bearing_write() {
+        // (1) Structural: the gate's argument type has no `yes` field. If someone
+        // ever adds one, this fails and forces the D-N decision to be re-made
+        // deliberately rather than by autocomplete.
+        let cli_src = include_str!("../../cli.rs");
+        let tune_args = cli_src
+            .split("pub struct HarnessTuneArgs {")
+            .nth(1)
+            .and_then(|s| s.split("\n}").next())
+            .expect("HarnessTuneArgs must be findable in cli.rs");
+        assert!(
+            !tune_args.contains("pub yes:"),
+            "HarnessTuneArgs must NOT carry `yes` — the consent gate must be unable \
+             to be satisfied by the fan-out bypass token (D-N)"
+        );
+        assert!(
+            tune_args.contains("pub allow_permissions_write:"),
+            "the consent gate's own distinct flag must be present"
+        );
+
+        // (2) Behavioral: on every config-bearing profile, a single explicit
+        // harness (fan-out concern satisfied, exactly what --yes buys) still trips
+        // the consent gate, because that is a different authorization.
+        for h in CONFIG_BEARING {
+            let td = tempfile::tempdir().unwrap();
+            let home = td.path();
+            let summary = crate::cmd::harness::tune_bridge_at_for_test(
+                &[h.to_string()],
+                home,
+                /*allow_permissions_write=*/ false,
+            );
+            assert_eq!(
+                summary["status"], "consent_required",
+                "{h}: a single explicit harness must still require the D-N flag: {summary}"
+            );
+            let cfg = &summary["harnesses"][0]["config"];
+            assert_eq!(cfg["status"], "consent_required", "{h}: {summary}");
+            assert!(
+                !cfg["changes"].as_array().unwrap().is_empty(),
+                "{h}: the per-key delta must be surfaced with the refusal"
+            );
+        }
+    }
+
+    /// The gate is **satisfiable**: with the explicit D-N flag the config IS
+    /// written, on every config-bearing profile. Without this, "requires consent"
+    /// could be indistinguishable from "never works".
+    #[test]
+    fn explicit_flag_authorizes_the_write_on_every_profile() {
+        for h in CONFIG_BEARING {
+            let td = tempfile::tempdir().unwrap();
+            let home = td.path();
+            let summary = crate::cmd::harness::tune_bridge_at_for_test(
+                &[h.to_string()],
+                home,
+                /*allow_permissions_write=*/ true,
+            );
+            assert_eq!(
+                summary["status"], "ok",
+                "{h}: the explicit flag must authorize the write: {summary}"
+            );
+            assert_eq!(summary["harnesses"][0]["config"]["status"], "written");
+        }
+    }
+
     /// The JSON verdict carries the reasons, the per-key delta, and the flag name
     /// the operator must pass.
     #[test]
@@ -447,10 +548,19 @@ mod tests {
         let p = profile("claude-code");
         let read = SettingsRead::Absent;
         let report = compute_change_set(&p, &read);
-        let v = evaluate(&p, &read, &report, "/sandbox/settings.json");
-        let j = verdict_json(&v, &report);
+        let ConsentVerdict::Required(reasons) =
+            evaluate(&p, &read, &report, "/sandbox/settings.json")
+        else {
+            panic!("a fresh machine must be consent-blocked");
+        };
+        let j = blocked_json(
+            std::path::Path::new("/sandbox/settings.json"),
+            &reasons,
+            &report,
+        );
 
         assert_eq!(j["status"], "consent_required");
+        assert_eq!(j["path"], "/sandbox/settings.json");
         assert!(!j["reasons"].as_array().unwrap().is_empty());
         assert!(!j["changes"].as_array().unwrap().is_empty());
         assert_eq!(j["flag"], CONSENT_FLAG);

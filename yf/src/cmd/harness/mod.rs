@@ -639,6 +639,26 @@ pub fn tune_for_install_harnesses(
     )
 }
 
+/// Test seam for the `consent_gate` evidence module: run the bridge for one
+/// harness under a sandboxed `home`, returning the summary JSON.
+#[cfg(test)]
+pub(crate) fn tune_bridge_at_for_test(
+    harnesses: &[String],
+    home: &Path,
+    allow_permissions_write: bool,
+) -> Value {
+    tune_bridge_at(
+        harnesses,
+        TuneScope::User,
+        home,
+        home,
+        /*dry_run=*/ false,
+        /*rules_only=*/ false,
+        allow_permissions_write,
+    )
+    .expect("bridge must not error")
+}
+
 /// Env-free core of [`tune_for_install_harnesses`] (the test seam): loop
 /// [`tune_one_harness_at`] over `harnesses` at explicit `home`/`root` anchors and
 /// build the combined `--tune`-bridge JSON summary. Runs both sub-operations per
@@ -915,13 +935,7 @@ fn config_json(config: &ConfigOutcome) -> Value {
             path,
             reasons,
             report,
-        } => json!({
-            "status": "consent_required",
-            "path": path.display().to_string(),
-            "reasons": reasons.iter().map(consent::ConsentReason::describe).collect::<Vec<_>>(),
-            "changes": consent::render_delta(report),
-            "flag": consent::CONSENT_FLAG,
-        }),
+        } => consent::blocked_json(path, reasons, report),
         ConfigOutcome::Refused { reason, message } => {
             json!({ "status": "refused", "reason": reason, "message": message })
         }
