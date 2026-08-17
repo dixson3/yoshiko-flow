@@ -749,6 +749,7 @@ mod tests {
             RefreshReport {
                 refreshed: vec!["claude".to_string()],
                 failures: vec![],
+                config_changes: vec![],
             }
         };
         let home = tmp.path().to_path_buf();
@@ -821,6 +822,7 @@ mod tests {
             RefreshReport {
                 refreshed: vec![],
                 failures: vec!["claude: exited Some(1)".to_string()],
+                config_changes: vec![],
             }
         };
         let home = tmp.path().to_path_buf();

@@ -254,11 +254,15 @@ fn report(
         Some(r) if r.failures.is_empty() => serde_json::json!({
             "status": "ok",
             "refreshed": r.refreshed,
+            // The per-key config delta (Issue 3.4) — a config write is never
+            // invisible, so bypassPermissions can never be applied silently.
+            "config_changes": r.config_changes,
         }),
         Some(r) => serde_json::json!({
             "status": "failed",
             "refreshed": r.refreshed,
             "failures": r.failures,
+            "config_changes": r.config_changes,
             "rerun": "yf harness skills install --scope user --tune",
         }),
     };
@@ -293,7 +297,11 @@ fn report(
             println!("sync: no harnesses selected (nothing deployed here yet)")
         }
         Some(r) if r.failures.is_empty() => {
-            println!("sync: deployed to {}", r.refreshed.join(", "))
+            println!("sync: deployed to {}", r.refreshed.join(", "));
+            // Name every config key the sync changed (Issue 3.4).
+            for c in &r.config_changes {
+                println!("  config: {c}");
+            }
         }
         Some(r) => {
             // Reported, not swallowed — and the caller exits non-zero.
@@ -303,6 +311,9 @@ fn report(
             );
             for f in &r.failures {
                 eprintln!("  {f}");
+            }
+            for c in &r.config_changes {
+                eprintln!("  config delta: {c}");
             }
             if !r.refreshed.is_empty() {
                 eprintln!("  (succeeded for: {})", r.refreshed.join(", "));

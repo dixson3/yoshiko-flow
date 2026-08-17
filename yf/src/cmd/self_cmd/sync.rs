@@ -144,12 +144,56 @@ pub fn install_args(harness: &str) -> Vec<String> {
     .collect()
 }
 
-/// Outcome of the sync — which surfaces re-deployed, which failed.
+/// Outcome of the sync — which surfaces re-deployed, which failed, and what the
+/// config half actually changed.
 #[derive(Debug, Default, Clone)]
 pub struct RefreshReport {
     pub refreshed: Vec<String>,
     /// `"<surface>: <reason>"` for each surface whose refresh failed.
     pub failures: Vec<String>,
+    /// The **per-key config delta**, `"<harness>: <change>"` (Issue 3.4).
+    ///
+    /// Extracted from each harness's `config.changes` — the change set over
+    /// `merge::Change` — NOT from `plan_targets`/`target_plan_json`, which emit
+    /// `{harness, config_path, rules_path}`, i.e. the blast radius rather than the
+    /// change set (pass-1 C7). A list of file paths is not a delta.
+    ///
+    /// This is what makes it impossible for `bypassPermissions` to be applied
+    /// invisibly: whatever the config half writes is named in the report. Empty
+    /// while the exec runs `--rules-only` (nothing is written), and populated once
+    /// Issue 3.8 flips the exec to the consent-gated full tune.
+    pub config_changes: Vec<String>,
+}
+
+/// Pull the per-key config delta out of a tune-bridge payload (Issue 3.4).
+///
+/// Reads `harnesses[].config.changes`, which the bridge emits for BOTH the applied
+/// (`Aligned`) and the blocked (`consent_required`) cases — so the operator sees
+/// the change set whether it was written or is being asked about.
+fn extract_config_changes(stdout: &str) -> Vec<String> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(stdout) else {
+        return Vec::new();
+    };
+    let Some(harnesses) = v.get("harnesses").and_then(|h| h.as_array()) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for h in harnesses {
+        let name = h.get("harness").and_then(|n| n.as_str()).unwrap_or("?");
+        let Some(changes) = h.pointer("/config/changes").and_then(|c| c.as_array()) else {
+            continue;
+        };
+        for c in changes {
+            // The bridge renders a consent-blocked delta as strings and an applied
+            // one as structured objects; both are surfaced verbatim.
+            let rendered = match c.as_str() {
+                Some(s) => s.to_string(),
+                None => c.to_string(),
+            };
+            out.push(format!("{name}: {rendered}"));
+        }
+    }
+    out
 }
 
 /// Classify one harness's `--tune` bridge result (`REQ-YF-SELF-008`).
@@ -239,10 +283,16 @@ where
                 .failures
                 .push(format!("{harness}: exited {code:?}")),
             // Exited 0 — now check the PAYLOAD, because exit 0 is not proof.
-            Ok((true, _, stdout)) => match classify_tune_status(&stdout) {
-                Ok(()) => report.refreshed.push(harness.to_string()),
-                Err(reason) => report.failures.push(format!("{harness}: {reason}")),
-            },
+            Ok((true, _, stdout)) => {
+                // Surface the config delta either way (Issue 3.4): on success so a
+                // write is never invisible, and on a consent refusal so the
+                // operator can see what they are being asked to authorize.
+                report.config_changes.extend(extract_config_changes(&stdout));
+                match classify_tune_status(&stdout) {
+                    Ok(()) => report.refreshed.push(harness.to_string()),
+                    Err(reason) => report.failures.push(format!("{harness}: {reason}")),
+                }
+            }
         }
     }
     report
@@ -509,6 +559,98 @@ mod tests {
         assert_eq!(report.failures, Vec::<String>::new());
         assert_eq!(report.refreshed, vec!["claude-code", "codex"]);
         assert_eq!(*seen.borrow(), vec!["claude-code", "codex"]);
+    }
+
+    // ---- Issue 3.4: the config delta is surfaced, never invisible ---------
+
+    /// REQ-YF-SELF-008 (Issue 3.4): the sync report carries the **per-key config
+    /// delta**, so a `bypassPermissions` write can never be applied invisibly.
+    ///
+    /// Sourced from `harnesses[].config.changes` — the change set over
+    /// `merge::Change` — NOT `plan_targets`/`target_plan_json`, which emit
+    /// `{harness, config_path, rules_path}`: the blast radius, not the delta
+    /// (pass-1 C7).
+    #[test]
+    fn config_delta_is_surfaced_in_the_sync_report() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+
+        let payload = r#"{
+          "status":"ok",
+          "harnesses":[{
+            "harness":"claude-code",
+            "config":{"status":"written","changes":[
+              "+ permissions.defaultMode = \"bypassPermissions\""
+            ]}
+          }]
+        }"#;
+        let report = run_sync_with(home, |_h| Ok((true, Some(0), payload.to_string())));
+
+        assert_eq!(report.failures, Vec::<String>::new());
+        assert!(
+            report
+                .config_changes
+                .iter()
+                .any(|c| c.contains("permissions.defaultMode")
+                    && c.contains("bypassPermissions")),
+            "the delta must NAME the bypassPermissions write: {:?}",
+            report.config_changes
+        );
+        // Attributed to its harness, since the sync runs several.
+        assert!(report.config_changes[0].starts_with("claude-code: "));
+    }
+
+    /// The delta is surfaced on a consent REFUSAL too — the operator has to see
+    /// what they are being asked to authorize, not just that something was refused.
+    #[test]
+    fn config_delta_is_surfaced_on_a_consent_refusal() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".codex")).unwrap();
+
+        let payload = r#"{
+          "status":"consent_required",
+          "harnesses":[{
+            "harness":"codex",
+            "config":{"status":"consent_required","changes":[
+              "+ approval_policy = \"never\""
+            ]}
+          }]
+        }"#;
+        let report = run_sync_with(home, |_h| Ok((true, Some(0), payload.to_string())));
+
+        // consent_required is not "ok", so it counts as a failure (Issue 1.3)...
+        assert_eq!(report.failures.len(), 1, "{report:?}");
+        // ...and the delta is still reported.
+        assert!(
+            report
+                .config_changes
+                .iter()
+                .any(|c| c.contains("approval_policy")),
+            "the refusal must still name the change set: {:?}",
+            report.config_changes
+        );
+    }
+
+    /// Under `--rules-only` nothing is written, so the delta is empty — the
+    /// report must not imply a config change that did not happen.
+    #[test]
+    fn rules_only_sync_reports_an_empty_config_delta() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+
+        let payload = r#"{"status":"ok","harnesses":[{"harness":"claude-code",
+          "config":{"status":"skipped"}}]}"#;
+        let report = run_sync_with(home, |_h| Ok((true, Some(0), payload.to_string())));
+
+        assert_eq!(report.refreshed, vec!["claude-code"]);
+        assert!(
+            report.config_changes.is_empty(),
+            "a rules-only run changes no config: {:?}",
+            report.config_changes
+        );
     }
 
     /// REQ-YF-SELF-005: a genuine non-zero exit is still a failure (the ordinary
