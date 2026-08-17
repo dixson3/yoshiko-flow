@@ -183,8 +183,15 @@ pub struct SelfUpdateArgs {
     #[arg(long)]
     pub force: bool,
 
-    /// Skip the post-update skills/rules refresh (3.7); swap the binary only.
-    #[arg(long)]
+    /// Skip the install-time sync entirely (`REQ-YF-SELF-008`); swap the binary
+    /// only, deploying no skills, no rules aggregate and no harness config.
+    ///
+    /// `--binary-only` is a **retained documented alias**: the flag predates the
+    /// sync, when "skip the refresh" and "binary only" meant the same thing. It
+    /// keeps working unchanged so existing usage and scripts do not break, but
+    /// `--no-sync` is the name that describes what the flag now does, since the
+    /// sync covers skills + rules + config rather than just the binary (D-J).
+    #[arg(long = "no-sync", visible_alias = "binary-only")]
     pub binary_only: bool,
 
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
@@ -213,6 +220,14 @@ pub struct SelfInstallArgs {
     /// Overwrite an existing `~/.local/bin/yf`.
     #[arg(long)]
     pub force: bool,
+
+    /// Skip the install-time sync (`REQ-YF-SELF-008`); promote the binary only,
+    /// deploying no skills, no rules aggregate and no harness config.
+    ///
+    /// The developer path has no `--binary-only` history to preserve, so it
+    /// carries only the `--no-sync` spelling.
+    #[arg(long = "no-sync")]
+    pub no_sync: bool,
 
     /// Emit machine-readable JSON (REQ-YF-CLI-003).
     #[arg(long)]
@@ -504,6 +519,87 @@ mod tests {
         };
         assert_eq!(a.surface, Some(Surface::Agents));
         assert_eq!(a.primary_harness(), "agents");
+    }
+
+    /// REQ-YF-SELF-008 (D-J): `--no-sync` exists on **both** commands, and
+    /// `--binary-only` is retained as a working alias on `self update` so existing
+    /// usage does not break. The developer path carries only `--no-sync`.
+    #[test]
+    fn no_sync_on_both_commands_with_binary_only_alias() {
+        let parse_update = |flag: &str| {
+            let cli = Cli::try_parse_from(["yf", "self", "update", flag]).unwrap();
+            let Command::SelfCmd {
+                command: SelfCommand::Update(a),
+            } = cli.command
+            else {
+                panic!("expected self update");
+            };
+            a.binary_only
+        };
+        // The new canonical name and the retained alias both set the same field.
+        assert!(parse_update("--no-sync"), "--no-sync must be accepted");
+        assert!(
+            parse_update("--binary-only"),
+            "--binary-only must keep working (documented alias)"
+        );
+
+        // The developer path takes --no-sync.
+        let cli =
+            Cli::try_parse_from(["yf", "self", "install", "--from-build", "--no-sync"]).unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Install(a),
+        } = cli.command
+        else {
+            panic!("expected self install");
+        };
+        assert!(a.no_sync);
+        assert!(a.from_build);
+
+        // ...and NOT --binary-only, which never existed there.
+        assert!(
+            Cli::try_parse_from(["yf", "self", "install", "--from-build", "--binary-only"])
+                .is_err(),
+            "--binary-only is not a self install flag"
+        );
+
+        // Absent the flag, the sync is ON by default (D-E).
+        let cli = Cli::try_parse_from(["yf", "self", "install", "--from-build"]).unwrap();
+        let Command::SelfCmd {
+            command: SelfCommand::Install(a),
+        } = cli.command
+        else {
+            panic!("expected self install");
+        };
+        assert!(!a.no_sync, "sync is on by default; --no-sync opts out");
+    }
+
+    /// REQ-YF-TUNE-028: `--rules-only` is accepted on `harness tune`, and on
+    /// `harness skills install` only together with `--tune` (it modifies the
+    /// bridge, so it is meaningless alone).
+    #[test]
+    fn rules_only_parses_on_tune_and_requires_tune_on_install() {
+        let cli =
+            Cli::try_parse_from(["yf", "harness", "tune", "--harness", "codex", "--rules-only"])
+                .unwrap();
+        let Command::Harness {
+            command: HarnessCommand::Tune(a),
+        } = cli.command
+        else {
+            panic!("expected harness tune");
+        };
+        assert!(a.rules_only);
+
+        assert!(
+            Cli::try_parse_from([
+                "yf", "harness", "skills", "install", "--tune", "--rules-only"
+            ])
+            .is_ok(),
+            "--rules-only is valid with --tune"
+        );
+        assert!(
+            Cli::try_parse_from(["yf", "harness", "skills", "install", "--rules-only"]).is_err(),
+            "--rules-only without --tune must be rejected"
+        );
     }
 
     #[test]

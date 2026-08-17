@@ -275,6 +275,7 @@ mod tests {
             debug: false,
             build: false,
             force: false,
+            no_sync: true,
             json: true,
         };
         let code = run_with(&args, &dirs).unwrap();
