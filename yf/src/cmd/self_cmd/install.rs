@@ -150,8 +150,50 @@ fn run_with(args: &SelfInstallArgs, dirs: &Dirs) -> Result<ExitCode> {
     let marker_path =
         receipt::write_from_build_marker(dirs, &marker).context("writing from-build marker")?;
 
-    report(args.json, &dst, &version, profile, &marker_path);
+    // The install-time sync (REQ-YF-SELF-005 / REQ-YF-SELF-008). Runs unless
+    // --no-sync. This is the defect plan-042 exists to fix: the from-build path
+    // previously deployed NONE of the three sub-operations, so a promoted binary
+    // and the deployed surface could disagree indefinitely and silently.
+    //
+    // `dst` — the CAPTURED install path — is what we exec, never `current_exe()`:
+    // the running binary is precisely the one that may carry a stale embed
+    // (D-B). Exec'ing the freshly promoted binary is what makes the new embed
+    // take effect.
+    let sync_report = if args.no_sync {
+        None
+    } else {
+        Some(super::sync::run_sync(&dst, &home_dir()))
+    };
+
+    report(
+        args.json,
+        &dst,
+        &version,
+        profile,
+        &marker_path,
+        sync_report.as_ref(),
+    );
+
+    // Fail-soft in the sense REQ-YF-SELF-005 defines it: a sync failure is
+    // REPORTED and exits non-zero ON THE SYNC ALONE, but NEVER rolls back the
+    // (successful) promote — the binary stays in place and the marker stands.
+    //
+    // FAIL-SOFT IS NOT SILENT (pass-1 C8). An earlier draft of this issue said
+    // only "never invalidates a successful promote" and omitted the non-zero
+    // exit; implemented literally, that would have recreated the exact
+    // silent-divergence defect this plan exists to fix.
+    if sync_report.is_some_and(|r| !r.failures.is_empty()) {
+        return Ok(ExitCode::FAILURE);
+    }
     Ok(ExitCode::SUCCESS)
+}
+
+/// `$HOME`, falling back to cwd when unset — keeps resolution total.
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }
 
 /// Run `cargo build [--release]` for the `yf` package in the workspace root.
@@ -196,7 +238,31 @@ fn fail(json: bool, msg: &str) -> Result<ExitCode> {
     Ok(ExitCode::FAILURE)
 }
 
-fn report(json: bool, dst: &Path, version: &str, profile: Profile, marker: &Path) {
+fn report(
+    json: bool,
+    dst: &Path,
+    version: &str,
+    profile: Profile,
+    marker: &Path,
+    sync: Option<&super::sync::RefreshReport>,
+) {
+    // The sync's own verdict, kept distinct from the promote's. A promote that
+    // succeeded while its sync failed reports `status: "ok"` (the binary IS
+    // installed) with `sync.status: "failed"` — the caller learns both facts.
+    let sync_json = match sync {
+        None => serde_json::json!({ "status": "skipped", "reason": "--no-sync" }),
+        Some(r) if r.failures.is_empty() => serde_json::json!({
+            "status": "ok",
+            "refreshed": r.refreshed,
+        }),
+        Some(r) => serde_json::json!({
+            "status": "failed",
+            "refreshed": r.refreshed,
+            "failures": r.failures,
+            "rerun": "yf harness skills install --scope user --tune",
+        }),
+    };
+
     if json {
         let out = serde_json::json!({
             "command": "self install",
@@ -205,19 +271,44 @@ fn report(json: bool, dst: &Path, version: &str, profile: Profile, marker: &Path
             "version": version,
             "profile": profile.target_subdir(),
             "from_build_marker": marker.display().to_string(),
+            "sync": sync_json,
         });
         if let Ok(s) = serde_json::to_string(&out) {
             println!("{s}");
         }
-    } else {
-        println!(
-            "installed {} ({} build, v{}) — from-build marker at {} (nag suppressed; \
-             `yf self update --force` switches to a vendor release)",
-            dst.display(),
-            profile.target_subdir(),
-            version,
-            marker.display()
-        );
+        return;
+    }
+
+    println!(
+        "installed {} ({} build, v{}) — from-build marker at {} (nag suppressed; \
+         `yf self update --force` switches to a vendor release)",
+        dst.display(),
+        profile.target_subdir(),
+        version,
+        marker.display()
+    );
+    match sync {
+        None => println!("sync: skipped (--no-sync) — skills, rules and config unchanged"),
+        Some(r) if r.failures.is_empty() && r.refreshed.is_empty() => {
+            println!("sync: no harnesses selected (nothing deployed here yet)")
+        }
+        Some(r) if r.failures.is_empty() => {
+            println!("sync: deployed to {}", r.refreshed.join(", "))
+        }
+        Some(r) => {
+            // Reported, not swallowed — and the caller exits non-zero.
+            eprintln!(
+                "error: the binary was promoted, but the sync FAILED — the deployed \
+                 skills/rules may not match it."
+            );
+            for f in &r.failures {
+                eprintln!("  {f}");
+            }
+            if !r.refreshed.is_empty() {
+                eprintln!("  (succeeded for: {})", r.refreshed.join(", "));
+            }
+            eprintln!("  re-run manually: yf harness skills install --scope user --tune");
+        }
     }
 }
 
