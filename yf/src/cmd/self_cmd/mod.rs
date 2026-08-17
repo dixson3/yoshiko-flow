@@ -25,6 +25,7 @@ pub mod install;
 pub mod nag;
 pub mod receipt;
 pub mod source;
+pub mod sync;
 pub mod uninstall;
 pub mod update;
 pub mod update_check;
