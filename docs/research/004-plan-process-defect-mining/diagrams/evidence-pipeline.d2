@@ -1,0 +1,111 @@
+# Research 004 — how the evidence was assembled.
+# Four retrieval clusters were triangulated; a FIFTH cluster was commissioned
+# AFTER triangulation to repair a comparability defect triangulation itself
+# found, so it never passed through triangulation (the out-of-band path).
+# Render: uv run <yf-diagram-authoring>/scripts/render.py render evidence-pipeline.d2
+
+direction: down
+
+corpus: {
+  label: "Corpus — 83 plan bundles across 5 repositories\n(yoshiko-flow, d3-pxe, pybridge, evri_py, emacs.d)"
+  style.fill: "#f7f7f7"
+  style.stroke-dash: 3
+
+  bundles: "83 plan bundles\n+ 4 research projects" {
+    shape: cylinder
+  }
+  extractor: "scripts/remediation_pairs.py\n83/83 bundles reconciled\n83 candidate pairs, no scores" {
+    shape: hexagon
+  }
+  bundles -> extractor
+}
+
+inband: {
+  label: "RETRIEVE — four clusters, mined blind to research 003"
+  style.fill: "#eef3fb"
+  direction: right
+
+  yf: "yf-corpus\n27 sources · 15 findings\n12 confirmed / 7 rejected pairs"
+  xr: "cross-repo-corpus\n30 sources · 9 classes\npresence / absence matrix"
+  et: "execution-telemetry\n15 sources · 53 discovered-from edges\n0 cross-plan-epic"
+  hu: "history-and-upstream\n28 sources · 4 confirmed pairs\n4 never-planned classes"
+}
+
+tri: "TRIANGULATE\nartifacts/triangulation.md\n100 sources scored (67 high_trust)\n18 merged classes · 5 contradictions adjudicated\n16 insufficient-evidence items" {
+  style: {
+    fill: "#e8eef8"
+    bold: true
+  }
+}
+
+oob: {
+  label: "OUT OF BAND — commissioned AFTER triangulation,\nto repair a comparability defect triangulation itself found"
+  style.fill: "#fdf6e8"
+  style.stroke-dash: 4
+
+  yfr: "yf-corpus-reviews\n35 sources · 93 yoshiko-flow review passes\nresolves M2b / M6a / M6b in yf; adds M6c + M14b\nNEVER cross-checked by another cluster -> every\nclaim resting on it alone is marked [YFR-only]" {
+    style: {
+      fill: "#fbeecb"
+      stroke: "#a5751a"
+    }
+  }
+}
+
+syn: "SYNTHESIZE\nSummary.md draft\n16 ranked defect classes + owning surfaces\n003 reconciliation · 15 tabled unknowns" {
+  style: {
+    fill: "#e8eef8"
+    bold: true
+  }
+}
+
+crit: "CRITIQUE (red team)\nartifacts/critique.md\n9 must-fix: 2 repo-count errors, cost unevidenced,\nsingle-cluster flags absent at point of use,\n1 uncited claim, blind not attested end-to-end" {
+  style: {
+    fill: "#fbeaea"
+    bold: true
+  }
+}
+
+ref: "REFINE\nall 9 must-fix cleared · M5 rank 1->2 · M1 rank 4->6\ncost column added · 43 single-cluster markers\n35 YFR sources rescored (9 moved to `verify`)\n+ refine-verification: 1 source (RF1) read on disk" {
+  style: {
+    fill: "#e8f6ec"
+    bold: true
+  }
+}
+
+pkg: "PACKAGE\nSummary.md · sources.md (136 sources)\n295 citations, all anchors resolving" {
+  style: {
+    fill: "#e8f6ec"
+    bold: true
+  }
+}
+
+corpus.extractor -> inband.yf: "candidate pairs — an inference,\nnot a record; every pair confirmed\nagainst BOTH bundles"
+corpus.extractor -> inband.xr
+corpus.bundles -> inband.et
+corpus.bundles -> inband.hu
+
+inband.yf -> tri
+inband.xr -> tri
+inband.et -> tri
+inband.hu -> tri
+
+tri -> oob.yfr: "triangulation finds the gap:\nthe yf retriever never opened\nthat repo's 93 review passes\n(3 false 'absent in yf' verdicts)" {
+  style: {
+    stroke: "#a5751a"
+    stroke-dash: 3
+    bold: true
+  }
+}
+
+tri -> syn
+oob.yfr -> syn: "deltas SUPERSEDE triangulation\nwhere they conflict" {
+  style: {
+    stroke: "#a5751a"
+    stroke-dash: 3
+    bold: true
+  }
+}
+
+syn -> crit
+crit -> ref
+ref -> pkg

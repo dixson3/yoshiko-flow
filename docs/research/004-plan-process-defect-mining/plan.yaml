@@ -1,0 +1,75 @@
+topic: "Process-defect mining across 83 plan bundles: remediation pairs and refactor opportunities in yf-plan / yf-research"
+mode: deep
+priority: 1
+research_dir: "docs/research/004-plan-process-defect-mining"
+
+questions:
+  primary:
+    - "Where did a plan build something that a LATER plan had to fix, and which of those remediations were preventable by a better process rather than by better execution?"
+    - "Which process defects RECUR across repos and domains (vs. one-off local slips)?"
+    - "Do yf-plan and yf-research share a common sequence that is currently duplicated, divergent, or inconsistently applied?"
+  secondary:
+    - "What did review passes (conformance, red-team) let through, and is there a structural reason they could not have caught it?"
+    - "Which defects were caught late by execution / git / upstream rather than by review?"
+
+corpus:
+  repos:
+    - path: "~/workspace/dixson3/yoshiko-flow"
+      plans: 43
+      research: 3
+      note: "self-referential — the skill fixing itself; defects may be self-selected"
+    - path: "~/workspace/dixson3/d3-pxe"
+      plans: 16
+      note: "15 under Incubator/<slug>/plans/"
+    - path: "~/workspace/evri/pybridge"
+      plans: 11
+      research: 1
+    - path: "~/workspace/evri/evri_py"
+      plans: 9
+      note: "path is evri_py (underscore), NOT evri-py"
+    - path: "~/_dotfiles/emacs.d"
+      plans: 4
+  total_plans: 83
+
+source_clusters:
+  - name: yf-corpus
+    targets: ["~/workspace/dixson3/yoshiko-flow/docs/plans/*", "docs/research/*"]
+    method: direct
+    expected_artifacts: 14
+  - name: cross-repo-corpus
+    targets: ["d3-pxe", "pybridge", "evri_py", "emacs.d plan bundles"]
+    method: direct
+    expected_artifacts: 14
+  - name: execution-telemetry
+    targets: ["bd graphs", "discovered-from edges", "reopened/blocked beads", "stuck-bead sweeps"]
+    method: direct
+    expected_artifacts: 10
+  - name: history-and-upstream
+    targets: ["git reverts / fix commits / churn", "gh issues traceable to plan output"]
+    method: direct
+    expected_artifacts: 10
+
+tooling_needed:
+  - description: "Remediation-pair extractor over all 83 plan bundles: parse log.md / index.md / plan.md / reviews/, correlate with git history and bead graphs, emit a structured candidate-pair table"
+    shared: false
+
+method_notes:
+  - "Remediation pairs are an INFERENCE, not a record. Nothing in a bundle declares 'this fixes plan-031'. The extractor proposes candidates from textual/temporal signals; each pair MUST be confirmed against BOTH bundles before use. Unconfirmed pairs stay labelled as candidates and may not carry a finding."
+  - "Hindsight bias is the primary threat to any 'could have been prevented' claim. The bar is whether a STATED, CHECKABLE process step would have caught it — not whether a smarter planner might have. The red-team pass must attack this per defect class."
+  - "yf-corpus vs cross-repo-corpus is a deliberate split: yoshiko-flow is the skill fixing itself and its defects may be self-selected. A class that also appears in emacs.d / pybridge / evri_py / d3-pxe is a materially stronger signal."
+
+blind_to: "research 003 findings — retrievers mine WITHOUT priming so the corpus speaks for itself; reconciliation against 003 happens at SYNTHESIZE. Independent corroboration is the signal being protected."
+
+exclusions:
+  - "No external/web leg. This corpus is entirely first-party by design."
+
+limitations_declared:
+  - "Can establish 'this defect class recurred N times across M repos'. CANNOT establish 'the field solves it this way' — there is no comparative external evidence in this corpus."
+
+deliverable: "Defect classes ranked by recurrence and cost, each with the remediation pairs that evidence it and the owning skill surface. No target design."
+
+execution:
+  estimated_beads: 11
+  estimated_budget_usd: 11.00
+  session_mode: new
+epic: yf-mol-fsp

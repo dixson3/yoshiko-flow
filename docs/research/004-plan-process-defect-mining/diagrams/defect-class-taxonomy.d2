@@ -1,0 +1,164 @@
+# Research 004 — process-defect mining across 83 plan bundles.
+# The 16 ranked defect classes (plus 2 non-defect rows) mapped onto the skill
+# surface that owns each one. Rank = the report's mechanical ranking rule
+# (independent clusters, then measurable repos, then stated confidence).
+# Render: uv run <yf-diagram-authoring>/scripts/render.py render defect-class-taxonomy.d2
+
+direction: right
+
+tier1: {
+  label: "Ranks 1-5  —  4 of 4 measurable repos, 4-5 clusters"
+  style.fill: "#f4f8fc"
+
+  m9: "1 · M9\nremediation relationship\nexists only in prose\n4 repos · 5 clusters · high"
+  m5: "2 · M5\nprose-only enforcement\ndoes not bind\n2 repos named · 5 clusters · high"
+  m6b: "3 · M6b\nresidue + stale internal\ncross-reference\n4 of 4 eligible · 4 clusters"
+  m10: "4 · M10\nprecise diagnosis,\nnever routed into work\n4 repos · 4 clusters · high"
+  m11: "5 · M11\nreal-target reality reachable\nonly by running\n4 repos · 4 clusters · high"
+  m11.style: {
+    fill: "#e8f6ec"
+    stroke: "#2e7d43"
+    bold: true
+  }
+}
+
+tier2: {
+  label: "Ranks 6-11  —  2-4 repos, 2-4 clusters"
+  style.fill: "#f8f8f4"
+
+  m1: "6 · M1\nsucceeds visibly\nwhile doing nothing\n2 repos · 4 clusters"
+  m14: "7 · M14 / M14b\nprocess cannot measure its own\nescape rate  (method / absence)\n3 clusters"
+  m7: "8 · M7\nload-bearing premise carried\nwithout verification\n3 repos · 3 clusters"
+  m4: "9 · M4\ndocs diverge from the\nimplementation they describe\n3 repos · 3 clusters"
+  m2b: "10 · M2b\nunsatisfiable gate\n(deadlock by construction)\n4 repos · 2 clusters"
+  m6a: "11 · M6a\nreview-induced defect\n/ regression\n4 repos · 2 clusters · moderate"
+}
+
+tier3: {
+  label: "Ranks 12-16  —  single-repo or single-cluster;\ngenerality not established"
+  style.fill: "#fbf5f5"
+
+  m2a: "12 · M2a\nblind gate — runs, passes,\ncannot see its evidence\n1 repo (yf) · 2 clusters"
+  m3: "13 · M3\ndeployed artifact\ndiverges from source\n1 repo (yf) · 2 clusters"
+  m12: "14 · M12\none-directional\nreconcilers\n1 repo (yf) · 2 clusters"
+  m8b: "15 · M8b\nundisclosed\npost-completion churn\n2 repos · 1 cluster"
+  m6c: "16 · M6c\nresolution asserted\nbut not landed  (new)\n1 repo (yf) · [YFR-only]"
+}
+
+nondefect: {
+  label: "Not corpus defects"
+  style.fill: "#f2f2f2"
+  style.stroke-dash: 4
+
+  m8a: "M8a — `complete` overloaded\n(design observation, not a defect)"
+  m13: "M13 — extractor identity +\nattribution failure\n(method defect of THIS project)"
+}
+
+yfplan: {
+  label: "yf-plan"
+  style.fill: "#eef3fb"
+
+  gate: "gate model"
+  investigate: "INVESTIGATE spikes\n+ capability gates"
+  testauth: "capability-gate\n`Test:` authoring"
+  intake: "intake reconcile"
+  phase: "phase model\n(audit trigger placement)"
+  revision: "revision cycle"
+  lifecycle: "completion semantics\n+ lifecycle vocabulary"
+}
+
+pm: {
+  label: "plan_manager.py"
+  style.fill: "#eef3fb"
+
+  schema: "bundle schema"
+  audit: "audit\n(bundle-local id resolution)"
+  complete: "complete gate"
+}
+
+review: {
+  label: "Review agents"
+  style.fill: "#fdf6e8"
+
+  redteam: "red-team pass\n(incl. gate-reachability check)"
+  conformance: "conformance pass\n(reviews/ artifact contract)"
+  resolutions: "resolutions-table\ncontract"
+  generic: "review agents\n(general)"
+}
+
+skills: {
+  label: "Sibling skills / engines"
+  style.fill: "#f0f7f0"
+
+  okf: "yf-okf"
+  cv: "yf-change-validation\n(exit-code verdict)"
+  dc: "yf-drift-check"
+  upstream: "yf-beads-upstream\n(issue-to-bead routing)"
+  upstreampy: "upstream.py"
+  reconciler: "yf-beads-upstream\nreconciler"
+  rules: "always-loaded\nrules surface"
+}
+
+outside: {
+  label: "Outside the plan-skill surface"
+  style.fill: "#f2f2f2"
+  style.stroke-dash: 4
+
+  build: "the `yf` build / deploy path"
+  extractor: "scripts/remediation_pairs.py\n(this project)"
+}
+
+# --- ownership edges -------------------------------------------------------
+
+tier1.m9 -> pm.schema
+tier1.m9 -> skills.okf
+
+tier1.m5 -> yfplan.gate
+tier1.m5 -> skills.cv
+tier1.m5 -> skills.rules
+
+tier1.m6b -> pm.audit
+tier1.m6b -> review.generic
+
+tier1.m10 -> skills.upstream
+tier1.m10 -> yfplan.intake
+
+tier1.m11 -> yfplan.investigate: "the corpus's positive finding" {
+style: {
+  stroke: "#2e7d43"
+  bold: true
+}
+}
+
+tier2.m1 -> skills.cv
+tier2.m1 -> yfplan.testauth
+tier2.m1 -> skills.upstreampy
+
+tier2.m14 -> review.conformance
+
+tier2.m7 -> review.redteam
+tier2.m7 -> yfplan.investigate
+
+tier2.m4 -> skills.dc
+
+tier2.m2b -> yfplan.gate
+tier2.m2b -> review.redteam
+
+tier2.m6a -> review.generic
+tier2.m6a -> yfplan.revision
+
+tier3.m2a -> pm.audit
+tier3.m2a -> yfplan.phase
+
+tier3.m3 -> outside.build
+
+tier3.m12 -> skills.reconciler
+
+tier3.m8b -> yfplan.lifecycle
+tier3.m8b -> pm.complete
+
+tier3.m6c -> review.generic
+tier3.m6c -> review.resolutions
+
+nondefect.m8a -> yfplan.lifecycle
+nondefect.m13 -> outside.extractor
