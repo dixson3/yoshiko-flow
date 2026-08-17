@@ -71,19 +71,86 @@ def _parse_bd_json(text: str) -> list[dict]:
     return issues
 
 
-def _bd(*args: str) -> list[dict]:
-    """Run `bd <args> --json` and defensively parse; [] on any failure."""
+def _bd_ex(*args: str) -> tuple[list[dict], str | None]:
+    """Run `bd <args> --json`. Returns (issues, unavailable_reason).
+
+    The second element separates the two outcomes the old `_bd` collapsed:
+
+      * `None`      — **bd answered.** An empty list then means "no such bead", which is
+                      a DEFINITE negative.
+      * a string    — **bd did not answer** (binary absent, wedged DB, unparseable
+                      output). The list is empty but says NOTHING about the bead.
+
+    `_bd` returned `[]` for `CalledProcessError`, `FileNotFoundError` AND `OSError`
+    alike, so a typo'd root, a missing binary and a wedged Dolt DB were indistinguishable.
+    Fixing the silent-pass without this split would have turned a `bd` outage into a hard
+    completion halt on healthy work.
+
+    NOTE: a non-zero exit is AMBIGUOUS on its own — `bd show <missing-id>` exits non-zero,
+    and so does a broken `bd`. It is disambiguated by `_bd_healthy()`, a separate probe
+    against the DB rather than against the bead; see `_bd_show_ex`.
+    """
     try:
         out = subprocess.check_output(["bd", *args, "--json"],
                                       text=True, stderr=subprocess.DEVNULL)
-    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
-        return []
-    return _parse_bd_json(out)
+    except FileNotFoundError:
+        return [], "`bd` not found on PATH"
+    except subprocess.CalledProcessError as e:
+        return [], f"`bd {' '.join(args)}` exited {e.returncode}"
+    except OSError as e:
+        return [], f"`bd` could not be run: {e}"
+    try:
+        return _parse_bd_json(out), None
+    except Exception as e:                                  # pragma: no cover - defensive
+        return [], f"unparseable `bd` output: {e}"
+
+
+def _bd(*args: str) -> list[dict]:
+    """Back-compat view over `_bd_ex`; [] on any failure. Callers that must
+    distinguish absent-from-unavailable use `_bd_ex` directly."""
+    issues, _ = _bd_ex(*args)
+    return issues
 
 
 def _bd_show(node_id: str) -> dict | None:
     beads = _bd("show", node_id)
     return beads[0] if beads else None
+
+
+def _bd_healthy() -> bool:
+    """Is `bd` itself functioning, independent of any particular bead?
+
+    This is the probe that makes the absent/unavailable split REAL rather than nominal.
+    `bd show <missing-id>` exits non-zero, so the failure of a bead-specific command
+    cannot distinguish "that bead does not exist" from "bd is broken". A cheap
+    bead-independent query can: if it succeeds, `bd` works and the earlier failure was
+    about the BEAD; if it also fails, `bd` is the problem.
+    """
+    try:
+        subprocess.check_output(["bd", "list", "--limit", "1", "--json"],
+                                text=True, stderr=subprocess.DEVNULL)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return False
+
+
+def _bd_show_ex(node_id: str) -> tuple[dict | None, str | None]:
+    """(bead, unavailable_reason). `(None, None)` means bd answered: no such bead.
+
+    Deliberately routed through `_bd_show`, which stays THE bead-lookup seam the test
+    suite monkeypatches. Only the *disambiguation* of a None result is new.
+    """
+    bead = _bd_show(node_id)
+    if bead is not None:
+        return bead, None
+
+    # `bead is None` is ambiguous: the bead may be absent, or `bd` may be broken.
+    # Resolve it with a bead-INDEPENDENT probe — a bead-specific failure cannot tell
+    # the two apart, since `bd show <missing-id>` also exits non-zero.
+    if _bd_healthy():
+        return None, None                       # bd works, bead absent -> definite `fail`
+    _, reason = _bd_ex("show", node_id)
+    return None, reason or "`bd` is not answering"
 
 
 def _node_children(node_id: str) -> list[dict]:
@@ -185,13 +252,47 @@ def cascade(root_id: str, reason: str, dry_run: bool) -> dict:
                         "open_children": [], "close_error": err})
         return False
 
-    root = _bd_show(root_id)
+    root, unavailable = _bd_show_ex(root_id)
+    if unavailable:
+        # `bd` did not answer. We know NOTHING about the tree — reporting a clean
+        # cascade would be a lie, and halting would block healthy work on an outage.
+        return {
+            "closed": [], "blocked": [],
+            "errors": [{"id": root_id, "error": unavailable}],
+            "verdict": "inconclusive", "passed": False,
+            "reason": f"could not resolve root {root_id}: {unavailable}",
+            "remediation": "Restore `bd` (see `bd doctor` / `/yf-beads-init`), then "
+                           "re-run §6.4. Completion is NOT blocked by this verdict.",
+            "dry_run": dry_run,
+        }
     if root is None:
-        return {"closed": [], "blocked": [],
-                "errors": [{"id": root_id, "error": "root bead not found"}],
-                "dry_run": dry_run}
+        # `bd` answered and the bead does not exist. DEFINITE negative — fail loud.
+        # Previously this returned exit 0 with an empty walk, so a typo'd or stale
+        # ${EPIC} reported a clean cascade over nothing: a silent pass indistinguishable
+        # from success.
+        return {
+            "closed": [], "blocked": [],
+            "errors": [{"id": root_id, "error": "root bead not found"}],
+            "verdict": "fail", "passed": False,
+            "reason": f"root bead {root_id} does not exist — nothing was cascaded",
+            "remediation": f"Check the root id. `bd show {root_id}` returns nothing, so "
+                           "the plan's **Epic:** field or the ${EPIC} variable is wrong "
+                           "or stale.",
+            "dry_run": dry_run,
+        }
+
     visit(root)
-    return {"closed": closed, "blocked": blocked, "errors": errors, "dry_run": dry_run}
+    verdict = "fail" if blocked else "pass"
+    return {
+        "closed": closed, "blocked": blocked, "errors": errors,
+        "verdict": verdict, "passed": verdict == "pass",
+        "reason": (f"{len(blocked)} container(s) have a non-terminal child or failed to "
+                   "close" if blocked else
+                   f"cascade clean — {len(closed)} container(s) closed"),
+        "remediation": ("Resolve the blocked beads listed above, then re-run §6.4."
+                        if blocked else None),
+        "dry_run": dry_run,
+    }
 
 
 @click.command()
@@ -220,6 +321,15 @@ def main(root_id: str, plan_ref: str, dry_run: bool, as_json: bool):
         click.echo(json.dumps(result, indent=2))
     else:
         verb = "would close" if dry_run else "closed"
+        if result.get("verdict") in ("fail", "inconclusive") and not result["closed"] \
+                and not result["blocked"]:
+            # Root-resolution verdicts: report the reason rather than the misleading
+            # "no containers to close", which reads as success.
+            label = "FAIL-LOUD" if result["verdict"] == "fail" else "INCONCLUSIVE"
+            click.echo(f"cascade: {label} — {result['reason']}")
+            if result.get("remediation"):
+                click.echo(f"  {result['remediation']}")
+            sys.exit(2 if result["verdict"] == "fail" else 0)
         if result["closed"]:
             click.echo(f"cascade: {verb} {len(result['closed'])} container(s): "
                        + ", ".join(result["closed"]))
@@ -234,7 +344,11 @@ def main(root_id: str, plan_ref: str, dry_run: bool, as_json: bool):
                     click.echo(f"  - {b['id']}: open child(ren) "
                                + ", ".join(b["open_children"]))
 
-    sys.exit(2 if result["blocked"] else 0)
+    # REQ-PLAN-067 / REQ-COMPLETE-003(c):
+    #   fail          -> exit 2 (halt)   — blocked containers, OR a root bd says is absent
+    #   inconclusive  -> exit 0 (report) — bd did not answer; never halt on an outage
+    #   pass          -> exit 0
+    sys.exit(2 if result.get("verdict") == "fail" else 0)
 
 
 if __name__ == "__main__":

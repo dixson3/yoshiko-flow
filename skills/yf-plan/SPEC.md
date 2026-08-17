@@ -184,6 +184,16 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   consumed by yf-plan §6.4; extraction to `_shared/` is **deferred** until a genuine second in-repo
   runtime consumer exists (rule-of-three — yf-beads-authoring carries a doctrine cross-reference
   only, not a code consumer). Cross-reference REQ-PLAN-063 (the reconcile/close step this hardens).
+  **Root resolution (plan-043 Epic 3).** The cascade shall **distinguish "`bd` answered and the
+  root bead does not exist" from "`bd` did not answer"**, and shall not collapse them. A root that
+  `bd` positively reports absent is a **`fail`**: it exits non-zero, because a typo'd or stale root
+  otherwise walks an empty tree and reports a clean cascade over nothing — a silent pass that looks
+  exactly like success. A root that could not be resolved **because `bd` was unavailable** (binary
+  absent, non-zero exit, wedged DB, unparseable output) is **`inconclusive`** under
+  REQ-COMPLETE-003: it is reported loudly and does **not** halt. Collapsing the two would convert a
+  `bd` outage into a hard completion halt on healthy work — the same failure mode the network-calling
+  halting step is required to avoid, and a regression this requirement's own fix would otherwise
+  introduce.
 - **REQ-PLAN-068** *(testable)* yf-plan shall detect and surface **parked** plans — approved-but-never-
   executed plans that otherwise silently masquerade as complete (#86). A plan is **parked** iff its
   status is `approved` (coarse filter) **and** its stored content fingerprint is **present and fresh**
@@ -202,8 +212,10 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   **deliverable class is `ci-release`** (REQ-PLAN-069a) yf-plan shall **hard-gate `complete`** on
   evidence that the deliverable's runner-only-observable behavior has been exercised: after the
   container cascade-close (REQ-PLAN-067) and **before** `update-status complete`, a `complete-gate`
-  verb shall **halt completion** (exit non-zero + JSON verdict + actionable message, mirroring the
-  `close_cascade.py` fail-loud contract) unless **at least one** of — (a) a **green-execution
+  verb shall **halt completion** (exit non-zero + JSON verdict **on stdout** + actionable message,
+  mirroring the `close_cascade.py` fail-loud contract and honouring the REQ-COMPLETE-003 envelope —
+  the mirroring is now literal; both failing paths previously wrote to stderr, which the documented
+  `GATE=$(…)` capture idiom cannot see) unless **at least one** of — (a) a **green-execution
   attestation**: a `log.md` `- validated:` bullet (REQ-PLAN-069b) recording one observed green run;
   **or** (b) an **open, out-of-tree, upstream-tracked deferred-validation bead** carrying the
   unverified-behavior signal forward (a standalone `bd` issue with label `deferred-validation` and
@@ -234,6 +246,86 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `plan.md` `**Phase log:**` fallback for un-migrated bundles) and matches the `- validated:` bullet
   form. `validated:` shall be a recognized **non-status** `log.md` token (alongside `intake:`): no
   review-count (REQ-PORT-006), grandfather-date, or status parser keys on it.
+
+- **REQ-PLAN-074** *(testable, plan-043 / #136)* on COMPLETE (the §6.4 ordered gate chain,
+  REQ-COMPLETE-001), yf-plan shall **verify that RECONCILE actually reached the upstream end
+  state each disposition promises**, via a `verify-reconcile` verb that is a **`halting`** step
+  with **`command`** remediation-kind, honouring the REQ-COMPLETE-003 envelope. It runs **after**
+  the reconcile bead is closed and **before** the first destructive step (cascade-close). For
+  every **non-`exclude`** row of plan.md's `## Upstream Issues` table it shall assert:
+  `include` → the issue is **CLOSED and carries a comment mentioning the plan id**;
+  `supersede` → **CLOSED with `stateReason == NOT_PLANNED`**; `partial` → **OPEN and carries a
+  plan-id mention**. The mention requirement is not redundant with state: state alone would
+  **pass** the very defect this requirement exists to catch, since the issue in question is
+  CLOSED today — closed by a human 15 hours later as manual repair. Matching may be normalized
+  (case/punctuation tolerant) but shall **never** be a time-window heuristic, which would also
+  have passed it. The verdict shall carry **per-row** results
+  `rows: [{issue, disposition, verdict, detail}]` with the aggregate rule stated explicitly:
+  **any row `fail` → `fail` (halt), even alongside `inconclusive` rows**; inconclusive-only →
+  `inconclusive` (report, never halt). Every checker failure — binary absent, non-zero exit,
+  unparseable output, or timeout on the REQ-COMPLETE-003(f) bound — shall be `inconclusive`, so
+  an outage never halts completion on healthy work. The table shall be parsed by the **single
+  shared parser** (`parse_upstream_rows`), never a second one: this step is fail-loud, so two
+  parsers disagreeing on row shape would produce a fail-loud **false positive**.
+  Rationale: `agents/reconciler.md` step 4 already prescribed this verification **in prose** and
+  it was skipped anyway — not via a swallowed error, filtering, or non-dispatch, but via a
+  **false success assertion**: the reconciler parsed the table correctly, then reported success
+  without performing the writes. Adding a sixth instruction to a five-instruction list that was
+  partially ignored is a null change, so the check is mechanical.
+  Verification: `scripts/test_verify_reconcile.py` covers each disposition's pass and fail case,
+  the historical scenario (correct state, **no** plan-id mention) **failing**, `exclude` rows
+  skipped, a checker error yielding `inconclusive` rather than `fail`, the **mixed** case (one
+  row `fail` + one `inconclusive` → aggregate `fail`), and row-shape variants (`[#N]` vs `#N`)
+  pinning the shared parser. No network in tests.
+
+- **REQ-PLAN-075** *(testable, plan-043 / #140)* on COMPLETE (the §6.4 ordered gate chain,
+  REQ-COMPLETE-001), yf-plan shall run the **bundle-conformance audit at close** via an
+  `audit-close` verb that is an **`advisory`** step with **`prose`** remediation-kind, honouring
+  the REQ-COMPLETE-003 envelope. It shall report the **absolute** finding set and shall **never**
+  gate `set complete`: it exits **0 unconditionally**, with no option to make that conditional.
+  It shall reuse the existing `_audit_plan` engine rather than reimplement it, so close-time and
+  plan-time findings cannot diverge. Its position in the chain is governed by REQ-COMPLETE-001
+  constraint 1: it runs **above the `classify-deliverable` block**, which contains the
+  `set-deliverable-class` plan.md dual-write — above the *dual-write*, not merely above the
+  `log.md` write. It shall not use the `FAIL-LOUD:` banner vocabulary reserved for halting steps.
+  Rationale: the plan-phase `audit` runs at Phase 3 and in `/yf-plan capture`, both **before**
+  INTAKE — but `references/` and `reviews/` are largely authored during EXECUTE, so those files
+  are created *after* the only gate that would check them and no later gate re-runs it. Close is
+  where the evidence is complete. Advisory rather than halting because a fail-loud close-time
+  audit, measured against the completed corpus, would have blocked **22%** of plans that
+  legitimately completed — including one **proven false positive** (a Windows-drive-letter regex
+  matching inside a quoted fixture body) and one failure the close step **inflicted on itself**
+  via its own `log.md` write. The absolute set rather than a delta-since-approval because the
+  plan-phase audit is a *precondition of approval*, making the stored baseline an empty fail set
+  by construction on every non-`--force` approval — the delta would equal the absolute set in the
+  normal path, and a step that cannot block pays nothing for noise. The ordering constraint is
+  not theoretical: the audit's grandfather downgrade keys on `log.md` `scoping:` entries, so a
+  close-step `log.md` write that drops them silently promotes `warn` findings to `fail`.
+  Verification: `scripts/test_audit_close.py` asserts a failing bundle still exits 0 and that
+  `set complete` proceeds; that the verdict is never `halting` regardless of findings; that
+  findings match the plan-phase `audit` engine exactly; and that the §6.4 invocation order places
+  `audit-close` above the `classify-deliverable`/`set-deliverable-class` block, parsed from
+  SKILL.md source.
+
+- **REQ-PLAN-076** *(testable, plan-043 / Epic 3)* the §6.4 close of the **reconcile step bead**
+  shall **re-derive that bead from `bd`**, scoped to the plan's epic, rather than relying on a
+  shell variable bound only on the pour path (§5.2a). It shall **check the close's exit code**,
+  and shall treat a reconcile bead it cannot resolve as a REQ-COMPLETE-003 verdict rather than
+  proceeding silently.
+  Rationale: the variable is assigned in exactly one place — the pour branch — and the **resume**
+  branch (§5.2b) never re-derives it, so on any resumed execution the close step runs with it
+  **unset**. The consequence was **measured live, and it is worse than an unset-variable failure**:
+  `bd close` with no id argument does not error — it exits **0** and closes a *different*,
+  in-progress bead, then reports success. During this plan's own verification probe it closed the
+  very bead that was running the probe. So the resume path does not merely skip the reconcile
+  close; it **silently closes the wrong bead and asserts success** — structurally the same
+  false-success shape as the reconcile defect this plan exists to fix, in the step immediately
+  adjacent to it. This is why the fix re-derives from `bd` rather than propagating the variable:
+  a propagated variable can still be empty, and an empty one is actively destructive here.
+  Verification: `scripts/test_reconcile_step_resolution.py` asserts the reconcile bead is resolved
+  from the epic rather than from an environment variable, that an unresolvable reconcile bead
+  yields a reported verdict rather than a bare `bd close`, and — as a regression pin on the
+  measured behavior — that no code path can emit a `bd close` whose id argument is empty.
 
 - **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
   **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`

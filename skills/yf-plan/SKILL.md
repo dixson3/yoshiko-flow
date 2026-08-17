@@ -1061,10 +1061,17 @@ authorized and completed.
 
 Read `${SKILL_DIR}/agents/reconciler.md` and follow its procedure. The reconciler parses plan.md dispositions, verifies execution, updates upstream issues, and reports results.
 
-### 6.4 — Close (cascade-close containers → complete-gate → set complete)
+### 6.4 — Close (the ordered gate chain, terminating in `set complete`)
 
-The close step runs a fixed order (REQ-COMPLETE-001): **cascade-close → complete-gate → set
-complete**. Close the reconcile step, then **cascade-close every container in the plan tree** —
+The close step runs an **extensible ordered gate chain** (REQ-COMPLETE-001) — a sequence of
+contract-conformant steps (REQ-COMPLETE-003) governed by ordering constraints rather than by a
+step count, terminating in `update-status complete`. The constraints, in force here: observing
+steps run above every plan-folder writer (including the `classify-deliverable` block, which
+contains the `set-deliverable-class` dual-write); reconcile-verifying steps run after the
+reconcile bead closes and before the first destructive step; cascade-close precedes
+complete-gate; and `update-status complete` is last and is the sole status writer.
+
+Close the reconcile step, then **cascade-close every container in the plan tree** —
 intermediate epics **and the top-level plan molecule** `${EPIC}` — whose children are all
 terminal, bottom-up. The cascade **replaces the bare `bd close ${EPIC}`**: leaving intermediate
 epics open under a closed molecule is exactly the #73 defect (stale "ready" containers polluting
@@ -1076,11 +1083,31 @@ the merged-tree changed paths are now available (they may have been absent at in
 Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
 present it and let the operator confirm/override:
 
+**Close-time bundle-conformance audit (ADVISORY, REQ-PLAN-075 / #140) — runs FIRST.** Its
+position is the chain's read-before-write constraint (REQ-COMPLETE-001 constraint 1): it must
+sit **above the `classify-deliverable` block below**, because that block contains the
+`set-deliverable-class` **plan.md dual-write**. Placing it merely above the `log.md` write is
+not enough, and placing it at the *bottom* of this block would make it judge artifacts the
+close step itself wrote microseconds earlier — a real, previously-observed failure.
+
+```bash
+AUDIT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py audit-close "${plan_dir}" --json)
+echo "$AUDIT"
+# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. Findings are a
+# recommendation to run `/yf-plan capture <plan-id>`, not a halt. Do NOT add a
+# `FAIL-LOUD:` banner here — that vocabulary is reserved for halting steps.
+```
+
+> **Grandfathering caveat.** The audit's legacy downgrade keys on `log.md`'s `scoping:`
+> entries. A `log.md` write that drops them silently promotes `warn` findings to `fail` — which
+> is another reason this step reads *before* the close step writes.
+
 ```bash
 CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
   $(printf ' --changed %q' ${CHANGED}) --json
-# On operator override: set-deliverable-class "${plan_dir}" "<ci-release|standard>"
+# On operator override:
+# uv run ${SKILL_DIR}/scripts/plan_manager.py set-deliverable-class "${plan_dir}" "<ci-release|standard>"
 ```
 
 **This is the one place `evidence` can be `path-backed`.** At intake `--changed` is empty, so a
@@ -1091,7 +1118,27 @@ reports `prose-only` says the merged tree touched no runner-only config, which i
 *against* `ci-release` however many keywords the plan's prose contains.
 
 ```bash
-bd close ${RECONCILE_STEP} --reason "Upstream issues reconciled" --json
+# Close the reconcile bead, RE-DERIVED from bd (REQ-PLAN-076) — never from a shell
+# variable. `RECONCILE_STEP` is bound only on the §5.2a pour path; the §5.2b resume path
+# never re-derives it, and `bd close` with an empty id does not fail — it exits 0 and
+# closes a DIFFERENT in-progress bead, then reports success (measured).
+RSTEP=$(uv run ${SKILL_DIR}/scripts/plan_manager.py close-reconcile-step "${plan_dir}" --json)
+echo "$RSTEP"
+
+# Verify RECONCILE actually reached each row's upstream end state (REQ-PLAN-074, #136).
+# HALTING. Runs after the reconcile bead closes and before the first destructive step —
+# the only point where §6.3 is done and nothing has been torn down yet.
+VERIFY=$(uv run ${SKILL_DIR}/scripts/plan_manager.py verify-reconcile "${plan_dir}" --json)
+VERIFY_RC=$?
+echo "$VERIFY"
+if [ "$VERIFY_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: an upstream row did not reach the end state its disposition requires."
+  echo "Completion HALTS; do NOT set 'complete'. Run the exact 'gh' commands in the verdict's"
+  echo "'remediation' field, then re-run §6.4."
+  exit 1
+fi
+# NOTE: an `inconclusive` verdict exits 0 and does NOT halt — a `gh` outage must never block
+# completion on healthy work (R1). It is still printed above; read it.
 
 # Cascade-close all-terminal containers under the plan molecule (incl. ${EPIC} itself).
 # "Terminal" = closed, or a resolved/verified gate; an unsatisfied gate is a genuine open

@@ -32,6 +32,12 @@ approved: yes
 | `uv-yf-stamp-tracker` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q` |  |  |
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
+| `uv-yf-close-contract` | `uv run skills/yf-plan/scripts/test_close_contract.py` |  |  |
+| `uv-yf-verify-reconcile` | `uv run skills/yf-plan/scripts/test_verify_reconcile.py` |  |  |
+| `uv-yf-audit-close` | `uv run skills/yf-plan/scripts/test_audit_close.py` |  |  |
+| `uv-yf-reconcile-step` | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
+| `uv-yf-status-idem` | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
+| `uv-yf-cascade-root` | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 | `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
@@ -58,6 +64,12 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_close_contract.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_verify_reconcile.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_audit_close.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 |  | `uv run scripts/check_frontmatter.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
@@ -91,13 +103,20 @@ approved: yes
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_complete_gate.py` | `uv-yf-complete-gate` |
 | `skills/yf-plan/scripts/test_review_verdict.py` | `uv-yf-review-verdict` |
 | `skills/yf-plan/scripts/test_config_tiers.py` | `uv-yf-config-tiers` |
 | `skills/yf-plan/scripts/test_classify_deliverable.py` | `uv-yf-classify` |
+| `skills/yf-plan/scripts/test_close_contract.py` | `uv-yf-close-contract` |
+| `skills/yf-plan/scripts/test_verify_reconcile.py` | `uv-yf-verify-reconcile` |
+| `skills/yf-plan/scripts/test_audit_close.py` | `uv-yf-audit-close` |
+| `skills/yf-plan/scripts/test_reconcile_step_resolution.py` | `uv-yf-reconcile-step` |
+| `skills/yf-plan/scripts/test_update_status_idempotent.py` | `uv-yf-status-idem` |
+| `skills/yf-plan/scripts/test_cascade_root_resolution.py` | `uv-yf-cascade-root` |
+| `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-audit-close`, `uv-yf-reconcile-step` |
 | `skills/yf-plan/scripts/fixtures/classify/**` | `uv-yf-classify` |
 | `skills/*/SKILL.md` | `frontmatter` |
 | `skills/*/agents/*.md` | `frontmatter` |

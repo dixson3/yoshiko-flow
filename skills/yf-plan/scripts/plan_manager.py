@@ -1135,9 +1135,48 @@ def update_status(plan_dir: str, status: str, message: str):
     # `## YYYY-MM-DD` heading (or reuses today's) and adds a `- <status>: <message>`
     # bullet retaining the `<status>:` token the review/scoping/audit readers key on.
     # It creates `log.md` on first write. The phase log no longer lives in plan.md.
-    okf.append_log(Path(plan_dir), f"{status}: {message or status}", date=today)
-    log_entry = f"- {status}: {message or status}"
-    click.echo(json.dumps({"status": status, "date": today, "log_entry": log_entry}))
+    entry = f"{status}: {message or status}"
+    log_entry = f"- {entry}"
+
+    # REQ-DATA-017 — idempotent per (date, status token, message).
+    #
+    # Re-running §6.4 is a DOCUMENTED recovery path: the halting steps' fail-loud banners
+    # explicitly instruct the operator to resolve and re-run. So duplicate bullets are
+    # produced by the normal remediation flow, not by misuse. They are not cosmetic —
+    # `log.md` bullets are what the status, review-count (REQ-PORT-006) and grandfather-date
+    # parsers read, so a duplicated status bullet corrupts the record those parsers derive
+    # their answers from.
+    #
+    # The scope is deliberately narrow: only an EXACT (today's date heading, identical
+    # bullet) match is suppressed. The same status on a LATER date, or with a different
+    # message, still appends — this suppresses re-emission, never history.
+    already = _log_has_entry_today(Path(plan_dir), log_entry, today)
+    if not already:
+        okf.append_log(Path(plan_dir), entry, date=today)
+
+    click.echo(json.dumps({
+        "status": status, "date": today, "log_entry": log_entry,
+        "appended": not already, "deduped": already,
+    }))
+
+
+def _log_has_entry_today(plan_dir: Path, log_entry: str, today: str) -> bool:
+    """Is this exact bullet already present under today's `## YYYY-MM-DD` heading?
+
+    Scanning only today's section is what keeps the check a *re-emission* guard rather
+    than a history-suppressing one: the same status legitimately recurs on a later date.
+    """
+    log_md = plan_dir / "log.md"
+    if not log_md.exists():
+        return False
+    in_today = False
+    for line in log_md.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            in_today = line.strip() == f"## {today}"
+            continue
+        if in_today and line.strip() == log_entry.strip():
+            return True
+    return False
 
 
 _TRACKER_ROW_RE = re.compile(
@@ -1617,14 +1656,29 @@ def complete_gate(plan_dir: str, json_output: bool):
     pdir = Path(plan_dir)
     plan_md = pdir / "plan.md"
     if not plan_md.exists():
-        click.echo(json.dumps({"error": "plan.md not found"}), err=True)
+        # REQ-COMPLETE-003(a): the envelope goes to STDOUT on EVERY path, including
+        # this one. SKILL.md captures with `GATE=$(...)`, which captures stdout only,
+        # so a stderr verdict here yields an empty capture and an unreportable halt.
+        #
+        # This is `fail`, not `inconclusive`: the answer is DEFINITE — there is no such
+        # plan folder — which is the same split Issue 3.3 draws for close_cascade.py
+        # (bead-absent halts; bd-did-not-answer is inconclusive). A typo'd plan_dir
+        # must not sail through to `set complete`.
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False, "noop": False,
+            "deliverable_class": None,
+            "reason": f"plan.md not found under {plan_dir}",
+            "remediation": "Check the plan_dir argument, then re-run §6.4.",
+        }))
         sys.exit(1)
 
     dclass = _read_deliverable_class(plan_md.read_text())
     if dclass != "ci-release":
         click.echo(json.dumps({
+            "verdict": "pass",
             "passed": True, "noop": True, "deliverable_class": dclass,
             "reason": "standard/unset deliverable class — completion criterion N/A",
+            "remediation": None,
         }))
         return
 
@@ -1634,9 +1688,12 @@ def complete_gate(plan_dir: str, json_output: bool):
 
     if has_attestation or deferred is not None:
         click.echo(json.dumps({
+            "verdict": "pass",
             "passed": True, "noop": False, "deliverable_class": dclass,
             "evidence": "validated-bullet" if has_attestation else "deferred-bead",
             "deferred_bead": deferred.get("id") if deferred else None,
+            "reason": "ci-release plan carries green-execution evidence",
+            "remediation": None,
         }))
         return
 
@@ -1649,13 +1706,207 @@ def complete_gate(plan_dir: str, json_output: bool):
         f"{plan_id} ...\" -t task -p 1 --label deferred-validation --metadata "
         f"'{{\"plan\":\"{plan_id}\"}}'` and push it individually upstream."
     )
+    # REQ-COMPLETE-003(a): STDOUT on the failing path too — this was the measured live
+    # defect (E2). SKILL.md's `GATE=$(...)` captures stdout, so writing the fail verdict
+    # to stderr printed NOTHING on exactly the path the operator needs to read.
     click.echo(json.dumps({
+        "verdict": "fail",
         "passed": False, "noop": False, "deliverable_class": dclass,
         "reason": "ci-release plan has neither a log.md '- validated:' bullet nor an "
                   "open out-of-tree deferred-validation bead",
         "remediation": remediation,
-    }), err=True)
+    }))
     sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# verify-reconcile — the §6.4 HALTING step that proves RECONCILE actually ran
+# (REQ-PLAN-074 / plan-043 Epic 1, #136).
+#
+# WHY THIS IS A SCRIPT VERB AND NOT ANOTHER INSTRUCTION
+# ----------------------------------------------------
+# `agents/reconciler.md` step 4 ALREADY prescribes this verification, in prose, and
+# plan-039 skipped it in the same breath as step 3 — then reported success. The failure
+# was not a swallowed error, not filtering, and not non-dispatch: it was a FALSE SUCCESS
+# ASSERTION. Adding a sixth instruction to a five-instruction list that was partially
+# ignored is a null change, so the check is mechanical instead.
+#
+# WHY STATE ALONE IS INSUFFICIENT (D6)
+# ------------------------------------
+# Asserting only the issue's end state would have PASSED plan-039 today: #108 is CLOSED —
+# closed by a human 15 hours later, as manual repair. So each row must also carry a
+# `<plan-id>` mention, which is the artifact reconciliation itself leaves behind.
+#
+# NETWORK CALLS INSIDE A HALTING STEP (R1/R10)
+# --------------------------------------------
+# A `gh` outage, rate limit, auth lapse or hang must NOT halt completion on healthy work.
+# Every `gh` failure — including a timeout — is INCONCLUSIVE, never `fail`. Only a
+# definite wrong end state is `fail`. Calls are bounded by _GH_TIMEOUT_S.
+# ---------------------------------------------------------------------------
+
+_GH_TIMEOUT_S = 30  # REQ-COMPLETE-003(f): bounded, so a hung `gh` cannot hang land-the-plane.
+
+
+def _gh_issue_view(number: str) -> tuple[dict | None, str | None]:
+    """Fetch one issue. Returns (payload, error). A non-None error means INCONCLUSIVE."""
+    try:
+        r = subprocess.run(
+            ["gh", "issue", "view", number, "--json", "state,stateReason,comments,title"],
+            capture_output=True, text=True, timeout=_GH_TIMEOUT_S,
+        )
+    except FileNotFoundError:
+        return None, "`gh` not found on PATH"
+    except subprocess.TimeoutExpired:
+        return None, f"`gh` timed out after {_GH_TIMEOUT_S}s"
+    except OSError as e:                                    # pragma: no cover - defensive
+        return None, f"`gh` could not be run: {e}"
+    if r.returncode != 0:
+        return None, (r.stderr or r.stdout or "gh exited non-zero").strip().splitlines()[0]
+    try:
+        return json.loads(r.stdout), None
+    except json.JSONDecodeError as e:
+        return None, f"unparseable `gh` output: {e}"
+
+
+def _mentions_plan_id(payload: dict, plan_id: str) -> bool:
+    """Does any comment mention this plan?
+
+    Matching is NORMALIZED (case- and punctuation-tolerant) but is NEVER a time window.
+    A "some comment postdating execution start" heuristic was explicitly rejected: it
+    would have PASSED plan-039, since #108 carried a human comment 15 h after the
+    reconcile bead closed — exactly the case this check must fail (plan-043 R2).
+    """
+    def _norm(s: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+    needle = _norm(plan_id)
+    if not needle:
+        return False
+    for c in payload.get("comments") or []:
+        if needle in _norm(c.get("body", "")):
+            return True
+    return False
+
+
+def _verify_row(row: dict, plan_id: str) -> dict:
+    """Verify one Upstream Issues row. Returns {issue, disposition, verdict, detail}."""
+    number, disp = row["issue"], row["disposition"]
+    payload, err = _gh_issue_view(number)
+    if err is not None:
+        return {"issue": number, "disposition": disp, "verdict": "inconclusive",
+                "detail": f"could not read #{number}: {err}"}
+
+    state = (payload.get("state") or "").upper()
+    reason = (payload.get("stateReason") or "").upper()
+    mentioned = _mentions_plan_id(payload, plan_id)
+
+    if disp == "include":
+        if state != "CLOSED":
+            return {"issue": number, "disposition": disp, "verdict": "fail",
+                    "detail": f"#{number} is {state}; an `include` row must be CLOSED"}
+        if not mentioned:
+            return {"issue": number, "disposition": disp, "verdict": "fail",
+                    "detail": f"#{number} is CLOSED but no comment mentions {plan_id} — "
+                              "closure is unattributed, so reconciliation is unproven"}
+        return {"issue": number, "disposition": disp, "verdict": "pass",
+                "detail": f"#{number} CLOSED with a {plan_id} mention"}
+
+    if disp == "supersede":
+        if state != "CLOSED" or reason != "NOT_PLANNED":
+            return {"issue": number, "disposition": disp, "verdict": "fail",
+                    "detail": f"#{number} is {state}/{reason or 'no stateReason'}; a "
+                              "`supersede` row must be CLOSED as NOT_PLANNED"}
+        return {"issue": number, "disposition": disp, "verdict": "pass",
+                "detail": f"#{number} CLOSED as NOT_PLANNED"}
+
+    if disp == "partial":
+        if state != "OPEN":
+            return {"issue": number, "disposition": disp, "verdict": "fail",
+                    "detail": f"#{number} is {state}; a `partial` row must stay OPEN "
+                              "(its remaining half is still real work)"}
+        if not mentioned:
+            return {"issue": number, "disposition": disp, "verdict": "fail",
+                    "detail": f"#{number} is OPEN but no comment mentions {plan_id} — "
+                              "the deferred half was never recorded upstream"}
+        return {"issue": number, "disposition": disp, "verdict": "pass",
+                "detail": f"#{number} OPEN with a {plan_id} mention"}
+
+    # `tracker` and any unrecognised disposition: report, never halt. The coarse tracker
+    # is closed by the land-the-plane sweep, not by reconciliation.
+    return {"issue": number, "disposition": disp, "verdict": "inconclusive",
+            "detail": f"#{number} has disposition {disp!r}, which carries no "
+                      "reconciliation end-state contract"}
+
+
+@cli.command("verify-reconcile")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "json_output", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def verify_reconcile(plan_dir: str, json_output: bool):
+    """Verify every non-`exclude` Upstream Issues row reached its end state (#136).
+
+    A `halting` §6.4 step with `command` remediation-kind (REQ-COMPLETE-003).
+    Aggregate rule: ANY row `fail` -> `fail` (halt), even alongside `inconclusive`
+    rows; inconclusive-only -> `inconclusive` (report, never halt).
+    """
+    pdir = Path(plan_dir)
+    plan_md = pdir / "plan.md"
+    if not plan_md.exists():
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False, "rows": [],
+            "reason": f"plan.md not found under {plan_dir}",
+            "remediation": "Check the plan_dir argument, then re-run §6.4.",
+        }))
+        sys.exit(1)
+
+    plan_id = _plan_id_from_dir(pdir)
+    rows = [r for r in parse_upstream_rows(plan_md.read_text())
+            if r["disposition"] not in ("", "exclude")]
+
+    results = [_verify_row(r, plan_id) for r in rows]
+
+    # ---- Aggregate rule (plan-043 C9). Stated, not implicit. -------------------
+    # ANY row `fail` => `fail`, EVEN IF other rows are `inconclusive`. A single
+    # collapsed verdict would otherwise either halt on an outage or mask a real
+    # regression — and the plan-039 scenario is itself a 3-of-5 partial.
+    failed = [r for r in results if r["verdict"] == "fail"]
+    unknown = [r for r in results if r["verdict"] == "inconclusive"]
+
+    if failed:
+        verdict = "fail"
+        reason = (f"{len(failed)} of {len(results)} upstream row(s) did not reach the "
+                  f"end state their disposition requires")
+        remediation = "Reconcile each failing row upstream, then re-run §6.4:\n" + "\n".join(
+            f"  #{r['issue']} ({r['disposition']}): {r['detail']}\n"
+            f"    gh issue comment {r['issue']} --body '<what {plan_id} did>'"
+            + (f" && gh issue close {r['issue']}" if r["disposition"] == "include" else "")
+            for r in failed
+        )
+    elif unknown:
+        verdict = "inconclusive"
+        reason = (f"{len(unknown)} of {len(results)} upstream row(s) could not be checked "
+                  "— completion is NOT blocked, but the rows below are unverified")
+        remediation = ("Re-run `verify-reconcile` once the checker is available, and "
+                       "confirm by hand:\n" + "\n".join(
+                           f"  #{r['issue']}: {r['detail']}" for r in unknown))
+    else:
+        verdict = "pass"
+        reason = (f"all {len(results)} non-exclude upstream row(s) reached their required "
+                  "end state" if results else "no non-exclude upstream rows to verify")
+        remediation = None
+
+    click.echo(json.dumps({
+        "verdict": verdict,
+        "passed": verdict == "pass",
+        "plan_id": plan_id,
+        "rows": results,
+        "reason": reason,
+        "remediation": remediation,
+    }, indent=2))
+
+    # REQ-COMPLETE-003(c): only `fail` halts. `inconclusive` NEVER halts (R1).
+    if verdict == "fail":
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -3106,38 +3357,62 @@ def _latest_review_verdict(
     return (best_n, verdict, best_file)
 
 
-def _plan_non_exclude_upstream_numbers(plan_md_text: str) -> list[str]:
-    """Parse the Upstream Issues table and return issue numbers for any row
-    whose disposition is not `exclude` and not a placeholder.
+def parse_upstream_rows(plan_md_text: str) -> list[dict]:
+    """THE parser for plan.md's `## Upstream Issues` table. Single source of truth.
+
+    Returns one dict per data row: `{issue, disposition, title, notes, resolved_by}`,
+    with `issue` the bare number as a string.
+
+    This is deliberately the ONLY parser of this table in the codebase. Two parsers of
+    one table can disagree — on `[#N]` vs `#N` row shapes, on separator-row detection,
+    on where the table ends — and `verify-reconcile` is FAIL-LOUD, so a disagreement
+    would halt completion on healthy work: a fail-loud false positive, the most
+    expensive failure kind available here (plan-043 R9). `_plan_non_exclude_upstream_numbers`
+    and `verify-reconcile` are both thin views over this function for exactly that reason.
     """
-    numbers: list[str] = []
+    rows: list[dict] = []
     in_table = False
     for line in plan_md_text.splitlines():
         if line.startswith("## Upstream Issues"):
             in_table = True
             continue
-        if in_table:
-            if line.startswith("## "):
-                break
-            if "|" not in line:
-                continue
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            if len(cells) < 3:
-                continue
-            if cells[0].lower() in ("issue", "-----", ""):
-                continue
-            # Header separator line (---|---|---)
-            if all(set(c) <= set("-: ") for c in cells):
-                continue
-            issue_cell = cells[0]
-            disposition = cells[2].lower()
-            if disposition in ("", "exclude"):
-                continue
-            # Extract trailing #N from "owner/repo#3" or "#3"
-            m = re.search(r"#(\d+)", issue_cell)
-            if m:
-                numbers.append(m.group(1))
-    return numbers
+        if not in_table:
+            continue
+        if line.startswith("## "):
+            break
+        if "|" not in line:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        if cells[0].lower() in ("issue", "-----", ""):
+            continue
+        # Header separator line (---|---|---, with or without alignment markers)
+        if all(set(c) <= set("-: ") for c in cells):
+            continue
+        # Row shape tolerance: `[#N](url)`, `#N`, and `owner/repo#N` all yield N.
+        m = re.search(r"#(\d+)", cells[0])
+        if not m:
+            continue
+        rows.append({
+            "issue": m.group(1),
+            "title": cells[1] if len(cells) > 1 else "",
+            "disposition": cells[2].lower(),
+            "notes": cells[3] if len(cells) > 3 else "",
+            "resolved_by": cells[4] if len(cells) > 4 else "",
+        })
+    return rows
+
+
+def _plan_non_exclude_upstream_numbers(plan_md_text: str) -> list[str]:
+    """Issue numbers for any row whose disposition is not `exclude`/placeholder.
+
+    A thin view over `parse_upstream_rows` — never its own parse (see that docstring).
+    """
+    return [
+        r["issue"] for r in parse_upstream_rows(plan_md_text)
+        if r["disposition"] not in ("", "exclude")
+    ]
 
 
 def _audit_finding(item: str, status: str, detail: str) -> dict:
@@ -3441,6 +3716,185 @@ def audit(plan_dir: str, as_json: bool, retro: bool):
             click.echo("\n(retro mode: conversation mining is performed by the "
                        "captor agent, not this audit.)")
     sys.exit(0 if result["status"] == "pass" else 1)
+
+
+@cli.command("close-reconcile-step")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--reason", default="Upstream issues reconciled",
+              help="Close reason recorded on the reconcile bead.")
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
+    """Close the plan's reconcile bead, re-derived from `bd` (REQ-PLAN-076).
+
+    WHY THIS IS A VERB AND NOT `bd close ${RECONCILE_STEP}`
+    ------------------------------------------------------
+    `RECONCILE_STEP` is assigned in exactly one place — SKILL.md §5.2a, the POUR path.
+    The §5.2b RESUME path never re-derives it, so every resumed execution reaches §6.4
+    with it unset.
+
+    The consequence was measured live, and it is worse than "the close silently fails":
+    `bd close` with no id argument does NOT error. It exits 0 and closes a DIFFERENT,
+    in-progress bead, then reports success. (During this fix's own verification probe it
+    closed the very bead running the probe.) So the resume path silently closes the wrong
+    bead and asserts success — the same false-success shape as the reconcile defect this
+    plan exists to fix, one step away from it.
+
+    Propagating the variable would not be enough: a propagated variable can still be
+    empty, and an empty one is actively destructive here. So the bead is re-derived from
+    the epic, and an id is NEVER passed through to `bd` unresolved.
+    """
+    pdir = Path(plan_dir)
+    plan_md = pdir / "plan.md"
+    if not plan_md.exists():
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False,
+            "reason": f"plan.md not found under {plan_dir}",
+            "remediation": "Check the plan_dir argument, then re-run §6.4.",
+        }))
+        sys.exit(1)
+
+    epic = _read_plan_epic_field(plan_md.read_text())
+    if not epic:
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": None, "bead": None,
+            "reason": "no **Epic:** field on plan.md — the reconcile bead cannot be "
+                      "re-derived",
+            "remediation": "Run `plan_manager.py record-epic <plan_dir> <epic-id>` if the "
+                           "plan was poured before the field existed, then re-run §6.4.",
+        }))
+        sys.exit(0)
+
+    candidates = [
+        b for b in _all_plan_beads().values()
+        if str(b.get("id", "")).startswith(f"{epic}.")
+        and (b.get("issue_type") or b.get("type")) == "task"
+        and str(b.get("title", "")).startswith("Reconcile:")
+    ]
+
+    if not candidates:
+        # Distinguishable from "bd did not answer": if bd is down, _all_plan_beads is
+        # empty for every plan, so report rather than halt. Either way we never guess.
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": epic, "bead": None,
+            "reason": f"no reconcile bead found under {epic} (bd may be unavailable, or "
+                      "this plan incorporated no upstream issues)",
+            "remediation": "If this plan has upstream rows, check `bd list --all` and "
+                           "close the reconcile bead by hand; otherwise no action.",
+        }))
+        sys.exit(0)
+
+    already = [b for b in candidates if b.get("status") == "closed"]
+    open_ones = [b for b in candidates if b.get("status") != "closed"]
+
+    if not open_ones:
+        click.echo(json.dumps({
+            "verdict": "pass", "passed": True, "epic": epic,
+            "bead": already[0].get("id"), "already_closed": True,
+            "reason": "reconcile bead already closed (idempotent re-run)",
+            "remediation": None,
+        }))
+        return
+
+    bead = open_ones[0]["id"]
+    try:
+        r = subprocess.run(["bd", "close", bead, "--reason", reason],
+                           capture_output=True, text=True, timeout=60)
+        rc, err = r.returncode, (r.stderr or "").strip()
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as e:
+        rc, err = None, str(e)
+
+    if rc != 0:
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": epic, "bead": bead,
+            "reason": f"could not close reconcile bead {bead}: "
+                      f"{err or 'bd exited ' + str(rc)}",
+            "remediation": f"Close it by hand: bd close {bead} --reason '{reason}'",
+        }))
+        sys.exit(0)
+
+    click.echo(json.dumps({
+        "verdict": "pass", "passed": True, "epic": epic, "bead": bead,
+        "already_closed": False,
+        "reason": f"closed reconcile bead {bead}",
+        "remediation": None,
+    }))
+
+
+@cli.command("audit-close")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def audit_close(plan_dir: str, as_json: bool):
+    """Close-time bundle-conformance audit — ADVISORY (REQ-PLAN-075 / #140).
+
+    Reports the **absolute** finding set and NEVER gates `set complete`.
+
+    WHY A SEPARATE VERB FROM `audit`
+    --------------------------------
+    `audit` is a PLAN-phase gate: it exits non-zero on `fail` because a plan must not
+    reach INTAKE unportable. Reusing it at close would inherit that halting exit code.
+    This verb wraps the SAME `_audit_plan` engine (identical findings, no second
+    implementation) and re-frames the verdict as advisory: it exits 0 unconditionally.
+    The halting difference is structural, not a flag an author can get wrong.
+
+    WHY ADVISORY AND NOT FAIL-LOUD
+    ------------------------------
+    Measured across the completed corpus, a fail-loud close-time audit would have
+    blocked 22% of plans that legitimately completed — including one proven false
+    positive (a Windows-drive-letter regex matching inside a quoted fixture body) and
+    one failure the close step INFLICTED ON ITSELF via its own `log.md` write. Blocking
+    completion on that record would be worse than the drift it detects.
+
+    WHY THE ABSOLUTE SET AND NOT A DELTA
+    ------------------------------------
+    A delta-since-approval was considered and dropped. The Phase-3 audit is a
+    *precondition of approval*, so the stored baseline is an empty fail set by
+    construction on every non-`--force` approval — the delta EQUALS the absolute set in
+    the normal path. Its entire measured benefit was suppressing one legacy case out of
+    ten. And because this step cannot block, noise costs nothing.
+    """
+    pdir = Path(plan_dir)
+    result = _audit_plan(pdir)
+    findings = result.get("findings", []) or []
+    fails = [f for f in findings if f.get("status") == "fail"]
+    warns = [f for f in findings if f.get("status") == "warn"]
+
+    if fails:
+        verdict = "fail"
+        reason = (f"{len(fails)} bundle-conformance finding(s) at close "
+                  f"({len(warns)} warn). Completion is NOT blocked.")
+        remediation = (
+            "Advisory only — `set complete` proceeds regardless. To resolve, run "
+            f"`/yf-plan capture {pdir.name}` and address:\n"
+            + "\n".join(f"  - {f.get('item')}: {f.get('detail')}" for f in fails)
+        )
+    elif warns:
+        verdict = "pass"
+        reason = f"no failing findings at close ({len(warns)} warn)"
+        remediation = None
+    else:
+        verdict = "pass"
+        reason = "bundle is conformant at close"
+        remediation = None
+
+    click.echo(json.dumps({
+        "verdict": verdict,
+        "passed": verdict == "pass",
+        "advisory": True,
+        "audit_status": result.get("status"),
+        "findings": findings,
+        "fail_count": len(fails),
+        "warn_count": len(warns),
+        "grandfathered": result.get("grandfathered"),
+        "reason": reason,
+        "remediation": remediation,
+    }, indent=2))
+
+    # REQ-PLAN-075: an `advisory` step ALWAYS exits 0. This is not conditional on the
+    # verdict, and deliberately has no flag to make it conditional — the guarantee is
+    # what makes the step safe to run at close given the 22% measured block rate.
+    sys.exit(0)
 
 
 @cli.command("ready-check")

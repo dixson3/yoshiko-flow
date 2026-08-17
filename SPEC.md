@@ -400,7 +400,64 @@
 >   absent for the `skills/` control). The `rerun-if-changed=.` line therefore **preserves** that
 >   coverage rather than adding it, which makes it a regression guard rather than the "free coverage"
 >   the plan had assumed.
+> - **plan-043 (2026-08-16, #136/#140/#145 — the Phase 6.4 close-step contract):** amended
+>   `spec/phases.md` **`REQ-COMPLETE-001`** from a *"fixed three-step order"* to an **extensible
+>   ordered gate chain** defined by four named **ordering constraints** (read-before-write,
+>   reconcile-before-verification, cascade-before-completion-gate, status-transition-last) rather
+>   than by a step count, and de-positionalised its `Verification:` clause. The prior wording was
+>   *count-bearing and positional*: it named an exact sequence and pinned complete-gate to an exact
+>   slot, so **any** additional step made the requirement false the moment it landed. Three separate
+>   issues each need to add a step there, so one amendment unblocks all three rather than each
+>   re-amending the same sentence. Added **`REQ-COMPLETE-003`**, the **step convention** every chain
+>   step honours: a single verdict envelope emitted as JSON **to stdout on every path** (stderr is a
+>   contract violation, because SKILL.md's documented `X=$(…)` idiom captures stdout only); a
+>   **tri-state** `verdict: pass|fail|inconclusive` with `passed` retained as a *derived*
+>   compatibility key; the halting rule stated per state — **`inconclusive` never halts and is
+>   always reported**; two step classes on the **halting axis alone** (`halting`/`advisory`); and
+>   **remediation-kind** (`command|prose|adjudication`) as a **separate** attribute, with all six
+>   combinations legal and **`halting` + `prose` explicitly permitted**. The axis split is
+>   load-bearing, not tidiness: a single fail-loud/propose-only axis cannot classify a step that
+>   must *enforce* while its remediation is *authoring* — the shape #145's escape capture needs —
+>   and conflating the two is a category error. The tri-state is likewise load-bearing: the first
+>   new halting step calls the network, so without `inconclusive` a GitHub outage would halt
+>   completion on healthy work. Also required a **bounded timeout** on any network-calling step
+>   (expiry → `inconclusive`), since an unbounded call can hang land-the-plane, which is worse than
+>   either verdict. Corrected `spec/cli.md` **`REQ-CLI-016`**, which already *claimed*
+>   `complete-gate` mirrors `close_cascade.py` while `complete-gate` in fact wrote its fail verdict
+>   to **stderr** — a **measured live defect** that silently emptied the documented capture on
+>   exactly the path that matters. The contract's enforcement is deliberately **mechanical rather
+>   than prose**: `scripts/test_close_contract.py` **enumerates every script invocation** in
+>   SKILL.md's §6.4 block from source (boundary `### 6.4` → next `###`), requiring each to be
+>   envelope-capturing or on a named exempt list. Enumerating only the capture idiom would be
+>   circular — it would see only steps *already shaped like* conformant ones, while the likeliest
+>   non-conformance is an author who adds a step *without* the idiom, which takes less effort. This
+>   is the plan's own thesis applied to itself: its central finding is that a prose instruction that
+>   already existed (`reconciler.md` step 4) was skipped, so a contract enforced only by "a future
+>   author will read it" would reproduce the defect it exists to fix.
 
+> - **plan-043 Epic 3 (2026-08-16 — adjacent close-step defects):** three defects the §6.4 surface
+>   audit surfaced, each of which would bite a chain step. Added **`REQ-PLAN-076`** — the reconcile
+>   step bead shall be **re-derived from `bd`**, scoped to the plan epic, instead of read from a
+>   shell variable bound only on the pour path, with the close's exit code checked. The variable is
+>   assigned in exactly one place (§5.2a) and the **resume** branch never re-derives it, so any
+>   resumed execution reaches the close step with it unset. The plan had recorded this as *inferred
+>   from grep, not run live*, and required live verification before any fix — that verification
+>   **confirmed the defect and corrected its severity**: `bd close` with no id argument does not
+>   fail, it exits **0 and closes a different in-progress bead**, then reports success. The probe
+>   closed the very bead running the probe. The resume path therefore does not skip the reconcile
+>   close, it **silently closes the wrong bead and asserts success** — the same false-success shape
+>   as the reconcile defect this plan exists to fix, one step away from it. Revised
+>   **`REQ-PLAN-067`** so `close_cascade.py` **distinguishes "`bd` answered, bead absent" (a `fail`,
+>   exit non-zero — a typo'd root otherwise walks an empty tree and reports a clean cascade over
+>   nothing) from "`bd` did not answer" (`inconclusive`, reported, never halting). `_bd()` collapsed
+>   `CalledProcessError`, `FileNotFoundError` **and** `OSError` into an empty list, so a typo, a
+>   missing binary and a wedged Dolt DB were indistinguishable; without the split, fixing the
+>   silent-pass would have converted a `bd` outage into a hard completion halt on healthy work.
+>   Added **`REQ-DATA-017`** — `update-status` is **idempotent per (date, status token, message)**,
+>   so the documented "resolve and re-run §6.4" recovery no longer appends a duplicate
+>   `- complete:` bullet. Not cosmetic: `log.md` bullets are what the status, review-count and
+>   grandfather-date parsers read. Idempotence suppresses re-emission, not history — a later date or
+>   a different message still appends.
 ## 1. Purpose & scope
 
 Yoshiko Flow is a family of portable, cross-harness agent **skills** plus a single compiled CLI,
