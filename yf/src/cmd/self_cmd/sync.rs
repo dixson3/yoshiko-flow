@@ -7,15 +7,11 @@
 //! different states, which is why `REQ-YF-SELF-005` specifies them separately;
 //! they converge here so there is exactly **one** implementation to keep correct.
 //!
-//! Extracted from `update.rs` as a pure refactor (plan-042 Issue 1.1): the
-//! behavior below is byte-for-byte the vendor path's prior behavior, so the
-//! behavior changes that follow have a clean diff.
+//! Extracted from `update.rs` as a pure refactor (plan-042 Issue 1.1), then moved
+//! off the deprecated `--surface` alias onto explicit per-harness `--harness`
+//! selection (Issue 1.2/1.3).
 
 use std::path::Path;
-
-/// User-scope surfaces yf may have installed skills/rules into, as
-/// `(--surface value, home-relative dir)`.
-const USER_SURFACES: &[(&str, &str)] = &[("claude", ".claude"), ("agents", ".agents")];
 
 // ---- The sync's presence predicate (REQ-YF-SELF-008, plan-042 Issue 1.2) ----
 
@@ -57,8 +53,8 @@ pub struct SyncPresence {
 /// Two hazards a naive predicate hits, both pinned by tests below:
 ///
 /// 1. **Regression.** `harness_detect::PROBES` has four rows and **no `agents`
-///    row**, while the incumbent [`present_user_surfaces`] probes
-///    `~/.agents/{skills,rules}`. A config-home-only table would stop refreshing a
+///    row**, while the incumbent `present_user_surfaces` (now replaced by this
+///    table) probed `~/.agents/{skills,rules}`. A config-home-only table would stop refreshing a
 ///    machine with `~/.agents/skills` and no `~/.codex`. The `agents` row below
 ///    keeps that machine selected.
 /// 2. **Over-broadening.** `~/.claude` exists on **every** Claude Code machine,
@@ -156,27 +152,46 @@ pub struct RefreshReport {
     pub failures: Vec<String>,
 }
 
-/// Detect which user-scope surfaces actually exist (a `skills` or `rules` dir
-/// under `~/.claude` / `~/.agents`). Pure — drives the per-surface refresh and is
-/// unit-tested directly. (`skills upgrade` is `--surface`-singular, so we invoke
-/// once per *present* surface rather than assuming `claude`.)
-pub fn present_user_surfaces(home: &Path) -> Vec<&'static str> {
-    USER_SURFACES
-        .iter()
-        .filter_map(|(name, dir)| {
-            let base = home.join(dir);
-            (base.join("skills").is_dir() || base.join("rules").is_dir()).then_some(*name)
-        })
-        .collect()
+/// Classify one harness's `--tune` bridge result (`REQ-YF-SELF-008`).
+///
+/// **An exit code of 0 is not evidence of success.** Measured (E5): `yf harness
+/// skills install --tune --json` with no `--harness` returns
+/// `{"status":"confirmation_required"}` having written **no rules and no config**,
+/// and **exits 0** — with skill *bodies* already written, which is what makes the
+/// false success plausible. `tune_bridge_at`'s malformed-settings fail-safe path
+/// returns `{"status":"refused"}` the same way. Both are `Ok(())` at the process
+/// level.
+///
+/// So the caller must read the **payload**, and treat **any** `tune.status` other
+/// than `"ok"` as a failure — not just the one status that happens to be named in
+/// the defect report. This is the same false-success shape as #136.
+///
+/// Returns `Err(reason)` when the run must be counted as a failure.
+fn classify_tune_status(stdout: &str) -> Result<(), String> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(stdout) else {
+        return Err(format!(
+            "unparseable --json output from the tune bridge (got {} bytes); \
+             cannot confirm rules or config were written",
+            stdout.len()
+        ));
+    };
+    match v.get("status").and_then(|s| s.as_str()) {
+        Some("ok") => Ok(()),
+        // Named explicitly because both are exit-0 no-write paths.
+        Some(s @ ("confirmation_required" | "refused")) => Err(format!(
+            "tune reported status {s:?} — it exited 0 but wrote no rules and no \
+             config (skill bodies only)"
+        )),
+        // Any OTHER non-ok status is a failure too. The point of D-M as widened is
+        // that the allow-list is `ok`, not that the deny-list is those two.
+        Some(other) => Err(format!("tune reported status {other:?}, expected \"ok\"")),
+        None => Err("tune output carried no `status` field".to_string()),
+    }
 }
 
-/// The `yf skills upgrade` args for a surface (user scope). Pure/testable.
-pub fn upgrade_args(surface: &str) -> [&str; 6] {
-    ["skills", "upgrade", "--scope", "user", "--surface", surface]
-}
-
-/// Re-deploy user-scope skills/rules by exec'ing the **promoted** binary at
-/// `install_target` once per present surface.
+/// Re-deploy user-scope skills, the rules aggregate, and (once Issue 3.8 flips the
+/// exec off `--rules-only`) harness config, by exec'ing the **promoted** binary at
+/// `install_target` once per harness the presence predicate selects.
 ///
 /// `install_target` MUST be the swap-destination path — NOT a post-swap
 /// `current_exe()`, which `self-replace` leaves pointing at the moved-aside OLD
@@ -184,21 +199,50 @@ pub fn upgrade_args(surface: &str) -> [&str; 6] {
 /// written binary is what makes the new embed take effect, and the running binary
 /// is precisely the one that may carry a stale embed.
 ///
-/// Fail-soft: a per-surface failure is recorded, never fatal to the (already
+/// Each harness is passed **explicitly** via `--harness`, which bypasses the
+/// `REQ-YF-TUNE-023` multi-harness fan-out gate by construction — so the
+/// `confirmation_required` trap cannot be reached at all. [`classify_tune_status`]
+/// is the second, independent defense against it.
+///
+/// Fail-soft: a per-harness failure is recorded, never fatal to the (already
 /// successful) swap. Fail-soft is **not** silent — the caller reports failures and
 /// exits non-zero on the sync alone (`REQ-YF-SELF-005`).
 pub fn run_sync(install_target: &Path, home: &Path) -> RefreshReport {
+    run_sync_with(home, |harness| {
+        std::process::Command::new(install_target)
+            .args(install_args(harness))
+            .output()
+            .map(|o| {
+                (
+                    o.status.success(),
+                    o.status.code(),
+                    String::from_utf8_lossy(&o.stdout).into_owned(),
+                )
+            })
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Env-free core of [`run_sync`] (the unit-test seam): select harnesses via the
+/// presence predicate and run `exec` for each, classifying the result.
+///
+/// `exec` returns `(process_succeeded, exit_code, stdout)` or a spawn error.
+pub fn run_sync_with<F>(home: &Path, mut exec: F) -> RefreshReport
+where
+    F: FnMut(&str) -> Result<(bool, Option<i32>, String), String>,
+{
     let mut report = RefreshReport::default();
-    for surface in present_user_surfaces(home) {
-        let result = std::process::Command::new(install_target)
-            .args(upgrade_args(surface))
-            .status();
-        match result {
-            Ok(s) if s.success() => report.refreshed.push(surface.to_string()),
-            Ok(s) => report
+    for harness in sync_harnesses(home) {
+        match exec(harness) {
+            Err(e) => report.failures.push(format!("{harness}: {e}")),
+            Ok((false, code, _)) => report
                 .failures
-                .push(format!("{surface}: exited {:?}", s.code())),
-            Err(e) => report.failures.push(format!("{surface}: {e}")),
+                .push(format!("{harness}: exited {code:?}")),
+            // Exited 0 — now check the PAYLOAD, because exit 0 is not proof.
+            Ok((true, _, stdout)) => match classify_tune_status(&stdout) {
+                Ok(()) => report.refreshed.push(harness.to_string()),
+                Err(reason) => report.failures.push(format!("{harness}: {reason}")),
+            },
         }
     }
     report
@@ -207,30 +251,6 @@ pub fn run_sync(install_target: &Path, home: &Path) -> RefreshReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// REQ-YF-SELF-005: the sync routine has exactly ONE definition, shared by
-    /// both install paths. Structural check — `run_sync` lives here and nowhere
-    /// else, verified by the test suite compiling against this single path.
-    #[test]
-    fn present_surfaces_detects_skills_or_rules() {
-        let td = tempfile::tempdir().unwrap();
-        let home = td.path();
-        assert!(present_user_surfaces(home).is_empty());
-        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
-        let s = present_user_surfaces(home);
-        assert_eq!(s, vec!["claude"]);
-        std::fs::create_dir_all(home.join(".agents/rules")).unwrap();
-        let s = present_user_surfaces(home);
-        assert_eq!(s, vec!["claude", "agents"]);
-    }
-
-    #[test]
-    fn upgrade_args_are_user_scoped_per_surface() {
-        assert_eq!(
-            upgrade_args("agents"),
-            ["skills", "upgrade", "--scope", "user", "--surface", "agents"]
-        );
-    }
 
     // ---- Issue 1.2: the sync presence predicate ----------------------------
 
@@ -397,5 +417,109 @@ mod tests {
         // branch that returns `confirmation_required` while writing nothing.
         assert!(args.iter().any(|a| a == "--harness"));
         assert!(args.iter().any(|a| a == "--rules-only"));
+    }
+
+    // ---- Issue 1.3: exit 0 is not proof (D-M, widened per pass-1 C6) -------
+
+    /// REQ-YF-SELF-008 / R1 — **the confirmation trap.** `install --tune --json`
+    /// without `--harness` returns `confirmation_required` having written no rules
+    /// and no config, and **exits 0**. The sync must count that as a FAILURE.
+    #[test]
+    fn confirmation_required_at_exit_zero_is_a_failure() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+
+        let report = run_sync_with(home, |_h| {
+            Ok((
+                /*success=*/ true,
+                Some(0),
+                r#"{"status":"confirmation_required","reason":"multi-harness auto-detected"}"#
+                    .to_string(),
+            ))
+        });
+
+        assert!(
+            report.refreshed.is_empty(),
+            "an exit-0 confirmation_required must NOT count as refreshed: {report:?}"
+        );
+        assert_eq!(report.failures.len(), 1, "{report:?}");
+        assert!(
+            report.failures[0].contains("confirmation_required"),
+            "the failure must name the status: {}",
+            report.failures[0]
+        );
+    }
+
+    /// REQ-YF-SELF-008 / pass-1 C6 — **the second exit-0 false success.**
+    /// `tune_bridge_at`'s malformed-settings fail-safe path sets `status: "refused"`
+    /// and also returns `Ok(())`. D-M as originally written named only
+    /// `confirmation_required`; widened, the allow-list is `ok`.
+    #[test]
+    fn refused_at_exit_zero_is_a_failure() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+
+        let report = run_sync_with(home, |_h| {
+            Ok((true, Some(0), r#"{"status":"refused"}"#.to_string()))
+        });
+
+        assert!(report.refreshed.is_empty(), "{report:?}");
+        assert_eq!(report.failures.len(), 1, "{report:?}");
+        assert!(report.failures[0].contains("refused"));
+    }
+
+    /// REQ-YF-SELF-008: the check is an **allow-list on `ok`**, not a deny-list on
+    /// the two known-bad statuses. An unrecognized future status is a failure, and
+    /// so is output with no `status` field or unparseable output — none of which
+    /// may be silently treated as success.
+    #[test]
+    fn only_status_ok_counts_as_success() {
+        assert!(classify_tune_status(r#"{"status":"ok"}"#).is_ok());
+        for bad in [
+            r#"{"status":"dry_run"}"#,
+            r#"{"status":"some_future_status"}"#,
+            r#"{"harnesses":[]}"#,
+            "not json at all",
+            "",
+        ] {
+            assert!(
+                classify_tune_status(bad).is_err(),
+                "must not accept {bad:?} as success"
+            );
+        }
+    }
+
+    /// REQ-YF-SELF-005: a clean `status: "ok"` per selected harness is a success,
+    /// and the sync runs **once per selected harness** with that harness's id.
+    #[test]
+    fn ok_status_refreshes_each_selected_harness() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+        std::fs::create_dir_all(home.join(".codex")).unwrap();
+
+        let seen = std::cell::RefCell::new(Vec::<String>::new());
+        let report = run_sync_with(home, |h| {
+            seen.borrow_mut().push(h.to_string());
+            Ok((true, Some(0), r#"{"status":"ok"}"#.to_string()))
+        });
+
+        assert_eq!(report.failures, Vec::<String>::new());
+        assert_eq!(report.refreshed, vec!["claude-code", "codex"]);
+        assert_eq!(*seen.borrow(), vec!["claude-code", "codex"]);
+    }
+
+    /// REQ-YF-SELF-005: a genuine non-zero exit is still a failure (the ordinary
+    /// case the payload check sits on top of, not instead of).
+    #[test]
+    fn nonzero_exit_is_a_failure() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path();
+        std::fs::create_dir_all(home.join(".claude/skills")).unwrap();
+        let report = run_sync_with(home, |_h| Ok((false, Some(2), String::new())));
+        assert!(report.refreshed.is_empty());
+        assert_eq!(report.failures.len(), 1);
     }
 }
