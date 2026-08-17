@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-16
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-84r poured
 - approved: operator approved
 - review: pass-4 red-team APPROVE — all four cycle-3 concerns grep-verified; no concerns at
   high or medium; plan ready to execute

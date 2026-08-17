@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-043-james-dixson-a8afe8
 author: james-dixson
 created: '2026-08-16'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: b5298aa068028c22cbbf5e40907ff05f2584778af2f2d52b65da1f7752320ff3
+epic: yf-mol-84r
 ---
 # Plan: Settle the Phase 6.4 close-time hook contract once, and land the payloads queued behind it (#136 reconcile verification, #140 bundle conformance at close, #145 escape capture)
 
 **ID:** plan-043-james-dixson-a8afe8
 **Author:** james-dixson
 **Created:** 2026-08-16
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-84r
 **Fingerprint:** b5298aa068028c22cbbf5e40907ff05f2584778af2f2d52b65da1f7752320ff3
 
 ## Objective
