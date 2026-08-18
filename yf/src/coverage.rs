@@ -82,8 +82,6 @@ const ALLOWLIST: &[(&str, &str)] = &[
     //
     // Owning issue per row is named in its reason. Issue 4.3 asserts this block is
     // net-clean at close — no row from this plan may survive it.
-    ("REQ-YF-INSTALL-010", "plan-044 BRIDGE (Issue 2.9): opt-in `install --prune`. Remove this row in the same commit as the `// REQ-YF-INSTALL-010` tag"),
-    ("REQ-YF-MARK-005", "plan-044 BRIDGE (Issue 2.10): residue ignore-list across all four surfaces. Remove this row in the same commit as the `// REQ-YF-MARK-005` tag"),
 ];
 
 /// Root of the `yf` crate (the dir holding `Cargo.toml`).

@@ -70,12 +70,18 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
     let skills = frontmatter::load_skills();
     let sel = common::resolve_selection(&skills, &args.names, args.group.as_deref())?;
     let (skills_dir, rules_dir) = common::dirs_for(args);
+    // The harness `dirs_for` resolved against — the same one whose transform the
+    // deployed dirs carry (plan-044 Issue 2.8).
+    let harness = common::effective_harnesses(args)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| "claude-code".to_string());
 
     let mut upgraded = Vec::new();
     let mut pruned: Vec<String> = Vec::new();
 
     for name in &sel.install {
-        let extras = common::extra_deployed_files(name, &skills_dir)?;
+        let extras = common::extra_deployed_files(name, &skills_dir, &harness)?;
         if args.dry_run {
             for e in &extras {
                 pruned.push(format!("{name}/{e}"));
@@ -276,6 +282,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
@@ -465,6 +472,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
@@ -510,6 +518,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,

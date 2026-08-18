@@ -370,6 +370,16 @@ pub struct SkillsArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Remove deployed files no longer present in the embedded tree
+    /// (`REQ-YF-INSTALL-010`). **Opt-in on `install`**; `upgrade` prunes by default
+    /// (`REQ-YF-MARK-004`) — both share one implementation. Prune fans out across
+    /// every resolved destination and honors the `REQ-YF-MARK-005` ignore-list, so
+    /// generated residue is never counted as a stray. Combine with `--dry-run` to
+    /// see the exact per-destination set first; it operates on FILES, so a
+    /// hand-added skill *directory* survives.
+    #[arg(long)]
+    pub prune: bool,
+
     /// After a successful install, run `yf harness tune` to align the harness
     /// settings to the yf skill contracts (install only). Off by default — without
     /// it, install reports that tuning is available and changes no settings.

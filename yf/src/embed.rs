@@ -45,9 +45,25 @@ use rust_embed::RustEmbed;
 /// The embedded `skills/` tree. Paths are relative to `skills/` (see module docs).
 #[derive(RustEmbed)]
 #[folder = "../skills"]
+// REQ-YF-MARK-005 (plan-044 #155): keep IN LOCKSTEP with
+// `marker::IGNORED_PATH_PATTERNS`. These are proc-macro literal attributes, so they
+// cannot reference the constant; a test asserts the two agree.
+//
+// The last two are not cosmetic. `bootstrap.sh` produces `test-harness/topology.txt`
+// and `.scratch/sandbox.env` inside `skills/`; without excluding them a release built
+// on a developer machine BAKES that sandbox env file into the binary and ships it to
+// every user. Excluding residue only on the read side would hide this while leaving
+// it intact.
 #[exclude = "*.pyc"]
 #[exclude = "__pycache__/*"]
 #[exclude = "**/__pycache__/*"]
+#[exclude = ".pytest_cache/*"]
+#[exclude = "**/.pytest_cache/*"]
+#[exclude = "**/.DS_Store"]
+#[exclude = ".DS_Store"]
+#[exclude = ".scratch/*"]
+#[exclude = "**/.scratch/*"]
+#[exclude = "**/test-harness/topology.txt"]
 struct Skills;
 
 /// Every embedded file path, relative to the `skills/` root.

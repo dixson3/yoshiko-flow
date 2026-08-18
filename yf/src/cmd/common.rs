@@ -157,6 +157,13 @@ fn prune_extra_files(skill_root: &Path, embedded: &BTreeSet<&str>) -> Result<Vec
     }
     let deployed = walk_relpaths(skill_root, skill_root)?;
     for rel in deployed {
+        // REQ-YF-MARK-005: never DELETE generated residue. Symmetric with the
+        // tree-hash walk and `extra_deployed_files` — if the three disagreed, prune
+        // would remove a file the hash still expected (or vice versa) and doctor
+        // would oscillate between `modified` and clean.
+        if crate::marker::is_ignored_relpath(&rel) {
+            continue;
+        }
         if !embedded.contains(rel.as_str()) {
             let p = skill_root.join(&rel);
             std::fs::remove_file(&p).with_context(|| format!("pruning {}", p.display()))?;
@@ -169,8 +176,20 @@ fn prune_extra_files(skill_root: &Path, embedded: &BTreeSet<&str>) -> Result<Vec
 
 /// The list of files that `deploy_skill(.., prune=true)` would remove (for
 /// `--dry-run` reporting). Does not mutate the filesystem.
-pub fn extra_deployed_files(name: &str, skills_dir: &Path) -> Result<Vec<String>> {
-    let skill_root = skills_dir.join(name);
+///
+/// plan-044 Issue 2.8 (#155): takes `harness` and applies the SAME
+/// `transform_skill_name` that [`deploy_skill`] uses to resolve `skill_root`.
+/// Without it this joined the RAW skill name, so on a transforming harness (pi,
+/// `lowercase-hyphen,max64`) it looked in a directory that does not exist, found
+/// nothing, and reported an EMPTY prune set — a `--dry-run --prune` preview
+/// silently claiming nothing would be removed while the real run removed files.
+/// A preview that lies is worse than no preview: it is the evidence the operator
+/// consents on.
+pub fn extra_deployed_files(name: &str, skills_dir: &Path, harness: &str) -> Result<Vec<String>> {
+    let dir_name = harness_desc::lookup(harness)
+        .map(|d| d.transform_skill_name(name))
+        .unwrap_or_else(|| name.to_string());
+    let skill_root = skills_dir.join(&dir_name);
     if !skill_root.exists() {
         return Ok(Vec::new());
     }
@@ -178,7 +197,9 @@ pub fn extra_deployed_files(name: &str, skills_dir: &Path) -> Result<Vec<String>
     let deployed = walk_relpaths(&skill_root, &skill_root)?;
     Ok(deployed
         .into_iter()
-        .filter(|r| !embedded.contains(r))
+        // REQ-YF-MARK-005: residue is not an "extra deployed file" — it is
+        // generated, unembedded by design, and must not be proposed for prune.
+        .filter(|r| !embedded.contains(r) && !crate::marker::is_ignored_relpath(r))
         .collect())
 }
 
@@ -823,6 +844,7 @@ mod dest_dedupe_tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,

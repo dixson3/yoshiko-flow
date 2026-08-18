@@ -487,3 +487,63 @@ fn skills_install_dest_resolution_per_harness() {
         );
     }
 }
+
+// REQ-YF-INSTALL-010 (plan-044 Issue 2.11b, #155): `--prune` fans out to EVERY
+// resolved destination of a two-harness install — not just the first.
+//
+// Driven through the binary under a sandboxed HOME rather than in-process, because
+// destination resolution reads HOME and mutating it in-process would race other
+// tests.
+#[test]
+fn prune_fans_out_to_both_destinations_of_a_two_harness_install() {
+    let home = tempfile::tempdir().unwrap();
+    let home = home.path();
+
+    yf_json_in(
+        home,
+        &[
+            "skills", "install", "yf-beads-extra",
+            "--harness", "claude-code", "--harness", "codex", "--json",
+        ],
+    );
+
+    let strays = [
+        home.join(".claude/skills/yf-beads-extra/STRAY.md"),
+        home.join(".agents/skills/yf-beads-extra/STRAY.md"),
+    ];
+    for p in &strays {
+        assert!(p.parent().unwrap().is_dir(), "installed to {}", p.display());
+        std::fs::write(p, b"orphan\n").unwrap();
+    }
+
+    // --dry-run --prune must PREVIEW both, per destination, before removing any.
+    let dry = yf_json_in(
+        home,
+        &[
+            "skills", "install", "yf-beads-extra",
+            "--harness", "claude-code", "--harness", "codex",
+            "--prune", "--dry-run", "--json",
+        ],
+    );
+    let previewed = dry["pruned"].as_array().expect("pruned array");
+    assert_eq!(
+        previewed.len(), 2,
+        "the dry-run must preview BOTH destinations' strays (a preview that \
+         under-reports is the #155 defect): {dry}"
+    );
+    for p in &strays {
+        assert!(p.exists(), "--dry-run must not remove anything");
+    }
+
+    // Apply.
+    yf_json_in(
+        home,
+        &[
+            "skills", "install", "yf-beads-extra",
+            "--harness", "claude-code", "--harness", "codex", "--prune", "--json",
+        ],
+    );
+    for p in &strays {
+        assert!(!p.exists(), "prune must reach every destination: {}", p.display());
+    }
+}
