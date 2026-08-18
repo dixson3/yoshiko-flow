@@ -68,9 +68,15 @@ SKILL_DIR=$(find ~/.claude/skills ~/.agents/skills "$GIT_ROOT/.claude/skills" "$
    git add "${research_dir}" .beads/
    git diff --cached --quiet || git commit -m "research: complete ${topic}"
    git pull --rebase
-   bd dolt push        # only if a dolt remote is configured
+   bd dolt push        # OMIT when `dolt.local-only` is true (REQ-BINIT-027)
    git push
    ```
+
+   **Local-only guard (REQ-BINIT-027).** Read `bd config get dolt.local-only`; when `true`,
+   drop `bd dolt push` from the proposal. The previous guard here read *"only if a dolt remote
+   is configured"*, which is **backwards**: under local-only a configured remote is the #160
+   misconfiguration itself, so that condition green-lit precisely the push it should have
+   blocked. Key the guard on the **config flag**, never on remote presence.
 
 ## Constraints
 

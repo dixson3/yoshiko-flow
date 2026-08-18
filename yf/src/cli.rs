@@ -447,8 +447,10 @@ pub struct DoctorArgs {
     pub local_only: bool,
 
     /// With `--repair` under local-only context, also CLEAR any configured Dolt
-    /// remote / `sync.remote` (#39, Epic B). Off by default; this is the one
-    /// repair step that touches remote config, so it is an explicit opt-in.
+    /// remote at BOTH layers — the decisive Dolt-DB-level remote and the secondary
+    /// `sync.remote` config key — then VERIFY the removal took effect, failing if a
+    /// remote survives (#39 Epic B; REQ-YF-DOCTOR-006). Off by default; this is the
+    /// one repair step that touches remote config, so it is an explicit opt-in.
     #[arg(long)]
     pub remove_remote: bool,
 

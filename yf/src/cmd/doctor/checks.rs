@@ -679,6 +679,56 @@ impl Check for CodexBudgetCheck {
     }
 }
 
+/// REQ-YF-DOCTOR-006 / REQ-BINIT-027 (#160): READ-ONLY detection of a Dolt remote
+/// configured under `dolt.local-only = true`.
+///
+/// This is the **detect** half of the plan-044 D-2 authority split — *detect and
+/// propose, repair only on request*. It reports the violation and names the exact
+/// removal command; it **never mutates**. The correction stays behind the explicit
+/// `yf doctor --repair --local-only --remove-remote` opt-in.
+///
+/// Why it exists at all: `dolt.local-only` is an **init-time** flag, not a runtime
+/// guard (REQ-BINIT-027). Setting it stops `bd init` from wiring a remote, but it
+/// neither removes nor blocks one configured by any other path — so a repo can sit
+/// in this state indefinitely with nothing reporting it.
+pub struct LocalOnlyRemoteCheck {
+    repo_root: PathBuf,
+}
+
+impl LocalOnlyRemoteCheck {
+    pub fn new(repo_root: PathBuf) -> Self {
+        Self { repo_root }
+    }
+
+    fn evaluate(&self) -> CheckResult {
+        let axis = "beads local-only remote";
+        // No `.beads/` at all → not applicable (never false-positive on a
+        // non-beads repo; that classification is bd_not_initialized's job).
+        if !self.repo_root.join(".beads").is_dir() {
+            return CheckResult::ok(axis, "no .beads/ — not applicable");
+        }
+        if crate::beads_init::has_local_only_remote(&self.repo_root) {
+            CheckResult::fail(
+                axis,
+                "a Dolt remote is configured while `dolt.local-only = true` — bead data can be \
+                 pushed to a remote this repo declares it does not have",
+                // Reused VERBATIM from preflight.rs's Gap 3 offer, so the two
+                // surfaces cannot drift into proposing different commands.
+                "Canonicalization drift: a Dolt remote is configured under local-only — \
+                 run `yf doctor --repair --local-only --remove-remote` to clear it",
+            )
+        } else {
+            CheckResult::ok(axis, "no Dolt remote configured under local-only")
+        }
+    }
+}
+
+impl Check for LocalOnlyRemoteCheck {
+    fn run(&self) -> CheckResult {
+        self.evaluate()
+    }
+}
+
 pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
     let mut out: Vec<Box<dyn Check>> = vec![
         Box::new(VersionCheck),
@@ -701,6 +751,8 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
             None,
             "Install git via your system package manager",
         )),
+        // REQ-YF-DOCTOR-006 (#160): read-only local-only/remote violation axis.
+        Box::new(LocalOnlyRemoteCheck::new(crate::dest::git_root_or_cwd())),
     ];
 
     let skills = frontmatter::load_skills();
@@ -762,6 +814,42 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
 
 #[cfg(test)]
 mod tests {
+
+    // REQ-YF-DOCTOR-006 (#160): the read-only local-only/remote axis. Detect and
+    // propose — never mutate. Also pins the not-applicable case so the check can
+    // never false-positive on a non-beads repo.
+    #[test]
+    fn local_only_remote_check_is_read_only_and_not_applicable_without_beads() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+
+        // No `.beads/` → ok, not applicable.
+        let r = LocalOnlyRemoteCheck::new(root.clone()).run();
+        assert!(r.ok, "a non-beads repo must never be flagged");
+        assert!(r.detail.contains("not applicable"));
+
+        // A `.beads/` with no local-only config → ok (bd absent/unset both land here).
+        std::fs::create_dir_all(root.join(".beads")).unwrap();
+        let r2 = LocalOnlyRemoteCheck::new(root.clone()).run();
+        assert!(r2.ok);
+
+        // The check never wrote anything (D-2: detect + propose, repair on request).
+        assert!(!root.join(".beads").join("config.yaml").exists());
+    }
+
+    // REQ-YF-DOCTOR-006: the proposed remediation is the `--remove-remote` form,
+    // reused verbatim from preflight's Gap 3 so the two surfaces cannot drift.
+    #[test]
+    fn local_only_remote_check_proposes_the_remove_remote_command() {
+        let r = CheckResult::fail(
+            "beads local-only remote",
+            "detail",
+            "Canonicalization drift: a Dolt remote is configured under local-only — \
+             run `yf doctor --repair --local-only --remove-remote` to clear it",
+        );
+        let rem = r.remediation.unwrap();
+        assert!(rem.contains("yf doctor --repair --local-only --remove-remote"));
+    }
     use super::*;
 
     // #32: BinCheck reports a missing binary as a required failure with remediation.
