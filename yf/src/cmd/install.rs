@@ -60,10 +60,32 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     // every deduped destination; pi's name_transform is applied inside
     // `deploy_skill`. NO rules are written here — the aggregated `YOSHIKO_FLOW.md`
     // is owned by `yf harness tune` (Issue 3.1).
+    // REQ-YF-INSTALL-010 (plan-044 #155): `--prune` is OPT-IN on install (it is
+    // default-on for upgrade). Prune fans out across `dests` for free because it
+    // runs inside `deploy_skill`, once per destination.
+    let mut pruned: Vec<(String, String)> = Vec::new(); // (harness, "skill/relpath")
+    if args.prune && args.dry_run {
+        // Dry-run: the deploy loop below is skipped, so project the set here —
+        // through the SAME helper the apply path uses, so the two cannot diverge.
+        for d in &dests {
+            for name in &install {
+                for e in common::extra_deployed_files(name, &d.skills_dir, &d.harness)? {
+                    pruned.push((d.harness.clone(), format!("{name}/{e}")));
+                }
+            }
+        }
+    }
     if !args.dry_run {
         for d in &dests {
             for name in &install {
-                common::deploy_skill(name, &d.skills_dir, /*prune=*/ false, &d.harness)?;
+                // Compute the set BEFORE deploying: `deploy_skill(prune=true)`
+                // removes exactly these, so asking afterwards always returns empty.
+                if args.prune {
+                    for e in common::extra_deployed_files(name, &d.skills_dir, &d.harness)? {
+                        pruned.push((d.harness.clone(), format!("{name}/{e}")));
+                    }
+                }
+                common::deploy_skill(name, &d.skills_dir, /*prune=*/ args.prune, &d.harness)?;
             }
         }
     }
@@ -109,6 +131,13 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
                 .and_then(|v| v.as_str())
                 == Some("ok"),
             "skills_only": skills_only,
+            // REQ-YF-INSTALL-010: the per-destination prune set. Populated on a
+            // real `--prune` run; on `--dry-run --prune` it is the PROJECTED set,
+            // computed the same way, so preview and apply cannot disagree.
+            "pruned": pruned
+                .iter()
+                .map(|(h, f)| serde_json::json!({ "harness": h, "file": f }))
+                .collect::<Vec<_>>(),
             "missing_tools": missing,
             "warnings": sel.log,
             "tune": tune_result,
@@ -143,6 +172,18 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
                     d.harness,
                     d.skills_dir.join(&dir_name).display()
                 );
+            }
+        }
+        // REQ-YF-INSTALL-010: the dry-run block computed NO extras before, so
+        // `--dry-run --prune` reported nothing while a real run removed files.
+        // The preview is the evidence the operator consents on, so it must be
+        // complete and per-destination.
+        if args.prune {
+            if pruned.is_empty() {
+                println!("  would prune: nothing (no extra deployed files)");
+            }
+            for (h, f) in &pruned {
+                println!("  would prune ({h}) {f}");
             }
         }
         println!("(skills-only — rules are not deployed by install)");
@@ -340,6 +381,107 @@ fn prompt_blast_radius(plan: &[crate::cmd::harness::TargetPlan]) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    // REQ-YF-INSTALL-010 (plan-044 Issue 2.11a, #155): a hand-added skill
+    // DIRECTORY survives a `--prune` install.
+    //
+    // Prune operates on FILES, so a directory the operator added stays. This is the
+    // operator-file hazard the sandbox probe confirmed was real, not theoretical —
+    // and it is why prune is opt-in on install rather than default-on.
+    #[test]
+    fn prune_install_keeps_a_hand_added_skill_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        run(&args_for(&skills_dir)).unwrap();
+
+        // An operator's own skill dir, entirely outside the embedded set.
+        let mine = skills_dir.join("my-own-skill");
+        std::fs::create_dir_all(&mine).unwrap();
+        std::fs::write(mine.join("SKILL.md"), b"mine\n").unwrap();
+
+        let mut a = args_for(&skills_dir);
+        a.prune = true;
+        a.json = false;
+        run(&a).unwrap();
+
+        assert!(
+            mine.join("SKILL.md").is_file(),
+            "a hand-added skill DIRECTORY must survive --prune"
+        );
+    }
+
+    // REQ-YF-INSTALL-010 (plan-044 Issue 2.11c): `extra_deployed_files` resolves the
+    // deployed dir through the SAME name transform `deploy_skill` uses.
+    //
+    // HONEST SCOPE: this defect is currently LATENT. pi's transform
+    // (`lowercase-hyphen,max64`) is the IDENTITY for all 20 shipped skill names —
+    // every one is already lowercase-hyphen and under 64 chars — so on today's tree
+    // the raw and transformed paths coincide and the bug cannot manifest. The
+    // symptom exp-004 attributed to it (a `--dry-run --prune` set of empty) was
+    // really install's dry-run block computing no extras at all, which Issue 2.9
+    // fixes. Both were real; the causal attribution was not.
+    //
+    // It is still worth fixing and pinning: two functions deriving the same path by
+    // different rules is a correctness bug that becomes live the moment a skill name
+    // needs transforming. This test uses a synthetic transforming name so the
+    // invariant is checked rather than accidentally satisfied.
+    #[test]
+    fn extra_deployed_files_resolves_through_the_harness_name_transform() {
+        use crate::harness_desc;
+        let pi = harness_desc::lookup("pi").expect("pi descriptor");
+        let raw = "YF_Mixed_Case";
+        let transformed = pi.transform_skill_name(raw);
+        assert_ne!(transformed, raw, "the fixture name must actually transform");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path();
+        // Deployed under the TRANSFORMED dir name, as deploy_skill would write it.
+        let root = skills_dir.join(&transformed);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("STRAY.md"), b"orphan\n").unwrap();
+
+        let found = common::extra_deployed_files(raw, skills_dir, "pi").unwrap();
+        assert_eq!(
+            found,
+            vec!["STRAY.md".to_string()],
+            "must look in the TRANSFORMED dir; joining the raw name finds nothing \
+             and reports an empty prune set"
+        );
+
+        // A non-transforming harness still resolves the raw name.
+        let raw_root = skills_dir.join(raw);
+        std::fs::create_dir_all(&raw_root).unwrap();
+        std::fs::write(raw_root.join("OTHER.md"), b"x\n").unwrap();
+        assert_eq!(
+            common::extra_deployed_files(raw, skills_dir, "claude-code").unwrap(),
+            vec!["OTHER.md".to_string()]
+        );
+    }
+
+    // REQ-YF-MARK-005 (Issue 2.11): residue is spared by prune, so `--prune` and the
+    // tree hash agree. If they disagreed, doctor would oscillate.
+    #[test]
+    fn prune_spares_generated_residue() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        run(&args_for(&skills_dir)).unwrap();
+
+        let root = skills_dir.join("yf-beads-extra");
+        let cache = root.join("scripts/__pycache__");
+        std::fs::create_dir_all(&cache).unwrap();
+        let pyc = cache.join("x.cpython-314.pyc");
+        std::fs::write(&pyc, b"residue\n").unwrap();
+
+        let mut a = args_for(&skills_dir);
+        a.prune = true;
+        a.json = false;
+        run(&a).unwrap();
+
+        assert!(
+            pyc.exists(),
+            "generated residue must be SPARED by prune (REQ-YF-MARK-005)"
+        );
+    }
     use super::*;
     use crate::cli::Scope;
     use std::path::Path;
@@ -355,6 +497,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,

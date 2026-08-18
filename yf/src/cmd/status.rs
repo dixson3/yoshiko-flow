@@ -70,13 +70,18 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
     let skills = frontmatter::load_skills();
     let sel = common::resolve_selection(&skills, &args.names, args.group.as_deref())?;
     let (skills_dir, rules_dir) = common::dirs_for(args);
+    // The harness `dirs_for` resolved against — the same one whose transform the
+    // deployed dirs carry (plan-044 Issue 2.8).
+    let harness = common::effective_harnesses(args)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| "claude-code".to_string());
 
     let mut upgraded = Vec::new();
     let mut pruned: Vec<String> = Vec::new();
-    let acted: Vec<String> = sel.install.iter().cloned().collect();
 
     for name in &sel.install {
-        let extras = common::extra_deployed_files(name, &skills_dir)?;
+        let extras = common::extra_deployed_files(name, &skills_dir, &harness)?;
         if args.dry_run {
             for e in &extras {
                 pruned.push(format!("{name}/{e}"));
@@ -96,11 +101,14 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
         upgraded.push(name.clone());
     }
 
-    // S3: rules surface as one aggregated YOSHIKO_FLOW.md. Upgrade always
-    // rewrites the acted-on sections to embedded, folds legacy standalones, and
-    // reconcile-prunes (authoritative over the whole file). --dry-run projects
-    // the same change set without writing (C3).
-    let flow = common::install_rules_aggregate(&acted, &rules_dir, args.dry_run)?;
+    // REQ-YF-FLOW-008 (#156): upgrade is RULES-NEUTRAL. It formerly called
+    // `install_rules_aggregate` here, which made it a SECOND writer of
+    // YOSHIKO_FLOW.md alongside `yf harness tune` — and two writers of one path is
+    // the defect: any guard or managed block `tune` places is clobbered by the
+    // other writer. `tune` is now the sole writer (REQ-YF-FLOW-007 already imposed
+    // this on `install`; upgrade was the remaining one).
+    //
+    // NOT removed from `remove()` below — see its doc comment and D-10.
 
     if args.json {
         let out = serde_json::json!({
@@ -108,12 +116,15 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
             "status": if args.dry_run { "dry_run" } else { "ok" },
             "skills_dir": skills_dir,
             "rules_dir": rules_dir,
-            "flow_file": flow.flow_file,
             "upgraded": upgraded,
             "pruned": pruned,
-            "rules_upserted": flow.upserted,
-            "rules_pruned": flow.pruned,
-            "rules_migrated": flow.migrated,
+            // REQ-YF-FLOW-008: upgrade writes no rules, so these report empty
+            // rather than being dropped — a consumer reading them keeps working
+            // and sees the honest answer (nothing written) instead of a key error.
+            "flow_file": serde_json::Value::Null,
+            "rules_upserted": Vec::<String>::new(),
+            "rules_pruned": Vec::<String>::new(),
+            "rules_migrated": Vec::<String>::new(),
         });
         println!("{}", serde_json::to_string(&out)?);
         return Ok(());
@@ -135,19 +146,11 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
         };
         println!("      {pv} {p}");
     }
+    // REQ-YF-FLOW-008: no rules output — upgrade writes none. Tell the operator
+    // where rules come from instead of silently omitting the section they used to
+    // see here, so the change reads as intentional rather than as a regression.
     if !args.dry_run {
-        for base in &flow.upserted {
-            println!("      rule section {base} -> {}", flow.flow_file.display());
-        }
-        for base in &flow.migrated {
-            println!(
-                "      migrated standalone {base} -> {}",
-                flow.flow_file.display()
-            );
-        }
-        for base in &flow.pruned {
-            println!("      pruned section {base}");
-        }
+        println!("      (rules unchanged — `yf harness tune` owns YOSHIKO_FLOW.md)");
     }
     Ok(())
 }
@@ -162,6 +165,18 @@ pub fn upgrade(args: &SkillsArgs) -> Result<()> {
 /// when no sections remain, `YOSHIKO_FLOW.md` is deleted (S6). Any legacy
 /// standalone files for the removed protocols are cleaned up too (transition).
 /// Non-`yf` rule files are never touched.
+///
+/// **Why `remove` KEEPS its rules write while `upgrade` lost one (REQ-YF-FLOW-008,
+/// plan-044 D-10).** `REQ-YF-FLOW-002` reconcile-prunes on the **embedded** set, so
+/// nothing else would ever drop a removed skill's section — a later `tune` would
+/// retain it. Making `remove` rules-neutral too would orphan that section
+/// permanently, so this write is deliberate, not an oversight.
+///
+/// *Honest limit:* `remove` writes the **skills-sibling** `rules/` dir, which
+/// coincides with the tune-managed surface **only on claude-code**. On the other
+/// four harnesses it prunes a file nothing reads while the real section survives in
+/// the tune-managed surface. That residual is recorded as a follow-on, not claimed
+/// fixed.
 pub fn remove(args: &SkillsArgs) -> Result<()> {
     let skills = frontmatter::load_skills();
     let sel = common::resolve_selection(&skills, &args.names, args.group.as_deref())?;
@@ -267,6 +282,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
@@ -334,6 +350,37 @@ mod tests {
         // After prune the tree is unmodified again.
         let h = common::skill_health("yf-beads-extra", &skills_dir).unwrap();
         assert!(h.unmodified && h.up_to_date && h.complete);
+    }
+
+    // REQ-YF-FLOW-008 (#156): `skills upgrade` is RULES-NEUTRAL. This mirrors the
+    // negative assertion install.rs already carries for `install`, and it is the
+    // load-bearing one: while upgrade also wrote the aggregate there were TWO
+    // writers of one path, so any guard `tune` added was clobbered by the other.
+    #[test]
+    fn upgrade_writes_no_rules_aggregate() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        super::super::install::run(&args_for(&skills_dir)).unwrap();
+
+        // The rules dir sits beside the skills dir; `--target` pins skills only.
+        let rules_dir = skills_dir.parent().unwrap().join("rules");
+
+        let mut up = args_for(&skills_dir);
+        up.json = false;
+        upgrade(&up).unwrap();
+
+        assert!(
+            !rules_dir.join(crate::flow::FLOW_FILENAME).exists(),
+            "upgrade must not write YOSHIKO_FLOW.md — `yf harness tune` is the sole writer"
+        );
+        assert!(
+            !rules_dir.join("BEADS_INIT.md").exists(),
+            "upgrade must not write a standalone rule file either"
+        );
+        assert!(
+            !rules_dir.exists(),
+            "a rules-neutral upgrade must not even create the rules dir"
+        );
     }
 
     // REQ-YF-FLOW-004 (S3, supersedes REQ-YF-INSTALL-006): the aggregate is a fully
@@ -425,6 +472,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
@@ -470,6 +518,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,

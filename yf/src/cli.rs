@@ -370,6 +370,16 @@ pub struct SkillsArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Remove deployed files no longer present in the embedded tree
+    /// (`REQ-YF-INSTALL-010`). **Opt-in on `install`**; `upgrade` prunes by default
+    /// (`REQ-YF-MARK-004`) — both share one implementation. Prune fans out across
+    /// every resolved destination and honors the `REQ-YF-MARK-005` ignore-list, so
+    /// generated residue is never counted as a stray. Combine with `--dry-run` to
+    /// see the exact per-destination set first; it operates on FILES, so a
+    /// hand-added skill *directory* survives.
+    #[arg(long)]
+    pub prune: bool,
+
     /// After a successful install, run `yf harness tune` to align the harness
     /// settings to the yf skill contracts (install only). Off by default — without
     /// it, install reports that tuning is available and changes no settings.
@@ -447,8 +457,10 @@ pub struct DoctorArgs {
     pub local_only: bool,
 
     /// With `--repair` under local-only context, also CLEAR any configured Dolt
-    /// remote / `sync.remote` (#39, Epic B). Off by default; this is the one
-    /// repair step that touches remote config, so it is an explicit opt-in.
+    /// remote at BOTH layers — the decisive Dolt-DB-level remote and the secondary
+    /// `sync.remote` config key — then VERIFY the removal took effect, failing if a
+    /// remote survives (#39 Epic B; REQ-YF-DOCTOR-006). Off by default; this is the
+    /// one repair step that touches remote config, so it is an explicit opt-in.
     #[arg(long)]
     pub remove_remote: bool,
 

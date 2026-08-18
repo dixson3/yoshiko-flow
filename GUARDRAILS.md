@@ -48,6 +48,15 @@ not become*. They are made enforceable by the `SPEC.md ↔ GUARDRAILS.md ↔ REA
   *Rule:* `yf` writes only the skill install dirs, the `rules/` surface, `.yf/<skill>/` state, and
   `.<skill>.local.json` config; user `CLAUDE.md`/content edits are surfaced for the operator, never
   auto-applied. *Why:* least surprise; the operator owns their repo.
+  *Deletion corollary (plan-044).* "Its own surfaces" bounds **where** `yf` may delete, not
+  **whether** deletion needs care. Two rules follow, and they differ because the recoverability
+  differs: pruning a deployed file (`REQ-YF-INSTALL-010` / `REQ-YF-MARK-004`) removes something
+  `yf` can regenerate, so it is permitted — but stays **opt-in on `install`** and must **preview
+  accurately**, since a hand-added file inside a skill dir is on yf's surface yet is not yf's to
+  discard silently. Reverting the rules aggregate (`REQ-YF-TUNE-029`) removes something `yf`
+  **cannot** regenerate — the operator's own edits — so it is **conservative-keep**: on a sha
+  mismatch the file is kept and reported, never deleted. `yf` does not delete content it never
+  backed up.
 - **GR-009 — the rename is a clean break, not a compat maze.** *Drift:* an ever-growing alias/
   forwarding layer for the old `bdplan`/`bdresearch` names. *Rule:* one clean rename to `yf-*`,
   no runtime aliases; migration is a one-time, idempotent step (REQ-YF-MIGRATE-001). *Why:* aliases

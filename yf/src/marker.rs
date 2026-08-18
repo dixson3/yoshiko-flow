@@ -102,6 +102,49 @@ pub fn deployed_tree_hash(skill_dir: &Path) -> io::Result<String> {
 /// Recursively collect `(skill-relative-path, bytes)` for every file under
 /// `dir`, with paths relative to `root`. Relpaths use `/` separators to match
 /// the embed API regardless of platform.
+/// REQ-YF-MARK-005 (plan-044 #155): generated/residue paths that are NOT part of a
+/// skill's content and must never count as a deployed file.
+///
+/// **Applied SYMMETRICALLY to all four enumerating surfaces** — this tree-hash walk,
+/// `extra_deployed_files`, `prune_extra_files`, and `embed.rs`'s `#[exclude]` list.
+/// Applying it to only the read-side three would make `yf doctor` green while leaving
+/// the real hazard: `embed.rs` excluded only `*.pyc`/`__pycache__`, so a release built
+/// on a machine where `bootstrap.sh` had run BAKED `test-harness/topology.txt` and
+/// `.scratch/sandbox.env` — a developer's sandbox env file — into the binary and
+/// shipped them to every user.
+///
+/// The list is self-consistent by construction: a file excluded from the embed becomes
+/// an *extra deployed file*, which this same list then spares from prune.
+///
+/// `embed.rs` cannot consume this constant (its `#[exclude]` attributes are proc-macro
+/// literals), so its list is kept in lockstep by a test rather than by sharing code.
+pub const IGNORED_PATH_PATTERNS: &[&str] = &[
+    "__pycache__",
+    ".pytest_cache",
+    ".DS_Store",
+    ".scratch",
+    "test-harness/topology.txt",
+];
+
+/// Whether a skill-relative path is generated residue (REQ-YF-MARK-005).
+///
+/// Matches on path SEGMENTS, not substrings, so a legitimate file whose name merely
+/// contains an ignored token is not swallowed.
+pub fn is_ignored_relpath(relpath: &str) -> bool {
+    if relpath.ends_with(".pyc") {
+        return true;
+    }
+    if relpath.ends_with("test-harness/topology.txt") || relpath == "test-harness/topology.txt" {
+        return true;
+    }
+    relpath.split('/').any(|seg| {
+        matches!(
+            seg,
+            "__pycache__" | ".pytest_cache" | ".DS_Store" | ".scratch"
+        )
+    })
+}
+
 fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> io::Result<()> {
     let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)?
         .map(|e| e.map(|e| e.path()))
@@ -117,6 +160,10 @@ fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> io::
                 .map(|c| c.as_os_str().to_string_lossy())
                 .collect::<Vec<_>>()
                 .join("/");
+            // REQ-YF-MARK-005: residue never contributes to the tree hash.
+            if is_ignored_relpath(&relpath) {
+                continue;
+            }
             let bytes = std::fs::read(&path)?;
             out.push((relpath, bytes));
         }

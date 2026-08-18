@@ -1035,8 +1035,15 @@ operator/team-maintainer authorization** (yf-beads-authoring REQ-ORCH-014). This
 ```bash
 git status   # show the merge commit + changed files under ${plan_dir} and .beads/
 # Propose (run only when authorized):
-#   bd dolt push && git push
+#   bd dolt push && git push     # OMIT `bd dolt push` when `dolt.local-only` is set
 ```
+
+**Local-only guard (REQ-BINIT-027).** Check `bd config get dolt.local-only` first; when it is
+`true`, propose `git push` **alone** and never `bd dolt push` — the repo declares it has no Dolt
+replication target. Key the check on the **config flag**, never on whether a remote is present: a
+stray remote under local-only is the #160 misconfiguration itself, so a presence-keyed guard
+green-lights exactly what it should catch. Upstream *issue* tracking is orthogonal and routes to
+`/yf-beads-upstream`.
 
 On an authorized push **rejection** (remote advanced): `git pull --rebase`, then
 **re-validate** (re-run §6.1.5) before retrying the push — never push an unvalidated

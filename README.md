@@ -88,10 +88,14 @@ yf doctor                        # verify the toolchain + skill-install health
 
 `yf skills install` selectors: `--group <name>` (group computed from `skill-group`
 frontmatter), `--scope user|project`, `--surface claude|agents`, `--target <path>`,
-`--strict` (abort if a required tool is missing; default warns and installs anyway), and
-`--dry-run`. `--force` no longer affects the companion ruleset — the aggregated
-`YOSHIKO_FLOW.md` is a fully `yf`-managed artifact whose sections are always regenerated to
-the embedded source (there is no hand-edit tolerance), so it is inert on the rule axis.
+`--strict` (abort if a required tool is missing; default warns and installs anyway),
+`--dry-run`, and `--prune` (remove deployed files no longer in the embedded tree — **opt-in on
+`install`**, default-on for `upgrade`; `--dry-run --prune` reports the exact per-destination set
+first). `--force` no longer affects the companion ruleset — the aggregated `YOSHIKO_FLOW.md` is a
+fully `yf`-managed artifact whose sections are always regenerated to the embedded source, so it is
+inert on the rule axis. *(One narrow exception to "no hand-edit tolerance": `yf harness tune
+--revert` is **conservative-keep** — if you hand-edited the aggregate, revert keeps the file and
+reports the mismatch rather than deleting it.)*
 A named subset (`yf skills install yf-plan yf-research`) pulls each skill's in-repo
 dependencies transitively.
 
@@ -120,9 +124,12 @@ Each skill installs **with its companion rules** (`protocols/*.md`), surfaced in
 HTML-comment-fenced, hash-bearing section per protocol, ordered alphabetically and headed by a
 `managed by yf` banner — rather than a scatter of standalone `*.md` rule files. Any pre-existing
 standalone `yf`-owned rule file is folded into `YOSHIKO_FLOW.md` and removed on the next
-install/upgrade write; non-`yf` rule files (e.g. `BEADS.md` from `bd init`) are never touched.
-`yf skills remove` drops the named skills' sections and deletes `YOSHIKO_FLOW.md` once its last
-section is gone. Missing `depends-on-tool` binaries are reported but do not block the install
+**`yf harness tune`** write; non-`yf` rule files (e.g. `BEADS.md` from `bd init`) are never
+touched. **`yf harness tune` is the aggregate's sole writer** — neither `skills install` nor
+`skills upgrade` writes it, so a guard or managed block that `tune` places cannot be clobbered by
+a second writer. `yf skills remove` is the one deliberate exception: it drops the named skills'
+sections and deletes `YOSHIKO_FLOW.md` once its last section is gone, because reconcile-prune keys
+on the *embedded* set and nothing else would ever drop a removed skill's section. Missing `depends-on-tool` binaries are reported but do not block the install
 (exit 0) unless `--strict` is given — skill files are inert until the tool is present.
 
 ## Operating & health

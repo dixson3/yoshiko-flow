@@ -242,18 +242,36 @@ fn record_manifest(
         | ConfigOutcome::Skipped
         | ConfigOutcome::ConsentRequired { .. } => None,
     };
+    // REQ-YF-TUNE-029 (plan-044 #154): record the sha256 of the rule file AS YF
+    // WROTE IT, on EVERY rules write. This is what revert's touched-since-tune
+    // guard compares against; without it revert cannot distinguish "yf's own
+    // output" from "the operator's edits" and deletes either one.
+    //
+    // Read back from disk rather than hashing the intended body: for a `block`
+    // kind the file also holds operator prose, so the intended body is not the
+    // file. Under --dry-run nothing was written, so there is nothing to record.
+    let rule_sha = |path: &std::path::Path| -> Option<String> {
+        if dry_run {
+            return None;
+        }
+        std::fs::read(path)
+            .ok()
+            .map(|b| crate::cmd::self_cmd::update::sha256_hex(&b))
+    };
     let rule_rec = match rules {
         RuleOutcome::Block { path, .. } => Some(manifest::RuleRecord {
             path: path.display().to_string(),
             kind: "block".to_string(),
             begin_marker: Some(managed_block::BEGIN_MARKER.to_string()),
             end_marker: Some(managed_block::END_MARKER.to_string()),
+            sha256: rule_sha(path),
         }),
         RuleOutcome::Aggregate { path, .. } => Some(manifest::RuleRecord {
             path: path.display().to_string(),
             kind: "aggregate".to_string(),
             begin_marker: None,
             end_marker: None,
+            sha256: rule_sha(path),
         }),
         RuleOutcome::NotApplicable | RuleOutcome::Refused { .. } => None,
     };
@@ -1789,6 +1807,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
@@ -2055,6 +2074,7 @@ mod tests {
             strict: false,
             force: false,
             dry_run: false,
+            prune: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,

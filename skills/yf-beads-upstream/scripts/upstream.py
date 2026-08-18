@@ -90,6 +90,90 @@ def run(cmd: list[str]) -> str:
     return proc.stdout
 
 
+class UpstreamQueryError(RuntimeError):
+    """A network/`gh` read failed. Yields INCONCLUSIVE, never a clean proposal."""
+
+
+def run_unchecked(cmd: list[str]) -> str:
+    """Run `cmd` WITHOUT the fail-fast `SystemExit` of [`run`].
+
+    plan-044 Issue 3.2. `run()` raises `SystemExit` on any non-zero exit, which made
+    REQ-BUP-064's INCONCLUSIVE verdict UNREACHABLE — a `gh` failure killed the process
+    instead of producing a verdict. This is a NEW, separate call path used only by the
+    bulk upstream-state resolver; every existing caller keeps `run()` and its fail-fast
+    semantics untouched, so nothing else changes behavior.
+    """
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError as e:
+        raise UpstreamQueryError(f"{cmd[0]} not on PATH") from e
+    if proc.returncode != 0:
+        raise UpstreamQueryError(
+            f"command failed ({proc.returncode}): {' '.join(cmd)}: {proc.stderr.strip()}"
+        )
+    return proc.stdout
+
+
+# Sentinel for a mapped ref that the bulk query did not return: a deleted issue, a
+# typo'd ref, or one belonging to another repo. These are INDISTINGUISHABLE by this
+# signal, which is exactly why they all route to a human and never to an auto-close
+# (REQ-BUP-064).
+UNRESOLVABLE = "UNRESOLVABLE"
+
+
+@dataclass
+class UpstreamStates:
+    """Resolved upstream states, plus whether the read itself succeeded."""
+
+    states: dict = field(default_factory=dict)
+    inconclusive: bool = False
+    error: str | None = None
+
+    def __getitem__(self, key):
+        return self.states[key]
+
+    def __contains__(self, key):
+        return key in self.states
+
+    def get(self, key, default=None):
+        return self.states.get(key, default)
+
+
+def resolve_upstream_states(numbers, runner=None) -> UpstreamStates:
+    """Resolve issue states with ONE bulk query (REQ-BUP-060).
+
+    `gh issue list --state all --json number,state` returns the whole set in a single
+    round trip, so a mapped ref ABSENT from the result classifies as `UNRESOLVABLE` at
+    zero extra cost — no per-issue probe needed to discover it.
+
+    On a `gh` failure the verdict is INCONCLUSIVE (REQ-BUP-064), never an empty-and-
+    therefore-clean result. That distinction is load-bearing for a verb whose proposal
+    needs a network read: an empty proposal is indistinguishable from "nothing to do"
+    and reads as success.
+    """
+    numbers = [n for n in (normalize_external_ref(x) for x in numbers) if n is not None]
+    call = runner or (
+        lambda cmd: run_unchecked(cmd)
+    )
+    cmd = ["gh", "issue", "list", "--state", "all", "--limit", "1000",
+           "--json", "number,state"]
+    try:
+        raw = call(cmd)
+    except (UpstreamQueryError, OSError) as e:
+        return UpstreamStates(states={}, inconclusive=True, error=str(e))
+
+    try:
+        rows = json.loads(raw) if isinstance(raw, str) else raw
+    except (json.JSONDecodeError, TypeError) as e:
+        return UpstreamStates(states={}, inconclusive=True, error=f"unparseable gh output: {e}")
+
+    by_num = {int(r["number"]): str(r.get("state", "")).upper() for r in rows or []}
+    return UpstreamStates(
+        states={n: by_num.get(n, UNRESOLVABLE) for n in numbers},
+        inconclusive=False,
+    )
+
+
 def _config_get(key: str) -> str:
     """Read a bd config value as raw stdout text (may be `(not set)`).
 
@@ -340,6 +424,42 @@ def _first_balanced(text: str) -> str | None:
             depth -= 1
             if depth == 0:
                 return text[start : j + 1]
+    return None
+
+
+def normalize_external_ref(ref) -> int | None:
+    """Normalize any spelling of an `external_ref` to an ISSUE NUMBER (REQ-BUP-062).
+
+    The defect this closes: `external_for()` matched a URL only, while
+    `external_from_row()` returned any non-empty string. Two readers disagreeing about
+    what a ref MEANS is worse than either being wrong — a bead written `gh-91` was
+    mapped by one reader and invisible to the other, so it was silently omitted from
+    exactly the sweep meant to catch it. (Live instance: `yf-4d7s` = `"gh-91"`.)
+
+    Accepted spellings, all resolving to the same number:
+
+        https://github.com/o/r/issues/91   ->  91
+        gh-91                              ->  91
+        #91                                ->  91
+        91                                 ->  91
+
+    Returns `None` for anything uninterpretable, which the caller must REPORT rather
+    than drop (REQ-BUP-063) — an unparseable ref is a finding for a human, not an
+    absence.
+    """
+    if ref is None:
+        return None
+    text = str(ref).strip()
+    if not text:
+        return None
+    # URL form: trailing /<digits>, tolerating a trailing slash.
+    m = re.search(r"/(\d+)/?$", text)
+    if m:
+        return int(m.group(1))
+    # Short forms: gh-91 / GH-91 / #91 / 91.
+    m = re.fullmatch(r"(?:gh-|#)?(\d+)", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
     return None
 
 
@@ -1163,9 +1283,136 @@ def closable_candidates(beads: list[dict]) -> list[dict]:
 
 
 def issue_number_from_url(url: str) -> str | None:
-    """Trailing issue number of an upstream issue URL, for the `gh issue close` proposal."""
-    m = re.search(r"/(\d+)/?$", url or "")
-    return m.group(1) if m else None
+    """Issue number of an upstream ref, for the `gh issue close` proposal.
+
+    plan-044 Issue 3.1 (REQ-BUP-062): delegates to `normalize_external_ref`, so this —
+    the URL-only reader — and `external_from_row` (any string) resolve every accepted
+    spelling identically. It previously matched a trailing `/<digits>` and nothing
+    else, so a bead recorded as `gh-91` produced no number and vanished from the
+    proposal without a word.
+
+    Name retained for its callers; it is no longer URL-only.
+    """
+    n = normalize_external_ref(url)
+    return str(n) if n is not None else None
+
+
+@dataclass
+class ReconcilePlan:
+    """A reconcile proposal. `commands` are LOCAL closes; `reported` needs a human."""
+
+    commands: list = field(default_factory=list)
+    rows: list = field(default_factory=list)
+    reported: list = field(default_factory=list)
+    inconclusive: bool = False
+    error: str | None = None
+
+
+def reconcile_supports_apply(half: str) -> bool:
+    """The ASYMMETRIC authority of `reconcile` (REQ-BUP-061), as a predicate.
+
+    - `local`  -> True.  Closing a bead is reversible: `bd close -r` leaves a
+                         tombstone and `unhoist` restores it.
+    - `upstream` -> False. Closing an upstream ISSUE is outward-facing and gets the
+                         same confirm-only contract as a push (REQ-BUP-052 and the
+                         always-loaded safety rule). There is no `--apply` for it.
+    """
+    return half == "local"
+
+
+def plan_reconcile(beads, states) -> ReconcilePlan:
+    """Propose `bd close -r` for each non-closed bead whose upstream issue is CLOSED.
+
+    `beads` is a list of {"id", "status", "external_ref"}. `states` maps issue number
+    -> "OPEN" | "CLOSED" | UNRESOLVABLE (or an `UpstreamStates`).
+
+    NEVER proposes a close on an `UNRESOLVABLE` ref (REQ-BUP-064): a deleted issue and
+    a typo'd ref are indistinguishable by this signal, so both route to a human.
+    """
+    plan = ReconcilePlan()
+    if isinstance(states, UpstreamStates):
+        plan.inconclusive = states.inconclusive
+        plan.error = states.error
+        if states.inconclusive:
+            # A falsely-clean proposal is the failure mode to avoid: an empty
+            # command list reads as "nothing to reconcile".
+            return plan
+    for b in beads or []:
+        bid = b.get("id")
+        if not bid or _is_closed(b):
+            continue
+        n = normalize_external_ref(b.get("external_ref") or b.get("external"))
+        if n is None:
+            plan.reported.append(f"{bid}: unparseable external_ref {b.get('external_ref')!r}")
+            continue
+        state = states.get(n) if hasattr(states, "get") else None
+        row = {"id": bid, "issue": n, "upstream_state": state}
+        plan.rows.append(row)
+        if state == "CLOSED":
+            plan.commands.append(
+                f'bd close {bid} -r "upstream #{n} closed"'
+            )
+        elif state == UNRESOLVABLE or state is None:
+            plan.reported.append(
+                f"{bid}: issue #{n} is UNRESOLVABLE upstream — NOT auto-closing; "
+                "a deleted issue and a typo are indistinguishable here"
+            )
+    return plan
+
+
+def cmd_reconcile(as_json: bool, apply: bool) -> int:
+    """#144: close beads whose upstream issue is already closed (REQ-BUP-061).
+
+    Authority is ASYMMETRIC by design — the local half is `--apply`-able because a
+    `bd close -r` tombstone is reversible; the upstream half is propose-only and has
+    no `--apply` at all.
+    """
+    if not upstream_enabled():
+        print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to do.")
+        return 0
+
+    rows = load_universe_rows()
+    beads = [
+        {"id": r["id"], "status": r.get("status", ""), "external_ref": ext}
+        for r in rows
+        if r.get("id") and (ext := external_from_row(r)) and not _is_closed(r)
+    ]
+    states = resolve_upstream_states(b["external_ref"] for b in beads)
+    plan = plan_reconcile(beads, states)
+
+    if as_json:
+        print(json.dumps({
+            "commands": plan.commands,
+            "rows": plan.rows,
+            "reported": plan.reported,
+            "inconclusive": plan.inconclusive,
+            "error": plan.error,
+            "applied": bool(apply) and not plan.inconclusive,
+        }, indent=2))
+    else:
+        if plan.inconclusive:
+            print(
+                f"INCONCLUSIVE: could not read upstream issue state ({plan.error}). "
+                "Proposing nothing — an empty proposal here would be "
+                "indistinguishable from 'nothing to reconcile'."
+            )
+            return 0
+        print(f"{len(plan.commands)} bead(s) whose upstream issue is CLOSED:")
+        for c in plan.commands:
+            print(f"  {c}")
+        for r in plan.reported:
+            print(f"  REPORT: {r}")
+        if not apply:
+            print("\n(dry run — re-run with --apply to close these BEADS locally.")
+            print(" The upstream half is propose-only and has no --apply.)")
+
+    if apply and not plan.inconclusive:
+        for b in plan.rows:
+            if b["upstream_state"] == "CLOSED":
+                run(["bd", "close", b["id"], "-r", f"upstream #{b['issue']} closed"])
+        if not as_json:
+            print(f"\nApplied: closed {len(plan.commands)} bead(s) locally (reversible via unhoist).")
+    return 0
 
 
 def cmd_closable(as_json: bool) -> int:
@@ -1183,27 +1430,94 @@ def cmd_closable(as_json: bool) -> int:
     # the unmapped majority (998 of 1019 on this repo) out of closable_candidates, which
     # only groups by external ref anyway.
     rows = load_universe_rows()
-    beads = [
-        {"id": r["id"], "status": r.get("status", ""), "external": ext}
-        for r in rows
-        if r.get("id") and (ext := external_from_row(r))
-    ]
+
+    # plan-044 Issue 3.4 (REQ-BUP-063): an UNPARSEABLE ref is REPORTED, never
+    # silently dropped. The old code filtered mapped beads with a bare walrus and
+    # said nothing about refs it could not interpret — an absence that looked
+    # identical to "no such bead".
+    beads: list[dict] = []
+    unparseable: list[dict] = []
+    for r in rows:
+        if not r.get("id"):
+            continue
+        ext = external_from_row(r)
+        if not ext:
+            continue
+        if normalize_external_ref(ext) is None:
+            unparseable.append({"id": r["id"], "external": ext})
+            continue
+        beads.append({"id": r["id"], "status": r.get("status", ""), "external": ext})
+
     report = closable_candidates(beads)
+
+    # plan-044 Issue 3.3 (REQ-BUP-060/064): annotate each row with its UPSTREAM
+    # state and emit NO command for a non-OPEN issue. Baseline before this: 35
+    # commands emitted, 6 actionable — 29 were no-ops or errors against issues
+    # already closed or deleted.
+    states = resolve_upstream_states(r["external"] for r in report)
+    for row in report:
+        n = normalize_external_ref(row["external"])
+        row["issue"] = n
+        row["upstream_state"] = (
+            "INCONCLUSIVE" if states.inconclusive else states.get(n, UNRESOLVABLE)
+        )
+        # Actionable ONLY when the beads say closable AND the issue is really OPEN.
+        row["actionable"] = bool(row["closable"]) and row["upstream_state"] == "OPEN"
+
     closable = [r for r in report if r["closable"]]
+    actionable = [r for r in report if r["actionable"]]
+    unresolvable = [r for r in report if r["upstream_state"] == UNRESOLVABLE]
 
     if as_json:
-        print(json.dumps({"caveat": CLOSABLE_CAVEAT, "issues": report}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "caveat": CLOSABLE_CAVEAT,
+                    "issues": report,
+                    "unparseable_refs": unparseable,
+                    "unresolvable": [r["external"] for r in unresolvable],
+                    "inconclusive": states.inconclusive,
+                    "inconclusive_reason": states.error,
+                },
+                indent=2,
+            )
+        )
     else:
-        print(f"{len(report)} mapped upstream issue(s); {len(closable)} closable:")
+        if states.inconclusive:
+            # REQ-BUP-064: never present a falsely-clean proposal. Say plainly that
+            # the upstream read failed, so an empty command list is not mistaken
+            # for "nothing needs closing".
+            print(
+                "INCONCLUSIVE: could not read upstream issue state "
+                f"({states.error}). NOT proposing any closes — an empty proposal "
+                "here would be indistinguishable from 'nothing to do'."
+            )
+        print(
+            f"{len(report)} mapped upstream issue(s); {len(closable)} closable by beads; "
+            f"{len(actionable)} actionable (also OPEN upstream):"
+        )
         for r in report:
-            tag = "closable    " if r["closable"] else "not-closable"
-            print(f"  [{tag}] {r['external']}  ({r['reason']})")
-        if closable:
+            tag = "actionable  " if r["actionable"] else "not-actionable"
+            print(f"  [{tag}] {r['external']}  [{r['upstream_state']}]  ({r['reason']})")
+
+        if unresolvable:
+            # Reported SEPARATELY for a human: a deleted issue and a typo'd ref are
+            # indistinguishable by this signal, so neither is ever auto-acted on.
+            print("\nUNRESOLVABLE (not found upstream — deleted, typo'd, or another repo):")
+            for r in unresolvable:
+                print(f"  {r['external']}  (beads: {', '.join(r['beads'])})")
+
+        if unparseable:
+            print("\nUNPARSEABLE external_ref (reported, not dropped — REQ-BUP-063):")
+            for u in unparseable:
+                print(f"  {u['id']}  external_ref={u['external']!r}")
+
+        if actionable:
             print("\nProposed (NOT executed — confirm each before running):")
-            for r in closable:
-                num = issue_number_from_url(r["external"])
-                if num:
-                    print(f"  gh issue close {num}")
+            for r in actionable:
+                print(f"  gh issue close {r['issue']}")
+        elif not states.inconclusive:
+            print("\nNo close proposed: no mapped issue is both fully closed by beads and OPEN upstream.")
         print(f"\nNOTE: {CLOSABLE_CAVEAT}")
     return 0
 
@@ -1258,6 +1572,17 @@ def main() -> int:
         help="propose upstream issues whose mapped beads are all closed (never closes)",
     )
     p_clos.add_argument("--json", action="store_true", dest="as_json")
+
+    p_rec = sub.add_parser(
+        "reconcile",
+        help="propose closing beads whose upstream issue is already closed (#144)",
+    )
+    p_rec.add_argument("--json", action="store_true", dest="as_json")
+    p_rec.add_argument(
+        "--apply",
+        action="store_true",
+        help="close the BEADS locally (reversible). The upstream half is propose-only.",
+    )
 
     p_push = sub.add_parser(
         "push",
@@ -1314,6 +1639,8 @@ def main() -> int:
         return cmd_followons(args.parent, args.intake, args.as_json)
     if args.cmd == "closable":
         return cmd_closable(args.as_json)
+    if args.cmd == "reconcile":
+        return cmd_reconcile(args.as_json, args.apply)
     if args.cmd == "push":
         return cmd_push(args.issues, args.apply)
     if args.cmd == "hoist":

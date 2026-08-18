@@ -495,6 +495,43 @@
 >   auto-detecting is that outcome by another name — so the requirement now names the exception and
 >   its five compensating controls instead of claiming the prohibition is preserved intact.
 >   Implementation lands in later epics; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-044 (2026-08-17, #159/#160/#156/#154/#155/#144/#142/#143):** the *silent-success*
+>   defect clusters — an operation that reports success without verifying its own postcondition.
+>   Added **`REQ-YF-DOCTOR-006`** (a `--repair` step shall re-run its own detecting predicate and
+>   `FAIL` rather than report `ok`), **`REQ-YF-INSTALL-010`** (opt-in `install --prune`, fanning
+>   out across every resolved destination, with a `--dry-run` preview that does not under-report),
+>   **`REQ-YF-MARK-005`** (one residue ignore-list applied **symmetrically to four** surfaces —
+>   tree hash, extra-deployed-files, prune, **and the embed exclusion list**; omitting the fourth
+>   ships a developer's `.scratch/sandbox.env` inside the released binary),
+>   **`REQ-YF-FLOW-008`** (`skills upgrade` is **rules-neutral**, leaving `tune` the aggregate's
+>   sole writer), and **`REQ-YF-TUNE-029`** (a rules-side revert guard: record the aggregate's
+>   `sha256` on every write, and on mismatch **keep and report** rather than delete).
+>
+>   **Amendments, stated rather than smuggled.** **`REQ-YF-MARK-004`** now names prune as
+>   default-on for `upgrade` / opt-in for `install` over **one** implementation.
+>   **`REQ-YF-FLOW-004`** is **scoped**: its *unconditional* drop/delete clause applies to
+>   **`skills remove` only** — and its "no hand-edit tolerance" property is **explicitly carved
+>   out on the `--revert` path** (D-9). That carve-out is recorded here because leaving it implicit
+>   would leave FLOW-004 and the new TUNE-029 flatly contradicting each other; the reasoning is
+>   that regenerating a section is cheap while deleting un-backed-up content is unrecoverable.
+>   **`REQ-YF-TUNE-022`** now says plainly that its touched-since-tune guard governs **config**
+>   keys and that the rules side does **not** inherit those semantics implicitly — TUNE-029 is
+>   where they are specified.
+>
+>   **Declared deferral (D-11).** `REQ-YF-TUNE-020`'s **`agents`** rule-target row is **deferred**
+>   to plan-044 Issue 2.2 and is deliberately **not** amended here. Epic 0 executes *before* that
+>   issue's probe, so the correct destination is unknowable at this point, and
+>   §3.10's own binding precedent — *a rule target shall NOT be a compiled-in guess* — forbids
+>   filling it in speculatively. Issue 2.2 measures what the `agents` surface actually loads and
+>   then owns the resulting edit under **either** outcome: add a `RULE_TARGETS` row *carrying that
+>   evidence*, **or** declare `agents` a skills-only bare surface in `REQ-YF-FLOW-008`. The
+>   deferral is logged so the post-Epic-0 SPEC edit is **declared, not smuggled**.
+>
+>   All five new requirements use bare *(testable)*; each is bridged by a temporary `coverage.rs`
+>   `ALLOWLIST` row that is removed **in the same commit** as the `// REQ-…` tag that supersedes
+>   it (D-7) — `coverage.rs` fails on a *stale* row as well as a missing test, so the bridge must
+>   not outlive its tag by even one commit. Implementation lands in Epics 1–3; this entry records
+>   the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 
@@ -670,6 +707,16 @@ requirement lives only in code (GUARDRAILS GR-010).
   environment) so tests control both the home-dir probe (sandboxed `HOME`) and the binary probe
   (injected `PATH`) hermetically.
 
+- **REQ-YF-INSTALL-010** *(testable)* `yf harness skills install` shall accept an **opt-in
+  `--prune`** flag that removes deployed files absent from the embedded tree, subject to the
+  ignore-list of `REQ-YF-MARK-005`. Prune shall fan out across **every** resolved destination
+  (`REQ-YF-INSTALL-002`), and `--dry-run --prune` shall report the exact per-destination set it
+  would remove — a preview that under-reports is a defect, not a convenience. Prune operates on
+  **files**, so a hand-added skill *directory* survives. Pruning is **default-on for `upgrade` and
+  opt-in for `install`** (`REQ-YF-MARK-004`), sharing **one** implementation. `--prune` shall
+  **not** be wired into the `REQ-YF-SELF-005` install-time sync, which would otherwise delete
+  operator files on every `yf self install`.
+
 ### 3.3.1 Aggregated ruleset (`REQ-YF-FLOW`)
 
 `yf` surfaces every rule-bearing skill's companion protocol as **one** operator-facing file in the
@@ -696,10 +743,16 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   rule-deploy write, every `yf`-owned standalone rule file present in the rules dir — including protocols for skills **not** named this run — shall be
   folded into `YOSHIKO_FLOW.md` and the standalone deleted (C4a migration); non-`yf` files are never
   touched; the fold is idempotent and preserves a folded standalone's bytes.
-- **REQ-YF-FLOW-004** *(testable)* the aggregate is a fully `yf`-managed artifact (S3, no hand-edit
-  tolerance): acted-on sections are **always** rewritten to the embedded source (no `--force` gate);
-  `remove` drops the named skills' sections **unconditionally** (even a drifted section) and deletes
-  `YOSHIKO_FLOW.md` when its last section is removed (S6).
+- **REQ-YF-FLOW-004** *(testable)* the aggregate is a fully `yf`-managed
+  artifact (S3): acted-on sections are **always** rewritten to the embedded source (no `--force`
+  gate). The **unconditional drop/delete** clause is scoped to **`yf harness skills remove`**: it —
+  and only it — drops the named skills' sections **unconditionally** (even a drifted section) and
+  deletes `YOSHIKO_FLOW.md` when its last section is removed (S6). **Carve-out (plan-044, D-9):**
+  the "no hand-edit tolerance" property does **not** extend to the `--revert` path, which is
+  explicitly **conservative-keep** on a hand-edited aggregate per `REQ-YF-TUNE-029`. This is a
+  narrow, deliberate grant of hand-edit tolerance on one path, stated here so the two requirements
+  do not contradict each other: rewriting a section the operator can regenerate is cheap; deleting
+  a file whose pre-tune content `yf` never backed up is unrecoverable.
 - **REQ-YF-FLOW-005** *(testable)* `doctor` and `preflight` shall read a protocol's installed content
   from the aggregate **section body** when `YOSHIKO_FLOW.md` is present (authoritative), falling back
   to a legacy standalone file only when the aggregate is absent (transition release, S5). `doctor`'s
@@ -719,6 +772,33 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   install, and **adopted/reconciled** by `tune` on its first run (no orphaned or double-written
   aggregate).
 
+- **REQ-YF-FLOW-008** *(testable)* `yf harness skills upgrade` shall be **rules-neutral**: it
+  shall write **no** `YOSHIKO_FLOW.md` on any harness, leaving `yf harness tune` as the aggregate's
+  **sole writer** (`REQ-YF-FLOW-007` already imposes this on `install`; upgrade is the remaining
+  second writer). Two writers of one path is the defect: a guard or managed block added by `tune`
+  is clobbered by the other writer. **`yf harness skills remove` is explicitly NOT rules-neutral**
+  and retains its rules write — `REQ-YF-FLOW-002` reconcile-prunes on the **embedded** set, so
+  without `remove`'s write nothing would ever drop a removed skill's section and a later `tune`
+  would retain it. *(Honest limit: `remove` writes the **skills-sibling** `rules/` dir, which
+  coincides with the tune-managed surface **only on claude-code**; on the other four harnesses it
+  prunes a file nothing reads while the real section survives. That residual is recorded as a
+  follow-on, not claimed fixed.)* Removing upgrade's write is a **behavior change**, not a pure
+  removal: the doctor/preflight rule-candidate resolution shall be reconciled so non-claude
+  harnesses do not regress to `rule_missing`.
+
+  **The `agents` surface is SKILLS-ONLY** *(plan-044 Issue 2.2, discharging the Issue 0.1
+  deferral with measurement rather than a guess)*. `agents` shall receive **skill bodies only**
+  and **no rules file at any target**; it gains no `REQ-YF-TUNE-020` rule-target row, and
+  `~/.agents/rules` is not a rule-candidate location. Evidence: `agents` is absent from the
+  harness **detection** table (never auto-detected), carries **identical** skills subpaths to
+  `codex`, is referred to in-code as *"the `agents` alias"* of the shared `.agents` dir, and has
+  **no binary** that could load a rules file; on a machine running `yf` with skills deployed to
+  `~/.agents/skills/`, **neither** `~/.agents/rules/` **nor** `~/.agents/AGENTS.md` exists. The
+  skills installed there are consumed by **codex**, whose rules already deploy to
+  `~/.codex/AGENTS.md` — so declaring `agents` skills-only removes a write that served no reader
+  rather than orphaning one. Reversing this requires first-party evidence of an actual reader,
+  carried on the row, exactly as pi's target does (§3.10).
+
 ### 3.4 Integrity marker & up-to-date detection (`REQ-YF-MARK`)
 
 - **REQ-YF-MARK-001** *(testable)* `yf` shall compute a per-skill **tree hash** = SHA256 over each
@@ -729,8 +809,20 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
 - **REQ-YF-MARK-003** *(testable)* `yf skills status` shall report per skill: `installed`,
   `up-to-date` (deployed marker hash == embedded tree hash), `complete` (all embedded files
   present), `unmodified` (recomputed deployed hash, marker-stripped, == embedded).
-- **REQ-YF-MARK-004** *(testable)* `yf skills upgrade` shall rewrite files, re-inject the marker,
-  and **prune** deployed files absent from the embedded tree.
+- **REQ-YF-MARK-004** *(testable)* `yf skills upgrade` shall rewrite files,
+  re-inject the marker, and **prune** deployed files absent from the embedded tree. Pruning is
+  **default-on for `upgrade`** and **opt-in for `install`** (`--prune`, `REQ-YF-INSTALL-010`); both
+  verbs shall share **one** prune implementation and honour the same `REQ-YF-MARK-005` ignore-list,
+  so prune and the tree hash can never disagree about what counts as a deployed file.
+- **REQ-YF-MARK-005** *(testable)* `yf` shall carry a single **ignore-list** of generated/residue
+  paths — at minimum `__pycache__/**`, `*.pyc`, `.pytest_cache/**`, `.DS_Store`, `**/.scratch/**`
+  and `**/test-harness/topology.txt` — and shall apply it **symmetrically** to **all four** surfaces
+  that enumerate skill files: the tree-hash walk (`REQ-YF-MARK-001`), the extra-deployed-files
+  computation, the prune walk (`REQ-YF-MARK-004` / `REQ-YF-INSTALL-010`), and the **embed
+  exclusion list** (`REQ-YF-EMBED`). Applying it to only the read-side surfaces is non-conformant:
+  an unexcluded residue file is **baked into the released binary** and shipped to every user. The
+  list is self-consistent by construction — a file excluded from the embed becomes an *extra
+  deployed file*, which the same list then spares from prune.
 
 ### 3.5 Preflight/config kernel (`REQ-YF-PRE`)
 
@@ -943,6 +1035,15 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   zero); a skill declaring no `depends-on-tool` passes. This axis is **read-only** and never
   mutates — it surfaces in the `doctor` report the same system-dependency gap that preflight
   already enforces as `system_deps_missing`.
+
+- **REQ-YF-DOCTOR-006** *(testable)* every `yf doctor --repair` step shall **verify its own
+  postcondition** before reporting success: after applying a repair, the step shall re-run the
+  read-only predicate that detected the condition and report `FAIL` (non-zero, surfaced under
+  `REQ-YF-DOCTOR-002`) when the predicate still holds. A repair step shall **never** report `ok`
+  on the basis of having *attempted* the repair. Concretely, the `--remove-remote` step shall
+  re-run `has_local_only_remote` after applying and fail when a Dolt remote survives; and an
+  **underivable or ambiguous** Dolt repo root shall propagate as an error (`REQ-BINIT-026`) rather
+  than being swallowed into a silent `ok`.
 
 ### 3.7 Distribution (`REQ-YF-DIST`)
 
@@ -1270,7 +1371,7 @@ rule deployment.
   **yf-written** value), the set elements yf **unioned in**, and the rule managed-block markers — the
   record the `--revert` guard (`REQ-YF-TUNE-022`) consumes. In **project** scope `.yf/` shall be
   **gitignored**.
-- **REQ-YF-TUNE-022** *(testable, plan-033)* `yf harness tune --revert` shall reverse **only** yf's
+- **REQ-YF-TUNE-022** *(testable, plan-033, amended plan-044)* `yf harness tune --revert` shall reverse **only** yf's
   own additions recorded in the ownership manifest (`REQ-YF-TUNE-021`): it restores each recorded
   prior scalar value (or removes a key that had none), removes only the set elements yf unioned in
   (leaving operator entries), and removes the rule managed blocks (leaving surrounding prose). Revert
@@ -1278,6 +1379,10 @@ rule deployment.
   on-disk value to the recorded **yf-written** value; if they differ (an operator hand-edited it
   since the tune), the key is **conservative-kept and reported**, never clobbered. Revert shall be
   idempotent, fail-safe on a malformed target, and preserve the `Agent`-never-denied invariant.
+  The touched-since-tune guard described above governs **config** keys; the **rules** side has its
+  own guard with the same conservative-keep semantics, specified separately as `REQ-YF-TUNE-029`.
+  Revert's config half is manifest-driven and per-key; its rules half shall not be assumed to
+  inherit those semantics without that requirement.
 - **REQ-YF-TUNE-023** *(testable, plan-033)* `--tune` on `yf harness skills install` shall remain an
   **opt-in bridge** — install and tune stay **separable**: without `--tune`, install is skills-only
   and reports that tuning is available (`REQ-YF-INSTALL-008`); with `--tune`, the bridge also runs
@@ -1368,6 +1473,17 @@ rule deployment.
   security semantics) independently of the **consent-bearing half** (config, which can write
   `permissions.defaultMode: "bypassPermissions"`). Rules-only is also the mechanism by which the
   `REQ-YF-SELF-008` `CI` suppression is implemented — not a second, separate suppression path.
+
+- **REQ-YF-TUNE-029** *(testable)* `yf harness tune --revert` shall apply a **rules-side guard**
+  with the same conservative-keep semantics `REQ-YF-TUNE-022` gives config keys. The ownership
+  manifest's rule record shall carry the **`sha256`** of the aggregate as yf wrote it, recorded on
+  **every** rules write. On revert, if the on-disk aggregate's sha256 differs from the recorded
+  value (an operator hand-edited it since the tune), the file shall be **kept and the mismatch
+  reported** — never deleted. Revert shall **not** delete a file whose pre-tune content `yf` never
+  backed up: restoring content requires a real backup, and deletion is not restoration. The
+  aggregate's revert branch shall match its `kind` **explicitly**, never via a catch-all arm, so a
+  future artifact kind cannot silently inherit delete semantics. This is the narrow hand-edit
+  tolerance `REQ-YF-FLOW-004` carves out.
 
 ## 4. Skill catalog (per-skill specs)
 

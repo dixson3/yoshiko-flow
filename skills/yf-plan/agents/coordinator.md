@@ -116,6 +116,12 @@ you propose. In **in-place (fallback) mode** these are `git add "${plan_dir}" .b
 the proposed commands are just `bd dolt push` + `git push` of the validated merge. Run
 them only on explicit authorization.
 
+**Local-only guard (REQ-BINIT-027).** Before proposing either form, read
+`bd config get dolt.local-only`. When it is `true`, **drop `bd dolt push` from the proposal
+entirely** — the repo declares no Dolt replication target. Authorization-gating is not
+sufficient here: it asks the operator to approve a command that should never have been offered.
+Key the guard on the **config flag**, never on remote presence.
+
 ## Rules
 
 - All task tracking uses `bd`. Never use `TodoWrite`, markdown checklists, or inline task lists.

@@ -211,7 +211,15 @@ impl Env {
         };
         if let Some(h) = &home {
             push(h.join(".claude").join("rules"), &mut rule_dirs);
-            push(h.join(".agents").join("rules"), &mut rule_dirs);
+            // plan-044 Issue 2.2 (probe outcome B): `~/.agents/rules` is NOT a
+            // rule-candidate location. `agents` is a skills-only alias — never
+            // auto-detected, no binary, identical skills subpaths to codex — and
+            // on a live yf machine with skills at `~/.agents/skills/` neither
+            // `~/.agents/rules/` nor `~/.agents/AGENTS.md` exists. Nothing writes
+            // it (upgrade's write was the only one, removed in Issue 2.1) and
+            // nothing reads it. The PROJECT-scope `.agents/rules` below is a
+            // different thing and is retained: the project rule installer really
+            // does write `<git-root>/.<surface>/rules/`.
         }
         push(repo_root.join(".agents").join("rules"), &mut rule_dirs);
         push(repo_root.join(".claude").join("rules"), &mut rule_dirs);

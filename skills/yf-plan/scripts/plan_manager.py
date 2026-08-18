@@ -3054,6 +3054,22 @@ def _resume_scan(plan_dir: Path) -> dict:
         "epic_id": epic_id,
         "epic_source": epic_source,
         "found": epic_id is not None,
+        # plan-044 Issue 3.9 (#143): does the resolved epic id actually EXIST in bd?
+        #
+        # `found` alone is not that question — it reports only that an id was
+        # RECORDED. A dangling ref therefore yields `found: true` with zero
+        # descendants, which is indistinguishable from a legitimately completed
+        # plan, so the execute path reads "no open work" and skips the plan
+        # entirely. That silent false success is where the defect actually bites,
+        # and `resume-scan` is the only verb the execute path consults — which is
+        # why the signal belongs here and not solely in `audit`.
+        #
+        # `None` (not False) when there is nothing to check or `bd` is unreadable:
+        # "no beads at all" cannot distinguish an absent database from an empty
+        # one, and reporting False there would libel a healthy plan.
+        "epic_resolves": (
+            None if (epic_id is None or not beads) else epic_id in beads
+        ),
         # Content-fingerprint re-review gate (REQ-PORT-041): a hard gate the SKILL
         # §5.2 execute path checks — a stale-approved plan must re-review before pouring.
         **_fingerprint_status(plan_dir),
@@ -3634,6 +3650,39 @@ def _audit_plan(plan_dir: Path) -> dict:
                 f"dual-write:{key}", "fail",
                 f"frontmatter {fm_val!r} != **{PLAN_FIELD_LABELS[key]}:** {line_val!r} "
                 "(dual-write divergence — REQ-DATA-015)",
+            ))
+
+    # 9. The `**Epic:**` ref shall RESOLVE (REQ-CLI-020, plan-044 #143).
+    #
+    # A dangling ref is worse than a missing one: `_resume_scan` resolves plan.md
+    # FIRST and falls back to `metadata.plan_dir` only when the field is ABSENT, so
+    # a dangling-but-PRESENT field yields `found: true, total: 0` — a resumed
+    # execute session reads "no open work" and skips the plan entirely.
+    #
+    # Severity uses `missing_level`, NOT `okf_missing_level`: the latter downgrades
+    # every legacy bundle to `warn`, which would suppress exactly the 14 dangling
+    # refs this check exists to surface.
+    #
+    # When `bd` is UNAVAILABLE the finding is `warn`, never `fail` — a plan bundle
+    # is portable by contract, and hard-failing its own audit merely for being read
+    # on a beads-less machine would punish the portability the bundle is designed
+    # for. `_bd_list` already degrades to `[]` defensively, so "no beads at all" is
+    # the signal for absent tooling.
+    epic_ref = _read_plan_epic_field(plan_text)
+    if epic_ref:
+        beads = _all_plan_beads()
+        if not beads:
+            findings.append(_audit_finding(
+                "epic-ref", "warn",
+                f"cannot verify **Epic:** {epic_ref} — `bd` unavailable or no beads "
+                "readable (portable bundle on a beads-less machine)",
+            ))
+        elif epic_ref not in beads:
+            findings.append(_audit_finding(
+                "epic-ref", missing_level,
+                f"**Epic:** {epic_ref} does not resolve to any bead (dangling ref — "
+                "resume-scan would report found=true with zero descendants, so an "
+                "execute session would silently skip this plan)",
             ))
 
     # 6. No dangling external refs across all plan files.

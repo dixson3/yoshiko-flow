@@ -201,6 +201,27 @@ storage (that is `bd`).
   action to it. Verified by fixtures tagged `REQ-BINIT-025`: missing-local-only / stray-remote →
   corrected; embedded → no mutation (warn only); local-server → conformant no-op.
 
+- **REQ-BINIT-026** *(testable, #159)* an **ambiguous or underivable Dolt repo root shall be an
+  ERROR, never a silent skip.** The derivation shall resolve the **server-mode** layout
+  deterministically — where the beads dir contains more than one `.dolt`-bearing candidate, the
+  directory named by `metadata.dolt_database` is preferred **before** ambiguity is declared — and
+  shall return an explicit failure only when no candidate can be selected. Callers shall
+  **propagate** that failure rather than swallow it: a repair step whose root could not be derived
+  shall exit non-zero and report `FAIL`, never `ok` (`REQ-YF-DOCTOR-006`). *Rationale (measured):*
+  the server-mode two-`.dolt` layout is the canonical profile (`REQ-YF-PRE-010` invariant 1), and
+  because no fixture covered it, `--remove-remote` **has never worked there** — the same helper
+  also silently degrades the local-only remote detection and the `REQ-BINIT-016` wedge fix.
+  Verified by a **server-mode two-`.dolt` fixture**, the layout whose absence let this ship.
+- **REQ-BINIT-027** *(testable, #160)* `dolt.local-only` is an **init-time flag, not a runtime
+  guard**: setting it prevents a remote from being wired at `bd init`, but it neither removes nor
+  blocks a remote configured by any other path. Consequently no surface may treat it as protection.
+  Every **land-the-plane** surface that proposes `bd dolt push` — prose and script alike — shall
+  **suppress that proposal under `dolt.local-only`**, and any such guard shall be written so that a
+  **stray configured remote does not satisfy it** (a guard keyed on remote *presence* is backwards:
+  it green-lights exactly the misconfiguration it should catch). Upstream issue tracking under
+  local-only routes to `yf-beads-upstream`'s `gh`-based mirror, which is orthogonal to Dolt
+  replication.
+
 ## 3. Interfaces
 
 - **CLI / kernel:** the verify/repair/status engine is the compiled `yf` kernel

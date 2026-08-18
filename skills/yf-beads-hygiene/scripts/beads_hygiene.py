@@ -145,6 +145,40 @@ def run_bd(args: list[str], *, check: bool = True) -> subprocess.CompletedProces
     return proc
 
 
+def land_the_plane_hint() -> str:
+    """The land-the-plane command line, GUARDED on `dolt.local-only` (REQ-BINIT-027).
+
+    `dolt.local-only` means this repo has no Dolt replication target, so proposing
+    `bd dolt push` there is proposing a command that cannot succeed — and, worse, one
+    that would push bead data to a remote the repo declares it does not have if a stray
+    remote happens to be configured (#160).
+
+    NOTE the guard keys on the CONFIG FLAG, never on remote presence. A guard written as
+    "propose the push only if a remote exists" is backwards: a stray remote is exactly the
+    misconfiguration to catch, and such a guard green-lights it.
+
+    `dolt.local-only` is an init-time flag, not a runtime guard, so nothing else stops the
+    push — this suppression is the only thing standing between a local-only repo and an
+    upstream write.
+    """
+    local_only = False
+    try:
+        proc = run_bd(["config", "get", "dolt.local-only"], check=False)
+        local_only = proc.stdout.strip().lower().startswith("true")
+    except BdError:
+        pass  # bd unavailable -> fall through to the conservative (non-push) form
+    if local_only:
+        return (
+            "\nMutated. Land the plane: bd dolt commit && git push "
+            "(dolt.local-only is set - NO `bd dolt push`; upstream issue tracking "
+            "routes to /yf-beads-upstream)."
+        )
+    return (
+        "\nMutated. Land the plane: bd dolt commit && bd dolt push && git push "
+        "(keeps the graph + audit trail consistent)."
+    )
+
+
 def db_is_wedged() -> tuple[bool, str]:
     """Detect a wedged/corrupted DB (route to yf-beads-init, do not clean a broken store).
 
@@ -685,10 +719,7 @@ def cmd_reconcile(args, *, runner=None, script=None) -> int:
 
     print(f"\nDelegated {len(hoisted)} hoist(s) to yf-beads-upstream. "
           "Obsolete upstream issues were NOT closed (proposal-only).")
-    print(
-        "\nMutated. Land the plane: bd dolt commit && bd dolt push && git push "
-        "(keeps the graph + audit trail consistent)."
-    )
+    print(land_the_plane_hint())
     return 0
 
 
@@ -760,10 +791,7 @@ def cmd_repair(args) -> int:
     # Post-mutation integrity check (yf-beads-extra REQ-CLI-010).
     cycles = run_bd(["dep", "cycles"], check=False)
     print(cycles.stdout.strip() or "bd dep cycles: clean")
-    print(
-        "\nMutated. Land the plane: bd dolt commit && bd dolt push && git push "
-        "(keeps the graph + audit trail consistent)."
-    )
+    print(land_the_plane_hint())
     return 0
 
 

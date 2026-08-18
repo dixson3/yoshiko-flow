@@ -406,9 +406,17 @@ fn wedged_migration_steps(embedded: bool) -> Vec<(&'static str, bool, Vec<&'stat
 /// `local_only` adds the local-only assertion step (Surface §: local-only repos).
 ///
 /// `remove_remote` (#39, B.1) is an explicit opt-in: when `true` AND `local_only`,
-/// repair clears any configured Dolt `sync.remote`. Off by default — the
+/// repair clears the configured Dolt remote at **both** layers — the decisive
+/// **Dolt-DB-level** remote (raw `dolt remote remove`) and the secondary
+/// **`sync.remote` config** key — and then **verifies the postcondition**, failing
+/// if a remote survives (REQ-YF-DOCTOR-006). Off by default — the
 /// `--remove-remote` doctor flag is the only way to reach it, because it inverts
 /// the otherwise-conservative "never touch the remote" boundary above.
+///
+/// *(plan-044 Issue 1.5: this doc, the `cli.rs` flag help and the step label had
+/// drifted into three different claims — two of them naming only `sync.remote`,
+/// the layer that does NOT govern whether a push can reach a remote. They now
+/// state one accurate behavior.)*
 pub fn repair(
     repo_root: &Path,
     apply: bool,
@@ -457,10 +465,40 @@ pub fn repair(
             "initialize beads (suppress hooks + agents cruft)",
             &["bd", "init", "--skip-hooks", "--skip-agents"],
         ));
+        // plan-044 Issue 1.6 (#160), MEASURED — the old label ("no remote wired at
+        // init") was FALSE. A sandboxed probe against a repo with a git origin
+        // shows `bd init` wiring one unprompted:
+        //
+        //     ✓ Configured Dolt remote: origin → git+https://github.com/…
+        //
+        // and the `dolt.local-only` assertion below does NOT remove it: after both
+        // steps, `sync.remote` is still set AND `dolt remote -v` still lists
+        // `origin`. `dolt.local-only` is an INIT-TIME skip flag (REQ-BINIT-027), and
+        // it is set here only AFTER init has already run — so on this path repair
+        // produced exactly the #160 state it claimed to prevent.
+        //
+        // Reordering is not available: the flag lives in `.beads/config.yaml`, which
+        // does not exist before `bd init`, and `bd init` exposes no local-only /
+        // no-remote flag (only `--remote`, which adds one). So the fix is the
+        // implied removal below.
         plan.push(shelled(
-            "assert local-only Dolt (no remote wired at init)",
+            "assert local-only Dolt (bd init may have wired a remote from git origin)",
             &["bd", "config", "set", "dolt.local-only", "true"],
         ));
+        // Remove the remote THIS RUN just created. Note the narrow scope: on the
+        // init path there was no beads repo moments ago, so this can only ever
+        // clear a remote repair itself wired against the operator's explicit
+        // local-only request. It never touches a pre-existing operator remote —
+        // which is why implying it here does not invert the conservative
+        // "never touch the remote" boundary that keeps `--remove-remote` opt-in
+        // everywhere else. Idempotent: a no-remote repo is a clean no-op.
+        if local_only {
+            plan.push(native_step(
+                "clear the Dolt remote bd init wired from git origin (implied by \
+                 --local-only on the init path), then verify it is gone",
+                &["remove-remote"],
+            ));
+        }
         plan.push(shelled(
             "suppress doctor git-hooks warning (hooks intentionally absent)",
             &["bd", "config", "set", "doctor.suppress.git-hooks", "true"],
@@ -567,7 +605,13 @@ pub fn repair(
     ));
     if remove_remote && local_only {
         plan.push(native_step(
-            "clear Dolt sync.remote under local-only (--remove-remote)",
+            // ACCURATE label (plan-044 Issue 1.5): this step clears the remote at
+            // BOTH layers — the decisive Dolt-DB-level remote AND the secondary
+            // `sync.remote` config key — and verifies the postcondition. The old
+            // label named only the config key, i.e. the layer that does NOT
+            // determine whether a push can reach a remote.
+            "clear the Dolt remote (DB-level + sync.remote config) under local-only, \
+             then verify it is gone (--remove-remote)",
             &["remove-remote"],
         ));
     }
@@ -723,10 +767,37 @@ fn derive_dolt_repo_root(beads_dir: &Path) -> Result<PathBuf, String> {
                     .to_string(),
             )
         }
-        n => Err(format!(
-            "ambiguous Dolt working directory: {n} candidates with a .dolt/ child under .beads/ \
-             — refusing to guess; manual repair needed"
-        )),
+        n => {
+            // REQ-BINIT-026: the SERVER-MODE layout is not ambiguous — it is
+            // canonical (REQ-YF-PRE-010 invariant 1). It carries TWO `.dolt/`
+            // dirs by design: the server's own data dir (`.beads/dolt/.dolt`)
+            // and the database (`.beads/dolt/<dolt_database>/.dolt`). Counting
+            // them and refusing meant `--remove-remote` NEVER worked on the
+            // canonical profile, and silently degraded `has_local_only_remote`
+            // and the REQ-BINIT-016 wedge fix along with it.
+            //
+            // `metadata.json`'s `dolt_database` names which one is the database,
+            // so consult it BEFORE declaring ambiguity. Match on the final path
+            // component rather than a constructed path, so this is agnostic to
+            // where the store sits (`.beads/dolt/<db>` in server mode,
+            // `.beads/embeddeddolt/<db>` in embedded mode).
+            if let Some(db) = read_dolt_database(beads_dir) {
+                let mut named = candidates
+                    .iter()
+                    .filter(|c| c.file_name().and_then(|n| n.to_str()) == Some(db.as_str()));
+                if let Some(hit) = named.next() {
+                    // Only deterministic when exactly one candidate bears the name.
+                    if named.next().is_none() {
+                        return Ok(hit.clone());
+                    }
+                }
+            }
+            Err(format!(
+                "ambiguous Dolt working directory: {n} candidates with a .dolt/ child under \
+                 .beads/ and none uniquely named by metadata.json's `dolt_database` \
+                 — refusing to guess; manual repair needed"
+            ))
+        }
     }
 }
 
@@ -917,9 +988,29 @@ fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Opt
         },
         // #39 B.1 (gated): clear the Dolt `sync.remote` config under local-only.
         // Only ever reached when the plan included it (`remove_remote && local_only`).
+        //
+        // REQ-YF-DOCTOR-006: a repair step VERIFIES ITS OWN POSTCONDITION. Having
+        // applied the removal is not evidence that the remote is gone, so re-run
+        // the read-only predicate that detected the condition and FAIL if it still
+        // holds. Reporting `ok` on the strength of having *attempted* the repair is
+        // the silent-success shape this whole change set exists to remove.
         Some("remove-remote") => match remove_dolt_remote(repo_root) {
-            Ok(()) => (0, None),
             Err(e) => (1, Some(e.to_string())),
+            Ok(()) => {
+                if has_local_only_remote(repo_root) {
+                    (
+                        1,
+                        Some(
+                            "postcondition FAILED: a Dolt remote is still configured under \
+                             dolt.local-only after the removal step reported success — the \
+                             remote SURVIVES; do not treat this run as having removed it"
+                                .to_string(),
+                        ),
+                    )
+                } else {
+                    (0, None)
+                }
+            }
         },
         // REQ-BINIT-016: data-preserving embedded working-set commit (the
         // embedded-mode replacement for `bd dolt stop`). Runs raw `dolt` in the
@@ -1173,9 +1264,20 @@ fn remove_dolt_remote(repo_root: &Path) -> std::io::Result<()> {
     let beads_dir = repo_root.join(".beads");
 
     // Layer 1 (decisive): the Dolt-DB-level remote(s), removed via raw `dolt`.
-    // A non-derivable Dolt repo (no unique .dolt/ dir) leaves nothing to clear
-    // at this layer — a clean no-op, not an error.
-    if let Ok(dolt_root) = derive_dolt_repo_root(&beads_dir) {
+    //
+    // REQ-BINIT-026 / REQ-YF-DOCTOR-006: an underivable root is an ERROR, not a
+    // skip. The previous `if let Ok(...)` swallowed the failure and fell through
+    // to layer 2, so the step reported `ok` while the decisive layer never ran —
+    // which is precisely how #159 stayed invisible: the operator was told the
+    // remote was removed while it survived untouched. There is no "nothing to
+    // clear" inference available here; we did not look, so we cannot claim it.
+    let dolt_root = derive_dolt_repo_root(&beads_dir).map_err(|e| {
+        std::io::Error::other(format!(
+            "cannot remove the Dolt remote: {e} — the decisive DB-level layer could not run, \
+             so any configured remote SURVIVES; this is a failure, not a no-op"
+        ))
+    })?;
+    {
         let names = dolt_remote_names(&dolt_root);
         if !names.is_empty() {
             for name in &names {
@@ -1236,6 +1338,34 @@ fn remove_sync_remote_config(beads_dir: &Path) -> std::io::Result<()> {
     if !changed {
         return Ok(());
     }
+    // plan-044 Issue 1.8: drop a `sync:` parent left CHILDLESS by the removal
+    // above. Removing the `remote:` child but keeping its parent leaves a dangling
+    // `sync:` key — which is what the partial repair actually did to this repo. It
+    // is inert to bd, but it is a false signal to a human reading config.yaml: it
+    // reads as "sync is configured" when nothing is.
+    //
+    // A block is childless when the next non-blank, non-comment line is not
+    // indented (i.e. the block has no remaining members).
+    let out = {
+        let mut kept: Vec<String> = Vec::with_capacity(out.len());
+        let mut i = 0usize;
+        while i < out.len() {
+            let line = &out[i];
+            if line.trim_start() == "sync:" && line.len() == line.trim_start().len() {
+                let has_child = out[i + 1..]
+                    .iter()
+                    .find(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+                    .is_some_and(|l| l.starts_with(char::is_whitespace));
+                if !has_child {
+                    i += 1;
+                    continue; // drop the childless parent
+                }
+            }
+            kept.push(line.clone());
+            i += 1;
+        }
+        kept
+    };
     let mut joined = out.join("\n");
     if text.ends_with('\n') {
         joined.push('\n');
@@ -1683,6 +1813,164 @@ mod tests {
         // A second LIVE candidate → ambiguous → Err (refuse to guess).
         std::fs::create_dir_all(beads.join("other").join(".dolt")).unwrap();
         assert!(derive_dolt_repo_root(&beads).is_err());
+    }
+
+    // plan-044 Issue 1.8: the removal must not leave a CHILDLESS `sync:` parent —
+    // an inert-but-misleading key that reads as "sync is configured" when nothing is.
+    #[test]
+    fn remove_sync_remote_config_drops_a_childless_sync_parent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+        let cfg = beads.join("config.yaml");
+
+        // Nested form: removing `remote:` empties the block, so the parent goes too.
+        std::fs::write(
+            &cfg,
+            "dolt.local-only: true\nsync:\n  remote: git+https://x\n",
+        )
+        .unwrap();
+        remove_sync_remote_config(&beads).unwrap();
+        let after = std::fs::read_to_string(&cfg).unwrap();
+        assert!(
+            !after.contains("sync:"),
+            "childless parent survived: {after:?}"
+        );
+        assert!(
+            after.contains("dolt.local-only: true"),
+            "clobbered siblings"
+        );
+
+        // A `sync:` block with OTHER children is preserved (only `remote:` goes).
+        std::fs::write(&cfg, "sync:\n  remote: git+https://x\n  interval: 30\n").unwrap();
+        remove_sync_remote_config(&beads).unwrap();
+        let after2 = std::fs::read_to_string(&cfg).unwrap();
+        assert!(
+            after2.contains("sync:"),
+            "parent with children must survive"
+        );
+        assert!(after2.contains("interval: 30"));
+        assert!(!after2.contains("remote:"));
+    }
+
+    // REQ-BINIT-027 (#160), plan-044 Issue 1.6: on the INIT path under
+    // `--local-only`, repair implies the remote-removal step — because `bd init`
+    // wires a remote from git origin (measured; see the comment at the plan site)
+    // and the local-only assertion that follows does not remove it.
+    #[test]
+    fn init_path_under_local_only_implies_remote_removal() {
+        if which("bd").is_none() || which("git").is_none() {
+            return; // verify() would report DepsMissing → repair bails.
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let has = |r: &RepairResult| {
+            r.plan
+                .iter()
+                .any(|s| s.cmd.iter().any(|c| c == "remove-remote"))
+        };
+
+        // No `.beads/` → the NotInitialized branch, the affected path.
+        let implied = repair(root, false, /*local_only*/ true, /*remove*/ false).unwrap();
+        assert!(
+            has(&implied),
+            "an init-path repair asked for local-only must clear the remote `bd init` wires \
+             from git origin; otherwise repair produces the exact #160 state it prevents"
+        );
+
+        // Scoped: without --local-only there is no basis to touch the remote.
+        let not_implied = repair(
+            root, false, /*local_only*/ false, /*remove*/ false,
+        )
+        .unwrap();
+        assert!(
+            !has(&not_implied),
+            "the implication is scoped to --local-only"
+        );
+    }
+
+    // REQ-YF-DOCTOR-006 (#159): a `--repair` step verifies its own postcondition.
+    //
+    // The unit under test is the DECISION, not the dolt plumbing: given that the
+    // read-only predicate still reports the condition after a repair claimed
+    // success, the step must report FAIL rather than ok. Driving real `dolt`
+    // remotes here would test dolt, not the requirement.
+    #[test]
+    fn repair_step_reports_fail_when_its_postcondition_still_holds() {
+        // The shape apply_step's remove-remote arm implements: apply, then re-probe.
+        fn verdict(apply_ok: bool, still_holds: bool) -> (i32, Option<String>) {
+            if !apply_ok {
+                return (1, Some("apply failed".to_string()));
+            }
+            if still_holds {
+                return (1, Some("postcondition FAILED".to_string()));
+            }
+            (0, None)
+        }
+
+        // The #159 signature: the apply "succeeded" and the remote SURVIVED.
+        // Pre-fix this was (0, None) — `ok` with the remote intact.
+        let (rc, msg) = verdict(true, true);
+        assert_ne!(rc, 0, "a surviving remote must not report ok");
+        assert!(msg.unwrap().contains("postcondition FAILED"));
+
+        // A genuine repair: applied and the predicate no longer holds.
+        assert_eq!(verdict(true, false), (0, None));
+
+        // A failed apply is still a failure (unchanged).
+        assert_ne!(verdict(false, false).0, 0);
+    }
+
+    // REQ-BINIT-026 (#159): the SERVER-MODE two-`.dolt` layout resolves
+    // deterministically. This is the fixture whose absence let the defect ship:
+    // server mode is the CANONICAL profile (REQ-YF-PRE-010 invariant 1), it
+    // always carries two `.dolt/` dirs, and the old code counted them and
+    // refused — so `--remove-remote` never worked there.
+    #[test]
+    fn derive_dolt_repo_root_resolves_server_mode_two_dolt_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // The real on-disk shape, measured from a live server-mode repo:
+        //   .beads/dolt/.dolt                  <- the server's own data dir
+        //   .beads/dolt/<dolt_database>/.dolt  <- the database
+        std::fs::write(
+            beads.join("metadata.json"),
+            r#"{"database":"dolt","dolt_mode":"server","dolt_database":"yoshiko_flow"}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(beads.join("dolt").join(".dolt")).unwrap();
+        let db = beads.join("dolt").join("yoshiko_flow");
+        std::fs::create_dir_all(db.join(".dolt")).unwrap();
+
+        // Two live candidates, yet NOT ambiguous: metadata names the database.
+        assert_eq!(find_dolt_dirs(&beads).len(), 2);
+        assert_eq!(derive_dolt_repo_root(&beads).unwrap(), db);
+    }
+
+    // REQ-BINIT-026: the escape hatch stays closed. Two candidates and NO
+    // metadata to disambiguate is still a refusal — the fix consults evidence,
+    // it does not start guessing.
+    #[test]
+    fn derive_dolt_repo_root_still_refuses_without_naming_evidence() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+        std::fs::create_dir_all(beads.join("a").join(".dolt")).unwrap();
+        std::fs::create_dir_all(beads.join("b").join(".dolt")).unwrap();
+
+        // No metadata.json at all → refuse.
+        assert!(derive_dolt_repo_root(&beads).is_err());
+
+        // metadata naming a database that matches NEITHER candidate → refuse.
+        std::fs::write(
+            beads.join("metadata.json"),
+            r#"{"dolt_database":"not_present"}"#,
+        )
+        .unwrap();
+        let err = derive_dolt_repo_root(&beads).unwrap_err();
+        assert!(err.contains("refusing to guess"), "got: {err}");
     }
 
     // REQ-BINIT-016: is_embedded_mode reads metadata.json from a real .beads/.
@@ -2265,8 +2553,12 @@ mod tests {
         )
         .unwrap();
         assert!(!has(&off1), "absent when both false");
-        let off2 = repair(root, false, /*local_only*/ true, /*remove*/ false).unwrap();
-        assert!(!has(&off2), "absent when remove_remote false");
+        // plan-044 Issue 1.6 (#160) NARROWED this case. It formerly asserted
+        // `absent when remove_remote false`, unconditionally. That is still true on
+        // an ALREADY-INITIALIZED repo, but NOT on the init path: there, `bd init`
+        // wires a remote from git origin (measured) and `--local-only` alone now
+        // implies its removal. This tempdir has no `.beads/`, so it takes the init
+        // path — see `init_path_under_local_only_implies_remote_removal`.
         let off3 = repair(root, false, /*local_only*/ false, /*remove*/ true).unwrap();
         assert!(!has(&off3), "absent when local_only false");
         let on = repair(root, false, /*local_only*/ true, /*remove*/ true).unwrap();

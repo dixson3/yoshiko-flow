@@ -88,6 +88,15 @@ fn surfaces(home: &Path, harness: &str) -> Surfaces {
             rule: home.join(".pi/agent/AGENTS.md"),
             config_key: "",
         },
+        // plan-044 Issue 2.2, probe outcome B: `agents` is a SKILLS-ONLY bare
+        // surface — no config profile AND no rule target. `rule` names the path a
+        // rules write WOULD have taken (the skills-sibling dir), so the assertions
+        // below can state the NEGATIVE form: nothing is ever written there.
+        "agents" => Surfaces {
+            config: None,
+            rule: home.join(".agents/rules/YOSHIKO_FLOW.md"),
+            config_key: "",
+        },
         other => panic!("unknown harness {other}"),
     }
 }
@@ -178,6 +187,98 @@ fn cross_harness_tune_revert_roundtrip() {
     }
 }
 
+// REQ-YF-TUNE-029 (#154, plan-044 Issue 2.7): the AGGREGATE revert round-trip.
+//
+// The claude-code aggregate (`~/.claude/rules/YOSHIKO_FLOW.md`) is a whole FILE,
+// not a managed block sharing space with prose — so the pi test above cannot cover
+// it. Before this change revert deleted it unconditionally, on the reasoning that
+// it is fully yf-managed. But revert holds NO BACKUP: deleting a hand-edited
+// aggregate destroys operator content nothing can restore. "Regenerable" and
+// "restorable" are different claims.
+//
+// Both directions are asserted, because a guard that keeps EVERYTHING is as broken
+// as one that deletes everything.
+#[test]
+fn aggregate_revert_keeps_a_hand_edited_file_and_still_reverts_a_clean_one() {
+    // --- Direction 1: HAND-EDITED → the file SURVIVES, with a reported mismatch.
+    {
+        let home = tempfile::tempdir().unwrap();
+        let home = home.path();
+        let aggregate = home.join(".claude/rules/YOSHIKO_FLOW.md");
+
+        yf_json_in(
+            home,
+            &["harness", "tune", "--harness", "claude-code", "--json"],
+        );
+        assert!(aggregate.is_file(), "tune wrote the aggregate");
+
+        // The operator hand-edits it after the tune.
+        let edited = std::fs::read_to_string(&aggregate).unwrap()
+            + "\n<!-- operator note: do not lose this -->\n";
+        std::fs::write(&aggregate, &edited).unwrap();
+
+        let jr = yf_json_in(
+            home,
+            &[
+                "harness",
+                "tune",
+                "--harness",
+                "claude-code",
+                "--revert",
+                "--json",
+            ],
+        );
+
+        assert!(
+            aggregate.is_file(),
+            "a hand-edited aggregate MUST survive revert — revert has no backup, \
+             so deleting it destroys operator content irrecoverably"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&aggregate).unwrap(),
+            edited,
+            "the kept file is byte-identical — revert must not rewrite it either"
+        );
+        assert_eq!(
+            jr["surfaces"][0]["rules"]["status"], "kept_modified",
+            "the keep is REPORTED, not silent: {jr}"
+        );
+    }
+
+    // --- Direction 2: UNEDITED → still reverts cleanly (the guard is not a veto).
+    {
+        let home = tempfile::tempdir().unwrap();
+        let home = home.path();
+        let aggregate = home.join(".claude/rules/YOSHIKO_FLOW.md");
+
+        yf_json_in(
+            home,
+            &["harness", "tune", "--harness", "claude-code", "--json"],
+        );
+        assert!(aggregate.is_file(), "tune wrote the aggregate");
+
+        let jr = yf_json_in(
+            home,
+            &[
+                "harness",
+                "tune",
+                "--harness",
+                "claude-code",
+                "--revert",
+                "--json",
+            ],
+        );
+        assert_eq!(
+            jr["surfaces"][0]["rules"]["status"], "reverted",
+            "an untouched aggregate still reverts: {jr}"
+        );
+        assert!(
+            !aggregate.exists(),
+            "an untouched aggregate is removed by revert"
+        );
+    }
+}
+
 // REQ-YF-TUNE-020: pi gets rule deployment ONLY (config deferred). The managed
 // block deploys into `~/.pi/agent/AGENTS.md` (the Issue 1.5-verified default) and a
 // --revert round-trips it while PRESERVING pre-existing operator prose.
@@ -232,8 +333,17 @@ fn pi_rule_tune_revert_roundtrip_preserves_user_prose() {
 // absent. Guards against a codex tune writing a claude-code/opencode/pi surface.
 #[test]
 fn tune_one_harness_no_cross_harness_path_bleed() {
-    let all = ["claude-code", "codex", "opencode", "pi"];
-    for tuned in all {
+    // plan-044 Issue 2.4: the BLEED-TARGET set is raised from four to the complete
+    // five descriptors, while the set of harnesses actually TUNED stays at four.
+    //
+    // That asymmetry is deliberate and is itself a documented verdict: `agents`
+    // has no settings profile, so `tune --harness agents` REFUSES with
+    // `unknown-harness` and `rules: not_applicable` (probe outcome B, Issue 2.2).
+    // It can never be the tuned subject — but it is exactly the kind of surface a
+    // stray write could bleed onto, so it belongs in the target set.
+    let all = ALL_DESCRIPTORS;
+    let tunable = ["claude-code", "codex", "opencode", "pi"];
+    for tuned in tunable {
         let home = tempfile::tempdir().unwrap();
         let home = home.path();
 
@@ -278,8 +388,99 @@ fn manifest_dir_for(home: &Path, harness: &str) -> PathBuf {
         "codex" => home.join(".codex/.yf"),
         "opencode" => home.join(".config/opencode/.yf"),
         "pi" => home.join(".pi/agent/.yf"),
+        // Skills-only surface: no tune manifest is ever written here (outcome B).
+        "agents" => home.join(".agents/.yf"),
         other => panic!("unknown harness {other}"),
     }
+}
+
+/// The five harness descriptors — the COMPLETE set (`harness_desc::DESCRIPTORS`).
+/// plan-044 Issue 2.4 raised this proof from three to five.
+const ALL_DESCRIPTORS: [&str; 5] = ["claude-code", "codex", "opencode", "pi", "agents"];
+
+// plan-044 Issue 2.4 (#156, D-4): the FIVE-descriptor rules-isolation proof.
+//
+// Two properties, over the complete descriptor set under a sandboxed HOME:
+//
+//   1. `skills upgrade --harness <h>` writes NO rules file anywhere, for any h
+//      (REQ-YF-FLOW-008). This is the #156 regression guard: while upgrade also
+//      wrote the aggregate there were two writers of one path.
+//   2. Each harness's rules land ONLY on its own declared surface — and for
+//      `agents` that assertion takes its NEGATIVE form, because probe outcome B
+//      (Issue 2.2) found it is a skills-only surface with no rule target at all:
+//      no rules file is written anywhere for `agents`, by upgrade OR by tune.
+#[test]
+fn rules_land_only_on_the_declared_surface_for_all_five_descriptors() {
+    // --- Property 1: upgrade is rules-neutral on every descriptor. -------------
+    for h in ALL_DESCRIPTORS {
+        let home = tempfile::tempdir().unwrap();
+        let home = home.path();
+
+        yf_json_in(
+            home,
+            &["skills", "install", "yf-plan", "--harness", h, "--json"],
+        );
+        yf_json_in(
+            home,
+            &["skills", "upgrade", "yf-plan", "--harness", h, "--json"],
+        );
+
+        // No rules file on ANY descriptor's surface — not just this one's.
+        for other in ALL_DESCRIPTORS {
+            let s = surfaces(home, other);
+            let bled = s.rule.exists() && rule_file_has_yf_content(&s.rule);
+            assert!(
+                !bled,
+                "skills upgrade --harness {h} wrote rules to {}'s surface {}                  — upgrade must be rules-neutral (REQ-YF-FLOW-008)",
+                other,
+                s.rule.display()
+            );
+        }
+        // Specifically: `~/.agents/rules/` is never created by any upgrade.
+        assert!(
+            !home.join(".agents/rules").exists(),
+            "upgrade --harness {h} created ~/.agents/rules — agents is skills-only"
+        );
+    }
+
+    // --- Property 2: `agents` receives NO rules from tune either. --------------
+    // The negative form of the per-surface assertion, per outcome B.
+    let home = tempfile::tempdir().unwrap();
+    let home = home.path();
+    yf_json_in(
+        home,
+        &[
+            "skills",
+            "install",
+            "yf-plan",
+            "--harness",
+            "agents",
+            "--json",
+        ],
+    );
+    // Skills DID land (agents is a real skills surface) ...
+    assert!(
+        home.join(".agents/skills/yf-plan/SKILL.md").is_file(),
+        "agents is a real SKILLS surface — skill bodies must deploy"
+    );
+    // ... and no rules file exists anywhere under HOME.
+    for other in ALL_DESCRIPTORS {
+        let s = surfaces(home, other);
+        assert!(
+            !s.rule.exists(),
+            "a skills-only `agents` install wrote a rules file at {}",
+            s.rule.display()
+        );
+    }
+}
+
+/// Whether a rule-target file actually carries yf-written rule content, as opposed
+/// to merely existing. An `AGENTS.md` may pre-exist with operator prose; only a yf
+/// managed block (or the aggregate banner) counts as "yf wrote rules here".
+fn rule_file_has_yf_content(p: &Path) -> bool {
+    std::fs::read_to_string(p)
+        .map(|t| t.contains(BEGIN_MARKER) || t.contains("managed by yf"))
+        .unwrap_or(false)
 }
 
 // REQ-YF-INSTALL-002: per-harness skills-install destination resolution. A dry-run
@@ -316,6 +517,91 @@ fn skills_install_dest_resolution_per_harness() {
             Path::new(dir),
             expected.as_path(),
             "{harness}: dest resolves to {subpath}"
+        );
+    }
+}
+
+// REQ-YF-INSTALL-010 (plan-044 Issue 2.11b, #155): `--prune` fans out to EVERY
+// resolved destination of a two-harness install — not just the first.
+//
+// Driven through the binary under a sandboxed HOME rather than in-process, because
+// destination resolution reads HOME and mutating it in-process would race other
+// tests.
+#[test]
+fn prune_fans_out_to_both_destinations_of_a_two_harness_install() {
+    let home = tempfile::tempdir().unwrap();
+    let home = home.path();
+
+    yf_json_in(
+        home,
+        &[
+            "skills",
+            "install",
+            "yf-beads-extra",
+            "--harness",
+            "claude-code",
+            "--harness",
+            "codex",
+            "--json",
+        ],
+    );
+
+    let strays = [
+        home.join(".claude/skills/yf-beads-extra/STRAY.md"),
+        home.join(".agents/skills/yf-beads-extra/STRAY.md"),
+    ];
+    for p in &strays {
+        assert!(p.parent().unwrap().is_dir(), "installed to {}", p.display());
+        std::fs::write(p, b"orphan\n").unwrap();
+    }
+
+    // --dry-run --prune must PREVIEW both, per destination, before removing any.
+    let dry = yf_json_in(
+        home,
+        &[
+            "skills",
+            "install",
+            "yf-beads-extra",
+            "--harness",
+            "claude-code",
+            "--harness",
+            "codex",
+            "--prune",
+            "--dry-run",
+            "--json",
+        ],
+    );
+    let previewed = dry["pruned"].as_array().expect("pruned array");
+    assert_eq!(
+        previewed.len(),
+        2,
+        "the dry-run must preview BOTH destinations' strays (a preview that \
+         under-reports is the #155 defect): {dry}"
+    );
+    for p in &strays {
+        assert!(p.exists(), "--dry-run must not remove anything");
+    }
+
+    // Apply.
+    yf_json_in(
+        home,
+        &[
+            "skills",
+            "install",
+            "yf-beads-extra",
+            "--harness",
+            "claude-code",
+            "--harness",
+            "codex",
+            "--prune",
+            "--json",
+        ],
+    );
+    for p in &strays {
+        assert!(
+            !p.exists(),
+            "prune must reach every destination: {}",
+            p.display()
         );
     }
 }

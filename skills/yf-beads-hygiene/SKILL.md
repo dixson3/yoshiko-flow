@@ -124,8 +124,11 @@ uv run "$SKILL_DIR/scripts/beads_hygiene.py" repair --apply --record removed.jso
 - Requires explicit confirmation before any mutation (`--yes` skips the prompt for automation;
   use `AskUserQuestion` to confirm with the operator interactively).
 - After mutation runs `bd dep cycles` (post-mutation integrity check, owned by `yf-beads-extra`)
-  and prints the **land-the-plane** sequence (`bd dolt commit && bd dolt push && git push`) so
-  the graph and audit trail stay consistent.
+  and prints the **land-the-plane** sequence so the graph and audit trail stay consistent.
+  The sequence is **guarded on `dolt.local-only`** (REQ-BINIT-027): normally
+  `bd dolt commit && bd dolt push && git push`, but under local-only the `bd dolt push` is
+  **omitted** (`bd dolt commit && git push`). The guard keys on the **config flag**, never on
+  remote presence — a stray remote under local-only is the #160 defect, not a licence to push.
 - Writes a removal record (`--record`) so any wrong removal is reversible.
 
 ## Restore (round-trip safety)

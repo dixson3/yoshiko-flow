@@ -41,8 +41,12 @@ Three scopes resolve per harness (`yf/src/cmd/harness/settings.rs`):
   (the shared, committed file)
 
 Only **claude-code**, **codex**, and **opencode** ship a config profile. **Pi config is
-DEFERRED** (see below) and the `agents` surface ships no config profile — both receive skills
-and rules but no config alignment.
+DEFERRED** (see below): pi receives skills and rules but no config alignment. The `agents`
+surface is different — it is **skills-only**: no config profile *and no rules*. It is an alias
+naming where skills go under the vendor-neutral AGENTS.md convention, not a harness that loads a
+rules file; the skills installed there are consumed by **codex**, whose rules deploy to
+`~/.codex/AGENTS.md`. *(Corrected plan-044 Issue 2.2 — this previously claimed agents receives
+"skills and rules", which was already false: agents has never had a rule target.)*
 
 | Harness | Format | User (`$HOME`) | Project-local (`--project`) | Project-committed (`--project --committed`) |
 |:--------|:-------|:---------------|:----------------------------|:--------------------------------------------|
@@ -50,7 +54,7 @@ and rules but no config alignment.
 | `codex` | TOML | `~/.codex/config.toml` | `<git-root>/.codex/config.toml` | `<git-root>/.codex/config.toml` |
 | `opencode` | JSON | `~/.config/opencode/opencode.json` | `<git-root>/.config/opencode/opencode.json` | `<git-root>/.config/opencode/opencode.json` |
 | `pi` | — | **deferred — no config file** | **deferred** | **deferred** |
-| `agents` | — | no config profile | no config profile | no config profile |
+| `agents` | — | no config profile (skills-only — no rules) | no config profile | no config profile |
 
 `claude-code` is the only shipped profile whose `settings_local_filename`
 (`settings.local.json`) differs from its `settings_filename` (`settings.json`), so its
