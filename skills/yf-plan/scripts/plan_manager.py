@@ -628,7 +628,139 @@ _INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
     ("findings/", "Investigation experiment results (if any)."),
     ("diagrams/", "d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill."),
     ("assets/", "Attachments and other generated artifacts (not diagrams — those live in `diagrams/`)."),
+    ("plan-retrospective.md", "Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE)."),
 )
+
+
+RETROSPECTIVE_FILE = "plan-retrospective.md"
+
+# REQ-PORT-052's field set, in emission order. A two-column key/value TABLE is used
+# rather than `**Label:** value` lines because a bold label is invisible to
+# `plan_manager.py audit` yet COLLIDES with the reserved-label rule `/yf-okf check`
+# enforces (REQ-OKF-010) — the shape would pass the mechanical audit and fail the
+# conformance check, which is the worse of the two orders to discover it in.
+RETROSPECTIVE_FIELDS: tuple[str, ...] = (
+    "kind", "when", "stop_class", "asked", "answered", "frontloadable",
+    "detected_by", "evidence", "escape_class", "adjudication", "origin",
+    "culpability", "prevention", "cost",
+)
+RETROSPECTIVE_KINDS = ("stop", "deviation")
+RETROSPECTIVE_DETECTED_BY = ("self-report", "operator", "mechanical-check")
+
+_RETRO_HEADER = """---
+type: Retrospective
+okf_spec: OKF-PLAN
+---
+# Plan retrospective
+
+Stops and deviations recorded during execution, newest last. Each `## RE-NNN` section is
+one entry; `RE-NNN` ids are append-only and are never reused or renumbered.
+
+`detected_by` records WHO found the entry and `evidence` records the command and output
+substantiating any state claim in it, or the literal `unverified`. Both exist because an
+entry's trust level is a property of who found it, and the recorder is usually the subject:
+a retrospective built from an actor's own account would faithfully transcribe a false claim
+rather than detect one. A state assertion with no evidence is a narration, not a finding.
+
+"""
+
+
+def _retrospective_next_id(text: str) -> int:
+    """The next `RE-NNN` number: max existing + 1. Append-only, never reused."""
+    nums = [int(m) for m in re.findall(r"^## RE-(\d+)", text, re.M)]
+    return (max(nums) + 1) if nums else 1
+
+
+def append_retrospective(plan_dir: Path, entry: dict, *, dry_run: bool = False) -> dict:
+    """Append one `## RE-NNN` entry to the bundle's `plan-retrospective.md` (REQ-CLI-022).
+
+    Mirrors `okf.append_log`'s create-if-absent + idempotence contract. Implemented
+    **locally rather than by generalizing `append_log`**, which is vendored in four
+    byte-identical copies behind `e-okf-copy-*` drift edges — generalizing it would
+    require changing all four in lockstep for one caller's benefit.
+
+    Idempotent on entry identity: an entry whose non-`when` fields exactly match an
+    existing one is not appended twice, and the existing id is returned.
+
+    Returns ``{"file", "id", "appended", "created", "index_updated"}``.
+    """
+    path = plan_dir / RETROSPECTIVE_FILE
+    created = not path.exists()
+    text = _RETRO_HEADER if created else path.read_text(encoding="utf-8")
+
+    row = {k: entry.get(k, "") for k in RETROSPECTIVE_FIELDS}
+    row.setdefault("kind", "stop")
+    if not row.get("kind"):
+        row["kind"] = "stop"
+    if row["kind"] not in RETROSPECTIVE_KINDS:
+        raise ValueError(
+            f"unknown retrospective kind {row['kind']!r}; expected one of "
+            f"{', '.join(RETROSPECTIVE_KINDS)}"
+        )
+    if not row.get("when"):
+        row["when"] = datetime.now().strftime("%Y-%m-%d")
+    # An unsubstantiated state claim is a narration, not a finding (REQ-PORT-052).
+    if not row.get("evidence"):
+        row["evidence"] = "unverified"
+    if not row.get("detected_by"):
+        row["detected_by"] = "self-report"
+
+    # Idempotence: compare every field EXCEPT `when`, so re-running a step on a later
+    # date does not duplicate the same finding.
+    identity = {k: str(row[k]) for k in RETROSPECTIVE_FIELDS if k != "when"}
+    for block in re.split(r"(?=^## RE-\d+)", text, flags=re.M):
+        m = re.match(r"^## RE-(\d+)", block)
+        if not m:
+            continue
+        existing = {}
+        for line in block.splitlines():
+            cell = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*$", line)
+            if cell:
+                existing[cell.group(1)] = cell.group(2)
+        if all(existing.get(k, "") == v for k, v in identity.items() if v):
+            return {"file": str(path), "id": f"RE-{int(m.group(1)):03d}",
+                    "appended": False, "created": False, "index_updated": False}
+
+    n = _retrospective_next_id(text)
+    rid = f"RE-{n:03d}"
+    lines = [f"## {rid}", "", "| field | value |", "| :-- | :-- |"]
+    for k in RETROSPECTIVE_FIELDS:
+        lines.append(f"| `{k}` | {row[k]} |")
+    lines.append("")
+    new_text = text.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n"
+
+    index_updated = False
+    if not dry_run:
+        path.write_text(new_text, encoding="utf-8")
+        index_updated = _ensure_index_lists_retrospective(plan_dir)
+    return {"file": str(path), "id": rid, "appended": True,
+            "created": created, "index_updated": index_updated}
+
+
+def _ensure_index_lists_retrospective(plan_dir: Path) -> bool:
+    """Add the retrospective to `index.md`'s listing if absent (pass-1 C6).
+
+    Without this the bundle's own cold-reader contract is violated by the very file
+    added to support it: a member absent from the reserved listing is exactly the
+    portability gap the retrospective exists to help close.
+    """
+    index = plan_dir / "index.md"
+    if not index.exists():
+        return False
+    text = index.read_text(encoding="utf-8")
+    if RETROSPECTIVE_FILE in text:
+        return False
+    desc = next((d for m, d in _INDEX_MEMBERS if m == RETROSPECTIVE_FILE), "Execution retrospective.")
+    bullet = f"- [{RETROSPECTIVE_FILE}]({RETROSPECTIVE_FILE}) - {desc}\n"
+    lines = text.splitlines(keepends=True)
+    last = max((i for i, ln in enumerate(lines) if ln.startswith("- [")), default=None)
+    if last is None:
+        text = text.rstrip("\n") + "\n\n" + bullet
+    else:
+        lines.insert(last + 1, bullet)
+        text = "".join(lines)
+    index.write_text(text, encoding="utf-8")
+    return True
 
 
 def seed_index(plan_dir: Path, plan_id: str, objective: str) -> Path:
@@ -2249,6 +2381,184 @@ def _resolve_landing_strategy() -> str:
     return LANDING_STRATEGY_DEFAULT
 
 
+#   "autonomy": "autonomous" | "checkpointed"   → execution/review stop posture (2.1)
+CONFIG_KEY_AUTONOMY = "autonomy"
+AUTONOMY_DEFAULT = "autonomous"
+AUTONOMY_LEVELS = ("autonomous", "checkpointed")
+
+#   "sweep-gates": "probe" | "all"   → execute-start sweep class scope (3.6)
+CONFIG_KEY_SWEEP_GATES = "sweep-gates"
+SWEEP_GATES_DEFAULT = "probe"
+SWEEP_GATES_VALUES = ("probe", "all")
+
+_SWEEP_GATES_OVERRIDE: str | None = None
+
+
+def _set_sweep_gates_override(val: str | None) -> None:
+    """Install the per-invocation `--sweep-gates` override (3.6)."""
+    global _SWEEP_GATES_OVERRIDE
+    if val is not None and val not in SWEEP_GATES_VALUES:
+        raise ValueError(
+            f"unknown sweep-gates value {val!r}; expected one of {', '.join(SWEEP_GATES_VALUES)}"
+        )
+    _SWEEP_GATES_OVERRIDE = val
+
+
+def _resolve_sweep_gates() -> str:
+    """Which gate classes the execute-start sweep runs (3.6).
+
+    `probe` (default) keeps execute start in seconds; `all` adds the `build` class, which
+    §6.1.5 reserves for once-per-land. `consent` and `manual` are never auto-run at any
+    setting — neither is a cost question, and no flag makes a green test into authorization.
+    """
+    if _SWEEP_GATES_OVERRIDE is not None:
+        return _SWEEP_GATES_OVERRIDE
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_SWEEP_GATES)
+    if isinstance(val, str) and val.strip() in SWEEP_GATES_VALUES:
+        return val.strip()
+    return SWEEP_GATES_DEFAULT
+
+
+#   "max-attempts": <int>   → EXECUTION-phase bound on per-bead retries (2.8)
+CONFIG_KEY_MAX_ATTEMPTS = "max-attempts"
+MAX_ATTEMPTS_DEFAULT = 3
+
+
+def _resolve_max_attempts() -> int:
+    """The per-bead attempt threshold `N` for `yf_attempts` (2.8, stop class 4).
+
+    Distinct from `max_review_cycles` in both phase and semantics: this one is
+    EXECUTION-phase, per-bead, and **resets** on close, whereas the review counter is
+    PLAN-phase, per-plan, and monotonic. Two counters exist because Issue 2.4 grants
+    autonomy before any bead exists, so `yf_attempts` structurally cannot reach it.
+    """
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_MAX_ATTEMPTS)
+    if isinstance(val, bool):
+        return MAX_ATTEMPTS_DEFAULT
+    if isinstance(val, int) and val >= 1:
+        return val
+    return MAX_ATTEMPTS_DEFAULT
+
+
+#   "max-review-cycles": <int>   → Phase-3 bound on the autonomous review loop (2.4a)
+CONFIG_KEY_MAX_REVIEW_CYCLES = "max-review-cycles"
+MAX_REVIEW_CYCLES_DEFAULT = 5
+
+_MAX_REVIEW_CYCLES_OVERRIDE: int | None = None
+
+
+def _set_max_review_cycles_override(n: int | None) -> None:
+    """Install the per-invocation `max_review_cycles` raise (2.4a).
+
+    This is the operator's ESCAPE from an escalation. It is deliberately the only exit:
+    the counter does not auto-reset, so without an explicit raise every subsequent cycle
+    re-escalates immediately — a plan that has burned N review cycles should not silently
+    resume.
+    """
+    global _MAX_REVIEW_CYCLES_OVERRIDE
+    if n is not None and (not isinstance(n, int) or n < 1):
+        raise ValueError(f"max-review-cycles must be a positive integer, got {n!r}")
+    _MAX_REVIEW_CYCLES_OVERRIDE = n
+
+
+def _resolve_max_review_cycles() -> int:
+    """The Phase-3 review-loop bound, through the same tiers as `_resolve_autonomy`."""
+    if _MAX_REVIEW_CYCLES_OVERRIDE is not None:
+        return _MAX_REVIEW_CYCLES_OVERRIDE
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_MAX_REVIEW_CYCLES)
+    if isinstance(val, bool):  # bool is an int subclass; reject it explicitly
+        return MAX_REVIEW_CYCLES_DEFAULT
+    if isinstance(val, int) and val >= 1:
+        return val
+    return MAX_REVIEW_CYCLES_DEFAULT
+
+
+# Per-invocation override, set by the prose-detected token (2.3). Not a config file
+# key: it is the highest tier, above `.yf/plan/config.local.json`, and lives only for
+# the duration of one process. `config-resolve --autonomy X` reports it as `flag`.
+_AUTONOMY_OVERRIDE: str | None = None
+
+
+def _set_autonomy_override(level: str | None) -> None:
+    """Install the per-invocation autonomy override (2.3).
+
+    Prose detects the token; this validates and resolves it. An unrecognised value is
+    rejected rather than silently ignored — a misdetected token that quietly fell back
+    to the default would be indistinguishable from no token at all, which is the whole
+    failure mode the `log.md` echo exists to make auditable.
+    """
+    global _AUTONOMY_OVERRIDE
+    if level is None:
+        _AUTONOMY_OVERRIDE = None
+        return
+    if level not in AUTONOMY_LEVELS:
+        raise ValueError(
+            f"unknown autonomy level {level!r}; expected one of {', '.join(AUTONOMY_LEVELS)}"
+        )
+    _AUTONOMY_OVERRIDE = level
+
+
+def _config_source(key: str) -> tuple[object, str]:
+    """The raw value of `key` and the tier it came from, highest tier first.
+
+    Returns `(value, source)` where `source` is one of `config.local`, `config.json`,
+    `legacy`, or `default` (the last with `value` `None`). This walks the tiers itself
+    rather than reading the merged dict, because the merge is lossy by construction:
+    once `_read_config()` has flattened three files into one, the winning tier is
+    unrecoverable — and *which tier won* is the question `config-resolve` exists to
+    answer. `flag` is not produced here; the caller adds it, since a per-invocation
+    override lives in process memory rather than in any file.
+
+    Total, like `_bootstrap_config`: an unreadable or malformed tier is skipped rather
+    than raised, so a bad config file cannot make this verb crash.
+    """
+    labels = {
+        CONFIG_LOCAL_FILE: "config.local",
+        CONFIG_SHARED_FILE: "config.json",
+        LEGACY_CONFIG_FILE: "legacy",
+    }
+    for path in CONFIG_TIERS:
+        try:
+            if path.exists():
+                loaded = json.loads(path.read_text())
+                if isinstance(loaded, dict) and key in loaded:
+                    return loaded[key], labels[path]
+        except (json.JSONDecodeError, OSError, ValueError):
+            continue
+    return None, "default"
+
+
+def _resolve_autonomy() -> str:
+    """The autonomy level, modelled on `_resolve_landing_strategy` (Issue 2.1).
+
+    `autonomous` (default) → execution continues to the next ready bead without operator
+    input, an epic boundary is a report rather than a stop, and the review loop resolves
+    its own concerns and re-runs until APPROVE. Halts are confined to the declared
+    five-class stop set (REQ-AGENT-064).
+    `checkpointed` → the prior behaviour: the operator is consulted at the points the
+    autonomous level would pass through.
+
+    Any unset or unrecognised value falls back to `autonomous`. The default is
+    deliberately the permissive one: caution is the exception that must be configured,
+    not the default that must be overridden.
+    """
+    if _AUTONOMY_OVERRIDE is not None:
+        return _AUTONOMY_OVERRIDE
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_AUTONOMY)
+    if isinstance(val, str) and val.strip() in AUTONOMY_LEVELS:
+        return val.strip()
+    return AUTONOMY_DEFAULT
+
+
+def _is_autonomous() -> bool:
+    """True iff the resolved autonomy level is `autonomous`."""
+    return _resolve_autonomy() == AUTONOMY_DEFAULT
+
+
 def _plan_id_from_dir(plan_dir: Path) -> str:
     """The plan id == worktree leaf: the plan_dir basename.
 
@@ -3100,11 +3410,28 @@ def _resume_scan(plan_dir: Path) -> dict:
         st = d.get("status", "unknown")
         counts[st] = counts.get(st, 0) + 1
         if st in _STUCK_STATUSES:
+            # `yf_attempts` (2.8/2.9): the metadata is ALREADY loaded here, so surfacing
+            # it is a read of a dict we hold. The existing detector is status-based and
+            # therefore cannot tell a FIRST crash from a FIFTH — both read `in_progress`.
+            # That distinction is what decides whether the sweep should reset the bead or
+            # the operator should look at it, so it belongs in the record.
+            md = d.get("metadata")
+            attempts = 0
+            if isinstance(md, dict):
+                raw = md.get("yf_attempts")
+                if isinstance(raw, bool):
+                    attempts = 0
+                elif isinstance(raw, int):
+                    attempts = raw
+                elif isinstance(raw, str) and raw.strip().isdigit():
+                    attempts = int(raw.strip())
             stuck.append({
                 "id": d.get("id"),
                 "status": st,
                 "issue_type": d.get("issue_type"),
                 "title": d.get("title", ""),
+                "yf_attempts": attempts,
+                "at_threshold": attempts >= _resolve_max_attempts(),
             })
         if st != "closed" and d.get("issue_type") != "gate":
             open_work_remaining += 1
@@ -3143,7 +3470,9 @@ def resume_scan(plan_dir: str, as_json: bool):
     if result["stuck"]:
         click.echo(f"  STUCK (in_progress/claimed — sweep resets to open):")
         for s in result["stuck"]:
-            click.echo(f"    - {s['id']} [{s['issue_type']}] {s['title']}")
+            flag = " ⚠ AT THRESHOLD" if s.get("at_threshold") else ""
+            click.echo(f"    - {s['id']} [{s['issue_type']}] "
+                       f"attempts={s.get('yf_attempts', 0)}{flag} {s['title']}")
     else:
         click.echo("  no stuck beads")
 
@@ -3320,6 +3649,41 @@ def _plan_review_line_count(plan_dir: Path) -> int:
         if re.match(r"- \d{4}-\d{2}-\d{2} review:", line):
             count += 1
     return count
+
+
+def _review_cycle_count(plan_dir: Path) -> int:
+    """The number of completed review cycles: `len(glob('reviews/pass-*.md'))` (2.4a).
+
+    **Deliberately NOT `_plan_review_line_count`.** That function counts `log.md`
+    bullets, which is a *different number* and one that can and does diverge — a
+    divergence observed live during this plan's own review. The pass-file count is the
+    faithful cycle count because REQ-PLAN-032 guarantees each full REVISE cycle yields
+    exactly one pass file.
+
+    The count is **monotonic**: pass files are never deleted, so this never decreases.
+    That is what makes the escalation stick, and it is the property that distinguishes
+    this counter from `yf_attempts`, which resets on success.
+    """
+    reviews_dir = plan_dir / "reviews"
+    if not reviews_dir.is_dir():
+        return 0
+    return sum(
+        1 for f in reviews_dir.glob("pass-*.md")
+        if re.fullmatch(r"pass-\d+\.md", f.name)
+    )
+
+
+def _review_loop_escalates(plan_dir: Path) -> tuple[bool, int, int]:
+    """`(escalates, cycles, limit)` — whether the autonomous review loop must stop.
+
+    Escalation is **stop class 4** (a mechanical counter threshold), not a judgement.
+    On escalation the plan sits in `review` with a REVISE verdict — a LEGAL state, not
+    a wedge: REQ-PLAN-030 bars only `ready-for-approval`, so nothing is corrupted and
+    the operator can inspect, raise the bound, or resolve by hand.
+    """
+    cycles = _review_cycle_count(plan_dir)
+    limit = _resolve_max_review_cycles()
+    return (cycles >= limit, cycles, limit)
 
 
 def _latest_review_verdict(
@@ -3944,6 +4308,324 @@ def audit_close(plan_dir: str, as_json: bool):
     # verdict, and deliberately has no flag to make it conditional — the guarantee is
     # what makes the step safe to run at close given the 22% measured block rate.
     sys.exit(0)
+
+
+@cli.command("config-resolve")
+@click.option("--autonomy", "autonomy_flag", default=None,
+              help="Per-invocation autonomy override, reported with source `flag`.")
+@click.option("--sweep-gates", "sweep_flag", default=None,
+              help="Per-invocation execute-start sweep scope, reported with source `flag`.")
+@click.option("--plan-dir", "plan_dir", type=click.Path(exists=True), default=None,
+              help="Echo a resolved per-invocation override into this bundle's log.md.")
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit structured JSON. Default is a human-readable report.")
+def config_resolve(autonomy_flag: str | None, sweep_flag: str | None,
+                   plan_dir: str | None, as_json: bool):
+    """Report each config key's effective value AND the tier it came from (REQ-CLI-021).
+
+    Precedence, highest first: ``flag`` > ``config.local`` > ``config.json`` >
+    ``legacy`` > ``default``.
+
+    A resolved value alone is undebuggable. The recurring question is not *what is
+    autonomy set to* but *which of the five tiers won* — and a bare value cannot answer
+    it, because the three config files are merged key-by-key before any caller sees
+    them. So every key reports both ``value`` and ``source``.
+
+    Registered **flat** (``@cli.command("config-resolve")``), never as a ``config`` group
+    with a ``resolve`` subcommand: REQ-CLI-006's Verification greps ``@cli.command``,
+    which does not match a group-registered subcommand, so a group would leave that
+    enumeration and its own verification permanently inconsistent.
+
+    A pure read — exits ``0``, mutates nothing, and emits JSON on stdout on every path
+    including failure (REQ-CLI-016).
+    """
+    result: dict = {"keys": {}}
+    try:
+        if autonomy_flag is not None:
+            _set_autonomy_override(autonomy_flag)
+        if sweep_flag is not None:
+            _set_sweep_gates_override(sweep_flag)
+    except ValueError as e:
+        # REQ-CLI-016: JSON on stdout even on the failure path. Still exit 0 — this is
+        # a read verb, and a rejected flag is a reported condition, not a crash.
+        result["error"] = str(e)
+        result["keys"] = {}
+        click.echo(json.dumps(result, indent=2))
+        return
+
+    def _entry(key: str, default, valid=None, flag_value=None):
+        if flag_value is not None:
+            return {"value": flag_value, "source": "flag", "default": default,
+                    "valid": list(valid) if valid else None}
+        raw, source = _config_source(key)
+        if source == "default":
+            value = default
+        elif valid is not None and not (isinstance(raw, str) and raw.strip() in valid):
+            # Present but unrecognised: the resolver falls back, so report the
+            # EFFECTIVE value and say `default` — reporting the tier here would claim
+            # a value that no resolver will ever return.
+            value, source = default, "default"
+        else:
+            value = raw.strip() if isinstance(raw, str) else raw
+        return {"value": value, "source": source, "default": default,
+                "valid": list(valid) if valid else None}
+
+    result["keys"][CONFIG_KEY_AUTONOMY] = _entry(
+        CONFIG_KEY_AUTONOMY, AUTONOMY_DEFAULT, AUTONOMY_LEVELS, autonomy_flag)
+    result["keys"][CONFIG_KEY_LANDING_STRATEGY] = _entry(
+        CONFIG_KEY_LANDING_STRATEGY, LANDING_STRATEGY_DEFAULT, LANDING_STRATEGIES)
+    result["keys"][CONFIG_KEY_SWEEP_GATES] = _entry(
+        CONFIG_KEY_SWEEP_GATES, SWEEP_GATES_DEFAULT, SWEEP_GATES_VALUES, sweep_flag)
+    raw_ma, src_ma = _config_source(CONFIG_KEY_MAX_ATTEMPTS)
+    result["keys"][CONFIG_KEY_MAX_ATTEMPTS] = {
+        "value": _resolve_max_attempts(),
+        "source": src_ma if isinstance(raw_ma, int) and not isinstance(raw_ma, bool)
+        and raw_ma >= 1 else "default",
+        "default": MAX_ATTEMPTS_DEFAULT, "valid": None,
+    }
+    raw_mrc, src_mrc = _config_source(CONFIG_KEY_MAX_REVIEW_CYCLES)
+    result["keys"][CONFIG_KEY_MAX_REVIEW_CYCLES] = {
+        "value": _resolve_max_review_cycles(),
+        "source": "flag" if _MAX_REVIEW_CYCLES_OVERRIDE is not None else (
+            src_mrc if isinstance(raw_mrc, int) and not isinstance(raw_mrc, bool)
+            and raw_mrc >= 1 else "default"),
+        "default": MAX_REVIEW_CYCLES_DEFAULT, "valid": None,
+    }
+    raw_wt, src_wt = _config_source(CONFIG_KEY_WORKTREE)
+    result["keys"][CONFIG_KEY_WORKTREE] = {
+        "value": not _worktree_opted_out(), "source": src_wt,
+        "default": True, "valid": None,
+    }
+    raw_vc, src_vc = _config_source(CONFIG_KEY_VALIDATE_CMD)
+    result["keys"][CONFIG_KEY_VALIDATE_CMD] = {
+        "value": _resolve_validate_cmd(), "source": src_vc,
+        "default": None, "valid": None,
+    }
+
+    # Echo a per-invocation override into log.md so a MISDETECTION is auditable after
+    # the fact (2.3). Detection is necessarily prose — a slash-command path has no argv
+    # — so the token can be misread; that risk is identical in kind to today's `--force`,
+    # and is mitigated the same way. The echo records the value the SCRIPT RESOLVED, not
+    # the token the prose thought it saw: those differing is exactly the misdetection
+    # this line exists to expose.
+    if plan_dir is not None and autonomy_flag is not None and "error" not in result:
+        try:
+            resolved = result["keys"][CONFIG_KEY_AUTONOMY]["value"]
+            bullet = (f"autonomy: per-invocation override resolved to {resolved!r} "
+                      f"(source: flag) — overrides the configured/default level")
+            okf.append_log(Path(plan_dir), bullet, date=datetime.now().strftime("%Y-%m-%d"))
+            result["log_entry"] = bullet
+        except Exception as e:  # never let bookkeeping fail a pure read
+            result["log_error"] = str(e)
+
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo("key                  value                source")
+        click.echo("-" * 58)
+        for k, v in result["keys"].items():
+            click.echo(f"{k:<20} {str(v['value']):<20} {v['source']}")
+
+
+@cli.command("retrospective-report")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def retrospective_report(plan_dir: str, as_json: bool):
+    """ADVISORY close-step report of the bundle's retrospective entries (4.4).
+
+    Emits the REQ-COMPLETE-003 verdict envelope (``status`` + ``findings`` +
+    ``remediation``) so ``test_close_contract.py`` counts it as a conformant chain step.
+
+    **Advisory, never halting.** It exits ``0`` unconditionally, including when the file is
+    absent — absence is a legitimate state (a plan that stopped for no reason and deviated
+    in no way has nothing to record) and is never a finding (REQ-PORT-ACT-RETROSPECTIVE).
+    Measurement, adjudication and any fix+prevention contract are deliberately out of scope:
+    this plan emits the corpus, and halting on it stays with the analysis skill that will
+    later read it.
+
+    Position in the §6.4 chain is load-bearing: it is an OBSERVING step, so REQ-COMPLETE-001
+    constraint 1 puts it above every plan-folder writer — in particular above the
+    ``set-deliverable-class`` dual-write — or it would report on artifacts the close step
+    itself had just written.
+    """
+    pdir = Path(plan_dir)
+    path = pdir / RETROSPECTIVE_FILE
+    entries: list[dict] = []
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
+        for block in re.split(r"(?=^## RE-\d+)", text, flags=re.M):
+            m = re.match(r"^## RE-(\d+)", block)
+            if not m:
+                continue
+            row = {}
+            for line in block.splitlines():
+                cell = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*$", line)
+                if cell:
+                    row[cell.group(1)] = cell.group(2)
+            row["id"] = f"RE-{int(m.group(1)):03d}"
+            entries.append(row)
+
+    by_kind: dict[str, int] = {}
+    by_class: dict[str, int] = {}
+    unverified = 0
+    for e in entries:
+        by_kind[e.get("kind") or "stop"] = by_kind.get(e.get("kind") or "stop", 0) + 1
+        sc = e.get("stop_class") or ""
+        if sc:
+            by_class[sc] = by_class.get(sc, 0) + 1
+        if (e.get("evidence") or "unverified") == "unverified":
+            unverified += 1
+
+    findings: list[str] = []
+    if entries and unverified:
+        findings.append(
+            f"{unverified} of {len(entries)} entries carry `evidence: unverified` — a state "
+            "assertion with no evidence is a narration, not a finding. Advisory only."
+        )
+    result = {
+        "status": "ok",
+        "present": path.exists(),
+        "count": len(entries),
+        "by_kind": by_kind,
+        "by_stop_class": by_class,
+        "unverified": unverified,
+        "findings": findings,
+        "remediation": (
+            "Advisory. Absence is never a finding. To enrich a thin entry, re-run "
+            "`retrospective-append` with `--evidence '<command + output>'`."
+        ),
+        "advisory": True,
+    }
+    click.echo(json.dumps(result, indent=2))
+
+
+@cli.command("retrospective-append")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--kind", type=click.Choice(RETROSPECTIVE_KINDS), default="stop",
+              help="`stop` (an autonomous run halted) or `deviation` (a non-stop defect).")
+@click.option("--stop-class", "stop_class", default="",
+              help="1-5 for a stop; empty for a deviation.")
+@click.option("--asked", default="", help="What the operator was asked, verbatim.")
+@click.option("--answered", default="", help="What they answered, verbatim.")
+@click.option("--frontloadable", default="",
+              help="Could this have been asked at execute start? yes|no|partial.")
+@click.option("--detected-by", "detected_by",
+              type=click.Choice(RETROSPECTIVE_DETECTED_BY), default="self-report",
+              help="WHO found it. The recorder is usually the subject — say so.")
+@click.option("--evidence", default="",
+              help="The command + output substantiating any state claim, or `unverified`.")
+@click.option("--escape-class", "escape_class", default="")
+@click.option("--adjudication", default="")
+@click.option("--origin", default="")
+@click.option("--culpability", default="")
+@click.option("--prevention", default="")
+@click.option("--cost", default="")
+@click.option("--dry-run", is_flag=True, help="Report what would be written; write nothing.")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
+                         answered: str, frontloadable: str, detected_by: str,
+                         evidence: str, escape_class: str, adjudication: str,
+                         origin: str, culpability: str, prevention: str, cost: str,
+                         dry_run: bool, as_json: bool):
+    """Append one `## RE-NNN` entry to `plan-retrospective.md` (REQ-CLI-022).
+
+    Creates the file (with `type: Retrospective` frontmatter) when absent and adds it to
+    the reserved `index.md` listing. Idempotent on entry identity; `RE-NNN` ids are
+    allocated monotonically and never reused.
+
+    Two fields carry the weight (REQ-PORT-052, D-6a):
+
+    * ``--detected-by`` — ``self-report`` | ``operator`` | ``mechanical-check``. An entry's
+      trust level is a property of WHO FOUND IT, and the recorder is usually the subject.
+    * ``--evidence`` — the command and output behind any state claim, or the literal
+      ``unverified``. Defaults to ``unverified`` rather than to blank, so an
+      unsubstantiated entry is **self-identifying** instead of merely quiet.
+
+    ``--kind deviation`` exists because the incident that motivated both fields was a
+    NON-STOP: a stop-only schema is blind to exactly the class autonomy makes more common.
+    """
+    entry = {
+        "kind": kind, "stop_class": stop_class, "asked": asked, "answered": answered,
+        "frontloadable": frontloadable, "detected_by": detected_by, "evidence": evidence,
+        "escape_class": escape_class, "adjudication": adjudication, "origin": origin,
+        "culpability": culpability, "prevention": prevention, "cost": cost,
+    }
+    try:
+        result = append_retrospective(Path(plan_dir), entry, dry_run=dry_run)
+    except ValueError as e:
+        click.echo(json.dumps({"error": str(e), "appended": False}, indent=2))
+        sys.exit(1)
+    result["dry_run"] = dry_run
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        verb_txt = "would append" if dry_run else ("appended" if result["appended"] else "skipped (duplicate)")
+        click.echo(f"{verb_txt} {result['id']} -> {result['file']}")
+
+
+@cli.command("review-loop-check")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--max-review-cycles", "raise_to", type=int, default=None,
+              help="Per-invocation raise of the bound — the operator's escalation exit.")
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit structured JSON. Default is a human-readable report.")
+def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
+    """Bound the autonomous review loop (2.4a). Exits ``3`` on escalation, ``0`` otherwise.
+
+    Issue 2.4 grants the review loop autonomy in **Phase 3 — before intake, before the
+    pour, before any bead exists** — so D-3's ``yf_attempts`` (bd metadata, incremented
+    in the coordinator loop) structurally cannot reach it. Without this counter the
+    plan's headline change would be exactly the unbounded-autonomy shape D-8 forbids.
+
+    The count is ``len(glob('reviews/pass-*.md'))``, **not** ``_plan_review_line_count``
+    (a different number that can and does diverge). It is **monotonic** — pass files are
+    never deleted — with two consequences this counter needs and ``yf_attempts`` does not:
+
+    * **Escalation exit.** At ``N`` the loop escalates (stop class 4) and the plan sits in
+      ``review`` with a REVISE verdict. That is a legal state, not a wedge: REQ-PLAN-030
+      bars only ``ready-for-approval``.
+    * **No auto-reset.** ``--max-review-cycles`` is the operator's only exit, and it is
+      per-invocation and echoed to ``log.md``. Without that raise every subsequent cycle
+      re-escalates immediately — deliberate: a plan that has burned ``N`` review cycles
+      should not silently resume.
+    """
+    pdir = Path(plan_dir)
+    result: dict = {}
+    try:
+        if raise_to is not None:
+            _set_max_review_cycles_override(raise_to)
+    except ValueError as e:
+        click.echo(json.dumps({"error": str(e), "escalates": True}, indent=2))
+        sys.exit(3)
+
+    escalates, cycles, limit = _review_loop_escalates(pdir)
+    result.update({
+        "escalates": escalates,
+        "cycles": cycles,
+        "limit": limit,
+        "stop_class": 4 if escalates else None,
+        "autonomy": _resolve_autonomy(),
+        "raised": raise_to,
+    })
+    if escalates:
+        result["remediation"] = (
+            f"the review loop has run {cycles} cycle(s), at or above the bound of {limit}. "
+            "Stop class 4 (mechanical counter threshold). The plan stays in `review` with "
+            "its REVISE verdict — a legal state, not a wedge. Either resolve the concerns "
+            "by hand, or re-run with `--max-review-cycles <n>` to raise the bound for this "
+            "invocation (the raise is echoed to log.md and does not persist)."
+        )
+    if raise_to is not None:
+        try:
+            bullet = (f"autonomy: max-review-cycles raised to {raise_to} for this invocation "
+                      f"(cycles={cycles}) — escalation override")
+            okf.append_log(pdir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
+            result["log_entry"] = bullet
+        except Exception as e:
+            result["log_error"] = str(e)
+
+    click.echo(json.dumps(result, indent=2))
+    sys.exit(3 if escalates else 0)
 
 
 @cli.command("ready-check")

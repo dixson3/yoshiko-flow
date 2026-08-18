@@ -16,8 +16,11 @@ hit, and that comparison is where planning-process defects become visible.
 
 ## Two things it deliberately will not do
 
-- **Observe continuously.** A turn-based agent has no execution between operator turns. Observation
-  happens at turn boundaries and on demand, and the skill says so rather than implying a watcher.
+- **Poll continuously.** A turn-based agent has no execution between operator turns, so the parent's
+  own polling happens at turn boundaries and on demand, and the skill says so rather than implying a
+  watcher. That is a limit on **pull**, not on observation: the subordinate **pushes** at epic
+  boundaries, blockers and completion, so the parent learns of a material event without polling for
+  it (REQ-HERDR-026).
 - **Resolve a gate, or auto-file an issue.** Gates exist to spend operator attention. Improvements
   are reported; filing waits for authorisation.
 
@@ -61,8 +64,8 @@ speculative tab. SKILL.md carries the checks in order.
 | Phase | What it does |
 | :--- | :--- |
 | Preflight | Checks the four conditions in order, stopping at the first failure. Readiness is verified mechanically (`resume-scan`), never inferred from the conversation. |
-| Launch | Resolves the parent's agent kind from `$HERDR_PANE_ID` against `herdr agent list`, opens a tab in `$HERDR_WORKSPACE_ID` with `--cwd` at the repo root and `--no-focus`, and records the subordinate's name + pane id as the delegation handle. |
-| Observe | At operator turn boundaries and on demand — never continuously. Reads `blocked` before sending any prompt, and never treats `idle`/`done` as completion without checking remaining beads. |
+| Launch | Resolves the parent's agent kind from `$HERDR_PANE_ID` against `herdr agent list`, opens a tab in `$HERDR_WORKSPACE_ID` with `--cwd` at the repo root and `--no-focus`, and records the subordinate's name + pane id as the delegation handle. Seeds the parent's own pane id as `YF_PARENT_PANE` and carries the mandatory prompt content — autonomy directive, push contract, parent handle — in both the prompt and `--append-system-prompt` (REQ-HERDR-015). |
+| Observe | **Push-primary:** the subordinate pushes at epic completion, a blocker or failed gate, and plan completion or abort — never per bead, and never with `--wait`. Polling is the fallback for a silent or `blocked` subordinate, and runs at operator turn boundaries and on demand. Reads `blocked` before sending any prompt, and never treats `idle`/`done` as completion without checking remaining beads. |
 | Mine | Records each divergence from a plan assumption, classified one-off vs recurring class, with the skill that owns the fix. |
 | Report | Surfaces gates and escalations to the operator. Improvements are filed upstream only on explicit authorisation. |
 
