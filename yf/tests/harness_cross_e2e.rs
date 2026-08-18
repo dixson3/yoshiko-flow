@@ -206,7 +206,10 @@ fn aggregate_revert_keeps_a_hand_edited_file_and_still_reverts_a_clean_one() {
         let home = home.path();
         let aggregate = home.join(".claude/rules/YOSHIKO_FLOW.md");
 
-        yf_json_in(home, &["harness", "tune", "--harness", "claude-code", "--json"]);
+        yf_json_in(
+            home,
+            &["harness", "tune", "--harness", "claude-code", "--json"],
+        );
         assert!(aggregate.is_file(), "tune wrote the aggregate");
 
         // The operator hand-edits it after the tune.
@@ -216,7 +219,14 @@ fn aggregate_revert_keeps_a_hand_edited_file_and_still_reverts_a_clean_one() {
 
         let jr = yf_json_in(
             home,
-            &["harness", "tune", "--harness", "claude-code", "--revert", "--json"],
+            &[
+                "harness",
+                "tune",
+                "--harness",
+                "claude-code",
+                "--revert",
+                "--json",
+            ],
         );
 
         assert!(
@@ -241,12 +251,22 @@ fn aggregate_revert_keeps_a_hand_edited_file_and_still_reverts_a_clean_one() {
         let home = home.path();
         let aggregate = home.join(".claude/rules/YOSHIKO_FLOW.md");
 
-        yf_json_in(home, &["harness", "tune", "--harness", "claude-code", "--json"]);
+        yf_json_in(
+            home,
+            &["harness", "tune", "--harness", "claude-code", "--json"],
+        );
         assert!(aggregate.is_file(), "tune wrote the aggregate");
 
         let jr = yf_json_in(
             home,
-            &["harness", "tune", "--harness", "claude-code", "--revert", "--json"],
+            &[
+                "harness",
+                "tune",
+                "--harness",
+                "claude-code",
+                "--revert",
+                "--json",
+            ],
         );
         assert_eq!(
             jr["surfaces"][0]["rules"]["status"], "reverted",
@@ -396,8 +416,14 @@ fn rules_land_only_on_the_declared_surface_for_all_five_descriptors() {
         let home = tempfile::tempdir().unwrap();
         let home = home.path();
 
-        yf_json_in(home, &["skills", "install", "yf-plan", "--harness", h, "--json"]);
-        yf_json_in(home, &["skills", "upgrade", "yf-plan", "--harness", h, "--json"]);
+        yf_json_in(
+            home,
+            &["skills", "install", "yf-plan", "--harness", h, "--json"],
+        );
+        yf_json_in(
+            home,
+            &["skills", "upgrade", "yf-plan", "--harness", h, "--json"],
+        );
 
         // No rules file on ANY descriptor's surface — not just this one's.
         for other in ALL_DESCRIPTORS {
@@ -423,7 +449,14 @@ fn rules_land_only_on_the_declared_surface_for_all_five_descriptors() {
     let home = home.path();
     yf_json_in(
         home,
-        &["skills", "install", "yf-plan", "--harness", "agents", "--json"],
+        &[
+            "skills",
+            "install",
+            "yf-plan",
+            "--harness",
+            "agents",
+            "--json",
+        ],
     );
     // Skills DID land (agents is a real skills surface) ...
     assert!(
@@ -502,8 +535,14 @@ fn prune_fans_out_to_both_destinations_of_a_two_harness_install() {
     yf_json_in(
         home,
         &[
-            "skills", "install", "yf-beads-extra",
-            "--harness", "claude-code", "--harness", "codex", "--json",
+            "skills",
+            "install",
+            "yf-beads-extra",
+            "--harness",
+            "claude-code",
+            "--harness",
+            "codex",
+            "--json",
         ],
     );
 
@@ -520,14 +559,22 @@ fn prune_fans_out_to_both_destinations_of_a_two_harness_install() {
     let dry = yf_json_in(
         home,
         &[
-            "skills", "install", "yf-beads-extra",
-            "--harness", "claude-code", "--harness", "codex",
-            "--prune", "--dry-run", "--json",
+            "skills",
+            "install",
+            "yf-beads-extra",
+            "--harness",
+            "claude-code",
+            "--harness",
+            "codex",
+            "--prune",
+            "--dry-run",
+            "--json",
         ],
     );
     let previewed = dry["pruned"].as_array().expect("pruned array");
     assert_eq!(
-        previewed.len(), 2,
+        previewed.len(),
+        2,
         "the dry-run must preview BOTH destinations' strays (a preview that \
          under-reports is the #155 defect): {dry}"
     );
@@ -539,11 +586,22 @@ fn prune_fans_out_to_both_destinations_of_a_two_harness_install() {
     yf_json_in(
         home,
         &[
-            "skills", "install", "yf-beads-extra",
-            "--harness", "claude-code", "--harness", "codex", "--prune", "--json",
+            "skills",
+            "install",
+            "yf-beads-extra",
+            "--harness",
+            "claude-code",
+            "--harness",
+            "codex",
+            "--prune",
+            "--json",
         ],
     );
     for p in &strays {
-        assert!(!p.exists(), "prune must reach every destination: {}", p.display());
+        assert!(
+            !p.exists(),
+            "prune must reach every destination: {}",
+            p.display()
+        );
     }
 }

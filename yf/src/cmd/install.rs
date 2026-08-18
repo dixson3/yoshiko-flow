@@ -477,7 +477,10 @@ mod tests {
         a.json = false;
         run(&a).unwrap();
 
-        assert!(pyc.exists(), "generated residue must be SPARED by prune (REQ-YF-MARK-005)");
+        assert!(
+            pyc.exists(),
+            "generated residue must be SPARED by prune (REQ-YF-MARK-005)"
+        );
     }
     use super::*;
     use crate::cli::Scope;

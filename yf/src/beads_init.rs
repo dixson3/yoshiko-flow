@@ -1825,17 +1825,30 @@ mod tests {
         let cfg = beads.join("config.yaml");
 
         // Nested form: removing `remote:` empties the block, so the parent goes too.
-        std::fs::write(&cfg, "dolt.local-only: true\nsync:\n  remote: git+https://x\n").unwrap();
+        std::fs::write(
+            &cfg,
+            "dolt.local-only: true\nsync:\n  remote: git+https://x\n",
+        )
+        .unwrap();
         remove_sync_remote_config(&beads).unwrap();
         let after = std::fs::read_to_string(&cfg).unwrap();
-        assert!(!after.contains("sync:"), "childless parent survived: {after:?}");
-        assert!(after.contains("dolt.local-only: true"), "clobbered siblings");
+        assert!(
+            !after.contains("sync:"),
+            "childless parent survived: {after:?}"
+        );
+        assert!(
+            after.contains("dolt.local-only: true"),
+            "clobbered siblings"
+        );
 
         // A `sync:` block with OTHER children is preserved (only `remote:` goes).
         std::fs::write(&cfg, "sync:\n  remote: git+https://x\n  interval: 30\n").unwrap();
         remove_sync_remote_config(&beads).unwrap();
         let after2 = std::fs::read_to_string(&cfg).unwrap();
-        assert!(after2.contains("sync:"), "parent with children must survive");
+        assert!(
+            after2.contains("sync:"),
+            "parent with children must survive"
+        );
         assert!(after2.contains("interval: 30"));
         assert!(!after2.contains("remote:"));
     }
@@ -1866,8 +1879,14 @@ mod tests {
         );
 
         // Scoped: without --local-only there is no basis to touch the remote.
-        let not_implied = repair(root, false, /*local_only*/ false, /*remove*/ false).unwrap();
-        assert!(!has(&not_implied), "the implication is scoped to --local-only");
+        let not_implied = repair(
+            root, false, /*local_only*/ false, /*remove*/ false,
+        )
+        .unwrap();
+        assert!(
+            !has(&not_implied),
+            "the implication is scoped to --local-only"
+        );
     }
 
     // REQ-YF-DOCTOR-006 (#159): a `--repair` step verifies its own postcondition.

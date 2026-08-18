@@ -79,6 +79,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 |  | `uv run scripts/check_frontmatter.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |

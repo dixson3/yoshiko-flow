@@ -137,9 +137,12 @@ pub fn is_ignored_relpath(relpath: &str) -> bool {
     if relpath.ends_with("test-harness/topology.txt") || relpath == "test-harness/topology.txt" {
         return true;
     }
-    relpath
-        .split('/')
-        .any(|seg| matches!(seg, "__pycache__" | ".pytest_cache" | ".DS_Store" | ".scratch"))
+    relpath.split('/').any(|seg| {
+        matches!(
+            seg,
+            "__pycache__" | ".pytest_cache" | ".DS_Store" | ".scratch"
+        )
+    })
 }
 
 fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> io::Result<()> {
