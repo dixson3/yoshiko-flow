@@ -2249,6 +2249,150 @@ def _resolve_landing_strategy() -> str:
     return LANDING_STRATEGY_DEFAULT
 
 
+#   "autonomy": "autonomous" | "checkpointed"   → execution/review stop posture (2.1)
+CONFIG_KEY_AUTONOMY = "autonomy"
+AUTONOMY_DEFAULT = "autonomous"
+AUTONOMY_LEVELS = ("autonomous", "checkpointed")
+
+#   "max-attempts": <int>   → EXECUTION-phase bound on per-bead retries (2.8)
+CONFIG_KEY_MAX_ATTEMPTS = "max-attempts"
+MAX_ATTEMPTS_DEFAULT = 3
+
+
+def _resolve_max_attempts() -> int:
+    """The per-bead attempt threshold `N` for `yf_attempts` (2.8, stop class 4).
+
+    Distinct from `max_review_cycles` in both phase and semantics: this one is
+    EXECUTION-phase, per-bead, and **resets** on close, whereas the review counter is
+    PLAN-phase, per-plan, and monotonic. Two counters exist because Issue 2.4 grants
+    autonomy before any bead exists, so `yf_attempts` structurally cannot reach it.
+    """
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_MAX_ATTEMPTS)
+    if isinstance(val, bool):
+        return MAX_ATTEMPTS_DEFAULT
+    if isinstance(val, int) and val >= 1:
+        return val
+    return MAX_ATTEMPTS_DEFAULT
+
+
+#   "max-review-cycles": <int>   → Phase-3 bound on the autonomous review loop (2.4a)
+CONFIG_KEY_MAX_REVIEW_CYCLES = "max-review-cycles"
+MAX_REVIEW_CYCLES_DEFAULT = 5
+
+_MAX_REVIEW_CYCLES_OVERRIDE: int | None = None
+
+
+def _set_max_review_cycles_override(n: int | None) -> None:
+    """Install the per-invocation `max_review_cycles` raise (2.4a).
+
+    This is the operator's ESCAPE from an escalation. It is deliberately the only exit:
+    the counter does not auto-reset, so without an explicit raise every subsequent cycle
+    re-escalates immediately — a plan that has burned N review cycles should not silently
+    resume.
+    """
+    global _MAX_REVIEW_CYCLES_OVERRIDE
+    if n is not None and (not isinstance(n, int) or n < 1):
+        raise ValueError(f"max-review-cycles must be a positive integer, got {n!r}")
+    _MAX_REVIEW_CYCLES_OVERRIDE = n
+
+
+def _resolve_max_review_cycles() -> int:
+    """The Phase-3 review-loop bound, through the same tiers as `_resolve_autonomy`."""
+    if _MAX_REVIEW_CYCLES_OVERRIDE is not None:
+        return _MAX_REVIEW_CYCLES_OVERRIDE
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_MAX_REVIEW_CYCLES)
+    if isinstance(val, bool):  # bool is an int subclass; reject it explicitly
+        return MAX_REVIEW_CYCLES_DEFAULT
+    if isinstance(val, int) and val >= 1:
+        return val
+    return MAX_REVIEW_CYCLES_DEFAULT
+
+
+# Per-invocation override, set by the prose-detected token (2.3). Not a config file
+# key: it is the highest tier, above `.yf/plan/config.local.json`, and lives only for
+# the duration of one process. `config-resolve --autonomy X` reports it as `flag`.
+_AUTONOMY_OVERRIDE: str | None = None
+
+
+def _set_autonomy_override(level: str | None) -> None:
+    """Install the per-invocation autonomy override (2.3).
+
+    Prose detects the token; this validates and resolves it. An unrecognised value is
+    rejected rather than silently ignored — a misdetected token that quietly fell back
+    to the default would be indistinguishable from no token at all, which is the whole
+    failure mode the `log.md` echo exists to make auditable.
+    """
+    global _AUTONOMY_OVERRIDE
+    if level is None:
+        _AUTONOMY_OVERRIDE = None
+        return
+    if level not in AUTONOMY_LEVELS:
+        raise ValueError(
+            f"unknown autonomy level {level!r}; expected one of {', '.join(AUTONOMY_LEVELS)}"
+        )
+    _AUTONOMY_OVERRIDE = level
+
+
+def _config_source(key: str) -> tuple[object, str]:
+    """The raw value of `key` and the tier it came from, highest tier first.
+
+    Returns `(value, source)` where `source` is one of `config.local`, `config.json`,
+    `legacy`, or `default` (the last with `value` `None`). This walks the tiers itself
+    rather than reading the merged dict, because the merge is lossy by construction:
+    once `_read_config()` has flattened three files into one, the winning tier is
+    unrecoverable — and *which tier won* is the question `config-resolve` exists to
+    answer. `flag` is not produced here; the caller adds it, since a per-invocation
+    override lives in process memory rather than in any file.
+
+    Total, like `_bootstrap_config`: an unreadable or malformed tier is skipped rather
+    than raised, so a bad config file cannot make this verb crash.
+    """
+    labels = {
+        CONFIG_LOCAL_FILE: "config.local",
+        CONFIG_SHARED_FILE: "config.json",
+        LEGACY_CONFIG_FILE: "legacy",
+    }
+    for path in CONFIG_TIERS:
+        try:
+            if path.exists():
+                loaded = json.loads(path.read_text())
+                if isinstance(loaded, dict) and key in loaded:
+                    return loaded[key], labels[path]
+        except (json.JSONDecodeError, OSError, ValueError):
+            continue
+    return None, "default"
+
+
+def _resolve_autonomy() -> str:
+    """The autonomy level, modelled on `_resolve_landing_strategy` (Issue 2.1).
+
+    `autonomous` (default) → execution continues to the next ready bead without operator
+    input, an epic boundary is a report rather than a stop, and the review loop resolves
+    its own concerns and re-runs until APPROVE. Halts are confined to the declared
+    five-class stop set (REQ-AGENT-064).
+    `checkpointed` → the prior behaviour: the operator is consulted at the points the
+    autonomous level would pass through.
+
+    Any unset or unrecognised value falls back to `autonomous`. The default is
+    deliberately the permissive one: caution is the exception that must be configured,
+    not the default that must be overridden.
+    """
+    if _AUTONOMY_OVERRIDE is not None:
+        return _AUTONOMY_OVERRIDE
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_AUTONOMY)
+    if isinstance(val, str) and val.strip() in AUTONOMY_LEVELS:
+        return val.strip()
+    return AUTONOMY_DEFAULT
+
+
+def _is_autonomous() -> bool:
+    """True iff the resolved autonomy level is `autonomous`."""
+    return _resolve_autonomy() == AUTONOMY_DEFAULT
+
+
 def _plan_id_from_dir(plan_dir: Path) -> str:
     """The plan id == worktree leaf: the plan_dir basename.
 
@@ -3100,11 +3244,28 @@ def _resume_scan(plan_dir: Path) -> dict:
         st = d.get("status", "unknown")
         counts[st] = counts.get(st, 0) + 1
         if st in _STUCK_STATUSES:
+            # `yf_attempts` (2.8/2.9): the metadata is ALREADY loaded here, so surfacing
+            # it is a read of a dict we hold. The existing detector is status-based and
+            # therefore cannot tell a FIRST crash from a FIFTH — both read `in_progress`.
+            # That distinction is what decides whether the sweep should reset the bead or
+            # the operator should look at it, so it belongs in the record.
+            md = d.get("metadata")
+            attempts = 0
+            if isinstance(md, dict):
+                raw = md.get("yf_attempts")
+                if isinstance(raw, bool):
+                    attempts = 0
+                elif isinstance(raw, int):
+                    attempts = raw
+                elif isinstance(raw, str) and raw.strip().isdigit():
+                    attempts = int(raw.strip())
             stuck.append({
                 "id": d.get("id"),
                 "status": st,
                 "issue_type": d.get("issue_type"),
                 "title": d.get("title", ""),
+                "yf_attempts": attempts,
+                "at_threshold": attempts >= _resolve_max_attempts(),
             })
         if st != "closed" and d.get("issue_type") != "gate":
             open_work_remaining += 1
@@ -3143,7 +3304,9 @@ def resume_scan(plan_dir: str, as_json: bool):
     if result["stuck"]:
         click.echo(f"  STUCK (in_progress/claimed — sweep resets to open):")
         for s in result["stuck"]:
-            click.echo(f"    - {s['id']} [{s['issue_type']}] {s['title']}")
+            flag = " ⚠ AT THRESHOLD" if s.get("at_threshold") else ""
+            click.echo(f"    - {s['id']} [{s['issue_type']}] "
+                       f"attempts={s.get('yf_attempts', 0)}{flag} {s['title']}")
     else:
         click.echo("  no stuck beads")
 
@@ -3320,6 +3483,41 @@ def _plan_review_line_count(plan_dir: Path) -> int:
         if re.match(r"- \d{4}-\d{2}-\d{2} review:", line):
             count += 1
     return count
+
+
+def _review_cycle_count(plan_dir: Path) -> int:
+    """The number of completed review cycles: `len(glob('reviews/pass-*.md'))` (2.4a).
+
+    **Deliberately NOT `_plan_review_line_count`.** That function counts `log.md`
+    bullets, which is a *different number* and one that can and does diverge — a
+    divergence observed live during this plan's own review. The pass-file count is the
+    faithful cycle count because REQ-PLAN-032 guarantees each full REVISE cycle yields
+    exactly one pass file.
+
+    The count is **monotonic**: pass files are never deleted, so this never decreases.
+    That is what makes the escalation stick, and it is the property that distinguishes
+    this counter from `yf_attempts`, which resets on success.
+    """
+    reviews_dir = plan_dir / "reviews"
+    if not reviews_dir.is_dir():
+        return 0
+    return sum(
+        1 for f in reviews_dir.glob("pass-*.md")
+        if re.fullmatch(r"pass-\d+\.md", f.name)
+    )
+
+
+def _review_loop_escalates(plan_dir: Path) -> tuple[bool, int, int]:
+    """`(escalates, cycles, limit)` — whether the autonomous review loop must stop.
+
+    Escalation is **stop class 4** (a mechanical counter threshold), not a judgement.
+    On escalation the plan sits in `review` with a REVISE verdict — a LEGAL state, not
+    a wedge: REQ-PLAN-030 bars only `ready-for-approval`, so nothing is corrupted and
+    the operator can inspect, raise the bound, or resolve by hand.
+    """
+    cycles = _review_cycle_count(plan_dir)
+    limit = _resolve_max_review_cycles()
+    return (cycles >= limit, cycles, limit)
 
 
 def _latest_review_verdict(
@@ -3944,6 +4142,181 @@ def audit_close(plan_dir: str, as_json: bool):
     # verdict, and deliberately has no flag to make it conditional — the guarantee is
     # what makes the step safe to run at close given the 22% measured block rate.
     sys.exit(0)
+
+
+@cli.command("config-resolve")
+@click.option("--autonomy", "autonomy_flag", default=None,
+              help="Per-invocation autonomy override, reported with source `flag`.")
+@click.option("--plan-dir", "plan_dir", type=click.Path(exists=True), default=None,
+              help="Echo a resolved per-invocation override into this bundle's log.md.")
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit structured JSON. Default is a human-readable report.")
+def config_resolve(autonomy_flag: str | None, plan_dir: str | None, as_json: bool):
+    """Report each config key's effective value AND the tier it came from (REQ-CLI-021).
+
+    Precedence, highest first: ``flag`` > ``config.local`` > ``config.json`` >
+    ``legacy`` > ``default``.
+
+    A resolved value alone is undebuggable. The recurring question is not *what is
+    autonomy set to* but *which of the five tiers won* — and a bare value cannot answer
+    it, because the three config files are merged key-by-key before any caller sees
+    them. So every key reports both ``value`` and ``source``.
+
+    Registered **flat** (``@cli.command("config-resolve")``), never as a ``config`` group
+    with a ``resolve`` subcommand: REQ-CLI-006's Verification greps ``@cli.command``,
+    which does not match a group-registered subcommand, so a group would leave that
+    enumeration and its own verification permanently inconsistent.
+
+    A pure read — exits ``0``, mutates nothing, and emits JSON on stdout on every path
+    including failure (REQ-CLI-016).
+    """
+    result: dict = {"keys": {}}
+    try:
+        if autonomy_flag is not None:
+            _set_autonomy_override(autonomy_flag)
+    except ValueError as e:
+        # REQ-CLI-016: JSON on stdout even on the failure path. Still exit 0 — this is
+        # a read verb, and a rejected flag is a reported condition, not a crash.
+        result["error"] = str(e)
+        result["keys"] = {}
+        click.echo(json.dumps(result, indent=2))
+        return
+
+    def _entry(key: str, default, valid=None, flag_value=None):
+        if flag_value is not None:
+            return {"value": flag_value, "source": "flag", "default": default,
+                    "valid": list(valid) if valid else None}
+        raw, source = _config_source(key)
+        if source == "default":
+            value = default
+        elif valid is not None and not (isinstance(raw, str) and raw.strip() in valid):
+            # Present but unrecognised: the resolver falls back, so report the
+            # EFFECTIVE value and say `default` — reporting the tier here would claim
+            # a value that no resolver will ever return.
+            value, source = default, "default"
+        else:
+            value = raw.strip() if isinstance(raw, str) else raw
+        return {"value": value, "source": source, "default": default,
+                "valid": list(valid) if valid else None}
+
+    result["keys"][CONFIG_KEY_AUTONOMY] = _entry(
+        CONFIG_KEY_AUTONOMY, AUTONOMY_DEFAULT, AUTONOMY_LEVELS, autonomy_flag)
+    result["keys"][CONFIG_KEY_LANDING_STRATEGY] = _entry(
+        CONFIG_KEY_LANDING_STRATEGY, LANDING_STRATEGY_DEFAULT, LANDING_STRATEGIES)
+    raw_ma, src_ma = _config_source(CONFIG_KEY_MAX_ATTEMPTS)
+    result["keys"][CONFIG_KEY_MAX_ATTEMPTS] = {
+        "value": _resolve_max_attempts(),
+        "source": src_ma if isinstance(raw_ma, int) and not isinstance(raw_ma, bool)
+        and raw_ma >= 1 else "default",
+        "default": MAX_ATTEMPTS_DEFAULT, "valid": None,
+    }
+    raw_mrc, src_mrc = _config_source(CONFIG_KEY_MAX_REVIEW_CYCLES)
+    result["keys"][CONFIG_KEY_MAX_REVIEW_CYCLES] = {
+        "value": _resolve_max_review_cycles(),
+        "source": "flag" if _MAX_REVIEW_CYCLES_OVERRIDE is not None else (
+            src_mrc if isinstance(raw_mrc, int) and not isinstance(raw_mrc, bool)
+            and raw_mrc >= 1 else "default"),
+        "default": MAX_REVIEW_CYCLES_DEFAULT, "valid": None,
+    }
+    raw_wt, src_wt = _config_source(CONFIG_KEY_WORKTREE)
+    result["keys"][CONFIG_KEY_WORKTREE] = {
+        "value": not _worktree_opted_out(), "source": src_wt,
+        "default": True, "valid": None,
+    }
+    raw_vc, src_vc = _config_source(CONFIG_KEY_VALIDATE_CMD)
+    result["keys"][CONFIG_KEY_VALIDATE_CMD] = {
+        "value": _resolve_validate_cmd(), "source": src_vc,
+        "default": None, "valid": None,
+    }
+
+    # Echo a per-invocation override into log.md so a MISDETECTION is auditable after
+    # the fact (2.3). Detection is necessarily prose — a slash-command path has no argv
+    # — so the token can be misread; that risk is identical in kind to today's `--force`,
+    # and is mitigated the same way. The echo records the value the SCRIPT RESOLVED, not
+    # the token the prose thought it saw: those differing is exactly the misdetection
+    # this line exists to expose.
+    if plan_dir is not None and autonomy_flag is not None and "error" not in result:
+        try:
+            resolved = result["keys"][CONFIG_KEY_AUTONOMY]["value"]
+            bullet = (f"autonomy: per-invocation override resolved to {resolved!r} "
+                      f"(source: flag) — overrides the configured/default level")
+            okf.append_log(Path(plan_dir), bullet, date=datetime.now().strftime("%Y-%m-%d"))
+            result["log_entry"] = bullet
+        except Exception as e:  # never let bookkeeping fail a pure read
+            result["log_error"] = str(e)
+
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo("key                  value                source")
+        click.echo("-" * 58)
+        for k, v in result["keys"].items():
+            click.echo(f"{k:<20} {str(v['value']):<20} {v['source']}")
+
+
+@cli.command("review-loop-check")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--max-review-cycles", "raise_to", type=int, default=None,
+              help="Per-invocation raise of the bound — the operator's escalation exit.")
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit structured JSON. Default is a human-readable report.")
+def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
+    """Bound the autonomous review loop (2.4a). Exits ``3`` on escalation, ``0`` otherwise.
+
+    Issue 2.4 grants the review loop autonomy in **Phase 3 — before intake, before the
+    pour, before any bead exists** — so D-3's ``yf_attempts`` (bd metadata, incremented
+    in the coordinator loop) structurally cannot reach it. Without this counter the
+    plan's headline change would be exactly the unbounded-autonomy shape D-8 forbids.
+
+    The count is ``len(glob('reviews/pass-*.md'))``, **not** ``_plan_review_line_count``
+    (a different number that can and does diverge). It is **monotonic** — pass files are
+    never deleted — with two consequences this counter needs and ``yf_attempts`` does not:
+
+    * **Escalation exit.** At ``N`` the loop escalates (stop class 4) and the plan sits in
+      ``review`` with a REVISE verdict. That is a legal state, not a wedge: REQ-PLAN-030
+      bars only ``ready-for-approval``.
+    * **No auto-reset.** ``--max-review-cycles`` is the operator's only exit, and it is
+      per-invocation and echoed to ``log.md``. Without that raise every subsequent cycle
+      re-escalates immediately — deliberate: a plan that has burned ``N`` review cycles
+      should not silently resume.
+    """
+    pdir = Path(plan_dir)
+    result: dict = {}
+    try:
+        if raise_to is not None:
+            _set_max_review_cycles_override(raise_to)
+    except ValueError as e:
+        click.echo(json.dumps({"error": str(e), "escalates": True}, indent=2))
+        sys.exit(3)
+
+    escalates, cycles, limit = _review_loop_escalates(pdir)
+    result.update({
+        "escalates": escalates,
+        "cycles": cycles,
+        "limit": limit,
+        "stop_class": 4 if escalates else None,
+        "autonomy": _resolve_autonomy(),
+        "raised": raise_to,
+    })
+    if escalates:
+        result["remediation"] = (
+            f"the review loop has run {cycles} cycle(s), at or above the bound of {limit}. "
+            "Stop class 4 (mechanical counter threshold). The plan stays in `review` with "
+            "its REVISE verdict — a legal state, not a wedge. Either resolve the concerns "
+            "by hand, or re-run with `--max-review-cycles <n>` to raise the bound for this "
+            "invocation (the raise is echoed to log.md and does not persist)."
+        )
+    if raise_to is not None:
+        try:
+            bullet = (f"autonomy: max-review-cycles raised to {raise_to} for this invocation "
+                      f"(cycles={cycles}) — escalation override")
+            okf.append_log(pdir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
+            result["log_entry"] = bullet
+        except Exception as e:
+            result["log_error"] = str(e)
+
+    click.echo(json.dumps(result, indent=2))
+    sys.exit(3 if escalates else 0)
 
 
 @cli.command("ready-check")

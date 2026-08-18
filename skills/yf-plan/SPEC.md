@@ -97,7 +97,7 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 - **REQ-PLAN-034** *(testable)* approval shall write the fingerprint under the dual field set
   (`fingerprint` frontmatter key + `**Fingerprint:**` line, REQ-DATA-015) over the plan's content
   sections — everything before the first `## ` (frontmatter, `**Field:**` lines, and the now-relocated
-  log) is positionally excluded, along with `reviews/`, Operator Resolutions, and the
+  log) is positionally excluded, along with `reviews/`, the Resolutions tables, and the
   `## Upstream Issues` section; a subsequent content edit marks the plan **stale-approved** and
   blocks EXECUTE until a fresh conformance → red-team → portability cycle re-approves it (or a logged
   `--force`). See `spec/portability.md` REQ-PORT-040/041.

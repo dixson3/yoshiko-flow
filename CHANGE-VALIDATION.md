@@ -51,6 +51,7 @@ approved: yes
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
 | `uv-herdr-launch` | `uv run skills/yf-herdr/scripts/test_launch_contract.py` |  |  |
+| `uv-yf-autonomy` | `uv run skills/yf-plan/scripts/test_autonomy.py` |  |  |
 
 ### full
 
@@ -86,6 +87,7 @@ approved: yes
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
 |  | `uv run skills/yf-herdr/scripts/test_launch_contract.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_autonomy.py` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -93,7 +95,7 @@ approved: yes
 |:--|:--|
 | `Cargo.toml` | `sha256:dc1c5e47e979e216` |
 | `.github/workflows/*.yml` | `sha256:56499c620291d09a` |
-| `**/test_*.py` | `sha256:335aa5771ba1f0be` |
+| `**/test_*.py` | `sha256:b7923bd4e82885ee` |
 | `repo --check scripts` | `sha256:af52842d97019b3b` |
 
 ## 3. Trigger Scope
@@ -120,7 +122,7 @@ approved: yes
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy` |
 | `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
@@ -134,6 +136,7 @@ approved: yes
 | `skills/yf-plan/scripts/test_reconcile_step_resolution.py` | `uv-yf-reconcile-step` |
 | `skills/yf-plan/scripts/test_update_status_idempotent.py` | `uv-yf-status-idem` |
 | `skills/yf-plan/scripts/test_cascade_root_resolution.py` | `uv-yf-cascade-root` |
+| `skills/yf-plan/scripts/test_autonomy.py` | `uv-yf-autonomy` |
 | `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-audit-close`, `uv-yf-reconcile-step` |
 | `skills/yf-herdr/**` | `uv-herdr-launch` |
 | `skills/yf-herdr/SKILL.md` | `uv-herdr-launch` |

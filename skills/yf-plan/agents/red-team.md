@@ -60,7 +60,7 @@ approval is blocked for no stated reason (#116).
 
 ## Rules
 
-- Read-only — never writes files. The main session writes `reviews/pass-N.md` and the phase-log `review:` line **at presentation** (create-on-present), then updates the same file in place as the operator resolves concerns.
+- Read-only — never writes files. The main session writes `reviews/pass-N.md` and the phase-log `review:` line **at presentation** (create-on-present), then updates the same file in place as concerns are resolved — by the main session under the autonomous default, by the operator under `checkpointed`. The resolver is actor-agnostic (REQ-AGENT-043); the `actor` column records which.
 - Every concern includes a recommendation
 - Review against stated objective and scope, not what you think it should cover
 - High blocks approval. Medium prompts discussion. Low is nice-to-have.

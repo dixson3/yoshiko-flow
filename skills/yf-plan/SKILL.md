@@ -69,7 +69,7 @@ the snippets below.
 - `/yf-plan <objective>` — new plan
 - `/yf-plan continue [<plan-id>]` — resume open plan
 - `/yf-plan capture [<plan-id>] [--retro]` — audit plan folder portability and draft missing contract files; `--retro` also mines the current session's conversation (re-entrant, does not advance status)
-- `/yf-plan execute [<plan-id>]` — begin execution (new session)
+- `/yf-plan execute [<plan-id>] [--checkpoint | --autonomous]` — begin execution (new session); the autonomy tokens are a per-invocation override of the configured level
 - `/yf-plan status [<plan-id>]` — show progress
 - `/yf-plan list` — list all plans
 
@@ -412,30 +412,56 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "review"
 Two passes, in order. Both agents are read-only (REQ-AGENT-043); the main session acts on their verdicts.
 
 1. **Conformance** — read `${SKILL_DIR}/agents/reviewer.md` and run its mechanical checklist. Verdict `PASS | INCOMPLETE`. On `INCOMPLETE`, resolve the listed gaps and re-run before proceeding — this is a mechanical gate, not a phase transition. It does not produce a `pass-N.md`.
-2. **Adversarial** — once conformance is `PASS`, read `${SKILL_DIR}/agents/red-team.md` and perform a structured adversarial review. **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Present the red-team verdict and concerns to the operator.
+2. **Adversarial** — once conformance is `PASS`, read `${SKILL_DIR}/agents/red-team.md` and perform a structured adversarial review. **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Under the **autonomous default**, *the main session* resolves the concerns and re-runs the red-team itself, cycling to `APPROVE` **without an operator acknowledgement per cycle** — bounded by `max_review_cycles`. Report the verdict and concerns; do not stop for them. Under `checkpointed`, present them to the operator and wait.
 
 - **APPROVE**: run the portability audit, then the `ready-check` gate (below) before the approval prompt
-- **REVISE**: address concerns, stay in PLAN, then **re-run the red-team** (a new cycle → new `pass-(N+1).md`)
+- **REVISE**: **the main session** addresses the concerns, stays in PLAN, and **re-runs the red-team** (a new cycle → new `pass-(N+1).md`). This is the same autonomy the conformance step above already has — it is a mechanical loop, not a phase transition, and needs no per-cycle acknowledgement. It is bounded: see `max_review_cycles` below.
 - **INVESTIGATE-MORE**: return to INVESTIGATE for additional experiments
+
+**The review loop is BOUNDED (`max_review_cycles`, 2.4a).** Before each autonomous
+re-run, check the bound — an unbounded self-resolving loop is exactly the shape D-8 forbids:
+
+```bash
+RL=$(uv run ${SKILL_DIR}/scripts/plan_manager.py review-loop-check "${plan_dir}" --json) || true
+ESCALATES=$(echo "$RL" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get escalates)
+```
+
+Exit `3` (`escalates: true`) is **stop class 4** — a mechanical counter threshold, not a
+judgement call. Report the verdict's `remediation` and stop the loop. The plan sits in
+`review` with its REVISE verdict, which is a **legal state, not a wedge**: REQ-PLAN-030 bars
+only `ready-for-approval`.
+
+The counter is `len(glob('reviews/pass-*.md'))` — **not** the `log.md` `review:` bullet count,
+which is a different number that can and does diverge. It is **monotonic** (pass files are
+never deleted), so it does **not** auto-reset: the operator's only exit is a per-invocation
+`--max-review-cycles <n>` raise, echoed to `log.md` per §5.0. That is deliberate — a plan that
+has burned `N` review cycles should not silently resume.
 
 **Mandatory re-run after any major-concern revision (REQ-PLAN-030).** A `REVISE` verdict blocks the plan from reaching `ready-for-approval` until a *later* red-team cycle returns `APPROVE`. Readiness keys on the **last recorded** verdict — an earlier APPROVE followed by a REVISE whose revisions were never re-reviewed is **not** ready. Do not solicit approval on a REVISE'd-but-unre-reviewed plan.
 
 **Red-team is read-only** (REQ-AGENT-043). The agent never writes files — the main session does.
 
-**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* the operator resolves anything — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends the phase-log `review:` line, as a **single atomic step**. The file captures, verbatim:
+**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends the phase-log `review:` line, as a **single atomic step**. The file captures, verbatim:
 
 - **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE)
 - **Strengths**
 - **Concerns** — each with severity (high/medium/low) and recommendation, verbatim
 - **Missing** sections
 - **Gate Assessment** and **Upstream Assessment**
-- An **Operator Resolutions** table with one row per concern and status `unresolved`
+- A **Resolutions** table with one row per concern and status `unresolved`, in this shape
+  (renamed from *Operator Resolutions*, which asserted a fixed resolver the autonomous loop
+  contradicts; the `actor` column carries the information the old title implied):
+
+  | Concern | Severity | Resolution | Actor | Status |
+  | :-- | :-- | :-- | :-- | :-- |
+  | C1 … | high | *(filled on resolution)* | `main-session` \| `operator` | `unresolved` |
+
 
 Writing at presentation makes the verdict portable the instant it exists: a plan parked in `review` with an outstanding REVISE keeps its report on disk, not only in the drafting conversation (#4).
 
 **Pass numbering is fixed at presentation.** `N` is the count of `^- \d{4}-\d{2}-\d{2} review:` phase-log lines *immediately after* this review's line is appended. Because the file and the phase-log line land in the same atomic step, the REQ-PORT-006 invariant `count(reviews/pass-*.md) == count(phase-log review: lines)` holds *while the plan sits in `review`* — exactly the state #4 makes portable.
 
-**Update in place on resolution.** As the operator resolves each concern, the main session edits the **same** `pass-N.md`: fill that concern's row in the Operator Resolutions table with the resolution and flip its status from `unresolved` to `resolved`, then set the file's final status when all concerns are resolved. Do **not** create a new file and do **not** append a second phase-log `review:` line — both were already written at presentation (above).
+**Update in place on resolution.** As each concern is resolved — by the main session under the autonomous default, by the operator under `checkpointed` — the main session edits the **same** `pass-N.md`: fill that concern's row in the Resolutions table with the resolution, record who resolved it in the `actor` column, and flip its status from `unresolved` to `resolved`, then set the file's final status when all concerns are resolved. Do **not** create a new file and do **not** append a second phase-log `review:` line — both were already written at presentation (above).
 
 **Lifecycle: mutable until resolved, then frozen.** The strict "never overwrite" rule relaxes to: the in-flight `pass-N.md` is **mutable** until every concern is resolved, then **frozen**. A frozen pass file is never edited again.
 
@@ -632,6 +658,43 @@ a resume (do not pour). This single gate replaces the two historically separate 
 old INTAKE duplicate-pour guard and the EXECUTE resume guard (REQ-RESUME-004).
 
 On `/yf-plan execute [<plan-id>]` in a new session:
+
+### 5.0 — Resolve autonomy (per-invocation override)
+
+Execution is **autonomous by default**: the coordinator continues to the next ready bead
+without operator input, an epic boundary is a **report, not a stop**, and halts are confined
+to the declared five-class stop set (REQ-AGENT-064). The operator can override that for one
+run with `--checkpoint` (consult at the points autonomy would pass through) or `--autonomous`
+(force the default even where config sets `checkpointed`).
+
+**Detection is necessarily prose.** A slash-command path has no `argv` — there is nothing for
+a script to parse — so this step follows the `capture --retro` seam: **prose detects the
+token, the script validates and resolves it, and the coordinator consumes only resolved
+JSON.** Never branch on the token you *think* you read; branch on what `config-resolve`
+returned.
+
+```bash
+# Only when a token was detected in the invocation; otherwise skip and take the config value.
+AUTONOMY_JSON=$(uv run ${SKILL_DIR}/scripts/plan_manager.py config-resolve \
+  --autonomy "<checkpointed|autonomous>" --plan-dir "${plan_dir}" --json)
+AUTONOMY=$(echo "$AUTONOMY_JSON" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get keys autonomy value)
+```
+
+`--plan-dir` makes the script **echo the resolved value into `log.md`**, so a misdetection is
+auditable after the fact. The echo records what the script *resolved*, not what the prose
+*thought it saw* — those two differing is precisely the misdetection the line exists to
+expose. The bullet is inert: it matches neither the `review:` nor the `scoping:` audit token,
+so it cannot perturb the REQ-PORT-006 count-equality.
+
+An unrecognised token is **rejected**, not silently ignored: `config-resolve` returns an
+`error` key (still JSON on stdout, still exit 0 — REQ-CLI-016) and no override is installed.
+A silently-ignored token would be indistinguishable from no token at all, which is the failure
+mode the echo exists to prevent.
+
+This risk is identical in kind to today's prose-detected `--force`, and is mitigated the same
+way. With no token, the level comes from `flag > config.local > config.json > legacy >
+default` — inspect it any time with `plan_manager.py config-resolve --json`, which reports
+each key's value **and its source**.
 
 ### 5.1 — Select plan
 
@@ -904,6 +967,16 @@ Then proceed to §5.3 (run coordinator).
 Read `${SKILL_DIR}/agents/coordinator.md` and follow its execution loop. The coordinator
 drives the bead DAG to completion, handles capability gates, and triggers reconciliation.
 
+**Autonomy (REQ-AGENT-064).** Under the autonomous default the coordinator **continues to the
+next ready bead without operator input**, and **an epic boundary is a report, not a stop** —
+report progress and keep going in the same turn. It halts only on the five declared stop
+classes: (1) an outward-facing/irreversible write; (2) a capability gate whose `Test:` exits
+non-zero; (3) a declared destructive local operation; (4) a mechanical counter threshold
+(`yf_attempts >= N`, or `max_review_cycles >= N` in the plan phase); (5) a declared mechanical
+check that exits non-zero — validation FAIL, audit/`ready-check` fail, merge conflict, dirty
+worktree, or a corrupted bead DB (which routes to `yf-beads-init`). Every class is an exit code
+or a counter; none is reachable by prose judgement alone.
+
 **Execution address-space model (worktree mode).** There are **two** address spaces and
 operations are explicitly routed (resolves plan-009 red-team C1/M1):
 
@@ -929,7 +1002,11 @@ active (primary) venv, the wrong address space.
 
 ### 5.4 — Blocked gates
 
-Drain all unblocked work first. Only report blocked gates when no other work can proceed. Include gate condition, test result, and unblock instructions.
+Drain all unblocked work first, and **route around** a blocked gate rather than stopping at it —
+reporting is not stopping. Only when no other work can proceed has the DAG genuinely stalled;
+that is **stop class 2**, reached by an exit code rather than by judgement. Include gate
+condition, test result, and unblock instructions. A gate whose own `Instructions:` define a
+deferral mechanism is not a stall — execute it and continue.
 
 ### 5.5 — Reconcile gate
 
