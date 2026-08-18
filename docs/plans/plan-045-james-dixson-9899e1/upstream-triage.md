@@ -15,8 +15,8 @@ _Full issue bodies are inlined under `references/upstream-<N>.md` (regenerated o
 
 herdr (terminal multiplexer for coding agents) exposes a socket API over its CLI that lets an agent running *inside* a herdr pane create panes, launch other coding agents into them, submit...
 
-**Disposition:** partial
-**Notes:** IN: the child->parent push channel, the parent handle handoff, and the mandatory autonomy contract (exp-005 verified all three live). OUT: dispatching bead work to secondary sessions of other harness kinds -- exp-005's own limit is that the queuing is Claude Code TUI behavior and a non-claude --kind is untested. Epic 5.
+**Disposition:** include
+**Notes:** IN: the child->parent push channel, the parent handle handoff, and the mandatory autonomy contract (exp-005 verified all three live) -- Epic 5. OUT, and now tracked separately as #163: dispatching bead work to secondary sessions of other harness kinds. exp-005's own limit is the blocker -- the queuing that makes the push channel safe is Claude Code TUI behavior, not herdr's, and a non-claude --kind is untested. Disposition is include rather than partial because #110 AS FILED is satisfied by what landed plus what #163 now carries: the work is not dropped, it is relocated.
 
 ## #113 — yf-plan: add an execution-rehearsal review pass (topological DAG walk against running state)
 

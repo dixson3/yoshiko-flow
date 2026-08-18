@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-045-james-dixson-9899e1
 author: james-dixson
 created: '2026-08-17'
-status: reconciling
+status: complete
 deliverable_class: standard
 fingerprint: 4954ac04905405e370806c149cc4e077725264ad9f39301951dd016d9fdb88fc
 epic: yf-mol-0r3
@@ -14,7 +14,7 @@ epic: yf-mol-0r3
 **ID:** plan-045-james-dixson-9899e1
 **Author:** james-dixson
 **Created:** 2026-08-17
-**Status:** reconciling
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-0r3
 **Fingerprint:** 4954ac04905405e370806c149cc4e077725264ad9f39301951dd016d9fdb88fc
@@ -54,7 +54,7 @@ invites the operator to re-decide things the plan already settled.
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
 | [#162](https://github.com/dixson3/yoshiko-flow/issues/162) | plan-045-james-dixson-9899e1 execution tracking | tracker | The single coarse tracking issue for this plan-scale effort (AGENTS.md convention). Stamped onto the epic as `external_ref` at pour (REQ-PLAN-073) | — |
-| #110 | herdr: leverage `herdr agent *` to launch and monitor agent sessions from a primary session | partial | **In:** the child to parent push channel, the parent handle handoff, and the mandatory autonomy contract (exp-005 verified all three live). **Out:** #110's broader vision of dispatching bead work to secondary sessions of *other* harness kinds — that is a fan-out redesign, not an autonomy fix | Epic 5 |
+| #110 | herdr: leverage `herdr agent *` to launch and monitor agent sessions from a primary session | include | **In:** the child to parent push channel, the parent handle handoff, and the mandatory autonomy contract (exp-005 verified all three live) — Epic 5. **Out, and now tracked separately as [#163](https://github.com/dixson3/yoshiko-flow/issues/163):** dispatching bead work to secondary sessions of *other* harness kinds. exp-005's own limit is the blocker — the queuing that makes the push channel safe is Claude Code TUI behavior, not herdr's, and a non-claude `--kind` is **untested**. Disposition is `include` rather than `partial` because #110 **as filed** is satisfied by what landed plus what #163 now carries: the work is not dropped, it is relocated. | Epic 5 · successor #163 |
 | #145 | New skill: yf-retrospective — measure escape rate and enforce a fix+prevention contract | partial | **In:** the EMIT side only — `plan-retrospective.md`, its schema, and the write sites (D-6). Answers #145's own Open question 1 (*"where exactly does intra-plan capture write"*). **Out:** escape-rate measurement, adjudication, the fix+prevention contract, the frontloading consumer, **and the `DRIFT-CHECK.md` yf-plan ↔ yf-retrospective taxonomy edge** (exp-004 item 5, which #145 itself proposes as the split-taxonomy mitigation) — all stay with #145's skill. A consumer built now would read an empty corpus | Epic 4 |
 | #149 | M5/M9: process rules that nothing executes, and remediation edges that exist only in prose | partial | **In:** its thesis applied to this plan's own surface — every stop becomes mechanical (D-3's counter, D-4's `test_class`, D-8's postcondition checks), so no rule here lacks an exit code. **Out:** the `discovered-from` remediation-edge work across the bead corpus | Epics 2, 3 |
 | #113 | yf-plan: add an execution-rehearsal review pass (topological DAG walk against running state) | exclude | Adjacent but distinct: #113 wants a **PLAN-phase review pass**; D-4's sweep is an **EXECUTE-start precondition check**. Different phase, different mechanism. The sweep reduces one class of what #113 targets without delivering it | — |
