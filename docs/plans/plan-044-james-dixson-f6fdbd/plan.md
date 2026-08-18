@@ -69,6 +69,7 @@ Two findings enlarged the work beyond the issues as filed, both confirmed by mea
 | #142 | `closable` proposes closing issues already closed or deleted upstream | include | 29 of 35 emitted commands are no-ops or errors | Epic 3 |
 | #143 | Plan.md `**Epic:**` fields are dangling refs to pre-rename beads | include | **14, not 5.** Repair + validator | Epic 3 |
 | #158 | `yf self update` could never refresh codex, opencode or pi | supersede | Verified fully fixed by plan-042 (exp-005 Part B) — verify-and-close only | Epic 4 |
+| [#161](https://github.com/dixson3/yoshiko-flow/issues/161) | plan-044-james-dixson-f6fdbd execution tracking | tracker | The single coarse tracking issue for this plan-scale effort (AGENTS.md convention). Stamped onto the epic as `external_ref` at pour (REQ-PLAN-073) | — |
 | #152 | yf auto-updates claude-code settings.json to disable recommended skills/tools | exclude | Deferred by operator decision: a feature, and a new autonomy-lever config write deserving its own consent-gate design pass | — |
 
 ## Investigation Findings
