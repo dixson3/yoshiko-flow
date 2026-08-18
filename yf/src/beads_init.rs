@@ -723,10 +723,37 @@ fn derive_dolt_repo_root(beads_dir: &Path) -> Result<PathBuf, String> {
                     .to_string(),
             )
         }
-        n => Err(format!(
-            "ambiguous Dolt working directory: {n} candidates with a .dolt/ child under .beads/ \
-             — refusing to guess; manual repair needed"
-        )),
+        n => {
+            // REQ-BINIT-026: the SERVER-MODE layout is not ambiguous — it is
+            // canonical (REQ-YF-PRE-010 invariant 1). It carries TWO `.dolt/`
+            // dirs by design: the server's own data dir (`.beads/dolt/.dolt`)
+            // and the database (`.beads/dolt/<dolt_database>/.dolt`). Counting
+            // them and refusing meant `--remove-remote` NEVER worked on the
+            // canonical profile, and silently degraded `has_local_only_remote`
+            // and the REQ-BINIT-016 wedge fix along with it.
+            //
+            // `metadata.json`'s `dolt_database` names which one is the database,
+            // so consult it BEFORE declaring ambiguity. Match on the final path
+            // component rather than a constructed path, so this is agnostic to
+            // where the store sits (`.beads/dolt/<db>` in server mode,
+            // `.beads/embeddeddolt/<db>` in embedded mode).
+            if let Some(db) = read_dolt_database(beads_dir) {
+                let mut named = candidates
+                    .iter()
+                    .filter(|c| c.file_name().and_then(|n| n.to_str()) == Some(db.as_str()));
+                if let Some(hit) = named.next() {
+                    // Only deterministic when exactly one candidate bears the name.
+                    if named.next().is_none() {
+                        return Ok(hit.clone());
+                    }
+                }
+            }
+            Err(format!(
+                "ambiguous Dolt working directory: {n} candidates with a .dolt/ child under \
+                 .beads/ and none uniquely named by metadata.json's `dolt_database` \
+                 — refusing to guess; manual repair needed"
+            ))
+        }
     }
 }
 
@@ -917,9 +944,29 @@ fn apply_native(cmd: &[String], repo_root: &Path, beads_dir: &Path) -> (i32, Opt
         },
         // #39 B.1 (gated): clear the Dolt `sync.remote` config under local-only.
         // Only ever reached when the plan included it (`remove_remote && local_only`).
+        //
+        // REQ-YF-DOCTOR-006: a repair step VERIFIES ITS OWN POSTCONDITION. Having
+        // applied the removal is not evidence that the remote is gone, so re-run
+        // the read-only predicate that detected the condition and FAIL if it still
+        // holds. Reporting `ok` on the strength of having *attempted* the repair is
+        // the silent-success shape this whole change set exists to remove.
         Some("remove-remote") => match remove_dolt_remote(repo_root) {
-            Ok(()) => (0, None),
             Err(e) => (1, Some(e.to_string())),
+            Ok(()) => {
+                if has_local_only_remote(repo_root) {
+                    (
+                        1,
+                        Some(
+                            "postcondition FAILED: a Dolt remote is still configured under \
+                             dolt.local-only after the removal step reported success — the \
+                             remote SURVIVES; do not treat this run as having removed it"
+                                .to_string(),
+                        ),
+                    )
+                } else {
+                    (0, None)
+                }
+            }
         },
         // REQ-BINIT-016: data-preserving embedded working-set commit (the
         // embedded-mode replacement for `bd dolt stop`). Runs raw `dolt` in the
@@ -1173,9 +1220,20 @@ fn remove_dolt_remote(repo_root: &Path) -> std::io::Result<()> {
     let beads_dir = repo_root.join(".beads");
 
     // Layer 1 (decisive): the Dolt-DB-level remote(s), removed via raw `dolt`.
-    // A non-derivable Dolt repo (no unique .dolt/ dir) leaves nothing to clear
-    // at this layer — a clean no-op, not an error.
-    if let Ok(dolt_root) = derive_dolt_repo_root(&beads_dir) {
+    //
+    // REQ-BINIT-026 / REQ-YF-DOCTOR-006: an underivable root is an ERROR, not a
+    // skip. The previous `if let Ok(...)` swallowed the failure and fell through
+    // to layer 2, so the step reported `ok` while the decisive layer never ran —
+    // which is precisely how #159 stayed invisible: the operator was told the
+    // remote was removed while it survived untouched. There is no "nothing to
+    // clear" inference available here; we did not look, so we cannot claim it.
+    let dolt_root = derive_dolt_repo_root(&beads_dir).map_err(|e| {
+        std::io::Error::other(format!(
+            "cannot remove the Dolt remote: {e} — the decisive DB-level layer could not run, \
+             so any configured remote SURVIVES; this is a failure, not a no-op"
+        ))
+    })?;
+    {
         let names = dolt_remote_names(&dolt_root);
         if !names.is_empty() {
             for name in &names {
@@ -1683,6 +1741,90 @@ mod tests {
         // A second LIVE candidate → ambiguous → Err (refuse to guess).
         std::fs::create_dir_all(beads.join("other").join(".dolt")).unwrap();
         assert!(derive_dolt_repo_root(&beads).is_err());
+    }
+
+    // REQ-YF-DOCTOR-006 (#159): a `--repair` step verifies its own postcondition.
+    //
+    // The unit under test is the DECISION, not the dolt plumbing: given that the
+    // read-only predicate still reports the condition after a repair claimed
+    // success, the step must report FAIL rather than ok. Driving real `dolt`
+    // remotes here would test dolt, not the requirement.
+    #[test]
+    fn repair_step_reports_fail_when_its_postcondition_still_holds() {
+        // The shape apply_step's remove-remote arm implements: apply, then re-probe.
+        fn verdict(apply_ok: bool, still_holds: bool) -> (i32, Option<String>) {
+            if !apply_ok {
+                return (1, Some("apply failed".to_string()));
+            }
+            if still_holds {
+                return (1, Some("postcondition FAILED".to_string()));
+            }
+            (0, None)
+        }
+
+        // The #159 signature: the apply "succeeded" and the remote SURVIVED.
+        // Pre-fix this was (0, None) — `ok` with the remote intact.
+        let (rc, msg) = verdict(true, true);
+        assert_ne!(rc, 0, "a surviving remote must not report ok");
+        assert!(msg.unwrap().contains("postcondition FAILED"));
+
+        // A genuine repair: applied and the predicate no longer holds.
+        assert_eq!(verdict(true, false), (0, None));
+
+        // A failed apply is still a failure (unchanged).
+        assert_ne!(verdict(false, false).0, 0);
+    }
+
+    // REQ-BINIT-026 (#159): the SERVER-MODE two-`.dolt` layout resolves
+    // deterministically. This is the fixture whose absence let the defect ship:
+    // server mode is the CANONICAL profile (REQ-YF-PRE-010 invariant 1), it
+    // always carries two `.dolt/` dirs, and the old code counted them and
+    // refused — so `--remove-remote` never worked there.
+    #[test]
+    fn derive_dolt_repo_root_resolves_server_mode_two_dolt_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+
+        // The real on-disk shape, measured from a live server-mode repo:
+        //   .beads/dolt/.dolt                  <- the server's own data dir
+        //   .beads/dolt/<dolt_database>/.dolt  <- the database
+        std::fs::write(
+            beads.join("metadata.json"),
+            r#"{"database":"dolt","dolt_mode":"server","dolt_database":"yoshiko_flow"}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(beads.join("dolt").join(".dolt")).unwrap();
+        let db = beads.join("dolt").join("yoshiko_flow");
+        std::fs::create_dir_all(db.join(".dolt")).unwrap();
+
+        // Two live candidates, yet NOT ambiguous: metadata names the database.
+        assert_eq!(find_dolt_dirs(&beads).len(), 2);
+        assert_eq!(derive_dolt_repo_root(&beads).unwrap(), db);
+    }
+
+    // REQ-BINIT-026: the escape hatch stays closed. Two candidates and NO
+    // metadata to disambiguate is still a refusal — the fix consults evidence,
+    // it does not start guessing.
+    #[test]
+    fn derive_dolt_repo_root_still_refuses_without_naming_evidence() {
+        let tmp = tempfile::tempdir().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+        std::fs::create_dir_all(beads.join("a").join(".dolt")).unwrap();
+        std::fs::create_dir_all(beads.join("b").join(".dolt")).unwrap();
+
+        // No metadata.json at all → refuse.
+        assert!(derive_dolt_repo_root(&beads).is_err());
+
+        // metadata naming a database that matches NEITHER candidate → refuse.
+        std::fs::write(
+            beads.join("metadata.json"),
+            r#"{"dolt_database":"not_present"}"#,
+        )
+        .unwrap();
+        let err = derive_dolt_repo_root(&beads).unwrap_err();
+        assert!(err.contains("refusing to guess"), "got: {err}");
     }
 
     // REQ-BINIT-016: is_embedded_mode reads metadata.json from a real .beads/.

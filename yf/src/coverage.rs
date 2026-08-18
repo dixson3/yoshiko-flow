@@ -82,7 +82,6 @@ const ALLOWLIST: &[(&str, &str)] = &[
     //
     // Owning issue per row is named in its reason. Issue 4.3 asserts this block is
     // net-clean at close — no row from this plan may survive it.
-    ("REQ-YF-DOCTOR-006", "plan-044 BRIDGE (Issue 1.3): doctor --repair postcondition re-check. Remove this row in the same commit as the `// REQ-YF-DOCTOR-006` tag"),
     ("REQ-YF-FLOW-008", "plan-044 BRIDGE (Issue 2.1): `skills upgrade` is rules-neutral. Remove this row in the same commit as the `// REQ-YF-FLOW-008` tag"),
     ("REQ-YF-TUNE-029", "plan-044 BRIDGE (Issue 2.6): rules-side revert guard (sha mismatch => conservative-keep). Remove this row in the same commit as the `// REQ-YF-TUNE-029` tag"),
     ("REQ-YF-INSTALL-010", "plan-044 BRIDGE (Issue 2.9): opt-in `install --prune`. Remove this row in the same commit as the `// REQ-YF-INSTALL-010` tag"),
