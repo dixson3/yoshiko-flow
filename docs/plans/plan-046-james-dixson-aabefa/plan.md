@@ -67,6 +67,8 @@ built and what is wanted.
 
 ## Upstream Issues
 
+**Coarse tracker:** [#167](https://github.com/dixson3/yoshiko-flow/issues/167) — `plan-046-james-dixson-aabefa execution tracking`.
+
 | Issue | Title | Disposition | Notes | Resolved By |
 |-------|-------|-------------|-------|-------------|
 | #141 | yf-okf: reconcile OKF-BASELINE from v0.1 to OKF v0.2 (supersedes #128) | include | Baseline to v0.2 verbatim + extension-layer concept mapping. **No corpus frontmatter migration.** | 2.9 |
