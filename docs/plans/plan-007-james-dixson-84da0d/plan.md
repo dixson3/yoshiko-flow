@@ -4,14 +4,14 @@
 **Author:** james-dixson
 **Created:** 2026-06-04
 **Status:** complete
-**Epic:** beads-skills-mol-s3x
+**Epic:** yf-9c09122b
 **Phase log:**
 - 2026-06-04 scoping: initial scope captured
 - 2026-06-04 investigating: 1 prototype experiment identified
 - 2026-06-04 drafting: prototype confirmed viability; plan v1 synthesized
 - 2026-06-04 review: plan v1 presented
 - 2026-06-04 approved: operator approved
-- 2026-06-04 intake: epic beads-skills-mol-s3x poured
+- 2026-06-04 intake: epic yf-9c09122b poured
 - 2026-06-04 executing: start gate resolved
 - 2026-06-04 complete: plan complete — all epics closed, migration acceptance PASS
 - 2026-06-04 refinement (beads-skills-djy): superseded the §3.1 "thin pointers" approach — the

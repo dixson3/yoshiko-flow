@@ -4,14 +4,14 @@
 **Author:** james-dixson
 **Created:** 2026-06-19
 **Status:** complete
-**Epic:** beads-skills-mol-r8z
+**Epic:** yf-9e73640b
 **Phase log:**
 - 2026-06-19 scoping: initial scope captured
 - 2026-06-19 investigating: scope ratified; blast-radius scan of test/parity/doctor surface
 - 2026-06-19 drafting: blast radius known; synthesizing epics/gates
 - 2026-06-19 review: plan v1 presented
 - 2026-06-20 approved: operator approved (red-team concerns resolved, audit pass)
-- 2026-06-20 intake: epic beads-skills-mol-r8z poured
+- 2026-06-20 intake: epic yf-9e73640b poured
 - 2026-06-20 executing: start gate resolved
 - 2026-06-20 reconciling: post-execution reconciliation
 - 2026-06-20 complete: plan complete; merged + validated green

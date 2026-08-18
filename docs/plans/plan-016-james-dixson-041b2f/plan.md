@@ -4,14 +4,14 @@
 **Author:** james-dixson
 **Created:** 2026-06-24
 **Status:** complete
-**Epic:** beads-skills-mol-3ee
+**Epic:** yf-0d67a1e5
 **Phase log:**
 - 2026-06-24 scoping: initial scope captured
 - 2026-06-24 investigating: 3 experiments: #39 canonicalization gap, #15 helper inventory + yf-owned-asset arch, #36 bug repro
 - 2026-06-24 drafting: synthesizing plan: 3 epics — #15 vendoring sweep (zero Rust), #39 canonicalization (yf Rust), #36 regression+reconcile
 - 2026-06-24 review: plan v1 presented
 - 2026-06-24 approved: operator approved; portability audit pass
-- 2026-06-24 intake: epic beads-skills-mol-3ee poured
+- 2026-06-24 intake: epic yf-0d67a1e5 poured
 - 2026-06-24 executing: start gate resolved
 - 2026-06-24 reconciling: execution complete; entering reconcile
 - 2026-06-24 complete: plan complete; #15/#36/#39 closed; merged b1b38a1; pushed

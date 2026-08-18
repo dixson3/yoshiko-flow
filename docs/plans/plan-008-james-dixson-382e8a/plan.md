@@ -4,7 +4,7 @@
 **Author:** james-dixson
 **Created:** 2026-06-06
 **Status:** complete
-**Epic:** beads-skills-mol-14o
+**Epic:** yf-af5bbf86
 **Phase log:**
 - 2026-06-06 scoping: initial scope captured
 - 2026-06-06 investigating: 2 experiments (d2 PNG mechanics, repo skill conventions)
@@ -15,7 +15,7 @@
 - 2026-06-06 drafting: v4 (pass-2 resolutions — schema-valid drift-check PNG node, §6 trigger rows, Epic 3 spike split, check-dir freshness, e-readme-layout coupling)
 - 2026-06-06 review: plan v4 red-team pass-3 presented — APPROVE
 - 2026-06-06 approved: operator approved
-- 2026-06-06 intake: epic beads-skills-mol-14o poured
+- 2026-06-06 intake: epic yf-af5bbf86 poured
 - 2026-06-06 executing: start gate resolved
 - 2026-06-06 reconciling: all 13 execution beads closed; paused at reconcile boundary for commit/push + upstream #6 authorization
 - 2026-06-06 complete: plan complete; upstream reconciled (#6 superseded, #18 tracking)

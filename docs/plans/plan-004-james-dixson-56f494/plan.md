@@ -4,7 +4,7 @@
 **Author:** james-dixson
 **Created:** 2026-06-01
 **Status:** complete
-**Epic:** beads-skills-mol-nxk
+**Epic:** yf-5e06c253
 **Phase log:**
 - 2026-06-01 scoping: initial scope captured
 - 2026-06-01 drafting: synthesizing plan; 3 design decisions locked (review-file lifecycle, epic-id persistence, --retro session-mining)
@@ -12,7 +12,7 @@
 - 2026-06-01 drafting: review pass-1: all 8 concerns resolved in place (orphan-sweep -> reset+report; #4 phase-log line at presentation; epic plan_dir metadata; spec reconciliation); awaiting approval
 - 2026-06-01 approved: operator approved; portability audit pass
 - 2026-06-01 executing: start gate resolved
-- 2026-06-01 intake: epic beads-skills-mol-nxk poured
+- 2026-06-01 intake: epic yf-5e06c253 poured
 - 2026-06-01 reconciling: all 3 epics closed; execution complete
 - 2026-06-01 complete: plan complete; #2/#4/#3 closed; pushed 3ac2bff
 

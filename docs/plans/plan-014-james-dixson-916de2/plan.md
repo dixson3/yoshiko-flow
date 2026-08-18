@@ -4,7 +4,7 @@
 **Author:** james-dixson
 **Created:** 2026-06-24
 **Status:** complete
-**Epic:** beads-skills-mol-mqa
+**Epic:** yf-23173bc0
 **Phase log:**
 - 2026-06-24 scoping: initial scope captured
 - 2026-06-24 investigating: 3 experiments (shared vendoring, yf-plan delegation, drift-check shape)
@@ -14,7 +14,7 @@
 - 2026-06-24 review: red-team REVISE (cycle 2) — pin vendoring shape
 - 2026-06-24 drafting: v3 — pinned shape (b) regenerate-fenced-block; folded N2/N3/Missing
 - 2026-06-24 approved: operator approved
-- 2026-06-24 intake: epic beads-skills-mol-mqa poured
+- 2026-06-24 intake: epic yf-23173bc0 poured
 - 2026-06-24 executing: start gate resolved
 - 2026-06-24 reconciling: execution complete; entering merge-back
 - 2026-06-24 complete: plan complete

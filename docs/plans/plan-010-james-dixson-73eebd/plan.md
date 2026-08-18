@@ -4,7 +4,7 @@
 **Author:** James Dixson
 **Created:** 2026-06-14
 **Status:** complete
-**Epic:** beads-skills-mol-yvv
+**Epic:** yf-036717e7
 **Phase log:**
 - 2026-06-14 scoping: initial scope captured
 - 2026-06-14 investigating: reference recon complete (naba/tap/install.py); 4 scoping decisions resolved
@@ -13,7 +13,7 @@
 - 2026-06-14 review: pass-2 presented (REVISE → addressed in v3)
 - 2026-06-14 approved: Gate G0 sealed — SPEC.md + GUARDRAILS.md operator-approved; INTAKE unblocked
 - 2026-06-14 approved: operator approved; G0 sealed
-- 2026-06-14 intake: epic beads-skills-mol-yvv poured
+- 2026-06-14 intake: epic yf-036717e7 poured
 - 2026-06-14 executing: start gate resolved; worktree execution begun
 - 2026-06-15 executing: all build/test beads closed incl INV-1 self-rename (Issue 3.7, last); G1+G2 gates resolved (operator-approved, tests green)
 - 2026-06-16 executing: operator follow-up — SPEC REQ-YF-PRE-004 config-path typo ratified; GFM markdown-lint enforcement added to yf-plan/yf-research/yf-incubator; yf-research Obsidian citations → GFM

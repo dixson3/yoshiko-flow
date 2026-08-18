@@ -4,14 +4,14 @@
 **Author:** james-dixson
 **Created:** 2026-06-03
 **Status:** complete
-**Epic:** beads-skills-mol-g0b
+**Epic:** yf-576712a7
 **Phase log:**
 - 2026-06-03 scoping: initial scope captured
 - 2026-06-03 investigating: 2 unknowns resolved by direct inspection (no worktree experiments)
 - 2026-06-03 drafting: plan v1 presented
 - 2026-06-03 review: plan v1 presented
 - 2026-06-03 approved: operator approved
-- 2026-06-03 intake: epic beads-skills-mol-g0b poured
+- 2026-06-03 intake: epic yf-576712a7 poured
 - 2026-06-03 executing: start gate resolved
 - 2026-06-04 complete: plan complete
 
