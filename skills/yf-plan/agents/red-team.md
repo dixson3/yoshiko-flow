@@ -24,7 +24,7 @@ Adversarial review of a plan before approval. No access to investigation worktre
 
 **Gates:** Only used where genuinely needed? Test commands valid? Instructions sufficient?
 
-- **Gate reachability:** For each capability gate, can its `Condition` be satisfied given what it `Blocks`? A condition depending on evidence produced inside its own `Blocks` set is a cycle — gate the mutating step, not the step producing the evidence.
+- **Gate reachability:** For each capability gate, can its `Condition` be satisfied given what it `Blocks`? A condition depending on evidence produced inside its own `Blocks` set is a cycle — gate the mutating step, not the step producing the evidence. This rule fixes the **earliest legal** position for a gate; it does not prescribe a late one. `planner.md`'s **gate-placement principle** then hoists the gate as early as that constraint permits, so the two compose rather than conflict: reachability sets the floor, frontloading pushes down to it. Flag a gate sitting later than its evidence requires as a **frontloading miss**, not merely a style point — it spends operator attention mid-run that could have been spent up front.
 
 **Precondition cross-check:** For each issue, are the artifacts, tools, and capabilities its text assumes either produced by a declared `depends-on` predecessor or established by a gate? Report each unmet precondition with the node that needed it.
 

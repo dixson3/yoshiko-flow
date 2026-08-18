@@ -2254,6 +2254,40 @@ CONFIG_KEY_AUTONOMY = "autonomy"
 AUTONOMY_DEFAULT = "autonomous"
 AUTONOMY_LEVELS = ("autonomous", "checkpointed")
 
+#   "sweep-gates": "probe" | "all"   → execute-start sweep class scope (3.6)
+CONFIG_KEY_SWEEP_GATES = "sweep-gates"
+SWEEP_GATES_DEFAULT = "probe"
+SWEEP_GATES_VALUES = ("probe", "all")
+
+_SWEEP_GATES_OVERRIDE: str | None = None
+
+
+def _set_sweep_gates_override(val: str | None) -> None:
+    """Install the per-invocation `--sweep-gates` override (3.6)."""
+    global _SWEEP_GATES_OVERRIDE
+    if val is not None and val not in SWEEP_GATES_VALUES:
+        raise ValueError(
+            f"unknown sweep-gates value {val!r}; expected one of {', '.join(SWEEP_GATES_VALUES)}"
+        )
+    _SWEEP_GATES_OVERRIDE = val
+
+
+def _resolve_sweep_gates() -> str:
+    """Which gate classes the execute-start sweep runs (3.6).
+
+    `probe` (default) keeps execute start in seconds; `all` adds the `build` class, which
+    §6.1.5 reserves for once-per-land. `consent` and `manual` are never auto-run at any
+    setting — neither is a cost question, and no flag makes a green test into authorization.
+    """
+    if _SWEEP_GATES_OVERRIDE is not None:
+        return _SWEEP_GATES_OVERRIDE
+    cfg = _read_config()
+    val = cfg.get(CONFIG_KEY_SWEEP_GATES)
+    if isinstance(val, str) and val.strip() in SWEEP_GATES_VALUES:
+        return val.strip()
+    return SWEEP_GATES_DEFAULT
+
+
 #   "max-attempts": <int>   → EXECUTION-phase bound on per-bead retries (2.8)
 CONFIG_KEY_MAX_ATTEMPTS = "max-attempts"
 MAX_ATTEMPTS_DEFAULT = 3
@@ -4147,11 +4181,14 @@ def audit_close(plan_dir: str, as_json: bool):
 @cli.command("config-resolve")
 @click.option("--autonomy", "autonomy_flag", default=None,
               help="Per-invocation autonomy override, reported with source `flag`.")
+@click.option("--sweep-gates", "sweep_flag", default=None,
+              help="Per-invocation execute-start sweep scope, reported with source `flag`.")
 @click.option("--plan-dir", "plan_dir", type=click.Path(exists=True), default=None,
               help="Echo a resolved per-invocation override into this bundle's log.md.")
 @click.option("--json-output", "--json", "as_json", is_flag=True,
               help="Emit structured JSON. Default is a human-readable report.")
-def config_resolve(autonomy_flag: str | None, plan_dir: str | None, as_json: bool):
+def config_resolve(autonomy_flag: str | None, sweep_flag: str | None,
+                   plan_dir: str | None, as_json: bool):
     """Report each config key's effective value AND the tier it came from (REQ-CLI-021).
 
     Precedence, highest first: ``flag`` > ``config.local`` > ``config.json`` >
@@ -4174,6 +4211,8 @@ def config_resolve(autonomy_flag: str | None, plan_dir: str | None, as_json: boo
     try:
         if autonomy_flag is not None:
             _set_autonomy_override(autonomy_flag)
+        if sweep_flag is not None:
+            _set_sweep_gates_override(sweep_flag)
     except ValueError as e:
         # REQ-CLI-016: JSON on stdout even on the failure path. Still exit 0 — this is
         # a read verb, and a rejected flag is a reported condition, not a crash.
@@ -4203,6 +4242,8 @@ def config_resolve(autonomy_flag: str | None, plan_dir: str | None, as_json: boo
         CONFIG_KEY_AUTONOMY, AUTONOMY_DEFAULT, AUTONOMY_LEVELS, autonomy_flag)
     result["keys"][CONFIG_KEY_LANDING_STRATEGY] = _entry(
         CONFIG_KEY_LANDING_STRATEGY, LANDING_STRATEGY_DEFAULT, LANDING_STRATEGIES)
+    result["keys"][CONFIG_KEY_SWEEP_GATES] = _entry(
+        CONFIG_KEY_SWEEP_GATES, SWEEP_GATES_DEFAULT, SWEEP_GATES_VALUES, sweep_flag)
     raw_ma, src_ma = _config_source(CONFIG_KEY_MAX_ATTEMPTS)
     result["keys"][CONFIG_KEY_MAX_ATTEMPTS] = {
         "value": _resolve_max_attempts(),

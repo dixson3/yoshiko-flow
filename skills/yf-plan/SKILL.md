@@ -69,7 +69,7 @@ the snippets below.
 - `/yf-plan <objective>` — new plan
 - `/yf-plan continue [<plan-id>]` — resume open plan
 - `/yf-plan capture [<plan-id>] [--retro]` — audit plan folder portability and draft missing contract files; `--retro` also mines the current session's conversation (re-entrant, does not advance status)
-- `/yf-plan execute [<plan-id>] [--checkpoint | --autonomous]` — begin execution (new session); the autonomy tokens are a per-invocation override of the configured level
+- `/yf-plan execute [<plan-id>] [--checkpoint | --autonomous] [--sweep-gates=probe|all]` — begin execution (new session); the autonomy tokens are a per-invocation override of the configured level, and `--sweep-gates` widens the execute-start sweep
 - `/yf-plan status [<plan-id>]` — show progress
 - `/yf-plan list` — list all plans
 
@@ -844,14 +844,51 @@ bd update ${ISSUE_BEAD} --metadata '{"upstream":"#142","disposition":"include"}'
 
 **Create capability gates (if any).** Gates are first-class beads (`-t gate`); resolve with
 `bd gate resolve`. See `yf-beads-extra` → *Gates*. Create each gate individually (creates need
-IDs, cannot be batched):
+IDs, cannot be batched).
+
+**Structure the gate at creation — this is what makes the sweep mechanical.** Carry
+`gate_type`, `test`, `test_class` and `cwd` as **metadata fields**, so the §5.2b sweep reads
+fields instead of regexing prose. Measured on the live corpus: only **33%** of gates yield a
+runnable command to a regex, and a `Type:` line appears on **3 of 113** beads. **Without this
+structure, do not build the sweep** — a sweep over prose is a sweep that silently sees a third
+of its input.
 
 ```bash
+printf -v GATE_DESC 'Condition: %s\nTest: %s\nInstructions: %s' \
+  "${condition}" "${test_cmd}" "${instructions}"
+
 CAP_GATE=$(bd create "Gate: ${gate_name}" \
-  --description="Condition: ${condition}\nTest: ${test_cmd}\nInstructions: ${instructions}" \
+  --description="${GATE_DESC}" \
   -t gate --parent ${EPIC} \
+  --metadata "$(jq -nc \
+      --arg gt "${gate_type}" --arg t "${test_cmd}" \
+      --arg tc "${test_class}" --arg cwd "${gate_cwd}" \
+      '{gate_type:$gt, test:$t, test_class:$tc, cwd:$cwd}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
+
+**Field vocabulary.**
+
+| Field | Values | Meaning |
+| :-- | :-- | :-- |
+| `gate_type` | `human` \| `auto` | Who may resolve it. **Absent → treat as `human`** — the safe default, since a mis-typed gate must never be auto-resolvable. |
+| `test` | shell command, or absent | The command establishing the Condition. Absent → the sweep reports **INCONCLUSIVE**, never FAIL. |
+| `test_class` | `probe` \| `build` \| `consent` \| `manual` | What it costs and whether the sweep may run it unattended. |
+| `cwd` | `repo-root` \| `worktree` | Which address space the test runs in (§5.3). |
+
+**`probe` means CHEAP AND SELF-CLEANING — not read-only.** A probe **may** create and remove
+its own scratch state, and **must** leave none behind **on either exit path**. Anything that
+mutates *shared or operator* state is `consent`, never `probe`. This definition is load-bearing
+because §5.2b auto-runs the entire `probe` class unattended.
+
+*Worked example.* A gate that creates a `--no-focus` throwaway tab and closes it is testing
+against **its own scratch state**, removed on both exit paths → `probe`. The same test writing
+to the operator's existing config would be `consent`, however cheap it is: cost is not the
+criterion, ownership of the mutated state is.
+
+`build` is cheap-to-classify but expensive to run (the multi-minute class §6.1.5 reserves for
+once-per-land); `consent` is a human authorization a green test can never substitute for;
+`manual` has no runnable command at all.
 
 Wire all dep-add links in a single `bd batch` call after all gates and issues exist:
 
@@ -922,7 +959,66 @@ BASE=$(echo "$WT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get base)
   (missing feature branch / indeterminate default); the rest are environment conditions
   (`bd-db-unresolved` is the INV-2 runtime fallback, M4).
 
-Proceed to §5.3 (run coordinator).
+**Run the execute-start gate sweep (§5.2c), then** proceed to §5.3 (run coordinator).
+
+#### 5.2c — The execute-start gate sweep (frontloading)
+
+**Placed here — after `worktree ensure`, before §5.3 — and the ordering is forced.** The §5.3
+address-space model routes *code* tests to the worktree and *plan-folder* tests primary-side,
+and the sweep cannot route a test until the worktree it might run in exists.
+
+**Enumerate** every gate under `${EPIC}` (with metadata — see `coordinator.md` →
+*Enumerating gates*, and **pass an explicit `--limit`**: the default page truncates at 50 with
+exit 0):
+
+```bash
+bd list --type gate --limit 500 --json
+```
+
+**Classify** each with the shared evaluate-gate routine (`coordinator.md` → *Evaluating a
+gate*), then:
+
+1. **Run the `probe` class — and ONLY the `probe` class — unattended.** Probes are cheap and
+   self-cleaning by definition (3.1), so running them costs seconds: exp-003 timed twelve at
+   ~3s total. `build` is opt-in via `--sweep-gates=all` (§5.2d), because execute start must not
+   inherit the multi-minute cost §6.1.5 reserves for once-per-land.
+2. **Batch EVERYTHING ELSE INTO ONE PROMPT**, presented **before any coding work begins**.
+   That single prompt is the frontloading: the operator answers once, up front, instead of
+   being interrupted at the point each gate happens to sit in the DAG.
+3. **Then run everything the failed gates do not block.** A failed gate narrows the runnable
+   set; it does not stop the run.
+
+#### 5.2d — `--sweep-gates=probe|all` (default `probe`)
+
+The sweep's class scope is a per-invocation flag, resolved through the same machinery as
+§5.0's autonomy token:
+
+```bash
+SG=$(uv run ${SKILL_DIR}/scripts/plan_manager.py config-resolve \
+  --sweep-gates "<probe|all>" --plan-dir "${plan_dir}" --json)
+SWEEP=$(echo "$SG" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get keys sweep-gates value)
+```
+
+- **`probe` (default)** — run only the cheap, self-cleaning class. Execute start stays in
+  seconds.
+- **`all`** — additionally run the `build` class.
+
+`build` is opt-in rather than default because §6.1.5 explicitly reserves the multi-minute suite
+for **once per land**. Making it default would move that cost to **every execute start**,
+including a resume — paying the land-the-plane price repeatedly for a check whose result is
+only actionable once. `consent` and `manual` are **never** run by either setting: neither is a
+cost question, and no flag value makes a green test into authorization.
+
+**`gate_type: human` is NEVER auto-resolved, however green its test.** A green test establishes
+that a *condition holds*; it can never establish that a *human authorized* something. Auto-
+resolving on a green test would have granted publish authorization on **at least three**
+historical gates in this repo. `gate_type` absent → treat as `human`, so the failure mode of a
+mis-structured gate is a needless prompt, never an unauthorized action.
+
+**A non-command test yields INCONCLUSIVE, not FAIL.** A gate with no runnable `test`, or
+`test_class: manual`, has established nothing *in either direction*; calling that FAIL would
+manufacture blockers, and calling it PASS would manufacture consent.
+
 
 #### 5.2b — Resume (found = true)
 

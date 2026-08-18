@@ -48,10 +48,16 @@ wait was also the loop's documented exit.
 
 Repeat until `bd ready --json` returns no beads for this epic:
 
-1. `bd ready --json` — filter to beads under `${EPIC}`
-2. For gate-type beads: read description, run test command
-   - Pass: `bd gate resolve <gate-id>`
-   - Fail: mark blocked, skip
+1. `bd ready --limit 500 --json` — filter to beads under `${EPIC}`
+2. **Enumerate gates SEPARATELY — `bd ready` never returns them (D-7).**
+
+   ```bash
+   bd list --type gate --limit 500 --json     # open gates, WITH metadata
+   ```
+
+   Then for each gate under `${EPIC}`, evaluate it with the shared routine (see
+   *Evaluating a gate*): resolve on PASS, and on FAIL report and route around it —
+   never stop while other beads are ready.
 3. `bd update <id> --claim --json`
 4. `bd show <id> --json` — read metadata
 5. If metadata specifies agent file, spawn sub-agent with that prompt. Otherwise execute directly. Pass context files from `plan_dir`.
@@ -133,6 +139,50 @@ not stop. At `N` it escalates: park the bead `blocked`, report, and write a
 **A failure RE-QUEUES, it does not stop.** Below the threshold the loop moves to the next ready
 bead and revisits this one later; only `yf_attempts >= N` escalates. A single failure is not a
 halt.
+
+### Enumerating gates — three measured traps
+
+**Trap 1 — `bd ready` never returns a gate bead.** Measured on a live repo: `bd ready`
+returned 24 beads, **0** of them gate-typed, while the same repo held an open gate. The old
+loop step 2 said "for gate-type beads" over the `bd ready` result, so **it has never fired
+once**. Gates must be enumerated by their own query.
+
+**Trap 2 — the default page silently truncates.** `bd gate list --all --json` returns **50**
+records on a repo holding **117**, and **exits 0** with no warning. A sweep that reads the
+default page sees a fraction of its input and reports success — the vacuous green this plan
+exists to eliminate. **Always pass an explicit `--limit`** (or paginate) and, where it matters,
+assert the returned count against a second query.
+
+**Trap 3 — not every enumeration carries `metadata`.** The structured fields 3.1 writes
+(`gate_type`, `test`, `test_class`, `cwd`) are only visible on some queries:
+
+| Command | Scope | Carries `metadata`? |
+| :-- | :-- | :-- |
+| `bd list --type gate --limit N --json` | **open** gates | **yes** — use this for the sweep |
+| `bd show <id> --json` | one gate | **yes** |
+| `bd gate list --limit N --json` | open gates | no |
+| `bd gate list --all --limit N --json` | all gates incl. closed | no |
+
+So the sweep enumerates with `bd list --type gate`, not `bd gate list`. `bd gate list --all` is
+for auditing the historical corpus, where the absent metadata does not matter.
+
+*(`bd ready --include-gates` does **not** exist — the flag is rejected with `unknown flag:
+--include-gates`, exit 1. Do not reach for it.)*
+
+### Evaluating a gate — the one shared routine
+
+The eager execute-start sweep (SKILL.md §5.2b) and this lazy loop path use **the same
+routine**, so the two cannot diverge:
+
+1. Read `gate_type`. **Absent → treat as `human`.**
+2. `gate_type: human` → **never auto-resolve.** A green test is not consent. Surface it.
+3. Read `test`. Absent, or `test_class: manual` → **INCONCLUSIVE**, not FAIL. An
+   unrunnable test has established nothing, in either direction.
+4. Otherwise run `test` in the address space `cwd` names (`repo-root` or `worktree`).
+   - exit 0 → `bd gate resolve <gate-id>`
+   - non-zero → FAIL. Report condition, test output and unblock instructions. If the gate's
+     `Instructions:` define a deferral mechanism, execute it and continue; otherwise route
+     around the gate and revisit when no other work remains (stop class 2).
 
 ### Address-space routing (worktree mode)
 
