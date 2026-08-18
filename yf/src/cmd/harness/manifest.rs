@@ -137,6 +137,18 @@ pub struct RuleRecord {
     /// The END marker identifier of the deployed managed block (`block` kind only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub end_marker: Option<String>,
+    /// SHA-256 of the rule file **as yf wrote it** (REQ-YF-TUNE-029, plan-044 #154).
+    ///
+    /// This is the rules-side analogue of the config half's recorded yf-written
+    /// value: it is what `--revert`'s touched-since-tune guard compares the current
+    /// on-disk file against. A mismatch means the operator hand-edited the file
+    /// since the tune, so revert **keeps and reports** it rather than deleting.
+    ///
+    /// `Option` because a manifest written before this field existed carries none.
+    /// An absent sha is treated as "cannot prove it is untouched", which is the
+    /// conservative direction — see the revert branch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
 }
 
 /// One tuned surface (harness × scope) ownership record.

@@ -96,6 +96,13 @@ enum RuleRevert {
         removed: bool,
         wrote: bool,
     },
+    /// REQ-YF-TUNE-029: the aggregate was **kept** because its on-disk sha256 does
+    /// not match what yf recorded writing — the operator hand-edited it since the
+    /// tune. Reported, never deleted.
+    KeptModified { path: PathBuf, reason: String },
+    /// REQ-YF-TUNE-029: an unrecognized rule `kind`. Refuse rather than fall
+    /// through to delete semantics.
+    UnknownKind { path: PathBuf, kind: String },
 }
 
 /// One surface's unified revert verdict.
@@ -439,22 +446,71 @@ fn revert_rules(record: &SurfaceRecord, dry_run: bool) -> Result<RuleRevert> {
                 }),
             }
         }
-        // A whole-file aggregate (claude-code `rules/YOSHIKO_FLOW.md`) — a fully
-        // yf-managed artifact; remove the file.
-        _ => {
+        // A whole-file aggregate (claude-code `rules/YOSHIKO_FLOW.md`).
+        //
+        // REQ-YF-TUNE-029 (#154): CONSERVATIVE-KEEP. This used to delete
+        // unconditionally, on the reasoning that the aggregate is fully yf-managed
+        // (REQ-YF-FLOW-004). But "regenerable" and "restorable" are different
+        // claims: revert holds no backup of the pre-tune file, so deleting a
+        // hand-edited aggregate destroys operator content that nothing can bring
+        // back. Deletion is not restoration.
+        //
+        // So apply the same touched-since-tune guard the config half already has:
+        // compare the on-disk sha256 to the sha yf recorded WRITING. Mismatch →
+        // keep and report.
+        "aggregate" => {
             let existed = path.exists();
-            let wrote = if existed && !dry_run {
-                std::fs::remove_file(&path)?;
-                true
-            } else {
-                false
-            };
-            Ok(RuleRevert::Aggregate {
-                path,
-                removed: existed,
-                wrote,
-            })
+            if !existed {
+                return Ok(RuleRevert::Aggregate {
+                    path,
+                    removed: false,
+                    wrote: false,
+                });
+            }
+            let on_disk = std::fs::read(&path)
+                .map(|b| crate::cmd::self_cmd::update::sha256_hex(&b))
+                .ok();
+            match (&rule.sha256, &on_disk) {
+                // Recorded sha matches disk → this is yf's own output. Remove.
+                (Some(rec), Some(now)) if rec == now => {
+                    let wrote = if !dry_run {
+                        std::fs::remove_file(&path)?;
+                        true
+                    } else {
+                        false
+                    };
+                    Ok(RuleRevert::Aggregate {
+                        path,
+                        removed: true,
+                        wrote,
+                    })
+                }
+                // Recorded sha differs → hand-edited since the tune. KEEP.
+                (Some(_), Some(_)) => Ok(RuleRevert::KeptModified {
+                    path,
+                    reason: "hand-edited since the tune (sha256 mismatch) — kept, not                              deleted; remove it yourself if you want it gone"
+                        .to_string(),
+                }),
+                // No recorded sha (a manifest written before REQ-YF-TUNE-029), or
+                // the file could not be read. Cannot PROVE the file is untouched,
+                // so keep it — the conservative direction. A stale file the
+                // operator must delete by hand is recoverable; deleting their
+                // edits is not.
+                _ => Ok(RuleRevert::KeptModified {
+                    path,
+                    reason: "no recorded sha256 to prove the file is yf's own output                              (manifest predates REQ-YF-TUNE-029) — kept, not deleted"
+                        .to_string(),
+                }),
+            }
         }
+        // REQ-YF-TUNE-029: an EXPLICIT arm, replacing the former catch-all `_`.
+        // Under the catch-all, any future rule `kind` silently inherited DELETE
+        // semantics simply by not being "block" — the most dangerous possible
+        // default for an unrecognized value. Refuse instead.
+        other => Ok(RuleRevert::UnknownKind {
+            path,
+            kind: other.to_string(),
+        }),
     }
 }
 
@@ -742,6 +798,18 @@ fn render_rules_human(rules: &RuleRevert) {
                 println!("  rules: no managed block to remove → {}", path.display());
             }
         }
+        // REQ-YF-TUNE-029: report loudly. A kept file is the point of the
+        // guard, so it must be visible — a silent keep would read as a no-op.
+        RuleRevert::KeptModified { path, reason } => {
+            println!("  rules: KEPT {} — {reason}", path.display());
+        }
+        RuleRevert::UnknownKind { path, kind } => {
+            println!(
+                "  rules: refused — unknown rule kind {kind:?} for {}; \
+                 refusing to guess at revert semantics",
+                path.display()
+            );
+        }
         RuleRevert::Aggregate { path, removed, .. } => {
             if *removed {
                 println!("  rules: removed aggregate → {}", path.display());
@@ -802,6 +870,22 @@ fn rules_json(rules: &RuleRevert) -> Value {
             "path": path.display().to_string(),
             "removed": removed,
             "wrote": wrote,
+        }),
+        RuleRevert::KeptModified { path, reason } => json!({
+            "kind": "aggregate",
+            "status": "kept_modified",
+            "path": path.display().to_string(),
+            "removed": false,
+            "wrote": false,
+            "reason": reason,
+        }),
+        RuleRevert::UnknownKind { path, kind } => json!({
+            "kind": kind,
+            "status": "refused",
+            "path": path.display().to_string(),
+            "removed": false,
+            "wrote": false,
+            "message": "unknown rule kind — refusing to guess at revert semantics",
         }),
         RuleRevert::Aggregate {
             path,
