@@ -240,5 +240,79 @@ def test_spec_carries_the_reqs_this_test_enforces() -> None:
         )
 
 
+# ---------------------------------------------------------------------------------------
+# 5.6 — the one untested risk: a push into a `blocked` parent
+# ---------------------------------------------------------------------------------------
+
+def test_the_blocked_parent_trap_is_stated_symmetrically(skill_md: str) -> None:
+    """REQ-HERDR-022's trap is written child-ward but applies in both directions.
+
+    A prompt delivered to a blocked agent is consumed by its open dialog and lost. The
+    skill documented that only for prompts the PARENT sends DOWN. Under a push channel the
+    same mechanism swallows a push the CHILD sends UP into a blocked parent — a case the
+    skill did not mention at all until this test forced it.
+    """
+    # Tolerate the backticked form (`` `blocked` parent ``) that the prose actually uses.
+    assert re.search(r"blocked`?\s+parent", skill_md, re.IGNORECASE), (
+        "the skill never states the symmetric case. The push channel is new, so the "
+        "child->parent direction of the swallow trap is new too, and it is the one risk "
+        "the plan flagged as untested."
+    )
+
+
+def test_the_token_stamp_is_named_as_the_blocked_parent_mitigation(skill_md: str) -> None:
+    """The mitigation must be stated where the trap is, not left to be inferred."""
+    m = re.search(r"blocked`?\s+parent", skill_md, re.IGNORECASE)
+    assert m, "the blocked-parent trap is not stated at all"
+    idx = m.start()
+    window = skill_md[idx:idx + 700]
+    assert "token" in window.lower(), (
+        "the blocked-parent trap is stated without naming the token stamp as its "
+        "mitigation. A trap with no adjacent remedy is a warning, not a design."
+    )
+
+
+def test_the_token_path_is_a_pane_op_not_an_agent_op(skill_md: str) -> None:
+    """WHY the mitigation works, asserted from the documented command.
+
+    `report-metadata` targets a PANE. It does not enter the agent's input queue — which is
+    the queue an open dialog consumes — so it cannot be swallowed by the same mechanism
+    that swallows a prompt. That structural difference is the whole reason the token is a
+    genuine backstop rather than a second channel with the same failure mode.
+    """
+    assert "pane report-metadata" in skill_md, (
+        "the mitigation must be the PANE-scoped report-metadata command; an agent-scoped "
+        "notification would share the swallow failure mode it exists to survive."
+    )
+    assert re.search(r"pane get|agent get|agent list", skill_md), (
+        "the skill must say how the token is READ BACK. A stamp nothing reads is not a "
+        "backstop. (Verified live: the token surfaces on both `pane get` and `agent list`, "
+        "so a parent recovers the state by pulling, with no action required from the child.)"
+    )
+
+
+def test_report_metadata_syntax_matches_the_binary(skill_md: str) -> None:
+    """The documented invocation must be the one that actually parses.
+
+    Verified against the binary: `--source <ID>` is REQUIRED, `--token` takes `NAME=VALUE`,
+    and `<PANE_ID>` must come FIRST — passing it last (the order the usage string implies)
+    fails with `unknown option: <source-value>`, because the parser consumes the following
+    token as an option value.
+    """
+    m = re.search(r"herdr pane report-metadata[^\n]*", skill_md)
+    assert m, "no report-metadata invocation found"
+    line = m.group(0)
+    assert "--source" in line, "`--source <ID>` is required by the binary"
+    assert re.search(r"--token\s+\"[^\"=]+=", line), (
+        f"--token takes NAME=VALUE, not a bare value: {line!r}"
+    )
+    pane_pos = line.find("$HERDR_PANE_ID")
+    src_pos = line.find("--source")
+    assert 0 < pane_pos < src_pos, (
+        f"<PANE_ID> must precede the options: {line!r}. Passing it last fails with "
+        "'unknown option'."
+    )
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

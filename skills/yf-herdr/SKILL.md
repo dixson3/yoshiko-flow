@@ -64,28 +64,112 @@ should run, and stop. On (3) or (4): explain which condition failed rather than 
 KIND=$(herdr agent list --json | jq -r --arg p "$HERDR_PANE_ID" '.result.agents[]|select(.pane_id==$p)|.agent')
 ```
 
-Create the tab in the **current workspace**, at the repo root, without stealing focus:
+Create the tab in the **current workspace**, at the repo root, without stealing focus — and
+**seed the parent handle** with `--env` so the subordinate can push back (REQ-HERDR-015):
 
 ```bash
 herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$(git rev-parse --show-toplevel)" \
-  --label "<plan-id> execute" --no-focus            # → .result.root_pane.pane_id
+  --label "<plan-id> execute" --no-focus \
+  --env YF_PARENT_PANE="$HERDR_PANE_ID"            # → .result.root_pane.pane_id
 herdr agent start "<short-name>" --kind "$KIND" --pane "<that pane id>" --timeout 120000
-herdr agent prompt "<short-name>" "/yf-plan execute <plan-id>"
 ```
+
+`--env YF_PARENT_PANE` is measured to reach the agent process **and its grandchildren**, which
+is what makes the push channel work from inside a tool call. Use the **pane id**, not the agent
+name: `HERDR_PANE_ID` is injected automatically and is stable, whereas a name exists only for
+`agent start`-ed agents and **goes stale on rename**.
 
 Parse every id from the JSON responses; never predict them. Give the agent a **stable short name**
 (`plan-014`, `research-003`) — it is the handle every later turn uses.
 
+### The launch prompt is a CONTRACT, not a command (REQ-HERDR-015)
+
+A bare `herdr agent prompt "<name>" "/yf-plan execute <plan-id>"` is **non-conformant**. It was
+the old recipe, and a parent following it literally produced exactly the stop-after-every-epic
+behaviour this skill's own trap warns about — because the fix lived as advisory prose under
+`## Observe`, read *after* the prompt was already composed.
+
+Three elements are **mandatory**. Send them in the prompt **and** in
+`-- --append-system-prompt`, so they survive the subordinate's context compaction (measured
+free: 3.016s with, 3.061s control):
+
+```bash
+read -r -d '' CONTRACT <<EOF
+AUTONOMY. Run the plan to completion. Report at epic boundaries but CONTINUE without waiting.
+Stop ONLY at the stop classes the plan itself declares: an outward-facing or irreversible
+write; a capability gate whose Test exits non-zero; a destructive local operation; a
+mechanical counter threshold; or a declared mechanical check that fails.
+
+PUSH MILESTONES TO ME, do not stop for them:
+  herdr agent prompt "\$YF_PARENT_PANE" "<one line>"
+at each EPIC COMPLETION, each BLOCKER or FAILED GATE, and at PLAN COMPLETION OR ABORT.
+Never per bead. Never pass --wait.
+
+PARENT HANDLE. YF_PARENT_PANE is seeded in your environment.
+EOF
+
+herdr agent prompt "<short-name>" "/yf-plan execute <plan-id>
+
+$CONTRACT"
+```
+
+A launch omitting any of the three is non-conformant, not merely sub-optimal. This is
+mechanically enforced by `scripts/test_launch_contract.py`.
+
 **Record the delegation** in the conversation: agent name, pane id, what was launched. A later turn
 must be able to find the subordinate without re-deriving it.
 
-## Observe — and be honest about what that means
+## Observe — push-primary, polling as the fallback
 
-**A turn-based agent cannot watch continuously.** There is no execution between operator turns. So
-observation is: **on every subsequent turn while the subordinate is live**, plus on demand. Say this
-to the operator once at launch rather than implying a watcher exists.
+**The subordinate pushes; you poll only when it hasn't.** The old framing — "a turn-based agent
+cannot watch continuously" — is true of **pull** and was mistaken for a law of observation as
+such. There is indeed no execution between your turns, so *your polling* happens at turn
+boundaries and on demand. But the child can speak, and under the launch contract it does.
 
-Each check:
+### Push triggers (REQ-HERDR-026)
+
+The subordinate pushes at exactly **three** trigger classes:
+
+| Trigger | Why it is a push |
+| :-- | :-- |
+| **Epic completion** | The natural progress checkpoint — a report, not a stop |
+| **Blocker, failed gate, or halt** | The parent may be able to resolve it from approved plan content |
+| **Plan completion or abort** | The terminal event |
+
+**Never per bead.** A plan-sized DAG would emit tens of messages and flood the parent's context,
+which is the failure mode that makes a parent stop reading them.
+
+**`--wait` is forbidden.** It reintroduces the lockstep the push channel exists to remove. And
+`--wait --until idle` is measurably *wrong* for a claude subordinate: a claude turn settles at
+`done` and **never** at `idle`, so the wait times out at 120s on a turn that in fact completed.
+
+### Pair every push with a token stamp (REQ-HERDR-026, D-8)
+
+**`agent_prompted` acknowledges INJECTION, NOT SUBMISSION.** One measured push returned success
+and was never submitted. So a push alone is an unverified claim of delivery — exactly the
+self-report-vs-verification defect this repo keeps rediscovering.
+
+```bash
+# Idempotent, on the CHILD'S OWN pane.
+herdr pane report-metadata "$HERDR_PANE_ID" --source "<plan-id>" --token "epic-3=done"
+```
+
+**Two CLI gotchas, both verified against the binary rather than the usage string:**
+
+- **`<PANE_ID>` must come FIRST.** The usage string reads
+  `report-metadata [OPTIONS] --source <ID> <PANE_ID>`, but passing the pane id last fails with
+  `unknown option: <source-value>` — the parser consumes the following token as an option
+  value. Pane id first exits 0.
+- **`--token` takes `NAME=VALUE`, not a bare value**, and **`--source <ID>` is required**.
+
+Read it back with `pane get` / `agent get` / `agent list`; the stamp surfaces as a `tokens`
+object on the pane (verified: `"tokens":{"epic-3":"done"}`). A push costs the parent a turn; a
+token write costs nothing — which is what turns the polling path into a genuine **backstop**
+rather than a second, competing mechanism.
+
+### Polling — the fallback
+
+Poll when the subordinate has **gone silent**, reads `blocked`, or you want corroboration:
 
 ```bash
 herdr agent get <name>                                  # agent_status
@@ -106,8 +190,15 @@ Escalate **in that turn's reply**, not silently:
 
 - A prompt sent to a **`blocked`** agent is consumed by the open dialog and silently lost. Check
   `agent_status` before prompting; if `blocked`, resolve the dialog first, then prompt.
-- Subordinates often stop after each epic when told to "report back". If autonomy is wanted, say so
-  explicitly: report at boundaries but **continue without waiting**.
+- A push into a **`blocked` parent** is swallowed by the same mechanism — the trap is stated
+  child-ward but applies symmetrically. The **token stamp is the mitigation**: it survives a
+  swallowed push, so a parent that was blocked can still reconstruct what happened by reading
+  the child's pane metadata.
+
+*(The old note here — "subordinates often stop after each epic when told to report back; if
+autonomy is wanted, say so explicitly" — has been **promoted into the mandatory launch
+contract** above. It was advisory prose in the wrong section: read after the prompt was already
+composed, which is why it did not prevent the behaviour it described.)*
 
 ## Mine deviations for process improvements
 
