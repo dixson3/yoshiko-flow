@@ -628,7 +628,139 @@ _INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
     ("findings/", "Investigation experiment results (if any)."),
     ("diagrams/", "d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill."),
     ("assets/", "Attachments and other generated artifacts (not diagrams — those live in `diagrams/`)."),
+    ("plan-retrospective.md", "Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE)."),
 )
+
+
+RETROSPECTIVE_FILE = "plan-retrospective.md"
+
+# REQ-PORT-052's field set, in emission order. A two-column key/value TABLE is used
+# rather than `**Label:** value` lines because a bold label is invisible to
+# `plan_manager.py audit` yet COLLIDES with the reserved-label rule `/yf-okf check`
+# enforces (REQ-OKF-010) — the shape would pass the mechanical audit and fail the
+# conformance check, which is the worse of the two orders to discover it in.
+RETROSPECTIVE_FIELDS: tuple[str, ...] = (
+    "kind", "when", "stop_class", "asked", "answered", "frontloadable",
+    "detected_by", "evidence", "escape_class", "adjudication", "origin",
+    "culpability", "prevention", "cost",
+)
+RETROSPECTIVE_KINDS = ("stop", "deviation")
+RETROSPECTIVE_DETECTED_BY = ("self-report", "operator", "mechanical-check")
+
+_RETRO_HEADER = """---
+type: Retrospective
+okf_spec: OKF-PLAN
+---
+# Plan retrospective
+
+Stops and deviations recorded during execution, newest last. Each `## RE-NNN` section is
+one entry; `RE-NNN` ids are append-only and are never reused or renumbered.
+
+`detected_by` records WHO found the entry and `evidence` records the command and output
+substantiating any state claim in it, or the literal `unverified`. Both exist because an
+entry's trust level is a property of who found it, and the recorder is usually the subject:
+a retrospective built from an actor's own account would faithfully transcribe a false claim
+rather than detect one. A state assertion with no evidence is a narration, not a finding.
+
+"""
+
+
+def _retrospective_next_id(text: str) -> int:
+    """The next `RE-NNN` number: max existing + 1. Append-only, never reused."""
+    nums = [int(m) for m in re.findall(r"^## RE-(\d+)", text, re.M)]
+    return (max(nums) + 1) if nums else 1
+
+
+def append_retrospective(plan_dir: Path, entry: dict, *, dry_run: bool = False) -> dict:
+    """Append one `## RE-NNN` entry to the bundle's `plan-retrospective.md` (REQ-CLI-022).
+
+    Mirrors `okf.append_log`'s create-if-absent + idempotence contract. Implemented
+    **locally rather than by generalizing `append_log`**, which is vendored in four
+    byte-identical copies behind `e-okf-copy-*` drift edges — generalizing it would
+    require changing all four in lockstep for one caller's benefit.
+
+    Idempotent on entry identity: an entry whose non-`when` fields exactly match an
+    existing one is not appended twice, and the existing id is returned.
+
+    Returns ``{"file", "id", "appended", "created", "index_updated"}``.
+    """
+    path = plan_dir / RETROSPECTIVE_FILE
+    created = not path.exists()
+    text = _RETRO_HEADER if created else path.read_text(encoding="utf-8")
+
+    row = {k: entry.get(k, "") for k in RETROSPECTIVE_FIELDS}
+    row.setdefault("kind", "stop")
+    if not row.get("kind"):
+        row["kind"] = "stop"
+    if row["kind"] not in RETROSPECTIVE_KINDS:
+        raise ValueError(
+            f"unknown retrospective kind {row['kind']!r}; expected one of "
+            f"{', '.join(RETROSPECTIVE_KINDS)}"
+        )
+    if not row.get("when"):
+        row["when"] = datetime.now().strftime("%Y-%m-%d")
+    # An unsubstantiated state claim is a narration, not a finding (REQ-PORT-052).
+    if not row.get("evidence"):
+        row["evidence"] = "unverified"
+    if not row.get("detected_by"):
+        row["detected_by"] = "self-report"
+
+    # Idempotence: compare every field EXCEPT `when`, so re-running a step on a later
+    # date does not duplicate the same finding.
+    identity = {k: str(row[k]) for k in RETROSPECTIVE_FIELDS if k != "when"}
+    for block in re.split(r"(?=^## RE-\d+)", text, flags=re.M):
+        m = re.match(r"^## RE-(\d+)", block)
+        if not m:
+            continue
+        existing = {}
+        for line in block.splitlines():
+            cell = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*$", line)
+            if cell:
+                existing[cell.group(1)] = cell.group(2)
+        if all(existing.get(k, "") == v for k, v in identity.items() if v):
+            return {"file": str(path), "id": f"RE-{int(m.group(1)):03d}",
+                    "appended": False, "created": False, "index_updated": False}
+
+    n = _retrospective_next_id(text)
+    rid = f"RE-{n:03d}"
+    lines = [f"## {rid}", "", "| field | value |", "| :-- | :-- |"]
+    for k in RETROSPECTIVE_FIELDS:
+        lines.append(f"| `{k}` | {row[k]} |")
+    lines.append("")
+    new_text = text.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n"
+
+    index_updated = False
+    if not dry_run:
+        path.write_text(new_text, encoding="utf-8")
+        index_updated = _ensure_index_lists_retrospective(plan_dir)
+    return {"file": str(path), "id": rid, "appended": True,
+            "created": created, "index_updated": index_updated}
+
+
+def _ensure_index_lists_retrospective(plan_dir: Path) -> bool:
+    """Add the retrospective to `index.md`'s listing if absent (pass-1 C6).
+
+    Without this the bundle's own cold-reader contract is violated by the very file
+    added to support it: a member absent from the reserved listing is exactly the
+    portability gap the retrospective exists to help close.
+    """
+    index = plan_dir / "index.md"
+    if not index.exists():
+        return False
+    text = index.read_text(encoding="utf-8")
+    if RETROSPECTIVE_FILE in text:
+        return False
+    desc = next((d for m, d in _INDEX_MEMBERS if m == RETROSPECTIVE_FILE), "Execution retrospective.")
+    bullet = f"- [{RETROSPECTIVE_FILE}]({RETROSPECTIVE_FILE}) - {desc}\n"
+    lines = text.splitlines(keepends=True)
+    last = max((i for i, ln in enumerate(lines) if ln.startswith("- [")), default=None)
+    if last is None:
+        text = text.rstrip("\n") + "\n\n" + bullet
+    else:
+        lines.insert(last + 1, bullet)
+        text = "".join(lines)
+    index.write_text(text, encoding="utf-8")
+    return True
 
 
 def seed_index(plan_dir: Path, plan_id: str, objective: str) -> Path:
@@ -4293,6 +4425,142 @@ def config_resolve(autonomy_flag: str | None, sweep_flag: str | None,
         click.echo("-" * 58)
         for k, v in result["keys"].items():
             click.echo(f"{k:<20} {str(v['value']):<20} {v['source']}")
+
+
+@cli.command("retrospective-report")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def retrospective_report(plan_dir: str, as_json: bool):
+    """ADVISORY close-step report of the bundle's retrospective entries (4.4).
+
+    Emits the REQ-COMPLETE-003 verdict envelope (``status`` + ``findings`` +
+    ``remediation``) so ``test_close_contract.py`` counts it as a conformant chain step.
+
+    **Advisory, never halting.** It exits ``0`` unconditionally, including when the file is
+    absent — absence is a legitimate state (a plan that stopped for no reason and deviated
+    in no way has nothing to record) and is never a finding (REQ-PORT-ACT-RETROSPECTIVE).
+    Measurement, adjudication and any fix+prevention contract are deliberately out of scope:
+    this plan emits the corpus, and halting on it stays with the analysis skill that will
+    later read it.
+
+    Position in the §6.4 chain is load-bearing: it is an OBSERVING step, so REQ-COMPLETE-001
+    constraint 1 puts it above every plan-folder writer — in particular above the
+    ``set-deliverable-class`` dual-write — or it would report on artifacts the close step
+    itself had just written.
+    """
+    pdir = Path(plan_dir)
+    path = pdir / RETROSPECTIVE_FILE
+    entries: list[dict] = []
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
+        for block in re.split(r"(?=^## RE-\d+)", text, flags=re.M):
+            m = re.match(r"^## RE-(\d+)", block)
+            if not m:
+                continue
+            row = {}
+            for line in block.splitlines():
+                cell = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*$", line)
+                if cell:
+                    row[cell.group(1)] = cell.group(2)
+            row["id"] = f"RE-{int(m.group(1)):03d}"
+            entries.append(row)
+
+    by_kind: dict[str, int] = {}
+    by_class: dict[str, int] = {}
+    unverified = 0
+    for e in entries:
+        by_kind[e.get("kind") or "stop"] = by_kind.get(e.get("kind") or "stop", 0) + 1
+        sc = e.get("stop_class") or ""
+        if sc:
+            by_class[sc] = by_class.get(sc, 0) + 1
+        if (e.get("evidence") or "unverified") == "unverified":
+            unverified += 1
+
+    findings: list[str] = []
+    if entries and unverified:
+        findings.append(
+            f"{unverified} of {len(entries)} entries carry `evidence: unverified` — a state "
+            "assertion with no evidence is a narration, not a finding. Advisory only."
+        )
+    result = {
+        "status": "ok",
+        "present": path.exists(),
+        "count": len(entries),
+        "by_kind": by_kind,
+        "by_stop_class": by_class,
+        "unverified": unverified,
+        "findings": findings,
+        "remediation": (
+            "Advisory. Absence is never a finding. To enrich a thin entry, re-run "
+            "`retrospective-append` with `--evidence '<command + output>'`."
+        ),
+        "advisory": True,
+    }
+    click.echo(json.dumps(result, indent=2))
+
+
+@cli.command("retrospective-append")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--kind", type=click.Choice(RETROSPECTIVE_KINDS), default="stop",
+              help="`stop` (an autonomous run halted) or `deviation` (a non-stop defect).")
+@click.option("--stop-class", "stop_class", default="",
+              help="1-5 for a stop; empty for a deviation.")
+@click.option("--asked", default="", help="What the operator was asked, verbatim.")
+@click.option("--answered", default="", help="What they answered, verbatim.")
+@click.option("--frontloadable", default="",
+              help="Could this have been asked at execute start? yes|no|partial.")
+@click.option("--detected-by", "detected_by",
+              type=click.Choice(RETROSPECTIVE_DETECTED_BY), default="self-report",
+              help="WHO found it. The recorder is usually the subject — say so.")
+@click.option("--evidence", default="",
+              help="The command + output substantiating any state claim, or `unverified`.")
+@click.option("--escape-class", "escape_class", default="")
+@click.option("--adjudication", default="")
+@click.option("--origin", default="")
+@click.option("--culpability", default="")
+@click.option("--prevention", default="")
+@click.option("--cost", default="")
+@click.option("--dry-run", is_flag=True, help="Report what would be written; write nothing.")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
+                         answered: str, frontloadable: str, detected_by: str,
+                         evidence: str, escape_class: str, adjudication: str,
+                         origin: str, culpability: str, prevention: str, cost: str,
+                         dry_run: bool, as_json: bool):
+    """Append one `## RE-NNN` entry to `plan-retrospective.md` (REQ-CLI-022).
+
+    Creates the file (with `type: Retrospective` frontmatter) when absent and adds it to
+    the reserved `index.md` listing. Idempotent on entry identity; `RE-NNN` ids are
+    allocated monotonically and never reused.
+
+    Two fields carry the weight (REQ-PORT-052, D-6a):
+
+    * ``--detected-by`` — ``self-report`` | ``operator`` | ``mechanical-check``. An entry's
+      trust level is a property of WHO FOUND IT, and the recorder is usually the subject.
+    * ``--evidence`` — the command and output behind any state claim, or the literal
+      ``unverified``. Defaults to ``unverified`` rather than to blank, so an
+      unsubstantiated entry is **self-identifying** instead of merely quiet.
+
+    ``--kind deviation`` exists because the incident that motivated both fields was a
+    NON-STOP: a stop-only schema is blind to exactly the class autonomy makes more common.
+    """
+    entry = {
+        "kind": kind, "stop_class": stop_class, "asked": asked, "answered": answered,
+        "frontloadable": frontloadable, "detected_by": detected_by, "evidence": evidence,
+        "escape_class": escape_class, "adjudication": adjudication, "origin": origin,
+        "culpability": culpability, "prevention": prevention, "cost": cost,
+    }
+    try:
+        result = append_retrospective(Path(plan_dir), entry, dry_run=dry_run)
+    except ValueError as e:
+        click.echo(json.dumps({"error": str(e), "appended": False}, indent=2))
+        sys.exit(1)
+    result["dry_run"] = dry_run
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        verb_txt = "would append" if dry_run else ("appended" if result["appended"] else "skipped (duplicate)")
+        click.echo(f"{verb_txt} {result['id']} -> {result['file']}")
 
 
 @cli.command("review-loop-check")

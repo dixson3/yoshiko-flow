@@ -1282,6 +1282,19 @@ echo "$AUDIT"
 > entries. A `log.md` write that drops them silently promotes `warn` findings to `fail` — which
 > is another reason this step reads *before* the close step writes.
 
+**Close-time retrospective report (ADVISORY, 4.4) — runs before the `classify-deliverable`
+block below.** Its position is the same read-before-write constraint (REQ-COMPLETE-001
+constraint 1) that puts `audit-close` first: it is an **observing** step, and the block below
+contains the `set-deliverable-class` plan.md dual-write.
+
+```bash
+RETRO=$(uv run ${SKILL_DIR}/scripts/plan_manager.py retrospective-report "${plan_dir}" --json)
+echo "$RETRO"
+# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. An ABSENT
+# plan-retrospective.md is a legitimate state, not a finding. Do NOT add a `FAIL-LOUD:`
+# banner here — that vocabulary is reserved for halting steps.
+```
+
 ```bash
 CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
@@ -1451,6 +1464,70 @@ PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
 COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
 # COUNT > 0 → report: "N plan(s) approved but not executed — run /yf-plan execute <id>."
 ```
+
+## Retrospective emit (`plan-retrospective.md`)
+
+Every stop and every deviation is recorded, so the corpus that later analysis reads is
+built as the work happens rather than reconstructed afterwards. **Emit-only here**:
+this skill writes entries; measurement, adjudication and the frontloading consumer are
+out of scope (a consumer built today would read an empty corpus).
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py retrospective-append "${plan_dir}" \
+  --kind stop --stop-class <1-5> \
+  --asked "<what the operator was asked, verbatim>" \
+  --answered "<what they answered, verbatim>" \
+  --frontloadable "<yes|no|partial>" \
+  --detected-by "<self-report|operator|mechanical-check>" \
+  --evidence "<the command + output behind any state claim, or 'unverified'>" \
+  --json
+```
+
+`--detected-by` and `--evidence` are the two fields that make an entry trustworthy.
+`evidence` defaults to the literal `unverified` rather than to blank, so an
+unsubstantiated entry is **self-identifying** instead of merely quiet.
+
+### Write sites
+
+Every stop class has at least one site here, so the stop set and the write-site list are
+derivable from each other:
+
+| Site | Kind | Stop class |
+| :-- | :-- | :-- |
+| The coordinator's blocked-gate halt (`coordinator.md` → *Blocked gates*) | `stop` | 2 |
+| §3 review resolution — each concern resolved autonomously | `deviation` | — |
+| `review-loop-check` escalation (§3, `max_review_cycles`) | `stop` | 4 |
+| `yf_attempts >= N` escalation (coordinator step 6a) | `stop` | 4 |
+| Portability `audit` / `ready-check` failure | `stop` | 5 |
+| §5.2 resume — a stuck-bead sweep or a **dirty worktree** | `stop` | 5 |
+| §6.1.5 `validate-merged` FAIL, or a §6.1 merge conflict | `stop` | 5 |
+| §6.4 chain halt — `verify-reconcile`, cascade-close, completion gate | `stop` | 5 |
+| A destructive local operation requiring confirmation | `stop` | 3 |
+| **Every `--force` override** (stale-approval, audit bypass) | `deviation` | — |
+
+A `--force` override already logs a reason to `log.md`; mirror that reason into
+`--asked`/`--answered` so the retrospective and the log agree.
+
+**Stop class 1 has NO write site, and that is the whole of the exclusion.** Class 1 is
+"a declared outward-facing or irreversible write" — and *every* instance of it in this skill
+is a **consent gate by design**: the §6.2 `git push` / `bd dolt push` handoff, the §4.5
+`gh issue create` for the coarse tracker, and the §6.4 `closable` proposal of
+`gh issue close`. In each case the operator is asked because an outward-facing write
+genuinely requires authorization, not because the system failed to anticipate something.
+
+Recording those as stops would pollute the corpus with precisely the interactions that
+should never be optimized away — and a later consumer mining for "stops to frontload" would
+dutifully propose removing them. So the class-1 row is empty **by construction**, not by
+omission: if a class-1 stop ever arises that is *not* a designed consent gate, it belongs in
+the table above.
+
+*(The plan's SC3 names only "§6.2 push consent" as this exception. That understates it —
+`gh issue create` and `gh issue close` are the same class for the same reason. The exception
+is the category, not the one site.)*
+
+**The `deviation` kind is not a stop at all.** It records a defect that did *not* halt the
+run — a wrong claim, a missed check, a resolution that over-stated what it verified. Those
+rows carry no `stop_class`, which is why the two lists above are not identical.
 
 ## Markdown output convention
 
