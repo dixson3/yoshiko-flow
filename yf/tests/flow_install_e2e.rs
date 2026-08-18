@@ -16,10 +16,18 @@ use serde_json::Value;
 
 const YF: &str = env!("CARGO_BIN_EXE_yf");
 
-/// The seven rule-bearing skills (each ships a `protocols/*.md`).
+/// The rule-bearing skills (each ships a `protocols/*.md`) — this must be the
+/// COMPLETE embedded set, not a subset.
+///
+/// plan-044 Issue 2.1: `yf-change-validation` was missing here. That was invisible
+/// while these tests drove a `--target`ed `skills upgrade`, which wrote only the
+/// sections it was told to. `yf harness tune` — now the aggregate's sole writer —
+/// reconcile-prunes on the EMBEDDED set (REQ-YF-FLOW-002), so a missing entry means
+/// "remove them all" no longer empties the file. The list is now complete.
 const RULE_SKILLS: &[&str] = &[
     "yf-beads-init",
     "yf-beads-upstream",
+    "yf-change-validation",
     "yf-drift-check",
     "yf-markdown-lint",
     "yf-optimal-instructions",
@@ -30,6 +38,7 @@ const RULE_SKILLS: &[&str] = &[
 const RULE_PROTOCOLS: &[&str] = &[
     "BEADS_INIT.md",
     "UPSTREAM_TRACKING.md",
+    "CHANGE-VALIDATION-TRIGGER.md",
     "DRIFT-CHECK-TRIGGER.md",
     "MARKDOWN_LINT.md",
     "INSTRUCTIONS.md",
@@ -38,6 +47,48 @@ const RULE_PROTOCOLS: &[&str] = &[
 ];
 
 const BANNER: &str = "<!-- managed by yf — do not edit by hand, edit sections at your own risk -->";
+
+/// Run `yf` with `HOME` pinned to `home` and `CI` cleared.
+///
+/// plan-044 Issue 2.1 (REQ-YF-FLOW-008): the aggregate's ONLY writer is now
+/// `yf harness tune`, which resolves its rule target from `HOME` and takes no
+/// `--target`. So the aggregation engine can no longer be driven through a
+/// `--target`ed `skills upgrade` — these tests sandbox `HOME` instead. `HOME` is
+/// always a tempdir here: a leak would write the developer's real `~/.claude`.
+fn yf_json_in(home: &Path, args: &[&str]) -> Value {
+    let out = Command::new(YF)
+        .args(args)
+        .env("HOME", home)
+        .env_remove("CI")
+        .output()
+        .expect("spawn yf");
+    assert!(
+        out.status.success(),
+        "yf {args:?} exited non-zero: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap_or_else(|e| {
+        panic!(
+            "yf {args:?} did not emit JSON ({e}): {}",
+            String::from_utf8_lossy(&out.stdout)
+        )
+    })
+}
+
+/// Deploy the aggregate the only way it can now be deployed: a rules-only tune.
+fn tune_rules(home: &Path) -> Value {
+    yf_json_in(
+        home,
+        &[
+            "harness",
+            "tune",
+            "--harness",
+            "claude-code",
+            "--rules-only",
+            "--json",
+        ],
+    )
+}
 
 fn yf_json(args: &[&str]) -> Value {
     let out = Command::new(YF).args(args).output().expect("spawn yf");
@@ -88,21 +139,22 @@ fn flow_install_e2e_lifecycle() {
         "skills-only install writes no aggregate"
     );
 
-    // 2. the aggregate ruleset is produced by upgrade (its invocation relocates to
-    //    `tune` in Issue 3.1); drive it to materialize YOSHIKO_FLOW.md.
-    let mut mk = vec!["skills", "upgrade"];
-    mk.extend_from_slice(RULE_SKILLS);
-    mk.extend_from_slice(&["--target", target.to_str().unwrap(), "--json"]);
-    let j = yf_json(&mk);
-    let flow_file = j["flow_file"]
-        .as_str()
-        .expect("flow_file in JSON")
-        .to_string();
-    let rules_dir = j["rules_dir"]
-        .as_str()
-        .expect("rules_dir in JSON")
-        .to_string();
-    assert!(Path::new(&flow_file).is_file(), "YOSHIKO_FLOW.md written");
+    // 2. the aggregate ruleset is produced by `yf harness tune` — its SOLE writer
+    //    (REQ-YF-FLOW-008). This step formerly drove `skills upgrade`, which was
+    //    the second writer #156 removed; the aggregation engine under test is
+    //    unchanged, only the verb that invokes it.
+    let home = tmp.path().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    let mut inst_home = vec!["skills", "install"];
+    inst_home.extend_from_slice(RULE_SKILLS);
+    inst_home.push("--json");
+    yf_json_in(&home, &inst_home);
+    tune_rules(&home);
+
+    let rules_dir = home.join(".claude").join("rules");
+    let flow_file = rules_dir.join("YOSHIKO_FLOW.md");
+    assert!(flow_file.is_file(), "YOSHIKO_FLOW.md written by tune");
+    let flow_file = flow_file.to_str().unwrap().to_string();
 
     let text = std::fs::read_to_string(&flow_file).unwrap();
     assert!(text.starts_with(BANNER), "banner heads the file");
@@ -131,24 +183,27 @@ fn flow_install_e2e_lifecycle() {
         );
     }
 
-    // 2. upgrade is idempotent (byte-stable aggregate).
+    // 2. tune is idempotent (byte-stable aggregate).
     let before = std::fs::read(&flow_file).unwrap();
+    tune_rules(&home);
+    let after = std::fs::read(&flow_file).unwrap();
+    assert_eq!(before, after, "tune is byte-stable / idempotent");
+
+    // 2b. REQ-YF-FLOW-008: a subsequent `skills upgrade` leaves the aggregate
+    //     BYTE-UNTOUCHED. This is the #156 regression guard at the e2e level —
+    //     upgrade must no longer be a writer of this path at all.
     let mut up = vec!["skills", "upgrade"];
     up.extend_from_slice(RULE_SKILLS);
-    up.extend_from_slice(&["--target", target.to_str().unwrap(), "--json"]);
-    yf_json(&up);
-    let after = std::fs::read(&flow_file).unwrap();
-    assert_eq!(before, after, "upgrade is byte-stable / idempotent");
+    up.push("--json");
+    yf_json_in(&home, &up);
+    assert_eq!(
+        before,
+        std::fs::read(&flow_file).unwrap(),
+        "skills upgrade must not touch YOSHIKO_FLOW.md (tune is the sole writer)"
+    );
 
     // 3. remove ONE skill drops only its section; the file survives.
-    let rm = yf_json(&[
-        "skills",
-        "remove",
-        "yf-plan",
-        "--target",
-        target.to_str().unwrap(),
-        "--json",
-    ]);
+    let rm = yf_json_in(&home, &["skills", "remove", "yf-plan", "--json"]);
     assert_eq!(rm["flow_deleted"], Value::Bool(false));
     let text = std::fs::read_to_string(&flow_file).unwrap();
     let protos = section_protocols(&text);
@@ -162,10 +217,12 @@ fn flow_install_e2e_lifecycle() {
     );
 
     // 4. remove ALL remaining rule-bearing skills deletes the file (S6).
+    //    `remove` KEEPS its rules write by design (D-10) — it is the only thing
+    //    that would ever drop a removed skill's section.
     let mut rmall = vec!["skills", "remove"];
     rmall.extend_from_slice(RULE_SKILLS);
-    rmall.extend_from_slice(&["--target", target.to_str().unwrap(), "--json"]);
-    let rm = yf_json(&rmall);
+    rmall.push("--json");
+    let rm = yf_json_in(&home, &rmall);
     assert_eq!(
         rm["flow_deleted"],
         Value::Bool(true),
@@ -180,10 +237,9 @@ fn flow_install_e2e_lifecycle() {
 #[test]
 fn flow_install_e2e_legacy_transition() {
     let tmp = tempfile::tempdir().unwrap();
-    let target = tmp.path().join("skills");
-
-    // With --target, the rules dir is the sibling <target>/../rules.
-    let rules_dir = target.parent().unwrap().join("rules");
+    let home = tmp.path().join("home");
+    // The aggregate's sole writer is `tune`, which resolves from HOME.
+    let rules_dir = home.join(".claude").join("rules");
     std::fs::create_dir_all(&rules_dir).unwrap();
 
     // Pre-seed legacy standalones: PLANS.md (acted on) + RESEARCH.md (NOT acted
@@ -192,15 +248,10 @@ fn flow_install_e2e_legacy_transition() {
     std::fs::write(rules_dir.join("RESEARCH.md"), b"legacy research\n").unwrap();
     std::fs::write(rules_dir.join("BEADS.md"), b"from bd init\n").unwrap();
 
-    // Upgrade only yf-plan → migration folds ALL yf-owned standalones.
-    yf_json(&[
-        "skills",
-        "upgrade",
-        "yf-plan",
-        "--target",
-        target.to_str().unwrap(),
-        "--json",
-    ]);
+    // Tune → migration folds ALL yf-owned standalones (REQ-YF-FLOW-003 keys on the
+    // embedded set, never on a per-run selection).
+    yf_json_in(&home, &["skills", "install", "yf-plan", "--json"]);
+    tune_rules(&home);
 
     assert!(
         !rules_dir.join("PLANS.md").exists(),
