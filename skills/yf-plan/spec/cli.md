@@ -20,7 +20,7 @@ REQ-CLI-004: Every invocation except `init` runs `plan_manager.py check` and sto
 Rationale: Running the skill without prerequisites produces confusing failures; init must run first.
 Verification: SKILL.md Pre-flight section.
 
-REQ-CLI-005: If the operator config contains `"ignore-skill": true`, the skill exits silently and falls back to native plan mode. Canonical config is `.yf/plan/config.local.json`; the manager script currently reads only the legacy root `.yf-plan.local.json` (canonical-first read tracked in `dixson3/yoshiko-flow#100`), which remains a supported fallback.
+REQ-CLI-005: If the operator config contains `"ignore-skill": true`, the skill exits silently and falls back to native plan mode. Canonical config is `.yf/plan/config.local.json`. The canonical-first read is **delivered** (#100, closed): `_read_config()` merges the three tiers key-by-key with `.yf/plan/config.local.json` > `.yf/plan/config.json` > the legacy root `.yf-plan.local.json`, which remains a supported fallback and is never removed. *(This sentence previously said the script "currently reads only the legacy root" — that was true before #100 landed and has been stale since.)*
 Rationale: Projects that can't satisfy prerequisites need a clean opt-out without repeated error messages.
 Verification: SKILL.md Pre-flight bullet 2; `_check_prerequisites()` in plan_manager.py returns `{"status":"ignored"}`.
 

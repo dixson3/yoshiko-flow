@@ -18,6 +18,37 @@ sequence the SPEC edit before the implementation epics, never after. Rationale: 
 the source of truth the coverage gate enforces; implementation-first invites drift and
 untagged requirements.
 
+## Three artifacts, not one
+
+Editing `skills/` does **not** change the skill this session is running. There are **three**
+separate artifacts and they move independently:
+
+| Artifact | What it is | When it changes |
+| :-- | :-- | :-- |
+| **Repo source** | `skills/<name>/` in this working tree | the moment you edit it |
+| **Binary-embedded tree** | what `yf` carries (`rust-embed`, release builds) | on rebuild |
+| **Session-installed skill** | what the running session resolved at invocation | on deploy, then next invocation |
+
+The `SKILL_DIR` resolver searches `~/.claude/skills`, `~/.agents/skills`,
+`$GIT_ROOT/.{claude,agents}/skills`, and relative `.{claude,agents}/skills`. **The repo's
+`skills/` directory matches none of those six roots** — it is unreachable by the resolver, not
+merely stale.
+
+**The safety invariant that follows:** a plan or research project may freely rework the skill
+it is executing under. `SKILL.md` prose, `agents/*.md` and `uv run ${SKILL_DIR}/scripts/*.py`
+all resolve to the **installed** copy, so there is no self-modification hazard mid-run.
+
+**The one real constraint: no `yf skills install` / `yf self install` mid-execution.** Deploy
+at land-the-plane, after the work is merged and validated. The reason is narrow but
+non-obvious: **`plan_manager.py` is re-invoked per call**, so a mid-execution deploy takes
+effect in the *same* session for the scripts — unlike `SKILL.md` prose, which is loaded once at
+invocation. A half-deployed session runs new scripts against old prose.
+
+This is a **discoverability** note, not new policy: [TESTING.md](TESTING.md) has stated the
+invariant since plan-021, but routed to it only "when developing deep/integration test plans or
+test scripts" — a trigger that never fires for a planner reasoning about execution safety. See
+TESTING.md for the Tier-1/Tier-2 strategy itself.
+
 ## Testing
 
 When developing deep/integration test plans or test scripts for the **manager-script skills**

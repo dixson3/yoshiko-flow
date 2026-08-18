@@ -101,14 +101,16 @@ moved into the `yf` kernel. See docs/yf/preflight-contract.md.)
   these point at `install.sh` (e.g. re-run `install.sh --force` to restore a drifted rule),
   not `init`. Stop.
 
-Config vs state: `ignore-skill` is an operator decision the manager reads from the legacy
-root dotfile `.yf-plan.local.json` (repo root, gitignored) today; the canonical location is
-`.yf/plan/config.local.json`, which `plan_manager.py` will read after
-dixson3/yoshiko-flow#100. The `prereqs-present` and `scaffold-ensured` caches are runtime
-state: the `yf` preflight kernel writes `.yf/plan/preflight.json` (canonical short-name),
-while the manager's own state still uses the full-name `.yf/yf-plan/` directory today
-(short-name `.yf/plan/` after #100). `yf migrate` moves legacy → canonical; preflight does
-not auto-migrate. The companion rule is installed by the repo installer
+Config vs state: **config** is operator decision — `ignore-skill`, `plans-root`,
+`incubator-root`, `execute.worktree`, `validate-cmd`, `landing-strategy`, `autonomy`,
+`sweep-gates`, `max-attempts`, `max-review-cycles` — read by `_read_config()` from
+`.yf/plan/config.local.json` > `.yf/plan/config.json` > the legacy root `.yf-plan.local.json`,
+**canonical first**, merged key by key. Inspect the resolved value and its winning tier with
+`plan_manager.py config-resolve --json`. **State** is runtime cache: the `yf` preflight kernel
+writes `.yf/plan/preflight.json`, and the manager's own state (`landing.lock`) also lives under
+`.yf/plan/` — both short-name, matching the `yf` binary. `yf migrate` moves legacy → canonical;
+preflight does not auto-migrate. *(dixson3/yoshiko-flow#100 delivered both the canonical-first
+read and the short-name layout, and is closed; text describing either as pending was stale.)* The companion rule is installed by the repo installer
 (`install.sh`) to the scope+surface rules dir (user-scope `~/.<surface>/rules/PLANS.md`,
 project-scope `<git-root>/.<surface>/rules/PLANS.md`; `.claude` or `.agents`); preflight
 resolves it in precedence order (user/global copy first) and hash-checks it against
@@ -188,9 +190,14 @@ gh issue list --limit 5 --json number,title,state 2>/dev/null
 glab issue list --per-page 5 2>/dev/null
 ```
 
-### 0.3 — Confirm with operator
+### 0.3 — Confirm with operator (ONLY when undetermined)
 
-Ask: use GitHub Issues, GitLab Issues, Jira, Linear, or none?
+**Skip this entirely when §0.1 already resolved the upstream** — a detected `## Upstream
+Tracking` block in `CLAUDE.md`/`AGENTS.md`, or an authenticated `gh`/`glab` against a matching
+remote, *is* the answer. Asking anyway spends an interaction to be told what was just read.
+
+Ask only when detection was genuinely inconclusive: use GitHub Issues, GitLab Issues, Jira,
+Linear, or none?
 
 ### 0.4 — Persist to CLAUDE.md
 
@@ -228,7 +235,17 @@ If match found, ask: continue existing or start fresh?
 Before creating the plan directory, decide whether it belongs in a per-incubator root or the vault-default `docs/plans/`.
 
 1. **Auto-detect from CWD.** If `pwd` is inside `Incubator/<slug>/...`, propose `<slug>` as the incubator.
-2. **Confirm with the operator.** Ask: *"Is this plan scoped to an incubator? If yes, which? (detected: `<slug or none>`)"* Accept the slug, `none` for `docs/plans/`, or a different incubator name. If the operator names an incubator that does not yet exist under `Incubator/`, confirm before creating it.
+2. **Confirm with the operator — ONLY when auto-detect was ambiguous.** When `pwd` is
+   unambiguously inside a single existing `Incubator/<slug>/...`, take that slug and proceed
+   without asking; likewise take `docs/plans/` without asking when `pwd` is outside `Incubator/`
+   entirely. Both cases have exactly one defensible answer, and the operator can still redirect
+   after the fact — the plan folder is a `git mv` away, so the cost of a wrong auto-detect is
+   far below the cost of an interaction on every plan.
+
+   Ask when it is genuinely ambiguous: *"Is this plan scoped to an incubator? If yes, which?
+   (detected: `<slug or none>`)"* Accept the slug, `none` for `docs/plans/`, or a different
+   incubator name. **Always confirm before CREATING an incubator that does not yet exist** —
+   that is a new directory in the operator's vault, not a routing choice.
 3. **Pass the answer to init.** Use `--incubator <slug>` (or omit for `docs/plans/`).
 
 ### 1.3 — Create plan directory
@@ -549,10 +566,27 @@ field (REQ-DATA-015).
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" --json
-# → {suggested_class, signals, confidence, evidence}. Present it — INCLUDING `evidence` —
-#   and ask the operator to confirm/override.
+# → {suggested_class, signals, confidence, evidence}
 uv run ${SKILL_DIR}/scripts/plan_manager.py set-deliverable-class "${plan_dir}" "<ci-release|standard>"
 ```
+
+**Do NOT prompt here on a `prose-only` suggestion — record `standard` and move on.** This
+section's own text already says the confidence signal is *"effectively always `low` here, which
+makes it useless for deciding"*: at intake no merged tree exists, so the only non-prose marker
+(`.github/workflows/**`) cannot fire, and every suggestion is `prose-only` by construction.
+Asking the operator to adjudicate a signal the skill documents as uninformative is the clearest
+case of a low-information prompt in the whole flow.
+
+Two things make dropping it safe rather than merely cheaper:
+
+- The class is **re-confirmed at reconcile** (§6.4) once changed paths exist — and that is the
+  *only* point where `evidence: path-backed` is reachable, so it is where the decision actually
+  has information behind it.
+- The completion gate is a **strict no-op** for `standard`, so the default costs nothing.
+
+**Still prompt when `evidence` is `path-backed`** — a `.github/workflows/**` path really
+matched, which at intake means the plan folder itself already carries one. That is rare and
+genuinely informative, so it earns the interaction.
 
 **Read `evidence`, not `confidence` (REQ-CLI-015).** At intake no merged tree exists yet, so
 `--changed` is empty and the `.github/workflows/**` path marker — the only non-prose signal —

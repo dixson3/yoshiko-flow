@@ -103,7 +103,7 @@ Skill scripts that write runtime cache files **must** write under `.yf/<short>/`
 
 This rule extends to the Python helper convention in [SKILL](../SKILL.md) § Python helpers — runtime caches written by helper scripts go under `.yf/<short>/`, not adjacent to the script.
 
-> **Forward-pointer — manager-script drift.** The Rust `yf` binary emits the canonical short-name paths above. Some Python manager scripts still lag: `yf-plan`'s `plan_manager.py` writes state to the full-name `.yf/yf-plan/` and reads config only from the legacy root dotfile, so it never sees `.yf/plan/config.local.json`. That divergence is tracked in `dixson3/yoshiko-flow#100`. The canonical layout in this section is the standard those scripts are converging on — describe and adopt it, not the lagging behavior.
+> **Manager-script conformance.** The Rust `yf` binary emits the canonical short-name paths above, and `yf-plan`'s `plan_manager.py` now matches them: `SKILL_SHORT = "plan"` puts its state under `.yf/plan/`, and `_read_config()` reads `.yf/plan/config.local.json` first, falling back through `.yf/plan/config.json` to the legacy root dotfile. The divergence formerly tracked in `dixson3/yoshiko-flow#100` is resolved and that issue is closed. Adopt the canonical layout in this section; a script that still lags it is the exception to fix, not a pattern to copy.
 
 ## 5. Hook installation
 
