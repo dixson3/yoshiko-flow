@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-17
+- executing: start gate resolved
+- intake: epic yf-mol-6yh poured
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE + audit pass
 - review: red-team pass 3 presented — APPROVE, 5 residual concerns

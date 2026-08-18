@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-044-james-dixson-f6fdbd
 author: james-dixson
 created: '2026-08-17'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: ccbc6e610dfed92ba0a3c67de917b31cc0849dfe08359abb648d6a7781d34f98
+epic: yf-mol-6yh
 ---
 # Plan: Retire the beads-integrity and deploy-path defect clusters (#159, #160, #154, #156, #155, #144, #142, #143)
 
 **ID:** plan-044-james-dixson-f6fdbd
 **Author:** james-dixson
 **Created:** 2026-08-17
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-6yh
 **Fingerprint:** ccbc6e610dfed92ba0a3c67de917b31cc0849dfe08359abb648d6a7781d34f98
 
 ## Objective
