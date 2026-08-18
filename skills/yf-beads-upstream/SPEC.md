@@ -492,6 +492,29 @@ companion rule.
   fail-closed **contract is preserved unchanged**; only its **evidence** changes, from a scraped
   string to a structured return.
 
+- **REQ-BUP-060** *(testable, #142)* upstream state shall be resolved via **one bulk query**
+  (`gh issue list --state all --json number,state`) rather than a per-issue round trip. A mapped
+  ref **absent from the bulk result** is `UNRESOLVABLE` at **zero extra cost** — a deleted issue
+  and a typo'd ref are indistinguishable by this signal and shall both classify that way.
+- **REQ-BUP-061** *(testable, #144)* the skill shall expose a **`reconcile`** verb proposing
+  `bd close -r "<upstream #N closed>"` for each non-closed bead whose upstream issue is CLOSED.
+  Its authority is **asymmetric by design**: the **local** half is `--apply`-able (a `bd close -r`
+  tombstone is reversible, as is `unhoist`), while the **upstream** half remains **propose-only,
+  with no `--apply`** (`REQ-BUP-052` and the always-loaded safety invariant). Closing an upstream
+  issue is outward-facing and keeps the same confirmation a push requires.
+- **REQ-BUP-062** *(testable)* `external_ref` shall be **normalized to an issue number at the read
+  boundary**, so the URL-only reader and the any-string reader **agree** on every input. Two
+  readers disagreeing about what a ref means is the defect: a bead written `"gh-91"` is mapped by
+  one and invisible to the other, so it is silently omitted from exactly the sweep meant to catch
+  it.
+- **REQ-BUP-063** *(testable)* an **unparseable** `external_ref` shall be **reported**, never
+  silently dropped. A ref the tooling cannot interpret is a finding for a human, not an absence.
+- **REQ-BUP-064** *(testable)* the skill shall **never auto-close a bead on an `UNRESOLVABLE`
+  ref**, and a `gh` failure shall yield **`INCONCLUSIVE`** — never a falsely-clean proposal. This
+  is the load-bearing asymmetry of a verb whose proposal requires a **network read** (unlike
+  `push`, whose preview is local): when the read fails, the correct output is "I could not tell",
+  because an empty proposal is indistinguishable from "nothing to do" and reads as success.
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (non-active push candidates via

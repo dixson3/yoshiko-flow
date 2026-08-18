@@ -66,6 +66,27 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // while the SPEC-first §3.10 landed ahead of the implementing epics. All are now
     // tagged by in-crate tests, so none remain allowlisted (net-clean, as designed).
     // REQ-YF-TUNE-011 is a non-testable design-posture requirement (no *(testable)* tag).
+    //
+    // === plan-044 TEMPORARY BRIDGE (Issue 0.5) — follows the plan-032 precedent ===
+    //
+    // SPEC-first: §3 landed these five bare `*(testable)*` REQs in Epic 0, ahead of the
+    // epics that implement them. Without a bridge row the enforced-set check below fails
+    // the moment the SPEC edit lands, so Epic 0 could not be green on its own.
+    //
+    // INVARIANT (plan-044 D-7): each row is removed in the SAME ISSUE **and the SAME
+    // COMMIT** as the `// REQ-…` tag that supersedes it. This is not stylistic tidiness —
+    // `allowlist_entries_are_relevant_and_not_stale` (below) fails on a STALE row exactly
+    // as `enforced` fails on a missing one, so a row that outlives its tag by even one
+    // commit turns the tree red for every other in-flight branch. The two edits are one
+    // atomic change: add the tag, delete the row.
+    //
+    // Owning issue per row is named in its reason. Issue 4.3 asserts this block is
+    // net-clean at close — no row from this plan may survive it.
+    ("REQ-YF-DOCTOR-006", "plan-044 BRIDGE (Issue 1.3): doctor --repair postcondition re-check. Remove this row in the same commit as the `// REQ-YF-DOCTOR-006` tag"),
+    ("REQ-YF-FLOW-008", "plan-044 BRIDGE (Issue 2.1): `skills upgrade` is rules-neutral. Remove this row in the same commit as the `// REQ-YF-FLOW-008` tag"),
+    ("REQ-YF-TUNE-029", "plan-044 BRIDGE (Issue 2.6): rules-side revert guard (sha mismatch => conservative-keep). Remove this row in the same commit as the `// REQ-YF-TUNE-029` tag"),
+    ("REQ-YF-INSTALL-010", "plan-044 BRIDGE (Issue 2.9): opt-in `install --prune`. Remove this row in the same commit as the `// REQ-YF-INSTALL-010` tag"),
+    ("REQ-YF-MARK-005", "plan-044 BRIDGE (Issue 2.10): residue ignore-list across all four surfaces. Remove this row in the same commit as the `// REQ-YF-MARK-005` tag"),
 ];
 
 /// Root of the `yf` crate (the dir holding `Cargo.toml`).
