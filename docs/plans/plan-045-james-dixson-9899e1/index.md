@@ -16,3 +16,10 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/](findings/) - Investigation experiment results (if any).
 - [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
 - [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+
+## Note on `scope-answers.md`
+
+This bundle has **no `scope-answers.md`**. Scoping was conducted interactively rather than via the
+questionnaire path, and the resulting decisions are recorded as the **D-1…D-8 table** in `plan.md`
+§Approach, which supersedes it. Recorded here so a cold reader does not read the absence as a gap
+(pass-2 concern I).
