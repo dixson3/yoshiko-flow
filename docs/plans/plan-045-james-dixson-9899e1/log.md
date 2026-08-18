@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-18
+- reconciling: post-execution reconciliation; 46/46 execution beads closed
+- executing: start gate resolved; 46-bead DAG across 7 epics poured
+- intake: epic yf-mol-0r3 poured
 - approved: operator approved
 - ready-for-approval: ready-check green after pass 4 — last verdict APPROVE + audit pass
 - review: red-team pass 4 presented — APPROVE, 4 low concerns folded in

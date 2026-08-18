@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-045-james-dixson-9899e1
 author: james-dixson
 created: '2026-08-17'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: 4954ac04905405e370806c149cc4e077725264ad9f39301951dd016d9fdb88fc
+epic: yf-mol-0r3
 ---
 # Plan: Make plan execution and review autonomous by default, with human gates frontloaded: self-resolving review cycles, a non-stopping coordinator loop, an execute-start gate sweep, and push-based herdr delegation
 
 **ID:** plan-045-james-dixson-9899e1
 **Author:** james-dixson
 **Created:** 2026-08-17
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-0r3
 **Fingerprint:** 4954ac04905405e370806c149cc4e077725264ad9f39301951dd016d9fdb88fc
 
 ## Objective
