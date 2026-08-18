@@ -651,6 +651,14 @@ def test_closable_never_closes_anything(capsys, monkeypatch):
     def boom(cmd):
         raise AssertionError(f"closable executed {cmd!r} — it must never close")
     monkeypatch.setattr(up, "run", boom)
+    # plan-044 Issue 3.3: `closable` now READS upstream state before proposing.
+    # Booby-trap the new call path too — `run_unchecked` would otherwise escape the
+    # trap above AND make this hermetic unit test hit the real network.
+    monkeypatch.setattr(up, "run_unchecked", boom)
+    monkeypatch.setattr(
+        up, "resolve_upstream_states",
+        lambda nums, runner=None: up.UpstreamStates(states={1: "OPEN"}),
+    )
     rc = up.cmd_closable(as_json=False)
     assert rc == 0
     out = capsys.readouterr().out
@@ -693,6 +701,13 @@ def test_closable_issues_one_bd_list_and_zero_bd_show(capsys, monkeypatch):
     calls = []
     monkeypatch.setattr(up, "upstream_enabled", lambda: True)
     monkeypatch.setattr(up, "run", _counting_run(calls))
+    # plan-044 Issue 3.3: stub the upstream state read. `closable` now consults it
+    # before proposing, and without a stub this hermetic test would hit the network
+    # (its `run` counter does not cover the new `run_unchecked` path).
+    monkeypatch.setattr(
+        up, "resolve_upstream_states",
+        lambda nums, runner=None: up.UpstreamStates(states={}),
+    )
     rc = up.cmd_closable(as_json=False)
     assert rc == 0
 
@@ -722,6 +737,13 @@ def test_closable_bd_show_count_does_not_grow_with_universe_size(monkeypatch):
             raise AssertionError(f"unexpected bd call: {cmd!r}")
         monkeypatch.setattr(up, "upstream_enabled", lambda: True)
         monkeypatch.setattr(up, "run", _run)
+        # plan-044 Issue 3.3: stub the upstream state read so the scale invariant
+        # stays hermetic (and O(1) in wall clock) rather than hitting the network
+        # once per universe size.
+        monkeypatch.setattr(
+            up, "resolve_upstream_states",
+            lambda nums, runner=None: up.UpstreamStates(states={}),
+        )
         up.cmd_closable(as_json=True)
         return len(calls)
 
@@ -1141,7 +1163,6 @@ def test_enumerate_silent_when_nothing_owner_excluded(monkeypatch, capsys):
 
 # --- REQ-BUP-062: the two external_ref readers AGREE ---------------------------
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issue 3.1 implements ref normalization")
 @pytest.mark.parametrize(
     "raw",
     [
@@ -1161,7 +1182,6 @@ def test_external_ref_normalizes_to_issue_number(raw):
     assert up.normalize_external_ref(raw) == 91
 
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issue 3.1 implements ref normalization")
 def test_external_readers_agree_on_the_same_bead():
     """external_for() and external_from_row() shall not disagree (REQ-BUP-062)."""
     row = {"id": "yf-4d7s", "external_ref": "gh-91"}
@@ -1170,7 +1190,6 @@ def test_external_readers_agree_on_the_same_bead():
 
 # --- REQ-BUP-060: upstream state resolved by ONE bulk query --------------------
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issue 3.2 implements the bulk resolver")
 def test_upstream_state_resolved_in_one_bulk_query():
     """One `gh issue list --state all` call, regardless of how many refs are asked for."""
     calls = []
@@ -1193,22 +1212,32 @@ def test_upstream_state_resolved_in_one_bulk_query():
 
 # --- REQ-BUP-063: an unparseable ref is REPORTED, never silently dropped -------
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issue 3.4 implements unparseable reporting")
-def test_unparseable_external_ref_is_reported_not_dropped():
-    rows = [
-        {"id": "yf-aaaa", "external_ref": "https://github.com/o/r/issues/91"},
-        {"id": "yf-bbbb", "external_ref": "not-a-ref-at-all"},
-    ]
-    result = up.partition_refs(rows)
-    assert 91 in result.resolved
-    assert any(r["id"] == "yf-bbbb" for r in result.unparseable), (
-        "an uninterpretable ref is a finding for a human, not an absence"
+def test_unparseable_external_ref_is_reported_not_dropped(capsys, monkeypatch):
+    """REQ-BUP-063: an uninterpretable ref is a FINDING for a human, not an absence.
+
+    The Epic-0 placeholder for this case guessed a `partition_refs` helper. The
+    requirement landed as reporting inside `closable` instead, so this asserts the
+    REQUIREMENT against the shipped shape rather than pinning an API that was never
+    built — a permanently-xfailing test would have misreported REQ-BUP-063 as unmet.
+    """
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "yf-aaaa", "status": "closed", "external_ref": ISSUE_A},
+        {"id": "yf-bbbb", "status": "closed", "external_ref": "not-a-ref-at-all"},
+    ])
+    monkeypatch.setattr(
+        up, "resolve_upstream_states",
+        lambda nums, runner=None: up.UpstreamStates(states={1: "OPEN"}),
     )
+    up.cmd_closable(as_json=False)
+    out = capsys.readouterr().out
+    assert "UNPARSEABLE" in out, "the bad ref must be reported"
+    assert "yf-bbbb" in out, "the owning bead must be named"
+    assert "not-a-ref-at-all" in out, "the offending value must be shown"
 
 
 # --- REQ-BUP-064: gh failure is INCONCLUSIVE, never a falsely-clean proposal ---
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issues 3.3/3.5 implement INCONCLUSIVE")
 def test_gh_failure_yields_inconclusive_not_clean():
     """An empty proposal is indistinguishable from 'nothing to do' and reads as success.
 
@@ -1221,7 +1250,6 @@ def test_gh_failure_yields_inconclusive_not_clean():
     assert verdict.inconclusive is True
 
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issues 3.3/3.5 implement INCONCLUSIVE")
 def test_never_auto_closes_a_bead_on_an_unresolvable_ref():
     plan = up.plan_reconcile(
         [{"id": "yf-zzzz", "status": "open", "external_ref": "#9999"}],
@@ -1233,7 +1261,6 @@ def test_never_auto_closes_a_bead_on_an_unresolvable_ref():
 
 # --- REQ-BUP-061: the `reconcile` verb and its ASYMMETRIC authority ------------
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issue 3.5 implements the reconcile verb")
 def test_reconcile_proposes_local_close_for_closed_upstream():
     plan = up.plan_reconcile(
         [{"id": "yf-1656", "status": "open", "external_ref": "#132"}],
@@ -1242,7 +1269,6 @@ def test_reconcile_proposes_local_close_for_closed_upstream():
     assert any("bd close" in c and "yf-1656" in c for c in plan.commands)
 
 
-@pytest.mark.xfail(strict=True, reason="plan-044 Issue 3.5 implements the reconcile verb")
 def test_reconcile_upstream_half_is_propose_only():
     """The local half is --apply-able; the upstream half is NOT (REQ-BUP-052)."""
     assert up.reconcile_supports_apply(half="local") is True
