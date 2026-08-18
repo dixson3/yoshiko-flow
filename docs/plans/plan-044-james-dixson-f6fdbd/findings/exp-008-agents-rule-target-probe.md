@@ -1,3 +1,11 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+id: exp-008-agents-rule-target-probe
+plan: plan-044-james-dixson-f6fdbd
+created: '2026-08-17'
+---
+
 # exp-008 — What does the `agents` surface actually load? (D-11 probe)
 
 **Issue:** 2.2 · **Plan:** plan-044 · **Date:** 2026-08-17 · **Upstream:** #156

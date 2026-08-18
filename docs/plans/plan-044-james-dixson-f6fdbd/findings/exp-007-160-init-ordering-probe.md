@@ -1,3 +1,11 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+id: exp-007-160-init-ordering-probe
+plan: plan-044-james-dixson-f6fdbd
+created: '2026-08-17'
+---
+
 # exp-007 — The #160 init-ordering hypothesis: CONFIRMED
 
 **Issue:** 1.6 · **Plan:** plan-044 · **Date:** 2026-08-17 · **Upstream:** #160
