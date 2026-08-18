@@ -50,6 +50,7 @@ approved: yes
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
+| `uv-herdr-launch` | `uv run skills/yf-herdr/scripts/test_launch_contract.py` |  |  |
 
 ### full
 
@@ -84,6 +85,7 @@ approved: yes
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
+|  | `uv run skills/yf-herdr/scripts/test_launch_contract.py` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -91,7 +93,7 @@ approved: yes
 |:--|:--|
 | `Cargo.toml` | `sha256:dc1c5e47e979e216` |
 | `.github/workflows/*.yml` | `sha256:56499c620291d09a` |
-| `**/test_*.py` | `sha256:b39e590af9e5df35` |
+| `**/test_*.py` | `sha256:335aa5771ba1f0be` |
 | `repo --check scripts` | `sha256:af52842d97019b3b` |
 
 ## 3. Trigger Scope
@@ -133,6 +135,12 @@ approved: yes
 | `skills/yf-plan/scripts/test_update_status_idempotent.py` | `uv-yf-status-idem` |
 | `skills/yf-plan/scripts/test_cascade_root_resolution.py` | `uv-yf-cascade-root` |
 | `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-audit-close`, `uv-yf-reconcile-step` |
+| `skills/yf-herdr/**` | `uv-herdr-launch` |
+| `skills/yf-herdr/SKILL.md` | `uv-herdr-launch` |
+| `skills/yf-herdr/scripts/test_launch_contract.py` | `uv-herdr-launch` |
+| `skills/*/SPEC.md` | `uv-herdr-launch` |
+| `skills/*/spec/*.md` | `cargo` |
+| `skills/yf-plan/spec/*.md` | `cargo`, `uv-yf-close-contract` |
 | `skills/yf-plan/scripts/fixtures/classify/**` | `uv-yf-classify` |
 | `skills/*/SKILL.md` | `frontmatter` |
 | `skills/*/agents/*.md` | `frontmatter` |
