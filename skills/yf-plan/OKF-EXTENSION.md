@@ -28,6 +28,7 @@ the following strings for the artifact kinds a plan bundle emits:
 | `Review` | `reviews/pass-<N>.md` — one file per reviewer cycle | `reviews/` seed |
 | `Environment` | `context.md` — project environment snapshot | `seed_context_md` |
 | `Reference` | `references/upstream-<N>.md` — inlined upstream issue bodies | `write_upstream_reference` |
+| `Retrospective` | `plan-retrospective.md` — stops and deviations recorded during execution; **presence-optional**, absence is never a finding (REQ-PORT-ACT-RETROSPECTIVE) | `retrospective-append` (REQ-CLI-022) |
 
 `upstream-triage.md` (the operator working file) is a plan-local disposition surface, not a
 concept document; it is typed `Reference` if retained as a bundle `.md`, or excluded if treated as
@@ -48,6 +49,7 @@ scratch — **decision to lock in Epic 3** (see §6).
 | `references/upstream-*` | `Reference` |
 | `references/*` | `Reference` |
 | `upstream-triage.md` | `Reference` |
+| `plan-retrospective.md` | `Retrospective` |
 | `*` | `Concept` |
 
 ## 1b. Migration: reserved-file sources (SPEC REQ-OKF-MIG-005)

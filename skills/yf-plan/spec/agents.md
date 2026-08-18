@@ -28,6 +28,10 @@ REQ-AGENT-013: On a resume, the coordinator runs the orphan sweep before the rea
 Rationale: A crashed prior session leaves stuck beads the ready loop would skip; resetting makes them re-workable without auto-closing real work. See REQ-RESUME-002/003 (phases.md) for the cross-cutting contract.
 Verification: coordinator.md "Resume orphan sweep" section specifies reset-not-close, report-unclassifiable, and the before-ready-loop ordering.
 
+REQ-AGENT-064: Under the autonomous default the coordinator **continues to the next ready bead without operator input**. An epic boundary is a **report, not a stop**. The coordinator halts only on the declared stop set: (1) an outward-facing or irreversible write; (2) a capability gate whose `Test:` exits non-zero; (3) a declared destructive local operation; (4) a mechanical counter threshold (`yf_attempts >= N`, or `max_review_cycles >= N` in the plan phase); (5) a declared mechanical check that exits non-zero — validation FAIL, audit/`ready-check` fail, merge conflict, dirty worktree, or a corrupted bead DB (which routes to `yf-beads-init`). No halt is reachable by prose judgement alone: every stop class is an exit code or a counter.
+Rationale: The coordinator's only explicit wait was "Wait for operator", and it was the loop's documented exit — so an ordinary unsatisfiable gate routed straight to a stop. Measured in the same file: "report blocked gates" appeared 5x and "continue to the next bead" 0x, leaving the continue case unwritten rather than merely under-emphasised. Enumerating the stop set mechanically closes the loophole in the other direction too: without an exit code, "scope ambiguity" re-admits arbitrary stopping.
+Verification: coordinator.md Loop states the continue-to-next-ready-bead instruction and that an epic boundary is a report; each of the five stop classes maps to a command exit code or a counter comparison.
+
 ## Investigator
 
 REQ-AGENT-020: Investigators run in disposable worktrees. No code from an investigation worktree lands in the project.
@@ -64,8 +68,8 @@ REQ-AGENT-042: High-severity concerns block approval.
 Rationale: Proceeding with known high-severity issues produces plans that fail during execution.
 Verification: red-team.md Rules: "High blocks approval."
 
-REQ-AGENT-043: The red-team agent is read-only. It never writes files. `reviews/pass-N.md` and the `log.md` `review:` line are written by the main session **at red-team presentation** (create-on-present, #4) as a single atomic step, then the same file is updated in place as the operator resolves concerns (REQ-PORT-006/008).
-Rationale: Agents that write files outside their dispatch scope violate agent isolation (REQ-AGENT-050 sibling) and make the review capture path non-auditable. Keeping the red-team read-only lets the main session atomically write the review artifact and the phase-log entry together; writing at presentation (not after resolution) makes the verdict portable while the plan is still parked in `review`.
+REQ-AGENT-043: The red-team agent is read-only. It never writes files. `reviews/pass-N.md` and the `log.md` `review:` line are written by the main session **at red-team presentation** (create-on-present, #4) as a single atomic step, then the same file is updated in place as concerns are resolved (REQ-PORT-006/008). The resolver is **actor-agnostic**: under the autonomous default the main session resolves concerns and re-runs the red-team itself; under a checkpointed run the operator resolves them. The resolving actor is recorded in the Resolutions table's `actor` column (REQ-PORT-008).
+Rationale: Agents that write files outside their dispatch scope violate agent isolation (REQ-AGENT-050 sibling) and make the review capture path non-auditable. Keeping the red-team read-only lets the main session atomically write the review artifact and the phase-log entry together; writing at presentation (not after resolution) makes the verdict portable while the plan is still parked in `review`. Naming no specific resolver keeps the requirement true under both autonomy levels; the read-only clause is independent of who resolves and is also GR-PLAN-002.
 Verification: red-team.md Rules: "Read-only — never writes files" + "writes ... at presentation"; SKILL.md Phase 3 Review section "Write the report at presentation" states the main session writes `reviews/pass-N.md` + phase-log line atomically at red-team presentation.
 
 REQ-AGENT-046: The red-team checks **gate reachability**, not only gate well-formedness: for each capability gate, its `Condition` must be satisfiable given what the gate `Blocks`. A condition that depends on evidence produced by an issue inside its own `Blocks` set is a cycle and is reported as a defect; the remedy is to gate the *mutating* step rather than the step that produces the evidence.
@@ -98,9 +102,9 @@ REQ-AGENT-060: The captor drafts missing portability-contract files (the reserve
 Rationale: Operators should not have to hand-write portability scaffolding when the plan folder already contains enough state to derive it. The captor centralizes the drafting heuristics.
 Verification: `agents/captor.md` Draft section enumerates the contract files; SKILL.md Phase: CAPTURE dispatches to `agents/captor.md`.
 
-REQ-AGENT-061: The captor is read-only. It returns drafts for operator review and never writes files. The main session writes on approval.
+REQ-AGENT-061: The captor is read-only. It returns drafts for review and never writes files. The main session writes on approval. The **approving actor is actor-agnostic**: under the autonomous default the main session reviews and approves the drafts it then writes; under a checkpointed run the operator approves first.
 Rationale: Mirrors the read-only review-agent pattern (REQ-AGENT-043/045). Keeps agent dispatch scope small and makes the write path auditable.
-Verification: `agents/captor.md` Rules: "Never write files. The main session writes after operator approval."
+Verification: `agents/captor.md` Rules state the captor never writes files and that the main session writes after approval, without naming a fixed approving actor.
 
 REQ-AGENT-062: The captor must not invent reviewer verdicts, fabricate tool versions, or paraphrase upstream issue bodies. Reviewer drafts that cannot be reconstructed from phase-log reasoning are flagged inconclusive for the operator.
 Rationale: Portability scaffolding is worthless if its content is fictional. Drafts must be derivable from plan state, not hallucinated.

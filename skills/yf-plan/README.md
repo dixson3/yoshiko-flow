@@ -128,7 +128,7 @@ formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp
 scripts/
-  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery resume scan, worktree lifecycle (ensure/path/teardown), landing lock, merged-state validation (run via uv)
+  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery resume scan, worktree lifecycle (ensure/path/teardown), landing lock, merged-state validation, autonomy config resolution, retrospective append (run via uv)
   test_worktree.py           Unit tests for the worktree verb cluster + landing lock + validate-merged (run via uv)
   manifest_update.py         Vendored manifest hash/version helper (run via uv)
 protocols/

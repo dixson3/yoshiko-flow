@@ -62,14 +62,30 @@ authorisation.
 - **REQ-HERDR-014** — At most **one** subordinate per plan/research project. A second spawn for the
   same target **shall** be refused — two sessions racing one bead DAG is a corruption hazard, not a
   parallelism win.
+- **REQ-HERDR-015** — §2.2 governs **prompt content**, not merely tab mechanics. The launch prompt
+  **shall** carry three mandatory elements, and they are **requirements, not advice**: (a) an
+  **autonomy directive** instructing the subordinate to run to completion, stopping only at the
+  gates its plan declares; (b) the **push contract** of REQ-HERDR-026 (when to push, and that
+  `--wait` is forbidden); and (c) the **parent handle** — the parent's own pane id, seeded as
+  `YF_PARENT_PANE` via `--env` on `tab create` **and** restated in the prompt text. The pane id
+  **shall** be preferred over the agent name: `HERDR_PANE_ID` is injected automatically and is
+  stable, whereas a name exists only for `agent start`-ed agents and goes stale on rename. The
+  three elements **shall** also be passed via `-- --append-system-prompt` so they survive the
+  subordinate's context compaction. A launch that omits any of the three is **non-conformant**,
+  not merely sub-optimal.
 
 ### 2.3 Observation
 
-- **REQ-HERDR-020** — The skill **shall** state plainly at launch that observation occurs at
-  operator turn boundaries and on demand, **not** continuously. A turn-based agent has no execution
-  between turns; implying a watcher would be a false promise.
-- **REQ-HERDR-021** — On each turn while a subordinate is live, the parent **shall** check
-  `agent_status` and report material change.
+- **REQ-HERDR-020** — The skill **shall** state plainly at launch that the parent's **own polling**
+  occurs at operator turn boundaries and on demand, **not** continuously — a turn-based agent has no
+  execution between turns, so implying a watcher would be a false promise. This limit is a property of
+  **pull**, and **shall not** be stated as a limit on observation as such: under REQ-HERDR-026 the
+  subordinate pushes, so the parent learns of a material event without polling for it.
+- **REQ-HERDR-021** — Polling is the **fallback**, not the primary channel. On each turn while a
+  subordinate is live **and has not pushed since the last checked turn**, the parent **shall** check
+  `agent_status` and report material change. Polling **shall** also be used to investigate a
+  subordinate that has gone silent or reads `blocked` (REQ-HERDR-022). Where a push has already
+  reported the event, a poll is corroboration, not the source of truth.
 - **REQ-HERDR-022** — `blocked` **shall** be read before any prompt is sent. A prompt delivered to
   a blocked agent is consumed by its open dialog and lost. (Observed live, twice.)
 - **REQ-HERDR-023** — The parent **shall not** resolve a capability gate, and **shall** surface
@@ -79,6 +95,19 @@ authorisation.
   success criterion **shall** go to the operator.
 - **REQ-HERDR-025** — `idle`/`done` **shall not** be reported as completion without checking
   remaining beads; both states also occur when a subordinate is merely waiting.
+- **REQ-HERDR-026** — Observation is **push-primary, polling-fallback**. The subordinate **shall**
+  push to `YF_PARENT_PANE` at three trigger classes and no others: **epic completion**, a
+  **blocker / failed gate / halt**, and **plan completion or abort**. It **shall not** push per
+  bead — a plan-sized DAG would emit tens of messages and flood the parent's context. The push
+  **shall not** use `--wait`: `--wait` reintroduces lockstep, and `--wait --until idle` is
+  measurably wrong for a claude subordinate, which settles at `done` and never at `idle`, so the
+  wait times out on a turn that in fact completed. Because `agent_prompted` acknowledges
+  **injection, not submission**, every push **shall** be paired with an idempotent
+  `herdr pane report-metadata --token` stamp on the subordinate's own pane, readable back via
+  `pane get` / `agent get` / `agent list`; the token is the mechanical postcondition that makes the
+  polling fallback a genuine backstop rather than a parallel mechanism. The parent's autonomy
+  predicate is unchanged by this REQ: a pushed question is still answered by the parent **only**
+  when settled by existing approved plan content (REQ-HERDR-024).
 
 ### 2.4 Deviation mining
 

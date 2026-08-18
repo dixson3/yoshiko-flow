@@ -47,8 +47,11 @@ Run it in place instead.
 A turn-based agent has no execution between your turns. `yf-herdr` says so at launch rather
 than implying a background watcher:
 
-- **Observation happens at your turn boundaries and on demand.** There is no polling loop,
-  no daemon, no cron.
+- **Your polling happens at your turn boundaries and on demand.** There is no polling loop,
+  no daemon, no cron. But that is a limit on *pull*, not on observation: the subordinate
+  **pushes** to your pane at epic boundaries, blockers and completion, so you learn of a
+  material event without asking for it. Polling is the fallback for a subordinate that has
+  gone silent or reads `blocked`.
 - **`blocked` is read before any prompt is sent.** A prompt delivered to a blocked agent is
   swallowed by its open dialog and lost. This was observed live, twice, before it became a
   rule.
