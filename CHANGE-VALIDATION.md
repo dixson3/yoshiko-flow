@@ -45,6 +45,7 @@ approved: yes
 | `uv-yf-reconcile-step` | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
 | `uv-yf-status-idem` | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
 | `uv-yf-cascade-root` | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
+| `uv-yf-epic-ref` | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 | `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
@@ -88,9 +89,9 @@ approved: yes
 | source-path | parsed-value-or-hash |
 |:--|:--|
 | `Cargo.toml` | `sha256:dc1c5e47e979e216` |
-| `.github/workflows/*.yml` | `sha256:5ebddf75ce6f6821` |
-| `**/test_*.py` | `sha256:9027588c212a53f9` |
-| `repo --check scripts` | `sha256:daa4d8b8c86cf102` |
+| `.github/workflows/*.yml` | `sha256:56499c620291d09a` |
+| `**/test_*.py` | `sha256:b39e590af9e5df35` |
+| `repo --check scripts` | `sha256:af52842d97019b3b` |
 
 ## 3. Trigger Scope
 
@@ -116,7 +117,8 @@ approved: yes
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref` |
+| `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_complete_gate.py` | `uv-yf-complete-gate` |
