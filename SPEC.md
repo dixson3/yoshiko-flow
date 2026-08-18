@@ -786,6 +786,19 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   removal: the doctor/preflight rule-candidate resolution shall be reconciled so non-claude
   harnesses do not regress to `rule_missing`.
 
+  **The `agents` surface is SKILLS-ONLY** *(plan-044 Issue 2.2, discharging the Issue 0.1
+  deferral with measurement rather than a guess)*. `agents` shall receive **skill bodies only**
+  and **no rules file at any target**; it gains no `REQ-YF-TUNE-020` rule-target row, and
+  `~/.agents/rules` is not a rule-candidate location. Evidence: `agents` is absent from the
+  harness **detection** table (never auto-detected), carries **identical** skills subpaths to
+  `codex`, is referred to in-code as *"the `agents` alias"* of the shared `.agents` dir, and has
+  **no binary** that could load a rules file; on a machine running `yf` with skills deployed to
+  `~/.agents/skills/`, **neither** `~/.agents/rules/` **nor** `~/.agents/AGENTS.md` exists. The
+  skills installed there are consumed by **codex**, whose rules already deploy to
+  `~/.codex/AGENTS.md` — so declaring `agents` skills-only removes a write that served no reader
+  rather than orphaning one. Reversing this requires first-party evidence of an actual reader,
+  carried on the row, exactly as pi's target does (§3.10).
+
 ### 3.4 Integrity marker & up-to-date detection (`REQ-YF-MARK`)
 
 - **REQ-YF-MARK-001** *(testable)* `yf` shall compute a per-skill **tree hash** = SHA256 over each
