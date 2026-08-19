@@ -63,6 +63,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `manifest-update-copy-research` | `skills/yf-research/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
 | `manifest-update-copy-skill-authoring` | `skills/yf-skill-authoring/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
 | `okf-canonical` | `_shared/okf.py` (the canonical, whole-file OKF bundle engine) | source | fixed | required |
+| `okf-baseline-spec` | `skills/yf-okf/spec/OKF-BASELINE.md` (the authored, human-readable upstream OKF baseline; declares the `okf_version` pin) | spec | fixed | required |
 | `okf-copy-plan` | `skills/yf-plan/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
 | `okf-copy-research` | `skills/yf-research/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
 | `okf-copy-incubator` | `skills/yf-incubator/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
@@ -113,6 +114,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-manifest-update-copy-plan` | `manifest-update-canonical` | `manifest-update-copy-plan` | contract |
 | `e-manifest-update-copy-research` | `manifest-update-canonical` | `manifest-update-copy-research` | contract |
 | `e-manifest-update-copy-skill-authoring` | `manifest-update-canonical` | `manifest-update-copy-skill-authoring` | contract |
+| `e-okf-version-pin` | `okf-baseline-spec` | `okf-canonical` | value-equal |
 | `e-okf-copy-plan` | `okf-canonical` | `okf-copy-plan` | contract |
 | `e-okf-copy-research` | `okf-canonical` | `okf-copy-research` | contract |
 | `e-okf-copy-incubator` | `okf-canonical` | `okf-copy-incubator` | contract |
@@ -167,6 +169,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-manifest-update-copy-plan` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-plan/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-plan`. |
 | `e-manifest-update-copy-research` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-research/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-research`. |
 | `e-manifest-update-copy-skill-authoring` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-skill-authoring/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-skill-authoring`. |
+| `e-okf-version-pin` | `value-equal` | the OKF baseline version is a single fact with **two surfaces**, and they must agree: the version `spec/OKF-BASELINE.md` declares (its `# OKF-BASELINE — upstream Open Knowledge Format vX.Y` heading and its `Pinned to `okf_version: X.Y`` status line) must equal the `okf_version = "X.Y"` constant in `_shared/okf.py` (and therefore, via the `e-okf-copy-*` edges, in all four vendored copies). **The baseline is fixed authority** (SPEC `REQ-OKF-FAM-005`): on a mismatch the **engine constant** is the drifted node (FAIL on `okf-canonical`), unless the baseline document itself is stale against the vendored upstream spec, which is a CONFLICT under §7. **Why this edge exists (plan-046 Issue 2.8):** `OKF-BASELINE.md` already *declared* a coupling to the baked-in ruleset (SPEC `REQ-OKF-FAM-002`), and **no edge encoded it** — a v0.1→v0.2 edit to the baseline fired `e-spec-compliance` against `SKILL.md` but nothing that inspected `okf_version` at all. |
 | `e-okf-copy-plan` | `value-equal` | `okf.py` is authored once as `_shared/okf.py` (canonical, fixed authority) and **vendored whole-file** — regenerated verbatim by `_shared/sync.py` — to `skills/yf-plan/scripts/okf.py`. The copy must be **byte-identical** to canonical (a 100%-shared file carries no in-band markers). A divergent copy is the copy drifting (FAIL on `okf-copy-plan`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
 | `e-okf-copy-research` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-research/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-research`. |
 | `e-okf-copy-incubator` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-incubator/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-incubator`. |
@@ -225,7 +228,8 @@ content-agreement axis).
 | `_shared/json_extract.py` | `e-json-extract-copy-plan`, `e-json-extract-copy-research` |
 | `_shared/renderable_fences.py` | `e-renderable-fences-copy-lint`, `e-renderable-fences-lua-mirror` |
 | `_shared/manifest_update.py` | `e-manifest-update-copy-beads-upstream`, `e-manifest-update-copy-optimal-instructions`, `e-manifest-update-copy-plan`, `e-manifest-update-copy-research`, `e-manifest-update-copy-skill-authoring` |
-| `_shared/okf.py` | `e-okf-copy-plan`, `e-okf-copy-research`, `e-okf-copy-incubator`, `e-okf-copy-okf` |
+| `_shared/okf.py` | `e-okf-copy-plan`, `e-okf-copy-research`, `e-okf-copy-incubator`, `e-okf-copy-okf`, `e-okf-version-pin` |
+| `skills/yf-okf/spec/OKF-BASELINE.md` | `e-spec-compliance`, `e-okf-version-pin` |
 | `skills/yf-beads-hygiene/scripts/beads_hygiene.py` | `e-skill-script-cli`, `e-json-contract`, `e-active-set-copy-hygiene` |
 | `skills/yf-beads-upstream/scripts/upstream.py` | `e-skill-script-cli`, `e-json-contract`, `e-active-set-copy-upstream` |
 | `skills/yf-plan/scripts/plan_manager.py` | `e-skill-script-cli`, `e-json-contract`, `e-json-extract-copy-plan` |

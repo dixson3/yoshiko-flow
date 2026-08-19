@@ -501,7 +501,7 @@ def test_add_index_entry_appends_bullet(tmp_path):
 
 def test_baked_in_ruleset_constants():
     """REQ-OKF-FAM-002: BASELINE + YF-EXTENSIONS ruleset is baked into okf.py."""
-    assert okf.okf_version == "0.1"
+    assert okf.okf_version == "0.2"
     assert okf.RESERVED_FILES == ("index.md", "log.md")
     assert set(okf.BASELINE_MUSTS) == {"B1", "B2", "B3"}
     assert "OKF-SPECIFICATION" in okf.RESERVED_DEFERRED_MEMBERS
@@ -666,3 +666,400 @@ def test_migrate_plan_full_then_check_clean(tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ===========================================================================
+# render_index + index-drift coverage (plan-046 Epic 1, Issue 1.5)
+#
+# Measured hole this section closes: a mutation disabling the RESERVED_FILES
+# filter in render_index() survived all 31 pre-existing tests, while
+# render_index regressed to emitting `- [log.md](log.md)`. render_index is the
+# function plan-046 Epic 3 rewrites, so it is gated here BEFORE it is touched.
+# ===========================================================================
+
+def _generated_index(bundle):
+    """render_index() over a bundle that has NO index.md — the generating path.
+
+    scaffold_bundle() always writes an index.md, and render_index() returns an
+    existing one verbatim, so the generating branch is only reachable when no
+    index.md is present. Tests that mean to exercise generation must not scaffold.
+    """
+    return okf.render_index(bundle)
+
+
+def test_render_index_excludes_reserved_files(tmp_path):
+    """REQ-OKF-001/031: the generated listing never lists index.md or log.md.
+
+    THE MUTATION-KILLING TEST. Disabling the `child.name in RESERVED_FILES`
+    filter in render_index() makes this fail with `- [log.md](log.md)` present;
+    it left every other test in this file green.
+    """
+    b = tmp_path / "bundle"
+    b.mkdir()
+    (b / "log.md").write_text("# Log\n\n")          # reserved, must not be listed
+    (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
+    out = _generated_index(b)
+    assert "- [plan.md](plan.md)" in out
+    for reserved in okf.RESERVED_FILES:
+        assert f"- [{reserved}]" not in out, f"reserved file {reserved} leaked into the listing:\n{out}"
+
+
+def test_render_index_excludes_dotfiles(tmp_path):
+    """REQ-OKF-001: dot-prefixed children are structural, never listing members."""
+    b = tmp_path / "bundle"
+    b.mkdir()
+    (b / ".hidden.md").write_text("x\n")
+    (b / ".git").mkdir()
+    (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
+    out = _generated_index(b)
+    assert "- [plan.md](plan.md)" in out
+    assert ".hidden.md" not in out and ".git" not in out
+
+
+def test_render_index_includes_non_md_sidecars(tmp_path):
+    """REQ-OKF-001 / v0.2 §8: an index enumerates the directory's CONTENTS.
+
+    Non-`.md` sidecars (`plan.yaml`, `sources.json`) are listing members even
+    though REQ-OKF-060 excludes them from FRONTMATTER conformance — two
+    different axes. Research bundles carry these and a cold reader needs them
+    listed; measured 11 such sidecars across the corpus, all in research bundles.
+    """
+    b = tmp_path / "bundle"
+    b.mkdir()
+    (b / "sources.json").write_text("{}\n")
+    (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
+    out = _generated_index(b)
+    assert "- [sources.json](sources.json)" in out
+    assert "- [plan.md](plan.md)" in out
+
+
+def test_render_index_returns_existing_index_verbatim(tmp_path):
+    """REQ-OKF-001: an existing index.md is returned byte-for-byte.
+
+    This is the prose-preservation guarantee plan-046 Epic 3 (Issue 3.4) builds
+    the marker model on top of: render_index() must never silently regenerate
+    over hand-written orientation prose.
+    """
+    b = tmp_path / "bundle"
+    b.mkdir()
+    handwritten = "---\nokf_version: '0.2'\n---\n\n# Bundle\n\n## Note on scope\n\nhand-written prose.\n"
+    (b / "index.md").write_text(handwritten)
+    (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
+    assert okf.render_index(b) == handwritten
+
+
+def test_render_index_lists_subdirs_and_md_children(tmp_path):
+    """REQ-OKF-001: subdirs render as `- [name/](name/index.md)`, .md as `- [f](f)`.
+
+    Characterization test pinning the CURRENT generated shape. plan-046 Epic 3
+    changes what a subdirectory entry may point at (the ghost-directory-link
+    defect, 25 live ML003 violations); this test is the anchor that makes that
+    change deliberate rather than silent.
+    """
+    b = tmp_path / "bundle"
+    (b / "findings").mkdir(parents=True)
+    (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
+    out = _generated_index(b)
+    assert "- [findings/](findings/index.md)" in out
+    assert "- [plan.md](plan.md)" in out
+
+
+def test_render_index_generated_file_entries_all_resolve(tmp_path):
+    """INDEX DRIFT: every generated *file* bullet resolves to a real path.
+
+    The drift class plan-046 exists to fix is an index asserting a file that is
+    not there. Scoped to file entries on purpose: the generated *directory*
+    entry points at `<dir>/index.md`, which does not exist below a bundle root
+    today — that is the known ghost-directory defect Epic 3 addresses, and
+    asserting against it here would fail for the right reason at the wrong time.
+    """
+    import re
+    b = tmp_path / "bundle"
+    (b / "findings").mkdir(parents=True)
+    (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
+    (b / "context.md").write_text("---\ntype: Context\n---\n# C\n")
+    (b / "log.md").write_text("# Log\n\n")
+    out = _generated_index(b)
+    targets = [t for _, t in re.findall(r"- \[([^\]]+)\]\(([^)]+)\)", out)]
+    file_targets = [t for t in targets if not t.endswith("/index.md")]
+    assert file_targets, f"no file entries generated:\n{out}"
+    for t in file_targets:
+        assert (b / t).exists(), f"ghost entry: index lists {t!r} which does not exist"
+
+
+def test_add_index_entry_does_not_duplicate_reserved(tmp_path):
+    """REQ-OKF-031: add_index_entry keeps reserved frontmatter and stays idempotent
+    even when the same path is added with a different description."""
+    b = tmp_path / "bundle"
+    okf.scaffold_bundle(b, spec_member="OKF-PLAN")
+    okf.add_index_entry(b, "plan.md", "first")
+    okf.add_index_entry(b, "plan.md", "second")
+    text = (b / "index.md").read_text()
+    assert text.count("[plan.md]") == 1
+    fm, _ = okf.read_frontmatter(b / "index.md")
+    assert "type" not in fm and "okf_spec" not in fm
+
+
+# ===========================================================================
+# reindex — root-scoped generation and drift (plan-046 Epic 3, Issue 3.5)
+# REQ-OKF-004 (bundle root), REQ-OKF-011 (verb/verdicts), REQ-OKF-032
+# (root-only okf_version), REQ-OKF-072 (prose preservation).
+# ===========================================================================
+
+def _bundle(tmp_path, name="b", index=None, files=(), dirs=()):
+    b = tmp_path / name
+    b.mkdir(parents=True)
+    for f in files:
+        (b / f).write_text(f"---\ntype: Concept\n---\n# {f}\n")
+    for d in dirs:
+        (b / d).mkdir(parents=True, exist_ok=True)
+    if index is not None:
+        (b / "index.md").write_text(index)
+    return b
+
+
+# --- REQ-OKF-032: okf_version is root-only ---------------------------------
+
+def test_render_index_nested_emits_no_okf_version(tmp_path):
+    """REQ-OKF-032: a NON-root generated index carries no frontmatter at all.
+
+    OKF v0.2 §8: index files carry no frontmatter, "with one exception: a
+    bundle-root index.md MAY carry an okf_version key". exp-003 MEASURED the
+    old behaviour emitting it on a nested directory.
+    """
+    b = _bundle(tmp_path, files=["a.md"])
+    assert "okf_version" not in okf.render_index(b, root=False)
+    assert "okf_version" in okf.render_index(b, root=True)
+
+
+def test_scaffold_nested_emits_no_okf_version(tmp_path):
+    """REQ-OKF-032 at the scaffold write site."""
+    okf.scaffold_bundle(tmp_path / "nested", root=False)
+    assert "okf_version" not in (tmp_path / "nested" / "index.md").read_text()
+    okf.scaffold_bundle(tmp_path / "rooted", root=True)
+    assert "okf_version" in (tmp_path / "rooted" / "index.md").read_text()
+
+
+# --- REQ-OKF-011: the three-way verdict ------------------------------------
+
+def test_reindex_no_index_is_its_own_verdict(tmp_path):
+    """REQ-OKF-011: no root index.md → `no-index`, exit 2 — never 0, never 1.
+
+    THE LOAD-BEARING TEST for D-11. If an index-less bundle returned 0 it would
+    be counted green in the corpus sweep; if it returned 1 it would manufacture
+    drift findings for a file that does not exist.
+    """
+    b = _bundle(tmp_path, files=["plan.md"])           # no index.md written
+    res = okf.reindex_check(b)
+    assert res["verdict"] == "no-index"
+    assert res["exit"] == 2
+    assert okf.REINDEX_EXIT["clean"] == 0 and okf.REINDEX_EXIT["drift"] == 1
+
+
+def test_reindex_clean_bundle_exits_zero(tmp_path):
+    b = _bundle(tmp_path, files=["plan.md"],
+                index="# b\n\n- [plan.md](plan.md) - the plan\n")
+    res = okf.reindex_check(b)
+    assert res["verdict"] == "clean" and res["exit"] == 0, res
+
+
+def test_reindex_ghost_covers_dead_files_and_dead_dirs(tmp_path):
+    """REQ-OKF-011: `ghost` must cover a dead DIRECTORY target, not only a file.
+
+    This is the unit mismatch that made two independent counts disagree: a
+    prototype that resolved only file targets scored ghost=1 where the real
+    corpus had 24 dead *directory* links.
+    """
+    b = _bundle(tmp_path, files=["plan.md"],
+                index="# b\n\n- [plan.md](plan.md)\n- [gone.md](gone.md)\n- [diagrams/](diagrams/)\n")
+    res = okf.reindex_check(b)
+    kinds = [f["target"] for f in res["findings"] if f["kind"] == "ghost"]
+    assert "gone.md" in kinds, res
+    assert "diagrams/" in kinds, "a dead DIRECTORY link must be a ghost"
+    assert res["exit"] == 1
+
+
+def test_reindex_missing_reports_unlisted_member(tmp_path):
+    b = _bundle(tmp_path, files=["plan.md", "upstream-triage.md"],
+                index="# b\n\n- [plan.md](plan.md)\n")
+    res = okf.reindex_check(b)
+    assert any(f["kind"] == "missing" and f["target"] == "upstream-triage.md"
+               for f in res["findings"]), res
+
+
+def test_reindex_empty_dir_is_reported(tmp_path):
+    b = _bundle(tmp_path, files=["plan.md"], dirs=["findings"],
+                index="# b\n\n- [plan.md](plan.md)\n- [findings/](findings/)\n")
+    res = okf.reindex_check(b)
+    assert any(f["kind"] == "empty-dir" for f in res["findings"]), res
+
+
+def test_reindex_check_never_mutates(tmp_path):
+    b = _bundle(tmp_path, files=["plan.md", "extra.md"],
+                index="# b\n\n- [plan.md](plan.md)\n- [gone.md](gone.md)\n")
+    before = (b / "index.md").read_text()
+    okf.reindex_check(b)
+    assert (b / "index.md").read_text() == before
+
+
+def test_reindex_reserved_files_are_not_missing(tmp_path):
+    """index.md/log.md are reserved — never listing members, so never `missing`."""
+    b = _bundle(tmp_path, files=["plan.md"], index="# b\n\n- [plan.md](plan.md)\n")
+    (b / "log.md").write_text("# Log\n\n")
+    res = okf.reindex_check(b)
+    assert res["verdict"] == "clean", res
+
+
+# --- REQ-OKF-072: prose preservation ---------------------------------------
+
+def test_reindex_write_hard_errors_on_unbalanced_marker(tmp_path):
+    """REQ-OKF-072: an unbalanced marker is a HARD ERROR and writes NOTHING.
+
+    Force differs from `discarded_prose` on purpose: an unbounded region would
+    discard prose unrecoverably, whereas a dropped line is recoverable from git.
+    """
+    b = _bundle(tmp_path, files=["plan.md"],
+                index="<!-- intro:start -->\n# b\n\n- [plan.md](plan.md)\n")
+    before = (b / "index.md").read_text()
+    with pytest.raises(okf.MarkerImbalanceError):
+        okf.reindex_write(b)
+    assert (b / "index.md").read_text() == before, "a hard error must not write"
+
+
+def test_reindex_write_preserves_prose_without_markers(tmp_path):
+    """REQ-OKF-072: hand-written prose survives regeneration with NO markers.
+
+    The whole corpus is hand-written and marker-free, so preservation cannot
+    depend on markers being present. Modelled on the live case: a plan bundle
+    carrying a trailing `## Note on ...` section a naive regenerator deletes.
+    """
+    index = (
+        "---\nokf_version: '0.2'\n---\n\n# b\n\n"
+        "> An intro blockquote a regenerator must not eat.\n\n"
+        "- [plan.md](plan.md) - the plan of record\n"
+        "- [gone/](gone/)\n\n"
+        "## Note on `scope-answers.md`\n\nThis bundle has no scope-answers.md, deliberately.\n"
+    )
+    b = _bundle(tmp_path, files=["plan.md", "upstream-triage.md"], index=index)
+    res = okf.reindex_write(b)
+    out = (b / "index.md").read_text()
+    assert "An intro blockquote a regenerator must not eat." in out
+    assert "## Note on `scope-answers.md`" in out
+    assert "deliberately." in out
+    assert "- [gone/](gone/)" not in out, "ghost should be dropped"
+    assert "- [upstream-triage.md](upstream-triage.md)" in out, "missing should be appended"
+    assert "okf_version" in out, "existing frontmatter is preserved (D-2: no migration)"
+    assert res["changed"] is True
+
+
+def test_reindex_write_preserves_existing_descriptions(tmp_path):
+    """REQ-OKF-072: a surviving entry keeps its description verbatim."""
+    b = _bundle(tmp_path, files=["plan.md"],
+                index="# b\n\n- [plan.md](plan.md) - a carefully worded description\n")
+    okf.reindex_write(b)
+    assert "- [plan.md](plan.md) - a carefully worded description" in (b / "index.md").read_text()
+
+
+def test_reindex_write_never_invents_a_description(tmp_path):
+    """REQ-OKF-072: a NEW entry is bare — no `*description pending*` placeholder.
+
+    `description` is present on 0 of 423 nested files; a placeholder would write
+    423 assertions that a description exists when none does.
+    """
+    b = _bundle(tmp_path, files=["plan.md", "new.md"],
+                index="# b\n\n- [plan.md](plan.md)\n")
+    okf.reindex_write(b)
+    out = (b / "index.md").read_text()
+    assert "- [new.md](new.md)\n" in out
+    assert "pending" not in out and "TODO" not in out
+
+
+def test_reindex_write_is_idempotent(tmp_path):
+    b = _bundle(tmp_path, files=["plan.md", "extra.md"],
+                index="# b\n\n- [plan.md](plan.md)\n- [dead.md](dead.md)\n")
+    okf.reindex_write(b)
+    first = (b / "index.md").read_text()
+    second_res = okf.reindex_write(b)
+    assert (b / "index.md").read_text() == first
+    assert second_res["changed"] is False
+    assert okf.reindex_check(b)["verdict"] == "clean"
+
+
+def test_reindex_write_dry_run_does_not_write(tmp_path):
+    b = _bundle(tmp_path, files=["plan.md", "extra.md"],
+                index="# b\n\n- [plan.md](plan.md)\n")
+    before = (b / "index.md").read_text()
+    res = okf.reindex_write(b, dry_run=True)
+    assert (b / "index.md").read_text() == before
+    assert res["changes"], "dry-run must still report what it would do"
+
+
+def test_reindex_write_keeps_external_links(tmp_path):
+    """An `https://` entry is not a bundle path claim and must never be a ghost."""
+    b = _bundle(tmp_path, files=["plan.md"],
+                index="# b\n\n- [plan.md](plan.md)\n- [upstream](https://example.com/x)\n")
+    assert okf.reindex_check(b)["verdict"] == "clean"
+    okf.reindex_write(b)
+    assert "https://example.com/x" in (b / "index.md").read_text()
+
+
+def test_discarded_prose_flags_a_dropped_line(tmp_path):
+    assert okf.discarded_prose("# a\n\nkept\ndropped\n", "# a\n\nkept\n") == ["dropped"]
+    assert okf.discarded_prose("# a\n\n- [x](x)\n", "# a\n") == []
+
+
+def test_check_reports_index_drift_at_warning_level(tmp_path):
+    """REQ-OKF-CHK-002: ghost/missing surface in `check` as WARNINGS, not errors.
+
+    The level is pinned by a test on purpose (plan-046 D-10): warning level was
+    chosen so the engine does not depend on a downstream allowlist's *silence*,
+    and promotion to error must therefore be a deliberate, visible change rather
+    than something a later edit can do by accident.
+    """
+    b = _bundle(tmp_path, files=["plan.md", "unlisted.md"],
+                index="# b\n\n- [plan.md](plan.md)\n- [dead.md](dead.md)\n")
+    (b / "log.md").write_text("# Log\n\n")
+    res = okf.check_conformance(b)
+    drift = [f for f in res.findings if f.req == "REQ-OKF-CHK-002"]
+    assert drift, [f.as_dict() for f in res.findings]
+    assert {f.level for f in drift} == {"warning"}, "index drift must NOT be error-level"
+    assert any("ghost" in f.message for f in drift)
+    assert any("missing" in f.message for f in drift)
+
+
+def test_check_index_drift_does_not_fire_without_an_index(tmp_path):
+    """REQ-OKF-CHK-002 keys on an index that EXISTS; a missing one is REQ-OKF-001."""
+    b = _bundle(tmp_path, files=["plan.md"])
+    res = okf.check_conformance(b)
+    assert not [f for f in res.findings if f.req == "REQ-OKF-CHK-002"]
+    assert any(f.req == "REQ-OKF-001" for f in res.findings)
+
+
+def test_reindex_suppresses_parent_dir_when_children_listed(tmp_path):
+    """REQ-OKF-011: a bare parent-dir entry is suppressed when its children are listed.
+
+    Operator ruling (plan-046, Backfill Review gate). Not cosmetic: exp-003's
+    finding that research ROOT indexes beat nested ones rested on the root
+    enumerating individual files with rich phase-tagged descriptions. A bare
+    `- [artifacts/](artifacts/)` beside a described `artifacts/critique.md`
+    entry dilutes exactly that property.
+    """
+    b = _bundle(tmp_path, files=["Summary.md"], dirs=["artifacts"])
+    (b / "artifacts" / "critique.md").write_text("---\ntype: Concept\n---\n# c\n")
+    index = ("# b\n\n- [Summary.md](Summary.md) - the report\n"
+             "- [artifacts/critique.md](artifacts/critique.md) - [critique] red-team\n")
+    (b / "index.md").write_text(index)
+    assert okf.reindex_check(b)["verdict"] == "clean", okf.reindex_check(b)
+    okf.reindex_write(b)
+    assert "- [artifacts/](artifacts/)" not in (b / "index.md").read_text()
+
+
+def test_reindex_emits_parent_dir_when_children_not_listed(tmp_path):
+    """The other half of the ruling: keep the dir entry when children are NOT listed."""
+    b = _bundle(tmp_path, files=["plan.md"], dirs=["findings"])
+    (b / "findings" / "exp-001.md").write_text("---\ntype: Concept\n---\n# f\n")
+    (b / "index.md").write_text("# b\n\n- [plan.md](plan.md)\n")
+    assert any(f["target"] == "findings/" and f["kind"] == "missing"
+               for f in okf.reindex_check(b)["findings"])
+    okf.reindex_write(b)
+    assert "- [findings/](findings/)" in (b / "index.md").read_text()

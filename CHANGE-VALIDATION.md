@@ -10,7 +10,14 @@
 > profiles had NO glob, so editing a `consent_required` entry — the flag the install-time
 > consent gate keys on — fired no validation at all. The row names a **test target**
 > (`--test install_sync_e2e`) rather than a name filter on purpose: a missing target is a
-> hard error, whereas a name filter matching nothing exits 0 and passes vacuously.
+> hard error, whereas a **cargo** name filter matching nothing exits 0 and passes vacuously.
+>
+> plan-046 Issue 1.3 — **correction, measured.** The "passes vacuously" rationale above is
+> **cargo-specific and must not be generalised to the `uv`/pytest rows.** Executed on this
+> tree: `pytest -k <no-match>` exits **5** (`31 deselected`) and `pytest <missing-file>` exits
+> **4** — neither is a vacuous pass. The real reason the pytest rows name an explicit **file**
+> target is that exit **4** on a moved or renamed target is a loud failure, so vendored-copy
+> drift cannot hide behind a green run.
 
 ## 0. Status
 
@@ -55,6 +62,7 @@ approved: yes
 | `uv-yf-gates` | `uv run skills/yf-plan/scripts/test_gates.py` |  |  |
 | `uv-yf-retro` | `uv run skills/yf-plan/scripts/test_retrospective.py` |  |  |
 | `uv-yf-cli-enum` | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
+| `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
 
 ### full
 
@@ -94,6 +102,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_gates.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_retrospective.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
+| `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -119,6 +128,12 @@ approved: yes
 | `yf/tests/install_sync_e2e.rs` | `sync-e2e` |
 | `_shared/**` | `uv`, `uv-_shared` |
 | `_shared/test_sync.py` | `uv` |
+| `_shared/okf.py` | `uv-okf`, `uv-_shared` |
+| `_shared/test_okf.py` | `uv-okf` |
+| `skills/yf-okf/scripts/**` | `uv-okf`, `uv-_shared` |
+| `skills/yf-incubator/scripts/**` | `uv-okf`, `uv-_shared` |
+| `skills/yf-plan/scripts/okf.py` | `uv-okf`, `uv-_shared` |
+| `skills/yf-research/scripts/okf.py` | `uv-okf`, `uv-_shared` |
 | `skills/yf-beads-hygiene/scripts/**` | `uv-run` |
 | `skills/yf-beads-hygiene/scripts/test_beads_hygiene.py` | `uv-run` |
 | `skills/yf-beads-upstream/scripts/**` | `uv-with`, `bup-prescriptive-push`, `bup-gh-direct` |

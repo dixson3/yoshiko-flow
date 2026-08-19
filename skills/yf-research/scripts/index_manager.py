@@ -191,6 +191,74 @@ def init(research_dir: str, topic: str):
     click.echo(f"Created {path} and {log}")
 
 
+#: Non-`.md` pipeline sidecars a research bundle carries at its root. They are
+#: written by the pipeline (packager, scorer), never by `index_manager add`, so
+#: nothing ever registered them — measured unlisted corpus-wide (`plan.yaml`,
+#: `sources.json` and its `sources.<cluster>.json` siblings).
+_SIDECAR_DESCRIPTIONS: dict[str, str] = {
+    "plan.yaml": "The research DAG — subtask decomposition, dependencies, and phase assignment.",
+    "sources.json": "Machine-readable source records with per-source credibility scoring.",
+}
+
+
+def _sidecar_description(name: str) -> str:
+    if name in _SIDECAR_DESCRIPTIONS:
+        return _SIDECAR_DESCRIPTIONS[name]
+    if name.startswith("sources.") and name.endswith(".json"):
+        cluster = name[len("sources."):-len(".json")]
+        return f"Machine-readable source records for the `{cluster}` cluster."
+    return ""
+
+
+def ensure_members_listed(research_dir: str) -> list[str]:
+    """List root members that exist on disk but are absent from `index.md`.
+
+    REQ-PORT-010. `index_manager add` is the only registration path, so anything
+    the pipeline writes directly — the non-`.md` sidecars above — is never
+    listed. Backfilling the index in a sweep while leaving the producer that
+    re-breaks it is the backfill-without-generation ordering plan-046 forbids,
+    so the producer is fixed here and the sweep merely applies it.
+
+    Idempotent. Returns the member names added. A description is supplied only
+    for a KNOWN sidecar; an unknown member is listed bare rather than given an
+    invented description.
+    """
+    path = _index_path(research_dir)
+    if not path.exists():
+        return []
+    text = path.read_text(encoding="utf-8")
+    added: list[str] = []
+    for child in sorted(Path(research_dir).iterdir()):
+        if child.name in okf.RESERVED_FILES or child.name.startswith("."):
+            continue
+        if child.is_dir():
+            try:
+                if not any(child.iterdir()):
+                    continue          # git drops empty dirs; listing one breaks on clone
+            except OSError:
+                continue
+            member = child.name + "/"
+        elif child.is_file():
+            member = child.name
+        else:
+            continue
+        if f"]({member})" in text:
+            continue
+        okf.add_index_entry(research_dir, member, _sidecar_description(member))
+        text = path.read_text(encoding="utf-8")
+        added.append(member)
+    return added
+
+
+@cli.command("reconcile")
+@click.argument("research_dir")
+def reconcile(research_dir: str):
+    """List bundle members that exist on disk but are missing from index.md."""
+    added = ensure_members_listed(research_dir)
+    click.echo(f"reconcile: added {len(added)} entr{'y' if len(added) == 1 else 'ies'}"
+               + (": " + ", ".join(added) if added else ""))
+
+
 @cli.command()
 @click.argument("research_dir")
 @click.argument("phase")
@@ -219,6 +287,10 @@ def add(research_dir: str, phase: str, artifact: str, description: str, timestam
 
     # Stamp OKF frontmatter on the registered concept doc (non-reserved .md only).
     stamped = _stamp_artifact(research_dir, artifact)
+
+    # Pick up any pipeline sidecar written outside `add` (REQ-PORT-010). Cheap and
+    # idempotent, and it keeps the index correct without a separate sweep step.
+    ensure_members_listed(research_dir)
 
     suffix = f" (stamped {stamped})" if stamped else ""
     click.echo(f"Added: {phase} / {artifact}{suffix}")

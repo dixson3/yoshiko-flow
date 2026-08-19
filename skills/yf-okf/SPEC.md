@@ -10,7 +10,7 @@
 `yf-okf` is a repo-agnostic engine that **constructs, manages, and conformance-checks** the artifact
 folders ("bundles") that the yf artifact-producing skills emit (`yf-plan`, `yf-research`,
 `yf-incubator`, and future consumers). It makes those bundles **compatible with** the Open Knowledge
-Format (OKF v0.1, `GoogleCloudPlatform/knowledge-catalog`): an opinionated framework that adopts the
+Format (OKF v0.2, `GoogleCloudPlatform/knowledge-catalog`): an opinionated framework that adopts the
 OKF baseline (reserved `index.md`, reserved `log.md`, YAML frontmatter with a non-empty `type` on
 every non-reserved `.md`) and layers the yoshiko-flow extensions on top (a dual **frontmatter +
 `**Field:**`** field model, an `okf_spec:` member key, per-skill extension specs). `yf-okf` is also
@@ -38,6 +38,24 @@ are per-skill (the three current models genuinely differ) and are specified in e
 
 ## 2. Requirements (`REQ-OKF-NNN`)
 
+> **Identifier allocation (plan-046 Issue 2.2).** The `NNN` blocks are **id ranges, not section
+> bindings** — this SPEC has never stated a block↔section correspondence, and `reindex` (§2.10)
+> deliberately spans the bundle-model, frontmatter, foreign-corpus-survival and check concerns.
+> The ids below were allocated from the block-local next-free set, each **measured collision-free
+> against this file** at allocation time:
+>
+> | id | allocated to | lands in |
+> | :-- | :-- | :-- |
+> | `REQ-OKF-004` | the bundle-root predicate | §2.1 (Issue 3.1) |
+> | `REQ-OKF-011` | the `reindex` verb, its verdicts and exit codes | §2.10 (Issue 3.1) |
+> | `REQ-OKF-032` | `okf_version` frontmatter only on a bundle-**root** `index.md` | §2.4 (Issue 3.2) |
+> | `REQ-OKF-072` | prose preservation across index regeneration | §2.10, co-located with `reindex` (Issue 3.4) |
+> | `REQ-OKF-CHK-002` | index-drift findings (`ghost`/`missing`) at **warning** level | §2.8 (Issue 3.6) |
+> | `REQ-OKF-FAM-005` | the OKF **v0.2** baseline pin | §2.5 (below) |
+>
+> **Unallocated but reserved by the same measurement** — still free for a later plan:
+> `REQ-OKF-022`, `REQ-OKF-051`, `REQ-OKF-061`, `REQ-OKF-MIG-006`.
+
 ### 2.1 Bundle model (see `spec/OKF-BASELINE.md`, `spec/OKF-YF-EXTENSIONS.md`)
 
 - **REQ-OKF-001** *(testable)* a **bundle** is an OKF-compatible directory. Each dir-form bundle shall
@@ -50,7 +68,28 @@ are per-skill (the three current models genuinely differ) and are specified in e
   `## Decision log` body section (yf-incubator).
 - **REQ-OKF-003** *(testable)* every **non-reserved `.md`** file in a bundle shall carry a parseable
   YAML frontmatter block delimited by `---`, and that block shall contain a **non-empty `type`** field
-  (the sole OKF MUST). `index.md` and `log.md` are reserved and exempt (REQ-OKF-034).
+  (the sole OKF MUST). `index.md` and `log.md` are reserved and exempt (REQ-OKF-031).
+  *(plan-046 Issue 1.1: this cross-reference read `REQ-OKF-034`, an id **never defined at any
+  revision of this SPEC** — `git blame` places it in the introducing commit `aaf2b6c` (plan-029),
+  so it was dangling from birth and provenance cannot confirm the author's intent. It is resolved
+  to `REQ-OKF-031` on semantic grounds — that is the only requirement in this SPEC stating the
+  reserved-file exemption — and the residual uncertainty is recorded here rather than resolved
+  silently.)*
+
+- **REQ-OKF-004** *(testable)* the engine shall have an explicit notion of **bundle root**, because
+  `okf_version` frontmatter (REQ-OKF-032) and the `reindex` verb (REQ-OKF-011) are both root-scoped
+  while `index.md` is reserved at *any* level (REQ-OKF-001). **Root-ness is a property of the
+  INVOCATION, not of the filesystem:** the directory a caller names *is* the bundle root, and every
+  directory below it is non-root. Library entry points shall accept an explicit `root: bool` (default
+  `True` for a named bundle, `False` for a recursed child) rather than inferring.
+  **Why not the alternatives.** Sniffing for a marker file (`plan.md`) or testing membership of a
+  configured `plans-root`/`research-root` would both require `_shared/okf.py` — the **baseline**
+  engine — to know consumer-specific facts, inverting the baseline/extensions separation
+  (`spec/OKF-BASELINE.md` vs `spec/OKF-YF-EXTENSIONS.md`). That is the same layering argument that
+  decided the presence-optional case in favour of fixing the producer.
+  A bundle-root `index.md`'s `okf_version` key MAY be used to *classify an existing index* after the
+  root is known; it shall never be used to *locate* the root, which would be circular for a bundle
+  that has no index at all.
 
 ### 2.2 Placement invariant — fingerprint safety (see `spec/OKF-YF-EXTENSIONS.md`)
 
@@ -82,6 +121,13 @@ are per-skill (the three current models genuinely differ) and are specified in e
   `okf_spec`** key (they are structural files, not typed concept documents); `index.md` at a bundle
   root MAY carry only an `okf_version` key.
 
+- **REQ-OKF-032** *(testable)* `okf_version` frontmatter shall be emitted **only on a bundle-root
+  `index.md`** (REQ-OKF-004). v0.2 §8 states index files carry no frontmatter *"with one exception: a
+  bundle-root `index.md` MAY carry an `okf_version` key"*, so emitting it on a nested `index.md` is a
+  baseline violation. This is a **latent-defect fix**: no live producer path emits a nested index
+  today (nested indexes are deferred, `spec/OKF-YF-EXTENSIONS.md`), so it is a conformance violation
+  waiting on the first caller rather than an active one.
+
 ### 2.5 OKF-\* family + per-skill `OKF-EXTENSION.md` discovery/composition
 
 - **REQ-OKF-FAM-001** *(testable)* the **effective ruleset** the engine enforces against a bundle
@@ -99,6 +145,17 @@ are per-skill (the three current models genuinely differ) and are specified in e
 - **REQ-OKF-FAM-004** the family name **`OKF-SPECIFICATION`** (for engineering `SPEC.md` files) shall
   be **reserved and deferred** — declared as a stub in `spec/OKF-YF-EXTENSIONS.md`, not authored here
   and not applied to any `SPEC.md` in this plan.
+- **REQ-OKF-FAM-005** *(testable)* the baked-in baseline (REQ-OKF-FAM-002) shall be pinned to
+  **OKF v0.2**, and the engine's `okf_version` constant shall read `"0.2"` in `_shared/okf.py` and in
+  every vendored copy. `spec/OKF-BASELINE.md` shall record v0.2 **verbatim**, with every `(§N)`
+  cross-reference reading its **v0.2** section number. The pin is a single fact with **two
+  surfaces** — the human-readable baseline document and the in-code constant — and they shall agree;
+  a `DRIFT-CHECK.md` edge (Issue 2.8) encodes that agreement, which was previously unencoded, so a
+  v0.1→v0.2 edit fired nothing that inspected `okf_version`.
+  **Rationale.** Upstream OKF §13 states v0.2 *"supersedes OKF v0.1"*. yoshiko-flow's exposure to
+  both declared breaking changes is **exactly zero** (it emits `timestamp` 0 times and `# Citations`
+  0 times), so the pin is a documentation edit plus a constant — **not** a corpus migration, which
+  is explicitly out of scope (plan-046 D-2).
 
 ### 2.6 Single-file-bundle exemption & non-`.md` exclusion
 
@@ -142,6 +199,16 @@ are per-skill (the three current models genuinely differ) and are specified in e
   labels ∪ its required keys) with a non-empty value — a bold prose lead-in
   (`**Recommendation:** …`) is never false-flagged.
 
+- **REQ-OKF-CHK-002** *(testable)* `check` shall additionally report index-drift findings —
+  `missing` and `ghost` (REQ-OKF-011) — at **`warning`** level.
+  **Warning, not error, and the reason is not the one an earlier draft gave.** The audit's promotion
+  filter (`plan_manager.py`) is an **allowlist** of four requirement ids, not a fold over all
+  error-level findings, so a newly allocated req is outside it *by construction* — there is no action
+  to take and nothing to opt out of. Warning level is chosen anyway on the ground that relying on an
+  allowlist's **silence** is itself an implicit guarantee no test asserts: a future edit widening the
+  allowlist would resurrect the risk invisibly. Promotion to error is a separate, later change, gated
+  on a green corpus.
+
 ### 2.9 Migration semantics (`migrate`)
 
 - **REQ-OKF-MIG-001** *(testable)* `yf-okf migrate <dir>` shall convert a legacy folder **in place**
@@ -175,6 +242,58 @@ are per-skill (the three current models genuinely differ) and are specified in e
   per-skill index/log *rendering* stays a per-skill adapter concern (Epics 3/4/5); the base engine
   guarantees only a conformant skeleton.
 
+### 2.10 Index generation and drift (`reindex`)
+
+- **REQ-OKF-011** *(testable)* the engine shall expose a **`reindex`** verb over a bundle **root**
+  (REQ-OKF-004), in two modes, emitting **JSON on every path**:
+  - **`reindex --check <bundle>`** — report index drift without mutating anything. Three finding
+    kinds: **`missing`** (a listing member present on disk but absent from `index.md`), **`ghost`**
+    (an entry whose relative target does not resolve — covering dead *files* **and** dead
+    *directories*), and **`empty-dir`** (a listed subdirectory containing nothing).
+  - **`reindex --write <bundle>`** — regenerate the listing, preserving prose (REQ-OKF-072).
+
+  **Exit codes are a three-way verdict, not a boolean:**
+
+  | exit | verdict | meaning |
+  | :-: | :-- | :-- |
+  | `0` | `clean` | an `index.md` exists and every entry resolves, with nothing unlisted |
+  | `1` | `drift` | an `index.md` exists and at least one `missing` / `ghost` / `empty-dir` finding |
+  | `2` | `no-index` | the bundle has **no root `index.md`** |
+
+  **`no-index` is its own verdict and MUST NOT collapse into either neighbour.** A bundle with no
+  index is neither clean nor drifted — there is nothing to be in or out of agreement with. Reporting
+  it as `0` would let an index-less bundle be counted as green, which is precisely the "an artifact
+  asserting something nothing checks" failure this requirement exists to prevent; reporting it as `1`
+  would manufacture drift findings for a file that does not exist.
+
+  **Root-only in v1, deliberately.** `reindex` is specified over the bundle root only. Nested
+  `index.md` generation is **deferred** behind a producer change that stamps `description:` — measured
+  at **0 of 423** nested files, so every generated nested entry would carry no description, and
+  **74 of 142 (52%)** of subdirectories would receive a listing of no value. The deferral is recorded
+  in `spec/OKF-YF-EXTENSIONS.md` with its measurement and filed upstream, so a future reader inherits
+  the evidence rather than the conclusion.
+
+  **No "stale metadata" check.** With `description` at 0/423 there is no metadata that could go stale;
+  a check for it would be a requirement with no reachable input.
+
+- **REQ-OKF-072** *(testable)* `reindex --write` shall **preserve author prose**. Generated content is
+  delimited by `<!-- intro:start -->` / `<!-- intro:end -->` and `<!-- notes:start -->` /
+  `<!-- notes:end -->`; text outside those regions is carried through untouched. Two guards are
+  required, and they differ in force **because their failure modes differ**:
+  - an **unbalanced marker** (a `:start` with no matching `:end`) is a **hard error** — the region is
+    unbounded, so regenerating would discard prose *unrecoverably*;
+  - **dropped non-generated lines** are a **warning** — recoverable from git, so a warning is
+    proportionate.
+
+  Rationale: the corpus contains hand-written orientation prose a naive regenerator would delete
+  (e.g. a `## Note on scope-answers.md` section in a live plan bundle's `index.md`). This requirement
+  is the reason the backfill is safe to run at all, and it sits under **foreign-corpus survival**
+  (§2.7) because preserving content the engine did not author is exactly that concern.
+
+  **Never invent a description.** An existing description is preserved; a new entry is emitted as a
+  bare `- [title](path)`. Emitting a placeholder (`*description pending*`) would write 423 assertions
+  that a description exists when none does.
+
 ## 3. Interfaces
 
 - **CLI / scripts:** canonical `_shared/okf.py`, whole-file-vendored into each consumer's
@@ -188,17 +307,20 @@ are per-skill (the three current models genuinely differ) and are specified in e
   | `write_frontmatter(path, *, type, meta)` / `read_frontmatter(path)` | OKF frontmatter I/O; merge-and-preserve on write (REQ-OKF-070) |
   | `write_fields(...)` / `read_fields(...)` | dual-mode field accessor (REQ-OKF-020/021) |
   | `render_index(dir)` / `add_index_entry(dir, path, desc, *, phase, ts)` | `index.md` listing (per-skill adapters) |
+  | `reindex(dir, *, write=False)` | root-scoped index generation + drift report; `clean`/`drift`/`no-index` (REQ-OKF-011) |
   | `append_log(dir, entry, *, date=None)` | newest-first ISO-8601 `log.md` entry (REQ-OKF-002) |
   | `resolve_extension(skill)` | `__file__`-relative find+parse of `skills/<skill>/OKF-EXTENSION.md` (REQ-OKF-FAM-003) |
   | `check_conformance(dir)` | composed-ruleset conformance report (REQ-OKF-CHK-001); report-only/crash-safe |
   | `emit_conformant_copy(dir)` | non-destructive conformant projection |
   | `migrate(dir, *, dry_run=True)` | opt-in in-place migration (REQ-OKF-MIG-\*) |
 
-- **Operator surface:** `/yf-okf init | migrate | check | assess` (SKILL.md, Issue 1.5).
+- **Operator surface:** `/yf-okf init | migrate | check | assess | reindex` (SKILL.md). `reindex`
+  exits `0` clean / `1` drift / `2` `no-index` (REQ-OKF-011) — the one verb whose exit code is a
+  three-way verdict rather than a pass/fail.
 - **Companion rule / config / state:** the OKF-\* family reference docs
   (`spec/OKF-BASELINE.md`, `spec/OKF-YF-EXTENSIONS.md`, Issue 1.2) and per-skill
   `skills/<skill>/OKF-EXTENSION.md` (Issue 1.3). No `.local.json` / `.yf/` state. The
-  baseline is pinned `okf_version: 0.1`; upstream OKF drift is isolated to `OKF-BASELINE.md` + the
+  baseline is pinned `okf_version: 0.2` (`REQ-OKF-FAM-005`); upstream OKF drift is isolated to `OKF-BASELINE.md` + the
   baked-in ruleset.
 
 ## 4. Guardrails (`GR-OKF-NNN`)
@@ -242,7 +364,7 @@ are per-skill (the three current models genuinely differ) and are specified in e
 ## 6. References
 
 - `skills/yf-okf/SKILL.md` (operator surface; on discrepancy, `spec/` + this SPEC win) — Issue 1.5.
-- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.1 rules distilled from research 001) and
+- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.2 rules, reconciled by plan-046 from the vendored v0.2 spec; research 001 distilled the superseded v0.1) and
   `skills/yf-okf/spec/OKF-YF-EXTENSIONS.md` (the yoshiko-flow extension layer; reserves
   OKF-SPECIFICATION) — Issue 1.2.
 - Per-skill extensions `skills/yf-plan/OKF-EXTENSION.md` (OKF-PLAN),

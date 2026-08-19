@@ -11,7 +11,7 @@
 The **effective ruleset** the engine enforces against a bundle is the composition
 **OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ resolved-per-skill-`OKF-EXTENSION.md`** (SPEC
 REQ-OKF-FAM-001). This doc is the middle member. It **adds** yf opinion; it never relaxes an OKF
-MUST (`OKF-BASELINE.md` §2, B1–B3). Where OKF v0.1 is silent (`OKF-BASELINE.md` §7a), this layer
+MUST (`OKF-BASELINE.md` §2, B1–B3). Where OKF v0.2 is silent (`OKF-BASELINE.md` §7a), this layer
 makes the decision explicit — those decisions are *yf-owned*, not OKF mandates.
 
 Terminology and REQ ids match `skills/yf-okf/SPEC.md` exactly. Cross-references to research facts
@@ -30,13 +30,14 @@ REQ-OKF-030):
 |:--|:--|:--|
 | `type` | OKF (baseline MUST) | Open-vocabulary concept kind, e.g. `Plan`, `Research Index`, `Incubator` |
 | `okf_spec` | **yf** | Names the OKF-\* member this artifact conforms to: `OKF-PLAN`, `OKF-RESEARCH`, `OKF-INCUBATOR` |
-| `okf_version` | OKF (optional) | Baseline version pin; MAY appear only on a bundle-root `index.md`, pinned `0.1` |
+| `okf_version` | OKF (optional) | Baseline version pin; MAY appear only on a bundle-**root** `index.md` (v0.2 §8; SPEC `REQ-OKF-032`), pinned `0.2` (SPEC `REQ-OKF-FAM-005`) |
 | `id` | yf | Artifact identity (e.g. plan id) |
 | `author` | yf | Authoring operator |
 | `created` | yf | ISO-8601 creation date |
-| `status` | yf | Lifecycle state |
+| `status` | **OKF (v0.2 §5.4), yf declines** | Lifecycle state. A **key COLLISION**, resolved as a declared **permanent divergence** — see §9 entry 3 |
 | `epic` | yf | Owning beads epic |
 | `fingerprint` | yf | Content fingerprint (yf-plan) |
+| `superseded_by` | yf | Marks an artifact whose conclusions a later artifact supersedes. Free-form prose naming the successor and what it changed. Applied to **whole legacy bundles** so a stale premise cannot flow silently into a document derived from it (plan-046 Issue 2.9) |
 
 **Namespacing rules:**
 
@@ -81,12 +82,25 @@ is resolved in yf's favor — OKF only requires a parseable block; yf pins *wher
 
 ## 3. The `log.md` format choice (SPEC REQ-OKF-002)
 
-OKF reserves `log.md` as "update history" but demonstrates **no format and no ordering** (zero
-`log.md` exist in the reference repo,
-[S5](../../../docs/research/001-okf-compliance-delta/sources.md#s5); `OKF-BASELINE.md` §4). yf fills
-that silence with a specific rendering:
+> **STATUS CHANGE at OKF v0.2 — this section is no longer an extension decision.** It previously
+> read: *"OKF reserves `log.md` as 'update history' but demonstrates no format and no ordering"*, and
+> presented the rendering below as yf filling a silence. **v0.2 §9 is not silent.** It specifies *"a
+> flat list of date-grouped entries, newest first"* and makes ISO-8601 `YYYY-MM-DD` date headings a
+> **MUST**. The rule below is now **baseline conformance** (`OKF-BASELINE.md` §4), not a yf choice —
+> and yf had guessed right, so **no artifact changes**.
+>
+> *(Corrected by plan-046 Issue 2.7. This was the **third** site making the now-false silence claim;
+> the other two were `OKF-BASELINE.md` §4 and §7a, corrected by Issue 2.3. It is fixed authority and
+> there is no `spec`→`spec` edge in `DRIFT-CHECK.md`, so nothing would have detected it.)*
 
-- Entries are **newest-first**, grouped under **ISO-8601 (`YYYY-MM-DD`) date headings**.
+OKF v0.1 reserved `log.md` as "update history" but demonstrated **no format and no ordering** (zero
+`log.md` existed in the v0.1 reference repo,
+[S5](../../../docs/research/001-okf-compliance-delta/sources.md#s5)). What was a yf rendering choice
+is now the upstream rule, restated here as the **yf-side record of a rule that moved across the
+baseline/extensions boundary**:
+
+- Entries are **newest-first**, grouped under **ISO-8601 (`YYYY-MM-DD`) date headings** — v0.2 §9,
+  MUST on the date form.
 - `log.md` replaces the legacy per-skill log surfaces: yf-plan's in-`plan.md` `**Phase log:**` block
   ([L4](../../../docs/research/001-okf-compliance-delta/sources.md#l4)), yf-research's timestamped
   `_index.md` ledger ([L7](../../../docs/research/001-okf-compliance-delta/sources.md#l7)), and
@@ -148,7 +162,7 @@ cross-skill imports.
 
 ## 6. Single-file-bundle exemption & non-`.md` exclusion (SPEC REQ-OKF-050 / REQ-OKF-060)
 
-OKF v0.1 describes a *directory* of files and addresses only `.md` conformance (`OKF-BASELINE.md`
+OKF v0.2 describes a *directory* of files and addresses only `.md` conformance (`OKF-BASELINE.md`
 §7a); it is silent on both cases below. yf makes each explicit:
 
 - **Single-file-bundle exemption (REQ-OKF-050).** An artifact that is a **single `.md` file with no
@@ -222,9 +236,133 @@ only**:
   `OKF-INCUBATOR` are authored (Issue 1.3); `OKF-SPECIFICATION` is the named-but-empty slot for a
   future engineering-spec member. No `okf_spec: OKF-SPECIFICATION` artifact exists yet.
 
-## 9. References
+## 9. OKF v0.2 concept mapping — AGREE / DIVERGE / ABSENT
 
-- `skills/yf-okf/spec/OKF-BASELINE.md` — the upstream OKF v0.1 baseline this layer sits on.
+v0.2 added four frontmatter families (§5, §10) that name concepts yoshiko-flow had already
+implemented **privately**, under different keys and sometimes different semantics. Every pairing is
+recorded here with an explicit verdict. **Nothing is silently reconciled, and nothing is renamed to
+manufacture agreement** (plan-046 D-5) — a rename would assert an alignment that the evidence below
+refutes.
+
+| # | v0.2 concept | yf counterpart | Verdict |
+| :-- | :-- | :-- | :-- |
+| 1 | `sources` + credibility **signals** (§5.1) | `sources.md` / `sources.json` + a stored credibility **score** | **DIVERGE** |
+| 2 | `verified[]` + `stale_after` (§5.2, §5.4) | red-team `verdict` + content `fingerprint` | **DIVERGE** |
+| 3 | `status` (§5.4) | `status` (yf-plan workflow / yf-research phase) | **COLLISION → permanent divergence** |
+| 4 | `generated: { by, at }` (§5.2) + actor convention (§7) | *(nothing)* | **ABSENT** |
+| 5 | Attested Computation (§10) | the `- validated:` attestation receipt | **AGREE**, and yf goes further |
+
+### 1. `sources` + credibility — DIVERGE (and yf is on the wrong side of it)
+
+v0.2 §5.1 is explicit, and it is a design *prohibition*, not an omission:
+
+> "It does not store a credibility score: a score is subjective, unportable across consumers, and
+> goes stale. Credibility is *inferred* from the signals, the same way trust tiers are (§5.3), not
+> stored."
+> — [v0.2 §5.1](../../../docs/plans/plan-046-james-dixson-aabefa/references/okf-spec-v0.2.md)
+
+OKF records **objective per-source signals** (`author`, `usage_count`, `last_modified`, over a
+`usage_window`). `yf-research` **stores a computed score**. That is precisely what v0.2 forbids.
+
+**The evidence that this is a real divergence and not a naming accident is in yf's own corpus.**
+`docs/research/001-okf-compliance-delta/sources.md` opens with a hand-written retraction of its own
+scores:
+
+> "**Read the `category` as the trust signal and disregard the numeric `overall`.** … the 41 is an
+> internally-consistent score of the *wrong inputs*, not a corrupted number. The `category`
+> (`high_trust` / `verify`) is a **manual override applied on domain-authority grounds, not
+> recomputed from the rubric formula**."
+> — [`sources.md`](../../../docs/research/001-okf-compliance-delta/sources.md) (yf's own most careful research bundle)
+
+**Reproduced by execution** (`credibility_scorer.py score`, run during plan-046 Epic 2) — the same
+publisher, split purely on hostname shape:
+
+| url | `domain_authority` | `overall` | `category` |
+| :-- | --: | --: | :-- |
+| `https://docs.langchain.com/oss/python/langgraph/overview` | 77 | 84 | `high_trust` |
+| `https://reference.langchain.com/python/langgraph/` | **30** | 68 | `verify` |
+| `https://github.com/GoogleCloudPlatform/knowledge-catalog` | **30** | 68 | `verify` |
+
+**Read this correctly: #147 is the stored-score design failing in the documented way, not a
+heuristic bug** (plan-046 D-5). A stored score bakes one consumer's weighting into the artifact; when
+the weighting is wrong the artifact carries the error forward, and the only remedies available are a
+hand-written retraction or a silent re-score. yf has now done the former twice.
+
+**Decision: DIVERGE, recorded, not reconciled.** Adopting v0.2's signals-not-scores model is a real
+change to `yf-research` with its own consent profile, and **`sources` must not be renamed onto
+`sources.md`** — that would assert alignment where the semantics oppose. Filed as a follow-on
+(plan-046 Issue 5.5), not built here.
+
+### 2. `verified[]` / `stale_after` vs `verdict` / `fingerprint` — DIVERGE (yf is stronger)
+
+v0.2 §5.2 records attestations as `verified[]` entries; §5.4's `stale_after` marks a **date** after
+which a concept should be treated as stale.
+
+yf-plan carries the red-team `verdict` (APPROVE / REVISE / INVESTIGATE-MORE) and a **content
+`fingerprint`** — a hash over the plan's content sections. These are not the same mechanism:
+
+- `stale_after` is a **time-based** guess made at authoring time. It goes stale on schedule whether
+  or not the content changed.
+- `fingerprint` is **content-derived**. It goes stale **exactly when the content changes**, and
+  never otherwise — which is why it can gate execution (`resume-scan`'s `stale_approved`).
+
+**yf's mechanism is strictly stronger and is not expressible in v0.2's vocabulary.** There is no
+v0.2 key whose value is a content hash. Recorded as a divergence yf **keeps**; the correct future
+move is to propose it upstream, not to weaken it to fit.
+
+### 3. `status` — COLLISION, resolved as a PERMANENT divergence
+
+The one key where two spellings coexisting is **not** benign, because they are two **vocabularies on
+the same key**. v0.2 §5.4 gives `status` a lifecycle vocabulary; yf already uses `status` for two
+*different* things (the yf-plan workflow state and the yf-research pipeline phase), so the key
+carries three meanings across the two specs.
+
+**yf declines v0.2 §5.4 — for new emissions as well as old** (plan-046 D-7):
+
+- `status` is read at a **gate**, against the literal `"approved"` (`plan_manager.py`), so a
+  vocabulary change is an execution-eligibility change, not a labelling one (plan-046 R4).
+- Corpus overlap with v0.2's vocabulary is **`draft` only, 2 of 46** — adopting the upstream
+  vocabulary would rewrite 44 artifacts to resolve a 2-artifact ambiguity.
+
+The `okf_spec`-namespacing rule (§1) is what makes this safe to declare rather than merely tolerate:
+a consumer that understands v0.2 reads `okf_spec` and learns this is an `OKF-PLAN` artifact, whose
+`status` is member-defined. And under v0.2 §4.1 a consumer **MUST NOT** reject the document for it.
+
+### 4. `generated: { by, at }` + the actor convention — ABSENT
+
+A **pure gap**, with no yf counterpart in either direction. v0.2 §5.2 records who produced a concept
+and when; §7 fixes the actor form (`<producer>/<version>`, `human:<id>`, `process:<id>`) and makes
+the `human:` prefix a **MUST** for hand-authored or human-confirmed content, because §5.3 keys trust
+classification off it.
+
+yf emits **nothing** here. `author` is the operator, not the producing agent, and no artifact records
+whether a section was written by a human or an agent — which is exactly the distinction §7 exists to
+carry. Recorded as ABSENT rather than mapped: `author` is **not** `generated.by`, and equating them
+would be the rename this section refuses.
+
+*(This is the one mapping where v0.2 is unambiguously ahead of yf.)*
+
+### 5. Attested Computation vs the `- validated:` receipt — AGREE, and yf goes further
+
+v0.2 §10 introduces the `Attested Computation` concept type: a computation whose result an
+**attester** can re-derive, so a reader can trust the number without rerunning it. yf-plan's
+completion gate records a persisted `- validated:` attestation in `log.md` — a receipt that a real
+run happened green.
+
+**They AGREE on the principle that matters**: a claim about a computation is only as good as
+something that can re-derive it, and determinism is what makes the receipt meaningful. This is the
+same doctrine plan-046 was written under — an artifact asserting something nothing checks is a
+liability.
+
+**And yf persists a receipt that v0.2 explicitly defers.** v0.2 §12 "Considered and deferred" lists
+*"The full runtime protocol: receipt and verdict wire formats, and the attestation lifecycle around a
+run"* as future work. yf's `- validated:` line is exactly such a receipt, in production. Recorded so a
+future reader knows this is a place where yf leads rather than lags — and so that any future adoption
+of §10 is understood as **formalizing** the receipt, not introducing it.
+
+## 10. References
+
+- `skills/yf-okf/spec/OKF-BASELINE.md` — the upstream OKF v0.2 baseline this layer sits on.
 - `skills/yf-okf/SPEC.md` — REQ-OKF-010/020/021/030/031, REQ-OKF-050/060, REQ-OKF-070/071,
   REQ-OKF-FAM-001..004, REQ-OKF-MIG-002.
 - Per-skill members (Issue 1.3): `skills/yf-plan/OKF-EXTENSION.md` (OKF-PLAN),

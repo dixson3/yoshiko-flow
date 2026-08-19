@@ -1,0 +1,212 @@
+diff --git a/docs/plans/plan-031-james-dixson-62a375/index.md b/docs/plans/plan-031-james-dixson-62a375/index.md
+index 96e4c86..36d6a88 100644
+--- a/docs/plans/plan-031-james-dixson-62a375/index.md
++++ b/docs/plans/plan-031-james-dixson-62a375/index.md
+@@ -13,6 +13,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+-- [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-032-james-dixson-6cb87b/index.md b/docs/plans/plan-032-james-dixson-6cb87b/index.md
+index 81eb67c..b8be470 100644
+--- a/docs/plans/plan-032-james-dixson-6cb87b/index.md
++++ b/docs/plans/plan-032-james-dixson-6cb87b/index.md
+@@ -11,8 +11,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [plan.md](plan.md) - The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes.
+ - [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
+ - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
+-- [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+-- [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-033-james-dixson-46aca2/index.md b/docs/plans/plan-033-james-dixson-46aca2/index.md
+index 6ff49bf..9405273 100644
+--- a/docs/plans/plan-033-james-dixson-46aca2/index.md
++++ b/docs/plans/plan-033-james-dixson-46aca2/index.md
+@@ -15,4 +15,3 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+ - [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-034-james-dixson-ac6633/index.md b/docs/plans/plan-034-james-dixson-ac6633/index.md
+index 05db3a4..db3e765 100644
+--- a/docs/plans/plan-034-james-dixson-ac6633/index.md
++++ b/docs/plans/plan-034-james-dixson-ac6633/index.md
+@@ -11,8 +11,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [plan.md](plan.md) - The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes.
+ - [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
+ - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
+-- [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+-- [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-035-james-dixson-74d7ae/index.md b/docs/plans/plan-035-james-dixson-74d7ae/index.md
+index 155f125..fec447e 100644
+--- a/docs/plans/plan-035-james-dixson-74d7ae/index.md
++++ b/docs/plans/plan-035-james-dixson-74d7ae/index.md
+@@ -14,5 +14,3 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-036-james-dixson-461061/index.md b/docs/plans/plan-036-james-dixson-461061/index.md
+index 43957de..49fa017 100644
+--- a/docs/plans/plan-036-james-dixson-461061/index.md
++++ b/docs/plans/plan-036-james-dixson-461061/index.md
+@@ -11,8 +11,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [plan.md](plan.md) - The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes.
+ - [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
+ - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
+-- [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+-- [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-037-james-dixson-cab694/index.md b/docs/plans/plan-037-james-dixson-cab694/index.md
+index 07aa70c..afee567 100644
+--- a/docs/plans/plan-037-james-dixson-cab694/index.md
++++ b/docs/plans/plan-037-james-dixson-cab694/index.md
+@@ -14,5 +14,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [REDEPLOY-HANDOFF.md](REDEPLOY-HANDOFF.md)
++- [decisions/](decisions/)
++- [scripts/](scripts/)
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-038-james-dixson-1ce25a/index.md b/docs/plans/plan-038-james-dixson-1ce25a/index.md
+index 62d98f3..22acc89 100644
+--- a/docs/plans/plan-038-james-dixson-1ce25a/index.md
++++ b/docs/plans/plan-038-james-dixson-1ce25a/index.md
+@@ -14,5 +14,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-039-james-dixson-150f79/index.md b/docs/plans/plan-039-james-dixson-150f79/index.md
+index 053d195..4182554 100644
+--- a/docs/plans/plan-039-james-dixson-150f79/index.md
++++ b/docs/plans/plan-039-james-dixson-150f79/index.md
+@@ -16,3 +16,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [findings/](findings/) - Investigation experiment results (if any).
+ - [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+ - [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-040-james-dixson-1cabe4/index.md b/docs/plans/plan-040-james-dixson-1cabe4/index.md
+index be8bb62..bae3d64 100644
+--- a/docs/plans/plan-040-james-dixson-1cabe4/index.md
++++ b/docs/plans/plan-040-james-dixson-1cabe4/index.md
+@@ -14,5 +14,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-041-james-dixson-a9d837/index.md b/docs/plans/plan-041-james-dixson-a9d837/index.md
+index 21a1996..c3bd11a 100644
+--- a/docs/plans/plan-041-james-dixson-a9d837/index.md
++++ b/docs/plans/plan-041-james-dixson-a9d837/index.md
+@@ -20,5 +20,3 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-042-james-dixson-98631b/index.md b/docs/plans/plan-042-james-dixson-98631b/index.md
+index e7a23be..f849147 100644
+--- a/docs/plans/plan-042-james-dixson-98631b/index.md
++++ b/docs/plans/plan-042-james-dixson-98631b/index.md
+@@ -14,5 +14,3 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+diff --git a/docs/plans/plan-043-james-dixson-a8afe8/index.md b/docs/plans/plan-043-james-dixson-a8afe8/index.md
+index 21657fb..e38daa7 100644
+--- a/docs/plans/plan-043-james-dixson-a8afe8/index.md
++++ b/docs/plans/plan-043-james-dixson-a8afe8/index.md
+@@ -14,5 +14,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`) — one per triaged issue, including the `exclude` rows, so a cold reader can check the exclusion rationale against the source. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-044-james-dixson-f6fdbd/index.md b/docs/plans/plan-044-james-dixson-f6fdbd/index.md
+index 1b35633..7ea5f21 100644
+--- a/docs/plans/plan-044-james-dixson-f6fdbd/index.md
++++ b/docs/plans/plan-044-james-dixson-f6fdbd/index.md
+@@ -14,5 +14,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
++- [upstream-triage.md](upstream-triage.md)
+diff --git a/docs/plans/plan-045-james-dixson-9899e1/index.md b/docs/plans/plan-045-james-dixson-9899e1/index.md
+index a4dcd29..b4f645e 100644
+--- a/docs/plans/plan-045-james-dixson-9899e1/index.md
++++ b/docs/plans/plan-045-james-dixson-9899e1/index.md
+@@ -14,9 +14,8 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [findings/](findings/) - Investigation experiment results (if any).
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+ - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
++- [upstream-triage.md](upstream-triage.md)
+ 
+ ## Note on `scope-answers.md`
+ 
+diff --git a/docs/plans/plan-046-james-dixson-aabefa/index.md b/docs/plans/plan-046-james-dixson-aabefa/index.md
+index 2d49d95..588ea35 100644
+--- a/docs/plans/plan-046-james-dixson-aabefa/index.md
++++ b/docs/plans/plan-046-james-dixson-aabefa/index.md
+@@ -15,6 +15,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
+ - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+ - [upstream-triage.md](upstream-triage.md) - Disposition of each candidate upstream issue (include / exclude / partial / supersede) with the reasoning. The triage record behind plan.md's Upstream Issues table.
+ - [findings/](findings/) - The four investigation experiments. **exp-003 refuted the originally-approved nested-index backfill and exp-004 weakened the #92 supersede** — read these before trusting plan.md's scope.
+-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
+ - [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+-- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+diff --git a/docs/research/002-harness-global-rule-minimization/index.md b/docs/research/002-harness-global-rule-minimization/index.md
+index fa8b0c1..0de24a1 100644
+--- a/docs/research/002-harness-global-rule-minimization/index.md
++++ b/docs/research/002-harness-global-rule-minimization/index.md
+@@ -14,3 +14,5 @@ okf_version: '0.1'
+ - [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team critique — 2 blocking, 4 recommended items
+ - [diagrams/harness-rule-minimization.png](diagrams/harness-rule-minimization.png) - [package] Per-harness two-tier model + rule taxonomy diagram
+ - [sources.md](sources.md) - [package] Consolidated source list with credibility scores
++- [plan.yaml](plan.yaml)
++- [sources.json](sources.json)
+diff --git a/docs/research/003-graph-engineering-hypothesis/index.md b/docs/research/003-graph-engineering-hypothesis/index.md
+index 9817eed..1d341c5 100644
+--- a/docs/research/003-graph-engineering-hypothesis/index.md
++++ b/docs/research/003-graph-engineering-hypothesis/index.md
+@@ -13,3 +13,5 @@ okf_version: '0.1'
+ - [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team critique: 17 ranked items incl. one verifiably false load-bearing claim (C-2), inconsistent consensus bar, systemic credibility-scoring floor on vendor docs; verdict refinable
+ - [sources.md](sources.md) - [package] Rendered source register: all 90 sources.json entries as anchored headings (PT/FW/YF/CE), the citation target for all 294 Summary.md links
+ - [diagrams/yf-construct-vs-execute.png](diagrams/yf-construct-vs-execute.png) - [package] Figure 1: the three layers (construction / artifact / execution) with the 6 ranked refactoring opportunities attached to their evidencing layer; d2 source beside it
++- [plan.yaml](plan.yaml)
++- [sources.json](sources.json)
+diff --git a/docs/research/004-plan-process-defect-mining/index.md b/docs/research/004-plan-process-defect-mining/index.md
+index 8ab9a95..cd3efe9 100644
+--- a/docs/research/004-plan-process-defect-mining/index.md
++++ b/docs/research/004-plan-process-defect-mining/index.md
+@@ -17,3 +17,4 @@ okf_version: '0.1'
+ - [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team: 9 must-fix (2 repo-count errors, cost unevidenced, single-cluster flags absent at point of use, 1 uncited claim, blind not attested end-to-end)
+ - [diagrams/defect-class-taxonomy.png](diagrams/defect-class-taxonomy.png) - [package] Diagram: 16 ranked defect classes + 2 non-defect rows mapped onto owning skill surfaces (source: [diagrams/defect-class-taxonomy.d2](diagrams/defect-class-taxonomy.d2))
+ - [diagrams/evidence-pipeline.png](diagrams/evidence-pipeline.png) - [package] Diagram: evidence pipeline — 4 clusters to triangulation to synthesis, with the fifth cluster's out-of-band path (source: [diagrams/evidence-pipeline.d2](diagrams/evidence-pipeline.d2))
++- [plan.yaml](plan.yaml)

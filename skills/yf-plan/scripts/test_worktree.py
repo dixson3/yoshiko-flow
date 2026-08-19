@@ -1176,7 +1176,7 @@ OKF-conformant, portable bundle. Affected: the yf-plan maintainers.
 """
 
 _AUDIT_INDEX_MD = """---
-okf_version: 0.1
+okf_version: 0.2
 ---
 
 # plan-500-t-abc
@@ -1293,7 +1293,7 @@ def test_audit_index_not_a_listing_fails(tmp_path):
     # bullets) fails the listing-shape check (REQ-PORT-001).
     pd = _okf_bundle(tmp_path)
     (pd / "index.md").write_text(
-        "---\nokf_version: 0.1\n---\n# plan\n\n## File map\n\n## Reading order\n")
+        "---\nokf_version: 0.2\n---\n# plan\n\n## File map\n\n## Reading order\n")
     result = pm._audit_plan(pd)
     idx = [f for f in result["findings"] if f["item"] == "index.md"]
     assert idx and idx[0]["status"] == "fail"

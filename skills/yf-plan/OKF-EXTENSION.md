@@ -164,7 +164,7 @@ Deltas Epic 2's impact assessment quantifies and the ratification gate confirms:
 
 - `skills/yf-okf/SPEC.md` — REQ-OKF-001/002/003, 010, 020/021, 030/031, 050, 060, MIG-002/003,
   FAM-001..003.
-- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.1) and
+- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.2) and
   `skills/yf-okf/spec/OKF-YF-EXTENSIONS.md` (the yf layer this member composes on).
 - `skills/yf-plan/scripts/plan_manager.py` — `seed_plan_md`, `seed_index`, `seed_context_md`,
   `write_upstream_reference`, `_plan_content_sections`, `_plan_first_scoping_date`.

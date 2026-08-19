@@ -30,7 +30,7 @@ tags: []
 
 Repo-agnostic engine that **constructs, manages, and conformance-checks** the artifact folders
 ("bundles") the yf artifact-producing skills emit (`yf-plan`, `yf-research`, `yf-incubator`, and
-future consumers), making them **compatible with** the Open Knowledge Format (OKF v0.1). It is
+future consumers), making them **compatible with** the Open Knowledge Format (OKF v0.2). It is
 also the **owner of the OKF-\* spec family** — the versioned ruleset that says how each kind of yf
 artifact is structured and annotated.
 
@@ -40,7 +40,7 @@ reserved `index.md`/`log.md`, a parseable frontmatter block with a non-empty `ty
 non-reserved `.md`, the dual frontmatter+`**Field:**` model, and the `okf_spec:` member key.
 
 Authoritative behavior lives in `SPEC.md` (REQ-OKF-\*) and `spec/` — `OKF-BASELINE.md` (upstream
-OKF v0.1, pinned `okf_version: 0.1`) and `OKF-YF-EXTENSIONS.md` (the yoshiko-flow layer). This
+OKF v0.2, pinned `okf_version: 0.2`) and `OKF-YF-EXTENSIONS.md` (the yoshiko-flow layer). This
 file is the operational summary; on any discrepancy, `SPEC.md` and `spec/` win.
 
 ## OKF-\* family orientation
@@ -50,7 +50,7 @@ The **effective ruleset** the engine enforces is the composition
 
 | Member | Where it lives | Role |
 |:--|:--|:--|
-| OKF-BASELINE | `spec/OKF-BASELINE.md` | upstream OKF v0.1 rules (reserved `index.md`/`log.md`, frontmatter + non-empty `type`) |
+| OKF-BASELINE | `spec/OKF-BASELINE.md` | upstream OKF v0.2 rules (reserved `index.md`/`log.md`, frontmatter + non-empty `type`) |
 | OKF-YF-EXTENSIONS | `spec/OKF-YF-EXTENSIONS.md` | yf layer: dual field model, `okf_spec:` key, placement invariant; reserves `OKF-SPECIFICATION` (deferred) |
 | per-skill `OKF-EXTENSION.md` | `skills/<skill>/OKF-EXTENSION.md` | one member per consumer (`OKF-PLAN`, `OKF-RESEARCH`, `OKF-INCUBATOR`) |
 
