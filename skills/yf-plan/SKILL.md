@@ -270,7 +270,7 @@ gh issue list --search "<objective keywords>" --json number,title,body,labels,st
 uv run ${SKILL_DIR}/scripts/plan_manager.py triage "${plan_dir}" "${objective}" --issues-json /tmp/yf-plan-issues.json
 ```
 
-Present matches with disposition options: `[include] [exclude] [partial] [supersede]`
+Present matches with disposition options: `[include] [exclude] [partial] [supersede] [deferred]`
 
 For <=5 issues, present inline. For >5, direct operator to edit the generated `upstream-triage.md`.
 
@@ -946,8 +946,11 @@ ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${issue_description}" \
 uv run _shared/plan_extract.py "${plan_dir}" --json --strict
 ```
 
-A non-empty `unparsed[]` means the plan declares something the REQ-DATA-019 grammar does not
-cover; fix the document rather than hand-transcribing around it.
+`--strict` exits **2 (INCONCLUSIVE)**, never 1, on a non-empty `unparsed[]` (REQ-DATA-043):
+the extractor did not *see* part of the plan, which is a different claim from the plan being
+wrong. Treat it as "this instrument could not read the document" — fix the document (or widen
+the reading grammar) rather than hand-transcribing around it, and never let a partially
+extracted DAG drive the pour, since a DAG missing an edge silently reorders execution.
 
 **Attach upstream metadata** to issues that resolve an upstream issue:
 

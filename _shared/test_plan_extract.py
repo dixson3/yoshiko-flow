@@ -182,6 +182,170 @@ d = ex(HDR + "## Epics\n### Epic B: lettered\n- Issue 1.1: x\n")
 check("a lettered epic is extracted", len(d["epics"]) == 1)
 check("...and flagged as lettered", d["epics"][0]["lettered"] is True)
 
+# --- plan-048 Issue 1.3: the four RECOVERED historical forms -------------------------------
+# Each is recovered because it is UNAMBIGUOUS. Each also asserts the recovery is LOGGED in
+# `recovered[]` with a before/after pair — an unauditable recovery is indistinguishable from
+# an invented edge (SC1b).
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+- Issue 1.2 (firing surface): a title parenthetical before the colon
+  - depends-on: 1.1
+""")
+check("RECOVER class D: a title parenthetical does not break the issue id",
+      [i["id"] for i in d["issues"]] == ["1.1", "1.2"], str(d["unparsed"]))
+check("...and the recovery is logged with a before/after pair",
+      any(r["class"] == "title-parenthetical" and "1.2" in r["after"]
+          for r in d["recovered"]), str(d["recovered"]))
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+- Issue 1.2: second
+- depends-on: 1.1
+- resolves-upstream: #42 (include)
+""")
+check("RECOVER class C: a column-0 sub-key attaches to the preceding issue",
+      [(e["from"], e["to"]) for e in d["edges"]] == [("1.2", "1.1")], str(d["unparsed"]))
+check("...and the column-0 resolves-upstream is read too",
+      d["issues"][1]["resolves_upstream"] == [{"issue": "#42", "disposition": "include"}])
+check("...and both recoveries are logged",
+      sum(1 for r in d["recovered"] if r["class"] == "col0-subkey") == 2, str(d["recovered"]))
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+
+## Gates
+### Capability Gate: g
+- Type: auto
+- Blocks: Issue 1.1
+""")
+check("RECOVER class A: an `Issue N.M` prefix inside Blocks is the bare id",
+      d["gates"][0]["blocks"] == [{"kind": "issue", "ref": "1.1"}], str(d["unparsed"]))
+check("...and the recovery is logged",
+      any(r["class"] == "blocks-issue-prefix" for r in d["recovered"]))
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+
+## Gates
+### Capability Gate: g
+- Type: auto
+- Blocks: Epic 2, Epics 3
+""")
+check("RECOVER class B: `Epic N` / `Epics N` normalize to epic:N",
+      d["gates"][0]["blocks"] == [{"kind": "epic", "ref": "2"}, {"kind": "epic", "ref": "3"}],
+      str(d["unparsed"]))
+
+# --- plan-048 Issue 1.4: classes D and E are REFUSED, reported with LINE NUMBERS -----------
+# SC3: this section FAILS if a repair is ever attempted. The assertion is not merely
+# "an entry appears in unparsed[]" — it is that NO edge was materialized and NO document
+# text was altered. A repair would satisfy the first and violate the second two.
+
+SRC_PROSE_TAIL = HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+- Issue 1.2: second
+  - depends-on: 1.1 (the sync.py mode it relies on)
+"""
+d = ex(SRC_PROSE_TAIL)
+check("REFUSE class D: a prose-tailed depends-on is reported, never split",
+      d["edges"] == [], str(d["edges"]))
+check("...and it is reported with a line number and a reason",
+      len(d["unparsed"]) == 1 and d["unparsed"][0]["line"] > 0
+      and "prose tail" in d["unparsed"][0]["reason"], str(d["unparsed"]))
+check("...and NOTHING was repaired: no recovery is claimed for it",
+      not any(r["line"] == d["unparsed"][0]["line"] for r in d["recovered"]),
+      str(d["recovered"]))
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+- Issue 1.2: second
+  - depends-on: 9.9
+""")
+check("REFUSE class E: a dangling depends-on target is reported",
+      any("target" in u["reason"] or "9.9" in u.get("raw", "") for u in d["unparsed"]),
+      str(d["unparsed"]))
+
+# --- plan-048 Issue 1.4a: the NEGATIVE mutant ---------------------------------------------
+# A construct a NAIVE widening would recover WRONGLY. The assertion is not "it is refused"
+# in the abstract — it is that the widened grammar materializes NO edge, rather than the
+# readable PREFIX of one. A half-complete edge list is worse than none: a missing edge is
+# visible in `unparsed[]`, a partial one reads as complete and silently reorders execution.
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+
+## Gates
+### Capability Gate: g
+- Type: auto
+- Blocks: Epic 5 (decommission install.py)
+""")
+check("NEGATIVE MUTANT 1: a Blocks referent with a trailing qualifier is REFUSED",
+      d["gates"][0]["blocks"] == [], str(d["gates"][0]["blocks"]))
+check("...and refusing it is NOT the same as recovering `epic:5`",
+      not any(b.get("ref") == "5" for b in d["gates"][0]["blocks"]))
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+
+## Gates
+### Capability Gate: g
+- Type: auto
+- Blocks: Epics 2, 3, 4
+""")
+check("NEGATIVE MUTANT 2: a partly-readable Blocks list is refused WHOLE, not partially",
+      d["gates"][0]["blocks"] == [],
+      f'materialized {d["gates"][0]["blocks"]} — the bare `3`/`4` are an INFERENCE from '
+      f'the neighbouring token, not a property of the token')
+
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+- Issue 1.2: second
+  - depends-on: Epic 1
+""")
+check("NEGATIVE MUTANT 3: a `depends-on: Epic N` fan-out is REFUSED, not expanded",
+      d["edges"] == [], f'materialized {d["edges"]} — an epic fan-out is not an issue edge')
+
+# A recovery inside a REFUSED value must not be LOGGED either. Measured on the live corpus:
+# 6 of 43 staged recoveries sat inside `Blocks:` values that were ultimately refused whole
+# (`Blocks: Epics 2, 3, 4`, `Blocks: Issues 3.1, 4.1, 5.1 — i.e. ...`). Logging them would
+# relocate the half-complete hazard into the audit log, so the hand audit would adjudicate
+# edges that were never materialized.
+d = ex(HDR + """## Epics
+### Epic 1: a
+- Issue 1.1: first
+
+## Gates
+### Capability Gate: g
+- Type: auto
+- Blocks: Epics 2, 3, 4
+""")
+check("a recovery inside a REFUSED Blocks value is not logged as recovered",
+      d["recovered"] == [],
+      f'claimed {d["recovered"]} but materialized {d["gates"][0]["blocks"]}')
+
+# --- SC3: the extractor NEVER writes ------------------------------------------------------
+# The strongest available statement of "reported, never auto-repaired": run the extractor
+# over a file with refused constructs and assert the bytes on disk are unchanged.
+import hashlib
+with tempfile.TemporaryDirectory() as _td:
+    _p = Path(_td) / "plan.md"
+    _p.write_text(SRC_PROSE_TAIL)
+    _before = hashlib.sha256(_p.read_bytes()).hexdigest()
+    pe.extract(_p)
+    _after = hashlib.sha256(_p.read_bytes()).hexdigest()
+check("SC3: the extractor did not modify the document it refused to parse",
+      _before == _after, "the extractor WROTE to its input — repair is forbidden")
+
+
 # --- The live corpus: every plan is handled or its gaps are ENUMERATED ---------------------
 
 plans = sorted((REPO / "docs" / "plans").glob("plan-*/plan.md"))

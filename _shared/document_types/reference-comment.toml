@@ -1,0 +1,29 @@
+# references/comment-<N>.md — DRAFTED upstream comments, before posting (Issue 2.8).
+#
+# 13 files. These are the drafts the gated "Upstream write" step posts. They are neither
+# vendored (this repo authored them) nor code-generated (an agent drafts them), so neither
+# `reference.toml`'s vendored carve-out nor `upstream-reference.toml`'s producer contract
+# applies. Splitting them out is what lets each subset be judged by its own standard.
+#
+# Measured 2026-08-19: `type:` 13/13; `disposition:` and `target:` 8/13.
+type = "reference-comment"
+producer_class = "agent-written"
+description = "A drafted upstream issue comment awaiting the gated posting step."
+
+paths = [
+    "docs/plans/*/references/comment-[0-9]*.md",
+    "Incubator/*/plans/*/references/comment-[0-9]*.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+# W, not E: 8/13. The two keys make a draft mechanically routable to its issue — without
+# `target` nothing can tell which issue a draft belongs to except its filename, and a
+# filename is not a declaration.
+[[checks]]
+id = "routing-frontmatter"
+severity = "W"
+kind = "frontmatter-keys"
+value = ["disposition", "target"]

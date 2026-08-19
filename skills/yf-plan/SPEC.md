@@ -255,7 +255,17 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   every **non-`exclude`** row of plan.md's `## Upstream Issues` table it shall assert:
   `include` → the issue is **CLOSED and carries a comment mentioning the plan id**;
   `supersede` → **CLOSED with `stateReason == NOT_PLANNED`**; `partial` → **OPEN and carries a
-  plan-id mention**. The mention requirement is not redundant with state: state alone would
+  plan-id mention**; `deferred` → **OPEN → `pass`, with NO plan-id-mention requirement;
+  not-OPEN → `fail`** *(plan-048 D-7, Issue 0.2)*. A `deferred` row is a **non-action**: it
+  records a scoping decision taken in the *deferring* plan, not work done on the issue, so
+  there is nothing to attribute upstream — demanding a mention would make every deferring plan
+  halt its own reconcile. The not-OPEN direction is still a real assertion, not a waiver: an
+  issue the plan declared it would come back to, which is closed by the time reconcile runs,
+  contradicts the disposition and is `fail`. `deferred` is **not** the same as `tracker`
+  (`spec/cli.md` REQ-CLI-018), which is `inconclusive` **by construction** because the coarse
+  tracker is closed by the land-the-plane sweep rather than by reconciliation; the two are
+  report-only for different reasons and neither may be collapsed into the other. `exclude`
+  rows remain skipped entirely. The mention requirement is not redundant with state: state alone would
   **pass** the very defect this requirement exists to catch, since the issue in question is
   CLOSED today — closed by a human 15 hours later as manual repair. Matching may be normalized
   (case/punctuation tolerant) but shall **never** be a time-window heuristic, which would also
@@ -275,8 +285,12 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   Verification: `scripts/test_verify_reconcile.py` covers each disposition's pass and fail case,
   the historical scenario (correct state, **no** plan-id mention) **failing**, `exclude` rows
   skipped, a checker error yielding `inconclusive` rather than `fail`, the **mixed** case (one
-  row `fail` + one `inconclusive` → aggregate `fail`), and row-shape variants (`[#N]` vs `#N`)
-  pinning the shared parser. No network in tests.
+  row `fail` + one `inconclusive` → aggregate `fail`), row-shape variants (`[#N]` vs `#N`)
+  pinning the shared parser, and — per plan-048 Issue 3.4a — each of the **five** recognised
+  literals returning its declared verdict, including `deferred` OPEN → `pass` / not-OPEN →
+  `fail` and `tracker` → `inconclusive` in both directions. An **unrecognised** disposition is
+  `fail`, not `inconclusive`: a literal no producer offers is a typo in the table, and a
+  fail-loud step must not silently pass one. No network in tests.
 
 - **REQ-PLAN-075** *(testable, plan-043 / #140)* on COMPLETE (the §6.4 ordered gate chain,
   REQ-COMPLETE-001), yf-plan shall run the **bundle-conformance audit at close** via an

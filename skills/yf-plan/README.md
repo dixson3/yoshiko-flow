@@ -12,7 +12,7 @@ Claude Code has a native plan mode, but it treats planning as a single-session, 
 
 - **Multiple people need to contribute.** yf-plan tracks execution state in beads, which are stored in the repo alongside the code. Push an in-progress plan upstream and collaborators can pull it into their own environments, claim ready beads, and execute their portion. The bead DAG ensures correct ordering without coordination overhead.
 
-- **You want upstream issue context in the plan.** yf-plan scans GitHub/GitLab issues related to the objective, lets you triage them (include, exclude, partial, supersede), and wires them into the plan's epics. After execution, the reconcile phase automatically updates or closes those upstream issues with references to what was done.
+- **You want upstream issue context in the plan.** yf-plan scans GitHub/GitLab issues related to the objective, lets you triage them (include, exclude, partial, supersede, deferred), and wires them into the plan's epics. After execution, the reconcile phase automatically updates or closes those upstream issues with references to what was done.
 
 - **Plans should be durable artifacts.** Native plan mode produces ephemeral output that vanishes with the session. yf-plan writes plans as markdown — versioned in git, reviewable in PRs, searchable in the future. Plans land under `docs/plans/` by default, or under `Incubator/<slug>/plans/` when the plan is scoped to a specific incubator (auto-detected from CWD, confirmed during scoping). The plan document records scoping decisions, investigation findings, approach rationale, and execution status.
 
@@ -108,13 +108,17 @@ A cold reader in a different repo, with no access to the drafting conversation, 
 
 ```
 SKILL.md                     Claude Code skill entry point (includes all phases inline)
+SPEC.md                      Requirements (REQ-PLAN-NNN), guardrails, verification map
+README.md                    This file
+OKF-EXTENSION.md             The per-skill OKF extension rules for a plan bundle
 spec/
   phases.md                  Phase model and status value requirements
   cli.md                     Invocation, pre-flight, and plan_manager.py interface
   agents.md                  Agent roles, inputs, outputs, and behavioral constraints
-  data.md                    Plan identity, plan.md schema, config, formulas
+  data.md                    Plan identity, plan.md schema, config, formulas, doc types
   prerequisites.md           Required/optional tools, bootstrap flow, install URLs
   portability.md             Portability contract, audit semantics, activation date
+  ci-release-completion.md   The ci-release completion criterion and its evidence contract
   worktree-execute-lifecycle.d2   d2 source for the worktree execution lifecycle diagram
   worktree-execute-lifecycle.png  Rendered lifecycle diagram (referenced from SKILL.md)
 agents/
@@ -129,13 +133,35 @@ formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp
 scripts/
-  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery resume scan, worktree lifecycle (ensure/path/teardown), landing lock, merged-state validation, autonomy config resolution, retrospective append (run via uv)
-  test_worktree.py           Unit tests for the worktree verb cluster + landing lock + validate-merged (run via uv)
-  manifest_update.py         Vendored manifest hash/version helper (run via uv)
+  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery
+                             resume scan, worktree lifecycle, landing lock, merged-state
+                             validation, autonomy config resolution, retrospective append
+  plan_template.py           The canonical plan.md skeleton + producer constants (vendored
+                             from _shared/, synced by _shared/sync.py)
+  okf.py                     Vendored OKF engine (byte-identical to _shared/okf.py)
+  close_cascade.py           Bottom-up cascade-close of all-terminal containers (§6.4)
+  repair_dangling_epics.py   One-shot repair for epics orphaned by a crashed pour
+  manifest_update.py         Vendored manifest hash/version helper
+  fixtures/classify/         Ground-truth corpus for test_classify_deliverable.py
+  test_*.py                  Tier-1 unit tests, one per verb cluster — worktree, gates,
+                             close contract/cascade, complete gate, config tiers, autonomy,
+                             retrospective, review count/verdict, stamp-tracker,
+                             verify-reconcile, classify-deliverable, audit-close, and the
+                             CLI enumeration guard
 protocols/
-  PLANS.md                   Planning protocol (installed to the scope+surface rules dir, e.g. ~/.claude/rules/PLANS.md or <git-root>/.claude/rules/PLANS.md, by install.sh)
+  PLANS.md                   Planning protocol (installed to the scope+surface rules dir, e.g.
+                             ~/.claude/rules/PLANS.md or <git-root>/.claude/rules/PLANS.md,
+                             by install.sh)
   manifest.json              Hash manifest for PLANS.md
+test-harness/
+  bootstrap.sh               Tier-2 sandboxed-HOME harness setup (see TESTING.md)
+  smoke.sh                   Tier-2 mechanical drive of the manager verbs
+  README.md                  How to run the Tier-2 harness
 ```
+
+_Every entry above is verified against the shipped tree by
+`scripts/test_cli_enumeration.py`; `__pycache__` is excluded as a build artifact._
+
 
 Per-plan folder layout after `/yf-plan init` (plan root is either `docs/plans/` or `Incubator/<slug>/plans/` depending on the answer to the scoping incubator question; numbering is global):
 

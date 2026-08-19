@@ -592,7 +592,7 @@ _INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
     ("plan.md", "The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes."),
     ("context.md", "Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes."),
     ("log.md", "Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log)."),
-    ("upstream-triage.md", "Disposition of each candidate upstream issue (include / exclude / partial / supersede) with the reasoning. The triage record behind plan.md's Upstream Issues table."),
+    ("upstream-triage.md", "Disposition of each candidate upstream issue (include / exclude / partial / supersede / deferred) with the reasoning. The triage record behind plan.md's Upstream Issues table."),
     ("references/", "Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses."),
     ("reviews/", "Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved."),
     ("findings/", "Investigation experiment results (if any)."),
@@ -1008,7 +1008,7 @@ def seed_upstream_triage(plan_dir: Path, objective: str,
     lines = [
         f"# Upstream Issue Triage: {objective}",
         "",
-        "Instructions: For each issue, set disposition to: include, exclude, partial, supersede.",
+        "Instructions: For each issue, set disposition to: include, exclude, partial, supersede, deferred.",
         "Add notes as needed. When done, say \"triage ready\".",
         "",
         "_Full issue bodies are inlined under `references/upstream-<N>.md` (regenerated on re-triage)._",
@@ -2052,11 +2052,45 @@ def _verify_row(row: dict, plan_id: str) -> dict:
         return {"issue": number, "disposition": disp, "verdict": "pass",
                 "detail": f"#{number} OPEN with a {plan_id} mention"}
 
-    # `tracker` and any unrecognised disposition: report, never halt. The coarse tracker
-    # is closed by the land-the-plane sweep, not by reconciliation.
-    return {"issue": number, "disposition": disp, "verdict": "inconclusive",
-            "detail": f"#{number} has disposition {disp!r}, which carries no "
-                      "reconciliation end-state contract"}
+    if disp == "deferred":
+        # REQ-PLAN-074 as amended by plan-048 Issue 0.2 (D-7). A deferral is a NON-ACTION:
+        # the row records a scoping decision taken in THIS plan, not work done on that
+        # issue. There is nothing to attribute upstream, so there is deliberately NO
+        # plan-id-mention requirement — demanding one would make every deferring plan halt
+        # its own reconcile. plan-048 itself carries five `deferred` rows.
+        #
+        # The not-OPEN direction is still a real assertion, not a waiver: an issue the plan
+        # declared it would return to, which is closed by the time reconcile runs,
+        # CONTRADICTS the disposition.
+        if state != "OPEN":
+            return {"issue": number, "disposition": disp, "verdict": "fail",
+                    "detail": f"#{number} is {state}; a `deferred` row must stay OPEN — "
+                              "the plan declared it would return to this, so a closed "
+                              "issue contradicts the disposition"}
+        return {"issue": number, "disposition": disp, "verdict": "pass",
+                "detail": f"#{number} OPEN; `deferred` is a non-action and requires no "
+                          f"{plan_id} mention"}
+
+    if disp == "tracker":
+        # INCONCLUSIVE BY CONSTRUCTION (spec/cli.md REQ-CLI-018), and deliberately NOT
+        # collapsed into `deferred`. The coarse tracker is closed by the land-the-plane
+        # sweep, not by reconciliation, so it carries no end-state contract in EITHER
+        # direction. `deferred` is report-only because there is nothing to attribute;
+        # `tracker` is report-only because reconcile is not the thing that closes it.
+        # The two are report-only for different reasons and neither may absorb the other.
+        return {"issue": number, "disposition": disp, "verdict": "inconclusive",
+                "detail": f"#{number} is a coarse tracker; it is closed by the "
+                          "land-the-plane sweep, not by reconciliation"}
+
+    # An UNRECOGNISED disposition is `fail`, not `inconclusive` (plan-048 Issue 3.4).
+    # Every recognised literal is handled above, and the producer surfaces offer exactly
+    # those, so anything else is a TYPO in the table — and a fail-loud step must not
+    # silently pass a typo. This is also what makes R2c's normalization load-bearing:
+    # before it, a bolded `**partial**` reached here as an unrecognised literal.
+    return {"issue": number, "disposition": disp, "verdict": "fail",
+            "detail": f"#{number} has disposition {disp!r}, which is not one of "
+                      "include|exclude|partial|supersede|deferred|tracker — an "
+                      "unrecognised literal is a typo in the table, not a valid state"}
 
 
 @cli.command("verify-reconcile")
@@ -3583,22 +3617,12 @@ _ABS_PATH_PATTERNS = (
 )
 _PARENT_TRAVERSAL = re.compile(r"(?<![\w.])\.\./")
 
-_CONTEXT_REQUIRED_SECTIONS = (
-    "Project environment",
-    "Tool inventory",
-    "Paths",
-    "Operator identity",
-    "Runtime assumptions",
-)
-
-# Seeded instructional prose per section (from seed_context_md). A section whose body
-# still contains its marker is unedited template text and fails the portability audit.
-# Tool inventory / Paths are auto-filled with real data at seed time, so they have no marker.
-_CONTEXT_PLACEHOLDERS = {
-    "Project environment": "Describe the project this plan belongs to",
-    "Operator identity": "fill in role, contact, and authority scope",
-    "Runtime assumptions": "List the assumptions this plan makes about",
-}
+# HOISTED to `_shared/plan_template.py` (plan-048 Issue 2.1). `doc_lint`'s `derive_from`
+# resolves only modules under `_shared/`, so the `context` document type could not be
+# derived from a constant defined here. These aliases keep every existing use site working
+# against the single definition; do NOT re-declare the literals here.
+_CONTEXT_REQUIRED_SECTIONS = tuple(plan_template.CONTEXT_REQUIRED_SECTIONS)
+_CONTEXT_PLACEHOLDERS = plan_template.CONTEXT_PLACEHOLDERS
 
 # OKF-reserved `index.md` listing shape (REQ-PORT-001): a `#` heading plus ≥1
 # `- [child](path)` listing bullet. Replaces the legacy README `File map` / `Reading
@@ -3865,6 +3889,44 @@ def _latest_review_verdict(
     return (best_n, verdict, best_file)
 
 
+#: A GFM cell separator is an UNESCAPED pipe. `\|` inside a cell is a literal pipe.
+#:
+#: THIS IS THE THIRD PARSER TO NEED THE FIX. plan-048 Issue 1.1 corrected
+#: `plan_extract._table_rows` and `doc_lint.first_table`; `parse_upstream_rows` was missed,
+#: and R3's two-parser agreement rule caught it on its first live run — plan-013 row #17
+#: has the title `... (coarse\|granular)`, which a naive split turns into two cells,
+#: shifting every later cell left by one so the DISPOSITION column reads `granular)`.
+#: The row then had an unrecognised disposition and escaped verification entirely.
+_CELL_SPLIT = re.compile(r"(?<!\\)\|")
+
+
+def _split_table_row(inner: str) -> list[str]:
+    """Split one GFM table row's interior into cells, honouring escaped pipes."""
+    return [c.strip().replace("\\|", "|") for c in _CELL_SPLIT.split(inner)]
+
+
+#: Disposition literals recognised by `_verify_row` and by `doc_lint`'s R2c rule. The two
+#: readers MUST agree — R3 asserts exactly that, because `verify-reconcile` is fail-loud and
+#: two parsers disagreeing on row shape is a fail-loud FALSE POSITIVE.
+UPSTREAM_DISPOSITIONS = frozenset(
+    {"include", "exclude", "partial", "supersede", "deferred", "tracker"})
+
+
+def _normalize_disposition(cell: str) -> str:
+    """Strip GFM emphasis and case from a Disposition cell.
+
+    `**partial**`, `_partial_` and `partial` are ONE literal. Emphasis is presentation.
+    """
+    v = (cell or "").strip()
+    # Repeated strip handles `**_x_**` and any nesting order.
+    for _ in range(4):
+        stripped = v.strip().strip("*").strip("_").strip()
+        if stripped == v:
+            break
+        v = stripped
+    return v.lower()
+
+
 def parse_upstream_rows(plan_md_text: str) -> list[dict]:
     """THE parser for plan.md's `## Upstream Issues` table. Single source of truth.
 
@@ -3890,7 +3952,7 @@ def parse_upstream_rows(plan_md_text: str) -> list[dict]:
             break
         if "|" not in line:
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        cells = _split_table_row(line.strip().strip("|"))
         if len(cells) < 3:
             continue
         if cells[0].lower() in ("issue", "-----", ""):
@@ -3905,7 +3967,14 @@ def parse_upstream_rows(plan_md_text: str) -> list[dict]:
         rows.append({
             "issue": m.group(1),
             "title": cells[1] if len(cells) > 1 else "",
-            "disposition": cells[2].lower(),
+            # NORMALIZED before matching (plan-048 Issue 3.4 / #173 defect 2). A cell
+            # written `**partial**` used to parse as the literal `'**partial**'`, which
+            # matched no disposition branch and so escaped verification entirely — measured
+            # live on plan-023, which carries two such cells. Emphasis is presentation, not
+            # content. This became load-bearing the moment 3.4 made an unrecognised literal
+            # `fail` rather than `inconclusive`: without stripping, every bolded cell in the
+            # corpus would halt its plan's reconcile.
+            "disposition": _normalize_disposition(cells[2]),
             "notes": cells[3] if len(cells) > 3 else "",
             "resolved_by": cells[4] if len(cells) > 4 else "",
         })

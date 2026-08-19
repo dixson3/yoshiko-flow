@@ -336,3 +336,80 @@ def test_normalized_mention_matching(body, expected):
 if __name__ == "__main__":
     import sys
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+# ---------------------------------------------------------------------------
+# (SC33) plan-048 Issue 3.4a — EVERY recognised literal returns its DECLARED verdict
+#
+# These are SYNTHETIC TABLE FIXTURES, deliberately. A live run over plan-048's real
+# Upstream Issues table is not gradeable at 3.4a: #172/#175 are still OPEN and nothing is
+# posted until 4.5a, so the real table cannot exercise a `fail` direction at all.
+#
+# `deferred` and `tracker` are REPORT-ONLY FOR DIFFERENT REASONS and have no symmetric fail
+# case, so each is driven in both state directions to pin exactly which asymmetry it has:
+#   * `deferred` — OPEN -> pass (no plan-id mention required, because a deferral is a
+#     non-action); not-OPEN -> FAIL (a closed issue contradicts "we will return to this").
+#   * `tracker`  — inconclusive in BOTH directions (reconcile is not what closes it).
+# ---------------------------------------------------------------------------
+
+def test_deferred_open_passes_with_no_plan_id_mention(tmp_path, monkeypatch):
+    """The load-bearing case: plan-048 carries FIVE `deferred` rows, and requiring a
+    mention would make every deferring plan halt its own reconcile."""
+    pdir = _write_plan(tmp_path, "| #140 | t | deferred | D-13 | — |")
+    monkeypatch.setattr(pm, "_gh_issue_view", lambda n: (_gh("OPEN", None, []), None))
+    rc, out = _run(pdir)
+    _assert_envelope(out)
+    assert out["verdict"] == "pass", out["rows"]
+    assert out["rows"][0]["verdict"] == "pass"
+    assert rc == 0
+
+
+def test_deferred_closed_fails(tmp_path, monkeypatch):
+    """Not a waiver: a closed issue contradicts the disposition."""
+    pdir = _write_plan(tmp_path, "| #140 | t | deferred | D-13 | — |")
+    monkeypatch.setattr(pm, "_gh_issue_view",
+                        lambda n: (_gh("CLOSED", "COMPLETED", []), None))
+    rc, out = _run(pdir)
+    _assert_envelope(out)
+    assert out["verdict"] == "fail", out["rows"]
+    assert rc != 0
+
+
+@pytest.mark.parametrize("gh_payload", [
+    _gh("OPEN", None, []),
+    _gh("CLOSED", "COMPLETED", []),
+])
+def test_tracker_is_inconclusive_in_both_directions(tmp_path, monkeypatch, gh_payload):
+    """`tracker` is inconclusive BY CONSTRUCTION (REQ-CLI-018) — not a `deferred` alias."""
+    pdir = _write_plan(tmp_path, "| #175 | t | tracker | coarse | — |")
+    monkeypatch.setattr(pm, "_gh_issue_view", lambda n: (gh_payload, None))
+    rc, out = _run(pdir)
+    _assert_envelope(out)
+    assert out["rows"][0]["verdict"] == "inconclusive", out["rows"]
+    assert rc == 0, "an inconclusive-only aggregate must NEVER halt completion"
+
+
+def test_unrecognised_disposition_fails_not_inconclusive(tmp_path, monkeypatch):
+    """plan-048 Issue 3.4. A literal no producer offers is a TYPO, and a fail-loud step
+    must not silently pass one. Before R2c's normalization, a bolded `**partial**` reached
+    this branch — measured live on plan-023, which carries two such cells."""
+    pdir = _write_plan(tmp_path, "| #42 | t | incldue | typo | Issue 1.1 |")
+    monkeypatch.setattr(pm, "_gh_issue_view",
+                        lambda n: (_gh("CLOSED", "COMPLETED", [f"{PLAN_ID}"]), None))
+    rc, out = _run(pdir)
+    _assert_envelope(out)
+    assert out["verdict"] == "fail", out["rows"]
+    assert rc != 0
+
+
+def test_bolded_disposition_is_normalized_not_unrecognised(tmp_path, monkeypatch):
+    """The #173 defect-2 regression pin. `**partial**` must behave EXACTLY as `partial`."""
+    pdir = _write_plan(tmp_path, "| #42 | t | **partial** | n | Issue 1.1 |")
+    monkeypatch.setattr(
+        pm, "_gh_issue_view",
+        lambda n: (_gh("OPEN", None, [f"{PLAN_ID} landed half"]), None))
+    rc, out = _run(pdir)
+    _assert_envelope(out)
+    assert out["rows"][0]["disposition"] in ("partial", "**partial**")
+    assert out["verdict"] == "pass", out["rows"]
+    assert rc == 0

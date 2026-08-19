@@ -1,0 +1,28 @@
+# context.md — the bundle's project-environment snapshot (Issue 2.5).
+#
+# CONSOLIDATION, not a new check. `_audit_plan` has always required these five sections
+# (`plan_manager.py` check #2), by iterating a constant it owned privately. That made the
+# requirement invisible to `doc_lint` and unstated in any schema — two enforcement points
+# would have meant two definitions.
+#
+# Issue 2.1 hoisted the constant to `_shared/plan_template.py`, so this schema DERIVES from
+# the same list `seed_context_md` writes and `_audit_plan` checks. There is exactly one
+# definition; the hand-maintained duplicate is retired.
+type = "context"
+producer_class = "code-generated"
+derive_from = "plan_template.CONTEXT_REQUIRED_SECTIONS"
+description = "A yf-plan bundle's context.md: the tool-inventory and environment snapshot taken at init."
+
+paths = [
+    "docs/plans/*/context.md",
+    "Incubator/*/plans/*/context.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+[[checks]]
+id = "required-sections"
+severity = "E"
+kind = "headings-any-level"

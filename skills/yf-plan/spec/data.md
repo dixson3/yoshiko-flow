@@ -81,11 +81,45 @@ Like REQ-DATA-018 this is legislated rather than observed: only **12 of 72** his
 values parse as a pure id list, across 10 distinct shapes. The `epic:<N>` form is introduced for
 **future plans only** — nothing parses `Blocks:` today, and the only form the pour is documented
 to handle is an explicit issue-id list.
+**AUTHORING grammar vs READING grammar (plan-048 D-4 / Issue 0.2).** Everything above is the
+**authoring** grammar: what a *new* plan shall write, and what the schema rejects. The
+**reading** grammar the extractor implements is deliberately **wider**, because plan-048 elected
+to widen the reader rather than rewrite 48 historical documents. The extractor shall additionally
+**recover** these four historical forms, normalizing each to the canonical alphabet above:
+
+| Historical form | Normalizes to | Why it is unambiguous |
+| :-- | :-- | :-- |
+| `Issue N.M` prefix inside a `Blocks:` value | the bare `N.M` id | the prefix is a noise word; the id is complete without it |
+| `Epic N` as a `Blocks:` referent | `epic:N` | the canonical form's only spelling difference |
+| `depends-on` / `resolves-upstream` written at **column 0** | the two-space-indented sub-key | attaches to the immediately preceding issue bullet; no other referent is possible |
+| a title parenthetical before the colon, e.g. `- Issue 1.2 (optional): …` | the id `1.2`, parenthetical dropped from the id | the parenthetical never carries an id |
+
+Recovery is **normalization, never repair**: the reader emits the canonical edge and **no
+document is modified**. Two classes shall be **REFUSED**, reported with line numbers rather than
+recovered — a `depends-on` value carrying a **prose tail** (the tail may or may not be a referent
+and no rule distinguishes the cases), and a **dangling target** (a referent naming no issue in
+the plan). Refusing is the conservative direction: an edge recovered *wrongly* is worse than an
+edge not recovered, because a wrong edge silently reorders execution while a missing one is
+visible in `unparsed[]`.
+
+**Disposition alphabet (plan-048 D-7).** A `resolves-upstream` disposition and an `## Upstream
+Issues` table `Disposition` cell shall be drawn from the closed set
+`include | exclude | partial | supersede | deferred | tracker`. `deferred` means *in scope
+later* — genuinely distinct from `exclude`, which means *not in scope at all*. Cells shall be
+**normalized before matching**: surrounding emphasis markers (`**bold**`, `_italic_`) are
+stripped and the value is lowercased, so `**partial**` and `partial` are the same literal.
+Without that normalization a bolded cell parses as the unrecognised literal `'**partial**'` and
+silently escapes verification — measured live on plan-023, which carries two such cells.
 Rationale: `Blocks:` is the gate→work edge of the plan DAG. A referent no parser can resolve
 makes the edge invisible, which is how a gate silently blocks nothing; a closed alphabet is what
-lets the extractor report an unresolvable referent as an error instead of dropping it.
+lets the extractor report an unresolvable referent as an error instead of dropping it. The
+authoring/reading split exists because the two grammars answer different questions — "what may
+be written" is a standard, "what can be understood" is a compatibility surface — and collapsing
+them forces a choice between rejecting history and legitimizing ambiguity.
 Verification: REQ-DATA-024's `plan.md` schema rejects a `Blocks:` value outside the alphabet and
-a `depends-on` value with a prose tail; plan-047 Issue 0.4 states the introduction scope.
+a `depends-on` value with a prose tail; plan-047 Issue 0.4 states the introduction scope;
+plan-048 Issue 1.3 implements the four recoveries, 1.4 the two refusals, and 1.4a ships a
+**negative** mutant asserting a naive widening's wrong recovery is refused.
 
 
 ## Configuration & State (Skill Surface Convention)
@@ -242,6 +276,71 @@ is then simply ignored by the writer.
 Verification: driving the real verbs on a non-conformant plan makes `update-status … approved`
 exit non-zero; the override path succeeds and logs a deviation under the flag name plan-047
 Issue 2.6 selected; `ready-check`-green plans are unaffected.
+
+
+## Extractor & check-kind contracts
+
+REQ-DATA-043: Every consumer of `_shared/plan_extract.py` shall **gate on `unparsed[]`**: when
+`unparsed[] != []` for a document, the consumer shall return **INCONCLUSIVE** — never FAIL — for
+every judgement that depends on that document's extracted DAG, and shall name the unparsed
+constructs (with line numbers) in its verdict. The consumer set is closed and enumerated:
+the **relational checks** (`plan-relations`, REQ-DATA-044), the **pour** (SKILL.md §5.2a), and
+**`_shared/pour_fidelity.py`**. A consumer that adds itself to this set adds itself to this
+enumeration. The INCONCLUSIVE exit code is **2**, distinct from FAIL's **1** — a caller that
+collapses the two has not implemented this requirement.
+Rationale: an unparsed construct means the extractor **did not see** part of the plan, so every
+downstream conclusion is drawn from a knowably incomplete DAG. FAIL asserts *the plan is wrong*;
+the honest claim is *this instrument could not read the plan*. Conflating them manufactures
+blockers out of parser limitations — and, worse, a partially-extracted DAG that reports clean
+produces a **false-clean** fidelity number, which is strictly more dangerous than a red one.
+Verification: plan-048 Issue 1.2 implements the gate in all three consumers; SC4 drives a
+relational check with an unparsable construct to exit 2, and SC4b drives the pour and
+`pour_fidelity.py` the same way.
+
+REQ-DATA-044: `doc_lint.py` shall support a third check kind, **`plan-relations`**, distinct
+from the two per-document schema flavours REQ-DATA-024 declares. A `plan-relations` check calls
+`_shared/plan_extract.extract()` and reasons **across sections and across tables** of a single
+plan bundle — `## Epics`, `## Gates`, `## Success Criteria` and `## Upstream Issues` — which no
+per-document schema check can do, since each of those reads one section in isolation.
+
+- **INCONCLUSIVE path:** a `plan-relations` check on a document with non-empty `unparsed[]`
+  returns INCONCLUSIVE per REQ-DATA-043, never FAIL.
+- **Severity:** the `R*` rule family ships at severity **`W`**, uniformly.
+- **`STATUS_SEVERITY` promotion does NOT apply to this kind.** This is **declared, not
+  inherited**. Were `W → E` to fire at `bundle_status: review`, every future plan would
+  hard-fail R1b unless every non-bookkeeping issue were named by a criterion — a bar plan-048
+  itself does not clear (it carries four such issues and escapes only by being `executing` when
+  the rule lands). A rule that no in-flight plan can satisfy trains authors to write fake
+  criteria, which is the exact failure R1b exists to prevent.
+- **R1b bookkeeping carve-out:** an epic may declare itself **bookkeeping** with an
+  `<!-- epic-kind: bookkeeping -->` marker immediately under its `### Epic N:` heading. Issues
+  in a declared-bookkeeping epic are exempt from R1b. The carve-out is **declared, never
+  inferred** — an inferred exemption is indistinguishable from an oversight.
+
+**plan-049 is the first plan graded by this kind.** plan-048 lands the rules while already
+`executing`, so it is not graded by them; naming the first graded plan explicitly is what stops
+that from being an accident.
+Rationale: `REQ-DATA-024` declares two schema flavours and a strictly per-document contract. A
+check that reads across sections is a third mechanism, not a variant of the first two, and
+SPEC-first requires it be declared before it is built.
+Verification: plan-048 Issue 3.1 adds the kind, 3.2 implements R1/R1b and the carve-out, 3.3
+implements R2a/R2b/R2c; SC4 drives the INCONCLUSIVE path and SC10b drives the carve-out.
+
+REQ-DATA-045: No check may be declared at **`E`** severity on a path **outside a plan bundle**
+unless the corpus **already passes it** at declaration time, measured and recorded. Off the
+plan-bundle axis — `docs/research/**`, `skills/**`, and any other non-plan path — `bundle_status`
+is **null**, so `STATUS_SEVERITY` returns `{}` and an `E` stays `E` with no softening available.
+There is no status escape hatch there. A newly instantiated type on such a path shall therefore
+ship every check at **`W`** unless the pre-measured corpus pass is recorded alongside the
+declaration.
+Rationale: on the plan-bundle axis a `W` check that would be disruptive is softened by bundle
+status until the bundle reaches `review`, which gives authors a migration window. Off that axis
+the window does not exist, so an `E` declared against a non-conforming corpus hard-fails every
+run from the moment it lands — converting a lint finding into a repo-wide outage. This was the
+single largest hidden cost in the document-type work and is invisible from the type schemas
+themselves.
+Verification: plan-048 D-10; Issue 2.7 declares every research check at `W`; SC7 drives the
+boundary with a mutant, asserting `errors == 0` is not true merely by construction.
 
 
 ## Upstream Tracking
