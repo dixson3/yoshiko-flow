@@ -390,5 +390,47 @@ if _p013:
           f'got {None if _v is None else _v.get("17")!r}, expected \'include\'')
 
 
+# --- plan-048 Issue 3.5 / SC10: the seven COMMITTED relational fixtures -----------------
+#
+# These are committed artifacts, distinct from the mutants `gate-relations.sh` generates at
+# run time. The gate generates its own precisely so it never executes this deliverable —
+# 3.5 sits in the gate's BLOCKED set, so a gate that ran these fixtures would be circular.
+#
+# THE CONTROL IS NOT DECORATION. Without an unmutated plan-047 asserting zero findings, the
+# bold-disposition mutant passes trivially: any fixture "fails" if the control already
+# fails, and the mutation would be credited for a pre-existing defect.
+
+RELFIX = REPO / "tests" / "fixtures" / "plan-relations"
+_EXPECTED_FIXTURES = 7
+_MUTANTS = {
+    "m1-R1-dangling-discharged-by": "R1",
+    "m2-R1b-issue-named-by-no-criterion": "R1b",
+    "m3-R2a-dangling-resolved-by": "R2a",
+    "m4-R2b-exclude-resolves-something": "R2b",
+    "m5-R2c-unrecognised-disposition": "R2c",
+    "m6-R2b-include-resolves-nothing": "R2b",
+    "m7-R1-criterion-names-a-letter-issue": "R1",
+}
+
+_on_disk = sorted(p.stem for p in RELFIX.glob("m*.md"))
+check(f"SC10: exactly {_EXPECTED_FIXTURES} relational fixtures are committed",
+      len(_on_disk) == _EXPECTED_FIXTURES, f"found {len(_on_disk)}: {_on_disk}")
+check("SC10: the fixtures on disk are the ones the test drives",
+      set(_on_disk) == set(_MUTANTS), f"disk={_on_disk} expected={sorted(_MUTANTS)}")
+
+_, _out = run("--type", "plan-relations", "--path", str(RELFIX / "control.md"), "--json")
+_ctrl_findings = json.loads(_out).get("findings", [])
+check("SC10: the UNMUTATED control reports zero relational findings",
+      len(_ctrl_findings) == 0,
+      f"control already fails: {[f[chr(39)+chr(39).join([]) or 'check'] for f in _ctrl_findings][:4]}")
+
+for _name, _rule in sorted(_MUTANTS.items()):
+    _, _o = run("--type", "plan-relations", "--path", str(RELFIX / f"{_name}.md"), "--json")
+    _d = json.loads(_o)
+    _fired = [f for f in _d.get("findings", []) if f["check"] == _rule]
+    check(f"SC10 {_name}: makes {_rule} fire", len(_fired) > 0,
+          f'findings={[f["check"] for f in _d.get("findings", [])]}')
+
+
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)
