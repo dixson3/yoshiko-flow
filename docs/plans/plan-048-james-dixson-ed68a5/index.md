@@ -21,3 +21,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
   - [exp-006-hash-neutrality-proof.md](findings/exp-006-hash-neutrality-proof.md) - The fingerprint exclusion set from code, and the measurement that refuted D-4 as originally written.
 - [references/](references/) - One file per triaged upstream issue, with the full untruncated body, URL, labels and state — so the upstream context survives without network access.
 - [reviews/](reviews/) - Red-team and conformance review records, one file per cycle, with the verdict and per-concern resolutions.
+- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).

@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-19
+- executing: start gate resolved
+- intake: epic yf-mol-541 poured
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-7 APPROVE + audit pass
 - review-pass: red-team pass 7: APPROVE — both pass-6 blockers dissolved and the deferred contract re-derived against live `_verify_row`; 3 medium + 5 low, none blocking, all resolved
