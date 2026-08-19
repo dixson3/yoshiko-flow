@@ -207,3 +207,44 @@ def test_verification_line_names_an_executing_check():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# --- plan-048 Issue 4.1 / SC29 (#172): the README File Layout block is not stale ---------
+#
+# #172 measured 29 omissions. A prose block listing a directory goes stale the moment a file
+# is added, and nothing detects it — so the block is now CHECKED rather than maintained.
+#
+# The assertion is deliberately DIRECTORY-level plus explicit top-level files, not
+# file-by-file: the block documents `test_*.py` and `fixtures/classify/` as GROUPS, and a
+# check demanding one line per test file would force the block to grow without adding
+# information. What must never happen again is a whole directory or a top-level document
+# going unmentioned.
+
+def test_readme_file_layout_lists_every_shipped_area():
+    skill = Path(__file__).resolve().parent.parent
+    readme = (skill / "README.md").read_text(encoding="utf-8")
+    start = readme.index("## File Layout")
+    block = readme[start:readme.index("```", readme.index("```", start) + 3)]
+
+    shipped = [f for f in skill.rglob("*")
+               if f.is_file() and "__pycache__" not in f.parts]
+
+    # 1. every top-level file is named
+    top = sorted(f.name for f in shipped if f.parent == skill)
+    missing_top = [n for n in top if n not in block]
+    assert not missing_top, f"top-level files missing from File Layout: {missing_top}"
+
+    # 2. every directory that ships a file is named
+    dirs = sorted({f.relative_to(skill).parts[0] for f in shipped if f.parent != skill})
+    missing_dirs = [d for d in dirs if f"{d}/" not in block]
+    assert not missing_dirs, f"directories missing from File Layout: {missing_dirs}"
+
+    # 3. every file directly under spec/, agents/, formulas/, protocols/ is named
+    #    (these are small, curated, individually-meaningful sets)
+    for sub in ("spec", "agents", "formulas", "protocols"):
+        d = skill / sub
+        if not d.is_dir():
+            continue
+        names = sorted(f.name for f in d.iterdir() if f.is_file())
+        missing = [n for n in names if n not in block]
+        assert not missing, f"{sub}/ files missing from File Layout: {missing}"
