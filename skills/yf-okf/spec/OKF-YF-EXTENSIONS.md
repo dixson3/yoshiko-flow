@@ -360,6 +360,55 @@ run"* as future work. yf's `- validated:` line is exactly such a receipt, in pro
 future reader knows this is a place where yf leads rather than lags — and so that any future adoption
 of §10 is understood as **formalizing** the receipt, not introducing it.
 
+## 9a. Decisions made by NOT building (plan-046)
+
+Two structural decisions this layer owns were resolved by **declining to build**. Both are recorded
+with the measurement that produced them, so a future reader inherits the **evidence** rather than the
+conclusion — and can overturn either by taking a new measurement rather than by re-arguing.
+
+### Nested `log.md` — DROPPED PERMANENTLY
+
+Not deferred. Dropped, on two independent grounds:
+
+- **Nothing would populate it.** Every `okf.append_log` call site targets the bundle **root**. No
+  producer event in yf-plan, yf-research or yf-incubator is scoped below the root, so a nested
+  `log.md` would be created empty and stay empty.
+- **There is no history to record.** Measured **1–2 distinct commit dates per subdirectory**
+  corpus-wide. A per-directory update history whose content is one date is not an update history.
+
+OKF v0.2 §9 permits a `log.md` *"at any level"*, so this is a yf decision and not a conformance
+question — which is exactly why it belongs here rather than in `OKF-BASELINE.md`. **Reversing it
+requires a producer that emits directory-scoped events**, which nothing currently does or plans to.
+
+### Nested `index.md` — DEFERRED behind a `description:` producer change
+
+Deferred, not dropped — the difference is that a concrete, measurable precondition is named.
+
+| measurement | value | consequence |
+| :-- | --: | :-- |
+| nested files carrying `description:` | **0 of 423** | every generated nested entry would be bare |
+| subdirectories that would get a listing of no value | **74 of 142 (52%)** | over half the output is noise |
+| bundles whose **root** index already carries described subdirectory entries | **16 of 19** | the information is already available one level up |
+
+OKF v0.2 §8 states that index entries *"SHOULD include the description from the linked concept's
+frontmatter"* — so the upstream model **presumes** a `description:` that this corpus does not have.
+Generating nested indexes now would satisfy the letter of §8 while producing 423 entries that carry
+no description, which is the "asserting something nothing checks" failure this whole plan was written
+against.
+
+**The precondition, and why the hard part dissolves.** Once producers stamp `description:`, nested
+indexes become worth generating **forward-only**: new bundles get real descriptions, old bundles keep
+their hand-written root index, and the backfill question — the expensive, risky half — never has to
+be answered at all. Filed upstream so the deferral is visible to the issue tracker and not only to
+this file; recording it in one place and not the other is the same asymmetry that made #140's
+original `include` disposition dishonest.
+
+**What was built instead.** The **root** tier: `reindex --check` / `--write` (SPEC `REQ-OKF-011`).
+Retargeting there was not a scope reduction — real drift existed at the root **today**, and was
+invisible because `okf.py check` did no link resolution at all. plan-046 measured **37 broken links
+and 23 unlisted members across 19 root indexes**, and fixed both the corpus and the two producers
+that had been generating the breakage.
+
 ## 10. References
 
 - `skills/yf-okf/spec/OKF-BASELINE.md` — the upstream OKF v0.2 baseline this layer sits on.

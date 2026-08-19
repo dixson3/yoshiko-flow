@@ -25,7 +25,7 @@ the single-file-bundle exemption; the non-`.md` exclusion; the two foreign-corpu
 semantics (grandfather preservation, fingerprint stability). The engine API surface
 (`scaffold_bundle`, `write_fields`/`read_fields`, `write_frontmatter`/`read_frontmatter`,
 `render_index`/`add_index_entry`, `append_log`, `resolve_extension`, `check_conformance`,
-`emit_conformant_copy`, `migrate`) is specified here and implemented in Issue 1.4.
+`migrate`) is specified here and implemented in Issue 1.4.
 
 **Out of scope:** authoring OKF tooling (third-party linters / validators / MCP servers) — `yf-okf`
 is a **producer/manager**, not a third-party validator, though a conformance self-check
@@ -209,6 +209,23 @@ are per-skill (the three current models genuinely differ) and are specified in e
   allowlist would resurrect the risk invisibly. Promotion to error is a separate, later change, gated
   on a green corpus.
 
+  **Promotion to `error`: RECORDED, DELIBERATELY NOT EXECUTED (plan-046 Issue 4.5).** The
+  precondition is now met — `reindex --check` is clean across all 19 bundles carrying a root
+  `index.md`, the other 31 return `no-index` (exit `2`), and `markdown_lint --rules ML003` is clean
+  over the same glob. Promotion is nevertheless **not** performed here, for one reason: landing it in
+  the same pass would enforce against a corpus whose greenness was established **minutes earlier by
+  the same session**, with no independent run in between. A gate that has never observed a red state
+  it did not itself create has not been tested.
+
+  What a future promotion must do, so it does not have to re-derive this:
+  1. flip the level from `warning` to `error` in `check_conformance`;
+  2. decide *explicitly* whether `REQ-OKF-CHK-002` joins the audit's promotion allowlist — it is
+     outside it **by construction** today (plan-046 exec-004 measured this: three error-level
+     findings reached the engine and `audit` still exited `0`), so promoting the level alone changes
+     `check`'s exit code and **not** `audit`'s;
+  3. re-run the corpus sweep **from a clean checkout**, in a different session from the one that
+     produced the green state.
+
 ### 2.9 Migration semantics (`migrate`)
 
 - **REQ-OKF-MIG-001** *(testable)* `yf-okf migrate <dir>` shall convert a legacy folder **in place**
@@ -311,8 +328,17 @@ are per-skill (the three current models genuinely differ) and are specified in e
   | `append_log(dir, entry, *, date=None)` | newest-first ISO-8601 `log.md` entry (REQ-OKF-002) |
   | `resolve_extension(skill)` | `__file__`-relative find+parse of `skills/<skill>/OKF-EXTENSION.md` (REQ-OKF-FAM-003) |
   | `check_conformance(dir)` | composed-ruleset conformance report (REQ-OKF-CHK-001); report-only/crash-safe |
-  | `emit_conformant_copy(dir)` | non-destructive conformant projection |
   | `migrate(dir, *, dry_run=True)` | opt-in in-place migration (REQ-OKF-MIG-\*) |
+
+> **`emit_conformant_copy` was REMOVED (plan-046 Issue 5.2).** It was specified from plan-029 with
+> **zero callers, zero tests, and no CLI verb** — measured, not assumed. A spec'd-but-unreachable
+> function is worse than an absent one: it lets a future investigator conclude the on-demand export
+> projection exists. It was deleted rather than exposed, because exposing it would mean building the
+> projection that #92's revisit triggers do not justify — the **adopter** half of trigger (b) has
+> fired, the **demand** half has not. The capability is preserved as an upstream follow-on
+> ("projection delivery mode"), so removing the code does not erase the record of what was removed.
+> `emit_conformant_copy` now appears in neither the code nor this SPEC — the only two outcomes
+> plan-046 SC10 permits.
 
 - **Operator surface:** `/yf-okf init | migrate | check | assess | reindex` (SKILL.md). `reindex`
   exits `0` clean / `1` drift / `2` `no-index` (REQ-OKF-011) — the one verb whose exit code is a

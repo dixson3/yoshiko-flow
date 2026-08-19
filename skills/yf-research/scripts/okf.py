@@ -959,47 +959,23 @@ def _check_concept_doc(path: Path, rel: str, eff: EffectiveRuleset, findings: Fi
 
 
 # ---------------------------------------------------------------------------
-# Conformant projection + migration (REQ-OKF-MIG-001..003)
+# Migration (REQ-OKF-MIG-001..003)
+#
+# `emit_conformant_copy` — a non-destructive "conformant projection" — was
+# DELETED here by plan-046 Issue 5.2. Measured before removal: zero callers,
+# zero tests, not a CLI verb; spec'd but unreachable since plan-029.
+#
+# Not revived, because exposing it as a verb would mean building the on-demand
+# export projection that #92's revisit triggers do NOT justify: the adopter half
+# of trigger (b) HAS fired (four verified non-Google OKF adopters, two at v0.2)
+# but the DEMAND half has not — no consumer wants a projection. Deleting rather
+# than leaving it in place is the point of risk R7: a spec'd, unreachable
+# function lets a future investigator conclude the projection "exists". The
+# capability is remembered as an upstream follow-on ("projection delivery
+# mode"), so the record survives the removal.
 # ---------------------------------------------------------------------------
 
 
-def emit_conformant_copy(
-    source: Union[str, os.PathLike, Path],
-    *,
-    type: str,
-    okf_spec: Optional[str] = None,
-    meta: Optional[dict] = None,
-    fields: Optional[dict] = None,
-    field_labels: Optional[dict] = None,
-) -> str:
-    """Return a conformant projection of a concept doc as text (non-destructive).
-
-    Adds ``type`` (+ ``okf_spec`` + any ``meta``) to the frontmatter above the
-    first ``## `` (REQ-OKF-010), merge-and-preserving existing keys (REQ-OKF-070).
-    Optional ``fields`` also emits ``**Field:**`` lines from the same model. Does
-    not write anything."""
-    text = _load_text(source)
-    existing, body = read_frontmatter(text)
-    merged = dict(existing)
-    merged[TYPE_KEY] = type
-    if okf_spec:
-        merged[OKF_SPEC_KEY] = okf_spec
-    if meta:
-        for k, v in meta.items():
-            merged[k] = v
-
-    head, tail = _split_at_first_h2(body)
-    parts = [_dump_frontmatter(merged)]
-    if fields:
-        lines = []
-        for k, v in fields.items():
-            label = (field_labels or {}).get(k, k.replace("_", " ").title())
-            lines.append(f"**{label}:** {v}")
-        parts.append("\n" + "\n".join(lines) + "\n")
-    parts.append(body if not fields else (("\n" + head.strip("\n") + "\n") if head.strip() else "") + tail)
-    if fields:
-        return "".join(parts)
-    return _dump_frontmatter(merged) + body
 
 
 @dataclass

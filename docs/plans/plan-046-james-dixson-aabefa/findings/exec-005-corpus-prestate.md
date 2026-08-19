@@ -60,6 +60,14 @@ bundle-by-bundle sets** (set equality asserted programmatically, not eyeballed).
 at different times by different means converging on the same 37 is much stronger evidence than one
 check agreeing with a prior estimate.
 
+**This is upstream [#135](https://github.com/dixson3/yoshiko-flow/issues/135)'s shape, not a novel
+finding** (operator cross-reference): *a measured literal in `plan.md` goes stale the moment the
+corpus grows — and acutely so when the plan is itself inside its own measured corpus.* plan-046 is
+**two** of the new bundles (its own, and plan-045's, landed during the same stretch), and its own
+`index.md` contributed 3 of the ghosts it set out to count. Recorded against #135 rather than
+treated as new: the general fix is to stop hard-coding corpus counts in fingerprinted plan text, not
+to re-measure this one.
+
 **The direction is explained.** exp-003's `25` was measured before the corpus grew: `plan-045`'s and
 `plan-046`'s own bundles were added afterwards (`git log --diff-filter=A` places their `index.md`
 files at `634385f` and `1c473a7`), and plan-046's bundle alone contributes 3 of the ghosts — the case

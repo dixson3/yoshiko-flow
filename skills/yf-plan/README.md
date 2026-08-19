@@ -94,7 +94,8 @@ Plans are scoped, investigated, and approved in one session. Execution starts in
 
 At intake, every plan folder is subject to a mechanical portability audit (`plan_manager.py audit`). A plan folder must contain:
 
-- `README.md` — orientation (file map, reading order)
+- `index.md` — the OKF-reserved bundle listing: a `#` heading plus `- [child](path) - description` bullets enumerating the bundle members. **Replaces the legacy `README.md`** file-map / reading-order surface (REQ-PORT-001); its content is folded into the listing bullets. Being an OKF reserved file it carries no `type` and no `okf_spec`, and a bundle-root `index.md` may carry `okf_version`.
+- `log.md` — the OKF-reserved update history: newest-first entries under ISO-8601 (`YYYY-MM-DD`) date headings. **Replaces the legacy in-`plan.md` `**Phase log:**` block** (REQ-PORT-006 counts its `review:` lines against `reviews/pass-<N>.md`).
 - `context.md` — project environment snapshot (tool inventory with hostname+date header, paths, operator identity, runtime assumptions)
 - A `## Motivation` section in `plan.md` or a `motivation.md` file
 - `references/upstream-<N>.md` for every non-excluded upstream issue (full body)
@@ -140,8 +141,9 @@ Per-plan folder layout after `/yf-plan init` (plan root is either `docs/plans/` 
 
 ```
 <plan-root>/<plan-id>/
-  plan.md                    The plan (status, phase log, objective, motivation, approach, epics, gates, risks, success criteria)
-  README.md                  Orientation and file map for cold readers
+  plan.md                    The plan (status, objective, motivation, approach, epics, gates, risks, success criteria)
+  index.md                   OKF-reserved bundle listing — orientation for cold readers (replaces the legacy README.md)
+  log.md                     OKF-reserved update history — newest-first, ISO-8601 date headings (replaces plan.md's phase-log block)
   context.md                 Project environment snapshot at plan-authoring time
   findings/                  Investigation experiment results
   references/                Inlined upstream issue bodies (one file per non-excluded issue)
