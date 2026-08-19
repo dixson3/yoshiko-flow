@@ -3,9 +3,8 @@
 Written **while the plan-048 execution context is live** (Issue 4.6), not reconstructed
 afterwards. Everything here is a measured figure or a decision with a recorded reason.
 
-> **Status:** partial — authored early, at the operator's instruction, so the grammar-widening
-> findings are captured while they are fresh. Sections marked _(pending)_ are completed at
-> Issue 4.6 proper, once Epics 2–4 have run.
+> **Status:** complete. Drafted early, at the operator's instruction, so the grammar-widening
+> findings were captured while fresh; finished after Epics 2–3 and Issue 4.1–4.4 landed.
 
 ## 1. The free recovery: 16 constructs plan-049 gets at no analytical cost
 
@@ -144,13 +143,73 @@ red-team to state the derivation *and* check it against the plan's own refusal/s
 | Report-only linter findings over history | 610 | plan-047 measurement, **not** re-measured by plan-048 — re-measure before use |
 | Eligibility conjunct rejection rate | 22 of 47 plans (47%) | EXP-006; not re-measurable without the prototype normalizer |
 | `doc_lint` files_checked before plan-048 | 180 | EXP-002 census |
-| `doc_lint` files_checked after Epic 2 | _(pending — Issue 4.3)_ | |
+| `doc_lint` `files_checked` after plan-048 | **726** | Issue 4.3, merged tree `e080d29` (was 180) |
+| `doc_lint` error-severity findings, merged tree | **0** | Issue 4.3 |
+| `doc_lint` report-only findings | **1340** | mostly R1b over history + the `R`-severity content checks |
+| Document types declared | **17** | was 3 |
+| Constructs recovered by the widening | **39** across 15 plans | all hand-adjudicated, zero adverse |
+| FULL validation tier on the merged tree | **pass, 41 commands** | SC27 — not a zero-command green |
 
-## 7. Deferred epics _(pending — completed at Issue 4.6)_
+## 7. The deferred epics, and the state of their preconditions
 
-The migration write phase and the enforcement-binding epics deferred by D-13, with their
-preconditions and the satisfied/unsatisfied status of each.
+D-13 split plan-048 at approval. Two bodies of work moved here.
 
-**Precondition already satisfied by plan-048:** Issue 2.9 makes agent-written `findings/*.md`
-conform **by construction**, which is the load-bearing precondition for the deferred
-enforcement binding (D-9's blast-radius finding).
+### 7.1 The corpus migration write-phase (carries #140)
+
+Rewrite the historical corpus so the constructs plan-048 *refuses* become readable, and
+enforce OKF structure below the bundle root.
+
+| Precondition | State | Evidence |
+| :-- | :-- | :-- |
+| A reading grammar that recovers the unambiguous forms | **satisfied** | 39 recoveries, 15 plans, zero adverse (Issue 1.4b) |
+| A consumer contract for partially-readable plans | **satisfied** | `REQ-DATA-043`; every consumer exits 2, never 1 |
+| A DAG-invariance postcondition for any write | **NOT satisfied — build it first** | D-8. EXP-001 measured a repair silently emptying 20 `depends-on` declarations, after which the extractor reports them *clean*. The hash postcondition caught **none** of the 20 |
+| A `recovered[]` audit trail to diff against | **satisfied** | `plan_extract` emits before/after pairs |
+
+**Start with the 16 free recoveries (§1).** They need no new grammar, no adjudication, and
+no ambiguity call — only a section move. They are the cheapest possible first proof that the
+write-phase machinery is sound, and D-8's DAG-invariance postcondition can be validated on
+them before anything harder is attempted.
+
+### 7.2 The enforcement binding (carries #149)
+
+Bind the linter at the two enforcement points plan-047's Epic 9 named and never wired, so a
+non-conformant *new* plan is caught by `_audit_plan` at intake rather than only by the FAST
+tier.
+
+| Precondition | State | Evidence |
+| :-- | :-- | :-- |
+| Agent-written `findings/*.md` conform by construction | **satisfied** | Issue 2.9: `investigator.md` now states the four sections and the epistemic marker as a hard output contract |
+| The severity model survives the enforcement point | **satisfied** | Issue 2.9's rule — a type authored *during* the phase where the linter binds cannot carry a promotable severity. `finding`, `review` and `plan-retrospective` are `R` with one `E` teeth-check each |
+| A completed bundle at `review` produces zero errors | **satisfied** | SC6, verified on a real bundle copy |
+| The `CHANGE-VALIDATION.md` §3 vacuities are fixed | **NOT satisfied** | D-11: `docs/research/**` and `Incubator/*/research/**` map to `doclint`, which selects **0** research files. Fix in the same change-set as any new trigger row |
+
+**Sequencing warning (D-9).** The normalizer *cannot* fix the intake blast radius. The
+blocking errors live in `findings/*.md` written by an agent **during** execution, after any
+sweep — so a fail-closed `_audit_plan` today would have blocked plan-047 at its *own* intake
+with 11 error-severity findings. Issue 2.9's rule is what makes this bindable at all; bind
+it before assuming a sweep is enough. Re-sequence `9.1 → 6.1`, **not** `9.1 → 8.9`, and size
+Epic 9 at **5 issues, not 3**.
+
+## 8. Process recommendation for plan-049's review protocol
+
+Beyond §5's specific gap, three defect shapes recurred often enough in plan-048's execution
+to be worth checking for deliberately:
+
+1. **A check that reports clean while checking nothing.** R3 did this twice, in two different
+   ways, and both looked like a passing rule. Every new check should be driven by a mutant
+   *before* it is trusted, and a "not checked" state must render as UNVERIFIED, never as
+   agreement.
+2. **A measurement compared across two address spaces.** Under worktree execution, a bundle
+   verification is meaningless unless the tree is named — this produced a phantom 62-edge
+   regression and a phantom missing retrospective (§4.2, RE-006).
+3. **A numeric target inherited from an estimate whose assumptions the plan later
+   contradicted.** §5.
+
+## 9. Where to start
+
+1. Read `assets/residue-analysis.md` for the 81-construct itemization.
+2. Take the 16 free recoveries (§1) as plan-049's Epic 1, gated on D-8's DAG-invariance
+   postcondition built first.
+3. Fix the two D-11 §3 vacuities before adding any trigger row.
+4. Then the enforcement binding (§7.2), which has the most preconditions already satisfied.
