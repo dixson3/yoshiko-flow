@@ -9,7 +9,7 @@ created: '2026-08-18'
 # exec-005 — The corpus pre-state, measured (plan-046 Issue 4.1)
 
 Verbatim pre-state before any `--write`. Raw per-bundle JSON:
-[`assets/reindex-prestate.json`](../assets/reindex-prestate.json).
+`assets/reindex-prestate.json`.
 
 ## The corpus, as pinned by Issue 4.1
 

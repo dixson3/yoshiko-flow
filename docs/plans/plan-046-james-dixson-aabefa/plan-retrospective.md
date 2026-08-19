@@ -89,3 +89,60 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-18 |
+| `stop_class` |  |
+| `asked` | gh issue create returned five success URLs (#168-172). Did the bodies actually land? |
+| `answered` | NO. All five issues were created with EMPTY bodies. The heredoc used a BSD-incompatible sed to strip the TITLE:/BODY: header lines; sed errored, the body variable came out empty, and gh created the issues anyway - returning a valid URL for each, which read as success. This is the THIRD exit-0-is-not-proof instance in this execution (the first was the vacuous FAST tier Epic 1 fixed; the second was my validate-merged commands:0 misread). Repaired with gh issue edit --body-file after regenerating the bodies with python instead of sed. |
+| `frontloadable` | no |
+| `detected_by` | self-report |
+| `evidence` | gh issue view <N> --json body -q .body | wc -c returned 1 (one newline) for all of 168,169,170,171,172 immediately after creation. After gh issue edit --body-file: 2063/1675/1976/2388/2174 chars, each within 1 char of the source file length. Verified by CHAR COUNT, not by trusting the returned URL. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-18 |
+| `stop_class` |  |
+| `asked` | Is closing a supersede-disposition upstream issue with the default reason correct? |
+| `answered` | No. gh issue close defaults to state_reason=completed, which asserts the work was DONE. A supersede row means the work was explicitly NOT going to be done. verify-reconcile halted on it (exit 1): '#92 is CLOSED/COMPLETED; a supersede row must be CLOSED as NOT_PLANNED'. Fixed via gh api PATCH state_reason=not_planned. Genuine semantic distinction that the default silently gets wrong, and nothing in the plan text warned about it. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | verify-reconcile exit 1 with row {issue:92, disposition:supersede, verdict:fail}. After PATCH: gh api repos/dixson3/yoshiko-flow/issues/92 -q .state+.state_reason -> 'closed / not_planned', row verdict pass. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-18 |
+| `stop_class` |  |
+| `asked` | plan.md's #140 disposition cell read '**partial**' with markdown bold. Does verify-reconcile parse it? |
+| `answered` | No - and it failed OPEN, not closed. The bold markers made the parser read the literal disposition '**partial**', which matches no known disposition, so the row returned INCONCLUSIVE - a free pass that halts nothing. It reads perfectly to a human. I de-bolded the cell (Upstream Issues is fingerprint-excluded; resume-scan re-confirmed stale_approved=false), which turned the silent inconclusive into a real FAIL and surfaced the genuine #140 open/closed conflict underneath. Implication beyond this plan: any bolded disposition cell in any plan has been silently unverified. |
+| `frontloadable` | yes |
+| `detected_by` | self-report |
+| `evidence` | Before de-bolding: row {issue:140, disposition:'**partial**', verdict:inconclusive, detail:'carries no reconciliation end-state contract'}, verify-reconcile exit 0. After: {disposition:'partial', verdict:fail}, exit 1. After the operator-authorized reopen: {verdict:pass}, exit 0. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

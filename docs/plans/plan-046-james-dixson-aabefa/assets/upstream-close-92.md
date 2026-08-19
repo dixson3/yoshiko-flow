@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-close-92
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: 'Draft: #92 close comment (superseded, three named carve-outs)'
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 Closing as **superseded**, with **three named carve-outs** — not cleanly. Written against the measured record (plan-046 exp-004), because this issue's Why-deferred section is what a future reader will trust, and two of its claims are now false.
 
 ## What superseded it
@@ -21,9 +33,9 @@ So: the stated rationale is false, the trigger's letter still holds. Citing the 
 
 A clean close would have silently discarded these. Each is filed as its own issue:
 
-1. **projection delivery mode** — on-demand, non-destructive export. `emit_conformant_copy()` was **deleted** by plan-046 Issue 5.2 (measured: zero callers, zero tests, no CLI verb) rather than exposed, because exposing it would mean building this. The follow-on carries the deletion as its provenance, so the capability is remembered rather than merely removed.
-2. **conformance gate for yf-research and yf-incubator** — shipped for yf-plan only. Cross-references #165: yf-research's SPEC states a `Verification:` line nothing executes, which is the same class.
-3. **consumer round-trip fidelity** — still unverified in the sense this issue meant. yf demonstrates **producer → producer** only. OKF v0.2 §4.1 upgraded the extension clause from `SHOULD NOT` to **`MUST NOT`** reject unknown keys (an *undeclared* breaking change — v0.2 §13 does not list it), which raises the floor: a consumer may no longer *reject* yf's keys. Preservation remains `SHOULD`, so the gap this issue named is unchanged.
+1. **projection delivery mode** (#168) — on-demand, non-destructive export. `emit_conformant_copy()` was **deleted** by plan-046 Issue 5.2 (measured: zero callers, zero tests, no CLI verb) rather than exposed, because exposing it would mean building this. The follow-on carries the deletion as its provenance, so the capability is remembered rather than merely removed.
+2. **conformance gate for yf-research and yf-incubator** (#169) — shipped for yf-plan only. Cross-references #165: yf-research's SPEC states a `Verification:` line nothing executes, which is the same class.
+3. **consumer round-trip fidelity** (#170) — still unverified in the sense this issue meant. yf demonstrates **producer → producer** only. OKF v0.2 §4.1 upgraded the extension clause from `SHOULD NOT` to **`MUST NOT`** reject unknown keys (an *undeclared* breaking change — v0.2 §13 does not list it), which raises the floor: a consumer may no longer *reject* yf's keys. Preservation remains `SHOULD`, so the gap this issue named is unchanged.
 
 ## On revisit trigger 3
 

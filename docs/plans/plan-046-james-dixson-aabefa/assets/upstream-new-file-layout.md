@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-new-file-layout
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: "Draft: follow-on issue \u2014 yf-plan README File Layout staleness (#172)"
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 TITLE: yf-plan README.md File Layout block is stale — 29 omissions including SPEC.md, OKF-EXTENSION.md, and test-harness/
 
 BODY:

@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-followon-iii-roundtrip
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: "Draft: follow-on issue \u2014 consumer round-trip fidelity (#170)"
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 TITLE: OKF consumer round-trip fidelity is unverified — #92 carve-out 3 of 3
 
 BODY:

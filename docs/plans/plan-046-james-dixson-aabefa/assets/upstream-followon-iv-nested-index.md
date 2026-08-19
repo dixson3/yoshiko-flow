@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-followon-iv-nested-index
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: "Draft: follow-on issue \u2014 nested index.md deferral, D-9 (#171)"
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 TITLE: yf-okf: nested index.md generation, deferred behind a `description:` producer change (plan-046 D-9)
 
 BODY:

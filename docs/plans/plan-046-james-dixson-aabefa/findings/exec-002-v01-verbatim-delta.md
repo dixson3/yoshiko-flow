@@ -15,7 +15,7 @@ diff that closes R1.
 
 **No fallback was needed.** v0.1 is fully recoverable: `okf/SPEC.md` @ `ee67a5ca` (2026-06-12), the
 last revision before `780fe9d3` (2026-07-24) migrated it to v0.2. Vendored at
-[`references/okf-spec-v0.1.md`](../references/okf-spec-v0.1.md), 451 upstream lines,
+`references/okf-spec-v0.1.md`, 451 upstream lines,
 `**Version 0.1 — Draft**`.
 
 > **Date note.** The plan states upstream shipped v0.2 on 2026-08-15. The upstream *commit* that

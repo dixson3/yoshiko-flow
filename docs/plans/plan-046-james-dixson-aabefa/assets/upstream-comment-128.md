@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-comment-128
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: 'Draft: #128 comment (link correction, not a reopen)'
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 Link correction — **not a reopen**. This issue is closed and stays closed; it is subsumed by #141, which plan-046 delivered.
 
 **Confirmed subsumed.** #141's own body states it: *"this also subsumes #128 (add a reference/link to the Google OKF spec), which should point at v0.2."* plan-046 Epic 2 executed #141 and delivered exactly what this issue asked for, at v0.2 rather than v0.1.

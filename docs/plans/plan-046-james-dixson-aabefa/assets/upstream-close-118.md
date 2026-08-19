@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-close-118
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: 'Draft: #118 close comment (four sites in yf-plan README)'
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 Fixed in plan-046 Issue 5.3. **Four things at two sites in `skills/yf-plan/README.md`**, not the two this issue named.
 
 **The two sites this issue reported:**
@@ -10,6 +22,6 @@ Fixed in plan-046 Issue 5.3. **Four things at two sites in `skills/yf-plan/READM
 
 **Correction to this issue's own citation.** It cites `SKILL.md:245`. Verified today: `:245` is incubator-scoping prose (*"Ask when it is genuinely ambiguous…"*); the content it means is at **`SKILL.md:262`** (the `init` scaffold description, which names `index.md` and `log.md`). The citation had drifted — recorded rather than silently followed, since a stale line reference is the same defect class this issue reports.
 
-**Split out, deliberately:** the skill-dir **File Layout** section (`README.md:106-138`) is stale on a much larger scale — roughly 20 omissions including `SPEC.md`, `OKF-EXTENSION.md`, `test-harness/`, and 18 of 21 `scripts/` files. That is a different defect in the same file, and folding it in here would make this issue unreviewable. Filed separately.
+**Split out, deliberately:** the skill-dir **File Layout** section (`README.md:106-138`) is stale on a much larger scale — roughly 20 omissions including `SPEC.md`, `OKF-EXTENSION.md`, `test-harness/`, and 18 of 21 `scripts/` files. That is a different defect in the same file, and folding it in here would make this issue unreviewable. Filed separately as #172.
 
 Plan: `docs/plans/plan-046-james-dixson-aabefa/`. Tracker: #167.

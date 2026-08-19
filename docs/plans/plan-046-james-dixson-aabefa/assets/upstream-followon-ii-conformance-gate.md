@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-followon-ii-conformance-gate
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: "Draft: follow-on issue \u2014 conformance gate for yf-research and yf-incubator (#169)"
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 TITLE: OKF conformance gate for yf-research and yf-incubator — #92 carve-out 2 of 3
 
 BODY:

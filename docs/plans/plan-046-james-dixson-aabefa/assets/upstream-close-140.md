@@ -1,3 +1,15 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: upstream-close-140
+plan: plan-046-james-dixson-aabefa
+created: '2026-08-18'
+title: "Draft: #140 close comment (partial \u2014 root tier shipped, nested deferred)"
+---
+
+> Verbatim text of an upstream write performed at plan-046 reconcile (§6.3).
+> Kept in the bundle so the upstream record is reproducible from the plan folder alone.
+
 Closing as **partial**. plan-046 built the root tier and deliberately did not build the nested tier.
 
 **IN (delivered):**
@@ -8,7 +20,7 @@ Closing as **partial**. plan-046 built the root tier and deliberately did not bu
 - Both **producers** fixed (`plan_manager.py` `_INDEX_MEMBERS`, `index_manager.py`), so the corpus is not re-broken after the sweep — generation before enforcement was the ordering constraint this plan was built around.
 
 **OUT (deliberately not built):**
-- **Nested `index.md` — deferred (D-9)**, behind a producer change that stamps `description:`. Measured: `description` present on **0 of 423** nested files, so every generated nested entry would carry no description, and **74 of 142 (52%)** of subdirectories would receive a listing of no value. Filed as a follow-on.
+- **Nested `index.md` — deferred (D-9)**, behind a producer change that stamps `description:`. Measured: `description` present on **0 of 423** nested files, so every generated nested entry would carry no description, and **74 of 142 (52%)** of subdirectories would receive a listing of no value. Filed as a follow-on: #171.
 - **Nested `log.md` — dropped permanently (D-4).** Measured 1–2 distinct commit dates per subdirectory, and every `okf.append_log` call site targets the bundle **root** — no producer event is scoped below it, so nothing would populate it.
 - **Promotion to error-level enforcement — recorded, not executed.** The precondition is met (19/19 clean, 31/31 `no-index`, ML003 clean), but landing it in the same pass would enforce against a corpus whose greenness was established minutes earlier by the same session. The follow-up steps are recorded in `skills/yf-okf/SPEC.md` under `REQ-OKF-CHK-002`.
 
