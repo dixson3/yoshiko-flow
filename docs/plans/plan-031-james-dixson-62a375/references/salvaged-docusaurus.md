@@ -1,3 +1,14 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: salvaged-docusaurus-website-docs
+retrieved: '2026-07-22'
+source: git://dixson3/yoshiko-flow@pre-plan-031:website/docs/*.md
+vendored: true
+vendored_note: >-
+  Verbatim capture of the six reusable `website/docs/*.md` files, taken before plan-031 Epic 1.2 removed `website/`. Vendored from this repository's own pre-removal tree.
+---
+
 # Salvaged Docusaurus content (issue #28 / `website/docs/`)
 
 **Bead 1.1 staging note.** Verbatim capture of the six reusable `website/docs/*.md`

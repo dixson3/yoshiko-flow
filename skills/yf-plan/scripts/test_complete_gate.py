@@ -254,8 +254,10 @@ def test_cascade_and_gate_agree_deferred_is_out_of_tree(plan_dir, monkeypatch):
 def test_validated_bullet_is_non_status_token(plan_dir):
     # Build a log.md with scoping + review + validated entries.
     pm.okf.append_log(plan_dir, "scoping: initial", date="2026-07-01")
-    pm.okf.append_log(plan_dir, "review: pass-1 presented", date="2026-07-02")
-    pm.okf.append_log(plan_dir, "review: pass-2 presented", date="2026-07-03")
+    # `review-pass:` is the PRESENTATION token (REQ-PORT-006 as amended, plan-047
+    # Issue 2.7); `review:` alone is a status transition and is inert to the count.
+    pm.okf.append_log(plan_dir, "review-pass: pass-1 presented", date="2026-07-02")
+    pm.okf.append_log(plan_dir, "review-pass: pass-2 presented", date="2026-07-03")
     before_reviews = pm._plan_review_line_count(plan_dir)
     before_scoping = pm._plan_first_scoping_date(plan_dir)
 

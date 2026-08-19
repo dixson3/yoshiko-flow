@@ -1,15 +1,15 @@
 # Pre-work RED run — gate: carveouts   (plan-047 Issue 1.4 / SC9d)
-# Recorded: 2026-08-19T14:35:07Z   tree: 631b05b, worktree, PRE-Epic-3
+# Recorded: 2026-08-19T14:37:19Z   tree: 9663a0d
 #
-# The command below is the gate `Test:` STRING as the resolver executes it — NOT the
-# bare script. The PIPELINE is what runs, so the pipeline is what is archived.
+# The command below is the gate `Test:` STRING as the resolver executes it — NOT
+# the bare script. The PIPELINE is what runs, so the pipeline is what is archived.
 #
 # Exit-code discipline (_common.sh): 0 = capability present · 1 = capability absent ·
 # 2 = the harness could not run. A gate is only allowed to be red for reason 1.
 
 $ set -o pipefail; bash docs/plans/plan-047-james-dixson-dec9ff/scripts/gate-carveouts.sh | jq -e '.carved_findings == 0 and .control_fired == true'
 pipeline exit: 1
-script-alone exit: 1   <-- 1 = capability ABSENT (legal)
+script-alone exit: 1   <-- 1 = capability ABSENT (the only legal red)
 
 --- script stdout (the JSON verdict) ---
 {"carved_findings":0,"control_fired":false,"control_findings":0}

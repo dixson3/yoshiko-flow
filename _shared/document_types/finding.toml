@@ -6,14 +6,21 @@ type = "finding"
 producer_class = "agent-written"
 description = "An investigation finding written by the yf-plan investigator sub-agent."
 
+# RECURSIVE (`**`), deliberately. plan-047 Issue 2.2: the single-level form
+# `docs/plans/*/findings/*.md` reaches **0** of the 45 nested `okf-migration-samples/**`
+# files, so the carve-out below could never fire — a control that cannot fire is the same
+# defect class as a gate that cannot fail. Measured both ways; see test_doc_lint.py.
 paths = [
-    "docs/plans/*/findings/*.md",
-    "Incubator/*/plans/*/findings/*.md",
+    "docs/plans/*/findings/**/*.md",
+    "Incubator/*/plans/*/findings/**/*.md",
 ]
 exclude = [
-    # 87 files: a whole nested before/after migration-diff fixture corpus. Linting them
-    # would emit 87 false findings AND break the fixture.
+    # CARVE-OUT 1 (Issue 2.2) — a whole nested before/after migration-diff fixture corpus:
+    # 45 `.md` files (87 files in total) invisible at scoping, containing entire nested
+    # bundles. Linting them would emit dozens of false findings AND break the fixture.
     "docs/plans/*/findings/okf-migration-samples/**",
+    # CARVE-OUT 2 (Issue 2.3) — the markup-sensitive ground-truth corpus of
+    # test_classify_deliverable.py.
     "skills/**/fixtures/**",
 ]
 

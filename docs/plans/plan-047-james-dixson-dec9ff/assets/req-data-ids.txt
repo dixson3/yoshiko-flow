@@ -10,7 +10,7 @@
 # dependencies) so every later Epic-0 issue allocates against a measured free set.
 #
 # NOTE ON SCOPE (SC4): `cargo test --workspace` does NOT reach these ids —
-# coverage.rs:182 reads ../SPEC.md (the root spec only), while REQ-DATA-* live in
+# coverage.rs:182 reads the ROOT SPEC.md only (manifest_dir joined with a parent hop), while REQ-DATA-* live in
 # skills/yf-plan/spec/data.md. The grep above is the authoritative check.
 
 measured_at: 2026-08-19T14:17:28Z

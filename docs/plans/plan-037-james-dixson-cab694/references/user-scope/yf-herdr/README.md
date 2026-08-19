@@ -1,3 +1,14 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: yf-herdr-readme-user-scope
+retrieved: '2026-08-13'
+source: file://~/.claude/skills/yf-herdr/README.md
+vendored: true
+vendored_note: >-
+  Verbatim copy of the user-scope `yf-herdr` skill as it stood when plan-037 hoisted it into this repository.
+---
+
 # yf-herdr
 
 Delegates an approved `yf-plan` or gated `yf-research` project to a new herdr tab running a fresh

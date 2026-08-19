@@ -1,4 +1,12 @@
 ---
+type: Reference
+okf_spec: OKF-PLAN
+id: yf-herdr-skill-user-scope
+retrieved: '2026-08-13'
+source: file://~/.claude/skills/yf-herdr/SKILL.md
+vendored: true
+vendored_note: >-
+  Verbatim copy of the user-scope `yf-herdr` skill as it stood when plan-037 hoisted it into this repository.
 name: yf-herdr
 description: >
   Delegate an approved yf-plan or a gated yf-research project to a NEW herdr tab running a fresh

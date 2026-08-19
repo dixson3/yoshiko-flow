@@ -515,7 +515,7 @@ has burned `N` review cycles should not silently resume.
 
 **Red-team is read-only** (REQ-AGENT-043). The agent never writes files — the main session does.
 
-**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends the phase-log `review:` line, as a **single atomic step**. The file captures, verbatim:
+**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends a `log.md` **`- review-pass:`** bullet, as a **single atomic step**. The token is `review-pass:`, **not** `review:` — a `review:` bullet is what a *status transition into the review phase* writes, and counting both against the pass-file total made a correct bundle hard-fail the audit (REQ-PORT-006 as amended by plan-047 Issue 0.9b/2.7). Like `intake:` and `validated:`, `review-pass:` is a recognized non-status token: it never advances `status`. The file captures, verbatim:
 
 - **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE)
 - **Strengths**
@@ -533,13 +533,13 @@ has burned `N` review cycles should not silently resume.
 
 Writing at presentation makes the verdict portable the instant it exists: a plan parked in `review` with an outstanding REVISE keeps its report on disk, not only in the drafting conversation (#4).
 
-**Pass numbering is fixed at presentation.** `N` is the count of `^- \d{4}-\d{2}-\d{2} review:` phase-log lines *immediately after* this review's line is appended. Because the file and the phase-log line land in the same atomic step, the REQ-PORT-006 invariant `count(reviews/pass-*.md) == count(phase-log review: lines)` holds *while the plan sits in `review`* — exactly the state #4 makes portable.
+**Pass numbering is fixed at presentation.** `N` is the count of `review-pass:` `log.md` bullets *immediately after* this review's bullet is appended. Because the file and the phase-log line land in the same atomic step, the REQ-PORT-006 invariant `count(reviews/pass-*.md) == count(log.md review-pass: bullets)` holds *while the plan sits in `review`* — exactly the state #4 makes portable.
 
-**Update in place on resolution.** As each concern is resolved — by the main session under the autonomous default, by the operator under `checkpointed` — the main session edits the **same** `pass-N.md`: fill that concern's row in the Resolutions table with the resolution, record who resolved it in the `actor` column, and flip its status from `unresolved` to `resolved`, then set the file's final status when all concerns are resolved. Do **not** create a new file and do **not** append a second phase-log `review:` line — both were already written at presentation (above).
+**Update in place on resolution.** As each concern is resolved — by the main session under the autonomous default, by the operator under `checkpointed` — the main session edits the **same** `pass-N.md`: fill that concern's row in the Resolutions table with the resolution, record who resolved it in the `actor` column, and flip its status from `unresolved` to `resolved`, then set the file's final status when all concerns are resolved. Do **not** create a new file and do **not** append a second `review-pass:` bullet — both were already written at presentation (above).
 
 **Lifecycle: mutable until resolved, then frozen.** The strict "never overwrite" rule relaxes to: the in-flight `pass-N.md` is **mutable** until every concern is resolved, then **frozen**. A frozen pass file is never edited again.
 
-**REVISE loops produce one file per cycle.** On REVISE, the operator addresses concerns and the red-team runs *again* — that is a new review cycle: a new `pass-(N+1).md` is written at the next presentation (with its own phase-log `review:` line), updated in place, then frozen. Each full review cycle yields exactly one file; files are updated in place within a cycle, never replaced across cycles. The REQ-PORT-006 count-equality (`count(pass-*.md) == count(phase-log review: lines)`) is preserved at every step because file and phase-log line are written together at each presentation.
+**REVISE loops produce one file per cycle.** On REVISE, the operator addresses concerns and the red-team runs *again* — that is a new review cycle: a new `pass-(N+1).md` is written at the next presentation (with its own `log.md` `review-pass:` bullet), updated in place, then frozen. Each full review cycle yields exactly one file; files are updated in place within a cycle, never replaced across cycles. The REQ-PORT-006 count-equality (`count(pass-*.md) == count(log.md review-pass: bullets)`) is preserved at every step because file and phase-log line are written together at each presentation.
 
 ### Portability audit (last step of PLAN)
 

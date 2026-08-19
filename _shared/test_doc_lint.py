@@ -15,6 +15,8 @@ Run:  uv run _shared/test_doc_lint.py
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -92,11 +94,66 @@ with tempfile.TemporaryDirectory() as td:
 
 rc_with, out_with = run("--type", "plan", "--json")
 rc_without, out_without = run("--type", "plan", "--no-exclude", "--json")
-import json  # noqa: E402
-
 n_with = json.loads(out_with)["files_checked"]
 n_without = json.loads(out_without)["files_checked"]
 check("--no-exclude widens the file set", n_without >= n_with, f"{n_without} vs {n_with}")
+
+
+# --- 7. CARVE-OUTS: the positive control must actually fire (plan-047 Issue 2.2-2.4) ------
+# `control_fired: false` was originally the RIGHT answer for the WRONG reason: finding.toml's
+# `paths` glob was single-level, so the 45 nested okf-migration-samples files were never
+# selected and the carve-out under test was never exercised. A control that cannot fire is
+# the same defect class as a gate that cannot fail.
+
+CARVED = re.compile(r"(findings/okf-migration-samples/|/fixtures/|/references/)")
+
+rc, out = run("--json")
+on = json.loads(out)
+rc, out = run("--no-exclude", "--json")
+off = json.loads(out)
+
+carved_on = [f for f in on["findings"] if CARVED.search(f["path"])]
+carved_off = [f for f in off["findings"] if CARVED.search(f["path"])]
+
+check("zero findings inside the carved regions with excludes ON",
+      len(carved_on) == 0, f"{len(carved_on)}: {[f['path'] for f in carved_on][:3]}")
+check("the positive control FIRES with excludes off",
+      len(carved_off) > 0, "control cannot fire — the carve-out is untested")
+check("...and the control widens the file set",
+      off["files_checked"] > on["files_checked"],
+      f'{off["files_checked"]} vs {on["files_checked"]}')
+
+# The specific region that the single-level glob could not reach.
+nested_off = [f for f in off["findings"] if "okf-migration-samples/" in f["path"]]
+check("the control reaches the NESTED okf-migration-samples corpus",
+      len(nested_off) > 0,
+      "a single-level `findings/*.md` glob reaches 0 of these — the vacuity regression")
+
+# --- 8. glob DEPTH regression, by fixture -------------------------------------------------
+# tests/fixtures/doclint/nested-reach/deeper/bad.md is one level deeper than a `*/findings/*.md`
+# glob can reach. Reverting finding.toml to the single-level form must fail this.
+
+sys.path.insert(0, str(SHARED))
+import tomllib  # noqa: E402
+
+ft = tomllib.load((SHARED / "document_types" / "finding.toml").open("rb"))
+check("finding.toml globs are RECURSIVE",
+      all("**" in g for g in ft["paths"]),
+      f'non-recursive glob present: {ft["paths"]}')
+
+nested = REPO / "tests" / "fixtures" / "doclint" / "nested-reach" / "deeper" / "bad.md"
+rc, out = run("--type", "finding", "--path", str(nested))
+check("a nested malformed finding is caught (exit 1)", rc == 1, f"got {rc}")
+
+with tempfile.TemporaryDirectory() as td:
+    root = Path(td)
+    deep = root / "docs" / "plans" / "plan-000-x" / "findings" / "sub" / "bad.md"
+    deep.parent.mkdir(parents=True)
+    deep.write_text(nested.read_text())
+    rc, out = run("--type", "finding", "--root", str(root), "--json")
+    n = json.loads(out)["files_checked"]
+    check("a recursive glob SELECTS a nested findings/ file a single-level glob misses",
+          n == 1, f"selected {n} — reverting finding.toml to `findings/*.md` makes this 0")
 
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)
