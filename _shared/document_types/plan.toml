@@ -1,0 +1,75 @@
+# plan.md — CODE-GENERATED type (producer: plan_manager.seed_plan_md via plan_template).
+# Its required-section list is DERIVED from the producer, so the two cannot diverge (D-8).
+type = "plan"
+producer_class = "code-generated"
+derive_from = "plan_template.PLAN_SECTIONS"
+description = "A yf-plan bundle's plan.md — the plan DAG, gates, risks and success criteria."
+
+# Path-keyed, never filename-keyed (REQ-DATA-024). Filename-keying fires on the 17
+# test-fixture plan.md files and makes the trigger non-inert in a repo with no plans.
+paths = [
+    "docs/plans/*/plan.md",
+    "Incubator/*/plans/*/plan.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "docs/plans/*/findings/okf-migration-samples/**",
+]
+
+[[checks]]
+id = "required-sections"
+severity = "E"
+kind = "headings-present"   # `value` omitted -> taken from `derive_from`
+
+[[checks]]
+id = "identity-frontmatter"
+severity = "E"
+kind = "frontmatter-keys"
+value = ["type", "okf_spec", "id", "author", "created", "status"]
+
+[[checks]]
+id = "no-retired-phase-log"
+severity = "E"
+kind = "regex-absent"
+pattern = '^\*\*Phase log:\*\*'          # REQ-DATA-012: history lives in log.md
+
+[[checks]]
+id = "risks-table-columns"
+severity = "E"
+kind = "table-columns"
+section = "Risks & Mitigations"
+value = ["#", "Risk", "Severity", "Mitigation"]      # REQ-DATA-018 / D-6
+
+[[checks]]
+id = "criteria-table-columns"
+severity = "E"
+kind = "table-columns"
+section = "Success Criteria"
+value = ["#", "Criterion", "Verification", "Discharged-by"]   # REQ-DATA-018
+
+[[checks]]
+id = "criterion-ids"
+severity = "E"
+kind = "row-id-grammar"
+section = "Success Criteria"
+pattern = '^SC[0-9]+[a-z]?$'             # REQ-DATA-018: stable, unique, insertable
+
+[[checks]]
+id = "risk-ids"
+severity = "W"
+kind = "row-id-grammar"
+section = "Risks & Mitigations"
+pattern = '^R[0-9]+[a-z]?$'
+
+[[checks]]
+id = "upstream-table-columns"
+severity = "E"
+kind = "table-columns"
+section = "Upstream Issues"
+value = ["Issue", "Title", "Disposition", "Notes", "Resolved By"]   # REQ-DATA-013
+
+[[checks]]
+id = "motivation-filled"
+severity = "W"
+kind = "regex-absent"
+pattern = 'Replace this placeholder before intake'     # REQ-PORT-004

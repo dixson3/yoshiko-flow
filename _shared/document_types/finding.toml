@@ -1,0 +1,32 @@
+# findings/*.md — AGENT-WRITTEN type. No producer function exists to derive from, so the
+# schema is declared inline here and referenced by skills/yf-plan/agents/investigator.md.
+# Measured 94.9% drift across 117 files: the best value/cost ratio in the corpus by an
+# order of magnitude.
+type = "finding"
+producer_class = "agent-written"
+description = "An investigation finding written by the yf-plan investigator sub-agent."
+
+paths = [
+    "docs/plans/*/findings/*.md",
+    "Incubator/*/plans/*/findings/*.md",
+]
+exclude = [
+    # 87 files: a whole nested before/after migration-diff fixture corpus. Linting them
+    # would emit 87 false findings AND break the fixture.
+    "docs/plans/*/findings/okf-migration-samples/**",
+    "skills/**/fixtures/**",
+]
+
+[[checks]]
+id = "required-sections"
+severity = "E"
+kind = "headings-present"
+value = ["Question", "Method", "Findings", "Implications"]
+
+[[checks]]
+id = "measured-marker"
+severity = "W"
+kind = "regex-present"
+# The epistemics rule the investigator agent mandates. Measured: only 2 of 117 findings
+# carry it, which is why it is W and not E until the corpus is instantiated (Epic 6).
+pattern = '\*\*measured:\*\*'
