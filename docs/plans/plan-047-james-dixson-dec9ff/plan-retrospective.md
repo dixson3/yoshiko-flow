@@ -165,3 +165,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-009
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-19 |
+| `stop_class` | 2 |
+| `asked` | D-13 split gate (Issue 10.0): with 4 review cycles recorded at the end of Epic 5, should execution continue into Epics 6-10 or split? |
+| `answered` | PENDING — halted for the operator. The gate exited 1 as designed; the proposal is rendered at assets/split-proposal.md with three options (split / continue / land-and-pause). |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | bash scripts/split-proposal.sh -> {"tripped":true,"review_cycles":4,"threshold":4,"remaining_open_issues":39} exit 1; discrimination verified on a scratch copy: exit 0 at 0/1/2/3 cycles |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
