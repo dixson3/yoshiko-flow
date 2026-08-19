@@ -55,6 +55,13 @@ extractor and already finds real ordering defects — a dropped `blocks` edge me
 marked ready *before its declared predecessor*. It reports four populations separately, and one
 of them corrects a figure from this repo's own investigation: the previously-reported **20
 invented edges were substantially a parser artifact**. Splitting `invented` by whether the
-document is machine-readable gives **0 invented edges in any cleanly-parsed plan**; all 127 sit
-in documents whose declarations the grammar refuses. The plan↔bead identity population
+document is machine-readable gives **0 invented edges in any cleanly-parsed plan** — every one
+of them sits in a document whose declarations the REQ-DATA-019 grammar refuses.
+
+(The two counts are different populations, not a contradiction: the earlier **20** came from
+the loose prototype restricted to the 40 joinable plans, while the strict extractor attributes
+**127** invented edges across 14 unreadable plans. The point is not the magnitude but that the
+correct count in readable plans is **zero** — the metric was measuring its own instrument.)
+
+The plan↔bead identity population
 (plans 006/007/036, which have no recoverable mapping) reproduces exactly.
