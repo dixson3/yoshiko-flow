@@ -1,6 +1,10 @@
 # Log
 
 ## 2026-08-18
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-w3m poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE + audit pass
 - review: red-team pass 5 presented — APPROVE (0 high; 5→5→2→1→0)

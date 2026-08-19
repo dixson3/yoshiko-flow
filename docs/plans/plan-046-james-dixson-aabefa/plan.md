@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-046-james-dixson-aabefa
 author: james-dixson
 created: '2026-08-18'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: 8efe609bc5613d7d79b050afc593a3de240c7d787e666c01e46c779ad911a9cb
+epic: yf-mol-w3m
 ---
 # Plan: OKF group — reconcile OKF-BASELINE to v0.2, and make bundle structure below the root generated rather than asserted
 
 **ID:** plan-046-james-dixson-aabefa
 **Author:** james-dixson
 **Created:** 2026-08-18
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-w3m
 **Fingerprint:** 8efe609bc5613d7d79b050afc593a3de240c7d787e666c01e46c779ad911a9cb
 
 ## Objective
@@ -71,6 +73,7 @@ built and what is wanted.
 
 | Issue | Title | Disposition | Notes | Resolved By |
 |-------|-------|-------------|-------|-------------|
+| [#167](https://github.com/dixson3/yoshiko-flow/issues/167) | plan-046-james-dixson-aabefa execution tracking | tracker | Coarse plan-scale tracking issue (AGENTS.md coarse convention). Not a work row. | — |
 | #141 | yf-okf: reconcile OKF-BASELINE from v0.1 to OKF v0.2 (supersedes #128) | include | Baseline to v0.2 verbatim + extension-layer concept mapping. **No corpus frontmatter migration.** | 2.9 |
 | #140 | yf-okf: enforce OKF structure below the bundle root (nested index.md/log.md), and adopt an index drift/regeneration model | **partial** | **IN:** root-scoped `reindex --check`/`--write`, the drift model, the root backfill, the two extension decisions. **OUT:** nested `index.md` (deferred, D-9 — filed upstream by 5.5), nested `log.md` (dropped permanently, D-4), promotion to error-level enforcement (recorded not executed, 4.5). The `audit-close` half already shipped in plan-043 (#148). | 4.5 |
 | #92 | OKF export-emit integration for yf-plan/research/incubator (deferred) | supersede | **Three named carve-outs** (projection delivery mode; conformance gate for yf-research and yf-incubator; consumer round-trip fidelity), filed by 5.5. Reconcile with mechanical evidence, do not build. | 5.6 |
