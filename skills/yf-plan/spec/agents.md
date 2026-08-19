@@ -48,7 +48,7 @@ REQ-AGENT-030: The reconciler verifies each bead is closed before updating its l
 Rationale: Updating an issue as "resolved" when work is incomplete misleads the team.
 Verification: reconciler.md Rules: "Verify before acting. Never update upstream without confirming work was done."
 
-REQ-AGENT-031: Disposition mapping is: `include` → close with comment, `partial` → comment only (do NOT close), `supersede` → close with "not planned" reason.
+REQ-AGENT-031: Disposition mapping is: `include` → close with comment, `partial` → comment only (do NOT close), `supersede` → close with "not planned" reason, `deferred` → **no upstream action** (the issue stays OPEN and untouched), `exclude` → no action and not verified. `deferred` is a non-action: the row records a scoping decision taken in *this* plan, not work done on that issue, so there is nothing to attribute upstream and no comment is written.
 Rationale: Each disposition has a specific upstream action; conflating them produces wrong issue states.
 Verification: reconciler.md Execute section step 3; SKILL.md Phase 6.3 disposition table.
 

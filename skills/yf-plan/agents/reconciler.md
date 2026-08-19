@@ -46,6 +46,14 @@ gh issue comment <number> --body "Partially addressed in <plan-id>: <done>. Rema
 gh issue close <number> --reason "not planned" --comment "Superseded by <plan-id>: <rationale>."
 ```
 
+**deferred:** no upstream action. A deferral is a *non-action* — the issue stays OPEN and
+untouched, and there is nothing to attribute. Do **not** comment "deferred to plan-NNN": the
+row records a scoping decision made in this plan, not work done on that issue, and
+`verify-reconcile` requires no plan-id mention for a `deferred` row (REQ-PLAN-074).
+
+**exclude:** no upstream action, and the row is not verified at all — `verify-reconcile` skips
+`exclude` rows outright.
+
 ### 4 — Verify updates
 
 ```bash
@@ -97,4 +105,5 @@ pass, and a badly written one cannot make a reconciled row fail.
 - Flag mismatches for operator rather than guessing.
 - Every upstream comment references plan ID and relevant commits.
 - partial = comment, don't close. supersede = close with rationale.
+- deferred = **no upstream action** (issue stays OPEN, untouched). exclude = no action, unverified.
 - The reconcile bead's close reason records **upstream actions per row**, not shipped code.

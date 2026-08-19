@@ -270,7 +270,7 @@ gh issue list --search "<objective keywords>" --json number,title,body,labels,st
 uv run ${SKILL_DIR}/scripts/plan_manager.py triage "${plan_dir}" "${objective}" --issues-json /tmp/yf-plan-issues.json
 ```
 
-Present matches with disposition options: `[include] [exclude] [partial] [supersede]`
+Present matches with disposition options: `[include] [exclude] [partial] [supersede] [deferred]`
 
 For <=5 issues, present inline. For >5, direct operator to edit the generated `upstream-triage.md`.
 
