@@ -184,3 +184,79 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-010
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-19 |
+| `stop_class` | 2 |
+| `asked` | D-13 split gate (Issue 10.0): split, continue, or land-and-pause? |
+| `answered` | OPERATOR DECISION: SPLIT (option 1), James Dixson, 2026-08-19. Land Epics 0-5; open a follow-on for 6-10 in a fresh session, scoped by the operator. Epics 6-10 were DESCOPED EXPLICITLY (all 39 issues closed with a descope reason via bd batch) rather than left silently open, so the plan is internally consistent at completion. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | split-proposal.sh -> {tripped:true, review_cycles:4, threshold:4, remaining_open_issues:39} exit 1; discrimination verified exit 0 at 0/1/2/3 cycles |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-011
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | Do the EXP-003-era measurements still size Epics 6-10, which were planned against them? |
+| `answered` | NO — Epic 5 REFUTED one of them. The baseline's 20 invented edges were a parser artifact: splitting 'invented' by whether the document is readable gives 0 invented edges in ANY cleanly-parsed plan, with all 127 sitting in documents the REQ-DATA-019 grammar cannot read. So EXP-003-era figures no longer size Epic 8's normalizer worklist. The honest worklist is the extractor's 300 unparsed constructs across 33 plans — a number that DID NOT EXIST when Epics 6-10 were drafted. CONSEQUENCE FOR THE FOLLOW-ON: it needs a real investigation phase against corrected numbers, not a copy of the descoped epics. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | pour_fidelity.py populations: invented_in_cleanly_parsed_plans = 0 edges / 0 plans; invented_where_document_is_unreadable = 127 edges / 14 plans; plan_extract.py over the corpus = 300 unparsed across 33 of 47 plans |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-012
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | MAIN UPSTREAM FINDING: how should controls be authored so they are not vacuous or misclassifying? |
+| `answered` | SIX controls in this execution were vacuous or misclassifying, and EVERY ONE was invisible to inspection and visible only to execution: (1)(2) the two Epic-0 drift controls; (3) _common.sh reporting its own harness failure as 'capability absent'; (4) the carve-outs control whose single-level globs reached 0 of 45 target files; (5) the gate script reading a FAILING TIER as a harness failure; (6) my own new test passing cwd-dependently for an incidental reason. Plus #125 itself: update-status approved exiting 0 on a red ready-check. PROPOSED UPSTREAM FIX — and it is NOT 'author gates more carefully', because careful authoring produced all six: a control must MECHANICALLY DEMONSTRATE IT CAN FAIL before it is trusted to pass, as a PRECONDITION OF BEING WIRED IN. Generalise the mutant-driven proof built ad hoc for the carve-outs gate (mutant A: revert the glob -> 5 assertions fail; mutant B: drop the carve-out -> carved_findings 0 -> 90, gate to exit 1) into the standard authoring step for every gate, recipe row and control. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | RE-001..RE-008 in this file; assets/carveout-mutants.txt; assets/gate-falsification.txt; assets/gate-prework/README.md |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-013
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | DAG-ordering findings for #113 (execution-rehearsal review pass): did the declared epic order survive execution? |
+| `answered` | NO — two ordering misses, both of the same shape: the plan sequenced VERIFICATION AFTER CONSTRUCTION where construction already required it. (a) Issue 3.4's falsification was VACUOUS as sequenced: with the linter red on a 320-error corpus, a mutant-induced 'status: fail' is indistinguishable from the standing failure, so Issue 4.2's status-aware promotion had to be FORWARD-PORTED into 3.1 before 3.4 could observe anything. (b) Epic 4 then touched only the test file, because its engine features had already been pulled forward by Epics 1-3. A topological DAG walk over the declared edges would have caught both BEFORE execution: each is a verification step whose precondition is produced by a LATER issue. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | doc_lint corpus before the forward-port: errors=320 files=169; after: errors=0 report_only=610 verdict=PASS. Epic 4 commit dacc75a touches _shared/test_doc_lint.py only |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
