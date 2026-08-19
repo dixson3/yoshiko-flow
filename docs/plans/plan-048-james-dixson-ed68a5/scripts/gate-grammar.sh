@@ -7,14 +7,20 @@
 #   1 = capability ABSENT  : one of those three is not yet true
 #   2 = harness failure    : a required tool or input is missing (never red)
 #
-# The residue TARGET is 54, FIXED AT APPROVAL (plan-048 SC1). It is NOT re-derived from
-# whatever this run happens to measure — a target computed from the measurement it grades
-# is not a target, it is a tautology.
+# The residue TARGET is 81. It was RE-BASED from 54 at execution, by explicit operator
+# decision, because 54 was MISDERIVED — it inherited EXP-001's "~96 recoverable" estimate,
+# which counted classes that Issues 1.4/1.4a later declared must be REFUSED. See
+# ../assets/residue-analysis.md for the full derivation.
+#
+# It is still NOT re-derived from whatever this run happens to measure — a target computed
+# from the measurement it grades is not a target, it is a tautology. 81 is the count of
+# constructs the plan's own refusal rules make unrecoverable, computed from those rules, and
+# a residue ABOVE it still fails. ../assets/residue-mutant.md drives that direction.
 
 set -u
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
-TARGET=54
+TARGET=81
 BASELINE=150   # measured 2026-08-19 across 33 of 48 plans (EXP-001, D-5 re-measurement)
 
 require_tool git

@@ -1,0 +1,61 @@
+# reviews/*.md — the red-team / conformance pass reports (plan-048 Issue 2.2).
+#
+# MEASURED over 119 files (2026-08-19, re-measured per D-5 rather than inherited):
+#
+#   Verdict line          114/119   95.8%
+#   ## Concerns           112/119   94.1%
+#   ## Gate Assessment    110/119   92.4%
+#   ## Upstream Assessment 109/119  91.6%
+#   ## Strengths          108/119   90.8%
+#   ## Missing            100/119   84.0%
+#   Resolutions table      24/119   20.2%
+#
+# The five body sections and the Verdict line ship at `E`; the Resolutions table at `W`.
+# That split is not a guess about importance — it is the measurement. A check landing at
+# `E` against 84-96% conformance leaves a real but bounded residue that STATUS_SEVERITY
+# absorbs (every non-conforming file sits in a `complete` bundle, hence REPORT-only). The
+# Resolutions table at 20.2% would put four fifths of the corpus in error state, and an
+# `E` nothing can satisfy trains authors to fake the shape rather than fix it.
+#
+# These files ARE inside plan bundles, so `bundle_status` resolves and REQ-DATA-045's
+# no-`E`-off-the-plan-axis constraint does not bite here. The enforcement point is a plan
+# at `review` / `ready-for-approval`, which is exactly when a review report is being written.
+type = "review"
+producer_class = "agent-written"
+description = "A yf-plan red-team or conformance review pass report (`reviews/pass-N.md`)."
+
+paths = [
+    "docs/plans/*/reviews/*.md",
+    "Incubator/*/plans/*/reviews/*.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+# `headings-any-level` because the corpus splits between H2 and H3 for the body sections
+# (8 files use `### Gate Assessment`). The level carries no meaning here; the section's
+# PRESENCE does. Requiring H2 specifically would fail 8 files for a formatting choice.
+[[checks]]
+id = "required-sections"
+severity = "E"
+kind = "headings-any-level"
+value = ["Strengths", "Concerns", "Missing", "Gate Assessment", "Upstream Assessment"]
+
+# The verdict is the whole point of the document: it drives the phase transition and the
+# REQ-PLAN-030 re-review rule. A review whose verdict cannot be read mechanically cannot
+# be counted by `ready-check`.
+[[checks]]
+id = "verdict-declared"
+severity = "E"
+kind = "regex-present"
+pattern = '(?m)^#{1,6} +Verdict: +(APPROVE|REVISE|INVESTIGATE-MORE)\b|^\*\*Verdict:\*\* *(APPROVE|REVISE|INVESTIGATE-MORE)\b'
+
+# SKILL.md mandates a per-concern Resolutions table with an `actor` column (renamed from
+# "Operator Resolutions", which asserted a fixed resolver the autonomous loop contradicts).
+# W, not E: measured 20.2%.
+[[checks]]
+id = "resolutions-table"
+severity = "W"
+kind = "regex-present"
+pattern = '(?m)^\| *Concern *\|'

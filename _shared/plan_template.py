@@ -45,6 +45,45 @@ PLAN_SECTIONS = [
 # are added later in the lifecycle.
 PLAN_IDENTITY_FIELDS = ["ID", "Author", "Created", "Status"]
 
+# --- producer constants hoisted from plan_manager.py (plan-048 Issue 2.1) -------------
+#
+# `doc_lint`'s `derive_from` resolves `<module>.<ATTR>` only for modules under `_shared/`,
+# so a producer constant living in `skills/yf-plan/scripts/plan_manager.py` is unreachable
+# to a schema. Hoisting it here is what lets the `context` document type be DERIVED from
+# the producer rather than hand-restated — a hand-restated copy is a second source of
+# truth that drifts silently (REQ-DATA-024's whole rationale).
+#
+# `plan_manager.py` imports these back, so there is exactly one definition.
+
+#: Sections `seed_context_md` writes and `_audit_plan` requires in a bundle's `context.md`.
+CONTEXT_REQUIRED_SECTIONS = [
+    "Project environment",
+    "Tool inventory",
+    "Paths",
+    "Operator identity",
+    "Runtime assumptions",
+]
+
+#: Sections `_write_upstream_reference` writes into `references/upstream-<N>.md`.
+#: The producer is CODE, so this type is `code-generated` and MUST derive from a producer
+#: constant rather than restate one (doc_lint refuses a code-generated type with no
+#: `derive_from`). `_shared/test_doc_lint.py` drives the real producer and asserts its
+#: output satisfies this list, so a producer change that outgrows the list fails a test
+#: instead of silently drifting.
+UPSTREAM_REFERENCE_SECTIONS = ["Body"]
+
+#: Metadata bullets the same producer writes above `## Body`.
+UPSTREAM_REFERENCE_FIELDS = ["Number", "Title", "URL", "State", "Labels"]
+
+#: Seeded instructional prose per section. A section whose body still contains its marker
+#: is unedited template text. `Tool inventory` and `Paths` are auto-filled with real data
+#: at seed time, so they carry no marker.
+CONTEXT_PLACEHOLDERS = {
+    "Project environment": "Describe the project this plan belongs to",
+    "Operator identity": "fill in role, contact, and authority scope",
+    "Runtime assumptions": "List the assumptions this plan makes about",
+}
+
 # Fixed column sets the schema requires (plan-047 D-6 / REQ-DATA-018).
 RISKS_TABLE_HEADER = (
     "| # | Risk | Severity | Mitigation |\n"

@@ -3583,22 +3583,12 @@ _ABS_PATH_PATTERNS = (
 )
 _PARENT_TRAVERSAL = re.compile(r"(?<![\w.])\.\./")
 
-_CONTEXT_REQUIRED_SECTIONS = (
-    "Project environment",
-    "Tool inventory",
-    "Paths",
-    "Operator identity",
-    "Runtime assumptions",
-)
-
-# Seeded instructional prose per section (from seed_context_md). A section whose body
-# still contains its marker is unedited template text and fails the portability audit.
-# Tool inventory / Paths are auto-filled with real data at seed time, so they have no marker.
-_CONTEXT_PLACEHOLDERS = {
-    "Project environment": "Describe the project this plan belongs to",
-    "Operator identity": "fill in role, contact, and authority scope",
-    "Runtime assumptions": "List the assumptions this plan makes about",
-}
+# HOISTED to `_shared/plan_template.py` (plan-048 Issue 2.1). `doc_lint`'s `derive_from`
+# resolves only modules under `_shared/`, so the `context` document type could not be
+# derived from a constant defined here. These aliases keep every existing use site working
+# against the single definition; do NOT re-declare the literals here.
+_CONTEXT_REQUIRED_SECTIONS = tuple(plan_template.CONTEXT_REQUIRED_SECTIONS)
+_CONTEXT_PLACEHOLDERS = plan_template.CONTEXT_PLACEHOLDERS
 
 # OKF-reserved `index.md` listing shape (REQ-PORT-001): a `#` heading plus ≥1
 # `- [child](path)` listing bullet. Replaces the legacy README `File map` / `Reading

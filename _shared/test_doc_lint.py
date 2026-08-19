@@ -50,6 +50,13 @@ check("known-bad plan fixture reports FAIL", "FAIL:" in out)
 rc, out = run("--type", "finding", "--path", str(FIXTURES / "finding" / "bad.md"))
 check("known-bad finding fixture exits 1", rc == 1, f"got {rc}")
 
+# plan-048 Issue 2.1b / SC25. The third SHIPPED type had no known-bad fixture at all, so
+# its one check (`vendored-marker`) had never been shown to fail. A check that has never
+# been driven red is indistinguishable from a check that cannot go red.
+rc, out = run("--type", "reference", "--path", str(FIXTURES / "reference" / "bad.md"))
+check("known-bad reference fixture exits 1", rc == 1, f"got {rc}")
+check("...and it names the vendored-marker check", "vendored-marker" in out, out[:200])
+
 with tempfile.TemporaryDirectory() as td:
     clean = Path(td) / "plan.md"
     sys.path.insert(0, str(SHARED))
