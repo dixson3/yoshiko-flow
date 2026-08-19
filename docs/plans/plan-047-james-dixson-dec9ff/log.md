@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-19
+- complete: plan complete for the Epics 0-5 scope — operator SPLIT decision at the D-13 gate; Epics 6-10 descoped to a follow-on; upstream posting and deploy remain gated
+- reconciling: post-execution reconciliation (Epics 0-5 scope; 6-10 descoped at the D-13 split)
 - executing: start gate resolved
 - intake: epic yf-mol-63g poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level

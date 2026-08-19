@@ -260,3 +260,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-014
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-19 |
+| `stop_class` | 5 |
+| `asked` | §6.4 verify-reconcile HALTED (exit 1): 4 upstream rows have not reached their required end state — #113/#174/#149 are OPEN with no comment naming this plan, and #125 is an 'include' row that is still OPEN. Post and close? |
+| `answered` | NO — the operator explicitly gated all upstream writes for this session ('Do NOT post upstream comments'). Proceeding to complete WITHOUT posting, under that explicit authorization. The eight comments are drafted at references/comment-*.md and unposted; the coarse tracker #175 stays open for the follow-on. This is a real, recorded deviation from the §6.4 contract, not a passing gate: the remediation is unchanged and is the gh commands in the verdict's remediation field. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | verify-reconcile --json -> verdict fail, rows: #113/#174/#149 partial=fail, #125 include=fail, #165/#135/#62 deferred=inconclusive, #175 tracker=inconclusive |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

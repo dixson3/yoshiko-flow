@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-047-james-dixson-dec9ff
 author: james-dixson
 created: '2026-08-18'
-status: executing
+status: complete
 fingerprint: 0147839b3354d363fece6966f68d7f6c0321b95a391c3cedcc33ca47b01440b8
 epic: yf-mol-63g
 ---
@@ -13,7 +13,7 @@ epic: yf-mol-63g
 **ID:** plan-047-james-dixson-dec9ff
 **Author:** james-dixson
 **Created:** 2026-08-18
-**Status:** executing
+**Status:** complete
 **Epic:** yf-mol-63g
 **Fingerprint:** 0147839b3354d363fece6966f68d7f6c0321b95a391c3cedcc33ca47b01440b8
 **Coarse tracker:** [#175](https://github.com/dixson3/yoshiko-flow/issues/175)
@@ -64,31 +64,16 @@ normalizer for history — the same shape as the OKF migrate path that plan-046 
 
 ## Upstream Issues
 
-**Dispositions at completion (post-split, 2026-08-19).** Epics 6–10 were descoped, so the rows
-whose `Resolved By` sat in Epic 7 are marked **deferred** rather than claimed. Comments are
-drafted to `references/comment-*.md` and **not posted** — the `Upstream write` gate is human and
-its Test is a precondition, never authorization.
-
-| Issue | Claimed at completion | Where |
-| :-- | :-- | :-- |
-| #125 | **CLOSABLE** — the only `include` fully delivered (Issues 2.5/2.6, REQ-DATA-028, REQ-CLI-024) | Epic 2 |
-| #113 | partial — the extractor substrate landed; the DAG walk itself stays open | Epic 5 |
-| #174 | partial — criterion ids + `Discharged-by` + the extractor landed; both checks stay open | Epics 0, 5 |
-| #149 | partial — M9 addressed; M5 confirmed and given a concrete proposed remediation | Epics 0–5 |
-| #165 | **deferred** — Issue 7.2 was descoped; nothing claimed | Epic 7 (descoped) |
-| #135 | **deferred** — Issue 7.3 was descoped; nothing claimed | Epic 7 (descoped) |
-| #62 | **deferred** — Issue 7.5 was descoped; the general engine landed, the spec linter did not | Epic 7 (descoped) |
-| #175 | tracker — stays **OPEN** for the follow-on | — |
 
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
 | #113 | execution-rehearsal review pass (topological DAG walk) | partial | This plan delivers the extractor the walk requires. The walk itself stays open — its own re-open trigger (two consecutive plans with structural escapes) is **not** met; plan-046's two escapes were claims-class, not ordering-class. | Issue 5.3 |
 | #174 | review-phase validation pass (falsify + cross-check matrix) | partial | Both halves need the plan's assertions machine-readable. Templates additionally add the criterion ids its matrix joins on. The two checks themselves stay open. | Issue 0.3, 5.1 |
 | #149 | M5/M9 — process rules nothing executes; remediation edges only in prose | partial | M9 becomes a template field (a bundle declares what it fixes) plus a linter check. M5 as a class is not closed here. | Issue 0.3, 0.4 |
-| #165 | SPEC `Verification:` lines are prose shaped like commands | include | SPEC.md is an in-scope document type; this is the spec-linter's headline rule. | Issue 7.2 |
+| #165 | SPEC `Verification:` lines are prose shaped like commands | deferred | Was `include`. **Re-dispositioned at completion**: Issue 7.2 was in Epic 7, descoped at the D-13 split, so nothing landed and nothing is claimed. | Issue 7.2 (descoped) |
 | #125 | status-enum hardening for `update-status` | include | The documented 9-value vocabulary becomes a linted enum rather than doc/spec/test-enforced only. | Issue 2.5 |
-| #135 | a measured literal in plan.md goes stale | partial | A linter can flag hand-maintained counts in an authored document; it cannot solve corpus self-inclusion. | Issue 7.3 |
-| #62 | propose yf-spec skill | partial | This plan delivers the spec-linter half. Whether a full `yf-spec` skill follows stays open. | Issue 7.5 |
+| #135 | a measured literal in plan.md goes stale | deferred | Was `partial`. **Re-dispositioned at completion**: Issue 7.3 was descoped with Epic 7. | Issue 7.3 (descoped) |
+| #62 | propose yf-spec skill | deferred | Was `partial`. **Re-dispositioned at completion**: Issue 7.5 was descoped with Epic 7; the general engine landed, the spec linter did not. | Issue 7.5 (descoped) |
 | #173 | criteria/dispositions never checked against the enforcing engine | exclude | The evidence record for #174, deliberately kept open. | |
 | #150 | research 004 — process-defect mining | exclude | Coarse research tracker and evidence source, not work. | |
 | #145 | yf-retrospective skill | exclude | Adjacent (escape-rate measurement), separate deliverable. | |
@@ -870,6 +855,22 @@ figures therefore no longer size Epic 8's normalizer worklist. The honest workli
 extractor's **300 unparsed constructs across 33 plans**, a number that did not exist when
 Epics 6–10 were drafted. The follow-on needs its own investigation phase against corrected
 numbers. See [assets/split-proposal.md](assets/split-proposal.md).
+
+**Dispositions at completion (post-split, 2026-08-19).** Epics 6–10 were descoped, so the rows
+whose `Resolved By` sat in Epic 7 are marked **deferred** rather than claimed. Comments are
+drafted to `references/comment-*.md` and **not posted** — the `Upstream write` gate is human and
+its Test is a precondition, never authorization.
+
+| Issue | Claimed at completion | Where |
+| :-- | :-- | :-- |
+| #125 | **CLOSABLE** — the only `include` fully delivered (Issues 2.5/2.6, REQ-DATA-028, REQ-CLI-024) | Epic 2 |
+| #113 | partial — the extractor substrate landed; the DAG walk itself stays open | Epic 5 |
+| #174 | partial — criterion ids + `Discharged-by` + the extractor landed; both checks stay open | Epics 0, 5 |
+| #149 | partial — M9 addressed; M5 confirmed and given a concrete proposed remediation | Epics 0–5 |
+| #165 | **deferred** — Issue 7.2 was descoped; nothing claimed | Epic 7 (descoped) |
+| #135 | **deferred** — Issue 7.3 was descoped; nothing claimed | Epic 7 (descoped) |
+| #62 | **deferred** — Issue 7.5 was descoped; the general engine landed, the spec linter did not | Epic 7 (descoped) |
+| #175 | tracker — stays **OPEN** for the follow-on | — |
 
 **Success criteria:** SC0–SC19 and SC36 are discharged by the delivered scope. SC20–SC35 and
 SC37–SC40 belong to the descoped epics and travel with them; they are **not** claimed here.
