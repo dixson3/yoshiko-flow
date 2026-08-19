@@ -390,33 +390,68 @@ def run_plan_relations(chk: dict, path: Path | None) -> list[str]:
         # must read every disposition cell identically. `verify-reconcile` is FAIL-LOUD,
         # so two parsers disagreeing on row shape is a fail-loud FALSE POSITIVE.
         other = _parse_upstream_rows_view(pm)
-        if other is not None:
-            mine = {str(u.get("issue")): (u.get("disposition") or "").strip().strip("*_").lower()
+        if other is None:
+            # "Not checked" is NOT "agreed". Say so, rather than reporting a clean R3.
+            out.append("R3 could not run: plan_manager's parse_upstream_rows was "
+                       "unavailable, so two-parser agreement is UNVERIFIED (not clean)")
+        else:
+            # KEY NORMALIZATION IS LOAD-BEARING. `plan_extract` emits `#113`;
+            # `parse_upstream_rows` emits `113`. Joined raw, the two dicts share ZERO keys,
+            # so the comparison reported "no disagreements" on every plan while comparing
+            # nothing at all — R4's defect class inside the very rule meant to catch a
+            # two-parser split. Both sides are reduced to a bare number before the join.
+            def _num(k: str) -> str:
+                return str(k).lstrip("#").strip()
+            mine = {_num(u.get("issue")):
+                    (u.get("disposition") or "").strip().strip("*_").lower()
                     for u in d.get("upstream", [])}
-            for num, disp in other.items():
-                if num in mine and mine[num] != disp:
+            theirs = {_num(k): v for k, v in other.items()}
+            common = set(mine) & set(theirs)
+            # Only a real join failure — BOTH sides non-empty yet sharing nothing. When
+            # one side is empty the other is reading a placeholder row (`—`, `_none_`),
+            # which is a different finding and R2c's to report.
+            if not common and mine and theirs:
+                out.append(
+                    f"R3 compared NOTHING: {len(mine)} extractor rows and "
+                    f"{len(theirs)} parser rows share no issue number — the join key is "
+                    "broken, which would silently report agreement forever")
+            for num in sorted(common):
+                if mine[num] != theirs[num]:
                     out.append(f"upstream #{num}: parsers disagree on disposition — "
-                               f"plan_extract {mine[num]!r} vs parse_upstream_rows {disp!r}")
+                               f"plan_extract {mine[num]!r} vs "
+                               f"parse_upstream_rows {theirs[num]!r}")
     return out
 
 
 def _parse_upstream_rows_view(pm: Path) -> dict[str, str] | None:
     """`{issue-number: normalized-disposition}` per plan_manager's shared parser.
 
-    Imported lazily and by PATH: `_shared/` may run without the skill on `sys.path`, and a
-    relational rule must degrade to "not checked" rather than crash when it is absent.
+    Extracted BY SOURCE SLICE rather than imported: `plan_manager.py` pulls in `click`,
+    `yaml` and a vendored `okf`, none of which `_shared/` may assume are installed.
+
+    THE SLICE MUST CARRY THE PARSER'S DEPENDENCIES. The first version sliced only
+    `parse_upstream_rows`, which calls `_normalize_disposition` — so every call raised
+    NameError, was swallowed, and returned None. R3 then reported ZERO disagreements across
+    the whole corpus while never actually running: a check that cannot fail, which is
+    exactly the defect class R4 exists to catch, reproduced inside R3's own harness.
+    Returning None is a legitimate "not checked" signal, so nothing looked wrong.
     """
-    import importlib.util
+    import importlib.util  # noqa: F401  (kept for parity with other lazy loaders)
     cand = (Path(__file__).resolve().parent.parent
             / "skills" / "yf-plan" / "scripts" / "plan_manager.py")
     if not cand.exists():
         return None
     try:
         src = cand.read_text(encoding="utf-8", errors="replace")
-        start = src.index("def parse_upstream_rows(")
-        end = src.index("\ndef ", start + 10)
-        ns: dict = {"re": re}
-        exec(compile(src[start:end], str(cand), "exec"), ns)
+        # Seed the namespace with the module-level constants the sliced functions close
+        # over. A constant is not a `def`, so it cannot be sliced the same way.
+        ns: dict = {"re": re, "_CELL_SPLIT": re.compile(r"(?<!\\)\|")}
+        # Every name `parse_upstream_rows` depends on, sliced in dependency order.
+        for fn in ("def _split_table_row(", "def _normalize_disposition(",
+                   "def parse_upstream_rows("):
+            start = src.index(fn)
+            end = src.index("\ndef ", start + len(fn))
+            exec(compile(src[start:end], str(cand), "exec"), ns)
         rows = ns["parse_upstream_rows"](pm.read_text(encoding="utf-8", errors="replace"))
         return {str(r["issue"]): (r.get("disposition") or "").strip().strip("*_").lower()
                 for r in rows}

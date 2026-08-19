@@ -353,5 +353,42 @@ for _t in EXIT_TYPES + FINDING_ONLY_TYPES + NO_CHECK_TYPES:
           f'reason={d.get("reason", "")}')
 
 
+# --- plan-048 Issue 3.4: R3 two-parser agreement must never be VACUOUS -------------------
+#
+# R3 shipped broken TWICE, in two different ways, and each time reported a clean corpus:
+#   1. the source slice omitted a helper, so every call raised, was swallowed, and returned
+#      None — "not checked" rendered as "agreed";
+#   2. once running, it joined `#113` against `113` — ZERO shared keys, so it compared
+#      nothing and reported no disagreements forever.
+# Both are R4's defect class (a check that cannot fail) inside the rule meant to catch a
+# two-parser split. These pins make a silent return to either state a test failure.
+
+_pm_view = doc_lint_mod._parse_upstream_rows_view
+_ctrl = REPO / "docs" / "plans" / "plan-047-james-dixson-dec9ff" / "plan.md"
+if _ctrl.exists():
+    _theirs = _pm_view(_ctrl)
+    check("R3: the plan_manager parser view actually loads (not None)",
+          _theirs is not None,
+          "a None view makes R3 report agreement while checking nothing")
+    if _theirs is not None:
+        _d = doc_lint_mod._plan_extract().extract(_ctrl)
+        _mine = {str(u["issue"]).lstrip("#"): u["disposition"] for u in _d["upstream"]}
+        _th = {k.lstrip("#"): v for k, v in _theirs.items()}
+        _common = set(_mine) & set(_th)
+        check("R3: the two parsers share issue-number keys (the join is real)",
+              len(_common) > 0 and len(_common) == len(_mine),
+              f"common={len(_common)} mine={len(_mine)} theirs={len(_th)}")
+
+# The escaped-pipe row R3 found on its first live run. plan-013 #17's title contains
+# `(coarse\|granular)`; a naive split shifts every later cell left by one, so the
+# DISPOSITION column reads `granular)` and the row escapes verification entirely.
+_p013 = sorted((REPO / "docs" / "plans").glob("plan-013-*/plan.md"))
+if _p013:
+    _v = _pm_view(_p013[0])
+    check("R3 regression: an escaped pipe in a title does not shift the disposition cell",
+          _v is not None and _v.get("17") == "include",
+          f'got {None if _v is None else _v.get("17")!r}, expected \'include\'')
+
+
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)
