@@ -155,5 +155,102 @@ with tempfile.TemporaryDirectory() as td:
     check("a recursive glob SELECTS a nested findings/ file a single-level glob misses",
           n == 1, f"selected {n} — reverting finding.toml to `findings/*.md` makes this 0")
 
+
+# --- 9. SEVERITY TIERS + STATUS-AWARE PROMOTION (Epic 4: Issues 4.1, 4.2) -----------------
+# The mapping is what makes an always-on trigger non-hostile to a plan still being written,
+# and what keeps a rule written today from retro-judging 46 bundles that predate it.
+
+import importlib.util  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("dl", SHARED / "doc_lint.py")
+dl = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(dl)
+sys.path.insert(0, str(SHARED))
+import plan_template as _pt  # noqa: E402
+
+_FM = ("---\ntype: Plan\nokf_spec: OKF-PLAN\nid: plan-001-t-aaaaaa\nauthor: t\n"
+       "created: 2026-01-01\nstatus: %s\n---\n")
+
+
+def _plan_repo(tmp: Path, status: str, body: str | None = None) -> Path:
+    d = tmp / "docs" / "plans" / "plan-001-t-aaaaaa"
+    d.mkdir(parents=True)
+    (d / "plan.md").write_text(
+        (_FM % status)
+        + (body if body is not None
+           else _pt.seed_body("x", "plan-001-t-aaaaaa", "t", "2026-01-01", status))
+    )
+    return tmp
+
+
+with tempfile.TemporaryDirectory() as td:
+    # A freshly seeded plan must lint with ZERO ERRORS at every pre-`review` status.
+    # The seeded template is structurally valid by construction; only its placeholder
+    # bodies are incomplete, and incomplete is `W`.
+    for st in ("scoping", "investigating", "drafting"):
+        root = _plan_repo(Path(td) / st, st)
+        res = dl.lint(root, "plan", None)
+        check(f"a fresh plan at `{st}` has 0 errors", res["errors"] == 0,
+              f'{res["errors"]}: {[f["check"] for f in res["findings"] if f["severity"] == "E"]}')
+
+    # At the enforcement point a completeness warning is PROMOTED to an error: the plan is
+    # claiming to be finished.
+    for st in ("review", "ready-for-approval"):
+        root = _plan_repo(Path(td) / st, st)
+        res = dl.lint(root, "plan", None)
+        check(f"`W` is promoted to `E` at `{st}`", res["errors"] > 0,
+              "an unfilled placeholder must block a plan claiming to be ready")
+
+    # A finished plan is REPORT-ONLY and can never error, however non-conformant.
+    root = _plan_repo(Path(td) / "complete", "complete",
+                      body="# Plan: x\n\n## Objective\nnothing else at all\n")
+    res = dl.lint(root, "plan", None)
+    check("a `complete` plan NEVER errors", res["errors"] == 0, f'{res["errors"]}')
+    check("...but its findings are still reported", res["report_only"] > 0,
+          "report-only must still report — silence would be a different defect")
+
+# --- 10. PATH-KEYING, never filename-keying (Issue 4.3) ------------------------------------
+# Measured counterfactual: filename-keying (`**/plan.md`) selects the 17 test-fixture
+# plan.md files and produces 73 errors on the ground-truth corpus of
+# test_classify_deliverable.py. Path-keying produces 0.
+
+fixture_plans = sorted(REPO.glob("skills/**/fixtures/**/plan.md"))
+check("the fixture plan.md corpus still exists", len(fixture_plans) > 0)
+would = dl.lint(REPO, "plan", fixture_plans, use_exclude=False)
+check("filename-keying WOULD error on the fixture corpus", would["errors"] > 0,
+      "if this stops being true the counterfactual has gone vacuous")
+actual = dl.lint(REPO, "plan", None)
+check("path-keying produces 0 findings there",
+      len([f for f in actual["findings"] if "/fixtures/" in f["path"]]) == 0)
+
+# --- 11. IDEMPOTENCY SELF-CHECK (Issue 4.5) ------------------------------------------------
+# The linter is a pure reader: two consecutive runs over an untouched tree must return
+# byte-identical verdicts, and neither may mutate the tree.
+
+import hashlib  # noqa: E402
+
+
+def _tree_hash(root: Path) -> str:
+    h = hashlib.sha256()
+    for f in sorted(root.rglob("*.md")):
+        h.update(f.read_bytes())
+    return h.hexdigest()
+
+
+before = _tree_hash(REPO / "docs" / "plans")
+r1 = dl.lint(REPO, None, None)
+r2 = dl.lint(REPO, None, None)
+after = _tree_hash(REPO / "docs" / "plans")
+check("two consecutive runs return identical verdicts",
+      json.dumps(r1, sort_keys=True) == json.dumps(r2, sort_keys=True))
+check("the linter does not mutate the tree", before == after,
+      "doc_lint must be a pure reader — it never auto-fixes")
+
+# --- 12. INCONCLUSIVE means ONLY "could not run" (Issue 4.4) -------------------------------
+
+rc, out = run("--json")
+check("a clean corpus exits 0", rc == 0, f"got {rc}")
+check("...and never reports INCONCLUSIVE", "INCONCLUSIVE" not in out)
+
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)
