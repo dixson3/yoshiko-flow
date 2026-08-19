@@ -1,0 +1,21 @@
+# docs/research/*/sources.md — the source register with credibility scoring (Issue 2.7).
+#
+# EVERY CHECK IS `W` per D-10 / REQ-DATA-045 — see research-summary.toml for the reasoning.
+type = "research-sources"
+producer_class = "agent-written"
+description = "A yf-research project's sources.md: the enumerated sources and their credibility scoring."
+
+paths = [
+    "docs/research/*/sources.md",
+    "Incubator/*/research/*/sources.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+[[checks]]
+id = "has-sources"
+severity = "W"
+kind = "regex-present"
+pattern = '\[[^\]]+\]\(https?://|^\| *[Ss]ource'

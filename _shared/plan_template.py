@@ -64,6 +64,11 @@ CONTEXT_REQUIRED_SECTIONS = [
     "Runtime assumptions",
 ]
 
+#: The heading `retrospective-append` writes into a bundle's `plan-retrospective.md`.
+#: Hoisted for the same reason as the context sections: a `code-generated` type must
+#: DERIVE its sections from the producer, never restate them.
+RETROSPECTIVE_SECTIONS = ["Plan retrospective"]
+
 #: Sections `_write_upstream_reference` writes into `references/upstream-<N>.md`.
 #: The producer is CODE, so this type is `code-generated` and MUST derive from a producer
 #: constant rather than restate one (doc_lint refuses a code-generated type with no

@@ -36,26 +36,51 @@ exclude = [
 # `headings-any-level` because the corpus splits between H2 and H3 for the body sections
 # (8 files use `### Gate Assessment`). The level carries no meaning here; the section's
 # PRESENCE does. Requiring H2 specifically would fail 8 files for a formatting choice.
+# SEVERITY `R`, NOT `E` — the rule plan-048 Issue 2.9 established, applied consistently.
+#
+# THE RULE: a document type whose files are AUTHORED DURING the plan phase at which the
+# linter BINDS cannot carry a promotable severity for content shape. `STATUS_SEVERITY`
+# promotes `W -> E` at `review`/`ready-for-approval` — and a review pass report is written
+# precisely while the plan sits at `review`. So an `E` (or a `W`, which IS an `E` there)
+# fires on the document being authored at that very moment, and on every earlier report
+# written under an earlier convention. Measured: 97 of 119 carry all five sections, 95 in
+# order — forcing the other 22 would fail a real bundle at its own gate.
+#
+# The same reasoning covers `finding` (written during execution) and `plan-retrospective`
+# (appended during execution). It does NOT cover `context` or `upstream-triage`, which are
+# written at init/scoping — BEFORE the gate — and are correctly `E`.
 [[checks]]
 id = "required-sections"
-severity = "E"
+severity = "R"
 kind = "headings-any-level"
 value = ["Strengths", "Concerns", "Missing", "Gate Assessment", "Upstream Assessment"]
 
 # The verdict is the whole point of the document: it drives the phase transition and the
 # REQ-PLAN-030 re-review rule. A review whose verdict cannot be read mechanically cannot
 # be counted by `ready-check`.
+# `R` for the same reason. Measured 114/119.
 [[checks]]
 id = "verdict-declared"
-severity = "E"
+severity = "R"
 kind = "regex-present"
 pattern = '(?m)^#{1,6} +Verdict: +(APPROVE|REVISE|INVESTIGATE-MORE)\b|^\*\*Verdict:\*\* *(APPROVE|REVISE|INVESTIGATE-MORE)\b'
 
 # SKILL.md mandates a per-concern Resolutions table with an `actor` column (renamed from
 # "Operator Resolutions", which asserted a fixed resolver the autonomous loop contradicts).
 # W, not E: measured 20.2%.
+# `R`, not `W`: at `review` a `W` IS an `E`, and `review` is the one status in which every
+# review report is being written. Measured 24/119.
 [[checks]]
 id = "resolutions-table"
-severity = "W"
+severity = "R"
 kind = "regex-present"
 pattern = '(?m)^\| *Concern *\|'
+
+# The type's TEETH. Measured 119/119 — every review report carries a `#` or `##` heading.
+# Without an `E` the type could not fail at all, which is R4's defect class ("a check that
+# ships unable to fail"), so moving the content checks to `R` REQUIRED adding this one.
+[[checks]]
+id = "has-heading"
+severity = "E"
+kind = "regex-present"
+pattern = '(?m)^#{1,2} +\S'

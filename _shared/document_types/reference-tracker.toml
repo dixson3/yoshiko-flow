@@ -1,0 +1,23 @@
+# references/{close,closable,tracker}-*.md — upstream close/tracker bookkeeping (Issue 2.8).
+#
+# 3 files, heterogeneous in shape. Declared as its OWN type rather than folded into
+# `reference-authored` so the population is COUNTED and visible; it carries no content check,
+# because three files of three different shapes cannot support a template without inventing
+# one. Declaring an empty-checked type is the honest option: it makes the subset addressable
+# by `--type` without asserting a standard nothing established.
+type = "reference-tracker"
+producer_class = "agent-written"
+description = "Upstream close/closable/tracker bookkeeping captured in a plan bundle."
+
+paths = [
+    "docs/plans/*/references/close-*.md",
+    "docs/plans/*/references/closable-*.md",
+    "docs/plans/*/references/tracker-*.md",
+    "Incubator/*/plans/*/references/close-*.md",
+    "Incubator/*/plans/*/references/closable-*.md",
+    "Incubator/*/plans/*/references/tracker-*.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
