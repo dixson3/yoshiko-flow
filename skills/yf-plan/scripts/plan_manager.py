@@ -30,6 +30,7 @@ import click
 # dual-mode frontmatter+**Field:** field model (REQ-DATA-015 / REQ-OKF-020/021).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import okf  # noqa: E402
+import plan_template  # noqa: E402
 
 # --- Config tiers (REQ-YF-PRE-004 / REQ-YF-PRE-004a) --------------------------
 # The short name (`plan`, not `yf-plan`) is what the `yf` binary emits, so the
@@ -518,44 +519,12 @@ def seed_plan_md(plan_dir: Path, plan_id: str, objective: str, author: str) -> P
     lines via `_write_plan_fields` (REQ-OKF-020), both above the first `## `.
     """
     today = datetime.now().strftime("%Y-%m-%d")
-    content = f"""# Plan: {objective}
-
-**ID:** {plan_id}
-**Author:** {author}
-**Created:** {today}
-**Status:** scoping
-
-## Objective
-{objective}
-
-## Motivation
-_Why this plan exists: the problem, who is affected, what triggered the work.
-Replace this placeholder before intake (portability contract)._
-
-## Upstream Issues
-| Issue | Title | Disposition | Notes | Resolved By |
-|-------|-------|-------------|-------|-------------|
-
-## Investigation Findings
-_No investigations yet._
-
-## Approach
-_To be determined after scoping and investigation._
-
-## Epics
-_To be determined._
-
-## Gates
-### Start Gate (mandatory)
-- Type: human
-- Approvers: operator
-
-## Risks & Mitigations
-_To be determined._
-
-## Success Criteria
-_To be determined._
-"""
+    # Canonical skeleton (plan-047 Issue 0.2): the literal lives in `plan_template.py`, a
+    # sibling vendored from `_shared/` and read by BOTH this seeder and `_shared/sync.py`'s
+    # SKILL.md emitter, so the written template and the documented one cannot diverge.
+    content = plan_template.seed_body(
+        objective=objective, plan_id=plan_id, author=author, created=today, status="scoping"
+    )
     plan_md = plan_dir / "plan.md"
     plan_md.write_text(content)
     # Seed the initial scoping entry into the reserved `log.md` (Issue 3.4).

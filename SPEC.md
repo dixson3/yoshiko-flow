@@ -598,6 +598,19 @@ requirement lives only in code (GUARDRAILS GR-010).
 > install --from-build` promote. They do **not** bind the default `--debug` build. `rust-embed` is
 > declared **without** its `debug-embed` feature, so a debug binary resolves embedded paths from
 > `skills/` **on disk at runtime**: it does not satisfy "from the binary alone" and would fail
+> - **plan-047 (2026-08-19, #175):** mechanically parseable artifact documents — added
+>   `REQ-DATA-018` (stable `SC<n>[a-z]` criterion ids, insertable without renumbering, plus the
+>   fixed `Discharged-by` / Risks table columns), `REQ-DATA-019` (a closed gate `Blocks:` referent
+>   alphabet), `REQ-DATA-024` (the `document_types/<type>.toml` schema format and the
+>   `PASS|FAIL|INCONCLUSIVE` linter-engine contract), `REQ-DATA-025` (the hash-neutral normalizer
+>   postcondition), `REQ-DATA-026` (pour fidelity — `plan_issue` bead metadata plus a comparator
+>   close gate), `REQ-DATA-027` (the `source:`/`retrieved:` vendored-content marker), and
+>   `REQ-DATA-028` (`update-status` refuses `approved` on a red `ready-check`); **amended
+>   `REQ-PORT-006`** so the count-equality invariant keys on red-team pass presentations rather than
+>   on every `log.md` `review:` bullet. Also fixed `yf-plan` `SKILL.md`'s plan.md-structure block —
+>   measured the single most-drifted artifact in the investigation — and made it **generated** from
+>   `_shared/plan_template.py` through `sync.py`'s marker fence, so it cannot drift from
+>   `seed_plan_md` again.
 > outside a repo checkout. That is a deliberate development-loop trade (a skills edit costs no
 > recompile), and it is recorded here rather than left as a silent latent violation. The
 > **`embed-in-debug` cargo feature** (`yf/Cargo.toml`, opt-in, added plan-041) re-enables baking

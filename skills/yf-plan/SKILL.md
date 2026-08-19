@@ -362,17 +362,27 @@ Read `${SKILL_DIR}/agents/planner.md` and follow its synthesis procedure. The pl
 
 ### plan.md structure
 
+A conformant `plan.md` is the **skeleton** below plus the **Epics-and-Gates grammar** that
+follows it. The skeleton's heading set, required fields and section order are the same ones
+`seed_plan_md` writes at `init` (REQ-DATA-010/011/015); the grammar is what an author fills the
+`## Epics` and `## Gates` sections with.
+
+<!-- >>> BEGIN plan.md skeleton — GENERATED from _shared/plan_template.py by _shared/sync.py; do not edit by hand -->
 ```markdown
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-NNN-user-hash
+author: <git-user>
+created: YYYY-MM-DD
+status: drafting
+---
 # Plan: <Objective>
 
 **ID:** plan-NNN-user-hash
 **Author:** <git-user>
 **Created:** YYYY-MM-DD
 **Status:** drafting
-**Phase log:**
-- YYYY-MM-DD scoping: initial scope captured
-- YYYY-MM-DD investigating: N experiments identified
-- YYYY-MM-DD drafting: plan v1 presented
 
 ## Objective
 <what and why>
@@ -393,6 +403,44 @@ Either this section or a motivation.md file must be present and non-empty.>
 <chosen approach with rationale>
 
 ## Epics
+<one `### Epic N: <name>` per epic, each with `- Issue N.M:` bullets — see the grammar below>
+
+## Gates
+<the mandatory Start Gate, plus any capability gates and the Reconcile Gate — see the grammar below>
+
+## Risks & Mitigations
+| # | Risk | Severity | Mitigation |
+| :-- | :-- | :-- | :-- |
+| R1 | <what could go wrong> | high \| med \| low | <what this plan does about it> |
+
+## Success Criteria
+| # | Criterion | Verification | Discharged-by |
+| :-- | :-- | :-- | :-- |
+| SC1 | <what must be true when the plan is done> | <how it is checked> | <issue id(s)> |
+```
+<!-- <<< END plan.md skeleton -->
+
+**The header metadata is dual-represented** (REQ-DATA-015): the YAML frontmatter block **and**
+the `**Field:**` lines, both above the first `## `, both written by one writer from one model.
+Do not author one without the other.
+
+**There is no `**Phase log:**` block.** The phase history is the OKF-reserved bundle-root
+`log.md` (REQ-DATA-012) — newest-first, grouped under `## YYYY-MM-DD` headings, one
+`- <status>: <message>` bullet per entry. `update-status` writes it; never hand-maintain a
+phase log inside `plan.md`.
+
+Criterion ids are stable and insertable without renumbering (`SC1`, `SC1b`, `SC2`, …) and the
+`Discharged-by` column names the issue(s) that discharge each criterion — the bidirectional
+completeness rule (REQ-DATA-018). The Risks table columns are fixed (REQ-DATA-018's sibling
+convention: `# | Risk | Severity | Mitigation`).
+
+#### Epics and Gates grammar
+
+The `## Epics` and `## Gates` bodies are the plan's machine-read payload — the extractor and the
+pour both parse them, so the grammar is exact:
+
+```markdown
+## Epics
 ### Epic 1: <name>
 - Issue 1.1: <description>
 - Issue 1.2: <description>
@@ -404,21 +452,30 @@ Either this section or a motivation.md file must be present and non-empty.>
 - Type: human
 - Approvers: operator
 
-### Capability Gate: <name> (if needed)
-- Type: human
+### Capability Gate: <name>
+- Type: human | auto
 - Condition: <what must be true>
 - Test: <bash command to verify>
 - Blocks: <issue refs>
 - Instructions: <how to satisfy>
 
-### Reconcile Gate (when upstream issues incorporated)
+### Reconcile Gate
 - Type: auto (all execution beads closed)
 - Blocks: reconcile step
-
-## Risks & Mitigations
-
-## Success Criteria
 ```
+
+Rules the parsers depend on:
+
+- An issue bullet is `- Issue <N>.<M>[a-z]: <description>` at column 0 of the `## Epics` body;
+  its continuation lines are indented two spaces.
+- `- depends-on:` and `- resolves-upstream:` are **two-space-indented bullets under their
+  issue**, and take a comma-separated list of issue ids / `#<n> (<disposition>)` respectively.
+  A `depends-on` value carrying a prose tail is forbidden — the rationale belongs in the body.
+- `- Blocks:` takes issue ids, the explicit `epic:<N>` form, or the reserved sentinel
+  `reconcile step` (REQ-DATA-019). No wildcards, no prose referents, no trailing parenthetical
+  on the sentinel.
+- A `- Test:` value is a single bash command on one physical line. It is executed by the gate
+  resolver and judged by its **exit code alone**.
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "review" -m "plan v1 presented"

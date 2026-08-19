@@ -41,6 +41,27 @@ Rationale: Upstream issue bodies must travel with the plan folder. `gh issue vie
 Verification: `plan_manager.py audit` counts non-exclude rows and `references/upstream-*.md` files; counts must match.
 
 REQ-PORT-006: The number of `reviews/pass-*.md` files must equal the number of `review:` entry lines in the bundle-root `log.md` — the OKF-reserved update history that **replaces** the legacy in-`plan.md` `**Phase log:**` block (SPEC REQ-OKF-002, OKF-EXTENSION.md §3; see REQ-DATA-012 for `log.md`'s newest-first format). The count-equality invariant **keys on `log.md`'s `review:` lines**; only the file the counter reads moves (`plan.md`'s phase log → `log.md`), the coupling itself is unchanged. `pass-N.md` and its `log.md` `review:` line are written together as a single atomic step **at red-team presentation** (create-on-present, #4), not after the operator resolves concerns. `N` is the review-line count immediately after that line is appended. Because file and line always land together, the count-equality holds *while a plan sits in `review`* with concerns still outstanding — exactly the state the audit must accept as portable.
+
+**Amended (plan-047 Issue 0.9b): the counter shall distinguish a STATUS TRANSITION into
+`review` from a RED-TEAM PASS PRESENTATION.** Both emit a `- review:` bullet into `log.md`
+today — `update-status <dir> review -m "plan v1 presented"` writes one, and the create-on-present
+step above writes another — so a **correct** bundle can show 2 `review:` lines against 1
+`pass-1.md` and fail this invariant. Reproduced on a scratch copy, and tripped by this very
+bundle during drafting. The two events are not the same event: the status transition happens once
+per entry into the `review` phase, while a presentation happens once per red-team cycle.
+
+The invariant is therefore restated as: **`count(reviews/pass-*.md)` shall equal the number of
+`log.md` entries recording a red-team PASS PRESENTATION.** A conforming implementation gives the
+pass record a distinct marker (or keys the counter on one), so that a phase transition into
+`review` is inert to the count in the same way `intake:` and `validated:` already are
+(REQ-DATA-012 / REQ-DATA-016). A genuinely missing `pass-N.md` must still fail.
+Rationale: the invariant exists to catch a red-team verdict that was never written to disk. A
+counter that also counts phase transitions manufactures a failure on a correct bundle — and
+because plan-047 Issue 2.5 makes `update-status … approved` *refuse* on a red `ready-check`
+(REQ-DATA-028), a bundle that trips the conflation would become unapprovable. The disambiguation
+must therefore land **before** that refusal does.
+Verification: reproduce the two-lines/one-file state and confirm `_audit_plan` passes; a
+genuinely missing pass file still fails.
 Rationale: Red-team verdicts degrade to one-line log entries unless captured. Writing at presentation (rather than after resolution) means a plan parked in `review`/REVISE has its verdict on disk, not only in the drafting conversation. Strict correspondence prevents silent loss on REVISE loops. The mandatory red-team **re-run after any major-concern revision** (REQ-PLAN-030 — required now that `ready-for-approval` keys on the *last* verdict being `APPROVE`) is itself a new review cycle: it writes exactly one additional `pass-(N+1).md` + one `review:` line, so the count-equality holds unchanged across the re-run loop. The audit's `_plan_review_line_count` coupling is unchanged in shape: it still counts `review:` lines and compares to `pass-*.md` files — the changes are *when* both are written and *which file* holds the log.
 Migration invariant: because the count-equality keys on `log.md`'s `review:` lines, the `**Phase log:** → log.md` extraction must transcribe **every** dated phase-log bullet — each `review:` line included — into `log.md`, preserving the `<status>:` token; it must not collapse the block to a single `scoping:` entry. Extracting only the first `scoping:` date (enough for the grandfather clause, REQ-OKF-MIG-002) would drop the `review:` lines and drive the count to zero against surviving `reviews/pass-*.md` files — a hard fail on a plan that was count-equal before migration. Full-bullet transcription makes the `review:`-line count invariant across migration, so count-equality holds identically before and after (this strengthens the engine's `extract-log` op beyond the first-`scoping:`-date floor of REQ-OKF-MIG-002).
 Verification: `plan_manager.py audit` compares `len(glob('reviews/pass-*.md'))` to `_plan_review_line_count`, which counts `review:` entry lines in `log.md` (the source moves from `plan.md`'s phase log; the `^- \d{4}-\d{2}-\d{2} review:` regex rebinds to the `log.md` entry form — see the tension noted at REQ-DATA-012); the vendored `okf.py::migrate` `extract-log` branch transcribes every dated `**Phase log:**` bullet into `log.md` (asserted by `_shared/test_okf.py::test_migrate_extract_log_preserves_all_dated_bullets` and `test_worktree.py::test_audit_migrated_legacy_plan_count_equality_preserved`); SKILL.md Phase 3 Review § "Write the report at presentation" states the `pass-N.md` file + the `log.md` `review:` line are a single atomic step at presentation.
