@@ -1,0 +1,33 @@
+# Issue 3.4 — gate falsification by injected mutant
+# Recorded: 2026-08-19T15:28:43Z   tree: d8e303f
+#
+# The assertion is on COMMAND PRESENCE and a non-empty output_tail, NEVER on
+# status == "pass" — the gate measures that the row EXECUTES and can fail-close,
+# not that the corpus is currently clean.
+
+## 1. BEFORE — the tier is GREEN. Without this the mutant proves nothing:
+##    a mutant-induced 'fail' is indistinguishable from a tier already failing.
+   status=pass  first_failure=None  cmds=['doclint', 'doclint-tests']
+
+## 2. MUTANT — '## Success Criteria' -> '## Succes Criteria', status executing -> review
+##    (an IN-FLIGHT bundle: a 'complete' one is report-only by design)
+   status=fail  first_failure.id=doclint  rc=1
+   -> E docs/plans/plan-047-james-dixson-dec9ff/plan.md: [required-sections] missing section(s): Success Criteria
+   -> E docs/plans/plan-047-james-dixson-dec9ff/plan.md: [criteria-table-columns] section not found: Success Criteria
+   -> E docs/plans/plan-047-james-dixson-dec9ff/plan.md: [criterion-ids] section not found: Success Criteria
+   gate Test: exit=0  (0 — the row executed and produced output; correct)
+
+## 3. REVERT
+   status=pass  first_failure=None
+
+## 4. A DEFECT THIS FALSIFICATION FOUND (in the gate script, not the mutant)
+   The first run drove the gate to a RED exit under the mutant. Cause: gate-doclint.sh
+   treated ANY non-zero exit from change_validation.py as `harness_fail` — but that command
+   exits non-zero exactly when the tier fails, i.e. precisely when the doclint row is doing
+   its job. A failing tier was being reported as "the harness could not run", emitting no
+   `commands` key at all.
+
+   Same misclassification class as the `_common.sh` defect Issue 1.4 caught, and the fourth
+   instance of "a control that cannot distinguish its signal" in this plan. Fixed: accept
+   exit 0 and 1 from change_validation, harness_fail only on other codes, with the
+   `has("commands")` parse check as the backstop either way.

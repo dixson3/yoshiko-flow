@@ -4,15 +4,17 @@ okf_spec: OKF-PLAN
 id: plan-047-james-dixson-dec9ff
 author: james-dixson
 created: '2026-08-18'
-status: approved
+status: executing
 fingerprint: 0147839b3354d363fece6966f68d7f6c0321b95a391c3cedcc33ca47b01440b8
+epic: yf-mol-63g
 ---
 # Plan: Make yf artifact documents mechanically parseable: formal templates per document type, per-type linters, a corpus normalizer, and a common plan extractor that machine-reads the epic/issue DAG
 
 **ID:** plan-047-james-dixson-dec9ff
 **Author:** james-dixson
 **Created:** 2026-08-18
-**Status:** approved
+**Status:** executing
+**Epic:** yf-mol-63g
 **Fingerprint:** 0147839b3354d363fece6966f68d7f6c0321b95a391c3cedcc33ca47b01440b8
 **Coarse tracker:** [#175](https://github.com/dixson3/yoshiko-flow/issues/175)
 
@@ -61,6 +63,23 @@ on the most recent and most relevant form, then build linters per document type 
 normalizer for history — the same shape as the OKF migrate path that plan-046 shipped.
 
 ## Upstream Issues
+
+**Dispositions at completion (post-split, 2026-08-19).** Epics 6–10 were descoped, so the rows
+whose `Resolved By` sat in Epic 7 are marked **deferred** rather than claimed. Comments are
+drafted to `references/comment-*.md` and **not posted** — the `Upstream write` gate is human and
+its Test is a precondition, never authorization.
+
+| Issue | Claimed at completion | Where |
+| :-- | :-- | :-- |
+| #125 | **CLOSABLE** — the only `include` fully delivered (Issues 2.5/2.6, REQ-DATA-028, REQ-CLI-024) | Epic 2 |
+| #113 | partial — the extractor substrate landed; the DAG walk itself stays open | Epic 5 |
+| #174 | partial — criterion ids + `Discharged-by` + the extractor landed; both checks stay open | Epics 0, 5 |
+| #149 | partial — M9 addressed; M5 confirmed and given a concrete proposed remediation | Epics 0–5 |
+| #165 | **deferred** — Issue 7.2 was descoped; nothing claimed | Epic 7 (descoped) |
+| #135 | **deferred** — Issue 7.3 was descoped; nothing claimed | Epic 7 (descoped) |
+| #62 | **deferred** — Issue 7.5 was descoped; the general engine landed, the spec linter did not | Epic 7 (descoped) |
+| #175 | tracker — stays **OPEN** for the follow-on | — |
+
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
 | #113 | execution-rehearsal review pass (topological DAG walk) | partial | This plan delivers the extractor the walk requires. The walk itself stays open — its own re-open trigger (two consecutive plans with structural escapes) is **not** met; plan-046's two escapes were claims-class, not ordering-class. | Issue 5.3 |
@@ -821,6 +840,39 @@ SC20 must be discharged eight separate times. Issues 6.9 and 6.10 carry their ow
 ### Reconcile Gate
 - Type: auto (all execution beads closed)
 - Blocks: reconcile step
+
+## Scope at completion — Epics 6–10 DESCOPED (operator SPLIT decision, 2026-08-19)
+
+**D-13 fired as designed.** Issue 10.0's trip condition (`ls reviews/pass-*.md | wc -l` >= 4 at
+the end of Epic 5) was met at 4 cycles; the gate exited non-zero and halted for the operator,
+who chose **SPLIT (option 1)**.
+
+**This plan's delivered scope is Epics 0–5 plus Issue 10.0** — 40 of 78 issues. Epics 6–10 are
+**descoped, not abandoned**: all 39 remaining issues were closed with an explicit descope
+reason (`bd batch`, one transaction) rather than left silently open, so no stale container
+pollutes `bd ready` and the plan is internally consistent at completion.
+
+| | Epics | Issues | State |
+| :-- | :-- | --: | :-- |
+| Delivered | 0, 1, 2, 3, 4, 5 + Issue 10.0 | 40 | closed, merged |
+| Descoped to a follow-on | 6, 7, 8, 9, 10 (less 10.0) | 38 | closed with a descope reason |
+
+**Gates:** the two `auto` capability gates (`doclint row executes and fail-closes`,
+`carve-outs detectable`) are **resolved**. The two `human` gates (`normalizer aggregate diff`,
+`Upstream write`) remain unresolved and correctly RED — the artefacts they gate belong to the
+descoped half and do not exist.
+
+**The follow-on must NOT copy the descoped epics verbatim.** Epic 5 refuted a measurement they
+were planned against: the EXP-003 baseline's **20 invented edges were a parser artifact** —
+splitting `invented` by whether the document is readable gives **0** invented edges in any
+cleanly-parsed plan, with all 127 in documents the REQ-DATA-019 grammar cannot read. EXP-003-era
+figures therefore no longer size Epic 8's normalizer worklist. The honest worklist is the
+extractor's **300 unparsed constructs across 33 plans**, a number that did not exist when
+Epics 6–10 were drafted. The follow-on needs its own investigation phase against corrected
+numbers. See [assets/split-proposal.md](assets/split-proposal.md).
+
+**Success criteria:** SC0–SC19 and SC36 are discharged by the delivered scope. SC20–SC35 and
+SC37–SC40 belong to the descoped epics and travel with them; they are **not** claimed here.
 
 ## Risks & Mitigations
 

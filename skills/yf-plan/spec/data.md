@@ -42,6 +42,52 @@ REQ-DATA-013: The Upstream Issues table has columns: Issue, Title, Disposition, 
 Rationale: The reconciler reads this table to determine what action to take on each upstream issue after execution.
 Verification: SKILL.md Phase 3 plan.md template; reconciler.md Execute step 1.
 
+REQ-DATA-018: Each row of a plan.md `## Success Criteria` table shall carry a **stable id** in a
+leading `#` column, matching `SC[0-9]+[a-z]?`, unique within the plan, and **insertable without
+renumbering** — a criterion added between `SC1` and `SC2` is `SC1b`, never a renumbering of every
+later row (plans 039/040 already use `SC1b`/`SC5b`; 6 plans reference criteria positionally
+because they have no id to reference). The table columns are fixed:
+`| # | Criterion | Verification | Discharged-by |`. `Discharged-by` names the issue id(s) that
+discharge the criterion, and the mapping shall be **bidirectionally complete**: every criterion
+names at least one issue, and every issue in `## Epics` is named by at least one criterion. The
+sibling `## Risks & Mitigations` table columns are likewise fixed:
+`| # | Risk | Severity | Mitigation |` (the shape plans 039–043 converged on, preserving the
+`Severity` column that 7 of 8 measured lossy-residue items carry).
+
+This requirement is an **addition, not a codification**. Precedent at the time of writing is 31
+of 367 criteria in **2 of 47** plans; the other 45 have no key for a criterion↔issue join at
+all. `Discharged-by` is **mandatory for new plans and backfilled for none**: plan-047 EXP-002
+measured that the edge cannot be recovered from history — only 13.3% of criteria mention an issue
+id, the strongest signal is ~73% precise, and combined yield is ≈10%, because *a mention is not a
+discharge*. Shipping inferred edges would be worse than an empty mapping, since nothing
+downstream could distinguish an inferred edge from a declared one.
+Rationale: the criterion↔issue mapping is the join key every downstream consumer needs — #174's
+falsify-every-criterion cross-check matrix cannot be built without it, and "every issue is
+discharged by at least one criterion" is unverifiable without stable ids. Insertability matters
+because renumbering silently invalidates every existing citation of a criterion.
+Verification: `_shared/plan_template.py` `CRITERIA_TABLE_HEADER` / `RISKS_TABLE_HEADER` are the
+columns `seed_plan_md` writes and `_shared/sync.py` emits into SKILL.md's fenced skeleton
+(REQ-DATA-024's `plan.md` schema asserts both column sets and the id grammar); a fresh `init`
+emits both headers.
+
+REQ-DATA-019: A gate's `- Blocks:` value shall be drawn from a closed **referent alphabet**: a
+comma-separated list of `issue-id` tokens (`N.M[a-z]`), the explicit `epic:<N>` form, and the
+reserved sentinel `reconcile step`. Wildcards (`Issue 2.x / 3.x`), prose referents, and a
+trailing parenthetical on the sentinel are **forbidden** — a parenthetical's content belongs in
+`Instructions:`. `depends-on` is likewise a bare comma-separated id list: a value carrying a
+prose tail is forbidden, and the rationale moves to the issue body.
+
+Like REQ-DATA-018 this is legislated rather than observed: only **12 of 72** historical `Blocks:`
+values parse as a pure id list, across 10 distinct shapes. The `epic:<N>` form is introduced for
+**future plans only** — nothing parses `Blocks:` today, and the only form the pour is documented
+to handle is an explicit issue-id list.
+Rationale: `Blocks:` is the gate→work edge of the plan DAG. A referent no parser can resolve
+makes the edge invisible, which is how a gate silently blocks nothing; a closed alphabet is what
+lets the extractor report an unresolvable referent as an error instead of dropping it.
+Verification: REQ-DATA-024's `plan.md` schema rejects a `Blocks:` value outside the alphabet and
+a `depends-on` value with a prose tail; plan-047 Issue 0.4 states the introduction scope.
+
+
 ## Configuration & State (Skill Surface Convention)
 
 REQ-DATA-020: Operator config and runtime state are separate buckets per the Surface Convention (skill-authoring). The canonical layout — the `yf` binary's ground truth — is short-name (`<short>` = `plan`): config at `.yf/plan/config.local.json` and state at `.yf/plan/preflight.json`. The legacy root dotfile `.yf-plan.local.json` survives only as a read-time config fallback (declared by the `config-basename` descriptor). `yf migrate` moves legacy → canonical; preflight does **not** auto-migrate.
@@ -70,6 +116,133 @@ Verification: `yf/src/preflight.rs` scaffold (single `/.yf/` anchor, additive ap
 REQ-DATA-023: The companion rule `protocols/PLANS.md` is installed by the repo installer (`install.sh`) — not by `/yf-plan init` — to a rules dir anchored by install scope and surface: user-scope → `~/.<surface>/rules/PLANS.md`, project-scope → `<git-root>/.<surface>/rules/PLANS.md` (`.claude` or `.agents`). Preflight resolves the installed rule across locations in precedence order — the user/global `~/.<surface>/rules` copy before the project copy — and hash-checks it against `protocols/manifest.json` (schema_version 1). A correct user-scope copy satisfies every project; `install.sh --force` overwrites an existing rule.
 Rationale: A manifest hash detects drift/stale/deprecated installed rules; matching the surface keeps a `.claude` install from polluting an unrelated `.agents/` tree (and vice versa); anchoring by scope puts a user-scope rule at `~/.<surface>/rules` (shared by every project) and a project-scope rule at the git root. Installing at install time (not init) means the rule is present the moment the skill is. Both `.claude/rules/` and `.agents/rules/` are auto-loaded.
 Verification: `install.sh` rule-copy step (`install_rules`); plan_manager.py `_skill_surface()` + `_skill_scope()` + `_git_root()` + `_rules_dir()` + `_rule_candidates()` + `_check_rule()` (preflight hash check).
+
+## Document Conformance (`document_types/` schemas, linter, normalizer, extractor)
+
+REQ-DATA-024: Every in-scope yf artifact document type shall be described by a **declarative
+schema** at `document_types/<type>.toml`, read by a single linter engine. A schema comes in one
+of two flavours, split by **producer class**:
+
+- `derive_from = "<producer function>"` — for a **code-generated** type, the schema derives its
+  required structure from the function that writes the type, so the two cannot diverge;
+- an **inline declared schema** — for an **agent-written** type, a standalone artifact the
+  producing agent file references.
+
+The split is measured, not stylistic: every enforced code-generated type measures **0%** drift
+and every unenforced agent-written type measures **14–95%**. One uniform format for both would
+re-introduce, at the template layer, the hand-maintained-duplicate problem `_shared/sync.py`
+exists to eliminate.
+
+The **engine contract**:
+
+- **Verdict vocabulary is `PASS | FAIL | INCONCLUSIVE`.** `INCOMPLETE` is the *reviewer agent's*
+  vocabulary and shall not appear in a linter verdict.
+- **Two severities**, and only one is an error: `E` (structural — the document does not have the
+  shape its type declares) and `W` (completeness — a required section is present but unfilled).
+  Only `E` sets a non-zero exit code.
+- **`INCONCLUSIVE` means "the linter could not run"** and only that; it maps to **exit 2**.
+  "Not finished yet" is expressed as `W` severity **inside a PASS**, so the exit contract stays
+  **binary at every binding point**: 0 = no error-severity finding, 1 = at least one, 2 = the
+  harness could not run.
+- **Status-aware promotion.** A plan's `status` selects the severity mapping:
+  `scoping | investigating | drafting` → `W` findings are informational;
+  `review | ready-for-approval` → `W` is **promoted to `E`**;
+  `complete` → **report-only, never an error**.
+- **Path-keying, never filename-keying.** Type selection keys on the document's path
+  (`docs/plans/**/*.md`, `Incubator/*/plans/**/*.md`, `docs/research/**/*.md`), so the engine is
+  **inert** in a repo with no yf documents and does not fire on the 17 test-fixture `plan.md`
+  files.
+Rationale: a step with no exit code is not a step. The corpus's measured defect class is a
+process rule that nothing executes; a schema without a non-zero exit is a decorative rule, and a
+linter that prints findings and exits 0 reports `pass` — reproduced live. Status-awareness is
+what makes an always-on trigger non-hostile to a plan that is still being written; path-keying is
+what keeps it silent where it does not apply.
+Verification: `_shared/doc_lint.py` exits 1 on a seeded known-bad fixture and 0 on a clean file;
+each schema-bearing type rejects a committed malformed fixture under
+`tests/fixtures/doclint/<type>/bad.md`; a freshly `init`'d plan reports `errors=0` at every
+pre-`review` status.
+
+REQ-DATA-025: The corpus normalizer shall be **hash-neutral**: it recomputes
+`_plan_content_fingerprint` **before and after every file it writes**, and **aborts the entire
+run** if any hash moves. It shall emit a machine-readable report carrying at minimum the keys
+`fingerprints_moved` (int) and `diff_bytes` (int); a gate may assert `fingerprints_moved == 0`.
+It shall **refuse to write** any file matching the predicate `status == "complete"` **AND**
+`stored fingerprint == current fingerprint` **AND** the path is under a plans root — excluding
+`skills/**/fixtures/**`, which is the markup-sensitive ground-truth corpus of
+`test_classify_deliverable.py`. Everything hash-changing on a completed plan is **report-only**.
+On a `complete` plan carrying **no** stored fingerprint the `stored == current` conjunct is False,
+so the refusal does not apply and the hash-neutral transform set still governs; the predicate is
+therefore **not** inert on today's corpus, contrary to the plan-047 draft.
+
+Additionally the normalizer shall be **line-count preserving** on every plan cited by
+`plan.md:<line>` elsewhere in the repository. The protected set shall be **derived at execution
+by a committed script and printed**, never frozen as a literal: two independent sweeps of the
+same corpus returned materially different sets (17 plans vs 22), and neither is authoritative.
+Trailing-whitespace strip is the only transform that is both hash-neutral and line-count
+preserving — blank-line collapse is hash-neutral (the fingerprint ignores blank lines) but shifts
+every line below it.
+Rationale: REQ-OKF-MIG-003 already *requires* OKF migrate to keep the content fingerprint stable,
+so the migrate path is the **precedent for hash-neutrality, not for rewriting**. A hash-changing
+sweep would leave all 46 completed plans permanently tagged `⚠ STALE-APPROVED` — reproducing
+dixson3/yoshiko-flow#109, closed as not-reproducible — and would silently break 91 measured
+`plan.md:<line>` citations plus ≥102 verbatim review quotes.
+Verification: before/after hashes are equal for every file written and the run aborts if any
+moves; `--idem-check` reports zero non-idempotent plans; the protected set is printed and `wc -l`
+is equal before and after for every plan in it; the refusal predicate is exercised on all three
+branches (`complete`+fresh-fingerprint, `complete`+no-fingerprint, non-`complete`).
+
+REQ-DATA-026: The pour (SKILL.md §5.2a) shall record the plan issue id in **bead metadata** as
+`plan_issue: "<id>"` — never as a title convention — and a **pour-fidelity comparator** verdict
+shall be a plan-close gate. The comparator joins the extracted plan DAG to
+`bd list --all --include-gates`; `--include-gates` is **mandatory**, since without it 121 gate
+beads and every gate edge are invisible **with no error** (#166). It shall report **three
+populations separately**: plans with no recoverable plan↔bead mapping, dropped edges among
+joinable plans, and invented edges — an aggregate conflates an identity artifact with a real
+ordering defect. It shall ship with a **positive control** that runs in CI: deleting an issue
+line, a `depends-on`, and a gate block must each make it fail, and it must be silent on an
+unmutated copy.
+Rationale: measured over 43 comparable plans, **17 carried a pour divergence** — 885 declared
+dependency edges against 860 in `bd`, 45 dropped and 20 invented. A dropped `blocks` edge means
+the coordinator marked a bead ready *before its declared predecessor*. Bead titles get rewritten;
+metadata is the stable carrier. Three plans (006/007/036) have no recoverable mapping at all and
+account for 43 of the 45 dropped edges purely as an artifact of missing identity — which is why
+the populations must be reported apart. The positive control is the entire reason the 40% figure
+is trustworthy.
+Verification: a fresh pour writes `plan_issue` on every task bead; the comparator runs at close
+and can fail it; the positive control's three mutations each produce a failure and the unmutated
+copy is silent.
+
+REQ-DATA-027: **Vendored content** — a file copied verbatim from an external source into a yf
+bundle (an upstream issue body, a third-party spec, a salvaged document) — shall carry
+`source:` and `retrieved:` frontmatter keys. That frontmatter **is** the exclusion predicate the
+linter uses to skip type-schema checks on the file; vendored content is still linted for GFM
+validity. **Unmarked vendored content is a linter error, not a silent pass.**
+Rationale: at the time of writing only 2 of 6 vendored `references/*.md` files carry the marker;
+the three vendored `yf-herdr` copies and `salvaged-docusaurus.md` carry nothing, the latter's only
+vendoring signal being an English sentence in prose. The carve-out is therefore **not detectable
+today** — it must be *introduced*, and backfilling it is a prerequisite of any fail-closed
+binding, because the first such binding would otherwise break on a file it must never read.
+Making the absent marker an error (rather than a silent pass) is what stops the exclusion from
+becoming a hole that swallows genuinely non-conformant documents.
+Verification: all vendored `references/` files match `source:` + `retrieved:`, 0 unmarked; the
+linter reports zero findings inside every carved region and a positive control run with the
+carve-out globs disabled exits 1.
+
+REQ-DATA-028: `plan_manager.py update-status` shall **refuse** the transition to `approved`
+unless `ready-check` (REQ-PLAN-066) is green, exiting non-zero and writing no status. A named
+override flag shall exist for the operator to force the transition, and using it shall append a
+`deviation` entry to the plan retrospective as well as a `log.md` line stating the override.
+Rationale: measured, `update-status <dir> approved` succeeded with **exit 0** on a plan whose
+`ready-check` had just exited 3 — `update_status` is a free-form writer by its own docstring, so
+**the intake gate is prose obedience, not code**. `spec/cli.md` and `spec/phases.md`
+(REQ-STATUS-002) are silent on any gate at the transition, so no existing requirement covers this.
+Without it, a fail-closed document-conformance binding does not exist no matter what the linter
+returns — the linter's verdict reaches `audit`, `audit` reaches `ready-check`, and `ready-check`
+is then simply ignored by the writer.
+Verification: driving the real verbs on a non-conformant plan makes `update-status … approved`
+exit non-zero; the override path succeeds and logs a deviation under the flag name plan-047
+Issue 2.6 selected; `ready-check`-green plans are unaffected.
+
 
 ## Upstream Tracking
 

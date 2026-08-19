@@ -117,6 +117,26 @@ def _load_renderable_fence_classes() -> list[str]:
     return mod.renderable_fence_classes()
 
 
+def _load_plan_template():
+    """Import the canonical plan.md skeleton registry (zero-dep by contract)."""
+    path = REPO_ROOT / "_shared" / "plan_template.py"
+    spec = importlib.util.spec_from_file_location("plan_template", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def emit_plan_md_skeleton() -> str:
+    """Emit yf-plan SKILL.md's plan.md skeleton block from the canonical template.
+
+    plan-047 D-7 amended / Issue 0.2: only the STRUCTURE (heading set, required fields,
+    section order) is generated. The illustrative epic/gate grammar stays outside the fence
+    in its own SKILL.md block — byte-equality with the seeder would delete the grammar from
+    the one place authors read it.
+    """
+    return _load_plan_template().skeleton_doc()
+
+
 def emit_lua_fence_list() -> str:
     """Emit the pandoc Lua filter's renderable-fence class list (one line) from the
     canonical Python registry, e.g. ``local RENDERABLE_FENCES = { "csv", "d2" }``."""
@@ -169,6 +189,13 @@ WHOLE_FILE_ASSETS = [
         ],
     ),
     WholeFileAsset(
+        name="plan_template.py",
+        canonical=REPO_ROOT / "_shared" / "plan_template.py",
+        consumers=[
+            _skill("yf-plan", "scripts", "plan_template.py"),
+        ],
+    ),
+    WholeFileAsset(
         name="okf.py",
         canonical=REPO_ROOT / "_shared" / "okf.py",
         consumers=[
@@ -181,6 +208,13 @@ WHOLE_FILE_ASSETS = [
 ]
 
 EMITTED_ASSETS = [
+    EmittedRegionAsset(
+        name="plan.md skeleton -> yf-plan SKILL.md",
+        begin=">>> BEGIN plan.md skeleton",
+        end="<<< END plan.md skeleton",
+        consumer=_skill("yf-plan", "SKILL.md"),
+        emit=emit_plan_md_skeleton,
+    ),
     EmittedRegionAsset(
         name="renderable-fence Lua mirror",
         begin=">>> BEGIN renderable-fence registry",

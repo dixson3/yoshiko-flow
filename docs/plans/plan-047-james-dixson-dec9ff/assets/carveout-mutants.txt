@@ -1,0 +1,17 @@
+### MUTANT A — revert finding.toml to the SINGLE-LEVEL glob (the vacuity as it stood)
+FAIL the positive control FIRES with excludes off — control cannot fire — the carve-out is untested
+FAIL ...and the control widens the file set — 173 vs 173
+FAIL the control reaches the NESTED okf-migration-samples corpus — a single-level `findings/*.md` glob reaches 0 of these — the vacuity regression
+FAIL finding.toml globs are RECURSIVE — non-recursive glob present: ['docs/plans/*/findings/*.md', 'Incubator/*/plans/*/findings/*.md']
+FAIL a recursive glob SELECTS a nested findings/ file a single-level glob misses — selected 0 — reverting finding.toml to `findings/*.md` makes this 0
+  test exit: 1
+  gate-carveouts.sh: {"carved_findings":0,"control_fired":false,"control_findings":0}  exit=1
+
+### MUTANT B — remove the okf-migration-samples CARVE-OUT (excludes stop working)
+FAIL zero findings inside the carved regions with excludes ON — 90: ['docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/README.md', 'docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/README.md', 'docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/foreign-frontmatter/after/README.md']
+FAIL ...and the control widens the file set — 218 vs 218
+  gate-carveouts.sh: {"carved_findings":90,"control_fired":true,"control_findings":90}  exit=1
+
+### RESTORED
+  test exit: 0
+  gate-carveouts.sh: {"carved_findings":0,"control_fired":true,"control_findings":90}  exit=0

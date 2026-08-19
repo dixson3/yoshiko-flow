@@ -1,3 +1,14 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: yf-herdr-spec-user-scope
+retrieved: '2026-08-13'
+source: file://~/.claude/skills/yf-herdr/SPEC.md
+vendored: true
+vendored_note: >-
+  Verbatim copy of the user-scope `yf-herdr` skill as it stood when plan-037 hoisted it into this repository.
+---
+
 # SPEC — Herdr delegation & observation (`yf-herdr`)
 
 > **Status: DRAFT.** Authored 2026-08-12 in `~/.claude/skills/` for hoisting into

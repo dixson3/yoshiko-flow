@@ -1,0 +1,91 @@
+# REQ-DATA-* id allocation — plan-047 Issue 0.0a
+#
+# Measured, not inferred. Command (run from repo root, on the plan-047-execute worktree):
+#   grep -rhoE "REQ-DATA-[0-9]+" skills/ | sort -u
+#
+# WHY THIS FILE EXISTS: red-team pass 2 caught this plan allocating REQ-DATA-020..023,
+# which are ALREADY LIVE (spec/data.md lines 47, 62, 66, 70 — the config/state split).
+# The REQ-DATA-* family is NOT in numeric order and has gaps, so counting forward from a
+# nearby id is wrong. This list is published BEFORE any id is written (Issue 0.0a has no
+# dependencies) so every later Epic-0 issue allocates against a measured free set.
+#
+# NOTE ON SCOPE (SC4): `cargo test --workspace` does NOT reach these ids —
+# coverage.rs:182 reads the ROOT SPEC.md only (manifest_dir joined with a parent hop), while REQ-DATA-* live in
+# skills/yf-plan/spec/data.md. The grep above is the authoritative check.
+
+measured_at: 2026-08-19T14:17:28Z
+tree: worktree .worktrees/plan-047-james-dixson-dec9ff @ 1896105
+
+## LIVE (in use under skills/ — do not reuse)
+  REQ-DATA-001
+  REQ-DATA-002
+  REQ-DATA-003
+  REQ-DATA-004
+  REQ-DATA-005
+  REQ-DATA-006
+  REQ-DATA-007
+  REQ-DATA-010
+  REQ-DATA-011
+  REQ-DATA-012
+  REQ-DATA-013
+  REQ-DATA-014
+  REQ-DATA-015
+  REQ-DATA-016
+  REQ-DATA-017
+  REQ-DATA-020
+  REQ-DATA-021
+  REQ-DATA-022
+  REQ-DATA-023
+  REQ-DATA-030
+  REQ-DATA-031
+  REQ-DATA-040
+  REQ-DATA-041
+  REQ-DATA-042
+
+## LIVE count
+  24
+
+## DEFINITION SITES (skills/yf-plan/spec/data.md, first mention per id)
+  REQ-DATA-001     spec/data.md:5
+  REQ-DATA-002     spec/data.md:9
+  REQ-DATA-010     spec/data.md:15
+  REQ-DATA-011     spec/data.md:19
+  REQ-DATA-012     spec/data.md:9
+  REQ-DATA-013     spec/data.md:41
+  REQ-DATA-014     spec/data.md:33
+  REQ-DATA-015     spec/data.md:15
+  REQ-DATA-016     spec/data.md:25
+  REQ-DATA-017     spec/data.md:29
+  REQ-DATA-020     spec/data.md:47
+  REQ-DATA-021     spec/data.md:62
+  REQ-DATA-022     spec/data.md:66
+  REQ-DATA-023     spec/data.md:70
+  REQ-DATA-030     spec/data.md:76
+  REQ-DATA-031     spec/data.md:80
+  REQ-DATA-040     spec/data.md:86
+  REQ-DATA-041     spec/data.md:90
+  REQ-DATA-042     spec/data.md:94
+
+## FAMILIES (semantic grouping in spec/data.md)
+  001-002   Plan Identity
+  003-007   (defined outside spec/data.md)
+  010-017   plan.md Schema
+  020-023   Configuration & State (Skill Surface Convention)
+  030-031   Upstream Tracking
+  040-042   Formulas
+
+## FREE (001-050 range, not live at measurement time)
+  REQ-DATA-008 REQ-DATA-009 REQ-DATA-018 REQ-DATA-019 REQ-DATA-024 REQ-DATA-025 REQ-DATA-026 REQ-DATA-027 REQ-DATA-028 REQ-DATA-029 REQ-DATA-032 REQ-DATA-033 REQ-DATA-034 REQ-DATA-035 REQ-DATA-036 REQ-DATA-037 REQ-DATA-038 REQ-DATA-039 REQ-DATA-043 REQ-DATA-044 REQ-DATA-045 REQ-DATA-046 REQ-DATA-047 REQ-DATA-048 REQ-DATA-049 REQ-DATA-050
+
+## ALLOCATED BY THIS PLAN (Epic 0 — all confirmed free above)
+  REQ-DATA-018   Issue 0.3   success-criterion stable ids + Discharged-by column
+  REQ-DATA-019   Issue 0.4   gate `Blocks:` referent alphabet
+  REQ-DATA-024   Issue 0.5   document-type schema format + linter engine contract
+  REQ-DATA-025   Issue 0.6   normalizer hash-neutral postcondition
+  REQ-DATA-026   Issue 0.7   pour fidelity (plan_issue metadata + comparator close gate)
+  REQ-DATA-027   Issue 0.8   vendored-content marker
+  REQ-DATA-028   Issue 0.9a  update-status refuses `approved` on a red ready-check
+
+## COLLISION CHECK
+  allocated: REQ-DATA-018 REQ-DATA-019 REQ-DATA-024 REQ-DATA-025 REQ-DATA-026 REQ-DATA-027 REQ-DATA-028
+  collisions: NONE — all seven are free

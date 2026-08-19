@@ -30,6 +30,7 @@ import click
 # dual-mode frontmatter+**Field:** field model (REQ-DATA-015 / REQ-OKF-020/021).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import okf  # noqa: E402
+import plan_template  # noqa: E402
 
 # --- Config tiers (REQ-YF-PRE-004 / REQ-YF-PRE-004a) --------------------------
 # The short name (`plan`, not `yf-plan`) is what the `yf` binary emits, so the
@@ -518,44 +519,12 @@ def seed_plan_md(plan_dir: Path, plan_id: str, objective: str, author: str) -> P
     lines via `_write_plan_fields` (REQ-OKF-020), both above the first `## `.
     """
     today = datetime.now().strftime("%Y-%m-%d")
-    content = f"""# Plan: {objective}
-
-**ID:** {plan_id}
-**Author:** {author}
-**Created:** {today}
-**Status:** scoping
-
-## Objective
-{objective}
-
-## Motivation
-_Why this plan exists: the problem, who is affected, what triggered the work.
-Replace this placeholder before intake (portability contract)._
-
-## Upstream Issues
-| Issue | Title | Disposition | Notes | Resolved By |
-|-------|-------|-------------|-------|-------------|
-
-## Investigation Findings
-_No investigations yet._
-
-## Approach
-_To be determined after scoping and investigation._
-
-## Epics
-_To be determined._
-
-## Gates
-### Start Gate (mandatory)
-- Type: human
-- Approvers: operator
-
-## Risks & Mitigations
-_To be determined._
-
-## Success Criteria
-_To be determined._
-"""
+    # Canonical skeleton (plan-047 Issue 0.2): the literal lives in `plan_template.py`, a
+    # sibling vendored from `_shared/` and read by BOTH this seeder and `_shared/sync.py`'s
+    # SKILL.md emitter, so the written template and the documented one cannot diverge.
+    content = plan_template.seed_body(
+        objective=objective, plan_id=plan_id, author=author, created=today, status="scoping"
+    )
     plan_md = plan_dir / "plan.md"
     plan_md.write_text(content)
     # Seed the initial scoping entry into the reserved `log.md` (Issue 3.4).
@@ -1309,10 +1278,25 @@ def parked_cmd(as_json: bool):
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.argument("status")
 @click.option("--message", "-m", default=None, help="Phase log message")
-def update_status(plan_dir: str, status: str, message: str):
+@click.option("--override-ready-check", is_flag=True,
+              help="Authorize the `approved` transition on a RED ready-check "
+                   "(REQ-DATA-028 / REQ-CLI-024). Logs a deviation. Deliberately NOT "
+                   "named `--force`: that flag already means four different things on "
+                   "four other verbs, and this one must never read as forcing a status "
+                   "the plan has not earned.")
+def update_status(plan_dir: str, status: str, message: str, override_ready_check: bool):
     """Update plan.md status and append to phase log.
 
-    The writer is **free-form** — it accepts any status string and does not validate
+    **The `approved` transition is GATED** (REQ-DATA-028, plan-047 Issue 2.5). Every other
+    status is still free-form; `approved` is refused unless `ready-check` (REQ-PLAN-066) is
+    green, or `--override-ready-check` is passed.
+
+    Before this gate, `ready-check` exiting **3** and `update-status <dir> approved` exiting
+    **0** on the *same plan* was reproducible in two commands — measured, and re-verified by
+    the red-team. The intake gate was prose obedience, not code: nothing downstream of a
+    failing audit could stop a plan reaching `approved`, no matter what the linter returned.
+
+    The writer is otherwise **free-form** — it accepts any status string and does not validate
     against an enum. The status vocabulary is the source of truth in SPEC.md
     (REQ-PLAN-001) and the SKILL.md Phase Model "Status values:" line: `scoping`,
     `investigating`, `drafting`, `review`, `ready-for-approval`, `approved`,
@@ -1325,6 +1309,42 @@ def update_status(plan_dir: str, status: str, message: str):
     if not plan_md.exists():
         click.echo("ERROR: plan.md not found", err=True)
         sys.exit(1)
+
+    # --- REQ-DATA-028: the `approved` transition is fail-closed -----------------------
+    # Scoped deliberately to `approved` alone. Gating every status would break the normal
+    # drafting flow (a plan in `scoping` has no red-team verdict by construction), and
+    # `approved` is the one transition that grants execute eligibility.
+    if status == "approved":
+        readiness = _ready_check_result(Path(plan_dir))
+        if not readiness["ready"] and not override_ready_check:
+            click.echo(json.dumps({
+                "status": "refused",
+                "requested": "approved",
+                "reason": "ready-check is not green (REQ-DATA-028)",
+                "reasons": readiness["reasons"],
+                "remediation": (
+                    "Resolve the reasons above (a REVISE needs a fresh red-team cycle; an "
+                    "audit fail needs remediation or `/yf-plan capture`), then re-run. To "
+                    "override deliberately, pass --override-ready-check — it writes the "
+                    "status AND records a deviation."
+                ),
+            }, indent=2), err=True)
+            sys.exit(3)
+        if not readiness["ready"] and override_ready_check:
+            # The override is authorized but never silent: it lands in log.md AND in the
+            # retrospective, under the flag's own name.
+            append_retrospective(Path(plan_dir), {
+                "kind": "deviation",
+                "when": datetime.now().strftime("%Y-%m-%d"),
+                "asked": "update-status approved was refused: ready-check is not green",
+                "answered": ("operator passed --override-ready-check; approving anyway. "
+                             "Reasons bypassed: " + "; ".join(readiness["reasons"])),
+                "frontloadable": "no",
+                "detected_by": "mechanical-check",
+                "evidence": f"ready-check reasons: {readiness['reasons']}",
+            })
+            message = (message or "operator approved") + \
+                " — ready-check OVERRIDDEN via --override-ready-check"
 
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -3698,26 +3718,65 @@ def _plan_first_scoping_date(plan_dir: Path) -> str | None:
     return None
 
 
-def _plan_review_line_count(plan_dir: Path) -> int:
-    """Count `review:` update-history entries for a plan bundle (REQ-PORT-006).
+# The `log.md` token a RED-TEAM PASS PRESENTATION writes (plan-047 Issue 2.7, REQ-PORT-006).
+# Distinct from the `review:` token a STATUS TRANSITION into the review phase writes. Like
+# `intake:` and `validated:` (REQ-DATA-012 / REQ-DATA-016) it is a recognized NON-STATUS
+# token: it never advances `status` and no status parser keys on it.
+REVIEW_PASS_TOKEN = "review-pass:"
 
-    The count-equality invariant (`len(reviews/pass-*.md) == review-entry count`) now
-    keys on the reserved `log.md`: count `- review:` bullets across all date headings.
-    **Legacy fallback:** when `log.md` is absent, count the legacy inline-date
-    `^- \\d{4}-\\d{2}-\\d{2} review:` lines in the in-`plan.md` `**Phase log:**` block.
-    Only the source file and line shape move; the coupling is unchanged.
+
+def _plan_review_line_count(plan_dir: Path) -> int:
+    """Count RED-TEAM PASS PRESENTATIONS for a plan bundle (REQ-PORT-006, as amended).
+
+    The invariant is `len(reviews/pass-*.md) == <this count>`. It exists to catch a red-team
+    verdict that was presented but never written to disk.
+
+    **The defect this function was amended to fix.** Both events emitted the same `- review:`
+    bullet: `update-status <dir> review` writes one on entering the review phase, and the
+    create-on-present step writes another per red-team cycle. So a *correct* bundle could show
+    2 bullets against 1 `pass-1.md` and hard-fail the audit. Reproduced mechanically on a
+    scratch copy of plan-047's own bundle: one extra `update-status … review` took it to 5
+    bullets / 4 files and `_audit_plan` reported
+    `expected 5 pass-*.md (one per phase-log review line), found 4`.
+
+    So the count now keys on `review-pass:`, which only a presentation writes.
+
+    **Scope bound — this fix is FORWARD-LOOKING, and that is deliberate.** A bundle carrying
+    no `review-pass:` bullet cannot have its presentations recovered: the two events are
+    indistinguishable in its history, which is the whole defect. Rather than guess, such a
+    bundle falls back to the legacy `review:` count, so all 46 existing bundles keep their
+    current (correct, since they balance) numbers and nothing is retro-rewritten — the same
+    stance REQ-DATA-018 takes on `Discharged-by` and REQ-DATA-027 on the vendored marker: a
+    mention is not a discharge, and an inferred edge is worse than an absent one.
+
+    The fallback applies only when the bundle **has** pass files. A plan that has entered
+    `review` but not yet had a presentation counts **0** and expects **0** pass files — which
+    is the buggy case, and it is now correct rather than grandfathered.
     """
     entries = _log_md_entries(plan_dir)
     if entries is not None:
-        return sum(1 for _d, txt in entries if txt.startswith("review:"))
+        presentations = sum(1 for _d, txt in entries if txt.startswith(REVIEW_PASS_TOKEN))
+        if presentations:
+            return presentations
+        legacy = sum(1 for _d, txt in entries if txt.startswith("review:"))
+        # No presentation marker: legacy bundle. Fall back ONLY if pass files exist —
+        # otherwise the honest expectation is zero.
+        if legacy and any(plan_dir.glob("reviews/pass-*.md")):
+            return legacy
+        return 0
     plan_md = plan_dir / "plan.md"
     if not plan_md.exists():
         return 0
-    count = 0
-    for line in _plan_phase_log_lines(plan_md.read_text()):
-        if re.match(r"- \d{4}-\d{2}-\d{2} review:", line):
-            count += 1
-    return count
+    lines = _plan_phase_log_lines(plan_md.read_text())
+    presentations = sum(
+        1 for line in lines if re.match(r"- \d{4}-\d{2}-\d{2} review-pass:", line)
+    )
+    if presentations:
+        return presentations
+    legacy = sum(1 for line in lines if re.match(r"- \d{4}-\d{2}-\d{2} review:", line))
+    if legacy and any(plan_dir.glob("reviews/pass-*.md")):
+        return legacy
+    return 0
 
 
 def _review_cycle_count(plan_dir: Path) -> int:
@@ -4697,32 +4756,14 @@ def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
     sys.exit(3 if escalates else 0)
 
 
-@cli.command("ready-check")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True,
-              help="Emit structured JSON. Default is a human-readable report.")
-def ready_check(plan_dir: str, as_json: bool):
-    """Gate the approval prompt (REQ-PLAN-066).
+def _ready_check_result(pdir: Path) -> dict:
+    """The REQ-PLAN-066 readiness verdict as data (plan-047 Issue 2.5).
 
-    Verifies BOTH preconditions of the approval prompt, so approval is consent to an
-    already-verified plan (not "approve, then verify"):
-
-      1. the **last recorded** red-team verdict (highest ``reviews/pass-N.md``) is
-         ``APPROVE`` (REQ-PLAN-030) — a later REVISE/INVESTIGATE-MORE that was never
-         re-reviewed blocks readiness;
-      2. the portability ``audit`` passes (REQ-PLAN-033).
-
-    Emits ``{"ready": bool, "reasons": [...], "verdict": ..., "review_pass": ...,
-    "malformed_review": ..., "audit_status": ...}``. Exits ``3`` when not ready (a
-    gate signal, distinct from a ``1`` crash), ``0`` when ready.
-
-    ``malformed_review`` (REQ-PLAN-072) is the path of a review file that exists but
-    whose verdict did not parse, else ``null``. It disambiguates the two ways
-    ``verdict`` can be ``null``: no review at all (``review_pass: null``) versus a
-    review present but unparseable (``review_pass: N``). The latter used to surface
-    as a bare null verdict — a contradiction that read as "no review has run".
+    Extracted from the `ready-check` command so `update-status` can enforce it at the
+    `approved` transition (REQ-DATA-028) instead of merely reporting it. Before this,
+    `ready-check` exiting 3 and `update-status … approved` exiting 0 on the SAME plan was
+    reproducible in two commands — the intake gate was prose obedience, not code.
     """
-    pdir = Path(plan_dir)
     reasons: list[str] = []
 
     n, verdict, review_file = _latest_review_verdict(pdir)
@@ -4762,6 +4803,38 @@ def ready_check(plan_dir: str, as_json: bool):
         "malformed_review": malformed_review,
         "audit_status": audit["status"],
     }
+    return result
+
+
+@cli.command("ready-check")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit structured JSON. Default is a human-readable report.")
+def ready_check(plan_dir: str, as_json: bool):
+    """Gate the approval prompt (REQ-PLAN-066).
+
+    Verifies BOTH preconditions of the approval prompt, so approval is consent to an
+    already-verified plan (not "approve, then verify"):
+
+      1. the **last recorded** red-team verdict (highest ``reviews/pass-N.md``) is
+         ``APPROVE`` (REQ-PLAN-030) — a later REVISE/INVESTIGATE-MORE that was never
+         re-reviewed blocks readiness;
+      2. the portability ``audit`` passes (REQ-PLAN-033).
+
+    Emits ``{"ready": bool, "reasons": [...], "verdict": ..., "review_pass": ...,
+    "malformed_review": ..., "audit_status": ...}``. Exits ``3`` when not ready (a
+    gate signal, distinct from a ``1`` crash), ``0`` when ready.
+
+    ``malformed_review`` (REQ-PLAN-072) is the path of a review file that exists but
+    whose verdict did not parse, else ``null``. It disambiguates the two ways
+    ``verdict`` can be ``null``: no review at all (``review_pass: null``) versus a
+    review present but unparseable (``review_pass: N``). The latter used to surface
+    as a bare null verdict — a contradiction that read as "no review has run".
+    """
+    pdir = Path(plan_dir)
+    result = _ready_check_result(pdir)
+    ready, reasons, n = result["ready"], result["reasons"], result["review_pass"]
+
     if as_json:
         click.echo(json.dumps(result, indent=2))
     else:

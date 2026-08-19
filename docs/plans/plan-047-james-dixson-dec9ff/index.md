@@ -15,3 +15,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/](findings/) - The six investigation findings (EXP-001…006). **Every measured figure the plan cites originates here**, each with its reproduction command. Read these before trusting any number in plan.md.
 - [references/](references/) - Full untruncated bodies of the 11 triaged upstream issues, plus drafted upstream comments (`comment-*.md`) awaiting the Upstream-write gate. The only in-bundle copies of the upstream context.
 - [reviews/](reviews/) - Red-team pass records, newest last. Each carries its verdict, concerns with severity, and an Operator Resolutions table filled as each concern is resolved.
+- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).

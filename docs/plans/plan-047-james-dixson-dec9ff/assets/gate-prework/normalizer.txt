@@ -1,0 +1,18 @@
+# Pre-work RED run — gate: normalizer   (plan-047 Issue 1.4 / SC9d)
+# Recorded: 2026-08-19T14:37:19Z   tree: 9663a0d
+#
+# The command below is the gate `Test:` STRING as the resolver executes it — NOT
+# the bare script. The PIPELINE is what runs, so the pipeline is what is archived.
+#
+# Exit-code discipline (_common.sh): 0 = capability present · 1 = capability absent ·
+# 2 = the harness could not run. A gate is only allowed to be red for reason 1.
+
+$ set -o pipefail; bash docs/plans/plan-047-james-dixson-dec9ff/scripts/gate-normalizer.sh | jq -e '.diff_bytes > 0 and .fingerprints_moved == 0'
+pipeline exit: 1
+script-alone exit: 1   <-- 1 = capability ABSENT (the only legal red)
+
+--- script stdout (the JSON verdict) ---
+{"diff_bytes":0,"fingerprints_moved":null,"reason":"aggregate diff not rendered yet (Issue 8.8a)"}
+--- pipeline stdout (jq -e) ---
+false
+--- stderr (tail 5) ---

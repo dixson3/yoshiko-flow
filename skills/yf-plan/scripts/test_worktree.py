@@ -864,7 +864,13 @@ def test_update_status_dual_writes(tmp_path):
     pd = tmp_path / "plan"
     pd.mkdir()
     (pd / "plan.md").write_text(_LEGACY_PLAN)
-    r = CliRunner().invoke(pm.update_status, [str(pd), "approved", "-m", "ready"])
+    # `approved` is gated on ready-check as of REQ-DATA-028 (plan-047 Issue 2.5). This
+    # test is about DUAL-WRITE, not about approval, so it takes the documented override
+    # rather than weakening the gate to keep a green suite.
+    r = CliRunner().invoke(
+        pm.update_status,
+        [str(pd), "approved", "-m", "ready", "--override-ready-check"],
+    )
     assert r.exit_code == 0, r.output
     fm_v, line_v = _both_surfaces(pd, "status", "Status")
     assert fm_v == line_v == "approved"
@@ -944,11 +950,15 @@ Body.
 """
 
 
-def _plan_with_log(tmp_path, log_text=_LOG_MD, plan_text=_LEGACY_PLAN):
+def _plan_with_log(tmp_path, log_text=_LOG_MD, plan_text=_LEGACY_PLAN, n_pass=0):
     pd = tmp_path / "plan"
     pd.mkdir()
     (pd / "plan.md").write_text(plan_text)
     (pd / "log.md").write_text(log_text)
+    if n_pass:
+        (pd / "reviews").mkdir(exist_ok=True)
+        for i in range(1, n_pass + 1):
+            (pd / "reviews" / f"pass-{i}.md").write_text(f"# Pass {i}\n")
     return pd
 
 
@@ -968,23 +978,58 @@ def test_first_scoping_date_legacy_fallback(tmp_path):
 
 
 def test_review_count_from_log_md(tmp_path):
-    # Count `- review:` bullets across log.md date headings (REQ-PORT-006).
-    pd = _plan_with_log(tmp_path)
+    # Count RED-TEAM PASS PRESENTATIONS across log.md date headings (REQ-PORT-006 as
+    # amended by plan-047 Issue 0.9b/2.7). The token is `review-pass:`; a `review:`
+    # bullet is a STATUS TRANSITION and is inert to this count.
+    pd = _plan_with_log(tmp_path, log_text=_LOG_MD.replace("- review:", "- review-pass:"))
     assert pm._plan_review_line_count(pd) == 2
+
+
+def test_a_review_status_transition_does_not_inflate_the_count(tmp_path):
+    # The defect the amendment fixed: both events emitted `- review:`, so a CORRECT
+    # bundle could show 2 bullets against 1 pass file and hard-fail the audit.
+    log = _LOG_MD.replace("- review:", "- review-pass:", 1)
+    pd = _plan_with_log(tmp_path, log_text=log)
+    assert pm._plan_review_line_count(pd) == 1, "a `review:` transition was counted"
 
 
 def test_review_count_legacy_fallback(tmp_path):
-    # No log.md → count legacy inline-date review lines in the plan.md phase log.
+    # No log.md AND no `review-pass:` marker → a legacy bundle, whose presentations are
+    # unrecoverable from its history (that indistinguishability IS the defect). It keeps
+    # its previous number, so no existing bundle is retro-judged. The fallback requires
+    # pass files to exist — see the test below for why.
     pd = tmp_path / "plan"
     pd.mkdir()
     (pd / "plan.md").write_text(_LEGACY_PLAN_WITH_PHASE_LOG)
+    (pd / "reviews").mkdir()
+    for i in (1, 2):
+        (pd / "reviews" / f"pass-{i}.md").write_text("x")
     assert pm._plan_review_line_count(pd) == 2
+
+
+def test_legacy_fallback_does_not_manufacture_a_failure(tmp_path):
+    """A legacy bundle with NO pass files expects 0, not N.
+
+    This is the case that used to hard-fail: a plan that entered `review` but has not yet
+    had a red-team presentation had 1 bullet and 0 files, and the audit reported
+    `expected 1 pass-*.md, found 0` on a perfectly correct bundle.
+
+    Honest bound: on a legacy bundle with zero pass files the invariant is UNENFORCEABLE —
+    "no presentation yet" and "both pass files were deleted" are indistinguishable. It
+    yields 0 rather than guessing. New bundles carry `review-pass:` and are fully checked.
+    """
+    pd = tmp_path / "plan"
+    pd.mkdir()
+    (pd / "plan.md").write_text(_LEGACY_PLAN_WITH_PHASE_LOG)
+    assert pm._plan_review_line_count(pd) == 0
 
 
 def test_log_md_takes_precedence_over_legacy_block(tmp_path):
     # When BOTH surfaces exist, log.md is authoritative — the stale plan.md block is
     # NOT merged/double-counted. log.md here carries 2 reviews; the plan.md block 3.
-    pd = _plan_with_log(tmp_path, plan_text=_LEGACY_PLAN_WITH_PHASE_LOG)
+    pd = _plan_with_log(tmp_path,
+                        log_text=_LOG_MD.replace("- review:", "- review-pass:"),
+                        plan_text=_LEGACY_PLAN_WITH_PHASE_LOG)
     assert pm._plan_review_line_count(pd) == 2          # from log.md, not 3
     assert pm._plan_first_scoping_date(pd) == "2026-05-01"
 
@@ -1041,8 +1086,15 @@ def test_seeded_plan_survives_first_update_status(tmp_path):
     assert seeded_scoping is not None
     r = CliRunner().invoke(pm.update_status, [str(pd), "review", "-m", "v1"])
     assert r.exit_code == 0, r.output
-    # scoping date preserved; one review now counted from log.md.
+    # Scoping date preserved. The review count is 0, not 1: entering the `review` PHASE
+    # is not a red-team PRESENTATION (REQ-PORT-006 as amended, plan-047 Issue 0.9b/2.7).
+    # Counting it was the defect — this plan has no pass file yet, and expecting one
+    # would hard-fail a correct bundle.
     assert pm._plan_first_scoping_date(pd) == seeded_scoping
+    assert pm._plan_review_line_count(pd) == 0
+
+    # ...and a real presentation IS counted.
+    pm.okf.append_log(pd, "review-pass: pass-1 presented — APPROVE")
     assert pm._plan_review_line_count(pd) == 1
 
 

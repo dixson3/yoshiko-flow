@@ -362,17 +362,27 @@ Read `${SKILL_DIR}/agents/planner.md` and follow its synthesis procedure. The pl
 
 ### plan.md structure
 
+A conformant `plan.md` is the **skeleton** below plus the **Epics-and-Gates grammar** that
+follows it. The skeleton's heading set, required fields and section order are the same ones
+`seed_plan_md` writes at `init` (REQ-DATA-010/011/015); the grammar is what an author fills the
+`## Epics` and `## Gates` sections with.
+
+<!-- >>> BEGIN plan.md skeleton — GENERATED from _shared/plan_template.py by _shared/sync.py; do not edit by hand -->
 ```markdown
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-NNN-user-hash
+author: <git-user>
+created: YYYY-MM-DD
+status: drafting
+---
 # Plan: <Objective>
 
 **ID:** plan-NNN-user-hash
 **Author:** <git-user>
 **Created:** YYYY-MM-DD
 **Status:** drafting
-**Phase log:**
-- YYYY-MM-DD scoping: initial scope captured
-- YYYY-MM-DD investigating: N experiments identified
-- YYYY-MM-DD drafting: plan v1 presented
 
 ## Objective
 <what and why>
@@ -393,6 +403,44 @@ Either this section or a motivation.md file must be present and non-empty.>
 <chosen approach with rationale>
 
 ## Epics
+<one `### Epic N: <name>` per epic, each with `- Issue N.M:` bullets — see the grammar below>
+
+## Gates
+<the mandatory Start Gate, plus any capability gates and the Reconcile Gate — see the grammar below>
+
+## Risks & Mitigations
+| # | Risk | Severity | Mitigation |
+| :-- | :-- | :-- | :-- |
+| R1 | <what could go wrong> | high \| med \| low | <what this plan does about it> |
+
+## Success Criteria
+| # | Criterion | Verification | Discharged-by |
+| :-- | :-- | :-- | :-- |
+| SC1 | <what must be true when the plan is done> | <how it is checked> | <issue id(s)> |
+```
+<!-- <<< END plan.md skeleton -->
+
+**The header metadata is dual-represented** (REQ-DATA-015): the YAML frontmatter block **and**
+the `**Field:**` lines, both above the first `## `, both written by one writer from one model.
+Do not author one without the other.
+
+**There is no `**Phase log:**` block.** The phase history is the OKF-reserved bundle-root
+`log.md` (REQ-DATA-012) — newest-first, grouped under `## YYYY-MM-DD` headings, one
+`- <status>: <message>` bullet per entry. `update-status` writes it; never hand-maintain a
+phase log inside `plan.md`.
+
+Criterion ids are stable and insertable without renumbering (`SC1`, `SC1b`, `SC2`, …) and the
+`Discharged-by` column names the issue(s) that discharge each criterion — the bidirectional
+completeness rule (REQ-DATA-018). The Risks table columns are fixed (REQ-DATA-018's sibling
+convention: `# | Risk | Severity | Mitigation`).
+
+#### Epics and Gates grammar
+
+The `## Epics` and `## Gates` bodies are the plan's machine-read payload — the extractor and the
+pour both parse them, so the grammar is exact:
+
+```markdown
+## Epics
 ### Epic 1: <name>
 - Issue 1.1: <description>
 - Issue 1.2: <description>
@@ -404,21 +452,30 @@ Either this section or a motivation.md file must be present and non-empty.>
 - Type: human
 - Approvers: operator
 
-### Capability Gate: <name> (if needed)
-- Type: human
+### Capability Gate: <name>
+- Type: human | auto
 - Condition: <what must be true>
 - Test: <bash command to verify>
 - Blocks: <issue refs>
 - Instructions: <how to satisfy>
 
-### Reconcile Gate (when upstream issues incorporated)
+### Reconcile Gate
 - Type: auto (all execution beads closed)
 - Blocks: reconcile step
-
-## Risks & Mitigations
-
-## Success Criteria
 ```
+
+Rules the parsers depend on:
+
+- An issue bullet is `- Issue <N>.<M>[a-z]: <description>` at column 0 of the `## Epics` body;
+  its continuation lines are indented two spaces.
+- `- depends-on:` and `- resolves-upstream:` are **two-space-indented bullets under their
+  issue**, and take a comma-separated list of issue ids / `#<n> (<disposition>)` respectively.
+  A `depends-on` value carrying a prose tail is forbidden — the rationale belongs in the body.
+- `- Blocks:` takes issue ids, the explicit `epic:<N>` form, or the reserved sentinel
+  `reconcile step` (REQ-DATA-019). No wildcards, no prose referents, no trailing parenthetical
+  on the sentinel.
+- A `- Test:` value is a single bash command on one physical line. It is executed by the gate
+  resolver and judged by its **exit code alone**.
 
 ```bash
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "review" -m "plan v1 presented"
@@ -458,7 +515,7 @@ has burned `N` review cycles should not silently resume.
 
 **Red-team is read-only** (REQ-AGENT-043). The agent never writes files — the main session does.
 
-**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends the phase-log `review:` line, as a **single atomic step**. The file captures, verbatim:
+**Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends a `log.md` **`- review-pass:`** bullet, as a **single atomic step**. The token is `review-pass:`, **not** `review:` — a `review:` bullet is what a *status transition into the review phase* writes, and counting both against the pass-file total made a correct bundle hard-fail the audit (REQ-PORT-006 as amended by plan-047 Issue 0.9b/2.7). Like `intake:` and `validated:`, `review-pass:` is a recognized non-status token: it never advances `status`. The file captures, verbatim:
 
 - **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE)
 - **Strengths**
@@ -476,13 +533,13 @@ has burned `N` review cycles should not silently resume.
 
 Writing at presentation makes the verdict portable the instant it exists: a plan parked in `review` with an outstanding REVISE keeps its report on disk, not only in the drafting conversation (#4).
 
-**Pass numbering is fixed at presentation.** `N` is the count of `^- \d{4}-\d{2}-\d{2} review:` phase-log lines *immediately after* this review's line is appended. Because the file and the phase-log line land in the same atomic step, the REQ-PORT-006 invariant `count(reviews/pass-*.md) == count(phase-log review: lines)` holds *while the plan sits in `review`* — exactly the state #4 makes portable.
+**Pass numbering is fixed at presentation.** `N` is the count of `review-pass:` `log.md` bullets *immediately after* this review's bullet is appended. Because the file and the phase-log line land in the same atomic step, the REQ-PORT-006 invariant `count(reviews/pass-*.md) == count(log.md review-pass: bullets)` holds *while the plan sits in `review`* — exactly the state #4 makes portable.
 
-**Update in place on resolution.** As each concern is resolved — by the main session under the autonomous default, by the operator under `checkpointed` — the main session edits the **same** `pass-N.md`: fill that concern's row in the Resolutions table with the resolution, record who resolved it in the `actor` column, and flip its status from `unresolved` to `resolved`, then set the file's final status when all concerns are resolved. Do **not** create a new file and do **not** append a second phase-log `review:` line — both were already written at presentation (above).
+**Update in place on resolution.** As each concern is resolved — by the main session under the autonomous default, by the operator under `checkpointed` — the main session edits the **same** `pass-N.md`: fill that concern's row in the Resolutions table with the resolution, record who resolved it in the `actor` column, and flip its status from `unresolved` to `resolved`, then set the file's final status when all concerns are resolved. Do **not** create a new file and do **not** append a second `review-pass:` bullet — both were already written at presentation (above).
 
 **Lifecycle: mutable until resolved, then frozen.** The strict "never overwrite" rule relaxes to: the in-flight `pass-N.md` is **mutable** until every concern is resolved, then **frozen**. A frozen pass file is never edited again.
 
-**REVISE loops produce one file per cycle.** On REVISE, the operator addresses concerns and the red-team runs *again* — that is a new review cycle: a new `pass-(N+1).md` is written at the next presentation (with its own phase-log `review:` line), updated in place, then frozen. Each full review cycle yields exactly one file; files are updated in place within a cycle, never replaced across cycles. The REQ-PORT-006 count-equality (`count(pass-*.md) == count(phase-log review: lines)`) is preserved at every step because file and phase-log line are written together at each presentation.
+**REVISE loops produce one file per cycle.** On REVISE, the operator addresses concerns and the red-team runs *again* — that is a new review cycle: a new `pass-(N+1).md` is written at the next presentation (with its own `log.md` `review-pass:` bullet), updated in place, then frozen. Each full review cycle yields exactly one file; files are updated in place within a cycle, never replaced across cycles. The REQ-PORT-006 count-equality (`count(pass-*.md) == count(log.md review-pass: bullets)`) is preserved at every step because file and phase-log line are written together at each presentation.
 
 ### Portability audit (last step of PLAN)
 
@@ -850,6 +907,13 @@ see `yf-beads-extra` → *Epic blocking rule*). Child epics are containers: crea
 on `${START_GATE}`; downstream issues depend on their predecessors and inherit the gate
 transitively.
 
+**Every task bead carries `plan_issue: "<id>"` in its METADATA** (REQ-DATA-026 / D-10). This
+is what makes the pour checkable at all: EXP-003 measured three plans (006, 007, 036) where no
+bead title carries its issue id, leaving the plan↔bead mapping unreconstructable — those three
+account for 43 of the 45 apparently-dropped edges purely as an artifact of missing identity.
+Metadata is strictly better than a title convention **because titles get rewritten**, and the
+comparator prefers it, falling back to a leading title token only for pre-metadata plans.
+
 ```bash
 # Child epic — parent only, NO start-gate dep (task→epic block is rejected).
 EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
@@ -858,17 +922,32 @@ EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
 # Entry issue (no intra-plan predecessor) — gate on the start-gate wrapper task.
-ISSUE_BEAD=$(bd create "${entry_issue_description}" \
+ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${entry_issue_description}" \
   --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${START_GATE}" \
+  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" \
+      '{plan_issue:$i, plan:$p}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
 # Downstream issue — depends on predecessor(s) only; gate inherited transitively.
-ISSUE_BEAD=$(bd create "${issue_description}" \
+ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${issue_description}" \
   --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${dependency_beads}" \
+  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" \
+      '{plan_issue:$i, plan:$p}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
+
+**Derive the DAG mechanically, do not transcribe it.** `_shared/plan_extract.py` reads
+`plan.md` into JSON — epics, issues, edges, gates — and reports anything it cannot parse in
+`unparsed[]` rather than degrading. Use it to drive the `bd create` calls above:
+
+```bash
+uv run _shared/plan_extract.py "${plan_dir}" --json --strict
+```
+
+A non-empty `unparsed[]` means the plan declares something the REQ-DATA-019 grammar does not
+cover; fix the document rather than hand-transcribing around it.
 
 **Attach upstream metadata** to issues that resolve an upstream issue:
 
@@ -1392,6 +1471,22 @@ if [ "$GATE_RC" -ne 0 ]; then
   echo "'remediation': either attest one green run (attest-validation; see the workflow_dispatch"
   echo "no-publish pattern in spec/ci-release-completion.md) OR file a standalone out-of-tree"
   echo "deferred-validation bead and push it individually upstream, then re-run §6.4."
+  exit 1
+fi
+
+# Pour fidelity (REQ-DATA-026 / plan-047 Issue 5.5): the beads that were executed must be
+# the beads the plan declared. HALTING for THIS plan only (`--plan`), so a historical
+# divergence elsewhere in the corpus can never block an unrelated completion.
+bd list --all --include-gates --limit 5000 --json > /tmp/yf-beads.json
+FIDELITY=$(uv run _shared/pour_fidelity.py /tmp/yf-beads.json "${plan_dir}" \
+             --strict --plan "${plan_id}" --json)
+FIDELITY_RC=$?
+echo "$FIDELITY"
+if [ "$FIDELITY_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: the poured bead DAG does not match the plan's declared DAG."
+  echo "Read the three populations separately — a 'no-mapping' verdict is an identity"
+  echo "artifact, a 'dropped' edge means a bead was marked ready BEFORE its declared"
+  echo "predecessor. Completion HALTS; do NOT set 'complete'."
   exit 1
 fi
 

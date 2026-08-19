@@ -38,6 +38,33 @@ Rationale: These are the mechanical operations SKILL.md delegates; missing any b
 The third drift is the instructive one: it survived a full green sweep because **nothing executed the Verification line** — it was prose shaped like a command, so the FULL validation tier passed 33/33 while this REQ asserted something false. That is exactly the defect class `dixson3/yoshiko-flow#149` names (a process rule nothing executes), reproduced inside the spec of the plan that cites #149. Hence both changes here: the requirement is restated as a set equality that cannot go stale by arithmetic, **and** the verification was moved into a test that actually runs. `audit` was added to support the portability precondition check at intake and the `/yf-plan capture` maintenance subcommand. `record-epic` and `resume-scan` were added for coordinator crash recovery (#2): the first persists the plan↔epic linkage at intake, the second reports it back for the resume guard. The companion rule is installed by the repo installer (`install.sh`), not by `init`, so no `rules-dir` subcommand is needed; preflight locates the installed rule internally via `_rule_candidates()`/`_check_rule()`.
 Verification: **executed**, not asserted — `skills/yf-plan/scripts/test_cli_enumeration.py` parses this REQ's enumeration and the `@cli.command` names from `plan_manager.py` and asserts the two **sets** are equal, naming any verb missing from either side. It is registered as CHANGE-VALIDATION id `uv-yf-cli-enum` and fires on edits to both `skills/yf-plan/scripts/**` and `skills/yf-plan/spec/cli.md`, so adding a verb without amending this REQ is a hard failure at the point of the change. The former hand-run `grep -c '^@cli.command' … returns N` is retained only as the human-readable form of the same check.
 
+REQ-CLI-024: `update-status` shall accept the override flag **`--override-ready-check`** —
+**not** a bare `--force` — to authorize the `approved` transition on a red `ready-check`
+(REQ-DATA-028). Using it shall write the status **and** append both a `log.md` override line
+and a `retrospective-append --kind deviation` entry naming the flag.
+
+**The name was decided BEFORE the implementation** (plan-047 Issue 2.6), because the drafted
+plan claimed a collision with "the existing stale-approval `--force`" and the red-team measured
+that `update_status` has **no options besides `-m`**: the existing `--force` overrides are a
+**prose convention** (SKILL.md's deviation table: *"Every `--force` override (stale-approval,
+audit bypass)"*), not a flag on this verb. So there was no flag to collide with — but there is a
+real deviation-vocabulary overlap, and that is what the choice turns on:
+
+- **A distinct name, because `--force` is already overloaded on other verbs and means different
+  things on each**: file overwrite on `capture`, stale-approval bypass on `execute`, lock
+  stealing on `landing-lock release`, dirty-tree override on `worktree teardown`.
+  `update-status` writes **nine** different statuses, so a bare `--force` there would not say
+  *what* it forces — and the one thing it must never be read as forcing is a status the plan has
+  not earned.
+- **It stays in the `--force` deviation FAMILY** for retrospective purposes: the entry is
+  recorded exactly like the other overrides, so the vocabulary overlap is resolved at the name
+  and not at the audit trail.
+- It is greppable: `--override-ready-check` has exactly one meaning repo-wide.
+
+Rationale: an override that does not name what it overrides is how a bypass becomes routine.
+Verification: `scripts/test_update_status_gate.py` asserts the flag name, that the transition is
+refused without it, that it succeeds with it, and that the deviation entry names it.
+
 REQ-CLI-012: `plan_manager.py record-epic <plan-dir> <epic-id>` persists the plan↔epic linkage in the bundle: the epic id in plan.md's header metadata — dual-written as the `epic` frontmatter key **and** the `**Epic:** <id>` header line (REQ-DATA-015; inserted after `**Status:**`, updated in place if present) — and an inert `- intake: epic <id> poured` entry appended to `log.md` under the current date heading (REQ-DATA-012). It is idempotent and the intake entry matches neither the `review:` nor `scoping:` audit tokens.
 Rationale: The resume guard needs a deterministic epic pointer that survives a crash. The inert `log.md` entry records the linkage without perturbing the review/scoping counts the portability audit keys on.
 Verification: `record_epic` in plan_manager.py writes both the `epic` frontmatter key and the `**Epic:**` header line and the `log.md` `intake:` entry; SKILL.md §4.2 invokes it after the pour.
