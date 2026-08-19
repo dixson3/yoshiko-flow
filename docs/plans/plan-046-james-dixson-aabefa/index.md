@@ -15,6 +15,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [upstream-triage.md](upstream-triage.md) - Disposition of each candidate upstream issue (include / exclude / partial / supersede) with the reasoning. The triage record behind plan.md's Upstream Issues table.
 - [findings/](findings/) - The four investigation experiments. **exp-003 refuted the originally-approved nested-index backfill and exp-004 weakened the #92 supersede** — read these before trusting plan.md's scope.
-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
 - [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
-- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).

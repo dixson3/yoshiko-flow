@@ -15,4 +15,3 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [findings/](findings/) - Investigation experiment results (if any).
 - [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).

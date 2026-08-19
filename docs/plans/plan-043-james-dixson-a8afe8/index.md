@@ -14,5 +14,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`) — one per triaged issue, including the `exclude` rows, so a cold reader can check the exclusion rationale against the source. Snapshots, not live — the issues this plan addresses.
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [findings/](findings/) - Investigation experiment results (if any).
-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
+- [upstream-triage.md](upstream-triage.md)

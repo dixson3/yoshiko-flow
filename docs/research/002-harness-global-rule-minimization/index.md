@@ -14,3 +14,5 @@ okf_version: '0.1'
 - [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team critique — 2 blocking, 4 recommended items
 - [diagrams/harness-rule-minimization.png](diagrams/harness-rule-minimization.png) - [package] Per-harness two-tier model + rule taxonomy diagram
 - [sources.md](sources.md) - [package] Consolidated source list with credibility scores
+- [plan.yaml](plan.yaml)
+- [sources.json](sources.json)

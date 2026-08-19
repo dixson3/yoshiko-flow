@@ -14,9 +14,8 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [findings/](findings/) - Investigation experiment results (if any).
-- [diagrams/](diagrams/) - d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill.
-- [assets/](assets/) - Attachments and other generated artifacts (not diagrams — those live in `diagrams/`).
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [upstream-triage.md](upstream-triage.md)
 
 ## Note on `scope-answers.md`
 
