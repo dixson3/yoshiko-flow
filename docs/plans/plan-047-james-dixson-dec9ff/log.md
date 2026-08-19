@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-19
+- approved: operator approved after red-team pass-4 APPROVE; ready-check green
 - review: red-team pass 4: APPROVE — 4 medium edits applied (stale count, SC20 count, per-criterion claim, pipefail + exit-code discipline)
 
 ## 2026-08-18
