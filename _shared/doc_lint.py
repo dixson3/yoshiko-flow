@@ -193,19 +193,74 @@ def section_body(text: str, name: str) -> str | None:
     return "\n".join(body) if capturing or body else None
 
 
+# A GFM cell separator is an UNESCAPED pipe. `\|` inside a cell is a literal pipe and must
+# not split it. This is the same latent defect fixed in `plan_extract._table_rows`
+# (plan-048 Issue 1.1) — both parsers read the same corpus, so both had to be fixed.
+_CELL_SPLIT = re.compile(r"(?<!\\)\|")
+
+
+def _split_row(inner: str) -> list[str]:
+    """Split one table row's interior into cells, honouring GFM-escaped pipes."""
+    return [c.strip().replace("\\|", "|") for c in _CELL_SPLIT.split(inner)]
+
+
 def first_table(body: str) -> tuple[list[str], list[list[str]]] | None:
     """Return (header cells, data rows) of the first GFM table in `body`."""
     rows, in_tbl = [], False
     for line in body.split("\n"):
         s = line.strip()
         if s.startswith("|") and s.endswith("|"):
-            rows.append([c.strip() for c in s[1:-1].split("|")])
+            rows.append(_split_row(s[1:-1]))
             in_tbl = True
         elif in_tbl:
             break
     if len(rows) < 2:
         return None
     return rows[0], rows[2:]  # rows[1] is the alignment row
+
+
+# --- REQ-DATA-043: the extractor gate shared by every plan_extract consumer ----------
+
+# Exit code for INCONCLUSIVE. Deliberately distinct from FAIL (1): "this instrument could
+# not read the plan" and "the plan is wrong" are different claims, and a caller that
+# collapses them has not implemented REQ-DATA-043.
+INCONCLUSIVE = 2
+
+
+def extractor_blocked(plan_dir) -> list[dict]:
+    """Return the `unparsed[]` entries for a plan bundle ([] = safe to reason over).
+
+    Every consumer of `plan_extract.extract()` calls this FIRST and returns INCONCLUSIVE
+    when it is non-empty. The consumer set is closed and enumerated in REQ-DATA-043: the
+    relational checks (`plan-relations`), the pour, and `pour_fidelity.py`.
+    """
+    from pathlib import Path as _P
+    pm = _P(plan_dir)
+    pm = pm / "plan.md" if pm.is_dir() else pm
+    if not pm.is_file():
+        return []
+    try:
+        return _plan_extract().extract(pm).get("unparsed") or []
+    except Exception as exc:  # an extractor crash is also "could not read", never FAIL
+        return [{"line": 0, "reason": f"extractor raised {type(exc).__name__}: {exc}",
+                 "raw": ""}]
+
+
+def _plan_extract():
+    """Import the sibling extractor by path (``_shared`` is not an installed package)."""
+    import importlib.util
+    from pathlib import Path as _P
+    global _PE_CACHE
+    try:
+        return _PE_CACHE
+    except NameError:
+        pass
+    spec = importlib.util.spec_from_file_location(
+        "pe_for_doclint", _P(__file__).resolve().parent / "plan_extract.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _PE_CACHE = mod
+    return mod
 
 
 # --- checks ------------------------------------------------------------------------

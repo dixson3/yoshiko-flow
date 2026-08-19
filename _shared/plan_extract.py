@@ -64,8 +64,20 @@ EPIC = re.compile(r"^### +(?:\*\*)?Epic +([0-9]+|[A-Z])(?:\*\*)?\s*[:—-]\s*(.+
 # epics, and rejecting that form is not strictness — it is a silent loss of six plans from
 # every downstream join. The letter form is extracted and FLAGGED (`lettered`); converting
 # it is the normalizer's job (Issue 8.5), not the reader's.
+# READING-grammar widening (plan-048 Issue 1.3, REQ-DATA-019). A title parenthetical
+# before the colon — `- Issue 1.6 (firing surface): …` — is recovered: the parenthetical
+# never carries an id, so dropping it from the id is unambiguous.
 ISSUE = re.compile(r"^- +(?:\*\*)?(?:Issue +)?(?P<id>[0-9]+|[A-Z])\.(?P<sub>[0-9]+[a-z]?)"
-                   r"(?:\*\*)?\s*:\s*(?P<rest>.*)$")
+                   r"(?:\*\*)?(?P<paren>\s*\([^)]*\))?\s*:\s*(?P<rest>.*)$")
+
+# A sub-key written at COLUMN 0 instead of two-space-indented. Recovered by attaching it to
+# the immediately preceding issue bullet — no other referent is possible.
+COL0_SUBKEY = re.compile(r"^- +(depends-on|resolves-upstream)\s*:\s*(?P<val>.*)$", re.I)
+
+# Noise-word prefixes inside a `Blocks:` referent. `Issue 5.1` and `5.1` are the same
+# referent; the prefix (singular or plural) carries no information.
+_ISSUE_PREFIX = re.compile(r"^Issues?\s+(?P<rest>.+)$", re.I)
+_EPIC_PREFIX = re.compile(r"^Epics?\s+(?P<rest>[0-9]+|[A-Z])$", re.I)
 
 # Sub-keys are TWO-SPACE-INDENTED bullets under their issue. Anchored: `^ {2}- key:`.
 SUBKEY = re.compile(r"^ {2}- +(depends-on|resolves-upstream)\s*:\s*(?P<val>.*)$", re.I)
@@ -142,12 +154,23 @@ def _fenced_spans(lines: list[str]) -> set[int]:
     return inside
 
 
+# A GFM cell separator is an UNESCAPED pipe. `\|` inside a cell is a literal pipe and
+# must not split it — a naive `.split("|")` shifts every later cell in the row left by
+# one, which silently misreads the columns rather than failing (plan-048 Issue 1.1).
+_CELL_SPLIT = re.compile(r"(?<!\\)\|")
+
+
+def _split_row(inner: str) -> list[str]:
+    """Split one table row's interior into cells, honouring GFM-escaped pipes."""
+    return [c.strip().replace("\\|", "|") for c in _CELL_SPLIT.split(inner)]
+
+
 def _table_rows(lines: list[str]) -> list[list[str]]:
     rows = []
     for ln in lines:
         s = ln.strip()
         if s.startswith("|") and s.endswith("|"):
-            rows.append([c.strip() for c in s[1:-1].split("|")])
+            rows.append(_split_row(s[1:-1]))
     return rows
 
 
@@ -170,6 +193,16 @@ def extract(path: Path) -> dict:
 
     def bad(i: int, reason: str, raw: str) -> None:
         unparsed.append({"line": i + 1, "reason": reason, "raw": raw[:200]})
+
+    # Every construct the READING grammar recovered from a non-canonical form, with the
+    # before/after pair. This is what makes a recovery AUDITABLE (plan-048 Issue 1.4b /
+    # SC1b): a recovered edge that nobody can inspect is indistinguishable from an
+    # invented one.
+    recovered: list[dict] = []
+
+    def rec(i: int, cls: str, before: str, after: str) -> None:
+        recovered.append({"line": i + 1, "class": cls,
+                          "before": before[:200], "after": after[:200]})
 
     # --- header fields -----------------------------------------------------------------
     def field(name: str) -> str | None:
@@ -213,6 +246,9 @@ def extract(path: Path) -> dict:
                     bad(i, "issue bullet outside any epic", raw)
                     continue
                 iid = f'{m.group("id")}.{m.group("sub")}'
+                if m.group("paren"):
+                    rec(i, "title-parenthetical",
+                        f'Issue {iid}{m.group("paren").strip()}', f"Issue {iid}")
                 cur_issue = {"id": iid, "lettered": not m.group("id").isdigit(),
                              "title": m.group("rest").strip(),
                              "epic": cur_epic["num"], "line": i + 1,
@@ -221,27 +257,56 @@ def extract(path: Path) -> dict:
                 cur_epic["issue_ids"].append(cur_issue["id"])
                 continue
 
+            def handle_subkey(key: str, val: str, col0: bool) -> None:
+                """One implementation for both the canonical two-space form and the
+                recovered column-0 form, so the two can never diverge."""
+                if key == "depends-on":
+                    parts = [q.strip().strip("`").strip("*") for q in val.split(",")
+                             if q.strip()]
+                    # ALL-OR-NOTHING (plan-048 Issue 1.4a). If ANY referent is
+                    # unrecoverable, materialize NO edge from this declaration. Recovering
+                    # the readable half of an ambiguous list produces a half-complete edge
+                    # list, which is strictly worse than recovering none: a missing edge is
+                    # visible in `unparsed[]`, whereas a partial one looks complete and
+                    # silently reorders execution.
+                    bad_refs = [q for q in parts if not ISSUE_ID.match(q)]
+                    if bad_refs:
+                        for q in bad_refs:
+                            bad(i, f"depends-on referent {q!r} is not an issue id "
+                                   "(a prose tail is forbidden — REQ-DATA-019); the whole "
+                                   "declaration is refused, not partially recovered", raw)
+                        return
+                    if col0:
+                        rec(i, "col0-subkey", raw.strip(), f"  - depends-on: {val}")
+                    for q in parts:
+                        cur_issue["depends_on"].append(q)
+                        edges.append({"from": cur_issue["id"], "to": q,
+                                      "kind": "depends-on", "line": i + 1})
+                else:
+                    if col0:
+                        rec(i, "col0-subkey", raw.strip(), f"  - resolves-upstream: {val}")
+                    for num in UPSTREAM_ROW.findall(val):
+                        d = re.search(r"\((\w+)\)", val)
+                        cur_issue["resolves_upstream"].append(
+                            {"issue": f"#{num}", "disposition": d.group(1) if d else None})
+
             m = SUBKEY.match(ln)
             if m:
                 if cur_issue is None:
                     bad(i, "sub-key bullet with no owning issue", raw)
                     continue
-                key, val = m.group(1).lower(), m.group("val").strip()
-                if key == "depends-on":
-                    parts = [p.strip() for p in val.split(",") if p.strip()]
-                    for p in parts:
-                        if not ISSUE_ID.match(p):
-                            bad(i, f"depends-on referent {p!r} is not an issue id "
-                                   "(a prose tail is forbidden — REQ-DATA-019)", raw)
-                            continue
-                        cur_issue["depends_on"].append(p)
-                        edges.append({"from": cur_issue["id"], "to": p, "kind": "depends-on",
-                                      "line": i + 1})
-                else:
-                    for num in UPSTREAM_ROW.findall(val):
-                        d = re.search(r"\((\w+)\)", val)
-                        cur_issue["resolves_upstream"].append(
-                            {"issue": f"#{num}", "disposition": d.group(1) if d else None})
+                handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=False)
+                continue
+
+            # RECOVERED (plan-048 Issue 1.3): a sub-key written at column 0 instead of
+            # two-space-indented. It attaches to the immediately preceding issue bullet —
+            # no other referent is possible — so the form is unambiguous.
+            m = COL0_SUBKEY.match(ln)
+            if m:
+                if cur_issue is None:
+                    bad(i, "sub-key bullet with no owning issue", raw)
+                    continue
+                handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=True)
                 continue
 
             # Anything else at column 0 that looks like a list item in ## Epics.
@@ -316,18 +381,59 @@ def extract(path: Path) -> dict:
                         cur_gate["test_kind"] = classify_test(val, fenced=False)
                 elif key == "blocks":
                     cur_gate["blocks_raw"] = val.strip()
+                    # Resolve every referent FIRST, then commit — all-or-nothing
+                    # (plan-048 Issue 1.4a). A `Blocks:` list with one unreadable referent
+                    # is refused whole: `Blocks: Epics 2, 3, 4` recovers `epic:2` from the
+                    # prefixed token but `3` and `4` are bare numbers whose epic-ness is an
+                    # INFERENCE from the neighbouring token, not a property of the token.
+                    # Committing the first and dropping the rest would leave a gate blocking
+                    # one epic instead of three — a half-complete edge list that reads as
+                    # complete.
+                    resolved: list[dict] = []
+                    refused: list[str] = []
+                    # Recoveries are STAGED, not logged as they are found. A `Blocks:` value
+                    # is refused WHOLE, so logging a per-token recovery before the whole
+                    # value is known would claim a recovery that never materialized — the
+                    # half-complete hazard, relocated into the audit log. Measured: 6 of 43
+                    # staged recoveries sat inside values that were ultimately refused.
+                    staged: list[tuple[str, str, str]] = []
                     for tok in [p.strip() for p in val.split(",") if p.strip()]:
-                        t = tok.strip("`").strip()
+                        t = tok.strip("`").strip().strip("*").strip()
                         if ISSUE_ID.match(t):
-                            cur_gate["blocks"].append({"kind": "issue", "ref": t})
-                        elif EPIC_REF.match(t):
-                            cur_gate["blocks"].append(
-                                {"kind": "epic", "ref": EPIC_REF.match(t).group(1)})
-                        elif t.lower() == RECONCILE_SENTINEL:
-                            cur_gate["blocks"].append({"kind": "sentinel", "ref": t.lower()})
-                        else:
+                            resolved.append({"kind": "issue", "ref": t})
+                            continue
+                        if EPIC_REF.match(t):
+                            resolved.append({"kind": "epic",
+                                             "ref": EPIC_REF.match(t).group(1)})
+                            continue
+                        if t.lower() == RECONCILE_SENTINEL:
+                            resolved.append({"kind": "sentinel", "ref": t.lower()})
+                            continue
+                        # RECOVERED class A: an `Issue`/`Issues` noise-word prefix.
+                        pm = _ISSUE_PREFIX.match(t)
+                        if pm and ISSUE_ID.match(pm.group("rest").strip()):
+                            ref = pm.group("rest").strip()
+                            staged.append(("blocks-issue-prefix", t, ref))
+                            resolved.append({"kind": "issue", "ref": ref})
+                            continue
+                        # RECOVERED class B: `Epic N` / `Epics N` -> `epic:N`.
+                        em = _EPIC_PREFIX.match(t)
+                        if em:
+                            ref = em.group("rest").strip()
+                            staged.append(("blocks-epic-ref", t, f"epic:{ref}"))
+                            resolved.append({"kind": "epic", "ref": ref})
+                            continue
+                        refused.append(t)
+                    if refused:
+                        for t in refused:
                             bad(i, f"Blocks referent {t!r} is outside the REQ-DATA-019 "
-                                   "alphabet (issue-id | epic:<N> | 'reconcile step')", raw)
+                                   "alphabet (issue-id | epic:<N> | 'reconcile step'); the "
+                                   "whole Blocks value is refused, not partially recovered",
+                                raw)
+                    else:
+                        cur_gate["blocks"].extend(resolved)
+                        for cls_, b_, a_ in staged:
+                            rec(i, cls_, b_, a_)
 
     # --- ## Success Criteria / ## Risks & Mitigations -----------------------------------
     def table_of(section: str) -> list[list[str]]:
@@ -403,8 +509,12 @@ def extract(path: Path) -> dict:
         "file_refs": sorted({f"{a}:{b}" for a, b in FILE_LINE.findall(text)}),
         "counts": {"epics": len(epics), "issues": len(issues), "edges": len(edges),
                    "gates": len(gates), "criteria": len(criteria), "risks": len(risks),
-                   "upstream": len(upstream), "unparsed": len(unparsed)},
+                   "upstream": len(upstream), "unparsed": len(unparsed),
+                   "recovered": len(recovered)},
         "unparsed": unparsed,
+        # Every non-canonical construct the READING grammar normalized, before/after.
+        # Emitted so a recovery can be AUDITED rather than trusted (SC1b).
+        "recovered": recovered,
     }
 
 
@@ -413,7 +523,10 @@ def main() -> int:
     ap.add_argument("paths", nargs="+", type=Path)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--strict", action="store_true",
-                    help="Exit 1 if any input produced an `unparsed` entry.")
+                    help="Exit 2 (INCONCLUSIVE) if any input produced an `unparsed` entry. "
+                         "NOT 1 \u2014 see REQ-DATA-043: an unparsed construct means this "
+                         "instrument could not read the plan, which is not the same claim as "
+                         "the plan being wrong.")
     a = ap.parse_args()
     out = []
     for p in a.paths:
@@ -435,8 +548,21 @@ def main() -> int:
                   f"{c['unparsed']} unparsed")
             for u in d["unparsed"]:
                 print(f"    L{u['line']}: {u['reason']}")
-    if a.strict and any(d.get("counts", {}).get("unparsed") for d in out):
-        return 1
+    if a.strict:
+        # REQ-DATA-043: an unparsed construct means the extractor DID NOT SEE part of the
+        # plan, so every downstream conclusion is drawn from a knowably incomplete DAG.
+        # Exit 2 = INCONCLUSIVE ("this instrument could not read the plan"), which is a
+        # different claim from exit 1 = FAIL ("the plan is wrong"). A caller that collapses
+        # the two has not implemented this requirement.
+        blocked = [d for d in out if d.get("counts", {}).get("unparsed")]
+        if blocked:
+            for d in blocked:
+                name = Path(d["path"]).parent.name
+                print(f"INCONCLUSIVE: {name} has {d['counts']['unparsed']} unparsed "
+                      f"construct(s); the extracted DAG is incomplete.", file=sys.stderr)
+                for u in d["unparsed"]:
+                    print(f"    L{u['line']}: {u['reason']}", file=sys.stderr)
+            return 2
     return 0
 
 

@@ -263,6 +263,19 @@ def main() -> int:
     if a.strict:
         scope = [r for r in res["results"]
                  if (a.plan in r["plan"] if a.plan else True) and r["joinable"]]
+        # REQ-DATA-043: gate on `unparsed[]` BEFORE judging fidelity. A plan the extractor
+        # could not fully read yields a knowably incomplete `plan_edges` set, so a
+        # "dropped edge" verdict against it is unfounded and a "clean" verdict is worse —
+        # it is FALSE-CLEAN, manufactured by the parser's blind spot rather than measured.
+        # INCONCLUSIVE (2) is the honest verdict; FAIL (1) is reserved for a readable plan
+        # whose poured DAG genuinely diverges.
+        unreadable = [r for r in scope if r.get("extractor_unparsed")]
+        if unreadable:
+            for r in unreadable:
+                print(f"INCONCLUSIVE: {r['plan']} has {r['extractor_unparsed']} unparsed "
+                      f"construct(s); its declared DAG is incomplete, so pour fidelity "
+                      f"cannot be judged.", file=sys.stderr)
+            return 2
         return 1 if any(not r["clean"] for r in scope) else 0
     return 0
 
