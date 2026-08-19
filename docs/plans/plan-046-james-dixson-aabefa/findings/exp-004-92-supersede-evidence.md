@@ -129,10 +129,19 @@ $ find ~/workspace/bookpipe -maxdepth 3 -name AGENTS.md
 
 ## 5. The residue — three carve-outs
 
-1. **On-demand / non-destructive export projection.** `emit_conformant_copy` is library-only: no verb, no caller, **no test**. #140 is explicitly in-place. **NOT covered.**
+> **Canonical names (normalized by plan-046 Issue 5.5).** This section originally named the
+> carve-outs in prose that varied from the names used in `plan.md` and `upstream-triage.md`, so
+> SC9's cross-site check could not discharge. The three canonical names are
+> **projection delivery mode**, **conformance gate for yf-research and yf-incubator**, and
+> **consumer round-trip fidelity**; each is added in brackets below beside this finding's original
+> wording. The original wording is **kept**, not overwritten — a finding is a record of what the
+> investigation said, and silently restating it to match a later criterion would falsify the
+> record rather than reconcile it.
+
+1. **On-demand / non-destructive export projection** [canonical: **projection delivery mode**]**.** `emit_conformant_copy` is library-only: no verb, no caller, **no test**. #140 is explicitly in-place. **NOT covered.**
 2. **Nested `index.md` trees.** Covered by #140 as in-place enforcement — and #140 is a strictly better-specified take. **Covered on content, not delivery mode.**
-3. **The gate, for yf-research and yf-incubator.** Shipped for yf-plan only. **NOT covered by #140 or #141.**
-4. **Extension-key round-trip fidelity.** **Materially improved, not resolved.** REQ-OKF-070 merge-and-preserve is implemented and tested (`31 passed`) — but #92's claim was round-trip *through a consumer* (`Summary.md:160`: *"producer→consumer→producer round-trip of yf-\* keys through any OKF tool… `[insufficient evidence]`"*). We demonstrate producer→producer only. **Still unverified in the sense #92 meant.**
+3. **The gate, for yf-research and yf-incubator** [canonical: **conformance gate for yf-research and yf-incubator**]**.** Shipped for yf-plan only. **NOT covered by #140 or #141.**
+4. **Extension-key round-trip fidelity** [canonical: **consumer round-trip fidelity**]**.** **Materially improved, not resolved.** REQ-OKF-070 merge-and-preserve is implemented and tested (`31 passed`) — but #92's claim was round-trip *through a consumer* (`Summary.md:160`: *"producer→consumer→producer round-trip of yf-\* keys through any OKF tool… `[insufficient evidence]`"*). We demonstrate producer→producer only. **Still unverified in the sense #92 meant.**
 
 ## 6. #118 — NARROWER than the prior suggested, but with two unnamed omissions
 
@@ -165,7 +174,7 @@ The skill-dir File Layout block in the same file (`README.md:106-138`) is materi
 2. **The deferral's own rationale is partly falsified on the record** — by a commit nine hours older than it, and by four verified non-Google adopters. The close comment must say so, since #92's Why-deferred section is what a future reader will trust.
 3. **Trigger (b)'s adopter half has fired.** The conjunction has not, so the letter holds — but the stated rationale is now false.
 4. **Trigger (c) needs an operator ruling.**
-5. **A new, unfiled gap surfaced:** yf-research and yf-incubator have no runtime conformance gate, and yf-research's SPEC states a verification nothing executes (#165 class).
+5. **A new, unfiled gap surfaced** [canonical: **conformance gate for yf-research and yf-incubator**]**:** yf-research and yf-incubator have no runtime conformance gate, and yf-research's SPEC states a verification nothing executes (#165 class).
 
 ## Recommendations
 

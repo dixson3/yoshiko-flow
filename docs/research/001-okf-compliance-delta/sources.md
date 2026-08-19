@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-RESEARCH
+id: 001-okf-compliance-delta
+superseded_by: plan-046-james-dixson-aabefa — OKF-BASELINE.md reconciled from the OKF v0.1 facts this project distilled to upstream OKF v0.2, quoted directly from the vendored spec
+---
+
 # Sources — OKF compliance-delta
 
 Every source id used in `Summary.md` resolves to a section below. Credibility is shown as

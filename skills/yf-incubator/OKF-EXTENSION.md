@@ -134,7 +134,7 @@ and is out of the per-bundle OKF model — it is not a bundle-root `index.md` an
 
 - `skills/yf-okf/SPEC.md` — REQ-OKF-001/002/003, 010, 020/021, 030/031, 050, 070, MIG-001,
   FAM-001..003.
-- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.1) and
+- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.2) and
   `skills/yf-okf/spec/OKF-YF-EXTENSIONS.md` (the yf layer this member composes on).
 - `skills/yf-incubator/SKILL.md` (the verbatim 7-key frontmatter + body-section order) and
   `skills/yf-incubator/scripts/incubator-index.py` (`state_file`, single-file vs dir-form,

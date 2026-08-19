@@ -1,4 +1,26 @@
+---
+type: Research Report
+okf_spec: OKF-RESEARCH
+id: 001-okf-compliance-delta
+idx: '001'
+topic: OKF (Open Knowledge Format) compliance-delta for yf-plan / yf-research / yf-incubator artifacts
+created: '2026-07-17'
+superseded_by: plan-046-james-dixson-aabefa — OKF-BASELINE.md reconciled from the OKF v0.1 facts this project distilled to upstream OKF v0.2, quoted directly from the vendored spec
+---
+
 # OKF Compliance-Delta for yf-plan / yf-research / yf-incubator
+
+> **SUPERSEDED (plan-046, 2026-08-18).** This project distilled OKF **v0.1**. Upstream shipped
+> **v0.2**, which §13 states *"supersedes OKF v0.1"*, and `skills/yf-okf/spec/OKF-BASELINE.md` has been
+> reconciled to v0.2 against a verbatim vendored copy of the upstream spec. **Read this project as a
+> record of v0.1 and of how the baseline was first derived — not as a current statement of what OKF
+> requires.** Where a claim here is unchanged in v0.2 the baseline still cites it; where v0.2 changed
+> a fact, the baseline cites v0.2 directly and marks the v0.1 finding wrong-after. The measured
+> v0.1↔v0.2 delta is `docs/plans/plan-046-james-dixson-aabefa/findings/exec-002-v01-verbatim-delta.md`.
+>
+> One claim here is now **measurably false** and is corrected rather than merely aged: *"No non-Google
+> production adopter is confirmed."* plan-046 exp-004 verified **four** non-Google repositories
+> carrying literal OKF bundles, two of them at v0.2.
 
 **Research project:** 001-okf-compliance-delta · **Phase:** synthesize · **Date:** 2026-07-17
 

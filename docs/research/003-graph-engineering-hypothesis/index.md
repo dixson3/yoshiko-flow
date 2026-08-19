@@ -13,3 +13,5 @@ okf_version: '0.1'
 - [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team critique: 17 ranked items incl. one verifiably false load-bearing claim (C-2), inconsistent consensus bar, systemic credibility-scoring floor on vendor docs; verdict refinable
 - [sources.md](sources.md) - [package] Rendered source register: all 90 sources.json entries as anchored headings (PT/FW/YF/CE), the citation target for all 294 Summary.md links
 - [diagrams/yf-construct-vs-execute.png](diagrams/yf-construct-vs-execute.png) - [package] Figure 1: the three layers (construction / artifact / execution) with the 6 ranked refactoring opportunities attached to their evidencing layer; d2 source beside it
+- [plan.yaml](plan.yaml)
+- [sources.json](sources.json)

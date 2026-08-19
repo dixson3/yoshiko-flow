@@ -8,7 +8,7 @@ tags: []
 
 Repo-agnostic engine that **constructs, manages, and conformance-checks** the artifact folders
 ("bundles") the yf artifact-producing skills emit (`yf-plan`, `yf-research`, `yf-incubator`),
-making them **compatible with** the Open Knowledge Format (OKF v0.1). `yf-okf` is also the
+making them **compatible with** the Open Knowledge Format (OKF v0.2). `yf-okf` is also the
 **owner of the OKF-\* spec family** — the versioned ruleset describing how each kind of yf
 artifact is structured and annotated.
 
@@ -81,6 +81,6 @@ skills/yf-okf/
 ├── scripts/
 │   └── okf.py                  # vendored engine (Issue 1.6 registers the sync); canonical: _shared/okf.py
 └── spec/
-    ├── OKF-BASELINE.md         # upstream OKF v0.1 rules (pinned okf_version: 0.1)
+    ├── OKF-BASELINE.md         # upstream OKF v0.2 rules (pinned okf_version: 0.2)
     └── OKF-YF-EXTENSIONS.md    # the yoshiko-flow extension layer (reserves OKF-SPECIFICATION)
 ```

@@ -17,3 +17,4 @@ okf_version: '0.1'
 - [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team: 9 must-fix (2 repo-count errors, cost unevidenced, single-cluster flags absent at point of use, 1 uncited claim, blind not attested end-to-end)
 - [diagrams/defect-class-taxonomy.png](diagrams/defect-class-taxonomy.png) - [package] Diagram: 16 ranked defect classes + 2 non-defect rows mapped onto owning skill surfaces (source: [diagrams/defect-class-taxonomy.d2](diagrams/defect-class-taxonomy.d2))
 - [diagrams/evidence-pipeline.png](diagrams/evidence-pipeline.png) - [package] Diagram: evidence pipeline — 4 clusters to triangulation to synthesis, with the fifth cluster's out-of-band path (source: [diagrams/evidence-pipeline.d2](diagrams/evidence-pipeline.d2))
+- [plan.yaml](plan.yaml)

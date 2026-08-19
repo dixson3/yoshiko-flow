@@ -1,0 +1,781 @@
+{
+ "with_index": [
+  {
+   "bundle": "docs/plans/plan-031-james-dixson-62a375",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 3,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "findings/",
+     "target": "findings/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-032-james-dixson-6cb87b",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 4,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "references/",
+     "target": "references/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "findings/",
+     "target": "findings/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-033-james-dixson-46aca2",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 1,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-034-james-dixson-ac6633",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 4,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "references/",
+     "target": "references/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "findings/",
+     "target": "findings/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-035-james-dixson-74d7ae",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-036-james-dixson-461061",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 4,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "references/",
+     "target": "references/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "findings/",
+     "target": "findings/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-037-james-dixson-cab694",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 4,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "REDEPLOY-HANDOFF.md",
+     "target": "REDEPLOY-HANDOFF.md",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "decisions/",
+     "target": "decisions/",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "scripts/",
+     "target": "scripts/",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-038-james-dixson-1ce25a",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-039-james-dixson-150f79",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 0,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-040-james-dixson-1cabe4",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-041-james-dixson-a9d837",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-042-james-dixson-98631b",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-043-james-dixson-a8afe8",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-044-james-dixson-f6fdbd",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-045-james-dixson-9899e1",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 2,
+    "missing": 1,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "missing",
+     "entry": "upstream-triage.md",
+     "target": "upstream-triage.md",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-046-james-dixson-aabefa",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 3,
+    "missing": 0,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "ghost",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "assets/",
+     "target": "assets/",
+     "detail": "entry target does not resolve"
+    },
+    {
+     "kind": "ghost",
+     "entry": "plan-retrospective.md",
+     "target": "plan-retrospective.md",
+     "detail": "entry target does not resolve"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/research/002-harness-global-rule-minimization",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 0,
+    "missing": 2,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "missing",
+     "entry": "artifacts/",
+     "target": "artifacts/",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/research/003-graph-engineering-hypothesis",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 0,
+    "missing": 2,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "missing",
+     "entry": "artifacts/",
+     "target": "artifacts/",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  },
+  {
+   "bundle": "docs/research/004-plan-process-defect-mining",
+   "verdict": "drift",
+   "exit": 1,
+   "counts": {
+    "ghost": 0,
+    "missing": 3,
+    "empty-dir": 0
+   },
+   "findings": [
+    {
+     "kind": "missing",
+     "entry": "artifacts/",
+     "target": "artifacts/",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "diagrams/",
+     "target": "diagrams/",
+     "detail": "present in the bundle but absent from index.md"
+    },
+    {
+     "kind": "missing",
+     "entry": "scripts/",
+     "target": "scripts/",
+     "detail": "present in the bundle but absent from index.md"
+    }
+   ]
+  }
+ ],
+ "no_index": [
+  {
+   "bundle": "docs/plans/plan-001-james-dixson-c88e7a",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-002-james-dixson-b8b610",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-003-james-dixson-adacc7",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-004-james-dixson-56f494",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-005-james-dixson-44b200",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-006-james-dixson-bf6e21",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-007-james-dixson-84da0d",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-008-james-dixson-382e8a",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-009-james-dixson-996e44",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-010-james-dixson-73eebd",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-011-james-dixson-dd21e3",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-012-james-dixson-a99822",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-013-james-dixson-0af2f8",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-014-james-dixson-916de2",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-015-james-dixson-cb2ef4",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-016-james-dixson-041b2f",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-017-james-dixson-9ac898",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-018-james-dixson-1d39eb",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-019-james-dixson-eea8e7",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-020-james-dixson-81785d",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-021-james-dixson-bb3558",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-022-james-dixson-14b3dd",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-023-james-dixson-b618bb",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-024-james-dixson-76cee9",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-025-james-dixson-0183e8",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-026-james-dixson-6e0e2f",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-027-james-dixson-a59656",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-028-james-dixson-a9738b",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-029-james-dixson-75fd34",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/plans/plan-030-james-dixson-65526e",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  },
+  {
+   "bundle": "docs/research/001-okf-compliance-delta",
+   "verdict": "no-index",
+   "exit": 2,
+   "counts": {},
+   "findings": []
+  }
+ ]
+}

@@ -623,6 +623,7 @@ _INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
     ("plan.md", "The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes."),
     ("context.md", "Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes."),
     ("log.md", "Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log)."),
+    ("upstream-triage.md", "Disposition of each candidate upstream issue (include / exclude / partial / supersede) with the reasoning. The triage record behind plan.md's Upstream Issues table."),
     ("references/", "Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses."),
     ("reviews/", "Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved."),
     ("findings/", "Investigation experiment results (if any)."),
@@ -737,6 +738,62 @@ def append_retrospective(plan_dir: Path, entry: dict, *, dry_run: bool = False) 
             "created": created, "index_updated": index_updated}
 
 
+def _index_member_present(plan_dir: Path, member: str) -> bool:
+    """Should ``member`` be emitted into the reserved ``index.md`` (REQ-PORT-001)?
+
+    An index entry is an ASSERTION that the target exists; emitting one for an
+    absent path makes the listing state something false. plan-046 measured this
+    as **37 broken links across 19 root indexes**, 36 of them dead directory
+    links from unconditional emission.
+
+    Two cases, both keyed on what survives a fresh clone:
+
+    * **file** — must exist. `plan-retrospective.md` is presence-optional
+      (REQ-PORT-ACT-RETROSPECTIVE) and `upstream-triage.md` only exists once
+      triage has run; each is listed when it appears, by
+      :func:`_ensure_index_lists_member`.
+    * **directory** — must exist AND be non-empty. **git does not track empty
+      directories**, so a scaffolded-but-empty `diagrams/`/`assets/` is absent
+      from every clone and the dead link returns. This is exactly why the fix is
+      "emit only what exists" rather than "scaffold the missing directories" —
+      the latter also generates the `empty-dir` drift `reindex` reports
+      (SPEC REQ-OKF-011).
+    """
+    target = plan_dir / member.rstrip("/")
+    if member.endswith("/"):
+        try:
+            return target.is_dir() and any(target.iterdir())
+        except OSError:
+            return False
+    return target.is_file()
+
+
+def _ensure_index_lists_member(plan_dir: Path, member: str) -> bool:
+    """Add ``member``'s listing bullet to ``index.md`` if absent. Idempotent.
+
+    The companion to :func:`_index_member_present`: the scaffold emits only what
+    exists at scaffold time, so a member created later must be listed when it is
+    created. Returns True if the index was modified.
+    """
+    index = plan_dir / "index.md"
+    if not index.exists() or not _index_member_present(plan_dir, member):
+        return False
+    text = index.read_text(encoding="utf-8")
+    if f"]({member})" in text:
+        return False
+    desc = next((d for m, d in _INDEX_MEMBERS if m == member), "")
+    bullet = f"- [{member}]({member})" + (f" - {desc}" if desc else "") + "\n"
+    lines = text.splitlines(keepends=True)
+    last = max((i for i, ln in enumerate(lines) if ln.startswith("- [")), default=None)
+    if last is None:
+        text = text.rstrip("\n") + "\n\n" + bullet
+    else:
+        lines.insert(last + 1, bullet)
+        text = "".join(lines)
+    index.write_text(text, encoding="utf-8")
+    return True
+
+
 def _ensure_index_lists_retrospective(plan_dir: Path) -> bool:
     """Add the retrospective to `index.md`'s listing if absent (pass-1 C6).
 
@@ -780,6 +837,8 @@ def seed_index(plan_dir: Path, plan_id: str, objective: str) -> Path:
         "alone, without the drafting conversation.\n\n"
     )
     for member, desc in _INDEX_MEMBERS:
+        if not _index_member_present(plan_dir, member):
+            continue
         okf.add_index_entry(plan_dir, member, desc)
     return path
 
@@ -868,12 +927,17 @@ def seed_portability_scaffolding(plan_dir: Path, plan_id: str, objective: str,
     non-fatal (see _detect_tools). Issue 3.3: the orientation surface is now the
     OKF-reserved `index.md` (not `README.md`).
     """
-    index = seed_index(plan_dir, plan_id, objective)
+    # ORDER MATTERS (plan-046 Issue 4.2a): the index lists only members that
+    # EXIST when it is written (REQ-PORT-001), so every member the scaffold
+    # itself creates must be created FIRST. `context.md` was previously written
+    # after `seed_index`, so the fix that stopped emitting ghost entries would
+    # otherwise have dropped `context.md` from every new bundle.
     context = seed_context_md(plan_dir, author)
     references = plan_dir / "references"
     reviews = plan_dir / "reviews"
     references.mkdir(parents=True, exist_ok=True)
     reviews.mkdir(parents=True, exist_ok=True)
+    index = seed_index(plan_dir, plan_id, objective)
     return {
         "index_md": str(index),
         "context_md": str(context),
@@ -1006,6 +1070,11 @@ def seed_upstream_triage(plan_dir: Path, objective: str,
     path.write_text("\n".join(lines))
     # OKF frontmatter (Issue 3.3): upstream-triage.md is typed Reference (§1a).
     _stamp_okf_type(plan_dir, path)
+    # List it the moment it exists (REQ-PORT-001, plan-046 Issue 4.2a). The scaffold
+    # emits only members present AT SCAFFOLD TIME, and triage runs later — measured
+    # as `upstream-triage.md` unlisted in 8 of 19 root indexes, one systematic
+    # producer bug rather than 8 independent oversights.
+    _ensure_index_lists_member(plan_dir, "upstream-triage.md")
     return path, reference_paths
 
 

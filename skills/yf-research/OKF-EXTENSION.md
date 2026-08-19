@@ -148,7 +148,7 @@ gate must confirm:
 ## 7. References
 
 - `skills/yf-okf/SPEC.md` — REQ-OKF-001/002/003, 010, 020/021, 030/031, 060, FAM-001..003.
-- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.1) and
+- `skills/yf-okf/spec/OKF-BASELINE.md` (upstream OKF v0.2) and
   `skills/yf-okf/spec/OKF-YF-EXTENSIONS.md` (the yf layer this member composes on).
 - `skills/yf-research/scripts/index_manager.py` (`_index.md` table shape) and `link_normalizer.py`.
 - `docs/research/001-okf-compliance-delta/` — a real OKF-RESEARCH-candidate bundle

@@ -45,7 +45,7 @@ import yaml
 # yf-drift-check edge. The engine never parses those .md files at runtime.
 # ---------------------------------------------------------------------------
 
-okf_version = "0.1"  # pinned OKF baseline version (REQ-OKF-031 bundle-root key)
+okf_version = "0.2"  # pinned OKF baseline version (SPEC REQ-OKF-FAM-005; root-only key REQ-OKF-032)
 
 #: Reserved filenames at any level of a bundle (OKF-BASELINE §3/§4; REQ-OKF-001/002).
 #: They carry NO ``type`` and NO ``okf_spec`` (REQ-OKF-031).
@@ -300,13 +300,19 @@ def scaffold_bundle(
     entry_meta: Optional[dict] = None,
     title: Optional[str] = None,
     reserved: bool = True,
+    root: bool = True,
 ) -> Path:
     """Create an OKF-compatible dir-form bundle skeleton at ``directory``.
 
-    Writes reserved ``index.md`` (with a bundle-root ``okf_version``) and ``log.md``
+    Writes reserved ``index.md`` and ``log.md``
     (REQ-OKF-001/002) when ``reserved`` is set, mkdirs any ``subdirs``, and — if
     ``entry`` is given — a typed concept document carrying ``type``+``okf_spec``
     frontmatter (REQ-OKF-003/030). Returns the bundle directory Path.
+
+    ``root`` declares whether ``directory`` is a bundle **root** (REQ-OKF-004).
+    Root-ness is a property of the invocation, not of the filesystem, so it is
+    passed rather than inferred. Only a root ``index.md`` may carry the
+    ``okf_version`` key (REQ-OKF-032, OKF v0.2 §8).
     """
     d = Path(directory)
     d.mkdir(parents=True, exist_ok=True)
@@ -317,7 +323,8 @@ def scaffold_bundle(
         idx = d / "index.md"
         if not idx.exists():
             name = title or d.name
-            idx.write_text(_dump_frontmatter({"okf_version": okf_version}) + f"\n# {name}\n\n")
+            head = _dump_frontmatter({"okf_version": okf_version}) if root else ""
+            idx.write_text(head + f"\n# {name}\n\n")
         log = d / "log.md"
         if not log.exists():
             log.write_text("# Log\n\n")
@@ -337,30 +344,36 @@ def scaffold_bundle(
 # --- reserved index.md ------------------------------------------------------
 
 
-def _read_index(bundle: Path) -> tuple[dict, str]:
+def _read_index(bundle: Path, *, root: bool = True) -> tuple[dict, str]:
     idx = bundle / "index.md"
     if idx.exists():
         return read_frontmatter(idx)
-    return {"okf_version": okf_version}, f"\n# {bundle.name}\n\n"
+    # REQ-OKF-032: only a bundle-ROOT index.md may carry okf_version (v0.2 §8).
+    return ({"okf_version": okf_version} if root else {}), f"\n# {bundle.name}\n\n"
 
 
-def render_index(bundle: Union[str, Path]) -> str:
+def render_index(bundle: Union[str, Path], *, root: bool = True) -> str:
     """Return the reserved ``index.md`` text for ``bundle`` (progressive-disclosure
     listing: ``#`` heading + ``- [child](path) - description`` bullets). If no
     ``index.md`` exists, a minimal generic one is generated from the bundle's
-    direct ``.md`` children and subdirs (per-skill adapters refine this later)."""
+    direct ``.md`` children and subdirs (per-skill adapters refine this later).
+
+    ``root`` declares whether ``bundle`` is a bundle **root** (REQ-OKF-004).
+    A generated non-root listing carries NO frontmatter: OKF v0.2 §8 permits
+    ``okf_version`` on a bundle-root ``index.md`` only (REQ-OKF-032)."""
     b = Path(bundle)
     idx = b / "index.md"
     if idx.exists():
         return idx.read_text()
-    lines = [_dump_frontmatter({"okf_version": okf_version}), f"\n# {b.name}\n\n"]
+    lines = ([_dump_frontmatter({"okf_version": okf_version})] if root else [])
+    lines.append(f"\n# {b.name}\n\n")
     if b.is_dir():
         for child in sorted(b.iterdir()):
             if child.name in RESERVED_FILES or child.name.startswith("."):
                 continue
             if child.is_dir():
                 lines.append(f"- [{child.name}/]({child.name}/index.md)\n")
-            elif child.suffix == ".md":
+            elif child.is_file():
                 lines.append(f"- [{child.name}]({child.name})\n")
     return "".join(lines)
 
@@ -371,12 +384,13 @@ def add_index_entry(
     desc: str = "",
     *,
     dry_run: bool = False,
+    root: bool = True,
 ) -> str:
     """Append a listing bullet ``- [path](path) - desc`` to the bundle's reserved
     ``index.md``, preserving its ``okf_version`` frontmatter. Idempotent on the
     same ``path``. Returns the new ``index.md`` text."""
     b = Path(bundle)
-    fm, body = _read_index(b)
+    fm, body = _read_index(b, root=root)
     bullet = f"- [{path}]({path})" + (f" - {desc}" if desc else "")
     if bullet.split(" - ")[0] not in body:
         if not body.endswith("\n"):
@@ -813,6 +827,30 @@ def check_conformance(
         rel = str(md.relative_to(target))
         _check_concept_doc(md, rel, eff, findings)
 
+    # Index drift (REQ-OKF-CHK-002) — WARNING level, deliberately.
+    #
+    # `warning`, not `error`, and NOT because a new req could be promoted by the
+    # downstream audit: that promotion filter is a four-element ALLOWLIST, so a
+    # newly allocated req is outside it by construction and there is nothing to
+    # opt out of. The reason is that relying on an allowlist's SILENCE is itself
+    # an implicit guarantee no test asserts — a future edit widening it would
+    # resurrect the risk invisibly. Promotion to error is a separate, later
+    # change, gated on a green corpus.
+    #
+    # Root-scoped (REQ-OKF-004/011): `check` recurses, `reindex` does not.
+    if "index.md" in root_reserved:
+        try:
+            drift = reindex_check(target)
+        except Exception as exc:                 # report-only / crash-safe (REQ-OKF-071)
+            findings.add(str(target / "index.md"), "REQ-OKF-CHK-002", "warning",
+                         f"index drift check failed: {exc}")
+        else:
+            for f in drift.get("findings", []):
+                if f["kind"] not in ("ghost", "missing"):
+                    continue                     # `empty-dir` is a reindex-only signal
+                findings.add(str(target / "index.md"), "REQ-OKF-CHK-002", "warning",
+                             f"index {f['kind']}: {f['target']} — {f['detail']}")
+
     # Non-.md files are excluded (REQ-OKF-060) — no findings emitted for them.
     return findings
 
@@ -921,47 +959,23 @@ def _check_concept_doc(path: Path, rel: str, eff: EffectiveRuleset, findings: Fi
 
 
 # ---------------------------------------------------------------------------
-# Conformant projection + migration (REQ-OKF-MIG-001..003)
+# Migration (REQ-OKF-MIG-001..003)
+#
+# `emit_conformant_copy` — a non-destructive "conformant projection" — was
+# DELETED here by plan-046 Issue 5.2. Measured before removal: zero callers,
+# zero tests, not a CLI verb; spec'd but unreachable since plan-029.
+#
+# Not revived, because exposing it as a verb would mean building the on-demand
+# export projection that #92's revisit triggers do NOT justify: the adopter half
+# of trigger (b) HAS fired (four verified non-Google OKF adopters, two at v0.2)
+# but the DEMAND half has not — no consumer wants a projection. Deleting rather
+# than leaving it in place is the point of risk R7: a spec'd, unreachable
+# function lets a future investigator conclude the projection "exists". The
+# capability is remembered as an upstream follow-on ("projection delivery
+# mode"), so the record survives the removal.
 # ---------------------------------------------------------------------------
 
 
-def emit_conformant_copy(
-    source: Union[str, os.PathLike, Path],
-    *,
-    type: str,
-    okf_spec: Optional[str] = None,
-    meta: Optional[dict] = None,
-    fields: Optional[dict] = None,
-    field_labels: Optional[dict] = None,
-) -> str:
-    """Return a conformant projection of a concept doc as text (non-destructive).
-
-    Adds ``type`` (+ ``okf_spec`` + any ``meta``) to the frontmatter above the
-    first ``## `` (REQ-OKF-010), merge-and-preserving existing keys (REQ-OKF-070).
-    Optional ``fields`` also emits ``**Field:**`` lines from the same model. Does
-    not write anything."""
-    text = _load_text(source)
-    existing, body = read_frontmatter(text)
-    merged = dict(existing)
-    merged[TYPE_KEY] = type
-    if okf_spec:
-        merged[OKF_SPEC_KEY] = okf_spec
-    if meta:
-        for k, v in meta.items():
-            merged[k] = v
-
-    head, tail = _split_at_first_h2(body)
-    parts = [_dump_frontmatter(merged)]
-    if fields:
-        lines = []
-        for k, v in fields.items():
-            label = (field_labels or {}).get(k, k.replace("_", " ").title())
-            lines.append(f"**{label}:** {v}")
-        parts.append("\n" + "\n".join(lines) + "\n")
-    parts.append(body if not fields else (("\n" + head.strip("\n") + "\n") if head.strip() else "") + tail)
-    if fields:
-        return "".join(parts)
-    return _dump_frontmatter(merged) + body
 
 
 @dataclass
@@ -1230,6 +1244,279 @@ def migrate(
 
 
 # ---------------------------------------------------------------------------
+# reindex — root-scoped index generation and drift detection (REQ-OKF-011)
+# ---------------------------------------------------------------------------
+
+#: Generated-region markers. Text OUTSIDE these regions is author prose and is
+#: carried through verbatim by ``reindex --write`` (REQ-OKF-072).
+INDEX_MARKERS: tuple[tuple[str, str], ...] = (
+    ("<!-- intro:start -->", "<!-- intro:end -->"),
+    ("<!-- notes:start -->", "<!-- notes:end -->"),
+)
+
+#: `- [title](target)` or `- [title](target) - description`
+# NOTE: every horizontal-space class here is `[ \t]`, never `\s`. `\s` matches a
+# NEWLINE, so `(?:\s+-\s+(?P<desc>.*))?` let the optional description separator
+# span a line break and swallow the FOLLOWING bullet as the current entry's
+# description — parsing `- [a](a)\n- [b](b)` as ONE entry and silently dropping
+# every alternate entry. Caught by test_reindex_ghost_covers_dead_files_and_dead_dirs.
+_INDEX_ENTRY_RE = re.compile(r"^[ \t]*[-*][ \t]+\[(?P<title>[^\]]*)\]\((?P<target>[^)]+)\)"
+                             r"(?:[ \t]+-[ \t]+(?P<desc>.*?))?[ \t]*$", re.MULTILINE)
+
+# reindex verdicts, mapped to the process exit code (REQ-OKF-011).
+REINDEX_EXIT = {"clean": 0, "drift": 1, "no-index": 2}
+
+
+class MarkerImbalanceError(Exception):
+    """An ``<!-- x:start -->`` with no matching ``<!-- x:end -->`` (REQ-OKF-072).
+
+    HARD ERROR, deliberately. An unbalanced marker leaves the generated region
+    unbounded, so regenerating would discard author prose *unrecoverably* — the
+    one failure in this engine that cannot be reconstructed from the artifact.
+    """
+
+
+def _index_entries(text: str) -> list[tuple[str, str, str]]:
+    """``[(title, target, description)]`` parsed from an index body."""
+    return [(m.group("title"), m.group("target").strip(), (m.group("desc") or "").strip())
+            for m in _INDEX_ENTRY_RE.finditer(text)]
+
+
+def check_markers(text: str) -> None:
+    """Raise :class:`MarkerImbalanceError` on an unbalanced generated-region marker."""
+    for start, end in INDEX_MARKERS:
+        if text.count(start) != text.count(end):
+            raise MarkerImbalanceError(
+                f"unbalanced index marker: {text.count(start)}x {start!r} vs "
+                f"{text.count(end)}x {end!r} — refusing to regenerate, prose would be lost")
+
+
+def _listing_members(bundle: Path) -> list[str]:
+    """Direct children that belong in a root listing: files and non-empty subdirs.
+
+    Reserved files and dot-prefixed entries are excluded (REQ-OKF-001/031).
+    """
+    out: list[str] = []
+    for child in sorted(bundle.iterdir()):
+        if child.name in RESERVED_FILES or child.name.startswith("."):
+            continue
+        if child.is_dir():
+            # An EMPTY directory is not a listing member. git does not track empty
+            # directories, so it is absent from every clone — listing it asserts
+            # something that is false everywhere but the machine that made it.
+            # Producer and checker must agree on this predicate or the producer's
+            # correct output reads as `missing` here.
+            try:
+                if not any(child.iterdir()):
+                    continue
+            except OSError:
+                continue
+            out.append(child.name + "/")
+        elif child.is_file():
+            # ALL direct file children, not only `.md`. OKF v0.2 §8: an index
+            # "enumerates the directory's contents". Research bundles carry
+            # `plan.yaml` / `sources*.json` pipeline sidecars a cold reader needs
+            # listed. Note this is a different axis from REQ-OKF-060, which
+            # excludes non-`.md` from FRONTMATTER conformance — a sidecar is a
+            # listing member without being a concept document.
+            out.append(child.name)
+    return out
+
+
+def _covered_by_listed_children(member: str, listed: set[str]) -> bool:
+    """Is directory ``member`` already represented by listed entries INSIDE it?
+
+    A bare `- [artifacts/](artifacts/)` beside
+    `- [artifacts/critique.md](artifacts/critique.md) - [critique] Red-team: …`
+    adds no information and **dilutes** the property that makes a root index
+    worth having: research root indexes beat nested ones precisely because they
+    enumerate individual files with rich, phase-tagged descriptions (exp-003).
+
+    So a directory is suppressed when its children are listed, and emitted when
+    they are not. Both `reindex_check` (which must not call it `missing`) and
+    `reindex_write` (which must not add it) use this one predicate — if they
+    disagreed, the producer's correct output would read as drift.
+    """
+    if not member.endswith("/"):
+        return False
+    prefix = member                      # e.g. "artifacts/"
+    return any(t.startswith(prefix) and t != prefix for t in listed)
+
+
+def reindex_check(bundle: Union[str, Path]) -> dict:
+    """Report root-index drift for ``bundle`` without mutating anything.
+
+    Verdict is three-way (REQ-OKF-011): ``clean`` / ``drift`` / ``no-index``.
+    ``no-index`` never collapses into either neighbour — a bundle with no
+    ``index.md`` is neither in nor out of agreement with one, and counting it
+    clean would let an index-less bundle pass as green.
+
+    Finding kinds:
+      ``ghost``      an entry whose relative target does not resolve (dead file
+                     OR dead directory — both, since a listing may point at either)
+      ``missing``    a listing member present on disk but absent from the index
+      ``empty-dir``  a listed subdirectory that contains nothing
+    """
+    b = Path(bundle)
+    idx = b / "index.md"
+    result: dict = {"command": "reindex", "mode": "check", "bundle": str(b),
+                    "verdict": "clean", "findings": [], "counts": {}}
+    if not idx.exists():
+        result["verdict"] = "no-index"
+        result["exit"] = REINDEX_EXIT["no-index"]
+        return result
+
+    text = idx.read_text()
+    entries = _index_entries(text)
+    findings: list[dict] = []
+
+    # --- ghost + empty-dir: every entry target must resolve --------------------
+    listed: set[str] = set()
+    for title, target, _desc in entries:
+        if "://" in target or target.startswith("#"):
+            continue  # external / in-page anchor: not a bundle path claim
+        clean = target.split("#", 1)[0].split("?", 1)[0]
+        if not clean:
+            continue
+        listed.add(clean.rstrip("/") + ("/" if clean.endswith("/") else ""))
+        resolved = (b / clean).resolve()
+        if not resolved.exists():
+            findings.append({"kind": "ghost", "entry": title, "target": target,
+                             "detail": "entry target does not resolve"})
+        elif resolved.is_dir() and not any(resolved.iterdir()):
+            findings.append({"kind": "empty-dir", "entry": title, "target": target,
+                             "detail": "listed subdirectory is empty"})
+
+    # --- missing: on disk but not listed --------------------------------------
+    def _norm(x: str) -> str:
+        return x.rstrip("/")
+
+    listed_norm = {_norm(x) for x in listed}
+    # A subdir may legitimately be listed as `sub/`, `sub`, or `sub/index.md`.
+    listed_norm |= {_norm(x[: -len("/index.md")]) for x in listed if x.endswith("/index.md")}
+    raw_listed = {t for _, t, _ in entries}
+    for member in _listing_members(b):
+        if _norm(member) in listed_norm:
+            continue
+        if _covered_by_listed_children(member, raw_listed):
+            continue                     # children already listed with descriptions
+        findings.append({"kind": "missing", "entry": member, "target": member,
+                         "detail": "present in the bundle but absent from index.md"})
+
+    result["findings"] = findings
+    result["counts"] = {k: sum(1 for f in findings if f["kind"] == k)
+                        for k in ("ghost", "missing", "empty-dir")}
+    result["verdict"] = "drift" if findings else "clean"
+    result["exit"] = REINDEX_EXIT[result["verdict"]]
+    return result
+
+
+def discarded_prose(before: str, after: str) -> list[str]:
+    """Non-generated lines present in ``before`` but absent from ``after``.
+
+    WARNING-level by design (REQ-OKF-072): unlike a marker imbalance, a dropped
+    line is recoverable from git, so a warning is proportionate. Listing bullets
+    are excluded — those are the generated content, and their churn is the point.
+    """
+    def _prose(t: str) -> list[str]:
+        return [ln.rstrip() for ln in t.splitlines()
+                if ln.strip() and not _INDEX_ENTRY_RE.match(ln)]
+    kept = set(_prose(after))
+    return [ln for ln in _prose(before) if ln not in kept]
+
+
+def _split_listing(body: str) -> tuple[str, list[str], str]:
+    """Split an index body into ``(head_prose, bullet_lines, tail_prose)``.
+
+    The listing is the contiguous run from the first bullet to the last. Prose
+    before and after it is authored content and is carried through verbatim —
+    which is what makes regeneration safe on a corpus whose indexes were all
+    hand-written and carry no markers.
+    """
+    lines = body.splitlines(keepends=True)
+    idxs = [i for i, ln in enumerate(lines) if _INDEX_ENTRY_RE.match(ln)]
+    if not idxs:
+        return body, [], ""
+    first, last = idxs[0], idxs[-1]
+    return "".join(lines[:first]), lines[first:last + 1], "".join(lines[last + 1:])
+
+
+def reindex_write(bundle: Union[str, Path], *, root: bool = True,
+                  dry_run: bool = False) -> dict:
+    """Regenerate ``bundle``'s root listing, PRESERVING author prose (REQ-OKF-072).
+
+    Rules, in force order:
+
+    * an unbalanced generated-region marker is a HARD ERROR
+      (:class:`MarkerImbalanceError`) — the region is unbounded and prose would
+      be lost unrecoverably;
+    * prose outside the listing run (and outside any marker region) is carried
+      through **verbatim**;
+    * an existing entry that still resolves keeps its title AND its description —
+      descriptions are never regenerated, because nothing can re-derive one;
+    * a ghost entry is DROPPED;
+    * a member on disk but not listed is APPENDED as a bare ``- [name](name)``.
+      **A description is never invented** — emitting a placeholder would write an
+      assertion that a description exists when none does.
+    """
+    b = Path(bundle)
+    idx = b / "index.md"
+    out: dict = {"command": "reindex", "mode": "write", "bundle": str(b),
+                 "verdict": "clean", "changes": [], "warnings": [], "dry_run": dry_run}
+    if not idx.exists():
+        out["verdict"] = "no-index"
+        out["exit"] = REINDEX_EXIT["no-index"]
+        return out
+
+    original = idx.read_text()
+    check_markers(original)                      # hard error before any rewrite
+    fm, body = read_frontmatter(idx)             # preserves okf_version as-is (D-2: no migration)
+    head, bullets, tail = _split_listing(body)
+
+    kept: list[str] = []
+    listed_norm: set[str] = set()
+    for ln in bullets:
+        m = _INDEX_ENTRY_RE.match(ln)
+        target = m.group("target").strip()
+        clean = target.split("#", 1)[0].split("?", 1)[0]
+        if "://" in target or target.startswith("#") or not clean:
+            kept.append(ln)                      # external link: not a bundle claim
+            continue
+        if (b / clean).exists():
+            kept.append(ln)
+            listed_norm.add(clean.rstrip("/"))
+            if clean.endswith("/index.md"):
+                listed_norm.add(clean[: -len("/index.md")].rstrip("/"))
+        else:
+            out["changes"].append({"op": "drop-ghost", "target": target})
+
+    raw_listed = set()
+    for ln in kept:
+        mm = _INDEX_ENTRY_RE.match(ln)
+        if mm:
+            raw_listed.add(mm.group("target").strip())
+    for member in _listing_members(b):
+        if member.rstrip("/") in listed_norm:
+            continue
+        if _covered_by_listed_children(member, raw_listed):
+            continue                     # children already listed with descriptions
+        kept.append(f"- [{member}]({member})\n")
+        out["changes"].append({"op": "add-missing", "target": member})
+
+    new_body = head + "".join(kept) + tail
+    new_text = (_dump_frontmatter(fm) if fm else "") + new_body
+    out["warnings"] = [{"kind": "discarded-prose", "line": ln}
+                       for ln in discarded_prose(original, new_text)]
+    out["text"] = new_text
+    out["changed"] = new_text != original
+    if out["changed"] and not dry_run:
+        idx.write_text(new_text)
+    out["verdict"] = "clean"
+    out["exit"] = 0
+    return out
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -1259,6 +1546,29 @@ def _cmd_migrate(args) -> int:
     return 0
 
 
+def _cmd_reindex(args) -> int:
+    """`reindex` exits 0 clean / 1 drift / 2 no-index (REQ-OKF-011)."""
+    try:
+        res = reindex_write(args.dir, dry_run=args.dry_run) if args.write \
+            else reindex_check(args.dir)
+    except MarkerImbalanceError as exc:
+        res = {"command": "reindex", "bundle": str(args.dir), "verdict": "error",
+               "error": str(exc), "exit": 1}
+        print(json.dumps(res, indent=2) if args.json else f"reindex {args.dir}: ERROR — {exc}")
+        return 1
+    if args.json:
+        print(json.dumps({k: v for k, v in res.items() if k != "text"}, indent=2))
+    else:
+        print(f"reindex {args.dir}: {res['verdict']}")
+        for f in res.get("findings", []):
+            print(f"  [{f['kind']}] {f['target']} — {f['detail']}")
+        for c in res.get("changes", []):
+            print(f"  {c['op']}: {c['target']}")
+        for w in res.get("warnings", []):
+            print(f"  [warning] discarded prose: {w['line']}")
+    return res["exit"]
+
+
 def _cmd_scaffold(args) -> int:
     d = scaffold_bundle(args.dir, spec_member=args.member, subdirs=args.subdir or ())
     if args.json:
@@ -1285,6 +1595,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_mig.add_argument("dir", type=Path)
     p_mig.add_argument("--dry-run", action="store_true", help="emit change plan without writing")
     p_mig.set_defaults(func=_cmd_migrate)
+
+    p_ri = sub.add_parser("reindex", parents=[common],
+                          help="root-scoped index generation + drift report")
+    p_ri.add_argument("dir", type=Path)
+    p_ri.add_argument("--check", action="store_true", help="report drift (default)")
+    p_ri.add_argument("--write", action="store_true", help="regenerate, preserving prose")
+    p_ri.add_argument("--dry-run", action="store_true", help="with --write: do not write")
+    p_ri.set_defaults(func=_cmd_reindex)
 
     p_sc = sub.add_parser("scaffold", parents=[common], help="create an OKF bundle skeleton")
     p_sc.add_argument("dir", type=Path)
