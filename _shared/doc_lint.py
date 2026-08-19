@@ -263,12 +263,175 @@ def _plan_extract():
     return mod
 
 
+# --- the `plan-relations` check kind (REQ-DATA-044, plan-048 Epic 3) -----------------
+#
+# A THIRD MECHANISM, not a variant of the two per-document schema flavours REQ-DATA-024
+# declares. Those read ONE section in isolation. A relational rule reasons ACROSS sections
+# and across tables of the same bundle — `## Epics`, `## Gates`, `## Success Criteria`,
+# `## Upstream Issues` — which no per-document check can do.
+#
+# EVERY RULE HERE IS SEVERITY `W`, and `STATUS_SEVERITY` promotion is DECLARED OFF for this
+# kind (REQ-DATA-044). That is deliberate and stated rather than inherited: if `W -> E`
+# fired at `review`, every future plan would hard-fail R1b unless every non-bookkeeping
+# issue were named by a criterion — a bar plan-048 itself does not clear (it carries four
+# such issues). A rule no in-flight plan can satisfy trains authors to write fake criteria,
+# which is the exact failure R1b exists to prevent.
+
+#: Recognised `Disposition` literals (REQ-DATA-019 as amended by plan-048 D-7).
+DISPOSITIONS = {"include", "exclude", "partial", "supersede", "deferred", "tracker"}
+
+#: An epic may declare itself exempt from R1b with this marker under its heading. The
+#: carve-out is DECLARED, never inferred — an inferred exemption is indistinguishable
+#: from an oversight.
+BOOKKEEPING_MARKER = "<!-- epic-kind: bookkeeping -->"
+
+
+#: `discharged_by` / `resolved_by` arrive as LISTS from the extractor, and their elements
+#: carry prose ("Issue 5.3", "1.4 (lint half)"). One accessor so every rule reads them the
+#: same way — two readers of one field is how R3's own defect class starts.
+def _refs(value) -> list[str]:
+    return re.findall(r"[0-9A-Z]+\.[0-9]+[a-z]?", _joined(value))
+
+
+def _joined(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(v) for v in value)
+    return str(value)
+
+
+def _bookkeeping_epics(path: Path) -> set[str]:
+    """Epic numbers whose heading is followed by the bookkeeping marker."""
+    out: set[str] = set()
+    lines = path.read_text(encoding="utf-8", errors="replace").split("\n")
+    cur = None
+    for ln in lines:
+        m = re.match(r"^### +(?:\*\*)?Epic +([0-9]+|[A-Z])", ln)
+        if m:
+            cur = m.group(1)
+            continue
+        if cur and BOOKKEEPING_MARKER in ln:
+            out.add(cur)
+        elif ln.startswith("### ") or ln.startswith("## "):
+            cur = None
+    return out
+
+
+def run_plan_relations(chk: dict, path: Path | None) -> list[str]:
+    """Run one relational rule over a plan bundle. Never raises on a parse gap."""
+    if path is None:
+        return []
+    rule = chk.get("rule")
+
+    # REQ-DATA-043: gate on `unparsed[]` FIRST. An unparsed construct means the extractor
+    # did not SEE part of the plan, so every relational conclusion would be drawn from a
+    # knowably incomplete DAG. INCONCLUSIVE is raised (not returned as a failure) so the
+    # caller reports exit 2, never exit 1 — "could not read" is not "is wrong".
+    blocked = extractor_blocked(path)
+    if blocked:
+        raise Inconclusive(
+            f"{path.name}: {len(blocked)} unparsed construct(s) — relational rule "
+            f"{rule!r} cannot be evaluated on an incomplete DAG "
+            f"(first: L{blocked[0].get('line')} {blocked[0].get('reason', '')[:80]})")
+
+    pm = path if path.is_file() else path / "plan.md"
+    d = _plan_extract().extract(pm)
+    issues = {i["id"] for i in d["issues"]}
+    out: list[str] = []
+
+    if rule == "R1":
+        # `Discharged-by` names a real issue.
+        for c in d.get("criteria", []):
+            for ref in _refs(c.get("discharged_by")):
+                if ref not in issues:
+                    out.append(f"criterion {c.get('id')}: Discharged-by names {ref!r}, "
+                               f"which is not an issue in this plan")
+    elif rule == "R1b":
+        # Every issue is named by at least one criterion, except in a DECLARED
+        # bookkeeping epic.
+        exempt = _bookkeeping_epics(pm)
+        named: set[str] = set()
+        for c in d.get("criteria", []):
+            named.update(_refs(c.get("discharged_by")))
+        for i in d["issues"]:
+            if i["id"] not in named and i.get("epic") not in exempt:
+                out.append(f"issue {i['id']} is named by no success criterion "
+                           f"(epic {i.get('epic')} is not declared bookkeeping)")
+    elif rule == "R2a":
+        # `Resolved By` names a real issue.
+        for u in d.get("upstream", []):
+            for ref in _refs(u.get("resolved_by")):
+                if ref not in issues:
+                    out.append(f"upstream #{u.get('issue')}: Resolved By names {ref!r}, "
+                               f"which is not an issue in this plan")
+    elif rule == "R2b":
+        # `exclude` resolves nothing; `include` resolves something.
+        for u in d.get("upstream", []):
+            disp = (u.get("disposition") or "").strip().strip("*_").lower()
+            rb = _joined(u.get("resolved_by"))
+            has = bool(_refs(u.get("resolved_by")))
+            if disp == "exclude" and has:
+                out.append(f"upstream #{u.get('issue')}: disposition `exclude` but "
+                           f"Resolved By names {rb!r} — an excluded issue resolves nothing")
+            if disp == "include" and not has:
+                out.append(f"upstream #{u.get('issue')}: disposition `include` but "
+                           f"Resolved By names no issue — an included issue resolves something")
+    elif rule == "R2c":
+        # The disposition is a recognised literal (bold/italic normalized first).
+        for u in d.get("upstream", []):
+            raw = (u.get("disposition") or "").strip()
+            disp = raw.strip("*_").strip().lower()
+            if disp and disp not in DISPOSITIONS:
+                out.append(f"upstream #{u.get('issue')}: disposition {raw!r} is not one of "
+                           + "|".join(sorted(DISPOSITIONS)))
+    elif rule == "R3":
+        # TWO-PARSER AGREEMENT. `parse_upstream_rows` (plan_manager) and `plan_extract`
+        # must read every disposition cell identically. `verify-reconcile` is FAIL-LOUD,
+        # so two parsers disagreeing on row shape is a fail-loud FALSE POSITIVE.
+        other = _parse_upstream_rows_view(pm)
+        if other is not None:
+            mine = {str(u.get("issue")): (u.get("disposition") or "").strip().strip("*_").lower()
+                    for u in d.get("upstream", [])}
+            for num, disp in other.items():
+                if num in mine and mine[num] != disp:
+                    out.append(f"upstream #{num}: parsers disagree on disposition — "
+                               f"plan_extract {mine[num]!r} vs parse_upstream_rows {disp!r}")
+    return out
+
+
+def _parse_upstream_rows_view(pm: Path) -> dict[str, str] | None:
+    """`{issue-number: normalized-disposition}` per plan_manager's shared parser.
+
+    Imported lazily and by PATH: `_shared/` may run without the skill on `sys.path`, and a
+    relational rule must degrade to "not checked" rather than crash when it is absent.
+    """
+    import importlib.util
+    cand = (Path(__file__).resolve().parent.parent
+            / "skills" / "yf-plan" / "scripts" / "plan_manager.py")
+    if not cand.exists():
+        return None
+    try:
+        src = cand.read_text(encoding="utf-8", errors="replace")
+        start = src.index("def parse_upstream_rows(")
+        end = src.index("\ndef ", start + 10)
+        ns: dict = {"re": re}
+        exec(compile(src[start:end], str(cand), "exec"), ns)
+        rows = ns["parse_upstream_rows"](pm.read_text(encoding="utf-8", errors="replace"))
+        return {str(r["issue"]): (r.get("disposition") or "").strip().strip("*_").lower()
+                for r in rows}
+    except Exception:
+        return None
+
+
 # --- checks ------------------------------------------------------------------------
 
 
-def run_check(chk: dict, text: str, schema: dict) -> list[str]:
+def run_check(chk: dict, text: str, schema: dict, path: Path | None = None) -> list[str]:
     """Return a list of failure detail strings ([] = the check passed)."""
     kind = chk.get("kind")
+    if kind == "plan-relations":
+        return run_plan_relations(chk, path)
     if kind in ("headings-present", "headings-any-level"):
         want = chk.get("value") or resolve_derived(schema["derive_from"])
         have = sections(text, any_level=(kind == "headings-any-level"))
@@ -366,7 +529,25 @@ def lint(root: Path, only_type: str | None, only_paths: list[Path] | None,
             status = bundle_status(f)
             mapping = STATUS_SEVERITY.get(status or "", {})
             for chk in schema.get("checks", []):
-                for detail in run_check(chk, text, schema):
+                # REQ-DATA-043 is scoped to THE DOCUMENT, not the run. A targeted check of
+                # one plan answers "is this plan sound?", so an unreadable plan must exit 2
+                # (INCONCLUSIVE) — that is SC4. A CORPUS SWEEP answers "what is the state?",
+                # and aborting the whole sweep at the first of 24 unreadable plans would
+                # report nothing about the other 47. So the sweep degrades per file to a
+                # report-only finding and keeps going.
+                try:
+                    details = run_check(chk, text, schema, path=f)
+                except Inconclusive as exc:
+                    if only_paths is not None:
+                        raise
+                    findings.append({
+                        "path": _rel(f, root), "type": schema["type"],
+                        "check": f'{chk["id"]}-inconclusive',
+                        "severity": REPORT, "declared_severity": REPORT,
+                        "bundle_status": status, "detail": str(exc),
+                    })
+                    continue
+                for detail in details:
                     declared = chk.get("severity", ERROR)
                     findings.append({
                         "path": _rel(f, root), "type": schema["type"],

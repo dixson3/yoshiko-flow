@@ -42,10 +42,27 @@ WORK=$(mktemp -d) || gate_harness "cannot create scratch dir"
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT INT TERM   # self-cleaning on BOTH exit paths — this gate is class `probe`
 
+# `--type plan-relations` + `--path <plan.md>`. NOT `--kind` (no such flag) and NOT a bare
+# bundle dir: the relational rules are declared on `plan.md`, and a path-scoped run is what
+# makes REQ-DATA-043 report exit 2 for an unreadable plan instead of degrading to a
+# report-only finding the way a corpus sweep does.
 run_lint() {
-  # $1 = bundle dir. Echoes exit code.
-  uv run _shared/doc_lint.py --path "$1" --kind plan-relations --json >"$WORK/out.json" 2>"$WORK/err.txt"
+  # $1 = bundle dir. Echoes the exit code.
+  uv run _shared/doc_lint.py --type plan-relations --path "$1/plan.md" --json \
+    >"$WORK/out.json" 2>"$WORK/err.txt"
   echo $?
+}
+
+# A relational rule is severity `W` with promotion DECLARED OFF (REQ-DATA-044), so a
+# violation never changes the exit code. The gate therefore asserts on the FINDING SET,
+# which is where the rules actually speak. `rule_fired <id>` = that rule reported at least
+# one finding on the mutant.
+rule_fired() {
+  python3 -c '
+import json,sys
+d=json.load(open(sys.argv[1]))
+print("yes" if any(f["check"]==sys.argv[2] for f in d.get("findings",[])) else "no")
+' "$WORK/out.json" "$1"
 }
 
 # --- control: unmutated plan-047 must be GREEN ------------------------------
@@ -55,49 +72,209 @@ if [ "$rc" != "0" ]; then
   cat "$WORK/out.json" "$WORK/err.txt" >&2 2>/dev/null || true
   gate_absent "control (unmutated ${CONTROL_PLAN}) exited ${rc}, expected 0 — a red control makes every mutant result meaningless"
 fi
-echo "control: exit 0 (green)"
+for r in R1 R1b R2a R2b R2c; do
+  [ "$(rule_fired "$r")" = "no" ] \
+    || gate_absent "control (unmutated ${CONTROL_PLAN}) already reports ${r} — a mutant result would be unattributable"
+done
+echo "control: exit 0, and no relational rule fires on it"
 
 # --- mutants: one per rule, each breaking exactly that rule ------------------
-mutate() {
-  # $1 = name, $2 = python mutation applied to plan.md
+#
+# EVERY MUTATION IS SECTION-SCOPED, and that is not tidiness. The first draft anchored the
+# R1b mutant on `### Epic 1:` and it silently landed at line 150 — an EARLIER occurrence of
+# that string in prose, 190 lines above `## Epics`. The extractor correctly ignored an issue
+# bullet outside the Epics section, so the mutant exercised nothing and the gate reported the
+# rule "cannot detect its own violation". The gate was right; the mutation was wrong.
+#
+# A mutant that does not land where it thinks it does is worse than no mutant: it certifies
+# a capability nobody tested. So each mutation is applied INSIDE a named `## ` section, and
+# a mutation that turns out to be a no-op is a HARNESS failure, not a rule failure.
+
+mutate_R1() {
+  # $1 = name, $2 = python body operating on `sec`, $3 = rule id, $4 = `## ` section.
   rm -rf "$WORK/m"
   cp -Rf "$CONTROL_PLAN" "$WORK/m" || gate_harness "could not copy bundle for mutant $1"
-  python3 - "$WORK/m/plan.md" <<PYEOF || gate_harness "mutation $1 could not be applied"
-import sys,re
-p=sys.argv[1]; s=open(p).read()
-$2
-open(p,"w").write(s)
-PYEOF
+  python3 - "$WORK/m/plan.md" "$4" <<PYMUT || gate_harness "mutation $1 could not be applied"
+import sys, re
+path, want = sys.argv[1], sys.argv[2]
+lines = open(path).read().split("\n")
+start = end = None
+for n, ln in enumerate(lines):
+    if ln.startswith("## ") and ln[3:].strip() == want:
+        start = n + 1
+    elif start is not None and ln.startswith("## "):
+        end = n
+        break
+if start is None:
+    sys.exit("section not found: " + want)
+end = end if end is not None else len(lines)
+sec = before = "\n".join(lines[start:end])
+sec = re.sub(r"(\\n\\| SC[0-9a-z]+ \\|[^\\n]*\\| )([0-9][^|\\n]*)(\\|)", r"\\g<1>99.99 \\g<3>", sec, count=1)
+if sec == before:
+    sys.exit("mutation was a NO-OP inside section " + want)
+open(path, "w").write("\n".join(lines[:start] + sec.split("\n") + lines[end:]))
+PYMUT
   rc=$(run_lint "$WORK/m")
-  if [ "$rc" != "1" ]; then
-    cat "$WORK/out.json" >&2 2>/dev/null || true
-    gate_absent "mutant '$1' exited ${rc}, expected 1 — the rule it breaks cannot fail"
+  if [ "$rc" = "2" ]; then
+    cat "$WORK/err.txt" >&2 2>/dev/null || true
+    gate_harness "mutant '$1' made the plan UNPARSABLE (exit 2) — it broke the document rather than the relation, so it proves nothing about rule $3"
   fi
-  echo "mutant $1: exit 1 (red, as required)"
+  if [ "$(rule_fired "$3")" != "yes" ]; then
+    cat "$WORK/out.json" >&2 2>/dev/null || true
+    gate_absent "mutant '$1' did not make rule $3 fire — that rule cannot detect its own violation"
+  fi
+  echo "mutant $1: rule $3 fired (as required)"
 }
 
-# R1  — `Discharged-by` names an issue that does not exist.
-mutate "R1-dangling-discharged-by" \
-  's=re.sub(r"(\| SC1 \|[^\n]*\| )([0-9][^|]*)(\|)", r"\g<1>99.99 \g<3>", s, count=1)
-assert "99.99" in s, "R1 mutation did not apply"'
+mutate_R1b() {
+  # $1 = name, $2 = python body operating on `sec`, $3 = rule id, $4 = `## ` section.
+  rm -rf "$WORK/m"
+  cp -Rf "$CONTROL_PLAN" "$WORK/m" || gate_harness "could not copy bundle for mutant $1"
+  python3 - "$WORK/m/plan.md" "$4" <<PYMUT || gate_harness "mutation $1 could not be applied"
+import sys, re
+path, want = sys.argv[1], sys.argv[2]
+lines = open(path).read().split("\n")
+start = end = None
+for n, ln in enumerate(lines):
+    if ln.startswith("## ") and ln[3:].strip() == want:
+        start = n + 1
+    elif start is not None and ln.startswith("## "):
+        end = n
+        break
+if start is None:
+    sys.exit("section not found: " + want)
+end = end if end is not None else len(lines)
+sec = before = "\n".join(lines[start:end])
+sec = re.sub(r"(\\n### Epic [0-9A-Z][^\\n]*\\n)", r"\\g<1>- Issue 1.99: an issue no success criterion names.\\n", sec, count=1)
+sec = sec.replace("<!-- epic-kind: bookkeeping -->", "")
+if sec == before:
+    sys.exit("mutation was a NO-OP inside section " + want)
+open(path, "w").write("\n".join(lines[:start] + sec.split("\n") + lines[end:]))
+PYMUT
+  rc=$(run_lint "$WORK/m")
+  if [ "$rc" = "2" ]; then
+    cat "$WORK/err.txt" >&2 2>/dev/null || true
+    gate_harness "mutant '$1' made the plan UNPARSABLE (exit 2) — it broke the document rather than the relation, so it proves nothing about rule $3"
+  fi
+  if [ "$(rule_fired "$3")" != "yes" ]; then
+    cat "$WORK/out.json" >&2 2>/dev/null || true
+    gate_absent "mutant '$1' did not make rule $3 fire — that rule cannot detect its own violation"
+  fi
+  echo "mutant $1: rule $3 fired (as required)"
+}
 
-# R1b — an issue named by no criterion, in an epic NOT declared bookkeeping.
-mutate "R1b-issue-named-by-no-criterion" \
-  's=re.sub(r"(### Epic 1:[^\n]*\n)", r"\g<1>- Issue 1.99: an issue no success criterion names.\n", s, count=1)
-s=s.replace("<!-- epic-kind: bookkeeping -->","")
-assert "1.99" in s, "R1b mutation did not apply"'
+mutate_R2a() {
+  # $1 = name, $2 = python body operating on `sec`, $3 = rule id, $4 = `## ` section.
+  rm -rf "$WORK/m"
+  cp -Rf "$CONTROL_PLAN" "$WORK/m" || gate_harness "could not copy bundle for mutant $1"
+  python3 - "$WORK/m/plan.md" "$4" <<PYMUT || gate_harness "mutation $1 could not be applied"
+import sys, re
+path, want = sys.argv[1], sys.argv[2]
+lines = open(path).read().split("\n")
+start = end = None
+for n, ln in enumerate(lines):
+    if ln.startswith("## ") and ln[3:].strip() == want:
+        start = n + 1
+    elif start is not None and ln.startswith("## "):
+        end = n
+        break
+if start is None:
+    sys.exit("section not found: " + want)
+end = end if end is not None else len(lines)
+sec = before = "\n".join(lines[start:end])
+sec = re.sub(r"(\\n\\| \\[?#[0-9]+\\]?[^\\n]*\\| include \\|[^|\\n]*\\| )([^|\\n]*)(\\|)", r"\\g<1>99.99 \\g<3>", sec, count=1)
+if sec == before:
+    sys.exit("mutation was a NO-OP inside section " + want)
+open(path, "w").write("\n".join(lines[:start] + sec.split("\n") + lines[end:]))
+PYMUT
+  rc=$(run_lint "$WORK/m")
+  if [ "$rc" = "2" ]; then
+    cat "$WORK/err.txt" >&2 2>/dev/null || true
+    gate_harness "mutant '$1' made the plan UNPARSABLE (exit 2) — it broke the document rather than the relation, so it proves nothing about rule $3"
+  fi
+  if [ "$(rule_fired "$3")" != "yes" ]; then
+    cat "$WORK/out.json" >&2 2>/dev/null || true
+    gate_absent "mutant '$1' did not make rule $3 fire — that rule cannot detect its own violation"
+  fi
+  echo "mutant $1: rule $3 fired (as required)"
+}
 
-# R2a — `Resolved By` names an issue that does not exist.
-mutate "R2a-dangling-resolved-by" \
-  's=re.sub(r"(\n\| \[?#\d+\]?[^\n]*\| include \|[^|]*\| )([^|\n]*)(\|)", r"\g<1>99.99 \g<3>", s, count=1)'
+mutate_R2b() {
+  # $1 = name, $2 = python body operating on `sec`, $3 = rule id, $4 = `## ` section.
+  rm -rf "$WORK/m"
+  cp -Rf "$CONTROL_PLAN" "$WORK/m" || gate_harness "could not copy bundle for mutant $1"
+  python3 - "$WORK/m/plan.md" "$4" <<PYMUT || gate_harness "mutation $1 could not be applied"
+import sys, re
+path, want = sys.argv[1], sys.argv[2]
+lines = open(path).read().split("\n")
+start = end = None
+for n, ln in enumerate(lines):
+    if ln.startswith("## ") and ln[3:].strip() == want:
+        start = n + 1
+    elif start is not None and ln.startswith("## "):
+        end = n
+        break
+if start is None:
+    sys.exit("section not found: " + want)
+end = end if end is not None else len(lines)
+sec = before = "\n".join(lines[start:end])
+sec = re.sub(r"(\\n\\| \\[?#[0-9]+\\]?[^\\n]*\\| exclude \\|[^|\\n]*\\| )([^|\\n]*)(\\|)", r"\\g<1>1.1 \\g<3>", sec, count=1)
+if sec == before:
+    sys.exit("mutation was a NO-OP inside section " + want)
+open(path, "w").write("\n".join(lines[:start] + sec.split("\n") + lines[end:]))
+PYMUT
+  rc=$(run_lint "$WORK/m")
+  if [ "$rc" = "2" ]; then
+    cat "$WORK/err.txt" >&2 2>/dev/null || true
+    gate_harness "mutant '$1' made the plan UNPARSABLE (exit 2) — it broke the document rather than the relation, so it proves nothing about rule $3"
+  fi
+  if [ "$(rule_fired "$3")" != "yes" ]; then
+    cat "$WORK/out.json" >&2 2>/dev/null || true
+    gate_absent "mutant '$1' did not make rule $3 fire — that rule cannot detect its own violation"
+  fi
+  echo "mutant $1: rule $3 fired (as required)"
+}
 
-# R2b — an `exclude` row that nonetheless claims a resolver.
-mutate "R2b-exclude-resolves-something" \
-  's=re.sub(r"(\n\| \[?#\d+\]?[^\n]*\| exclude \|[^|]*\| )([^|\n]*)(\|)", r"\g<1>1.1 \g<3>", s, count=1)'
+mutate_R2c() {
+  # $1 = name, $2 = python body operating on `sec`, $3 = rule id, $4 = `## ` section.
+  rm -rf "$WORK/m"
+  cp -Rf "$CONTROL_PLAN" "$WORK/m" || gate_harness "could not copy bundle for mutant $1"
+  python3 - "$WORK/m/plan.md" "$4" <<PYMUT || gate_harness "mutation $1 could not be applied"
+import sys, re
+path, want = sys.argv[1], sys.argv[2]
+lines = open(path).read().split("\n")
+start = end = None
+for n, ln in enumerate(lines):
+    if ln.startswith("## ") and ln[3:].strip() == want:
+        start = n + 1
+    elif start is not None and ln.startswith("## "):
+        end = n
+        break
+if start is None:
+    sys.exit("section not found: " + want)
+end = end if end is not None else len(lines)
+sec = before = "\n".join(lines[start:end])
+sec = sec.replace("| include |", "| incldue |", 1)
+if sec == before:
+    sys.exit("mutation was a NO-OP inside section " + want)
+open(path, "w").write("\n".join(lines[:start] + sec.split("\n") + lines[end:]))
+PYMUT
+  rc=$(run_lint "$WORK/m")
+  if [ "$rc" = "2" ]; then
+    cat "$WORK/err.txt" >&2 2>/dev/null || true
+    gate_harness "mutant '$1' made the plan UNPARSABLE (exit 2) — it broke the document rather than the relation, so it proves nothing about rule $3"
+  fi
+  if [ "$(rule_fired "$3")" != "yes" ]; then
+    cat "$WORK/out.json" >&2 2>/dev/null || true
+    gate_absent "mutant '$1' did not make rule $3 fire — that rule cannot detect its own violation"
+  fi
+  echo "mutant $1: rule $3 fired (as required)"
+}
 
-# R2c — an unrecognised disposition literal.
-mutate "R2c-unrecognised-disposition" \
-  's=s.replace("| include |","| incldue |",1)
-assert "incldue" in s, "R2c mutation did not apply"'
+mutate_R1 "R1-dangling-discharged-by" "" "R1" "Success Criteria"
+mutate_R1b "R1b-issue-named-by-no-criterion" "" "R1b" "Epics"
+mutate_R2a "R2a-dangling-resolved-by" "" "R2a" "Upstream Issues"
+mutate_R2b "R2b-exclude-resolves-something" "" "R2b" "Upstream Issues"
+mutate_R2c "R2c-unrecognised-disposition" "" "R2c" "Upstream Issues"
 
-gate_present "control green and all five relational mutants drive exit 1"
+gate_present "control clean and all five relational mutants make their rule fire"
