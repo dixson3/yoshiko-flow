@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-18 |
+| `stop_class` |  |
+| `asked` | Did validate-merged's FULL tier actually execute anything, or did it report a vacuous pass? |
+| `answered` | I initially reported 'commands: 0' from a passing validate-merged run and was about to treat it as a clean result. That is EXACTLY the vacuous-pass defect this plan was built to eliminate (Epic 1 exists because change_validation.py returned {status: pass, commands: []} on two okf.py paths). The reported zero was MY OWN key-path error, not a real vacuous pass: validate-merged nests the executed list under layer_b, and I read commands off the top level. Re-read correctly: 35 commands executed, zero failures, no cross-plan-not-checked notice, and the uv-okf row Epic 1 added is in the executed set. Caught by noticing that a 15-minute run reporting 0 commands was incoherent, and checking the raw JSON instead of trusting my own probe. Operator confirmed the schema and instructed this be recorded. |
+| `frontloadable` | no |
+| `detected_by` | self-report |
+| `evidence` | plan_manager.py:3142 declares the output schema as {plan_dir, validate_cmd_configured, layer_b, notice, status} - 'commands' is NOT a top-level key. Raw JSON: layer_b.tier=full, layer_b.status=pass, len(layer_b.commands)=35, layer_b.first_failure=None, notice=None. The okf row executed: 'uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q'. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
