@@ -1,3 +1,8 @@
+---
+type: Note
+okf_spec: OKF-PLAN
+---
+
 # Issue 3.5 — FULL tier run (recorded)
 
 Recorded: 2026-08-19  tree: worktree plan-047-james-dixson-dec9ff-execute

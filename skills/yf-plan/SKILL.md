@@ -907,6 +907,13 @@ see `yf-beads-extra` → *Epic blocking rule*). Child epics are containers: crea
 on `${START_GATE}`; downstream issues depend on their predecessors and inherit the gate
 transitively.
 
+**Every task bead carries `plan_issue: "<id>"` in its METADATA** (REQ-DATA-026 / D-10). This
+is what makes the pour checkable at all: EXP-003 measured three plans (006, 007, 036) where no
+bead title carries its issue id, leaving the plan↔bead mapping unreconstructable — those three
+account for 43 of the 45 apparently-dropped edges purely as an artifact of missing identity.
+Metadata is strictly better than a title convention **because titles get rewritten**, and the
+comparator prefers it, falling back to a leading title token only for pre-metadata plans.
+
 ```bash
 # Child epic — parent only, NO start-gate dep (task→epic block is rejected).
 EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
@@ -915,17 +922,32 @@ EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
 # Entry issue (no intra-plan predecessor) — gate on the start-gate wrapper task.
-ISSUE_BEAD=$(bd create "${entry_issue_description}" \
+ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${entry_issue_description}" \
   --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${START_GATE}" \
+  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" \
+      '{plan_issue:$i, plan:$p}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
 # Downstream issue — depends on predecessor(s) only; gate inherited transitively.
-ISSUE_BEAD=$(bd create "${issue_description}" \
+ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${issue_description}" \
   --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${dependency_beads}" \
+  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" \
+      '{plan_issue:$i, plan:$p}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
+
+**Derive the DAG mechanically, do not transcribe it.** `_shared/plan_extract.py` reads
+`plan.md` into JSON — epics, issues, edges, gates — and reports anything it cannot parse in
+`unparsed[]` rather than degrading. Use it to drive the `bd create` calls above:
+
+```bash
+uv run _shared/plan_extract.py "${plan_dir}" --json --strict
+```
+
+A non-empty `unparsed[]` means the plan declares something the REQ-DATA-019 grammar does not
+cover; fix the document rather than hand-transcribing around it.
 
 **Attach upstream metadata** to issues that resolve an upstream issue:
 
@@ -1449,6 +1471,22 @@ if [ "$GATE_RC" -ne 0 ]; then
   echo "'remediation': either attest one green run (attest-validation; see the workflow_dispatch"
   echo "no-publish pattern in spec/ci-release-completion.md) OR file a standalone out-of-tree"
   echo "deferred-validation bead and push it individually upstream, then re-run §6.4."
+  exit 1
+fi
+
+# Pour fidelity (REQ-DATA-026 / plan-047 Issue 5.5): the beads that were executed must be
+# the beads the plan declared. HALTING for THIS plan only (`--plan`), so a historical
+# divergence elsewhere in the corpus can never block an unrelated completion.
+bd list --all --include-gates --limit 5000 --json > /tmp/yf-beads.json
+FIDELITY=$(uv run _shared/pour_fidelity.py /tmp/yf-beads.json "${plan_dir}" \
+             --strict --plan "${plan_id}" --json)
+FIDELITY_RC=$?
+echo "$FIDELITY"
+if [ "$FIDELITY_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: the poured bead DAG does not match the plan's declared DAG."
+  echo "Read the three populations separately — a 'no-mapping' verdict is an identity"
+  echo "artifact, a 'dropped' edge means a bead was marked ready BEFORE its declared"
+  echo "predecessor. Completion HALTS; do NOT set 'complete'."
   exit 1
 fi
 

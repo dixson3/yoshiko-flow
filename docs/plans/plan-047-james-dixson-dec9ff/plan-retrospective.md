@@ -89,3 +89,79 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | Epic 3 Issue 3.4: does the doclint gate stay green when the tier it measures FAILS? |
+| `answered` | NO — it went RED. gate-doclint.sh treated any non-zero exit from change_validation.py as harness_fail (exit 2, no commands key), but that command exits non-zero exactly when the tier fails, i.e. precisely when the row is doing its job. A failing tier was reported as 'the harness could not run'. Fourth instance of the same class. Fixed: accept exit 0 and 1, harness_fail only on other codes. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | Issue 3.4 mutant run: before fix the gate Test exited 1 under the mutant; after fix it exits 0 while change_validation correctly reports status=fail with doclint as first_failure |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | Epic 3 Issue 3.1: can Issue 3.4's falsification observe anything with the recipe row added as planned? |
+| `answered` | NO. The linter was RED on the historical corpus (320 errors, 169 files, all 46 bundles 'complete'), so a mutant-induced 'status: fail' would be indistinguishable from the standing failure. The plan sequenced Epic 3 before Epic 4's status-aware promotion, but 3.4 cannot be honest without it. Forward-ported 4.2's complete -> report-only mapping into 3.1; corpus went to 0 errors / 610 report-only / PASS, making the mutant observable. |
+| `frontloadable` | partial |
+| `detected_by` | self-report |
+| `evidence` | doc_lint --json before: errors=320 files=169; after status mapping: errors=0 warnings=0 report_only=610 verdict=PASS exit 0 |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | Epic 5: does the primary-side audit agree with the worktree's after the review-pass: re-tokenisation? |
+| `answered` | NO, and the disagreement is expected: the INSTALLED plan_manager.py predates the token and reports 'expected 0 pass-*.md, found 4'; the REPO copy reports pass. This is AGENTS.md's three-artifacts gap, resolving at Issue 10.6's deploy. TRANSITIONAL HAZARD RECORDED: between this merge and the deploy, any bundle carrying review-pass: bullets fails audit under the installed skill. Blast radius is exactly one bundle (plan-047), and it is past approval so Issue 2.5's gate cannot bite it. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | same plan dir: repo plan_manager audit -> pass; installed plan_manager audit -> fail 'expected 0 pass-*.md (one per phase-log review line), found 4' |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-008
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | Epic 5: is 'bd --include-gates' invalid everywhere, as test_gates.py asserted? |
+| `answered` | NO — the flag is per-subcommand. 'bd ready --include-gates' exits 1 (unknown flag), but 'bd list --all --include-gates' exits 0 and moves the gate count from 0 to 127. The test banned the string on ANY line, which forbade the one invocation that fixes #166. Narrowed to bd ready and added the positive half. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | bd ready --include-gates -> exit 1 'unknown flag'; bd list --all --include-gates --json -> exit 0; gate count without flag=0, with flag=127 |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

@@ -186,16 +186,48 @@ def test_metadata_bearing_enumeration_is_the_one_recommended():
     )
 
 
-def test_include_gates_flag_is_not_recommended_anywhere():
-    """`bd ready --include-gates` does not exist: `unknown flag`, exit 1."""
+def test_include_gates_flag_is_not_recommended_on_bd_ready():
+    """`bd ready --include-gates` does not exist: `unknown flag`, exit 1.
+
+    **Narrowed from "anywhere" to `bd ready` (plan-047 Issue 5.5), on a measurement.** The
+    flag is per-subcommand, and this test's own docstring was always about `bd ready`:
+
+        bd ready --include-gates              -> exit 1, "unknown flag: --include-gates"
+        bd list --all --include-gates --json  -> exit 0
+
+    and on this repo the flag is not cosmetic on `bd list` — it moves the gate count from
+    **0 to 127**. That is exactly dixson3/yoshiko-flow#166: without it, every gate bead and
+    every gate edge is invisible **with no error at all**, which is why REQ-DATA-026 makes it
+    MANDATORY for the pour-fidelity comparator's bead dump.
+
+    Banning the string everywhere therefore forbade the one invocation that fixes #166. The
+    check is kept — a `bd ready --include-gates` really is a broken command — but scoped to
+    the subcommand it describes.
+    """
     for path in (_COORDINATOR, _SKILL_MD):
         text = path.read_text(encoding="utf-8")
         for line in text.splitlines():
-            if "--include-gates" in line:
-                assert "not" in line.lower() or "does **not** exist" in line, (
-                    f"{path.name} recommends --include-gates, which bd rejects with "
-                    f"'unknown flag: --include-gates' (exit 1): {line.strip()!r}"
-                )
+            if "--include-gates" not in line:
+                continue
+            if not re.search(r"\bbd\s+ready\b", line):
+                continue  # `bd list --include-gates` is valid and required (#166)
+            assert "not" in line.lower() or "does **not** exist" in line, (
+                f"{path.name} recommends `bd ready --include-gates`, which bd rejects with "
+                f"'unknown flag: --include-gates' (exit 1): {line.strip()!r}"
+            )
+
+
+def test_include_gates_is_used_on_the_bead_dump():
+    """The positive half: REQ-DATA-026 requires `--include-gates` on the comparator's dump.
+
+    Measured on this repo: without it, `bd list --all --json` returns **0** gate beads and
+    **127** with it — silently, exit 0 either way. A comparator fed the flagless dump reports
+    every gate as missing and every gate edge as dropped.
+    """
+    text = _SKILL_MD.read_text(encoding="utf-8")
+    assert re.search(r"bd list --all --include-gates", text), (
+        "SKILL.md's pour-fidelity close gate must dump beads with --include-gates (#166)"
+    )
 
 
 # =======================================================================================
