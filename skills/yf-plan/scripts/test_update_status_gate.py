@@ -16,6 +16,7 @@ Run:  uv run skills/yf-plan/scripts/test_update_status_gate.py
 
 from __future__ import annotations
 
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -33,10 +34,16 @@ SRC = REPO / "docs" / "plans" / "plan-047-james-dixson-dec9ff"
 def _bundle(tmp_path: Path, *, ready: bool) -> Path:
     d = tmp_path / "plan-047-james-dixson-dec9ff"
     shutil.copytree(SRC, d)
-    t = (d / "plan.md").read_text()
-    t = t.replace("**Status:** approved", "**Status:** review")
-    t = t.replace("status: approved", "status: review")
+    # Set the status DETERMINISTICALLY, whatever the live bundle currently carries. An
+    # earlier version substituted the literal "approved" and so silently did nothing once
+    # the real plan moved to `executing` — the fixture was passing for an incidental
+    # reason, which is the same defect class this plan exists to close. Caught by the FULL
+    # tier, which runs from the repo root rather than from `scripts/`.
+    t = re.sub(r"^\*\*Status:\*\* .*$", "**Status:** review", (d / "plan.md").read_text(),
+               count=1, flags=re.M)
+    t = re.sub(r"^status: .*$", "status: review", t, count=1, flags=re.M)
     (d / "plan.md").write_text(t)
+    assert "**Status:** review" in t and "status: review" in t, "fixture did not set status"
     if not ready:
         # Delete the last pass file: the last recorded verdict becomes REVISE AND the
         # count-equality audit fails. Two independent reasons, so the test does not

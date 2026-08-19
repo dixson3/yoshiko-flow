@@ -4,15 +4,17 @@ okf_spec: OKF-PLAN
 id: plan-047-james-dixson-dec9ff
 author: james-dixson
 created: '2026-08-18'
-status: approved
+status: executing
 fingerprint: 0147839b3354d363fece6966f68d7f6c0321b95a391c3cedcc33ca47b01440b8
+epic: yf-mol-63g
 ---
 # Plan: Make yf artifact documents mechanically parseable: formal templates per document type, per-type linters, a corpus normalizer, and a common plan extractor that machine-reads the epic/issue DAG
 
 **ID:** plan-047-james-dixson-dec9ff
 **Author:** james-dixson
 **Created:** 2026-08-18
-**Status:** approved
+**Status:** executing
+**Epic:** yf-mol-63g
 **Fingerprint:** 0147839b3354d363fece6966f68d7f6c0321b95a391c3cedcc33ca47b01440b8
 **Coarse tracker:** [#175](https://github.com/dixson3/yoshiko-flow/issues/175)
 

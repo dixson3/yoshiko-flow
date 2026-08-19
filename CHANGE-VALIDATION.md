@@ -63,6 +63,10 @@ approved: yes
 | `uv-yf-retro` | `uv run skills/yf-plan/scripts/test_retrospective.py` |  |  |
 | `uv-yf-cli-enum` | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
+| `doclint` | `uv run _shared/doc_lint.py` |  |  |
+| `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
+| `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
+| `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
 
 ### full
 
@@ -103,6 +107,10 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_retrospective.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
+| `doclint` | `uv run _shared/doc_lint.py` |  |  |
+| `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
+| `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
+| `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -167,9 +175,9 @@ approved: yes
 | `skills/yf-herdr/**` | `uv-herdr-launch` |
 | `skills/yf-herdr/SKILL.md` | `uv-herdr-launch` |
 | `skills/yf-herdr/scripts/test_launch_contract.py` | `uv-herdr-launch` |
-| `skills/*/SPEC.md` | `uv-herdr-launch` |
+| `skills/*/SPEC.md` | `doclint`, `doclint-tests` |
 | `skills/*/spec/*.md` | `cargo` |
-| `skills/yf-plan/spec/*.md` | `cargo`, `uv-yf-close-contract` |
+| `skills/yf-plan/spec/*.md` | `cargo`, `uv-yf-close-contract`, `doclint`, `doclint-tests` |
 | `skills/yf-plan/scripts/fixtures/classify/**` | `uv-yf-classify` |
 | `skills/*/SKILL.md` | `frontmatter` |
 | `skills/*/agents/*.md` | `frontmatter` |
@@ -178,3 +186,14 @@ approved: yes
 | `skills/yf-research/scripts/**` | `uv-research`, `uv-research-cred` |
 | `skills/yf-research/scripts/test_link_normalizer.py` | `uv-research` |
 | `skills/yf-research/scripts/test_credibility_scorer.py` | `uv-research-cred` |
+| `docs/plans/**` | `doclint`, `doclint-tests` |
+| `docs/research/**` | `doclint`, `doclint-tests` |
+| `Incubator/*/plans/**` | `doclint`, `doclint-tests` |
+| `Incubator/*/research/**` | `doclint`, `doclint-tests` |
+| `skills/*/spec/*.md` | `cargo`, `doclint`, `doclint-tests` |
+| `_shared/doc_lint.py` | `doclint`, `doclint-tests` |
+| `_shared/document_types/**` | `doclint`, `doclint-tests` |
+| `_shared/test_doc_lint.py` | `doclint-tests` |
+| `tests/fixtures/doclint/**` | `doclint-tests` |
+| `skills/yf-plan/scripts/test_review_count.py` | `uv-yf-review-count` |
+| `skills/yf-plan/scripts/test_update_status_gate.py` | `uv-yf-status-gate` |

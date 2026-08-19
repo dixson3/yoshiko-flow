@@ -24,11 +24,22 @@ exclude = [
     "skills/**/fixtures/**",
 ]
 
+# The section list is the one `skills/yf-plan/agents/investigator.md` actually declares in
+# its fenced `## Output` template — NOT a guess. The first draft of this schema guessed
+# "Question / Method / Findings / Implications" and was wrong on every element; the real
+# template is an H2 `## Finding: <q>` with four H3 subsections.
+#
+# SCOPE BOUND: the corpus does NOT match this template (measured 94.9% drift across 117
+# files), and reconciling it is Issue 6.1's job, not this one. The check is nonetheless `E`,
+# because status-aware promotion already absorbs the residue: every one of those files lives
+# in a `complete` bundle and is therefore REPORT-ONLY. Downgrading to `W` as well would be
+# belt-and-braces that costs the fixture test its teeth — measured, it made both known-bad
+# finding fixtures exit 0.
 [[checks]]
 id = "required-sections"
 severity = "E"
-kind = "headings-present"
-value = ["Question", "Method", "Findings", "Implications"]
+kind = "headings-any-level"
+value = ["Approach Tested", "Result", "Implications for Plan", "Recommendations"]
 
 [[checks]]
 id = "measured-marker"

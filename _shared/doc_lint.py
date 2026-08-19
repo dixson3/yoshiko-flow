@@ -47,7 +47,36 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TYPES_DIR = Path(__file__).resolve().parent / "document_types"
 
-ERROR, WARN = "E", "W"
+ERROR, WARN, REPORT = "E", "W", "R"
+
+# Status-aware promotion (REQ-DATA-024). A plan's `status` selects the severity mapping.
+#
+# **Why this is not cosmetic, and why it lands with the recipe row rather than after it.**
+# Measured on this corpus: all 46 historical bundles are `complete`, and the raw linter
+# reports 320 error-severity findings across 169 files. Adding the `doclint` recipe row
+# without this mapping would make the repo's own FAST tier permanently RED — and, decisively,
+# it would make the row's own falsification VACUOUS: injecting a mutant and observing
+# `status: fail` proves nothing when the tier was already failing. A control that cannot
+# distinguish its signal from the background is the same defect class as one that cannot fire.
+STATUS_SEVERITY = {
+    # drafting statuses: completeness warnings are informational, structure still errors
+    "scoping": {WARN: WARN},
+    "investigating": {WARN: WARN},
+    "drafting": {WARN: WARN},
+    # under review: a warning becomes an error — the plan is claiming to be finished
+    "review": {WARN: ERROR},
+    "ready-for-approval": {WARN: ERROR},
+    # a finished plan is REPORT-ONLY, never an error. History is not re-judged by a rule
+    # written after it: the 46 completed bundles predate every schema in document_types/.
+    # Past the enforcement point. The linter's binding is at INTAKE (`review` /
+    # `ready-for-approval`); once a plan is approved its content is frozen by the
+    # fingerprint (REQ-PORT-040), so re-judging it mid-execution would manufacture exactly
+    # the stale-approved churn REQ-DATA-025 exists to avoid.
+    "approved": {WARN: REPORT, ERROR: REPORT},
+    "executing": {WARN: REPORT, ERROR: REPORT},
+    "reconciling": {WARN: REPORT, ERROR: REPORT},
+    "complete": {WARN: REPORT, ERROR: REPORT},
+}
 
 
 class Inconclusive(RuntimeError):
@@ -95,6 +124,28 @@ def resolve_derived(dotted: str) -> list[str]:
 # --- document parsing --------------------------------------------------------------
 
 
+def bundle_status(path: Path) -> str | None:
+    """The `status` of the plan bundle owning `path`, or None if it is not in one.
+
+    Walks up to the nearest directory containing a `plan.md` and reads its status
+    frontmatter-first with a `**Status:**` fallback (REQ-DATA-015 read order).
+    """
+    for d in [path if path.is_dir() else path.parent, *path.parents]:
+        pm = d / "plan.md"
+        if not pm.is_file():
+            continue
+        text = pm.read_text(encoding="utf-8", errors="replace")
+        if text.startswith("---\n"):
+            end = text.find("\n---\n", 4)
+            if end > 0:
+                m = re.search(r"^status:\s*['\"]?([\w-]+)", text[4:end], re.M)
+                if m:
+                    return m.group(1)
+        m = re.search(r"^\*\*Status:\*\*\s*(\S+)", text, re.M)
+        return m.group(1) if m else None
+    return None
+
+
 def frontmatter_keys(text: str) -> set[str]:
     if not text.startswith("---\n"):
         return set()
@@ -109,8 +160,8 @@ def frontmatter_keys(text: str) -> set[str]:
     return keys
 
 
-def sections(text: str) -> list[str]:
-    """Ordered `## ` headings (level 2 only), skipping fenced code blocks."""
+def sections(text: str, any_level: bool = False) -> list[str]:
+    """Ordered headings, skipping fenced code blocks. Level 2 only unless `any_level`."""
     out, fenced = [], False
     for line in text.split("\n"):
         if line.startswith("```"):
@@ -118,7 +169,7 @@ def sections(text: str) -> list[str]:
             continue
         if fenced:
             continue
-        m = re.match(r"^## +(.+?)\s*$", line)
+        m = re.match(r"^#{2,6} +(.+?)\s*$" if any_level else r"^## +(.+?)\s*$", line)
         if m:
             out.append(m.group(1))
     return out
@@ -163,9 +214,9 @@ def first_table(body: str) -> tuple[list[str], list[list[str]]] | None:
 def run_check(chk: dict, text: str, schema: dict) -> list[str]:
     """Return a list of failure detail strings ([] = the check passed)."""
     kind = chk.get("kind")
-    if kind == "headings-present":
+    if kind in ("headings-present", "headings-any-level"):
         want = chk.get("value") or resolve_derived(schema["derive_from"])
-        have = sections(text)
+        have = sections(text, any_level=(kind == "headings-any-level"))
         missing = [s for s in want if s not in have]
         if missing:
             return ["missing section(s): " + ", ".join(missing)]
@@ -257,18 +308,26 @@ def lint(root: Path, only_type: str | None, only_paths: list[Path] | None,
         for f in files:
             checked += 1
             text = f.read_text(encoding="utf-8", errors="replace")
+            status = bundle_status(f)
+            mapping = STATUS_SEVERITY.get(status or "", {})
             for chk in schema.get("checks", []):
                 for detail in run_check(chk, text, schema):
+                    declared = chk.get("severity", ERROR)
                     findings.append({
                         "path": _rel(f, root), "type": schema["type"],
-                        "check": chk["id"], "severity": chk.get("severity", ERROR),
+                        "check": chk["id"],
+                        "severity": mapping.get(declared, declared),
+                        "declared_severity": declared,
+                        "bundle_status": status,
                         "detail": detail,
                     })
     errors = sum(1 for x in findings if x["severity"] == ERROR)
+    warnings = sum(1 for x in findings if x["severity"] == WARN)
+    reported = sum(1 for x in findings if x["severity"] == REPORT)
     return {
         "verdict": "FAIL" if errors else "PASS",
         "files_checked": checked, "errors": errors,
-        "warnings": len(findings) - errors, "findings": findings,
+        "warnings": warnings, "report_only": reported, "findings": findings,
     }
 
 
@@ -278,6 +337,8 @@ def main() -> int:
     ap.add_argument("--type")
     ap.add_argument("--path", action="append", type=Path)
     ap.add_argument("--root", type=Path, default=REPO_ROOT)
+    ap.add_argument("--show-report-only", action="store_true",
+                    help="Print R-severity findings from `complete` bundles too.")
     ap.add_argument("--no-exclude", action="store_true",
                     help="POSITIVE CONTROL: ignore every carve-out glob")
     a = ap.parse_args()
@@ -292,9 +353,12 @@ def main() -> int:
         print(json.dumps(res, indent=1))
     else:
         for x in res["findings"]:
+            if x["severity"] == REPORT and not a.show_report_only:
+                continue
             print(f"{x['severity']} {x['path']}: [{x['check']}] {x['detail']}")
         print(f"{res['verdict']}: {res['files_checked']} file(s), "
-              f"{res['errors']} error(s), {res['warnings']} warning(s)")
+              f"{res['errors']} error(s), {res['warnings']} warning(s), "
+              f"{res['report_only']} report-only")
     # The whole point of the file: a non-zero exit on an error-severity finding.
     return 1 if res["errors"] else 0
 
