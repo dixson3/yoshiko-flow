@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-049-james-dixson-725bc0
 author: james-dixson
 created: '2026-08-19'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 56f8d113d0307affeba5ab2fb34df97d8ef13dc4645a0ecd370b18469624996e
+epic: yf-mol-dlr
 ---
 # Plan: Rewrite the historical plan corpus so the constructs plan-048 refuses become readable, and bind the document linter at the two enforcement points that were never wired
 
 **ID:** plan-049-james-dixson-725bc0
 **Author:** james-dixson
 **Created:** 2026-08-19
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-dlr
 **Fingerprint:** 56f8d113d0307affeba5ab2fb34df97d8ef13dc4645a0ecd370b18469624996e
 
 ## Objective
@@ -180,7 +182,6 @@ Principles carried, each earned by a defect it caught:
 ## Epics
 
 ### Epic 0: SPEC-first and the two self-inflicted trips
-<!-- epic-kind: bookkeeping -->
 _Only **Issue 0.1** is bookkeeping — it publishes the free `REQ-*` id list and discharges no
 criterion by design. **Every other issue in this epic carries one** (0.2→SC13, 0.3→SC14, 0.4→SC32,
 0.5→SC33, 0.6→SC34, 0.7/0.8→SC30). The SPEC-first work is deliberately **inside** the coverage gate:

@@ -22,3 +22,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - One file per triaged upstream issue, with the full untruncated body, so the upstream context survives without network access.
 - [reviews/](reviews/) - Red-team review records, one file per cycle, each with its verdict and a per-concern resolutions table.
 - [assets/](assets/) - Measured artifacts produced during execution: the free REQ-id list, the edge audit, the proposed write diff, and the two operator authorization records.
+- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
