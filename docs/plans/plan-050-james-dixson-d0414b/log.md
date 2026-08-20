@@ -1,6 +1,10 @@
 # Log
 
 ## 2026-08-20
+- autonomy: max-review-cycles raised to 9 for this invocation (cycles=4) — escalation override
+- review-pass: red-team pass 4 (second independent, via Agent): REVISE — 17 concerns, 4 high; 9 of 11 pass-3 resolutions hold, C21 is a regression introduced by its own fix and C26 was recorded-but-never-landed
+- drafting: #184 filed and folded in as Issues 5.3/5.4 — SKILL.md §3 never dispatches the red-team as a sub-agent, measured on this plan's own passes 1-2
+- drafting: pass-3 resolution round — Epic 4 re-scoped onto the beads_hygiene detector (C10), exp-001 rewritten (C11), Issue 3.2/3.2a split (C12), 5.2 dropped from the gate Blocks (C13), Issue 0.2a added (C14), eight stale refs renumbered (C15), Reconcile Gate given a Condition and Test (C16), context.md network claim corrected (C17), gate-run.sh adopted (C19)
 - review: pass-3 REVISE — returned to PLAN from ready-for-approval
 - review-pass: red-team pass 3 (first INDEPENDENT reviewer, dispatched via Agent): REVISE — 2 high (M9 has no producer seam; EXP-001's recommendation falsified), 6 medium, 3 low
 - ready-for-approval: ready-check green — pass-2 APPROVE + audit pass

@@ -25,7 +25,12 @@ runtime, not merely stale. See AGENTS.md "Three artifacts, not one".
 **Specific to this plan:** the surfaces it changes are `skills/yf-plan/scripts/plan_manager.py`
 (the grant generator, the close-chain ordering), `skills/yf-plan/formulas/plan-execute.formula.toml`
 and the pour seam in `SKILL.md` §5.2a (the wrapper close), `_shared/doc_lint.py` (the verdicts),
-and `skills/yf-plan/agents/red-team.md` (one line). `_shared/` is a real constraint: `derive_from`
+`skills/yf-plan/agents/red-team.md` (one line), and — added by the post-pass-3 Epic-4 re-scope and
+the #184 fold-in — `skills/yf-beads-hygiene/scripts/beads_hygiene.py` (a NEW `attribution-audit`
+subcommand, strictly **outside** the vendored `# >>> BEGIN active-set classifier … do not edit >>>`
+region at lines 269-407), repo-root `CHANGE-VALIDATION.md` (a §1 `fast` row plus a §3 trigger glob),
+`skills/yf-plan/SKILL.md` §3 (sub-agent dispatch), and `skills/yf-plan/spec/agents.md`
+(REQ-AGENT-043 amended plus one new REQ). `_shared/` is a real constraint: `derive_from`
 resolves **only** modules under that directory.
 
 ## Tool inventory

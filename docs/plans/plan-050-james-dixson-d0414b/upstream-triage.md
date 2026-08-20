@@ -9,6 +9,18 @@ Add notes as needed. When done, say "triage ready".
 
 _Full issue bodies are inlined under `references/upstream-<N>.md` (regenerated on re-triage)._
 
+## #184 — yf-plan §3: the red-team is never dispatched as a sub-agent — the drafter reviews its own draft
+
+> `SKILL.md` §3's Review step says "read `${SKILL_DIR}/agents/red-team.md` and perform a structured
+adversarial review" — read-and-perform, in the main session — while §2 says "Spawn a sub-agent per
+unknown". Following §3 literally produces a drafter reviewing its own draft.
+
+**Disposition:** include
+**Notes:** Filed during this plan's own pass-3 resolution round and folded in as Issues 5.3/5.4.
+Measured on this plan: passes 1-2 were main-session and advanced it to `ready-for-approval`; the
+first independent pass returned REVISE with 11 concerns, 2 high. Resolved by 5.3.
+
+
 ## #183 — plan-049-james-dixson-725bc0 execution tracking
 Labels: priority::medium
 > 
@@ -16,8 +28,14 @@ Coarse tracking issue for `plan-049-james-dixson-725bc0` — *Rewrite the histor
 so the constructs plan-048 refuses become readable, and bind the document linter at the two
 enforcement ...
 
-**Disposition:**
-**Notes:**
+**Disposition:** exclude
+**Notes:** plan-049's own coarse tracker; it is closed by plan-049's land-the-plane sweep, not by
+this plan's reconciliation. **Deliberately NOT given `tracker`, and NOT given `supersede`.**
+`tracker`: `_tracker_url_from_plan_md` (`plan_manager.py:1404`) takes the **FIRST** `tracker` row in
+plan.md, so a #183 tracker row would make `stamp-tracker` stamp plan-050's epic with **plan-049's**
+URL. `supersede`: `_verify_row` requires a `supersede` row to be CLOSED as **NOT_PLANNED**, which is
+false of a plan that completed. SC10's real `tracker` instance is plan-050's OWN tracker row, added
+by Issue 6.3 once the number exists.
 
 ## #182 — yf-plan red-team: the read-only rule forbids the sandbox spike that catches specification defects
 

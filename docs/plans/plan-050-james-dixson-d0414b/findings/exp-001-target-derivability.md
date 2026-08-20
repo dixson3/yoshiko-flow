@@ -22,7 +22,17 @@ or the word "derived").
 **measured (first attempt, and WRONG — retained because the error is the finding):** 101 SC rows
 matched the row filter; 6 carried a numeric target; 1 cited a provenance.
 
-**measured (pass-3 C13 re-derivation, in a sandbox spike with a repaired filter and pattern):**
+**measured (pass-3 **C11** re-derivation — the concern was C11, not C13 — in a sandbox spike with a
+repaired filter and pattern).** The spike's own denominator is recorded below but is **not
+reproducible**; the reproducible invocation and figure are:
+
+```bash
+grep -h '^| SC' docs/plans/*/plan.md | wc -l   # 167 at fb79b44, this plan's own 24 rows included
+```
+
+Two neighbouring corpora, recorded so the number is never cited without its scope: **167** over
+`docs/plans/*/plan.md`, **186** over every `*.md` under `docs/plans/`. Re-measure at execution per
+D-5; never cite `163`.
 
 ```
 SC rows matched: 163          # the first attempt undercounted by 61%
@@ -54,8 +64,9 @@ them". The measured argument is stronger and different: *the successor design gr
 cases it was built for.* That is a better reason to drop the deliverable than the one this finding
 first gave.
 
-The corpus population is **163 SC rows**, not 101 — and even that is a lower bound of unknown
-tightness, since the filter was repaired once and may still miss table shapes.
+The corpus population is **167 SC rows** at `fb79b44` (`grep -h '^| SC' docs/plans/*/plan.md | wc -l`,
+this plan's own 24 rows included), not 101 and not the spike's unreproducible 163 — and even 167 is a
+lower bound of unknown tightness, since the filter was repaired once and may still miss table shapes.
 
 ## Recommendations
 
