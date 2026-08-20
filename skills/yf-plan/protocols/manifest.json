@@ -15,6 +15,12 @@
           "version": "1.0.1"
         }
       ]
+    },
+    "DOC-LINT.md": {
+      "sha256": "1955a5e8bec41e725cbd2424f311f4bcc4e3d1b0214f1e4f4ead52b92a310aa4",
+      "version": "1.0.0",
+      "deprecated": false,
+      "previous_versions": []
     }
   }
 }

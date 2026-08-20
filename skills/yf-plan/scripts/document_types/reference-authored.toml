@@ -1,0 +1,39 @@
+# references/*.md — HAND-AUTHORED notes in a plan bundle (Issue 2.8).
+#
+# The residual population after the split: not `upstream-<N>.md` (code-generated), not
+# `comment-<N>.md` (drafted upstream comments), not close/closable/tracker bookkeeping, and
+# not under `user-scope/**` (vendored). Roughly 14 files — handoff notes, captured spec
+# versions, replay records.
+#
+# NO CONTENT CHECKS, DELIBERATELY. There is no producer and no template: these are notes a
+# human or agent wrote because the plan needed something written down. The type exists to
+# make the population addressable and COUNTED, which is what `--type reference-authored`
+# now provides.
+#
+# D-11 DECISION, MEASURED: do NOT extend `reference.toml`'s `source:`/`retrieved:` vendored
+# marker beyond `user-scope/**`. plan-048 scoped this expecting ~11 false positives; the
+# re-measurement (D-5 — re-measure, never cite) is worse: **14 of the 17** non-generated,
+# non-comment reference files carry no `source:` marker, and across the whole `references/`
+# tree **222** files outside `user-scope/**` lack one. They lack it because they are NOT
+# vendored — they are authored here. Extending the marker would relabel original work as
+# unmarked third-party content, which is the opposite of what REQ-DATA-027 exists to detect.
+type = "reference-authored"
+producer_class = "agent-written"
+description = "A hand-authored note in a yf-plan bundle's references/ directory (no producer, no template)."
+
+paths = [
+    "docs/plans/*/references/*.md",
+    "Incubator/*/plans/*/references/*.md",
+]
+exclude = [
+    "docs/plans/*/references/upstream-[0-9]*.md",
+    "docs/plans/*/references/comment-[0-9]*.md",
+    "docs/plans/*/references/close-*.md",
+    "docs/plans/*/references/closable-*.md",
+    "docs/plans/*/references/tracker-*.md",
+    "Incubator/*/plans/*/references/upstream-[0-9]*.md",
+    "Incubator/*/plans/*/references/comment-[0-9]*.md",
+    "**/references/user-scope/**",
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]

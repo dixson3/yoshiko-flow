@@ -207,7 +207,7 @@ does not hunt for a separate `acceptance` skill.
   exit non-zero on fail; mark **INCONCLUSIVE** (via an inlined ~10-line `tool_on_path`) when a
   required tool is absent (never a false green).
   - depends-on: B.1
-- Issue B.3 **(staged — the self-maintaining tier, red-team C2)**: `check-drift` subcommand —
+- Issue B.3 (staged — the self-maintaining tier, red-team C2): `check-drift` subcommand —
   re-read signals, diff against the recorded §2 fingerprint, emit a JSON **re-proposal**
   (added/removed/changed signals + the proposed tier delta); **never auto-rewrites** the manifest.
   Sequenced after the MVP (A–D, dogfood E.1) proves out; independently reviewable and deferrable to

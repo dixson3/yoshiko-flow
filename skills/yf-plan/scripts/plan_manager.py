@@ -3996,6 +3996,84 @@ def _audit_finding(item: str, status: str, detail: str) -> dict:
     return {"item": item, "status": status, "detail": detail}
 
 
+def _lint_findings_for_audit(plan_dir: Path) -> list[dict]:
+    """Run the document linter over the plan bundle and map its verdict onto audit findings.
+
+    THE MAPPING IS THE REQUIREMENT (REQ-DATA-057), not an implementation choice:
+
+        linter `E` (error)   -> audit `fail`   the document does not have the shape its type
+                                               declares, and intake is where that is caught
+        linter `W` / `R`     -> audit `warn`   informational; never blocks
+        INCONCLUSIVE         -> audit `warn`   NEVER `fail`
+
+    **`Inconclusive` maps to `warn`, never to `fail`, and the distinction is load-bearing.**
+    INCONCLUSIVE means *the linter could not run* — a missing schema directory, an unreadable
+    document, an engine that is not deployed. That is a statement about the instrument, not
+    about the plan. Mapping it to `fail` would block intake on the linter's own breakage, which
+    is how a safety check becomes an outage; mapping it to `pass` would hide a linter that
+    silently stopped working. `warn` is the only reading that reports it without gating on it.
+
+    Fail-soft on absence, by the same argument: if the engine cannot be located at all, return
+    a single `warn` rather than raising. A yf-plan installed without the vendored linter must
+    still be able to run an audit.
+    """
+    import importlib.util as _ilu
+
+    engine = None
+    for cand in (Path(__file__).resolve().parent / "doc_lint.py",
+                 Path(__file__).resolve().parent.parent.parent.parent / "_shared" / "doc_lint.py"):
+        if cand.is_file():
+            engine = cand
+            break
+    if engine is None:
+        return [_audit_finding("doc-lint", "warn",
+                               "document linter not found; document conformance UNCHECKED")]
+    try:
+        spec = _ilu.spec_from_file_location("doc_lint_for_audit", engine)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        # TWO CALLS, and both are needed.
+        #
+        # (a) The WHOLE BUNDLE, path-routed (`only_type=None`), so each file is graded by the
+        #     schema its own path selects — `findings/*` as findings, `reviews/*` as reviews.
+        #     This is the reach that makes the gate worth having: plan-047's blocking errors
+        #     lived in `findings/*.md`, not in `plan.md`.
+        # (b) `plan.md` FORCED to the `plan` type. Path routing selects nothing for a bundle
+        #     that sits outside the configured plans root, and "selected nothing" is
+        #     `files_checked: 0` — a silent green. Forcing the type makes the plan document
+        #     itself checkable wherever the bundle lives.
+        #
+        # Findings are de-duplicated below, since (b) re-checks a file (a) may already cover.
+        files = sorted(plan_dir.rglob("*.md"))
+        res = mod.lint(mod.REPO_ROOT, None, files)
+        forced = mod.lint(mod.REPO_ROOT, "plan", [plan_dir / "plan.md"])
+        seen = {(f.get("path"), f.get("check"), f.get("detail")) for f in res["findings"]}
+        for f in forced["findings"]:
+            if (f.get("path"), f.get("check"), f.get("detail")) not in seen:
+                res["findings"].append(f)
+        res["files_checked"] = max(res.get("files_checked", 0),
+                                   forced.get("files_checked", 0))
+    except Exception as exc:                      # noqa: BLE001 - see docstring
+        return [_audit_finding("doc-lint", "warn",
+                               f"INCONCLUSIVE: the linter could not run ({exc}); "
+                               "document conformance UNCHECKED, intake NOT blocked")]
+    if res.get("files_checked", 0) == 0:
+        # `files_checked: 0` is INDISTINGUISHABLE from a clean pass at the exit-code level —
+        # the precise silent green Issue 4.1's root-resolution fix exists to close. Report it
+        # rather than accepting the green.
+        return [_audit_finding("doc-lint", "warn",
+                               "the linter selected ZERO files for this plan.md — "
+                               "not-a-typed-document, not a clean pass")]
+    out = []
+    for f in res.get("findings", []):
+        sev = f.get("severity")
+        out.append(_audit_finding(
+            f'doc-lint/{f.get("check")}',
+            "fail" if sev == "E" else "warn",
+            f'[{sev}] {f.get("detail", "")}'))
+    return out
+
+
 def _audit_plan(plan_dir: Path) -> dict:
     """Run the portability precondition audit. Returns structured result.
 
@@ -4272,6 +4350,19 @@ def _audit_plan(plan_dir: Path) -> dict:
             "dangling-refs", "fail",
             "; ".join(sorted(set(dangling))[:10]),
         ))
+
+    # --- plan-049 Issue 4.2: the intake binding (REQ-DATA-057) ------------------------
+    #
+    # THE ONE SITE, DELIBERATELY. Sites 1 and 3 (`ready-check`, `audit`) call `_audit_plan`
+    # and branch on its status, so binding HERE gives both of them the linter for free — with
+    # their existing exit codes (1 and 3) unchanged. `audit_close` also calls it and stays
+    # ADVISORY for free, because it ignores the status by contract. Binding three call sites
+    # separately would have produced three slightly different bindings.
+    #
+    # This is the gate plan-047's Epic 9 named and nobody wired: a non-conformant NEW plan was
+    # caught only by the FAST tier, never at intake, so the check that would have blocked
+    # plan-047 at its own intake did not exist.
+    findings.extend(_lint_findings_for_audit(plan_dir))
 
     any_fail = any(f["status"] == "fail" for f in findings)
     status = "fail" if any_fail else "pass"

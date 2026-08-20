@@ -195,6 +195,26 @@ WHOLE_FILE_ASSETS = [
             _skill("yf-plan", "scripts", "plan_template.py"),
         ],
     ),
+    # plan-049 Issue 4.1 (REQ-DATA-056): the document linter's FULL TRANSITIVE SET.
+    #
+    # `doc_lint.py` alone is not a vendorable unit. It loads its schemas from a sibling
+    # `document_types/`, and `resolve_derived()` imports `<module>.py` from its own directory
+    # — so the engine reaches `plan_extract.py` (the `plan-relations` kind) and
+    # `plan_template.py` (the derived required-section lists). Vendoring the entry point
+    # without its closure produces a copy that raises `Inconclusive` on load, which the exit
+    # contract reports as 2 rather than as the packaging error it is.
+    #
+    # `plan_template.py` already has its own asset above; the other three are added here.
+    WholeFileAsset(
+        name="doc_lint.py",
+        canonical=REPO_ROOT / "_shared" / "doc_lint.py",
+        consumers=[_skill("yf-plan", "scripts", "doc_lint.py")],
+    ),
+    WholeFileAsset(
+        name="plan_extract.py",
+        canonical=REPO_ROOT / "_shared" / "plan_extract.py",
+        consumers=[_skill("yf-plan", "scripts", "plan_extract.py")],
+    ),
     WholeFileAsset(
         name="okf.py",
         canonical=REPO_ROOT / "_shared" / "okf.py",
@@ -205,6 +225,19 @@ WHOLE_FILE_ASSETS = [
             _skill("yf-okf", "scripts", "okf.py"),
         ],
     ),
+]
+
+# The schema directory is a whole-file asset PER FILE, enumerated from canonical rather than
+# listed by hand. A hand-written list is a list that silently omits the next schema someone
+# adds — and an omitted schema is invisible: the vendored engine simply never runs that check,
+# and reports PASS. Enumerating from disk makes "a new schema was added" a sync-time fact.
+WHOLE_FILE_ASSETS += [
+    WholeFileAsset(
+        name=f"document_types/{_t.name}",
+        canonical=_t,
+        consumers=[_skill("yf-plan", "scripts", "document_types", _t.name)],
+    )
+    for _t in sorted((REPO_ROOT / "_shared" / "document_types").glob("*.toml"))
 ]
 
 EMITTED_ASSETS = [

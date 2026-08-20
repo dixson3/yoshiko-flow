@@ -266,6 +266,11 @@ A standalone `user-invocable: true`, `skill-group: utility` skill at
   verifier that flags everything (or nothing). Remove the fixtures.
   - depends-on: 3.2
 
+## Gates
+### Start Gate (mandatory)
+- Type: human
+- Approvers: operator
+
 ### Capability Gate: d2 present
 - Type: human
 - Approvers: operator
@@ -273,13 +278,6 @@ A standalone `user-invocable: true`, `skill-group: utility` skill at
 - Test: `command -v d2 && d2 --version`
 - Blocks: Issue 1.5 (self-verify renders), Issue 2.x / 3.x verification (need rendered PNGs)
 - Instructions: `brew install d2` (already done on the dev machine; v0.7.1).
-
-## Gates
-### Start Gate (mandatory)
-- Type: human
-- Approvers: operator
-
-### Capability Gate: d2 present (see above)
 
 ## Risks & Mitigations
 - **First-run Chromium download (~140MB, network).** d2-native PNG silently fetches a

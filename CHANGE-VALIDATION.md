@@ -19,6 +19,21 @@
 > target is that exit **4** on a moved or renamed target is a loud failure, so vendored-copy
 > drift cannot hide behind a green run.
 
+> **Two `Incubator/*` §3 rows are a PERMANENT no-op in THIS repository, and are kept anyway**
+> (plan-049 Issue 4.5). `Incubator/*/plans/**` and `Incubator/*/research/**` select nothing here
+> — there is no `Incubator/` directory — and never will. They are **not dead rows**: this
+> manifest schema is shared across vaults, and in an incubator-using vault both are load-bearing.
+> Deleting them here would break those vaults to remove two lines that cost nothing. Their
+> inertness is a fact to document, not work to schedule.
+>
+> Relatedly, and also settled: the **research** selection vacuity D-5 was filed for is **CLOSED**.
+> plan-048's Issue 2.7 instantiated the research document types, so `doc_lint --path` now returns
+> `files_checked: 1` for a real research file and `0` for a nonexistent one — the two are
+> distinguishable, which was the whole concern. The residual "these checks cannot fail" is
+> **REQ-DATA-045 policy, not a defect**: off the plan-bundle axis `bundle_status` is null, so an
+> `E` has no softening available and every research check ships at `W` deliberately. Promoting
+> one to `E` is permitted only with a measured corpus pass recorded beside it.
+
 ## 0. Status
 
 approved: yes
@@ -47,6 +62,7 @@ approved: yes
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
 | `uv-yf-close-contract` | `uv run skills/yf-plan/scripts/test_close_contract.py` |  |  |
+| `uv-yf-intake-lint` | `uv run skills/yf-plan/scripts/test_intake_lint_binding.py` |  |  |
 | `uv-yf-verify-reconcile` | `uv run skills/yf-plan/scripts/test_verify_reconcile.py` |  |  |
 | `uv-yf-audit-close` | `uv run skills/yf-plan/scripts/test_audit_close.py` |  |  |
 | `uv-yf-reconcile-step` | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
@@ -66,6 +82,9 @@ approved: yes
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
+| `dag-guard` | `uv run _shared/test_dag_guard.py` |  |  |
+| `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
+| `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -112,6 +131,9 @@ approved: yes
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
+| `dag-guard` | `uv run _shared/test_dag_guard.py` |  |  |
+| `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
+| `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -190,7 +212,16 @@ approved: yes
 | `skills/yf-research/scripts/**` | `uv-research`, `uv-research-cred` |
 | `skills/yf-research/scripts/test_link_normalizer.py` | `uv-research` |
 | `skills/yf-research/scripts/test_credibility_scorer.py` | `uv-research-cred` |
-| `docs/plans/**` | `doclint`, `doclint-tests`, `plan-extract` |
+| `docs/plans/**` | `doclint`, `doclint-tests`, `plan-extract`, `dag-guard` |
+| `_shared/dag_guard.py` | `dag-guard`, `gate-dagguard` |
+| `_shared/test_dag_guard.py` | `dag-guard`, `gate-dagguard` |
+| `_shared/plan_extract.py` | `plan-extract`, `doclint`, `doclint-tests`, `dag-guard`, `gate-dagguard` |
+| `_shared/doc_lint.py` | `doclint`, `doclint-tests`, `gate-cellcheck`, `uv-yf-intake-lint` |
+| `_shared/document_types/*.toml` | `doclint`, `doclint-tests`, `gate-cellcheck`, `uv-yf-intake-lint` |
+| `tests/fixtures/doc-checks/**` | `doclint-tests`, `gate-cellcheck` |
+| `docs/plans/plan-049-james-dixson-725bc0/scripts/*.sh` | `gate-dagguard`, `gate-cellcheck` |
+| `skills/yf-plan/scripts/plan_manager.py` | `uv-yf-intake-lint` |
+| `skills/yf-plan/protocols/*.md` | `doclint-tests` |
 | `docs/research/**` | `doclint`, `doclint-tests` |
 | `Incubator/*/plans/**` | `doclint`, `doclint-tests` |
 | `Incubator/*/research/**` | `doclint`, `doclint-tests` |

@@ -1,0 +1,52 @@
+# skills/*/SKILL.md — the five frontmatter keys `yf/src/frontmatter.rs` parses (Issue 2.4).
+#
+# D-10 / REQ-DATA-045 BINDS THE SEVERITIES HERE. `skills/**` is OUTSIDE a plan bundle, so
+# `bundle_status` is null, `STATUS_SEVERITY` returns `{}`, and an `E` stays `E` with no
+# softening available. There is no status escape hatch off the plan-bundle axis. So a check
+# may be `E` here ONLY if the corpus already passes it — measured, not assumed:
+#
+#   name             19/19   100%   -> E
+#   description      19/19   100%   -> E
+#   skill-group      19/19   100%   -> E
+#   depends-on-tool  19/19   100%   -> E
+#   depends-on-skill 18/19    95%   -> W   (see below)
+#   user-invocable   15/19    79%   -> W
+#
+# `depends-on-skill` is W because the single omission is DELIBERATE and DOCUMENTED, not drift.
+# `skills/yf-herdr/SKILL.md` omits it and says why in its own body: the `herdr` skill it
+# depends on is third-party and not shipped by this repo, and `depends-on-skill` takes bare
+# IN-REPO names, so listing it "would be a force-install of something the installer cannot
+# provide". An `E` here would break a design decision rather than catch drift — the exact
+# inversion a lint rule must not perform.
+#
+# `user-invocable` is W because 4 of the markdown skills omit it; absence has a defined
+# meaning in the parser (`Option<bool>`), so an omission is a legal state, not a defect.
+type = "skill"
+producer_class = "agent-written"
+description = "A skill's SKILL.md frontmatter contract, as parsed by yf/src/frontmatter.rs."
+
+paths = [
+    "skills/*/SKILL.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+[[checks]]
+id = "required-frontmatter"
+severity = "E"
+kind = "frontmatter-keys"
+value = ["name", "description", "skill-group", "depends-on-tool"]
+
+[[checks]]
+id = "depends-on-skill-declared"
+severity = "W"
+kind = "frontmatter-keys"
+value = ["depends-on-skill"]
+
+[[checks]]
+id = "user-invocable-declared"
+severity = "W"
+kind = "frontmatter-keys"
+value = ["user-invocable"]

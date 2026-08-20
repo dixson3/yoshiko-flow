@@ -1,0 +1,34 @@
+# docs/research/*/artifacts/*.md — per-phase research artifacts (Issue 2.7).
+#
+# EVERY CHECK IS `W` per D-10 / REQ-DATA-045 — see research-summary.toml for the reasoning.
+#
+# THIS TYPE RECORDS A LIVE PRODUCER GAP RATHER THAN ENFORCING AROUND IT.
+# Measured 2026-08-19: **22 of 25** artifact files carry ZERO linked citations. yf-research's
+# epistemic rules mandate "no uncited assertions" and "direct quotes over paraphrase", so the
+# artifacts its own agents write violate the rule the skill declares.
+#
+# (plan-048 estimated 21 of 25 at scoping; re-measured here at 22 per D-5, which requires
+# every inherited figure be re-measured before use rather than cited.)
+#
+# The check is declared so the gap is VISIBLE and counted, at a severity that reports it
+# without failing anything. Closing it means fixing the PRODUCER — the yf-research agents —
+# which is not this plan's scope. A rule that hard-failed 88% of a corpus would be pressure
+# to delete the rule, not to fix the producer.
+type = "research-artifact"
+producer_class = "agent-written"
+description = "A yf-research per-phase artifact: cluster, triangulation, or critique output."
+
+paths = [
+    "docs/research/*/artifacts/*.md",
+    "Incubator/*/research/*/artifacts/*.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+[[checks]]
+id = "linked-citations"
+severity = "W"
+kind = "regex-present"
+pattern = '\[[^\]]+\]\(https?://'
