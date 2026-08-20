@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: gate-red-prework
+description: Capability-gate RED pre-work evidence (Issues 0.6 / 0.6a)
+---
+
 # Capability-gate RED pre-work (Issues 0.6 / 0.6a — SC10c, SC10d)
 
 Recorded 2026-08-19T23:02:36Z, before any Epic 1 or Epic 3 work landed.

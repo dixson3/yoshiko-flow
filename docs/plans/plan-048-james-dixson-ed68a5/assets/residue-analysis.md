@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: residue-analysis
+description: Why the residue is 81, itemized (Issue 1.5)
+---
+
 # Residue analysis: measured 81 against an approval-fixed target of 54 (Issue 1.5)
 
 ## The headline

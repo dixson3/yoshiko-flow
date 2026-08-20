@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: residue-mutant
+description: The residue bar is falsifiable (SC1)
+---
+
 # The residue bar is falsifiable (SC1, after the re-base to 81)
 
 A target that only ever gets compared against the number that produced it is a tautology.

@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: free-req-ids
+description: Free REQ-* id list, derived by grepping the live set (Issue 0.1)
+---
+
 # Free `REQ-*` id list (Issue 0.1)
 
 **Derived mechanically**, not by counting forward — plan-047 allocated four ids that were

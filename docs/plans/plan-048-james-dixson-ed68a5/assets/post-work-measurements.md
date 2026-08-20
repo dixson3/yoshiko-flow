@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: post-work-measurements
+description: Post-work measurements against the approval-fixed targets (Issue 4.3)
+---
+
 # Post-work measurements against the approval-fixed targets (Issue 4.3 / SC20)
 
 Measured on the **merged tree** (`e080d29`), after Epics 0–3 and Issue 4.1 landed.
@@ -70,4 +77,4 @@ and `E`. The bulk are:
 
 **16 of those 81 are a free recovery for plan-049** — perfectly parseable, refused only
 because relocating a section is a document write that D-4 forbids here. See
-[references/handoff-049.md](../references/handoff-049.md) §1.
+`references/handoff-049.md` §1.

@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: edge-audit
+description: Hand audit of the 39 recovered edges (Issue 1.4b / SC1b)
+---
+
 # Hand audit of recovered edges (Issue 1.4b — SC1b)
 
 **SC1b:** for a sample of **>= 20 recovered constructs across >= 10 plans**, each recovered edge

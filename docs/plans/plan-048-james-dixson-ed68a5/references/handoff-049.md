@@ -1,3 +1,10 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+id: handoff-049
+description: Handoff to plan-049
+---
+
 # Handoff to plan-049
 
 Written **while the plan-048 execution context is live** (Issue 4.6), not reconstructed

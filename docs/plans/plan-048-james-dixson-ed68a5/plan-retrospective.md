@@ -165,3 +165,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-009
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | The upstream-write authorization grant listed the tracker, #175 and the three comments, but omitted #172. #172 carries disposition include, which REQ-PLAN-074 requires to reach CLOSED with a plan-id mention. The subordinate refused to close it under 'any upstream write not listed above is not authorized' and halted, blocking completion. |
+| `answered` | The refusal was CORRECT and the omission was in the GRANT, not the execution: honouring a stated boundary beats inferring intent from surrounding context, for an outward-facing write. THE REUSABLE FIX IS ABOUT HOW A GRANT IS DERIVED. This grant was hand-listed alongside a DRAFT SET (the comment-*.md files that happened to exist), so it enumerated what had been drafted rather than what the contract requires. But the required end states do not live in the drafts - they live in plan.md's ## Upstream Issues table, where each row's DISPOSITION determines its obligation under REQ-PLAN-074: include -> CLOSED + mention, supersede -> CLOSED/NOT_PLANNED, partial -> OPEN + mention, deferred -> OPEN, tracker -> no contract, exclude -> skipped. #172 was drafted for no comment because Issue 4.1 fixed it in code, so a draft-derived list could never contain it, while a table-derived list would have contained it automatically. RECOMMENDATION: generate the authorization grant FROM the upstream table (one line per non-exclude row, with its required end state), rather than hand-listing it beside the drafts. That makes the grant complete by construction and reviewable against the same source verify-reconcile reads - the two would then agree or visibly disagree, instead of diverging silently until a halting step catches it. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | verify-reconcile (repo copy) verdict=fail, sole failing row '#172 is OPEN; an include row must be CLOSED'. Grant text: 'Not authorized: any upstream write not listed above'. After the amendment and close: 10 pass, 1 inconclusive (#176 tracker, by construction), exit 0. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
