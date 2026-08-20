@@ -58,6 +58,33 @@ drive** of the modified skill under a sandboxed `HOME` (never trust the installe
 the old, `rust-embed`-baked skill). Do not hand-roll an interactive-agent smoke; drive the
 manager verbs directly.
 
+## Delegation to sub-agents
+
+**The `Agent` tool is permitted — and preferred — for work that benefits from isolation from the
+primary session's context.** Use it when independence is the point, not merely when the work is
+large:
+
+- **Adversarial review.** A red-team pass run by the main session is reviewing its own draft. It
+  shares every assumption it is supposed to attack, so a concern the drafter cannot see is a
+  concern the review cannot raise. Prefer an agent for `yf-plan`'s red-team and conformance passes.
+- **Investigation.** `yf-plan` §2 experiments are designed to be able to **refute** the scoping
+  decision that commissioned them. An investigator carrying the drafting conversation is primed
+  toward confirming it.
+- **Wide reads.** Sweeping many files to answer one question — the answer belongs in context, the
+  file dumps do not.
+
+Two constraints, both load-bearing:
+
+- **Reviewers and investigators are read-only with respect to the repo** (REQ-AGENT-043). The agent
+  returns findings; the **main session** writes `reviews/pass-N.md` and every other artifact.
+- **A sandbox spike is explicitly authorized.** "Read-only" scopes the *repository under review* —
+  it never forbade building something in `$(mktemp -d)` and running it. Prefer a spike whenever a
+  claim is cheaper to *test* than to reason about; measured, plan-049's pass-4 spike caught a
+  specification defect four prose-only passes had read past. Leave no residue.
+
+Delegation is a judgement call, not a mandate: a single-fact lookup in a known file is faster
+done directly.
+
 ## Syncing local `yf` to the repo
 
 This repo is **both the source and a consumer** of its own skills. Editing `skills/` changes
