@@ -127,3 +127,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | The drafted coarse-tracker title read 'plan-plan-048-james-dixson-ed68a5 execution tracking'. Typo, or defect? |
+| `answered` | A yf-plan DEFECT, not a typo. SKILL.md 4.5's template is literally 'plan-<plan-id> execution tracking', and every plan id already begins with 'plan-' — so the template produces a DOUBLED prefix for EVERY plan, not just this one. Filed correctly as 'plan-048-james-dixson-ed68a5 execution tracking' (#176) and the template fixed in the same change-set to '<plan-id> execution tracking' with an inline note. Detected by the operator reviewing the draft; no mechanical check would have caught it, because the tracker title is prose the skill never re-reads. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | SKILL.md:719 read 'plan-<plan-id> execution tracking'; gh issue view 176 title = 'plan-048-james-dixson-ed68a5 execution tracking', single prefix confirmed. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-008
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-19 |
+| `stop_class` |  |
+| `asked` | verify-reconcile reported all five `deferred` rows as 'inconclusive' with a generic message, not the 'pass' Issue 3.4a implemented. Did 3.4a not land? |
+| `answered` | 3.4a landed correctly; the run used the WRONG ARTIFACT. The verb was invoked as ~/.claude/skills/yf-plan/scripts/plan_manager.py — the INSTALLED skill, which predates this plan's changes. Re-run against the repo copy (skills/yf-plan/scripts/plan_manager.py), all five deferred rows return 'pass' and tracker returns 'inconclusive', exactly as designed. This is AGENTS.md's three-artifacts hazard (repo source vs binary-embedded tree vs session-installed skill) appearing during a plan that MODIFIES the skill it runs under. Generalises with RE-006: a verification is meaningless unless the ARTIFACT is named, just as a bundle check is meaningless unless the ADDRESS SPACE is named. Deploy (4.7) is what reconciles them, and it is correctly the last step. |
+| `frontloadable` | yes |
+| `detected_by` | self-report |
+| `evidence` | installed copy: '#140 deferred inconclusive ... carries no reconciliation end-state contract'. repo copy: '#140 deferred pass ... deferred is a non-action and requires no plan-id mention'. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
