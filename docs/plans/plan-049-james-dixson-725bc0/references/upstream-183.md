@@ -1,11 +1,18 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
-id: upstream-draft-tracker
-description: Body of the coarse tracking issue filed as #183 at Issue 6.4
 ---
+# Upstream #183: plan-049-james-dixson-725bc0 execution tracking
 
-<!-- TITLE: plan-049-james-dixson-725bc0 execution tracking -->
+- **Number:** 183
+- **Title:** plan-049-james-dixson-725bc0 execution tracking
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/183
+- **State:** OPEN
+- **Labels:** priority::medium
+- **Disposition:** `tracker` — the coarse tracking issue for this plan-scale effort, filed at Issue 6.4 and stamped onto the epic `yf-mol-dlr` as its `external_ref` (REQ-PLAN-073), which is what makes it an ordinary **mapped** bead rather than the structurally-invisible kind that produced five stale trackers
+
+## Body
+
 
 Coarse tracking issue for `plan-049-james-dixson-725bc0` — *Rewrite the historical plan corpus
 so the constructs plan-048 refuses become readable, and bind the document linter at the two
