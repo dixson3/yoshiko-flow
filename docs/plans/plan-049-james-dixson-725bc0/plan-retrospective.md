@@ -32,3 +32,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-002
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-20 |
+| `stop_class` | 1 |
+| `asked` | Authorize the upstream write: 5 comments, CLOSE #135, and create the coarse tracker |
+| `answered` | (pending) |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | test -f assets/upstream-authorization.txt -> exit 1; bd shows 6.4/6.5/6.6/6.7 and the reconcile step open, all downstream of the gate |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

@@ -1,0 +1,24 @@
+2026-08-20 James Dixson <james@yoshikostudios.com>: AUTHORIZED — plan-049 upstream writes.
+
+Grant DERIVED FROM plan.md's Upstream Issues table (not from the draft list), per
+dixson3/yoshiko-flow#178. Row-for-row:
+
+  #135  include   -> POST comment AND CLOSE  (CLOSED required by _verify_row for `include`;
+                                              this is the row plan-048 omitted and halted on)
+  #140  partial   -> POST comment, leave OPEN
+  #149  partial   -> POST comment, leave OPEN
+  #113  partial   -> POST comment, leave OPEN
+  #174  partial   -> POST comment, leave OPEN
+  #171  deferred  -> NO mention, leave OPEN (passes without a comment by design)
+  #102  exclude   -> no action
+  #145  exclude   -> no action
+
+  NEW: file plan-049's coarse tracker (AGENTS.md coarse granularity — one per plan-scale
+       effort, linking plan + epic). Do NOT push granular sub-beads upstream.
+
+Totals authorized: 5 comments, 1 close (#135), 1 new tracker issue.
+Every draft must carry the FULL plan id (plan-049-james-dixson-725bc0); "plan-049" alone does
+not satisfy _mentions_plan_id.
+
+NOT authorized by this grant: the Issue 6.7 deploy config half (--allow-permissions-write) —
+a separate operator decision.

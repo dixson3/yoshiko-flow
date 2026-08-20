@@ -54,6 +54,7 @@ audit still passes documents the engine could reject.
 | [#113](https://github.com/dixson3/yoshiko-flow/issues/113) | yf-plan: add an execution-rehearsal review pass (topological DAG walk against running state) | partial | Residue drops further here; the walk itself still out of scope | 6.5 |
 | [#174](https://github.com/dixson3/yoshiko-flow/issues/174) | yf-plan: a review-phase validation pass — falsify every criterion, and cross-check every claim against the code that scores it | partial | The binding closes more of the class; the falsification pass stays open | 6.5 |
 | [#171](https://github.com/dixson3/yoshiko-flow/issues/171) | yf-okf: nested index.md generation, deferred behind a `description:` producer change (plan-046 D-9) | deferred | Blocked behind a `description:` producer change; a separate skill's axis |  |
+| [#183](https://github.com/dixson3/yoshiko-flow/issues/183) | plan-049-james-dixson-725bc0 execution tracking | tracker | The coarse tracker for this plan-scale effort, filed at Issue 6.4 via `/yf-beads-upstream` and stamped onto the epic as `external_ref` (REQ-PLAN-073) | 6.4 |
 | [#102](https://github.com/dixson3/yoshiko-flow/issues/102) | .markdown-lint-on-edit -> .yf/markdown-lint-on-edit: gitignore semantics + migrate.rs rename | exclude | Unrelated axis |  |
 | [#145](https://github.com/dixson3/yoshiko-flow/issues/145) | New skill: yf-retrospective — measure escape rate (intra-plan + post-release) and enforce a fix+prevention contract | exclude | Adjacent; own plan |  |
 
