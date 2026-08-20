@@ -152,7 +152,13 @@ protocols/
   PLANS.md                   Planning protocol (installed to the scope+surface rules dir, e.g.
                              ~/.claude/rules/PLANS.md or <git-root>/.claude/rules/PLANS.md,
                              by install.sh)
-  manifest.json              Hash manifest for PLANS.md
+  DOC-LINT.md                Document-lint on-edit trigger — fires the linter on a create or
+                             modify under docs/plans/**, Incubator/*/plans/** or
+                             docs/research/**. NO marker file: inertness is structural,
+                             because the engine is path-keyed. Mandates parsing
+                             files_checked from --json (files_checked: 0 is PASS/exit 0 and
+                             must be reported as not-a-typed-document, never as clean)
+  manifest.json              Hash manifest for PLANS.md and DOC-LINT.md
 test-harness/
   bootstrap.sh               Tier-2 sandboxed-HOME harness setup (see TESTING.md)
   smoke.sh                   Tier-2 mechanical drive of the manager verbs

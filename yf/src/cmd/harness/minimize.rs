@@ -43,6 +43,7 @@
 //! - `DRIFT-CHECK-TRIGGER.md` (yf-drift-check) — on-edit.
 //! - `MARKDOWN_LINT.md` (yf-markdown-lint) — on-edit (opt-in marker).
 //! - `INSTRUCTIONS.md` (yf-optimal-instructions) — on-edit of an instruction file.
+//! - `DOC-LINT.md` (yf-plan) — on-edit of a typed yf artifact (plan-049 Issue 4.3).
 //!
 //! ## Granularity
 //!
@@ -97,6 +98,13 @@ pub const CURATED_SELECTION: &[(&str, Verdict)] = &[
     ("DRIFT-CHECK-TRIGGER.md", Verdict::Drop),
     ("MARKDOWN_LINT.md", Verdict::Drop),
     ("INSTRUCTIONS.md", Verdict::Drop),
+    // plan-049 Issue 4.3. Same class as the four above and classified the same way: an
+    // on-edit engine trigger. It is NOT in the irreducible set — nothing in it must override
+    // a compiled-in Claude Code behaviour, and it carries no cross-cutting mandate that no
+    // single skill's description owns. Its inertness is already structural (the engine is
+    // path-keyed, so in a repo with no typed roots nothing selects), which is precisely why
+    // it does not need a place on the always-loaded surface to be safe.
+    ("DOC-LINT.md", Verdict::Drop),
 ];
 
 /// The curatorial verdict for a protocol filename, or `None` when the protocol is

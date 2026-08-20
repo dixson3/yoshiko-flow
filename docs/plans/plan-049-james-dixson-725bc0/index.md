@@ -21,5 +21,9 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
   - [exp-006-linter-distribution.md](findings/exp-006-linter-distribution.md) - 610 is wrong by 2.2x; the populations overlap at 144 of 1340; the migration moves the count +41.
 - [references/](references/) - One file per triaged upstream issue, with the full untruncated body, so the upstream context survives without network access.
 - [reviews/](reviews/) - Red-team review records, one file per cycle, each with its verdict and a per-concern resolutions table.
-- [assets/](assets/) - Measured artifacts produced during execution: the free REQ-id list, the edge audit, the proposed write diff, and the two operator authorization records.
+- [scripts/](scripts/) - The executable capability-gate harness this plan authors for itself: `gate-run.sh` (the 0/1/2 exit-discipline wrapper) plus the two gate scripts it wraps. Listed only now that the directory exists — an index entry for an absent directory is an OKF ghost.
+  - [gate-run.sh](scripts/gate-run.sh) - Maps any exit outside {0,1,2} — notably bash's 127 for a missing script — to an explicit 2 with a harness-failure message, so a never-authored gate reads as a repairable harness fault rather than a stall.
+  - [gate-dagguard.sh](scripts/gate-dagguard.sh) - Capability gate: the DAG guard exits 1 on mutants A and B and 0 on mutant D. A claim about the instrument, not the corpus.
+  - [gate-cellcheck.sh](scripts/gate-cellcheck.sh) - Capability gate: the empty-cell and gate-completeness checks fire on three mutants and on neither control, including the canonical Start Gate template.
+- [assets/](assets/) - Measured artifacts produced during execution: the free REQ-id list, the two gate/drift evidence records, the edge audit, the proposed write diff, and the two operator authorization records.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).

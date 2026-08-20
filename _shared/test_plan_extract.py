@@ -369,5 +369,128 @@ check("plan-047 has 11 epics / 77 issues / 75 edges / 6 gates",
       (r["counts"]["epics"], r["counts"]["issues"], r["counts"]["edges"],
        r["counts"]["gates"]) == (11, 77, 75, 6), str(r["counts"]))
 
+# --- plan-049 Epic 2 / REQ-DATA-052: the TRAILING-INLINE grammar ------------------------
+#
+# The positive half is easy and the negative half is the whole point. A widening that
+# recovers 72 declarations and also invents one is worse than no widening: an invented edge
+# silently reorders execution, and unlike a missing edge it appears nowhere in `unparsed[]`.
+# So every mutant below is a form a NAIVE widening would mis-attribute, asserted to be
+# REFUSED rather than guessed at.
+
+_TI_OK = """# Plan: t
+## Epics
+### Epic 1: e
+- Issue 1.1: base
+- Issue 1.2: a title whose declaration is written at the end of the bullet. depends-on: 1.1
+- Issue 1.3: a title that wraps onto a continuation line, where the declaration
+  actually lives at the end of the continuation. depends-on: 1.2
+- Issue 1.4: the parenthesised form, which 12 of the 89 corpus instances use. (depends-on: 1.3)
+"""
+r = ex(_TI_OK)
+_ti = {(e["from"], e["to"]) for e in r["edges"]}
+check("REQ-DATA-052: a declaration at the end of the ISSUE BULLET is recovered",
+      ("1.2", "1.1") in _ti, str(sorted(_ti)))
+check("REQ-DATA-052: a declaration at the end of a CONTINUATION LINE is recovered",
+      ("1.3", "1.2") in _ti, str(sorted(_ti)))
+check("REQ-DATA-052: the PARENTHESISED trailing form is recovered",
+      ("1.4", "1.3") in _ti, str(sorted(_ti)))
+check("REQ-DATA-052: the recovery is AUDITABLE — each carries a before/after pair",
+      len([x for x in r["recovered"] if x["class"] == "trailing-inline-subkey"]) == 3
+      and all(x["before"] and x["after"]
+              for x in r["recovered"] if x["class"] == "trailing-inline-subkey"),
+      str(r["recovered"]))
+check("REQ-DATA-052: recovering adds NO residue when every referent resolves",
+      r["counts"]["unparsed"] == 0, str(r["unparsed"]))
+
+# LETTERED referents. 21 of the 89 use them (plan-012 carries `A.1`, `B.4`). A numeric-only
+# widening would recover a BIASED SAMPLE — silently, and looking complete.
+_TI_LETTER = """# Plan: t
+## Epics
+### Epic A: e
+- Issue A.1: base
+- Issue A.2: lettered referent at the end of the bullet. depends-on: A.1
+### Epic B: f
+- Issue B.1: base
+- Issue B.4: mixed list across epics. depends-on: A.2, B.1
+"""
+r = ex(_TI_LETTER)
+_le = {(e["from"], e["to"]) for e in r["edges"]}
+check("REQ-DATA-052: LETTERED referents are recovered, not silently skipped",
+      {("A.2", "A.1"), ("B.4", "A.2"), ("B.4", "B.1")} <= _le, str(sorted(_le)))
+
+# --- the negative mutants: REFUSE, do not guess -----------------------------------------
+
+_M_PROSE = """# Plan: t
+## Epics
+### Epic 1: e
+- Issue 1.1: base
+- Issue 1.2: a line where the token appears MID-SENTENCE, so where the referent list stops
+  is a guess: depends-on: 1.1 and also whatever the reviewer decides later.
+"""
+r = ex(_M_PROSE)
+check("SC6 negative: a MID-LINE declaration with a prose tail materialises NO edge "
+      "(where the list ends is unknowable)",
+      not [e for e in r["edges"] if e["from"] == "1.2"], str(r["edges"]))
+check("SC6 negative: and the refusal is REPORTED, not silently dropped",
+      r["counts"]["unparsed"] > 0, str(r["unparsed"]))
+
+_M_NESTED = """# Plan: t
+## Epics
+### Epic 1: e
+- Issue 1.1: base
+- Issue 1.2: an issue carrying a nested sub-list
+    - a nested item of its own, whose declaration belongs to the SUB-LIST. depends-on: 1.1
+"""
+r = ex(_M_NESTED)
+check("SC6 negative: a declaration on a NESTED SUB-BULLET is not attributed to the issue "
+      "(the mis-attribution a naive 'any indented line' rule would make)",
+      not [e for e in r["edges"] if e["from"] == "1.2"], str(r["edges"]))
+
+_M_ORPHAN = """# Plan: t
+## Epics
+### Epic 1: e
+- Issue 1.1: base
+- some non-conformant column-0 bullet that CLOSES the issue body
+  a continuation of THAT bullet, not of the issue. depends-on: 1.1
+"""
+r = ex(_M_ORPHAN)
+check("SC6 negative: a declaration under a column-0 bullet that is not an issue is refused "
+      "(the preceding issue is no longer in scope)",
+      not r["edges"], str(r["edges"]))
+
+_M_BADREF = """# Plan: t
+## Epics
+### Epic 1: e
+- Issue 1.1: base
+- Issue 1.2: names a GATE, not an issue, alongside a real one. depends-on: G1, 1.1
+"""
+r = ex(_M_BADREF)
+check("SC6 negative: ALL-OR-NOTHING holds for the trailing form too — one unresolvable "
+      "referent refuses the whole declaration, rather than recovering the readable half",
+      not [e for e in r["edges"] if e["from"] == "1.2"], str(r["edges"]))
+check("SC6 negative: and that refusal is reported with its referent named",
+      any("G1" in u["reason"] for u in r["unparsed"]), str(r["unparsed"]))
+
+# The measured corpus result, pinned so a regression is loud.
+_affected = {"plan-006-james-dixson-bf6e21": 7, "plan-007-james-dixson-84da0d": 11,
+             "plan-009-james-dixson-996e44": 13, "plan-010-james-dixson-73eebd": 24,
+             "plan-012-james-dixson-a99822": 17}
+_got = {}
+for _name in _affected:
+    _r = pe.extract(REPO / "docs" / "plans" / _name / "plan.md")
+    _got[_name] = len([x for x in _r["recovered"] if x["class"] == "trailing-inline-subkey"])
+check("SC5: at least 60 of the measured 89 inline declarations are recovered as edges",
+      sum(_got.values()) >= 60, f"recovered={sum(_got.values())} per-plan={_got}")
+check("SC5: the recovery is spread across all five affected plans, not concentrated in one",
+      all(v > 0 for v in _got.values()), str(_got))
+
+# SC8. THE HEADLINE CORPUS SYMPTOM: two plans reported `0 unparsed, 0 edges` while carrying
+# 20 declarations between them — the residue metric recording the loss as perfection.
+for _name in ("plan-006-james-dixson-bf6e21", "plan-007-james-dixson-84da0d"):
+    _r = pe.extract(REPO / "docs" / "plans" / _name / "plan.md")
+    check(f"SC8: {_name.split('-')[1]} no longer reports 0 edges while carrying declarations",
+          _r["counts"]["edges"] > 0, str(_r["counts"]))
+
+
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)

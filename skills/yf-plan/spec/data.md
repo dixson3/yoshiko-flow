@@ -171,9 +171,17 @@ The **engine contract**:
 
 - **Verdict vocabulary is `PASS | FAIL | INCONCLUSIVE`.** `INCOMPLETE` is the *reviewer agent's*
   vocabulary and shall not appear in a linter verdict.
-- **Two severities**, and only one is an error: `E` (structural — the document does not have the
-  shape its type declares) and `W` (completeness — a required section is present but unfilled).
-  Only `E` sets a non-zero exit code.
+- **Three severities**, and only one is an error: `E` (structural — the document does not have
+  the shape its type declares), `W` (completeness — a required section is present but unfilled),
+  and `R` (report-only — recorded in `findings[]`, counted in `report_only`, printed only under
+  `--show-report-only`). Only `E` sets a non-zero exit code. `R` is both a **declarable** schema
+  severity and the **outcome** of a status demotion (REQ-DATA-053); those are the same value
+  reached two ways, not two vocabularies. *(Amended by plan-049 Issue 0.6. This bullet read
+  "Two severities" while nine checks across five schemas — `upstream-triage`,
+  `upstream-reference`, `finding`, `review`, `plan-retrospective` — had declared `R` directly
+  since plan-047, and `doc_lint.py` had accepted it since `ERROR, WARN, REPORT` was written. The
+  `e-doclint-spec` drift edge added by the same issue reported it on its first run, which is the
+  class of divergence that edge exists to catch.)*
 - **`INCONCLUSIVE` means "the linter could not run"** and only that; it maps to **exit 2**.
   "Not finished yet" is expressed as `W` severity **inside a PASS**, so the exit contract stays
   **binary at every binding point**: 0 = no error-severity finding, 1 = at least one, 2 = the
@@ -307,7 +315,9 @@ per-document schema check can do, since each of those reads one section in isola
   returns INCONCLUSIVE per REQ-DATA-043, never FAIL.
 - **Severity:** the `R*` rule family ships at severity **`W`**, uniformly.
 - **`STATUS_SEVERITY` promotion does NOT apply to this kind.** This is **declared, not
-  inherited**. Were `W → E` to fire at `bundle_status: review`, every future plan would
+  inherited** — and, since plan-049 Issue 0.2, **implemented**: the schema declares
+  `promote = false` and the engine bypasses the map in both directions (REQ-DATA-053). Between
+  plan-048 and plan-049 this bullet was true of the prose and false of the code. Were `W → E` to fire at `bundle_status: review`, every future plan would
   hard-fail R1b unless every non-bookkeeping issue were named by a criterion — a bar plan-048
   itself does not clear (it carries four such issues and escapes only by being `executing` when
   the rule lands). A rule that no in-flight plan can satisfy trains authors to write fake
@@ -341,6 +351,288 @@ single largest hidden cost in the document-type work and is invisible from the t
 themselves.
 Verification: plan-048 D-10; Issue 2.7 declares every research check at `W`; SC7 drives the
 boundary with a mutant, asserting `errors == 0` is not true merely by construction.
+
+REQ-DATA-053: A document-type schema may declare **`promote = false`**, and `doc_lint.py` shall
+then bypass `STATUS_SEVERITY` for that schema **in both directions** — a check keeps its
+declared severity at every `bundle_status`, neither promoted (`W → E` at `review` /
+`ready-for-approval`) nor demoted (`W → R`, `E → R` at `approved`/`executing`/`reconciling`/
+`complete`). The key defaults to **`true`**, so every schema that does not declare it is
+unaffected. `plan-relations` declares `promote = false`.
+Rationale: REQ-DATA-044 already *declares* that promotion does not apply to the `plan-relations`
+kind, and the schema file and the engine's own module banner both repeat it — but for a full
+plan cycle **nothing implemented it**: `doc_lint.py` applied the map unconditionally to every
+schema. plan-049 D-9 measured the same fixture at `executing` → `R`, exit 0, and at `review` →
+`E`, exit 1, which would have made plan-049 hard-fail R1b at its own intake. A declaration that
+three documents assert and no code enforces is worse than an absent one, because every reader
+downstream reasons from it. Making the opt-out a **schema key** rather than a hard-coded kind
+guard keeps the rule where the declaration already lives, and makes the next non-promoting
+schema a one-line change instead of a second special case in the engine.
+Verification: plan-049 Issue 0.2; SC13 drives `tests/fixtures/doclint/plan-relations/
+promotion-off-bundle/plan.md` — a **bundle**, so `bundle_status()` resolves to `review` rather
+than null — and asserts **exit 1 pre-fix and exit 0 post-fix from the same fixture**, the
+pre-fix arm re-running the identical call against a types-dir with the `promote` line stripped.
+A flat-file fixture would have exited 0 before any fix and proved nothing.
+
+REQ-DATA-051: A **corpus-write postcondition** shall be expressed as a **four-layer snapshot**
+of the plan DAG, taken before a write and re-taken after it, with every layer compared under
+**set or multiset containment — never under counts**:
+
+| Layer | Population | Comparison |
+| :-- | :-- | :-- |
+| **L1** | the set of issue ids per plan | post ⊇ pre (set containment) |
+| **L2** | the set of materialised edges `(from, to)` per plan | post ⊇ pre (set containment) |
+| **L3** | the **multiset of raw referent tokens literally written** in each `depends-on:` / `resolves-upstream:` declaration, **whether or not the extractor can parse them** | post ⊇ pre (multiset containment) |
+| **L4** | gate name → `{type, condition, test, blocks}` | post ⊇ pre per gate, **field by field** |
+
+**L3 is the primary layer.** It is the only one that fires on the emptied-declaration mutant
+(mutant A), because a *refused* declaration contributes no issue, no edge and no gate — so
+L1, L2 and L4 are all blind to its destruction. Reading the raw token stream rather than the
+parsed DAG is what makes the guard independent of the grammar it is guarding.
+
+**L4 is the layer that observes a corpus write.** A relocation moves gate content between
+sections; L1–L3 are measurably unchanged by it (EXP-002 mutant C), so a guard asserting only
+those would be a no-op over exactly the write it brackets. A gate that loses a field — or is
+reduced to a heading with no `Type`/`Condition`/`Test` — is a **loss**, even though the gate
+still exists by name.
+
+**Counts are forbidden as the comparison, in every layer.** A reader who implements L1–L4 as
+`len(post) >= len(pre)` gets a control that passes the edge-target **substitution** mutant with
+totals exactly unchanged, and passes mutant A with the totals moving *favourably*. Containment
+is the requirement; a count is a summary of it that discards the identity the guard exists to
+check.
+
+The guard shall additionally report the plan content fingerprint as a **note that never changes
+the verdict** (REQ-DATA-051's companion, Issue 1.5), and shall exit **2 (INCONCLUSIVE)** — never
+1 — when the population itself is unreadable, e.g. a plan present in the pre-snapshot that has
+vanished from the post-snapshot.
+Rationale: plan-048 shipped an all-or-nothing hash predicate; plan-049 EXP-002 implemented its
+successor exactly as worded and drove it with the 23-emptied-declaration replay, measuring
+**`PASS`, exit 0** — edges *up* two and residue *down* 22, so the destruction read as an
+improvement on both instruments. A postcondition that passes the specific harm it was written
+for is not a weak control, it is not a control. Naming the four layers, naming L3 as primary,
+and forbidding counts in the requirement text are the three things that stop a re-implementation
+from reproducing the blindness.
+Verification: plan-049 Issue 1.1 implements `_shared/dag_guard.py`; SC1 drives mutant A to exit 1
+with `L3` in `failing_layers`, SC2 drives mutant B and shows a count-only form passes it, SC3
+drives a real 48-bundle `okf.py migrate` as the false-positive control, SC11 asserts a non-empty
+L4 population on the write phase, SC26 drives all three exit paths, and SC38 drives the
+fan-out mutant against the paired upper bound.
+
+REQ-DATA-052: `plan_extract` shall read the **trailing-inline** `depends-on:` form — a
+declaration written on the issue bullet's own line or on an indented continuation line rather
+than as its own `  - depends-on:` bullet — and shall accept **lettered referents** (`A.1`,
+`B.4`) alongside numeric ones. Recovered referents materialise as ordinary L2 edges.
+
+The grammar shall **refuse rather than guess**. A trailing-inline construct is refused, and
+reported in `unparsed[]`, whenever the referent it names cannot be resolved unambiguously to an
+issue id declared in the same plan — specifically:
+
+- a referent naming an id that no issue in the plan declares;
+- a construct whose `depends-on:` token appears inside a fenced block, an inline code span, or
+  prose that is not an issue bullet or its continuation;
+- a referent list whose separators are ambiguous under the bullet grammar.
+
+A refusal is a **finding, never a silent drop**: refusing must add a residue row, which is why
+the widening is required to leave corpus `unparsed[]` no higher than it found it.
+Rationale: EXP-001 measured **89 trailing-inline declarations across 5 plans that are invisible
+AND uncounted** — `plan-006` and `plan-007` report `0 unparsed, 0 edges` while 20 declarations
+go unread, so the residue metric records the loss as perfection. 21 of the 89 use lettered
+referents, so a numeric-only widening would silently recover a biased sample. Requiring refusal
+over inference is what keeps the widening from *inventing* edges: EXP-001's fan-out mutant
+produced **+141 invented edges from 11 lines**, which a loss-only postcondition passes cleanly.
+Verification: plan-049 Issues 2.1–2.4; SC5 asserts ≥60 of the 89 recovered with **zero documents
+modified**, SC6 drives a mis-attributable form and asserts refusal, SC7 hand-audits ≥20 across
+≥4 plans, SC8 asserts `plan-006` and `plan-007` no longer report `0 edges`, and SC31 asserts
+corpus `unparsed[]` does not rise above its pre-widening value.
+
+REQ-DATA-054: `doc_lint.py` shall support a **`cell-non-empty`** check kind, asserting that
+each named column of a section's first table holds content in every row, and that the table
+**has at least one row**. A cell holding only a placeholder — `_tbd_`, `TBD`, `-`, `—`, `n/a`,
+`none`, `?`, `todo`, or bare emphasis — counts as **empty**.
+
+Two carve-outs are part of the requirement, not implementation detail:
+
+- **A section with no table at all is NOT this check's finding.** That is `table-columns`'
+  business; 44 of the 48 historical plans write `## Success Criteria` as a list, and reporting
+  it here would count one defect twice and swamp the signal.
+- **A row whose ID cell is itself a placeholder is skipped.** The `| — |  |  |` /
+  `| _none_ |  |  |` idiom declares "there is nothing here", which is a correct assertion, not
+  an unfilled row. Measured: not skipping it manufactures **58 findings across 29 plans** out
+  of an authoring convention working as intended.
+
+Rationale: plan-047's "90-finding exploit" was a table whose required cells were blank — every
+existing check passed it, because `table-columns` inspects only the header and `row-id-grammar`
+iterates rows. EXP-006 measured the hole still open and **wider** than recorded: a **zero-row**
+table also passes both, since iterating nothing raises nothing. Without an instrument that
+reddens on those shapes, a plan's own corpus write is unobservable in exactly the way this plan
+exists to close.
+Verification: plan-049 Issue 3.1; SC9 drives an empty required cell and a zero-row table, each
+to exit 1, via `tests/fixtures/doc-checks/`; SC41's false-positive control asserts a conformant
+document stays green. Blast radius **re-measured, not cited** (D-7): 0 findings on
+`## Success Criteria` and 5 on `## Upstream Issues`, all of them the zero-row shape.
+
+REQ-DATA-055: `doc_lint.py` shall support a **`gate-completeness`** check kind whose predicate
+is that a gate block declares **ALL THREE** of `Type`, `Condition` and `Test` absent — a gate
+that is a heading and nothing else.
+
+**The predicate is all-three-absent, and the obvious alternative is measurably wrong.** A
+`Type` + one-of predicate fires on **79 of the 131 corpus gates** (re-measured here; plan-049
+recorded 80 of 137), including **every** Start Gate and the canonical template in
+`plan_template.py` and `SKILL.md`. Binding that form fail-closed at intake would leave the next
+plan unable to pass its own intake. A `Type: human` + `Approvers: operator` Start Gate is a
+**complete** gate — the named approver *is* the condition — so it must not fire.
+Rationale: a relocation can reduce a gate to a bare heading while every other gate check still
+certifies it clean: the vacuous-gate shape. It is the same loss `REQ-DATA-051`'s L4 layer
+catches, approached from the document side rather than the snapshot side.
+Verification: plan-049 Issue 3.2; SC10 drives it in **both** directions — a bare gate heading to
+exit 1, and the literal canonical Start Gate template (read out of `plan_template.py` by the
+fixture builder, so a template change breaks the fixture rather than sliding past it) to exit 0.
+Measured corpus firing: **2 gates** — `plan-006`'s `### Reconcile Gate` /
+`- Not needed — no upstream issues incorporated`, and `plan-008`'s
+`Capability Gate: d2 present (see above)` stub.
+
+**The "declare it not needed" idiom (plan-006), decided explicitly.** It **fires**, and that is
+a recorded decision rather than an oversight. `- Not needed — no upstream issues incorporated`
+is free prose: no consumer can read it, so the gate is machine-indistinguishable from an
+unfinished one. The conformant way to say it is `- Type: auto` plus a `- Condition:` giving the
+reason. The idiom is not *exempted*, because an exemption for unstructured prose is an
+exemption for anything. Instead both checks ship at **`W`**, so `STATUS_SEVERITY` demotes the
+two historical instances to report-only while promoting the rule to `E` at `review` —
+enforcement for new plans, no re-judgement of old ones, and no corpus write needed to land it.
+
+REQ-DATA-056: The document linter shall be **vendored into the deployed skill tree with its
+full transitive closure**, and shall resolve the repository root **explicitly** rather than
+positionally.
+
+- **Closure, not entry point.** `doc_lint.py` loads its schemas from a sibling
+  `document_types/` and `resolve_derived()` imports `<module>.py` from its own directory, so
+  the unit is `doc_lint.py` + `document_types/*.toml` + `plan_extract.py` + `plan_template.py`.
+  Every schema is vendored, enumerated from canonical rather than hand-listed.
+- **Root resolution** is `$YF_REPO_ROOT` → `git rev-parse --show-toplevel` → the nearest
+  ancestor of the CWD carrying `.git` → the positional guess, last; `--root` overrides all of
+  it.
+
+Rationale: EXP-004 measured `find skills -name doc_lint.py` returning **empty** while
+`embed.rs` embeds only `../skills` — so the always-on on-edit rule would have referenced an
+engine present in **no deployed vault**. And a byte-identical copy would not have fixed it:
+positional resolution makes the vendored copy compute its root as the *skill directory*,
+matching no `docs/plans/**` glob, so it returns `files_checked: 0` — which is `verdict: PASS`,
+exit 0, **indistinguishable from a clean run at every binding point**. A byte-identical vendor
+of a root-relative script is not a vendor.
+Verification: plan-049 Issue 4.1; SC15 asserts the closure is present and `sync.py --check` is
+green; SC42 runs **both** copies over the same finding-producing document and diffs the JSON,
+and separately demonstrates the old positional root producing `files_checked: 0` / PASS / exit 0.
+
+REQ-DATA-057: `_audit_plan` shall run the document linter over the plan bundle and fold its
+verdict into the audit findings, at **one** call site. The severity mapping is:
+
+| Linter | Audit | Why |
+| :-- | :-- | :-- |
+| `E` | `fail` | the document does not have the shape its type declares, and intake is where that is caught |
+| `W` / `R` | `warn` | informational; never blocks |
+| `INCONCLUSIVE` | **`warn`, never `fail`** | see below |
+
+**`Inconclusive` maps to `warn` and this is load-bearing.** INCONCLUSIVE means *the linter
+could not run* — a missing schema dir, an unreadable document, an engine that was never
+deployed. That is a claim about the instrument, not about the plan. Mapping it to `fail` turns
+the linter's own breakage into an **intake outage**; mapping it to `pass` hides a linter that
+silently stopped working. `warn` is the only reading that reports it without gating on it.
+
+**One call site, deliberately.** `ready-check` and `audit` both call `_audit_plan` and branch
+on its status, so they inherit the binding with their existing exit codes (3 and 1) unchanged,
+and `audit_close` stays advisory for free because it ignores the status by contract. Binding
+three sites separately produces three slightly different bindings.
+
+**The binding inherits the audit's own grandfather level.** Linter `E` maps to
+`okf_missing_level` — already `warn` for a date-grandfathered plan or an un-migrated
+OKF-legacy one (no `plan.md` frontmatter), and `fail` only for an OKF-native plan — rather than
+to a hard `fail` unconditionally. Without this the binding **re-judges history**: an un-migrated
+legacy bundle has no frontmatter, no `## Gates`, no criteria table and a retired in-`plan.md`
+phase log, so it fails ten `E`-severity document checks *by construction*. `STATUS_SEVERITY`
+rescues the finished ones (a `complete` bundle demotes `E` to `R`), but an in-flight legacy plan
+mid-migration would hard-fail its own audit for being what it has always been.
+
+**Two lint calls, both required.** (a) the whole bundle **path-routed**, so `findings/*` is
+graded as findings and `reviews/*` as reviews — that reach is the point, since plan-047's
+blocking errors lived in `findings/*.md`, not `plan.md`; and (b) `plan.md` **forced** to the
+`plan` type, because path routing selects nothing for a bundle outside the configured plans
+root and "selected nothing" is `files_checked: 0` — PASS, exit 0, a silent green. Findings are
+de-duplicated across the two.
+Rationale: plan-047's Epic 9 named this enforcement point and nothing ever wired it, so a
+non-conformant NEW plan was caught only by the FAST tier. The fail-closed gate that would have
+blocked plan-047 at its own intake did not exist.
+Verification: plan-049 Issue 4.2;
+`skills/yf-plan/scripts/test_intake_lint_binding.py` drives SC16 — an in-flight bundle with an
+injected malformed heading takes `ready-check` from exit **0** to exit **3** — alongside an
+unmutated **control** at the same status, so the mutant arm is not satisfied by a binding that
+refuses everything, and an absent-engine arm asserting `warn`.
+
+REQ-DATA-058: A schema check may declare **`statuses`** — the list of `bundle_status` values it
+applies to. When present, the check **does not run** outside that list.
+
+This is **orthogonal to `STATUS_SEVERITY`**, and the distinction is the requirement: the
+severity map changes what a finding *weighs*, `statuses` decides whether the check *runs at
+all*. Where both apply, `statuses` is evaluated first.
+Rationale: a **producer-version** check — one asserting that a generated document carries
+something the *current* producer emits — will fire on every document an *older* producer wrote,
+forever, at whatever severity it is declared. Measured: `disposition-alphabet-offered` fired on
+**30 of the 31** selected files, the single non-firing file being the triage of the plan taking
+the measurement. A rule that fires on essentially everything is a constant, and a constant
+carries zero information; demoting it to `R` only makes the noise quieter. Scoping such a check
+to in-flight statuses keeps the signal where an author can act on it and drops it where
+re-judging a finished document teaches nobody anything.
+Verification: plan-049 Issue 4.7; the rule is re-scoped to
+`scoping|investigating|drafting|review|ready-for-approval`, taking the measured violation rate
+from **30/31 to 0/31** (SC37's strict decrease) while still firing on an in-flight bundle whose
+triage omits the alphabet.
+
+REQ-DATA-059: `doc_lint.py` and `plan_extract.py` shall each accept a repeatable
+**`--exclude <glob>`**, skipping inputs whose repo-relative path matches. A corpus measurement
+taken by a plan **shall exclude that plan** (#135).
+
+- `--exclude` is applied **unconditionally**, including under `doc_lint`'s `--no-exclude`
+  positive control. The two are different kinds of thing: a schema's own `exclude` list is a
+  carve-out `--no-exclude` deliberately defeats, whereas `--exclude` is the caller stating that
+  the measurement is not about those files. A positive control that silently re-admitted the
+  measuring plan would reintroduce the self-reference the flag exists to remove.
+- The excluded set is **reported**, never silently dropped: an invisible exclusion is
+  indistinguishable from an input that was never supplied, which is how a denominator quietly
+  shrinks.
+Rationale: #135 — a measured literal written into `plan.md` goes stale the moment the plan is
+inside its own measured corpus. Deferred twice; plan-048 produced **three live instances**
+(47→48 dirs, 112→119 review files, 174→180 `files_checked`), and plan-049 produced two more
+during its own drafting. Prior art: plan-048's SC1 already self-excluded by hand.
+Verification: plan-049 Issue 5.1; SC19 requires the assertion be **derived, not an era
+literal** — run the measurement twice over the live tree and assert
+`count(--exclude '<plan>/**') == count(unexcluded) - count(that plan alone)`, for at least two
+different plans, with no fixed number anywhere in the assertion.
+
+REQ-DATA-060: `doc_lint.py` shall carry a **`stale-measured-literal`** check reporting a bare
+number written adjacent to a corpus-measurement noun (`files_checked`, `plan dirs`,
+`report-only findings`, `review files`, `unparsed constructs`, `corpus files`).
+
+It is scoped **hard**, and each scoping rule is earned:
+
+| Rule | Why |
+| :-- | :-- |
+| runs only when `bundle_status != complete` | a finished plan's measurement is a **historical record** and is *supposed* to be frozen. Re-judging it is the measured-marker failure mode |
+| skips `findings/` and `reviews/` | an experiment writeup and a review verdict are point-in-time records **by construction** |
+| severity `W`, with **check-level `promote = false`** | a HINT must never hard-fail intake. REQ-DATA-053's schema-level opt-out is generalised to the check level so `plan.toml` can keep promoting `required-sections` — the actual intake gate — while this one stays `W` at every status |
+
+**The blind spot is DENOMINATOR-ONLY, and shall be stated where a reader meets it.** The check
+finds a stale **count**; it cannot find a stale **claim about** a count. "the populations
+overlap at 144 of 1340" drifts silently when 1340 moves, and "roughly a third" carries no
+literal at all. A numerator-drift instance passes green. The statement is required in three
+places — the finding text, the schema declaration, and the engine docstring — because a reader
+may meet the rule at any of them.
+Rationale: upstream #135, deferred twice. plan-048 produced **three live instances**
+(47→48 dirs, 112→119 review files, 174→180 `files_checked`) and plan-049 two more while
+drafting. EXP-005 measured the naive form — any number near a corpus noun — firing **41 of 41
+times with 39 correct-behaviour false positives**; the scoped form measured **2 fires, 2 true
+positives, 0 false positives**.
+Verification: plan-049 Issues 5.2/5.3; SC20 drives **both** arms — zero findings across the
+finished corpus, and ≥2 on the same bundle forced in-flight, so the silence is scoping rather
+than a dead rule — and SC21 greps the blind-spot statement in each of its three homes.
 
 
 ## Upstream Tracking

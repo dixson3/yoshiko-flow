@@ -1,0 +1,23 @@
+# skills/*/agents/*.md — sub-agent prompt files (Issue 2.6).
+#
+# 23 files, measured 100% on both keys below. Like `skill.toml`, this type lives OUTSIDE a
+# plan bundle, so `bundle_status` is null and `E` cannot be softened (D-10 / REQ-DATA-045).
+# `E` is therefore permitted here ONLY because the corpus already passes at 23/23 — measured,
+# not assumed.
+type = "agent"
+producer_class = "agent-written"
+description = "A sub-agent prompt file shipped by a skill (`agents/*.md`)."
+
+paths = [
+    "skills/*/agents/*.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+[[checks]]
+id = "required-frontmatter"
+severity = "E"
+kind = "frontmatter-keys"
+value = ["name", "description"]

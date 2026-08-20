@@ -19,6 +19,7 @@ import json
 import re
 import subprocess
 import sys
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -430,6 +431,402 @@ for _name, _rule in sorted(_MUTANTS.items()):
     _fired = [f for f in _d.get("findings", []) if f["check"] == _rule]
     check(f"SC10 {_name}: makes {_rule} fire", len(_fired) > 0,
           f'findings={[f["check"] for f in _d.get("findings", [])]}')
+
+
+# --- plan-049 Issue 0.2 / SC13: `promote = false` bypasses STATUS_SEVERITY both ways -----
+#
+# THE FIXTURE MUST BE A BUNDLE. A flat file has no sibling `plan.md`, so `bundle_status()`
+# returns None, the promotion map never applies, and the assertion **exits 0 before any fix**
+# — a vacuous green. `promotion-off-bundle/plan.md` carries `status: review`, the status at
+# which the un-fixed engine promoted `W -> E`.
+#
+# BOTH ARMS COME FROM THE SAME INVOCATION SHAPE. The post-fix arm runs the shipped engine;
+# the pre-fix arm re-runs the identical call against a types-dir whose `plan-relations.toml`
+# has the `promote = false` line stripped — i.e. exactly the schema as it stood before this
+# issue. Asserting only the green arm would pass against an engine that never promotes
+# anything.
+
+PROMO_BUNDLE = FIXTURES / "plan-relations" / "promotion-off-bundle" / "plan.md"
+
+check("SC13: the promotion-off fixture is a BUNDLE (sibling plan.md is the file itself)",
+      PROMO_BUNDLE.is_file() and doc_lint_mod.bundle_status(PROMO_BUNDLE) == "review",
+      f"bundle_status={doc_lint_mod.bundle_status(PROMO_BUNDLE) if PROMO_BUNDLE.is_file() else 'no fixture'!r}")
+
+_rc_post, _out_post = run("--type", "plan-relations", "--path", str(PROMO_BUNDLE), "--json")
+_d_post = json.loads(_out_post)
+check("SC13 post-fix: exits 0 at `review` (W is not promoted to E)", _rc_post == 0,
+      f"rc={_rc_post} errors={_d_post.get('errors')}")
+check("SC13 post-fix: the R1b finding keeps its declared `W`",
+      [f["severity"] for f in _d_post["findings"] if f["check"] == "R1b"] == ["W"],
+      f'severities={[(f["check"], f["severity"]) for f in _d_post["findings"]]}')
+check("SC13 post-fix: the finding is not silently absent (the arm would be vacuous)",
+      any(f["check"] == "R1b" for f in _d_post["findings"]),
+      f'findings={[f["check"] for f in _d_post["findings"]]}')
+
+with tempfile.TemporaryDirectory() as _td:
+    _pre_types = Path(_td) / "document_types"
+    shutil.copytree(SHARED / "document_types", _pre_types)
+    _rel = _pre_types / "plan-relations.toml"
+    _rel.write_text("\n".join(l for l in _rel.read_text().splitlines()
+                              if not l.strip().startswith("promote")) + "\n")
+    _saved = doc_lint_mod.TYPES_DIR
+    try:
+        doc_lint_mod.TYPES_DIR = _pre_types
+        _pre = doc_lint_mod.lint(REPO, "plan-relations", [PROMO_BUNDLE])
+    finally:
+        doc_lint_mod.TYPES_DIR = _saved
+    check("SC13 pre-fix: the SAME fixture yielded an ERROR before the fix "
+          "(so the green arm above is a real signal, not a no-op)",
+          _pre["errors"] >= 1,
+          f'pre-fix errors={_pre["errors"]} '
+          f'severities={[(f["check"], f["severity"]) for f in _pre["findings"]]}')
+    check("SC13 pre-fix: the promoted finding is the R1b whose declared severity is `W`",
+          any(f["check"] == "R1b" and f["severity"] == "E" and f["declared_severity"] == "W"
+              for f in _pre["findings"]),
+          f'{[(f["check"], f["declared_severity"], f["severity"]) for f in _pre["findings"]]}')
+
+# The other direction: `complete` must not DEMOTE a non-promoting schema's `W` to `R`.
+_ctrl_status = doc_lint_mod.bundle_status(RELFIX / "control.md")
+_, _o_m2 = run("--type", "plan-relations", "--path",
+               str(RELFIX / "m2-R1b-issue-named-by-no-criterion.md"), "--json")
+_d_m2 = json.loads(_o_m2)
+check("SC13: a non-promoting schema is not demoted either — no R1b finding is reported as `R`",
+      all(f["severity"] != "R" for f in _d_m2["findings"] if f["check"] == "R1b"),
+      f'severities={[(f["check"], f["severity"], f["bundle_status"]) for f in _d_m2["findings"]]}')
+
+
+# --- plan-049 Issue 0.3 / SC14: this plan's own Upstream Issues table at `review` ---------
+#
+# EXP-003 measured plan-049-as-drafted at 3 R2b errors from `_tbd_` cells in the
+# `## Upstream Issues` table. They were filled at drafting; this asserts it, so the fix
+# cannot silently regress.
+#
+# The copy is built at RUN TIME from the LIVE plan.md rather than committed as a fixture:
+# a committed 47 KB duplicate would go stale the moment the plan is edited, and would then
+# assert about a document nobody reads. Forcing `status: review` is the whole point —
+# `review` is the status at which the intake binding grades a plan.
+#
+# STATED INTERACTION, because it makes the criterion weaker than it reads: since Issue 0.2
+# (REQ-DATA-053) no `plan-relations` finding can be `E` at ANY status, so "zero R2b ERRORS"
+# is now true of every plan by construction. The assertion below is therefore on **zero R2b
+# findings at any severity**, which is the claim SC14 was actually written to make. The
+# positive control that R2b *can* fire is the committed m4/m6 mutants above.
+
+_LIVE = sorted((REPO / "docs" / "plans").glob("plan-049-*/plan.md"))
+check("SC14: the live plan-049 bundle is present to assert against", len(_LIVE) == 1,
+      f"found {[str(x) for x in _LIVE]}")
+if len(_LIVE) == 1:
+    with tempfile.TemporaryDirectory() as _td:
+        _b = Path(_td) / "plan-049-review-copy"
+        _b.mkdir()
+        _src = _LIVE[0].read_text(encoding="utf-8")
+        _copy = re.sub(r"(?m)^status: .*$", "status: review", _src, count=1)
+        _copy = re.sub(r"(?m)^\*\*Status:\*\* .*$", "**Status:** review", _copy, count=1)
+        (_b / "plan.md").write_text(_copy, encoding="utf-8")
+        check("SC14: the forced copy really reads `review` (else the arm is vacuous)",
+              doc_lint_mod.bundle_status(_b / "plan.md") == "review",
+              f"bundle_status={doc_lint_mod.bundle_status(_b / 'plan.md')!r}")
+        _rc14, _out14 = run("--type", "plan-relations", "--path", str(_b / "plan.md"), "--json")
+        _d14 = json.loads(_out14)
+        check("SC14: plan-049's own Upstream Issues table yields zero R2b findings at `review`",
+              not [f for f in _d14["findings"] if f["check"] == "R2b"],
+              f'R2b={[f["detail"][:90] for f in _d14["findings"] if f["check"] == "R2b"]}')
+        check("SC14: and the run is a real one — the file was linted, not skipped",
+              _d14["files_checked"] == 1, f'files_checked={_d14["files_checked"]}')
+        check("SC14: exit 0 at `review`", _rc14 == 0,
+              f'rc={_rc14} findings={[(f["check"], f["severity"]) for f in _d14["findings"]]}')
+
+
+# --- plan-049 Epic 3 / SC9, SC10, SC41: the two new document checks ----------------------
+#
+# EPIC 1 HAS MUTANT D AS ITS FALSE-POSITIVE CONTROL; EPIC 3 HAD NONE, and that omission is
+# exactly what let the wrong gate predicate through. A check driven only by mutants is
+# indistinguishable from a check that fires on everything — and the obvious `Type` + one-of
+# gate predicate DOES fire on everything: measured, 79 of the 131 corpus gates, including
+# every Start Gate and the canonical template itself.
+
+DC = REPO / "tests" / "fixtures" / "doc-checks"
+_DC_ARMS = {
+    "m-empty-required-cell": 1,
+    "m-zero-row-criteria": 1,
+    "m-gate-all-three-absent": 1,
+    "control-conformant": 0,
+    "control-canonical-start-gate": 0,
+}
+for _stem, _want in sorted(_DC_ARMS.items()):
+    _f = DC / _stem / "plan.md"
+    check(f"SC41: fixture {_stem} is committed as a BUNDLE", _f.is_file(), str(_f))
+
+for _stem, _want in sorted(_DC_ARMS.items()):
+    _f = DC / _stem / "plan.md"
+    if not _f.is_file():
+        continue
+    _rc, _o = run("--type", "plan", "--path", str(_f), "--json")
+    _d = json.loads(_o)
+    _kind = "positive" if _want else "false-positive control"
+    check(f"SC9/SC10 {_kind}: {_stem} exits {_want}", _rc == _want,
+          f'rc={_rc} findings={[(f["check"], f["severity"]) for f in _d.get("findings", [])]}')
+
+# Direction-specific, so a check that fires on BOTH arms cannot pass by luck.
+_rc, _o = run("--type", "plan", "--path", str(DC / "m-empty-required-cell" / "plan.md"), "--json")
+check("SC9: an empty required cell is attributed to `criteria-cells-filled`",
+      any(f["check"] == "criteria-cells-filled" for f in json.loads(_o)["findings"]), _o[:200])
+_rc, _o = run("--type", "plan", "--path", str(DC / "m-zero-row-criteria" / "plan.md"), "--json")
+check("SC9: a ZERO-ROW table is attributed to `criteria-cells-filled` "
+      "(the hole EXP-006 measured as wider than recorded)",
+      any(f["check"] == "criteria-cells-filled" and "ZERO rows" in f["detail"]
+          for f in json.loads(_o)["findings"]), _o[:200])
+_rc, _o = run("--type", "plan", "--path", str(DC / "m-gate-all-three-absent" / "plan.md"), "--json")
+check("SC10: a gate with ALL THREE of Type/Condition/Test absent is attributed to "
+      "`gate-completeness`",
+      any(f["check"] == "gate-completeness" for f in json.loads(_o)["findings"]), _o[:200])
+_rc, _o = run("--type", "plan", "--path",
+              str(DC / "control-canonical-start-gate" / "plan.md"), "--json")
+check("SC10 (the other direction): the CANONICAL `Type: human` + `Approvers: operator` Start "
+      "Gate does NOT fire — the measured 79-of-131 false positive",
+      not [f for f in json.loads(_o)["findings"] if f["check"] == "gate-completeness"], _o[:200])
+
+# The canonical fixture must contain the LITERAL template text. Without this, the fixture can
+# silently drift away from the template it claims to protect and keep passing forever.
+_canon = "## Gates\n### Start Gate (mandatory)\n- Type: human\n- Approvers: operator\n"
+check("SC10: the canonical control embeds the LITERAL `plan_template.py` Start Gate block",
+      _canon in (DC / "control-canonical-start-gate" / "plan.md").read_text()
+      and _canon in (SHARED / "plan_template.py").read_text().encode()
+          .decode("unicode_escape"),
+      "fixture and template have diverged — re-derive the fixture")
+
+# SC41: both blast radii MEASURED here, not cited, and asserted to be small. A check with a
+# huge blast radius is one that has to be bound at `W` forever, i.e. one that never enforces.
+_SELF = "plan-049-james-dixson-725bc0"
+_corpus = [p for p in sorted((REPO / "docs" / "plans").glob("*/plan.md"))
+           if p.parent.name != _SELF]
+_radius = {"criteria-cells-filled": 0, "upstream-cells-filled": 0, "gate-completeness": 0}
+for _p in _corpus:
+    _txt = _p.read_text(encoding="utf-8", errors="replace")
+    for _schema in doc_lint_mod.load_schemas("plan"):
+        for _chk in _schema["checks"]:
+            if _chk["id"] in _radius:
+                _radius[_chk["id"]] += len(doc_lint_mod.run_check(_chk, _txt, _schema, path=_p))
+print(f"     [measured] blast radius over {len(_corpus)} plans (plan-049 self-excluded): {_radius}")
+check("SC41: `criteria-cells-filled` has a measured blast radius of 0 over the corpus",
+      _radius["criteria-cells-filled"] == 0, str(_radius))
+# MEASURED 2 BEFORE Issue 3.3, AND 1 AFTER — the drop is the relocation working.
+# plan-008's `Capability Gate: d2 present (see above)` stub was one of the two; the authorized
+# corpus write removed it, so the check that flagged it as vacuous now finds one fewer. The
+# survivor is plan-006's `### Reconcile Gate` / `- Not needed — no upstream issues
+# incorporated`, whose "declare it not needed" idiom Issue 3.2 decided EXPLICITLY should fire
+# (free prose is machine-indistinguishable from an unfinished gate) and which is left in place
+# because it sits in a `complete` bundle and needs no corpus write to resolve.
+check("SC41: `gate-completeness` fires on exactly 1 gate — plan-006's, the survivor after "
+      "Issue 3.3 removed plan-008's vacuous stub",
+      _radius["gate-completeness"] == 1, str(_radius))
+check("SC41: ...and the survivor is the one Issue 3.2 decided should fire",
+      any("Reconcile Gate" in d for _p in _corpus
+          for _schema in doc_lint_mod.load_schemas("plan")
+          for _chk in _schema["checks"] if _chk["id"] == "gate-completeness"
+          for d in doc_lint_mod.run_check(
+              _chk, _p.read_text(encoding="utf-8", errors="replace"), _schema, path=_p)),
+      "the surviving finding is not plan-006's Reconcile Gate")
+check("SC41: `upstream-cells-filled` stays in single digits "
+      "(measured 5, all the zero-row shape)",
+      _radius["upstream-cells-filled"] < 10, str(_radius))
+check("SC41: and none of the three is VACUOUS — each fires on its own mutant above",
+      all(v == 1 for k, v in _DC_ARMS.items() if k.startswith("m-")))
+
+
+# --- plan-049 Issue 4.1 / SC15, SC42: the engine is VENDORED, and the vendor is REAL -------
+#
+# EXP-004 measured `find skills -name doc_lint.py` -> EMPTY, while `embed.rs` embeds only
+# `../skills`. The always-on on-edit rule (Issue 4.3) would therefore have referenced an
+# engine that exists in **no deployed vault** — a hard blocker neither plan-047 nor plan-048
+# named.
+#
+# A BYTE-IDENTICAL VENDOR OF A ROOT-RELATIVE SCRIPT IS NOT A VENDOR, which is the whole
+# reason SC42 asks for more than "the file is present". `doc_lint.py` computed its repo root
+# positionally, so the copy at `skills/yf-plan/scripts/` resolved the root to the SKILL
+# DIRECTORY, matched no `docs/plans/**` glob, and returned `files_checked: 0`. That is
+# `verdict: PASS`, `exit 0` — indistinguishable from a clean run at every binding point.
+
+VENDOR = REPO / "skills" / "yf-plan" / "scripts"
+check("SC15: the engine is vendored into a deployed skill dir",
+      (VENDOR / "doc_lint.py").is_file(), str(VENDOR / "doc_lint.py"))
+check("SC15: and so is its TRANSITIVE closure — schemas plus the two modules "
+      "`resolve_derived` imports from its own directory",
+      (VENDOR / "document_types").is_dir()
+      and (VENDOR / "plan_extract.py").is_file()
+      and (VENDOR / "plan_template.py").is_file(),
+      f"document_types={(VENDOR / 'document_types').is_dir()} "
+      f"plan_extract={(VENDOR / 'plan_extract.py').is_file()} "
+      f"plan_template={(VENDOR / 'plan_template.py').is_file()}")
+_canon_types = sorted(p.name for p in (SHARED / "document_types").glob("*.toml"))
+_vend_types = sorted(p.name for p in (VENDOR / "document_types").glob("*.toml"))
+check("SC15: EVERY schema is vendored, not a hand-picked subset "
+      "(an omitted schema is invisible — the copy just never runs that check)",
+      _canon_types == _vend_types,
+      f"canonical-only={set(_canon_types) - set(_vend_types)} "
+      f"vendor-only={set(_vend_types) - set(_canon_types)}")
+_sync = subprocess.run(["uv", "run", str(SHARED / "sync.py"), "--check"],
+                       capture_output=True, text=True, cwd=REPO)
+check("SC15: `sync.py --check` is green, so drift in any vendored copy fails loudly",
+      _sync.returncode == 0, _sync.stdout[-400:] + _sync.stderr[-400:])
+
+# SC42 proper: run BOTH copies over the same REAL, FINDING-PRODUCING document and diff the
+# JSON. A document with zero findings would make the comparison pass trivially.
+_target = REPO / "docs" / "plans" / "plan-006-james-dixson-bf6e21" / "plan.md"
+_rc_c, _o_c = run("--type", "plan", "--path", str(_target), "--json")
+_p = subprocess.run(["uv", "run", str(VENDOR / "doc_lint.py"),
+                     "--type", "plan", "--path", str(_target), "--json"],
+                    capture_output=True, text=True, cwd=REPO)
+_dc, _dv = json.loads(_o_c), json.loads(_p.stdout)
+check("SC42: the VENDORED engine reports `files_checked >= 1` on a real typed document "
+      "(`files_checked: 0` does NOT discharge this)",
+      _dv["files_checked"] >= 1, f'files_checked={_dv["files_checked"]}')
+check("SC42: the comparison is not vacuous — the document actually produces findings",
+      len(_dc["findings"]) > 0, f'canonical findings={len(_dc["findings"])}')
+_strip = lambda d: {k: v for k, v in d.items() if k != "findings"} | {  # noqa: E731
+    "findings": sorted((f["check"], f["severity"], f["detail"]) for f in d["findings"])}
+check("SC42: and it REPRODUCES the `_shared/` copy's verdict, finding for finding",
+      _strip(_dc) == _strip(_dv),
+      f'canonical={_strip(_dc)}\n     vendored={_strip(_dv)}')
+
+# The defect, demonstrated rather than described: force the old positional root and watch a
+# silent green appear.
+_p2 = subprocess.run(["uv", "run", str(VENDOR / "doc_lint.py"), "--type", "plan",
+                      "--root", str(REPO / "skills" / "yf-plan"), "--json"],
+                     capture_output=True, text=True, cwd=REPO)
+_d2 = json.loads(_p2.stdout)
+check("SC42: with the OLD positional root the same engine returns `files_checked: 0`, "
+      "`verdict: PASS`, exit 0 — the silent green this issue closes",
+      _d2["files_checked"] == 0 and _d2["verdict"] == "PASS" and _p2.returncode == 0,
+      f'files_checked={_d2["files_checked"]} verdict={_d2["verdict"]} rc={_p2.returncode}')
+
+
+# --- plan-049 Issue 4.3 / SC17: the on-edit rule and `not-a-typed-document` ---------------
+#
+# The rule (`skills/yf-plan/protocols/DOC-LINT.md`) MANDATES parsing `files_checked` from
+# `--json`, because an exit code cannot carry the distinction. These assertions are what make
+# that mandate checkable rather than advisory.
+
+RULE = REPO / "skills" / "yf-plan" / "protocols" / "DOC-LINT.md"
+check("SC17: the on-edit rule ships", RULE.is_file(), str(RULE))
+_rule = RULE.read_text(encoding="utf-8") if RULE.is_file() else ""
+check("SC17: the rule mandates parsing `files_checked` and reporting "
+      "`not-a-typed-document` — an exit code cannot carry it",
+      "files_checked" in _rule and "not-a-typed-document" in _rule)
+check("SC17: the rule declares NO marker file — inertness is structural via path-keying",
+      "no opt-in marker" in _rule or "No marker file" in _rule)
+_man = json.loads((REPO / "skills" / "yf-plan" / "protocols" / "manifest.json").read_text())
+check("SC17: and it is registered in the protocols manifest, so drift is detected",
+      "DOC-LINT.md" in _man.get("files", {}), str(sorted(_man.get("files", {}))))
+
+# Driven with a REAL unselected file, as SC17 requires — the reserved OKF `index.md` that
+# sits inside every plan bundle and that no type claims.
+_B = REPO / "docs" / "plans" / "plan-049-james-dixson-725bc0"
+_rc_u, _o_u = run("--path", str(_B / "index.md"), "--json")
+_d_u = json.loads(_o_u)
+_rc_m, _o_m = run("--path", str(_B / "does-not-exist.md"), "--json")
+_d_m = json.loads(_o_m)
+_rc_s, _o_s = run("--path", str(_B / "plan.md"), "--json")
+_d_s = json.loads(_o_s)
+check("SC17: a REAL unselected path reports `files_checked: 0`",
+      _d_u["files_checked"] == 0, str(_d_u)[:160])
+check("SC17: and it is INDISTINGUISHABLE from a clean pass at the exit-code level — "
+      "which is exactly why the rule mandates reading the field",
+      _rc_u == 0 and _d_u["verdict"] == "PASS" and _rc_s == 0 and _d_s["verdict"] == "PASS",
+      f'unselected rc={_rc_u}/{_d_u["verdict"]} selected rc={_rc_s}/{_d_s["verdict"]}')
+check("SC17: an unselected path and a NONEXISTENT path return the same object — the failure "
+      "is silent in both directions",
+      (_d_u["files_checked"], _d_u["verdict"], _rc_u)
+      == (_d_m["files_checked"], _d_m["verdict"], _rc_m),
+      f"unselected={_d_u} nonexistent={_d_m}")
+check("SC17: the contrast arm is real — a SELECTED path reports `files_checked >= 1`",
+      _d_s["files_checked"] >= 1, str(_d_s)[:160])
+
+
+# --- plan-049 Issue 5.1 / SC19: `--exclude`, DERIVED not an era literal -------------------
+#
+# SC19 forbids a fixed number in the assertion, and the reason is the bug itself: #135 is
+# about measured literals going stale, so a test pinned to "48" would be the same defect in
+# the test suite. The identity below is checked over the LIVE tree, for TWO different plans.
+
+for _plan in ("plan-010-james-dixson-73eebd", "plan-047-james-dixson-dec9ff"):
+    _all = json.loads(run("--type", "plan", "--json")[1])["files_checked"]
+    _exc = json.loads(run("--type", "plan", "--exclude", f"docs/plans/{_plan}/**",
+                          "--json")[1])["files_checked"]
+    _own = json.loads(run("--type", "plan", "--path",
+                          str(REPO / "docs" / "plans" / _plan / "plan.md"),
+                          "--json")[1])["files_checked"]
+    check(f"SC19 [{_plan.split('-')[1]}]: excluded == unexcluded - that plan's own "
+          f"contribution (derived; no literal appears in this assertion)",
+          _exc == _all - _own, f"all={_all} excluded={_exc} own={_own}")
+    check(f"SC19 [{_plan.split('-')[1]}]: the arm is not vacuous — the plan really does "
+          f"contribute", _own > 0 and _all > _exc, f"all={_all} excluded={_exc} own={_own}")
+
+# `--exclude` must survive `--no-exclude`. A positive control that silently re-admits the
+# measuring plan reintroduces exactly the self-reference the flag removes.
+_p = "plan-047-james-dixson-dec9ff"
+_ne = json.loads(run("--type", "plan", "--no-exclude", "--json")[1])["files_checked"]
+_ne_x = json.loads(run("--type", "plan", "--no-exclude",
+                       "--exclude", f"docs/plans/{_p}/**", "--json")[1])["files_checked"]
+check("SC19: `--exclude` is honoured even under `--no-exclude` — the schema's carve-outs and "
+      "a caller's self-exclusion are different kinds of thing",
+      _ne_x < _ne, f"no-exclude={_ne} no-exclude+exclude={_ne_x}")
+
+
+# --- plan-049 Issues 5.2 / 5.3 (SC20, SC21): the #135 in-flight rule --------------------
+#
+# THE SCOPING IS THE DELIVERABLE. EXP-005 measured the naive form — "a number near a corpus
+# noun" — firing **41 of 41 times, 39 of them on correct historical behaviour**. A completed
+# plan's measurement is a HISTORICAL RECORD and is *supposed* to be a frozen literal; the
+# measured-marker failure mode is re-judging it. So both arms are asserted: it must fire
+# in-flight AND stay silent on the finished corpus.
+
+_sml = [f for f in json.loads(run("--type", "plan", "--json")[1])["findings"]
+        if f["check"] == "stale-measured-literal"]
+check("SC20: the rule fires on ZERO of the finished corpus plans",
+      not _sml, f"fired on {[f['path'] for f in _sml]}")
+
+with tempfile.TemporaryDirectory() as _td:
+    _b = Path(_td) / "inflight"
+    shutil.copytree(REPO / "docs" / "plans" / "plan-049-james-dixson-725bc0", _b)
+    _pm = _b / "plan.md"
+    _tx = _pm.read_text(encoding="utf-8")
+    _tx = re.sub(r"(?m)^status: .*$", "status: review", _tx, count=1)
+    _tx = re.sub(r"(?m)^\*\*Status:\*\* .*$", "**Status:** review", _tx, count=1)
+    _pm.write_text(_tx, encoding="utf-8")
+    _rc_i, _o_i = run("--type", "plan", "--path", str(_pm), "--json")
+    _d_i = json.loads(_o_i)
+    _fi = [f for f in _d_i["findings"] if f["check"] == "stale-measured-literal"]
+    check("SC20: ...and DOES fire on the same bundle in-flight — so the silence above is "
+          "scoping, not a dead rule", len(_fi) >= 2, f"fired {len(_fi)} times")
+    check("SC20: it stays at its declared `W` even at `review` — a HINT must never hard-fail "
+          "intake (check-level `promote = false`)",
+          {f["severity"] for f in _fi} == {"W"}, str({f["severity"] for f in _fi}))
+    check("SC20: and the bundle's error count is unaffected by it",
+          _d_i["errors"] == 0, f'errors={_d_i["errors"]}')
+    check("SC20: findings/ and reviews/ are skipped — a writeup and a review verdict are "
+          "point-in-time records BY CONSTRUCTION",
+          not [f for f in _fi if "/findings/" in f["path"] or "/reviews/" in f["path"]],
+          str([f["path"] for f in _fi]))
+    check("SC21: the DENOMINATOR-ONLY blind spot is stated where a reader meets it — "
+          "in the finding text itself",
+          all("DENOMINATOR-ONLY" in f["detail"] for f in _fi),
+          str([f["detail"][:60] for f in _fi]))
+
+check("SC21: ...and in the check's own declaration, so an author reading the schema meets it",
+      "denominator-only" in (SHARED / "document_types" / "plan.toml")
+      .read_text(encoding="utf-8").lower())
+check("SC21: ...and in the engine's own docstring for the kind",
+      "DENOMINATOR-ONLY" in (SHARED / "doc_lint.py").read_text(encoding="utf-8")
+      or "denominator-only" in (SHARED / "doc_lint.py").read_text(encoding="utf-8").lower())
+
+# The promotion carve-out must be SURGICAL: other `plan` checks still promote at `review`.
+_sch = [s for s in doc_lint_mod.load_schemas("plan")][0]
+_promoting = [c["id"] for c in _sch["checks"] if c.get("promote", True)]
+_not = [c["id"] for c in _sch["checks"] if not c.get("promote", True)]
+check("check-level `promote = false` is SURGICAL — only the hint opts out",
+      _not == ["stale-measured-literal"] and len(_promoting) > 5,
+      f"opted-out={_not} promoting={len(_promoting)}")
 
 
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")

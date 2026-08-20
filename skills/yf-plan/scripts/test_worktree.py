@@ -1201,6 +1201,14 @@ def test_construction_bundle_passes_engine_check(tmp_path):
 # conformance floor), #8 (dual-write divergence), and the OKF-legacy grandfather gate.
 # ---------------------------------------------------------------------------
 
+# STRUCTURALLY CONFORMANT AS A PLAN DOCUMENT, not merely portable.
+#
+# Since plan-049 Issue 4.2 (REQ-DATA-057) `_audit_plan` folds the document linter into its
+# findings, so "a bundle the audit passes clean" now means BOTH portable AND shaped the way
+# the `plan` type declares. This fixture previously carried four sections and a criteria
+# LIST; it now carries the full required-section set and real tables. That is the fixture
+# catching up with its own docstring, not a concession: a fixture asserting "audit passes"
+# against a document the linter rejects would have been asserting something false.
 _AUDIT_PLAN_MD = """---
 type: Plan
 okf_spec: OKF-PLAN
@@ -1223,8 +1231,38 @@ A conformant OKF-native plan bundle.
 This plan exists to exercise the reworked portability audit against a fully
 OKF-conformant, portable bundle. Affected: the yf-plan maintainers.
 
+## Upstream Issues
+
+| Issue | Title | Disposition | Notes | Resolved By |
+| :-- | :-- | :-- | :-- | :-- |
+| — | | | no upstream issues incorporated | |
+
+## Investigation Findings
+No experiments were needed; the fixture is synthetic.
+
+## Approach
+Construct the bundle directly and drive the real `_audit_plan` against it.
+
+## Epics
+### Epic 1: the fixture
+- Issue 1.1: exist, conformantly
+
+## Gates
+### Start Gate (mandatory)
+- Type: human
+- Approvers: operator
+
+## Risks & Mitigations
+
+| # | Risk | Severity | Mitigation |
+| :-- | :-- | :-- | :-- |
+| R1 | the fixture drifts from the schema it is meant to represent | low | the audit itself is what fails when it does |
+
 ## Success Criteria
-- The reworked audit passes clean.
+
+| # | Criterion | Verification | Discharged-by |
+| :-- | :-- | :-- | :-- |
+| SC1 | the reworked audit passes clean | run `_audit_plan` and assert status pass | 1.1 |
 """
 
 _AUDIT_INDEX_MD = """---

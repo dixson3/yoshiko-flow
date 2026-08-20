@@ -1,0 +1,96 @@
+# findings/*.md — AGENT-WRITTEN type. No producer function exists to derive from, so the
+# schema is declared inline here and referenced by skills/yf-plan/agents/investigator.md.
+# Measured 94.9% drift across 117 files: the best value/cost ratio in the corpus by an
+# order of magnitude.
+type = "finding"
+producer_class = "agent-written"
+description = "An investigation finding written by the yf-plan investigator sub-agent."
+
+# RECURSIVE (`**`), deliberately. plan-047 Issue 2.2: the single-level form
+# `docs/plans/*/findings/*.md` reaches **0** of the 45 nested `okf-migration-samples/**`
+# files, so the carve-out below could never fire — a control that cannot fire is the same
+# defect class as a gate that cannot fail. Measured both ways; see test_doc_lint.py.
+paths = [
+    "docs/plans/*/findings/**/*.md",
+    "Incubator/*/plans/*/findings/**/*.md",
+]
+exclude = [
+    # CARVE-OUT 1 (Issue 2.2) — a whole nested before/after migration-diff fixture corpus:
+    # 45 `.md` files (87 files in total) invisible at scoping, containing entire nested
+    # bundles. Linting them would emit dozens of false findings AND break the fixture.
+    "docs/plans/*/findings/okf-migration-samples/**",
+    # CARVE-OUT 2 (Issue 2.3) — the markup-sensitive ground-truth corpus of
+    # test_classify_deliverable.py.
+    "skills/**/fixtures/**",
+]
+
+# The section list is the one `skills/yf-plan/agents/investigator.md` actually declares in
+# its fenced `## Output` template — NOT a guess. The first draft of this schema guessed
+# "Question / Method / Findings / Implications" and was wrong on every element; the real
+# template is an H2 `## Finding: <q>` with four H3 subsections.
+#
+# SEVERITY IS `R` (report-only), CHANGED FROM `E` BY plan-048 Issue 2.9.
+#
+# The old `E` rested on an argument that was true and INCOMPLETE: "status-aware promotion
+# absorbs the residue, because every non-conforming file lives in a `complete` bundle."
+# That holds for history. It fails for the enforcement point itself.
+#
+# THE STRUCTURAL REASON (plan-048 D-9, measured): `findings/*.md` are written by an agent
+# DURING EXECUTION — after intake, after any sweep, after the plan was approved. But
+# `STATUS_SEVERITY` promotes `W -> E` at `review`/`ready-for-approval`, which is exactly
+# where the linter binds. So an `E` here does not police history; it makes a bundle fail at
+# a gate that runs BEFORE the files it judges are written. Measured on the live corpus:
+# only 12 of 129 findings carry all four sections, so a fail-closed `_audit_plan` would
+# have blocked plan-047 at its OWN intake (11 error-severity findings).
+#
+# `R` is not a waiver and not a downgrade to `W`: `STATUS_SEVERITY` keys only on `W` and
+# `E`, so `R` survives the review promotion unchanged and reports in every status. The
+# finding is still counted and still visible — it simply cannot fail a gate that precedes
+# its own subject.
+#
+# A TYPE WHOSE EVERY CHECK IS `R` CANNOT FAIL, which is R4's own defect class ("a check that
+# ships unable to fail"). Moving both checks to `R` therefore REQUIRED adding an `E` check
+# the type can actually fail on — `has-heading` below. Measured before declaring it:
+# 129 of 129 findings carry a top-level or second-level heading, so the `E` is safe on the
+# same evidence standard REQ-DATA-045 demands off-axis, applied here voluntarily.
+#
+# Conformance is fixed AT THE PRODUCER instead (Issue 2.9): `skills/yf-plan/agents/
+# investigator.md` now states the four sections and the epistemic marker as a hard output
+# contract, so newly written findings conform BY CONSTRUCTION.
+[[checks]]
+id = "required-sections"
+severity = "R"
+kind = "headings-any-level"
+value = ["Approach Tested", "Result", "Implications for Plan", "Recommendations"]
+
+# RE-SCOPED by plan-048 Issue 2.9. The check was MIS-SPECIFIED, not merely strict.
+#
+# `investigator.md` mandates: "Mark every load-bearing conclusion `measured` OR `inferred`.
+# Measured = a command ran and this was its output. Inferred = what you concluded from that
+# output." The rule offers TWO markers; the check demanded ONE of them. A finding whose
+# conclusions are all inferences — a legitimate and common shape — satisfied the rule and
+# failed the check.
+#
+# Re-measured 2026-08-19 (D-5: re-measure, never cite): `**measured:**` in 7 of 129;
+# `**inferred:**` in 3 of 129; either marker in 7 of 129. plan-048 scoped this as "99.2%
+# violation, exactly one conforming file corpus-wide" — the corpus has since grown and the
+# real figure is 7 conforming, not 1. Widening the pattern does not rescue the number, and
+# that is the point: the check now measures the RIGHT thing, and the number it reports is
+# a producer gap rather than a specification error.
+#
+# Severity `R` for the same reason as `required-sections` above.
+[[checks]]
+id = "epistemic-marker"
+severity = "R"
+kind = "regex-present"
+pattern = '\*\*(measured|inferred):\*\*'
+
+# The type's TEETH (plan-048 Issue 2.9). Measured 129/129 — every finding in the corpus
+# carries a `#` or `##` heading, so this `E` fails nothing that exists today while keeping
+# the type capable of failing at all. `tests/fixtures/doclint/finding/bad.md` violates it,
+# which is what makes the fixture drive a non-zero exit.
+[[checks]]
+id = "has-heading"
+severity = "E"
+kind = "regex-present"
+pattern = '(?m)^#{1,2} +\S'

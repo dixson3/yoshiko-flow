@@ -1,0 +1,1 @@
+2026-08-20 James Dixson <james@yoshikostudios.com>: AUTHORIZED — corpus write to plan-008 (relocate 'Capability Gate: d2 present' into ## Gates, residue 8->3) and plan-015 (de-bold Issue B.3 parenthetical, residue 4->1). Reviewed assets/proposed-write-diff.md produced by Issue 3.2a. Both documents, as diffed; no others.
