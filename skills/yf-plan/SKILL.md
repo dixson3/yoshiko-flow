@@ -716,8 +716,14 @@ The landing strategy chosen here also pins the EXECUTE worktree base and the §6
 ### 4.5 — Create the upstream tracking issue
 
 File the single coarse tracking issue for this plan-scale effort — title
-`plan-<plan-id> execution tracking` (not the past-tense-glancing "Complete execution of …",
+`<plan-id> execution tracking` (not the past-tense-glancing "Complete execution of …",
 which reads as if the work already shipped, #86) — linking the plan folder and (once poured)
+
+> **The template is `<plan-id>`, NOT `plan-<plan-id>`** (fixed by plan-048 Issue 4.5). A
+> plan id already begins with `plan-`, so the old template produced a **doubled prefix** —
+> `plan-plan-048-james-dixson-ed68a5 execution tracking` — for every plan, not just one.
+> Substitute the id verbatim.
+
 its epic, with any `resolves-upstream` dependency links from the plan's Upstream Issues. Per
 the project Upstream Tracking convention (AGENTS.md), file ONE issue per plan, not one per
 execution bead.

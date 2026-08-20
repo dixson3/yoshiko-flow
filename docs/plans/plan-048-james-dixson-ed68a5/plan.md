@@ -63,6 +63,7 @@ rather than a transcription of the descoped epics.
 | [#62](https://github.com/dixson3/yoshiko-flow/issues/62) | propose a yf-spec skill | deferred | **D-1: deferred** with #165 | — |
 | [#135](https://github.com/dixson3/yoshiko-flow/issues/135) | a measured literal in plan.md goes stale | deferred | **D-1: deferred** — was 047 Issue 7.3, inside Epic 7 | — |
 | [#175](https://github.com/dixson3/yoshiko-flow/issues/175) | plan-047 coarse tracker | supersede | **D-2:** close once plan-048's own tracker is filed and links it | 4.5 |
+| [#176](https://github.com/dixson3/yoshiko-flow/issues/176) | plan-048 coarse tracker | tracker | D-2. Filed at 4.5; supersedes #175 | — |
 
 ## Scope Decisions
 
