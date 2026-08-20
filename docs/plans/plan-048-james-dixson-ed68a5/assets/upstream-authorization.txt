@@ -29,3 +29,22 @@ any bd dolt push (this repo is dolt.local-only = true).
 Verification expected before reporting success: a returned issue URL on each
 create, a clean exit on each edit, and `gh issue view 175` showing CLOSED.
 An exit code alone is not proof.
+
+--- AMENDMENT, 2026-08-19 ---
+
+  5. Close #172 as completed (Issue 4.1), with a comment naming the full plan
+     id. AUTHORIZED.
+
+     Why this is an amendment rather than a new grant: #172 carries disposition
+     `include`, and REQ-PLAN-074 requires an `include` row to reach CLOSED with
+     a plan-id mention. Its omission from the original list was an oversight in
+     THIS FILE, not a decision to withhold. The subordinate correctly refused to
+     close it under "any upstream write not listed above is not authorized" —
+     that refusal was the right behaviour and is recorded as such.
+
+     Work verified landed before authorizing: skills/yf-plan/README.md's File
+     Layout block is now enumerated against the tree, and
+     test_cli_enumeration.py passes 6/6 as its anti-staleness guard.
+
+Still not authorized: closing #113, #173 or #174 (all three stay OPEN by
+design); any other upstream write; any bd dolt push.
