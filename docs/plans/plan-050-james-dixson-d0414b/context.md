@@ -90,9 +90,10 @@ resolves **only** modules under that directory.
   - A deploy (Issue **6.6**) at land-the-plane only — **never mid-execution**, per AGENTS.md.
 - **Never `bd dolt push`** — this repo is `dolt.local-only = true`.
 - **Safe to run as-is on a different machine?** **No.** This plan measures *this* repo's bead DB and
-  corpus and fixes expectations against those measurements (1481 beads; 26 `discovered-from` edges,
-  0 attributed; 49 of 49 start-gate wrappers hand-closed; `files_checked` parity in SC7). A cold
-  reader on another checkout must re-measure before acting.
+  corpus and fixes expectations against those measurements (1481 beads; 49 of 49 start-gate
+  wrappers hand-closed; `files_checked` parity in SC7). A cold reader on another checkout must
+  re-measure before acting. (The 26 `discovered-from` edges / 0 attributed figure left with the
+  D-9 split — nothing here fixes an expectation against it any more; pass-12 C127.)
 
 ## Adjacent-concept glossary
 
