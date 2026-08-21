@@ -46,7 +46,9 @@ down from three, and ten concerns down from fifteen.
 | C75 | low | **The audit was not green** — `pass-6.md` failed two required-shape checks (`## Missing (all now closed)` instead of `## Missing`; resolutions table not leading with `Concern`). Warnings not errors, but pass-6's own claim that "every mechanical gate was green" was no longer true of the bundle | Heading and table shape corrected; audit `pass` with **zero** findings |
 | C76 | low | SC18's "generated, not hand-listed" is a provenance claim with no exit code — a small instance of the M5 vacuity class the plan is about | Restated as a content assertion: regenerate from plan.md's tables and `diff`; a non-empty diff fails |
 
-## Missing (all now closed)
+## Missing
+
+_All now closed._
 
 A RED→GREEN fixture for #179 (C67); a stated definition of "fixture" (C67); the RED producing
 instruction in 1.1/2.1/3.1 (C68); a verification command for SC2b (C69); comment coverage for

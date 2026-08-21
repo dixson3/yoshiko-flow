@@ -24,10 +24,15 @@ runtime, not merely stale. See AGENTS.md "Three artifacts, not one".
 
 **Specific to this plan:** the surfaces it changes are `skills/yf-plan/scripts/plan_manager.py`
 (the grant generator, the close-chain ordering), `skills/yf-plan/formulas/plan-execute.formula.toml`
-and the pour seam in `SKILL.md` §5.2a (the wrapper close), and `_shared/doc_lint.py` (the verdicts).
-The D-9 split removed four surfaces to plan-051: `skills/yf-beads-hygiene/scripts/beads_hygiene.py`,
-repo-root `CHANGE-VALIDATION.md`, `SKILL.md` §3, and `skills/yf-plan/agents/red-team.md` +
-`skills/yf-plan/spec/agents.md`. `_shared/` is a real constraint: `derive_from`
+and the pour seam in `SKILL.md` §5.2a (the wrapper close), **`SKILL.md` §6.4** (Issue 1.3's ordering
+assertion needs a caller — `SKILL.md:1440` captures `RSTEP` and never checks it), `_shared/doc_lint.py`
+**plus its byte-identical vendored copy `skills/yf-plan/scripts/doc_lint.py`** (guarded by
+`_shared/sync.py --check`), `_shared/test_doc_lint.py` (its SC42 assertion pins the silent green), and
+`skills/yf-plan/protocols/DOC-LINT.md`, an **always-loaded** on-edit protocol whose table asserts the
+behaviour Issue 2.2 changes. The last four were added at pass 8 (C77/C79) — the plan bounded the corpus
+figure via SC7 but never the contract surface. The D-9 split removed four further surfaces to plan-051:
+`skills/yf-beads-hygiene/scripts/beads_hygiene.py`, repo-root `CHANGE-VALIDATION.md`, `SKILL.md` §3, and
+`skills/yf-plan/agents/red-team.md` + `skills/yf-plan/spec/agents.md`. `_shared/` is a real constraint: `derive_from`
 resolves **only** modules under that directory.
 
 ## Tool inventory
@@ -63,9 +68,11 @@ resolves **only** modules under that directory.
   are 1-indexed** — this has produced real defects here three times, most recently while filing
   this plan's own upstream issues, where `T[0]` was empty and every issue title landed on the next
   issue's body.
-- **Network:** required for `gh` in **Epic 3 and Epic 6**. Epic 3's grant path calls `_verify_row`,
-  whose first act is `gh issue view` per row, so **Epic 3 is not local** — an earlier draft of this
-  file claimed it was, and pass-3 C17 refuted it. Epics 0-2 are entirely local.
+- **Network:** required for `gh` in **Epic 6 only**. An earlier draft said Epic 3 too, describing the
+  **pre-C12** design in which the grant verb called `_verify_row` directly; the 3.2/3.2a split replaced
+  that with a shared requirement table, and Issue 3.2a states the verb "must not require network to
+  generate" (pass-8 C81). Epics 0-3 are entirely local. Note `_verify_row` itself IS network-bound —
+  its first act is `gh issue view` — which is why SC8 stubs `_gh_issue_view`.
 - **Credentials:** `gh` auth is present and owns its own credential store — no token is ever passed
   inline or written to config.
 - **Side-effect permissions this plan assumes:**
