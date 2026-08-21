@@ -944,13 +944,28 @@ ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${issue_description}" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
 
-**Derive the DAG mechanically, do not transcribe it.** `_shared/plan_extract.py` reads
-`plan.md` into JSON — epics, issues, edges, gates — and reports anything it cannot parse in
-`unparsed[]` rather than degrading. Use it to drive the `bd create` calls above:
+**Derive the DAG mechanically, do not transcribe it.** `plan_extract.py` reads `plan.md` into
+JSON — epics, issues, edges, gates — and reports anything it cannot parse in `unparsed[]`
+rather than degrading. Use it to drive the `bd create` calls above:
 
 ```bash
-uv run _shared/plan_extract.py "${plan_dir}" --json --strict
+uv run ${SKILL_DIR}/scripts/plan_extract.py "${plan_dir}" --json --strict
 ```
+
+**The path is `${SKILL_DIR}/scripts/`, not `_shared/`** (plan-050 Issue 7.3). `_shared/` is a
+path inside *this repository*; the `SKILL_DIR` resolver's six roots do not include it, so an
+operator following the old line verbatim in any other repo got a file-not-found. The vendored
+copy is kept byte-identical to the canonical `_shared/plan_extract.py` by `_shared/sync.py`,
+which `CHANGE-VALIDATION.md` runs in the FAST tier — so editing either alone fails the on-edit
+gate.
+
+Each extracted issue carries a **`detail`** field (REQ-DATA-063): its continuation prose, minus
+the `depends-on:` / `resolves-upstream:` bullets the parser already consumed. That is what
+`--description` above is populated from. An issue whose only continuation was its sub-key
+bullets carries an **empty** `detail`, which is a valid value, not an error. Titles are captured
+**verbatim** from the unmasked source line (REQ-DATA-062), inline code spans included, while
+parsing continues to read the masked line — so a `depends-on:` written inside a code span still
+produces no edge.
 
 `--strict` exits **2 (INCONCLUSIVE)**, never 1, on a non-empty `unparsed[]` (REQ-DATA-043):
 the extractor did not *see* part of the plan, which is a different claim from the plan being
@@ -1053,7 +1068,12 @@ bd mol burn ${INVESTIGATION_WISP_ID} --force 2>/dev/null || true
 gate can only be released here, REQ-SESSION-001):
 
 ```bash
-bd gate resolve ${START_GATE_BEAD}   # the gate-* bead, not the wrapper task ${START_GATE}
+# REQ-PLAN-077 (#179): ONE step resolves the gate AND closes the wrapper task, with a
+# GENERATED close_reason. Do NOT hand-run `bd gate resolve` here — that closes the gate and
+# leaves the wrapper open, which is the state `close_cascade.py` correctly fail-louds on at
+# §6.4. Measured: 49 of 49 wrappers ever poured were closed by hand, with 29 distinct
+# improvised reasons. The verb is idempotent, so a resumed session may re-run it.
+uv run ${SKILL_DIR}/scripts/plan_manager.py resolve-start-gate "${plan_dir}" --json
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "executing" -m "start gate resolved"
 ```
 
@@ -1438,7 +1458,20 @@ reports `prose-only` says the merged tree touched no runner-only config, which i
 # never re-derives it, and `bd close` with an empty id does not fail — it exits 0 and
 # closes a DIFFERENT in-progress bead, then reports success (measured).
 RSTEP=$(uv run ${SKILL_DIR}/scripts/plan_manager.py close-reconcile-step "${plan_dir}" --json)
+RSTEP_RC=$?
 echo "$RSTEP"
+# HALTING (REQ-COMPLETE-004, #180). The verb asserts §6.4's GATE-BEFORE-CLOSE ordering: the
+# reconcile gate must be resolved before the reconcile bead closes. Until plan-050 this line
+# captured the verb and only ECHOED it — `$?` was never read — so an ordering violation
+# reported `inconclusive`, exited 0, and the chain walked on to cascade-close and
+# `set complete` with the reconcile step still open. An exit code nothing reads is the same
+# "a step with no exit code is not a step" defect in its second form.
+if [ "$RSTEP_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: close-reconcile-step refused — §6.4's gate-before-close ordering is"
+  echo "violated (the reconcile gate is not resolved). Completion HALTS; do NOT set"
+  echo "'complete'. Follow the verdict's 'remediation', then re-run §6.4."
+  exit 1
+fi
 
 # Verify RECONCILE actually reached each row's upstream end state (REQ-PLAN-074, #136).
 # HALTING. Runs after the reconcile bead closes and before the first destructive step —

@@ -14,11 +14,27 @@ and full path machinery land in Epic 4; what is here is exactly enough to make t
 finding.** EXP-005 reproduced a linter printing `errors=4` while the delegating engine reported
 `status: pass`, because it exited 0. A linter with no exit code is not a step.
 
-Exit contract (REQ-DATA-024), binary at every binding point:
+Exit contract — TWO vocabularies, KEYED BY MODE (REQ-DATA-024 as amended by plan-050, and
+REQ-DATA-061). The old "binary at every binding point" wording is retired: `classify` gives this
+same executable a second `0/1/2` meaning.
+
+LINT mode (the default):
 
     0  no error-severity finding            (verdict PASS)
     1  at least one error-severity finding  (verdict FAIL)
     2  the linter could not run             (verdict INCONCLUSIVE)
+
+CLASSIFY mode (`--classify`, REQ-DATA-061) — a PREFLIGHT, not a lint:
+
+    0  lintable      (class `selected` or `empty`)
+    1  not lintable  (class `not-selected` or `no-such-path`)
+    2  the classifier could not run
+
+A `classify` run over a selected-but-empty document exits 0 while a lint run over the same
+document exits 1 on its `E` findings — which is why the contract is stated per mode. Callers
+branch on the emitted `class`, never on the classify exit code alone: the two non-lintable
+classes are different facts and collapsing them is the very conflation #181 was filed about.
+The VERDICT vocabulary is unchanged and closed — `classify` emits a `class`, never a verdict.
 
 `INCONCLUSIVE` means *only* "could not run". "Not finished yet" is a `W` finding **inside a
 PASS** — it never changes the exit code. `INCOMPLETE` is the reviewer agent's vocabulary and
@@ -838,6 +854,101 @@ def lint(root: Path, only_type: str | None, only_paths: list[Path] | None,
     }
 
 
+# --- classify: the PREFLIGHT (REQ-DATA-061 / #181) -----------------------------------
+
+
+CLASS_SELECTED = "selected"
+CLASS_EMPTY = "empty"
+CLASS_NOT_SELECTED = "not-selected"
+CLASS_NO_SUCH_PATH = "no-such-path"
+
+
+def classify(root: Path, target: Path, only_type: str | None = None,
+             use_exclude: bool = True, extra_exclude: list[str] | None = None) -> dict:
+    """Decide whether linting `target` is MEANINGFUL AT ALL, before any lint runs.
+
+    Returns `{"class", "path", "root", "selected_by", "reason"}`. The class is one of
+    `selected` | `empty` | `not-selected` | `no-such-path`, and the MODE's exit contract is
+    0 = lintable (`selected`, `empty`), 1 = not lintable, 2 = could not run.
+
+    WHY A PREFLIGHT AND NOT A CHANGE TO THE LINT
+    --------------------------------------------
+    `--path` on a real-but-unselected file and `--path` on a NONEXISTENT file both return
+    `files_checked: 0, verdict: PASS`, exit 0 — BYTE-IDENTICAL (EXP-003). Three states, one
+    verdict. Three earlier scopes each tried to fix that inside the lint and each was refuted
+    by measurement, all three for the same structural reason: they mutated the reporting of
+    the component under test, and a shipped assertion pinning that reporting caught them. A
+    general `files_checked == 0` form breaks `test_doc_lint.py`'s SC42; a `--path`-keyed-always
+    form breaks its SC17 block, which pins an unselected `--path` to `PASS`/rc 0 AND identical
+    to a nonexistent path. Stepping one layer upstream removes the collision surface instead of
+    negotiating with it: SC17 and SC42 remain LITERALLY TRUE, because the behaviour they
+    characterise is not modified.
+
+    `empty` IS ON THE LINTABLE SIDE, DELIBERATELY
+    ---------------------------------------------
+    A selected-but-empty `plan.md` FAILS its schema and the lint already says so loudly
+    (measured: 6 `E` findings, exit 1). Skipping it would manufacture a new silent green
+    inside the fix for a silent green. It stays a distinguishable *class* because the
+    diagnostic value is real; it does not get skip semantics.
+
+    CALLERS BRANCH ON `class`, NEVER ON THE EXIT CODE ALONE
+    -------------------------------------------------------
+    The two non-lintable classes are different facts — a caller naming a file that does not
+    exist is a caller BUG, while an unselected path is an ordinary skip. Collapsing them
+    reinstates #181's conflation one layer up.
+
+    `not-selected` MEANS *NOT SELECTED BY PATH ROUTING*
+    ---------------------------------------------------
+    A `--type`-forced lint is unaffected: `plan_manager.py` deliberately re-lints a bundle's
+    `plan.md` with the type FORCED so the plan document stays checkable wherever the bundle
+    lives. A path this returns `not-selected` for IS lintable by that route.
+    """
+    if not target.exists() or not target.is_file():
+        return {
+            "class": CLASS_NO_SUCH_PATH,
+            "path": str(target), "root": str(root), "selected_by": [],
+            "reason": "the path does not exist (or is not a file). This is a CALLER BUG, "
+                      "not an ordinary skip — it is reported separately from `not-selected` "
+                      "precisely because the lint reports the two identically.",
+        }
+
+    resolved = target.resolve()
+    selected_by = [
+        schema["type"] for schema in load_schemas(only_type)
+        if resolved in {f.resolve()
+                        for f in select(schema, root, use_exclude, extra_exclude)}
+    ]
+
+    if not selected_by:
+        return {
+            "class": CLASS_NOT_SELECTED,
+            "path": str(target), "root": str(root), "selected_by": [],
+            "reason": f"no document type's path globs select this path under root {root}. "
+                      "Note this means NOT SELECTED BY PATH ROUTING: a `--type`-forced lint "
+                      "is unaffected.",
+        }
+
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise Inconclusive(f"could not read {target}: {exc}") from exc
+
+    if not content.strip():
+        return {
+            "class": CLASS_EMPTY,
+            "path": str(target), "root": str(root), "selected_by": selected_by,
+            "reason": "selected, but the document is empty. This is on the LINTABLE side: an "
+                      "empty document FAILS its schema and the lint says so loudly. Skipping "
+                      "it would manufacture a new silent green.",
+        }
+
+    return {
+        "class": CLASS_SELECTED,
+        "path": str(target), "root": str(root), "selected_by": selected_by,
+        "reason": f"selected by {', '.join(selected_by)}",
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", action="store_true")
@@ -853,7 +964,40 @@ def main() -> int:
                          "own measured literals go stale the moment it edits them.")
     ap.add_argument("--no-exclude", action="store_true",
                     help="POSITIVE CONTROL: ignore every carve-out glob")
+    ap.add_argument("--classify", action="store_true",
+                    help="PREFLIGHT MODE (REQ-DATA-061): do not lint. Report whether linting "
+                         "the given --path is meaningful at all, as a `class` of selected | "
+                         "empty | not-selected | no-such-path. THIS MODE HAS ITS OWN EXIT "
+                         "CONTRACT: 0 = lintable (selected, empty), 1 = not lintable, 2 = "
+                         "could not run. Branch on the CLASS, never on the exit code alone.")
     a = ap.parse_args()
+
+    if a.classify:
+        if not a.path or len(a.path) != 1:
+            # A harness failure, not a verdict: with no single subject there is nothing to
+            # classify, and answering either way would be an invention.
+            out = {"class": None, "reason": "`--classify` requires exactly one `--path`",
+                   "path": None, "root": str(a.root), "selected_by": []}
+            print(json.dumps(out, indent=1) if a.json
+                  else f"INCONCLUSIVE: {out['reason']}", file=sys.stdout)
+            return 2
+        try:
+            res = classify(a.root, a.path[0], a.type,
+                           use_exclude=not a.no_exclude, extra_exclude=a.exclude)
+        except Inconclusive as e:
+            out = {"class": None, "reason": str(e), "path": str(a.path[0]),
+                   "root": str(a.root), "selected_by": []}
+            print(json.dumps(out, indent=1) if a.json
+                  else f"INCONCLUSIVE: {e}", file=sys.stdout)
+            return 2
+        if a.json:
+            print(json.dumps(res, indent=1))
+        else:
+            print(f"{res['class']}: {res['path']} — {res['reason']}")
+        # The CLASSIFY mode's exit contract. It is NOT the lint's: the same executable now
+        # carries two vocabularies keyed by mode (REQ-DATA-024 as amended by plan-050).
+        return 0 if res["class"] in (CLASS_SELECTED, CLASS_EMPTY) else 1
+
     try:
         res = lint(a.root, a.type, a.path, use_exclude=not a.no_exclude,
                    extra_exclude=a.exclude)

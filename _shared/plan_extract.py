@@ -145,6 +145,31 @@ def mask_inline_code(line: str) -> str:
     return re.sub(r"`[^`]*`", lambda m: " " * len(m.group(0)), line)
 
 
+def _verbatim(raw: str, m: "re.Match[str]", group) -> str:
+    """The `group` span of `m`, read from the UNMASKED source line (REQ-DATA-062, #186).
+
+    `m` was matched against `mask_inline_code(raw)`. That masking is CORRECT for parsing — a
+    `depends-on:` inside an inline code span is documentation, not a declaration — and is
+    preserved. But a title captured from the masked line has every backticked term blanked to
+    spaces, so `plan_extract` emitted corrupt titles while `--strict` reported `unparsed: []`
+    and exit 0, and §5.2a poured that corruption straight into the bead DAG.
+
+    The capture is an OFFSET SLICE, never a re-match of `ISSUE`/`EPIC` against `raw`.
+    `mask_inline_code` is length-preserving by construction (it substitutes a run of spaces of
+    the same width), so the match offsets are valid in `raw` — that guarantee is what makes the
+    slice correct, and it is the only reason this form is safe.
+
+    The naive alternative — matching the pattern against `raw` — was MEASURED at plan-050's
+    pass 10 producing a spurious edge to a nonexistent target and driving `--strict` non-zero,
+    because a `depends-on:` written inside a code span becomes visible to `try_trailing` again.
+    Every other consumer keeps matching against the masked line; only the title reads `raw`.
+    """
+    start, end = m.start(group), m.end(group)
+    if start < 0:
+        return ""
+    return raw[start:end].strip()
+
+
 def _split_h2(lines: list[str]) -> dict[str, tuple[int, int]]:
     """`{h2 title: (start, end)}` over body lines, fence-aware."""
     out: dict[str, tuple[int, int]] = {}
@@ -302,6 +327,24 @@ def extract(path: Path) -> dict:
             rec(i, "trailing-inline-subkey", before, f"  - {key}: {val}")
         return True
 
+    def _collect_detail(raw: str, consumed: bool) -> None:
+        """Append one continuation line to the current issue's `detail` (REQ-DATA-063).
+
+        `consumed` is True when `try_trailing` already read a TRAILING-INLINE declaration off
+        the end of this line. The declaration text is then stripped, because the same bytes
+        must not be reachable BOTH as a structured edge and as prose — that exclusion is what
+        makes `detail` a schema field rather than a raw-text dump, and it is the same reason
+        the `- depends-on:` / `- resolves-upstream:` BULLET forms never reach here at all
+        (they are matched and consumed by `SUBKEY` / `COL0_SUBKEY` above).
+        """
+        if cur_issue is None:
+            return
+        text = raw.strip()
+        if consumed:
+            text = TRAILING_SUBKEY.sub("", text).strip()
+        if text:
+            cur_issue["detail_lines"].append(text)
+
 
     if "Epics" in h2:
         s, e = h2["Epics"]
@@ -313,7 +356,7 @@ def extract(path: Path) -> dict:
 
             m = EPIC.match(ln)
             if m:
-                cur_epic = {"num": m.group(1), "name": m.group(2).strip(),
+                cur_epic = {"num": m.group(1), "name": _verbatim(raw, m, 2),
                             "lettered": not m.group(1).isdigit(), "line": i + 1,
                             "issue_ids": []}
                 epics.append(cur_epic)
@@ -337,8 +380,9 @@ def extract(path: Path) -> dict:
                     rec(i, "title-parenthetical",
                         f'Issue {iid}{m.group("paren").strip()}', f"Issue {iid}")
                 cur_issue = {"id": iid, "lettered": not m.group("id").isdigit(),
-                             "title": m.group("rest").strip(),
+                             "title": _verbatim(raw, m, "rest"),
                              "epic": cur_epic["num"], "line": i + 1,
+                             "detail_lines": [],
                              "depends_on": [], "resolves_upstream": []}
                 issues.append(cur_issue)
                 cur_epic["issue_ids"].append(cur_issue["id"])
@@ -365,10 +409,24 @@ def extract(path: Path) -> dict:
                 handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=True)
                 continue
 
-            # A two-space continuation of the current issue — and ONLY that. A more deeply
-            # nested list item belongs to its own sub-list, and attributing its declaration
-            # to the issue is precisely the mis-attribution REQ-DATA-052 forbids.
-            if re.match(r"^ {2}(?![ \t*-])\S", ln) and try_trailing(i, raw, ln):
+            # A two-space continuation of the current issue — and ONLY that, FOR THE
+            # PURPOSE OF READING A DECLARATION. A more deeply nested list item belongs to
+            # its own sub-list, and attributing its DECLARATION to the issue is precisely
+            # the mis-attribution REQ-DATA-052 forbids.
+            if re.match(r"^ {2}(?![ \t*-])\S", ln):
+                consumed = try_trailing(i, raw, ln)
+                _collect_detail(raw, consumed)
+                continue
+
+            # REQ-DATA-063 (#187). Any OTHER indented line under an open issue is that
+            # issue's continuation PROSE: a nested bullet, a table row, a deeper-indented
+            # paragraph. It is collected into `detail` and nothing else — no declaration is
+            # ever read from it, so REQ-DATA-052's attribution rule is untouched. Before
+            # this, such a line was dropped silently and `--description` had nothing to
+            # carry: 35 of 35 beads poured from one plan came out with empty descriptions
+            # on a DAG that was otherwise perfect.
+            if cur_issue is not None and re.match(r"^\s+\S", ln):
+                _collect_detail(raw, False)
                 continue
 
             # Anything else at column 0 that looks like a list item in ## Epics.
@@ -552,6 +610,14 @@ def extract(path: Path) -> dict:
                                  "reason": f"gate {g['name']!r} Blocks undeclared issue "
                                            f"{b['ref']!r}",
                                  "raw": g["blocks_raw"] or ""})
+
+    # REQ-DATA-063 (#187): materialise `detail` from the collected continuation lines. The
+    # working list is dropped so the emitted object carries ONE representation, not two.
+    # An issue whose only continuation was its sub-key bullets carries an EMPTY `detail`,
+    # which is a valid value and not an error — 0 of 35 continuation bullets on plan-050
+    # itself carry prose, and that is a negative observation rather than a failure.
+    for _i in issues:
+        _i["detail"] = "\n".join(_i.pop("detail_lines", []))
 
     return {
         "path": str(path),

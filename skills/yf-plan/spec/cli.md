@@ -30,7 +30,7 @@ REQ-CLI-006: `plan_manager.py` exposes its subcommands **flat** — one `@cli.co
 
 > the set of verbs enumerated in this REQ **equals** the set of `@cli.command` names in `skills/yf-plan/scripts/plan_manager.py`.
 
-The enumeration (currently **25**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023).
+The enumeration (currently **27**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `grant` (REQ-CLI-025).
 
 Adding a verb **requires** adding it here. The count is written as *currently N* precisely because it is a **derived** fact: the invariant is the set equality, and the number is a convenience that the executing check re-derives. Separately, `plan_manager.py` also exposes the click **groups** `fingerprint`, `worktree` and `landing-lock`, whose subcommands are registered on the group (`@fingerprint.command`, etc.) and are therefore **outside** both the enumeration and the check — which is why REQ-CLI-021 mandates the flat form.
 Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. This REQ has drifted **three times**: it read 10 while the script carried 21; plan-045 corrected it to 23, then to 24 when `review-loop-check` landed; and it was *still* wrong at 25 because `retrospective-report` was added in the same epic that fixed the previous drift. Each fix bumped a hardcoded literal, which is a repair that re-breaks on the very next verb.
@@ -140,3 +140,36 @@ Verification: appending to a bundle with no `plan-retrospective.md` creates a co
 REQ-CLI-023: `plan_manager.py review-loop-check <plan-dir> [--max-review-cycles <n>] [--json]` bounds the autonomous review loop (2.4a). It exits `3` when the loop must escalate and `0` otherwise, emitting `{"escalates", "cycles", "limit", "stop_class", "autonomy", "raised", "remediation"}`. The cycle count is `len(glob('reviews/pass-*.md'))`. `--max-review-cycles` raises the bound **for that invocation only** and echoes the raise to `log.md`. Registered flat as `@cli.command("review-loop-check")`.
 Rationale: Issue 2.4 grants the review loop autonomy in **Phase 3 — before intake, before the pour, before any bead exists** — so `yf_attempts` (bd metadata, incremented in the coordinator loop) structurally cannot bound it. Without a second, plan-phase counter the headline autonomy change would be unbounded, which is the shape D-8 forbids. The count reads pass **files** rather than `log.md` **bullets** because those are different numbers that can and do diverge, and a bound keyed on the wrong one would escalate on a bookkeeping artifact. The counter is monotonic and deliberately does **not** auto-reset: a plan that has burned `N` review cycles should not silently resume, so the per-invocation raise is the only exit and is recorded.
 Verification: a bundle with `N` pass files exits `3`; the same bundle with `--max-review-cycles N+1` exits `0` and appends a `log.md` entry; removing the raise re-escalates immediately; `test_cli_enumeration.py` asserts it is present in the REQ-CLI-006 enumeration.
+
+REQ-CLI-025: `plan_manager.py grant <plan-dir> [--json]` **generates** the upstream-write
+authorization grant from the plan's own **Upstream Issues** table — the set of upstream actions
+the plan's dispositions require, enumerated per row — and emits it as a **proposal**. It:
+
+- **never writes** the authorization file and never performs an upstream write;
+- **requires no network** to generate, so it is runnable before any `gh` call;
+- reads its per-disposition requirement from the **one shared table** keyed by the
+  `UPSTREAM_DISPOSITIONS` literals that `_verify_row` also reads, so generator and verifier
+  cannot disagree about what a disposition requires;
+- covers **every** literal in `UPSTREAM_DISPOSITIONS`, including `exclude`, `deferred` and
+  `tracker` — a generator that silently omits a disposition is #181's defect class in a new
+  place;
+- honours the REQ-COMPLETE-003 envelope and is registered **flat** as `@cli.command("grant")`
+  (REQ-CLI-021), so REQ-CLI-006's set-equality check sees it.
+
+Rationale: #178. plan-048 **halted its own reconcile** on an omitted `include` close: the grant
+was derived by hand from the table, one row was missed, and the omission surfaced only at
+`verify-reconcile` — a late halt after the outward-facing writes had begun. plan-049 avoided it
+only because the operator re-derived the grant by hand a second time. The two readers of the
+disposition→end-state map (what the grant asks for, and what the verifier requires) were separate
+prose derivations of the same rule; making them one table read is what removes the class rather
+than the instance. The extraction is a **separate step** from the generator because `_verify_row`
+as it stands cannot serve as the source: it returns no `required_action`, is network-bound
+(`gh issue view` per row), and returns `fail` on an `exclude` row handed to it directly — a
+literal that IS in the frozenset (measured, pass-3 C12).
+Verification: `ctl-178-grant` replays plan-048's **actual recorded grant with the `#172` close
+omitted** and drives the round-trip check non-zero; the shared read is asserted **behaviorally** —
+mutate one entry in a throwaway copy of the table, re-run `grant` and `_verify_row` with
+`_gh_issue_view` stubbed to a fixed payload, and assert **both** verdicts change; every literal
+in `UPSTREAM_DISPOSITIONS` has exactly one table entry; `test_cli_enumeration.py` asserts `grant`
+is present in the REQ-CLI-006 enumeration.
+

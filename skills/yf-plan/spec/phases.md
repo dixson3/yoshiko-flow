@@ -150,3 +150,47 @@ Verification: `scripts/test_close_contract.py` enumerates every script invocatio
 REQ-PLAN-073: At EXECUTE, `yf-plan` shall stamp the plan's **coarse upstream tracker URL** onto the plan epic as the epic's `external_ref`, via `plan_manager.py stamp-tracker`. It runs in **§5.2a immediately after `record-epic`** (the first moment the epic id exists) and again on the **§5.2b resume** branch. The tracker is resolved from the `plan.md` **Upstream Issues** row whose Disposition is literally `tracker`, or supplied explicitly via `--url`. The verb is **idempotent** (re-stamping the same URL is a no-op), **non-clobbering** (an epic already mapped to a *different* ref is reported and left alone), and **fail-soft** (no epic, no tracker, or no `bd` returns a skip verdict at exit 0). It is **forward-looking only**: pre-existing unstamped trackers stay invisible until backfilled.
 Rationale: `yf-beads-upstream`'s `closable` groups beads by `external_ref`, so a coarse tracker that no bead points at is **structurally invisible** to it — §4.5 files the tracker with a bare `gh issue create` and records the URL nowhere. Five trackers went stale and were closed by hand (#103, #95, #96, #98, #134). Stamping makes the tracker an ordinary mapped bead, discharging #117's coarse signal with **no** `plans-root` coupling in either direction and no per-plan `plan.md`-status reader. The placement is a correction to #131 as filed, which specifies §4.5: that is impossible, because §4.5 runs at INTAKE, §4.6 states "No pour happened at intake", and §5.2 owns the pour — there is no epic id at §4.5 to stamp. Fail-soft is mandatory because the verb runs *inside* the pour sequence, where a plan with no tracker yet is a normal state, not an error. Running it on resume as well repairs a plan whose tracker was filed late or whose stamp failed, rather than leaving it invisible forever.
 Verification: SKILL.md §5.2a calls `stamp-tracker` immediately after `record-epic` and §5.2b calls it before the orphan sweep; `scripts/test_stamp_tracker.py` asserts stamped/unchanged/skip-no-epic/skip-no-tracker/refuse-different-ref and that every path exits 0; live round-trip — after stamping, the tracker appears in `upstream.py closable` output.
+
+## The start-gate wrapper close (§5.2a)
+
+REQ-PLAN-077: The `plan-execute` pour expands its one `type = "gate"` step into **two** beads —
+the gate (`plan-execute.gate-start-gate`) and a wrapper **task** (`plan-execute.start-gate`) that
+entry issues take as a `--deps` predecessor, because `bd` rejects a task blocking an epic.
+Resolving the start gate shall **close the wrapper in the same step**, with a **generated**
+`close_reason`, via a single `plan_manager.py` verb rather than a bare `bd gate resolve` followed
+by a hand-typed `bd close`. The verb re-derives both bead ids from the plan epic, is
+**idempotent** (an already-closed wrapper is a clean pass), and honours the REQ-COMPLETE-003
+envelope. It shall **not** be implemented by weakening `close_cascade.py`'s `_bead_is_terminal`,
+which is reporting correctly.
+Rationale: #179. Measured across the live bead DB: **49 of 49** wrapper beads ever produced were
+closed **by hand**, with **29 distinct** improvised `close_reason` values (EXP-002). This is not
+an intermittent defect — it is a universal manual step with no mechanism and no exit code, and
+it is the corpus's own headline in miniature. `bd gate resolve` closes the gate; nothing closes
+the wrapper; `close_cascade.py` then fail-louds on a non-terminal child under the molecule —
+correctly. The cascade is not the defect, the un-closed wrapper is, so the fix belongs at the
+pour/resolve seam. Weakening `_bead_is_terminal` would silence a correct fail-loud, which is the
+"succeeds visibly while doing nothing" class this repo has measured repeatedly.
+Verification: `ctl-179-wrapper-close` pours a molecule, resolves the gate through the verb, and
+asserts the wrapper is `closed` carrying the generated reason — non-zero pre-fix, zero post-fix;
+the **negative control** `neg-179-open-wrapper` asserts a genuinely open wrapper still drives
+`close_cascade.py` non-zero **after** the fix; `git diff` over `_bead_is_terminal` is empty;
+SKILL.md §5.2a invokes the verb instead of a bare `bd gate resolve`.
+
+REQ-COMPLETE-004: **Gate-before-close.** `close-reconcile-step` requires the plan's **Reconcile
+Gate to be resolved first**, and shall assert that ordering with an **exit code** rather than
+document it in prose. With the reconcile gate unresolved the verb emits `verdict: "fail"` and
+exits non-zero; it never closes the reconcile bead against incomplete execution. The assertion's
+exit code shall be **read by its caller**: SKILL.md §6.4 checks the verb's status, not only its
+captured stdout. This is an instance of REQ-COMPLETE-001's constraint 2
+(reconcile-before-verification) made mechanical, not a new constraint on the chain's shape.
+Rationale: #180. The ordering existed only in the author's head. Two consecutive plans hit it,
+worked around it by hand, and filed it; a third was told to expect it at launch and hit it
+anyway. Worse, SKILL.md §6.4 captured the verb's output with `RSTEP=$(… close-reconcile-step …)`
+and **only echoed it** — it never checked `$?` — so an exit code added without touching the
+caller would be unread, which is precisely the "a step with no exit code is not a step" class in
+its second form: a step whose exit code nothing reads. Both halves are therefore required
+together.
+Verification: `ctl-180-chain-order` runs `close-reconcile-step` with the reconcile gate
+unresolved and asserts a non-zero exit — non-zero pre-fix (the ordering assertion does not
+exist), zero post-fix (it fires); SKILL.md §6.4's invocation branches on the captured status.
+

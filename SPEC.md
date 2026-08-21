@@ -611,6 +611,35 @@ requirement lives only in code (GUARDRAILS GR-010).
 >   measured the single most-drifted artifact in the investigation — and made it **generated** from
 >   `_shared/plan_template.py` through `sync.py`'s marker fence, so it cannot drift from
 >   `seed_plan_md` again.
+> - **plan-050 (2026-08-20, #178/#179/#180/#181/#186/#187 — six mechanical process defects):**
+>   added **six** requirements, one per behaviour change, SPEC-first ahead of every implementing
+>   commit. `REQ-PLAN-077` — resolving the start gate closes the wrapper task in the **same step**
+>   with a generated `close_reason`, via one verb, and explicitly **not** by weakening
+>   `close_cascade.py`'s `_bead_is_terminal` (measured: 49 of 49 wrappers ever poured were closed
+>   by hand, with 29 distinct improvised reasons). `REQ-COMPLETE-004` — `close-reconcile-step`
+>   asserts the reconcile gate is resolved first **with an exit code**, and SKILL.md §6.4 must
+>   **read** that exit code, which it did not: the block captured the verb with `RSTEP=$(…)` and
+>   only echoed it. `REQ-DATA-061` — `doc_lint.py` gains a **`classify` preflight mode** emitting
+>   a `class` of `selected | empty | not-selected | no-such-path`, closing #181's silent green
+>   without touching the lint's own reporting (three earlier scopes were each refuted by
+>   measurement, all three because they mutated it). `REQ-CLI-025` — `plan_manager.py grant`
+>   generates the upstream-write authorization proposal from the Upstream Issues table, reading
+>   the **same** per-disposition requirement table as `_verify_row`. `REQ-DATA-062` — title
+>   fidelity: an extracted title equals its source span verbatim, captured by **offset-slicing**
+>   the unmasked line, never by re-matching against it. `REQ-DATA-063` — the issue `detail` field,
+>   carrying continuation prose minus the parsed sub-key bullets, so §5.2a's mechanical pour can
+>   populate `--description`.
+>
+>   Also **amended `REQ-DATA-024`**, scoped to its **exit-contract sentence only**. It read that
+>   the contract is "binary at every binding point"; `classify` gives the same executable a second
+>   `0/1/2` vocabulary, so the sentence became false on landing. The **verdict** vocabulary is
+>   untouched and remains closed — `classify` emits a `class`, never a verdict. The same sentence
+>   is **restated in three places outside the spec** and all three moved with it:
+>   `_shared/doc_lint.py`'s module banner, its vendored copy
+>   `skills/yf-plan/scripts/doc_lint.py`, and `_shared/document_types/README.md`. Amending the
+>   spec alone would have left three documents agreeing with each other and none agreeing with the
+>   code — the plan-049 D-9 shape that `DRIFT-CHECK.md`'s fixed-authority `e-doclint-spec` edge,
+>   which names the engine's own module banner explicitly, exists to catch.
 > outside a repo checkout. That is a deliberate development-loop trade (a skills edit costs no
 > recompile), and it is recorded here rather than left as a silent latent violation. The
 > **`embed-in-debug` cargo feature** (`yf/Cargo.toml`, opt-in, added plan-041) re-enables baking

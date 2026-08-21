@@ -701,18 +701,48 @@ check("SC42: with the OLD positional root the same engine returns `files_checked
       f'files_checked={_d2["files_checked"]} verdict={_d2["verdict"]} rc={_p2.returncode}')
 
 
-# --- plan-049 Issue 4.3 / SC17: the on-edit rule and `not-a-typed-document` ---------------
+# --- SC17: the on-edit rule's DECISION PROCEDURE ------------------------------------------
 #
-# The rule (`skills/yf-plan/protocols/DOC-LINT.md`) MANDATES parsing `files_checked` from
-# `--json`, because an exit code cannot carry the distinction. These assertions are what make
-# that mandate checkable rather than advisory.
+# AMENDED by plan-050 Issue 2.2a (#181). The rule used to MANDATE PARSING `files_checked` and
+# reporting `not-a-typed-document` — prose instructing an agent to read a field and
+# reinterpret it. It now runs `doc_lint.py --classify` FIRST and branches on the returned
+# `class`, which is an executed step carrying an exit code.
+#
+# THE ASSERTION MOVED WITH THE CONTRACT, DELIBERATELY. The two old literals still appear in
+# the rewritten rule for real reasons — `files_checked` in the table explaining what the field
+# still means, `not-a-typed-document` as the thing to report on the `not-selected` class — so
+# the ORIGINAL assertion would still pass. Leaving it would have been the M5 vacuity class
+# inside the test suite: a check that goes green against a contract that no longer exists.
+# What is pinned here is the NEW decision procedure.
 
 RULE = REPO / "skills" / "yf-plan" / "protocols" / "DOC-LINT.md"
 check("SC17: the on-edit rule ships", RULE.is_file(), str(RULE))
 _rule = RULE.read_text(encoding="utf-8") if RULE.is_file() else ""
-check("SC17: the rule mandates parsing `files_checked` and reporting "
-      "`not-a-typed-document` — an exit code cannot carry it",
+check("SC17: the rule's on-edit step RUNS the classifier — not prose telling an agent to "
+      "parse a field",
+      "--classify" in _rule, "no `--classify` invocation in the on-edit rule")
+check("SC17: it branches on the returned `class`, and says so explicitly — the two "
+      "not-lintable classes share exit 1 and are different facts",
+      all(c in _rule for c in
+          ("`selected`", "`empty`", "`not-selected`", "`no-such-path`"))
+      and "never on the classify exit code alone" in _rule)
+check("SC17: `empty` is routed to the LINTABLE side — skipping it would manufacture a new "
+      "silent green inside the fix for a silent green",
+      "| `empty` | `0` | **lint it**" in _rule)
+check("SC17: `no-such-path` is an ERROR, not an ordinary skip — a caller naming a file that "
+      "does not exist is a caller bug",
+      "caller bug" in _rule)
+check("SC17: the `--root` form is documented — a bundle COPIED outside docs/plans/ is "
+      "#181's titled scenario, and documenting only `--path` would leave the headline "
+      "undocumented",
+      "--classify --root" in _rule or ("--root" in _rule and "copied outside" in _rule.lower()))
+check("SC17: the rule still explains what `files_checked` means — the field did not change, "
+      "it simply stopped being the caller's decision procedure",
       "files_checked" in _rule and "not-a-typed-document" in _rule)
+check("SC17: BOTH exit vocabularies are stated, keyed by mode — the same executable now "
+      "carries two, and a caller reading the wrong one reads a number that means something "
+      "else",
+      "LINT mode" in _rule and "CLASSIFY mode" in _rule)
 check("SC17: the rule declares NO marker file — inertness is structural via path-keying",
       "no opt-in marker" in _rule or "No marker file" in _rule)
 _man = json.loads((REPO / "skills" / "yf-plan" / "protocols" / "manifest.json").read_text())
@@ -731,7 +761,8 @@ _d_s = json.loads(_o_s)
 check("SC17: a REAL unselected path reports `files_checked: 0`",
       _d_u["files_checked"] == 0, str(_d_u)[:160])
 check("SC17: and it is INDISTINGUISHABLE from a clean pass at the exit-code level — "
-      "which is exactly why the rule mandates reading the field",
+      "which is exactly why the rule now runs `--classify` FIRST rather than reading the "
+      "lint's output and guessing",
       _rc_u == 0 and _d_u["verdict"] == "PASS" and _rc_s == 0 and _d_s["verdict"] == "PASS",
       f'unselected rc={_rc_u}/{_d_u["verdict"]} selected rc={_rc_s}/{_d_s["verdict"]}')
 check("SC17: an unselected path and a NONEXISTENT path return the same object — the failure "

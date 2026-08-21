@@ -15,10 +15,24 @@ selects anything** and the trigger below never has a changed path to act on. A m
 a second, weaker restatement of a condition the path globs already enforce exactly — and a
 marker that can be absent while the paths exist is a way to silently disable the check.
 
-## On-edit trigger
+## On-edit trigger — CLASSIFY FIRST, then branch on the `class`
 
 After any create or modify of a `.md` file under one of the typed roots — `docs/plans/**`,
-`Incubator/*/plans/**`, `docs/research/**` — run the linter over the changed file:
+`Incubator/*/plans/**`, `docs/research/**` — run the **preflight classifier** over the changed
+file, then act on the `class` it returns:
+
+```bash
+uv run "<skill-dir>/scripts/doc_lint.py" --classify --path "<changed.md>" --json
+```
+
+| `class` | classify exit | What to do |
+| :-- | --: | :-- |
+| `selected` | `0` | **lint it** (below) |
+| `empty` | `0` | **lint it** — an empty document fails its schema and the lint says so loudly |
+| `not-selected` | `1` | **skip and report** `not-a-typed-document` — ordinary, not an error |
+| `no-such-path` | `1` | **report as an ERROR** — a caller naming a file that does not exist is a caller bug |
+
+On `selected` or `empty`, lint it:
 
 ```bash
 uv run "<skill-dir>/scripts/doc_lint.py" --path "<changed.md>" --json
@@ -26,32 +40,70 @@ uv run "<skill-dir>/scripts/doc_lint.py" --path "<changed.md>" --json
 
 Resolve any `E`-severity finding in the same pass. `W` and `R` are informational.
 
-## Reading the result: `files_checked` is NOT optional
+**Branch on the `class`, never on the classify exit code alone.** The two non-lintable classes
+share exit `1` and are *different facts*: `not-selected` is an ordinary skip, `no-such-path` is
+a caller bug. Collapsing them reinstates #181's conflation one layer up — the same defect this
+step exists to remove, one level higher.
 
-**Parse `files_checked` from the `--json` output and report `not-a-typed-document` when it is
-0.** An exit code cannot carry this, and that is the whole reason the rule says so explicitly:
+**The `--root` form answers the copied-bundle case.** A plan bundle **copied outside**
+`docs/plans/` is #181's titled scenario, and it is a *root* question rather than a *path* one:
 
-| `files_checked` | `verdict` | exit | What it actually means |
-| --: | :-- | --: | :-- |
-| `>= 1` | `PASS` | 0 | the document was checked and is clean |
-| **`0`** | **`PASS`** | **0** | **nothing was checked** — no schema's globs select this path |
+```bash
+uv run "<skill-dir>/scripts/doc_lint.py" --classify --root "<other-root>" --path "<bundle>/plan.md" --json
+```
 
-The two rows are **identical at the exit-code level**. A caller that branches on the exit code
-alone reports a green for a file the engine never opened, which is indistinguishable from a
-green for a file that passed. `--path` on an unselected file returns the same object as
-`--path` on a **nonexistent** file, so the failure is silent in both directions.
+It returns `not-selected` — correctly, and now *legibly*, where the lint alone returned a green.
 
-So the correct report for `files_checked: 0` is **`not-a-typed-document`** — a statement that
-no type claims this path — and never `PASS`. Two reserved OKF files (`index.md`, `log.md`) sit
-in this category inside every plan bundle, so the condition is ordinary, not exceptional.
+**`not-selected` means *not selected by PATH ROUTING*.** A `--type`-forced lint is unaffected:
+`plan_manager.py` deliberately re-lints a bundle's `plan.md` with the type forced, so the plan
+document stays checkable wherever the bundle lives. A path this step skips *is* lintable by
+that route.
 
-## Exit contract
+## What replaced the "`files_checked` is NOT optional" section
 
-`0` = no `E`-severity finding · `1` = at least one · `2` = **INCONCLUSIVE**, the linter could
-not run (a missing schema directory, an unreadable document). A `2` is a statement about the
-*instrument*, not the document: repair the harness rather than reading it either way. At the
-intake binding an INCONCLUSIVE maps to `warn`, **never** `fail` (`REQ-DATA-057`) — the linter's
-own breakage must not become an intake outage.
+This section used to be **prose instructing an agent to parse a field and reinterpret it**. It
+is now an **executed step with an exit code**, because a step with no exit code is not a step.
+
+The `files_checked` field still means what it meant — it is simply no longer the caller's
+decision procedure:
+
+| `files_checked` | `verdict` | lint exit | What it means | Which `class` predicted it |
+| --: | :-- | --: | :-- | :-- |
+| `>= 1` | `PASS` | 0 | the document was checked and is clean | `selected` |
+| `>= 1` | `FAIL` | 1 | the document was checked and has `E` findings | `selected` or `empty` |
+| **`0`** | **`PASS`** | **0** | **nothing was checked** | `not-selected` **or** `no-such-path` |
+
+The bottom row is why the classifier exists. Those two rows are **identical at the exit-code
+level and identical in the JSON**: `--path` on an unselected file returns the same object as
+`--path` on a **nonexistent** file, so the failure was silent in both directions. Reading
+`files_checked` distinguished *checked* from *not checked*, but it could never distinguish
+*not claimed by any type* from *not there at all* — no field in the lint's output carries that.
+
+Two reserved OKF files (`index.md`, `log.md`) sit in the `not-selected` class inside every plan
+bundle, so that class is **ordinary, not exceptional** — they are skipped and reported, never
+failed. `no-such-path`, by contrast, is always worth an error.
+
+## Exit contract — TWO vocabularies, KEYED BY MODE
+
+The same executable carries two exit vocabularies. Which one applies is decided by the mode,
+and a caller that reads the wrong one reads a number that means something else.
+
+**LINT mode** (the default): `0` = no `E`-severity finding · `1` = at least one · `2` =
+**INCONCLUSIVE**, the linter could not run (a missing schema directory, an unreadable
+document). A `2` is a statement about the *instrument*, not the document: repair the harness
+rather than reading it either way. At the intake binding an INCONCLUSIVE maps to `warn`,
+**never** `fail` (`REQ-DATA-057`) — the linter's own breakage must not become an intake outage.
+
+**CLASSIFY mode** (`--classify`, `REQ-DATA-061`): `0` = **lintable** (`selected`, `empty`) ·
+`1` = **not lintable** (`not-selected`, `no-such-path`) · `2` = the classifier could not run.
+
+The two are not the same contract, and the difference is observable: a `classify` run over a
+selected-but-**empty** document exits **0**, while a `lint` run over that same document exits
+**1** on its `E` findings. `REQ-DATA-024`'s "binary at every binding point" wording was amended
+for exactly this reason.
+
+The **verdict** vocabulary is unchanged and closed — `PASS | FAIL | INCONCLUSIVE`. `classify`
+emits a `class`, never a verdict.
 
 ## Where else the engine runs
 
