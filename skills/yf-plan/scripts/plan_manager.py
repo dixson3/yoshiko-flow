@@ -4431,6 +4431,232 @@ def audit(plan_dir: str, as_json: bool, retro: bool):
     sys.exit(0 if result["status"] == "pass" else 1)
 
 
+# ---------------------------------------------------------------------------
+# Start-gate resolution (REQ-PLAN-077 / #179) and the §6.4 gate-before-close
+# ordering assertion (REQ-COMPLETE-004 / #180).
+# ---------------------------------------------------------------------------
+
+
+def _bd_children(node_id: str) -> list[dict]:
+    """Direct children of `node_id`, INCLUDING gate-type and closed beads.
+
+    `bd children` (an alias for `bd list --parent`) omits gate-type children, so the two
+    queries are merged — the same shape `close_cascade.py::_node_children` uses, and for the
+    same reason: a gate invisible to the walk is a gate the caller cannot reason about.
+    """
+    by_id: dict[str, dict] = {}
+    for child in _bd_list("--parent", node_id, "--status", "all"):
+        cid = child.get("id")
+        if cid:
+            by_id[cid] = child
+    for gate in _bd_list("--parent", node_id, "--type", "gate", "--status", "all"):
+        gid = gate.get("id")
+        if gid:
+            by_id[gid] = gate
+    return [by_id[k] for k in sorted(by_id)]
+
+
+def _bd_show_one(node_id: str) -> dict | None:
+    """`bd show <id> --json`, defensively parsed. None when bd cannot answer."""
+    try:
+        out = subprocess.check_output(["bd", "show", node_id, "--json"],
+                                      text=True, stderr=subprocess.DEVNULL)
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+    parsed = _parse_bd_json(out)
+    return parsed[0] if parsed else None
+
+
+def _gate_is_resolved(bead: dict) -> bool:
+    """Resolved per REQ-PLAN-067's terminal rule, restricted to gates.
+
+    Kept deliberately IDENTICAL in meaning to `close_cascade.py::_bead_is_terminal`'s gate
+    arm. Two readers disagreeing about whether a gate is satisfied is how an ordering
+    assertion becomes a fail-loud false positive.
+    """
+    if bead.get("status") == "closed":
+        return True
+    for key in ("resolved", "verified", "gate_resolved"):
+        if bead.get(key) is True:
+            return True
+    return str(bead.get("gate_status", "")).lower() in (
+        "resolved", "verified", "satisfied", "passed", "closed")
+
+
+def _find_start_gate_pair(epic: str) -> tuple[dict | None, dict | None, str | None]:
+    """`(wrapper, gate, error)` for the plan-execute start gate under `epic`.
+
+    The pour expands ONE `type = "gate"` formula step into TWO beads (REQ-PLAN-077): a
+    wrapper TASK (`plan-execute.start-gate`, titled `Begin: <objective>`) that entry issues
+    take as a `--deps` predecessor, and the real GATE (`plan-execute.gate-start-gate`).
+
+    The wrapper does NOT carry a dotted child id under the epic — the pour allocates it a
+    sibling id — so it is found by PARENT EDGE, never by an id prefix. Reading it by prefix
+    is how a derivation silently finds nothing and reports success on an empty set.
+
+    The gate is then resolved from the wrapper's own `blocks` dependency rather than by
+    title, because `Gate: human` is the formula's generic title and would match any human
+    gate under the same epic.
+    """
+    children = _bd_children(epic)
+    if not children:
+        return (None, None, f"no children under {epic} (bd may be unavailable)")
+
+    wrappers = [c for c in children
+                if (c.get("issue_type") or c.get("type")) == "task"
+                and str(c.get("title", "")).startswith("Begin:")]
+    if not wrappers:
+        return (None, None,
+                f"no start-gate wrapper task (title `Begin: …`) under {epic}")
+    if len(wrappers) > 1:
+        return (None, None,
+                "more than one start-gate wrapper under "
+                f"{epic}: {[w.get('id') for w in wrappers]} — refusing to guess")
+
+    wrapper = _bd_show_one(str(wrappers[0].get("id"))) or wrappers[0]
+
+    gates = [d for d in (wrapper.get("dependencies") or [])
+             if d.get("issue_type") == "gate"]
+    if not gates:
+        gates = [c for c in children if (c.get("issue_type") or c.get("type")) == "gate"
+                 and str(c.get("title", "")).startswith("Gate:")]
+    if len(gates) != 1:
+        return (wrapper, None,
+                f"expected exactly one start gate for wrapper {wrapper.get('id')}, "
+                f"found {len(gates)}")
+
+    gate = _bd_show_one(str(gates[0].get("id"))) or gates[0]
+    return (wrapper, gate, None)
+
+
+def _start_gate_close_reason(gate_id: str, plan_id: str) -> str:
+    """The GENERATED close reason (REQ-PLAN-077).
+
+    Generated means DERIVED FROM THE SCENARIO, not merely constant: it names the gate that was
+    resolved and the plan it belongs to, and cites the contract it discharges. EXP-002 measured
+    49 of 49 wrappers closed by hand with 29 DISTINCT improvised reasons — a constant string
+    would end the variance while carrying no more information than the variance did.
+    """
+    return (f"start gate {gate_id} resolved at execute start; wrapper closed in the same "
+            f"step for {plan_id} (REQ-PLAN-077)")
+
+
+@cli.command("resolve-start-gate")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def resolve_start_gate(plan_dir: str, as_json: bool):
+    """Resolve the start gate AND close its wrapper task, in one step (REQ-PLAN-077).
+
+    WHY THIS IS A VERB AND NOT `bd gate resolve` FOLLOWED BY A HAND-TYPED `bd close`
+    -------------------------------------------------------------------------------
+    `bd gate resolve` closes the GATE. Nothing closes the WRAPPER. `close_cascade.py` then
+    fail-louds on a non-terminal child under the molecule — correctly; the cascade is not the
+    defect, the un-closed wrapper is.
+
+    Measured across the live bead DB (EXP-002): **49 of 49** wrapper beads ever poured were
+    closed BY HAND, with **29 distinct** improvised `close_reason` values. That is not an
+    intermittent defect. It is a universal manual step with no mechanism and no exit code —
+    the corpus's own headline in miniature.
+
+    The fix is at the pour/resolve seam and NOT in `_bead_is_terminal`, which is reporting
+    correctly. Weakening it would silence a true fail-loud, which is the "succeeds visibly
+    while doing nothing" class this repo has measured repeatedly; the `neg-179-open-wrapper`
+    scenario asserts it still refuses a genuinely open child, before and after.
+
+    Idempotent: an already-closed wrapper is a clean pass, so a resumed session may re-run it.
+    """
+    pdir = Path(plan_dir)
+    plan_md = pdir / "plan.md"
+    if not plan_md.exists():
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False, "epic": None,
+            "reason": f"plan.md not found under {plan_dir}",
+            "remediation": "Check the plan_dir argument, then re-run §5.2a.",
+        }))
+        sys.exit(1)
+
+    plan_id = _plan_id_from_dir(pdir)
+    epic = _read_plan_epic_field(plan_md.read_text())
+    if not epic:
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False, "epic": None,
+            "reason": "no **Epic:** field on plan.md — the start-gate pair cannot be "
+                      "re-derived",
+            "remediation": "Run `plan_manager.py record-epic <plan_dir> <epic-id>` "
+                           "immediately after the pour, then re-run.",
+        }))
+        sys.exit(1)
+
+    wrapper, gate, err = _find_start_gate_pair(epic)
+    if err is not None:
+        click.echo(json.dumps({
+            "verdict": "inconclusive", "passed": False, "epic": epic,
+            "wrapper": (wrapper or {}).get("id"), "gate": None,
+            "reason": err,
+            "remediation": "Inspect `bd children " + epic + " --json` and resolve the start "
+                           "gate by hand if the pour is non-standard.",
+        }))
+        sys.exit(0)
+
+    wrapper_id, gate_id = str(wrapper["id"]), str(gate["id"])
+    reason = _start_gate_close_reason(gate_id, plan_id)
+    actions: list[str] = []
+
+    if not _gate_is_resolved(gate):
+        try:
+            r = subprocess.run(["bd", "gate", "resolve", gate_id],
+                               capture_output=True, text=True, timeout=60)
+            rc, errtxt = r.returncode, (r.stderr or "").strip()
+        except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as e:
+            rc, errtxt = None, str(e)
+        if rc != 0:
+            click.echo(json.dumps({
+                "verdict": "fail", "passed": False, "epic": epic,
+                "wrapper": wrapper_id, "gate": gate_id, "close_reason": None,
+                "reason": f"could not resolve gate {gate_id}: "
+                          f"{errtxt or 'bd exited ' + str(rc)}",
+                "remediation": f"bd gate resolve {gate_id}",
+            }))
+            sys.exit(1)
+        actions.append("gate-resolved")
+    else:
+        actions.append("gate-already-resolved")
+
+    if wrapper.get("status") != "closed":
+        try:
+            r = subprocess.run(["bd", "close", wrapper_id, "--reason", reason],
+                               capture_output=True, text=True, timeout=60)
+            rc, errtxt = r.returncode, (r.stderr or "").strip()
+        except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as e:
+            rc, errtxt = None, str(e)
+        if rc != 0:
+            # FAIL, not inconclusive: the gate is now resolved and the wrapper is not, which
+            # is EXACTLY the #179 state. Reporting it softly would leave the caller believing
+            # the seam had been closed.
+            click.echo(json.dumps({
+                "verdict": "fail", "passed": False, "epic": epic,
+                "wrapper": wrapper_id, "gate": gate_id, "close_reason": reason,
+                "actions": actions,
+                "reason": f"gate {gate_id} resolved but wrapper {wrapper_id} could not be "
+                          f"closed: {errtxt or 'bd exited ' + str(rc)}",
+                "remediation": f"bd close {wrapper_id} --reason '{reason}'",
+            }))
+            sys.exit(1)
+        actions.append("wrapper-closed")
+    else:
+        actions.append("wrapper-already-closed")
+        reason = wrapper.get("close_reason") or reason
+
+    click.echo(json.dumps({
+        "verdict": "pass", "passed": True, "epic": epic,
+        "wrapper": wrapper_id, "gate": gate_id, "close_reason": reason,
+        "actions": actions,
+        "reason": f"start gate {gate_id} resolved and wrapper {wrapper_id} closed",
+        "remediation": None,
+    }, indent=2))
+
+
 @cli.command("close-reconcile-step")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--reason", default="Upstream issues reconciled",
@@ -4496,6 +4722,40 @@ def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
                            "close the reconcile bead by hand; otherwise no action.",
         }))
         sys.exit(0)
+
+    # ---- REQ-COMPLETE-004 (#180): the GATE-BEFORE-CLOSE ordering assertion ------------
+    # The reconcile gate must be RESOLVED before the reconcile bead is closed. This is
+    # REQ-COMPLETE-001's constraint 2 made mechanical; before it, the ordering existed only
+    # in the author's head. Two consecutive plans hit it, worked around it by hand and filed
+    # it; a third was told to expect it at launch and hit it anyway.
+    #
+    # WHAT IT REPLACES, AND WHY THAT WAS NOT ALREADY ENOUGH. `bd` itself refuses to close a
+    # bead blocked by an open dependency — MEASURED: `cannot close <id>: blocked by open
+    # issues [...] (use --force to override)`. So the ordering was already *unviolatable*;
+    # the defect was that violating it produced `verdict: inconclusive` and **exit 0**, from
+    # deep inside the close attempt, and SKILL.md §6.4 never read the exit code. The chain
+    # then walked on to cascade-close and `set complete` with the reconcile step still open.
+    # An accidental refusal reported softly is not an assertion. This makes the check
+    # EXPLICIT, FIRST, and `fail` — and Issue 1.3 makes §6.4 read it.
+    gates = [c for c in _bd_children(epic)
+             if (c.get("issue_type") or c.get("type")) == "gate"
+             and str(c.get("title", "")).startswith("Gate: Reconcile")]
+    unresolved = [g for g in gates
+                  if not _gate_is_resolved(_bd_show_one(str(g.get("id"))) or g)]
+    if unresolved:
+        ids = [str(g.get("id")) for g in unresolved]
+        click.echo(json.dumps({
+            "verdict": "fail", "passed": False, "epic": epic,
+            "bead": (candidates[0].get("id") if candidates else None),
+            "unresolved_gates": ids,
+            "reason": f"the reconcile gate {ids} is not resolved — §6.4's gate-before-close "
+                      "ordering constraint (REQ-COMPLETE-004) forbids closing the reconcile "
+                      "bead against incomplete execution",
+            "remediation": "Every execution bead under this plan's epic must close first; the "
+                           "reconcile gate then resolves. Check `bd ready` and "
+                           f"`bd show {ids[0]} --json`, then re-run §6.4.",
+        }, indent=2))
+        sys.exit(1)
 
     already = [b for b in candidates if b.get("status") == "closed"]
     open_ones = [b for b in candidates if b.get("status") != "closed"]

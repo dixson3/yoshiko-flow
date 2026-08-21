@@ -114,6 +114,18 @@ class _Recorder:
         return r
 
 
+def _closes(rec) -> list[list[str]]:
+    """Only the `bd close` invocations from a recorder's call log.
+
+    Scoped to closes rather than asserting the WHOLE call list because plan-050 Issue 1.3
+    (REQ-COMPLETE-004) added a read-only gate query ahead of the close — `bd list --parent
+    <epic>` — which `subprocess.check_output` routes through `subprocess.run` and so lands in
+    the same log. The regression these assertions pin is about WHAT GETS CLOSED, and pinning
+    the full call list made an additive read a failure.
+    """
+    return [c for c in rec.calls if len(c) > 1 and c[0] == "bd" and c[1] == "close"]
+
+
 # ---------------------------------------------------------------------------
 # (a) resolved from the epic, not from the environment
 # ---------------------------------------------------------------------------
@@ -125,8 +137,8 @@ def test_resolves_reconcile_bead_from_the_epic(tmp_path, monkeypatch):
     rc, out = _run(_bundle(tmp_path))
     assert out["verdict"] == "pass" and rc == 0
     assert out["bead"] == f"{EPIC}.9", "did not re-derive the reconcile bead from the epic"
-    assert rec.calls == [["bd", "close", f"{EPIC}.9", "--reason",
-                          "Upstream issues reconciled"]]
+    assert _closes(rec) == [["bd", "close", f"{EPIC}.9", "--reason",
+                             "Upstream issues reconciled"]]
 
 
 def test_ignores_reconcile_step_environment_variable(tmp_path, monkeypatch):
@@ -204,7 +216,7 @@ def test_already_closed_is_a_clean_pass(tmp_path, monkeypatch):
     monkeypatch.setattr(pm.subprocess, "run", rec)
     rc, out = _run(_bundle(tmp_path))
     assert out["verdict"] == "pass" and out["already_closed"] is True and rc == 0
-    assert rec.calls == [], "re-closed an already-closed bead"
+    assert _closes(rec) == [], "re-closed an already-closed bead"
 
 
 def test_close_failure_is_inconclusive_not_silent(tmp_path, monkeypatch):
@@ -242,3 +254,64 @@ def test_skill_md_no_longer_closes_via_the_shell_variable():
 if __name__ == "__main__":
     import sys
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+# ---------------------------------------------------------------------------
+# (d) REQ-COMPLETE-004 (#180) — the gate-before-close ordering assertion
+# ---------------------------------------------------------------------------
+
+def _with_reconcile_gate(monkeypatch, *, resolved: bool):
+    """Wire `_bd_children` / `_bd_show_one` to report ONE reconcile gate."""
+    gate = {"id": f"{EPIC}.8", "issue_type": "gate", "title": "Gate: Reconcile upstream",
+            "status": "closed" if resolved else "open"}
+    monkeypatch.setattr(pm, "_bd_children", lambda _e: [gate])
+    monkeypatch.setattr(pm, "_bd_show_one", lambda _i: gate)
+    return gate
+
+
+def test_unresolved_reconcile_gate_fails_loud_and_never_closes(tmp_path, monkeypatch):
+    """The ordering violation is `fail` + NON-ZERO, and closes nothing.
+
+    Before this, violating the ordering produced `verdict: inconclusive` and **exit 0** —
+    discovered accidentally, deep inside the close attempt, from bd's own "blocked by open
+    issues" refusal. SKILL.md §6.4 never read the exit code, so the chain walked on to
+    cascade-close and `set complete` with the reconcile step still open. An accidental
+    refusal reported softly is not an assertion.
+    """
+    monkeypatch.setattr(pm, "_all_plan_beads", _beads)
+    _with_reconcile_gate(monkeypatch, resolved=False)
+    rec = _Recorder()
+    monkeypatch.setattr(pm.subprocess, "run", rec)
+    rc, out = _run(_bundle(tmp_path))
+    assert rc != 0, "an unresolved reconcile gate must HALT the chain"
+    assert out["verdict"] == "fail", f"verdict was {out['verdict']!r}, expected 'fail'"
+    assert out["unresolved_gates"] == [f"{EPIC}.8"], "the failing gate is not named"
+    assert _closes(rec) == [], "closed the reconcile bead despite the ordering violation"
+
+
+def test_resolved_reconcile_gate_permits_the_close(tmp_path, monkeypatch):
+    """The contrast arm — without it the test above passes on a verb that never closes."""
+    monkeypatch.setattr(pm, "_all_plan_beads", _beads)
+    _with_reconcile_gate(monkeypatch, resolved=True)
+    rec = _Recorder()
+    monkeypatch.setattr(pm.subprocess, "run", rec)
+    rc, out = _run(_bundle(tmp_path))
+    assert rc == 0 and out["verdict"] == "pass"
+    assert _closes(rec) == [["bd", "close", f"{EPIC}.9", "--reason",
+                             "Upstream issues reconciled"]]
+
+
+def test_skill_md_reads_the_close_reconcile_step_exit_code():
+    """The SECOND HALF of #180: an exit code nothing reads is not a step.
+
+    SKILL.md §6.4 captured the verb with `RSTEP=$(...)` and only echoed it. The assertion is
+    on the CALLER, because Issue 1.3's exit code would otherwise be unread — this plan's own
+    M5 vacuity class.
+    """
+    skill = (Path(__file__).resolve().parent.parent / "SKILL.md").read_text(encoding="utf-8")
+    i = skill.index("close-reconcile-step")
+    window = skill[i:i + 900]
+    assert "RSTEP_RC=$?" in window, "§6.4 does not capture close-reconcile-step's exit code"
+    assert 'if [ "$RSTEP_RC" -ne 0 ]' in window, "§6.4 captures the exit code but never tests it"
+    assert "FAIL-LOUD" in window, "§6.4 does not halt on the ordering violation"
+

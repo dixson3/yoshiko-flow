@@ -1068,7 +1068,12 @@ bd mol burn ${INVESTIGATION_WISP_ID} --force 2>/dev/null || true
 gate can only be released here, REQ-SESSION-001):
 
 ```bash
-bd gate resolve ${START_GATE_BEAD}   # the gate-* bead, not the wrapper task ${START_GATE}
+# REQ-PLAN-077 (#179): ONE step resolves the gate AND closes the wrapper task, with a
+# GENERATED close_reason. Do NOT hand-run `bd gate resolve` here — that closes the gate and
+# leaves the wrapper open, which is the state `close_cascade.py` correctly fail-louds on at
+# §6.4. Measured: 49 of 49 wrappers ever poured were closed by hand, with 29 distinct
+# improvised reasons. The verb is idempotent, so a resumed session may re-run it.
+uv run ${SKILL_DIR}/scripts/plan_manager.py resolve-start-gate "${plan_dir}" --json
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "executing" -m "start gate resolved"
 ```
 
@@ -1453,7 +1458,20 @@ reports `prose-only` says the merged tree touched no runner-only config, which i
 # never re-derives it, and `bd close` with an empty id does not fail — it exits 0 and
 # closes a DIFFERENT in-progress bead, then reports success (measured).
 RSTEP=$(uv run ${SKILL_DIR}/scripts/plan_manager.py close-reconcile-step "${plan_dir}" --json)
+RSTEP_RC=$?
 echo "$RSTEP"
+# HALTING (REQ-COMPLETE-004, #180). The verb asserts §6.4's GATE-BEFORE-CLOSE ordering: the
+# reconcile gate must be resolved before the reconcile bead closes. Until plan-050 this line
+# captured the verb and only ECHOED it — `$?` was never read — so an ordering violation
+# reported `inconclusive`, exited 0, and the chain walked on to cascade-close and
+# `set complete` with the reconcile step still open. An exit code nothing reads is the same
+# "a step with no exit code is not a step" defect in its second form.
+if [ "$RSTEP_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: close-reconcile-step refused — §6.4's gate-before-close ordering is"
+  echo "violated (the reconcile gate is not resolved). Completion HALTS; do NOT set"
+  echo "'complete'. Follow the verdict's 'remediation', then re-run §6.4."
+  exit 1
+fi
 
 # Verify RECONCILE actually reached each row's upstream end state (REQ-PLAN-074, #136).
 # HALTING. Runs after the reconcile bead closes and before the first destructive step —
