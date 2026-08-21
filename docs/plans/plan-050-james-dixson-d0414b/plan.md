@@ -4,14 +4,14 @@ okf_spec: OKF-PLAN
 id: plan-050-james-dixson-d0414b
 author: james-dixson
 created: '2026-08-20'
-status: review
+status: ready-for-approval
 ---
 # Plan: Fix the six mechanical process defects this session's plans demonstrably hit (#178-#181, #186, #187)
 
 **ID:** plan-050-james-dixson-d0414b
 **Author:** james-dixson
 **Created:** 2026-08-20
-**Status:** review
+**Status:** ready-for-approval
 
 ## Objective
 Fix the six mechanical process defects this session's plans demonstrably hit (#178-#181, #186, #187)
