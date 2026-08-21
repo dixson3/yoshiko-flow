@@ -452,3 +452,17 @@ Longer-term alternative to the in-repo `_shared/` vendoring pattern (plan-014, e
 
 **Disposition:**
 **Notes:**
+
+## #186 — CRITICAL: plan_extract.py emits masked titles — inline code spans are blanked out of every issue/epic title it returns
+
+> `mask_inline_code` blanks inline code spans for parsing, then the title is read out of the **masked** line. `raw` is already in scope at the only call site, so the fix is local.
+
+**Disposition:** include
+**Notes:** Pulled in after pass 9 at operator request. Same defect class as #181 — corruption that reports clean: `--strict` returns `unparsed: []` and exit 0, and the damage renders as stray whitespace. Measured 4 of 35 titles blanked in `astrospike` plan-001, written straight into the bead DAG by SKILL.md §5.2a's mechanical pour. **Pass-8 of this plan saw the symptom and dismissed it** as "pre-existing engine behaviour, not this plan's".
+
+## #187 — CRITICAL: plan_extract.py carries no issue detail, so SKILL.md §5.2a's mechanical pour cannot populate --description
+
+> The per-issue schema has no `description`/`detail` field, but §5.2a tells the executor to drive `bd create --description="${issue_detail}"` from exactly this output. `${issue_detail}` has no source.
+
+**Disposition:** include
+**Notes:** Pulled in after pass 9 at operator request. Measured 35 of 35 beads with empty descriptions in `astrospike` plan-001 — with a DAG that is otherwise perfect, which is what makes it hard to notice. Directly relevant here: every correction this plan's nine review passes bought lives in the continuation bullets, and under §5.2a as written **none of it would reach the beads**.
