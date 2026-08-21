@@ -1,0 +1,50 @@
+Upstream write — AUTHORIZED
+Operator: James Dixson <james@yoshikostudios.com>
+Date: 2026-08-19
+Authorizing session: wK:p1 (parent of the plan-048 execute agent)
+
+Scope of this authorization, and nothing beyond it:
+
+  1. File the plan-048 coarse tracker (Issue 4.5), from
+     references/tracker-048-draft.md.
+     TITLE CORRECTION REQUIRED BEFORE FILING: the draft reads
+     "plan-plan-048-james-dixson-ed68a5 execution tracking" — a doubled prefix,
+     because SKILL.md's template is `plan-<plan-id>` and the id already begins
+     with "plan-". File it as:
+         plan-048-james-dixson-ed68a5 execution tracking
+
+  2. Close #175 (plan-047's coarse tracker) as superseded, per D-2, ONLY after
+     the new tracker exists and links it.
+
+  3. Post the three drafted comments (Issue 4.5a), unchanged in substance:
+       references/comment-113.md -> #113   (stays OPEN)
+       references/comment-173.md -> #173   (stays OPEN, defect 1 -> #174)
+       references/comment-174.md -> #174   (stays OPEN)
+
+  4. Then proceed to Issue 4.6 (close) and Issue 4.7 (deploy).
+
+Not authorized: any upstream write not listed above; closing #113, #173 or #174;
+any bd dolt push (this repo is dolt.local-only = true).
+
+Verification expected before reporting success: a returned issue URL on each
+create, a clean exit on each edit, and `gh issue view 175` showing CLOSED.
+An exit code alone is not proof.
+
+--- AMENDMENT, 2026-08-19 ---
+
+  5. Close #172 as completed (Issue 4.1), with a comment naming the full plan
+     id. AUTHORIZED.
+
+     Why this is an amendment rather than a new grant: #172 carries disposition
+     `include`, and REQ-PLAN-074 requires an `include` row to reach CLOSED with
+     a plan-id mention. Its omission from the original list was an oversight in
+     THIS FILE, not a decision to withhold. The subordinate correctly refused to
+     close it under "any upstream write not listed above is not authorized" —
+     that refusal was the right behaviour and is recorded as such.
+
+     Work verified landed before authorizing: skills/yf-plan/README.md's File
+     Layout block is now enumerated against the tree, and
+     test_cli_enumeration.py passes 6/6 as its anti-staleness guard.
+
+Still not authorized: closing #113, #173 or #174 (all three stay OPEN by
+design); any other upstream write; any bd dolt push.

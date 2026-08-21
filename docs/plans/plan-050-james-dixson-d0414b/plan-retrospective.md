@@ -165,3 +165,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-009
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-20 |
+| `stop_class` |  |
+| `asked` | Issue 3.1/3.2a: ctl-178's contrast arm rejected the AMENDED grant too. Was the generator right and the historical grant wrong? |
+| `answered` | No — the GENERATOR was wrong, twice, and the fixture's mandatory contrast arm is the only thing that caught it. (1) The table declared supersede's grant_actions as ['comment','close-not-planned'] while supersede's own requires_mention is False, so the generator demanded an authorization clause for something _verify_row would never check. A grant asking for MORE than the verifier requires is as wrong as one asking for less; it just fails in the direction that looks conservative. FIX: grant_actions is now DERIVED from requires_mention / end_state / state_reason, so the two halves cannot diverge — only the tracker filing stays declared, because 'create the issue' is not expressible as an end state. (2) Coverage for a file-tracker action was scoped to the issue number, but a grant written BEFORE the tracker exists CANNOT name its number — the number is the thing being created. plan-048's real grant authorizes it as item 1, by plan id. FIX: file-tracker coverage is judged over the whole text. ORDERING NOTE, stated rather than hidden: this fixture was authored and debugged against the FIXED tree, because arms 2 and 3 cannot be debugged where the verb does not exist, and the RED was then recorded against the unfixed PRIMARY checkout. That is within contract — SC2's ordering claim is carried by the depends-on edges 3.1->3.2->3.2a, and pass-8 C83 explicitly removed any temporal claim from the records — but the sequence differed from Epics 1/2/7, where RED preceded the fix in wall-clock time too. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | First run of ctl-178 against the fixed tree: 'the round-trip REJECTED plan-048s AMENDED grant (exit 1)' with uncovered ['#175/comment','#176/file-tracker']. After deriving grant_actions and de-scoping file-tracker coverage: omitted rc=1 uncovered ['#172/comment','#172/close']; amended rc=0 uncovered []. RED recorded against the primary checkout: 'plan_manager.py grant --help' -> "Error: No such command 'grant'"; ctl-178 exit 1 with 'module pm has no attribute UPSTREAM_REQUIREMENTS'. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
