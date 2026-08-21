@@ -127,3 +127,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-20 |
+| `stop_class` |  |
+| `asked` | Issue 1.1/1.3: is #180 the violable ordering constraint the plan describes? |
+| `answered` | NO. The control refuted the plan's own diagnosis. plan.md (Issue 1.3, the Upstream Issues row, and the #180 framing carried through 13 review cycles) describes close-reconcile-step as ABLE to close the reconcile bead ahead of the reconcile gate. It cannot: bd ITSELF refuses to close a bead blocked by an open dependency. The ordering was never violable. The REAL defect is one layer over: violating the ordering produced verdict 'inconclusive' and EXIT 0, discovered accidentally deep inside the close attempt from bd's own refusal, and SKILL.md 6.4 captured the verb with RSTEP=$(...) and only ECHOED it — $? was never read. So the chain walked on to cascade-close and 'set complete' with the reconcile step still open. An accidental refusal reported softly is not an assertion. Issue 1.3 therefore shipped BOTH halves: an explicit gate-first check returning verdict 'fail' + non-zero, and a caller in 6.4 that reads RSTEP_RC and FAIL-LOUDs. plan.md was deliberately NOT edited — it is approved and its fingerprint is execution eligibility; the correction lives here. THIS IS THE SECOND TIME THIS SESSION a control refuted a claim that thirteen review cycles had read past; the first was RE-005, the record-red subshell defect. CARRIES A DIRECTIVE FOR ISSUE 6.2: the #180 upstream comment must describe THIS defect, not the plan's original framing, and must say explicitly that the original diagnosis was refuted by the control and how. Posting the plan's framing would put a false account of the bug on the public issue, false in a way that reads as correct. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | ctl-180-chain-order RED run against the unfixed tree: 'close-reconcile-step exited 0 with the reconcile gate UNRESOLVED (open)' and 'verdict was inconclusive, expected fail'; the reconcile bead was NOT closed. The underlying bd message, captured in the Issue 1.1 debug run: 'could not close reconcile bead <id>: cannot close <id>: blocked by open issues [<gate>] (use --force to override)' with the verb exiting 0. Post-fix: 'close-reconcile-step refused (exit 1, verdict fail); <id> left open'. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-008
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-20 |
+| `stop_class` |  |
+| `asked` | Which review-process judgements did execution VINDICATE, as opposed to refute? Recorded because evidence about the review process is what a future plan wants, and only the refutations get recorded by default. |
+| `answered` | TWO, both about how a claim came to be trusted rather than about this plan's subject. (1) #186's SINGLE-CALL-SITE CLAIM: the plan asserted for several cycles that the masked-title read had one call site. Pass-11 did not reason about it — it SPIKED a synthetic plan and measured an epic name blanking identically, and the issue text was rewritten to name BOTH sites. Execution confirmed it: ctl-186's RED reported three corrupt titles across both sites (issue 1.1, issue 1.3, AND epic 1's name). A one-site fix would have shipped half of #186. The spike, not the reading, is what caught it — and this repo's red-team read-only rule is what #182 was filed about (deferred to plan-051). (2) #181's PREFLIGHT-CLASSIFIER DESIGN: three earlier scopes were each refuted by measurement, all three because they mutated the reporting of the component under test. The fourth design's central claim — that test_doc_lint.py would need NO edit — was doubted through pass 10 and held exactly: git diff empty at Issue 2.2, all passed, and SC7's corpus figure 757 == 757 against the pre-change baseline. The generalisable signal is RE-002's heuristic, now confirmed by execution: when N successive fixes to one defect are each refuted BY THE SAME MECHANISM, stop iterating on the fix and put a check IN FRONT of the failing component. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | ctl-186 RED: 3 titles do not match their source verbatim — 'issue 1.1 want Ship the `classify` mode on `doc_lint.py` got Ship the            mode on'; 'epic 1 want Fix `plan_extract.py` and its `mask_inline_code` helper got Fix                   and its                    helper'. Issue 2.2: 'git diff main --stat -- _shared/test_doc_lint.py' EMPTY at the engine commit; 'uv run _shared/test_doc_lint.py' -> all passed; 'doc_lint.py --json --exclude docs/plans/plan-050-james-dixson-d0414b/**' -> files_checked 757, equal to assets/sc7-baseline.md's 757. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
