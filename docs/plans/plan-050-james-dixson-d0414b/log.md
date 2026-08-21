@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-20
+- review-pass: red-team pass 13 (eleventh independent, NARROW verification by operator decision): APPROVE — all 5 pass-12 fixes verified by execution; the anchored derivation returns 6 and is immune to its own literal text; 2 low concerns, both resolved. FIRST CLEAN ROUND IN NINE — no self-injected defect
+- autonomy: max-review-cycles raised to 13 for this invocation (cycles=12) — escalation override
 - review-pass: red-team pass 12 (tenth independent): REVISE — 5 concerns, 1 execution-blocking; C119's own remedy made the capability gate unsatisfiable (the derivation's grep pattern, written into the issue, matched itself and returned 7 not 6); 11 of 12 pass-11 resolutions reproduced by execution; all 5 resolved, none deferred. CYCLE 12 OF 12 — the bound is reached
 - autonomy: max-review-cycles raised to 12 for this invocation (cycles=11) — escalation override
 - review-pass: red-team pass 11 (ninth independent): REVISE — 12 concerns, 2 execution-blocking; both were pass-10's own named mechanism recurring (edited Issue 2.2/2.2a without walking up to SC6 and Issue 2.3), plus 3 unwalked satellites; 8 of 10 pass-10 resolutions reproduced by execution; all 12 resolved, none deferred
