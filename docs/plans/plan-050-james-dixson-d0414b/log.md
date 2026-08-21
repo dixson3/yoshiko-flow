@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-20
+- review: D-9 split: Epics 4-5 to plan-051; pass-5 concerns resolved or deferred
+- review-pass: red-team pass 5 (third independent, via Agent): REVISE — 14 concerns, 3 high. PRE-REGISTERED MEASUREMENT: injection 11/17 ~= 65% vs baseline 36% — delegated resolution did NOT lower the rate; the SKILL.md §3 resolution-delegation change is NOT filed
 - autonomy: max-review-cycles raised to 9 for this invocation (cycles=4) — escalation override
 - review-pass: red-team pass 4 (second independent, via Agent): REVISE — 17 concerns, 4 high; 9 of 11 pass-3 resolutions hold, C21 is a regression introduced by its own fix and C26 was recorded-but-never-landed
 - drafting: #184 filed and folded in as Issues 5.3/5.4 — SKILL.md §3 never dispatches the red-team as a sub-agent, measured on this plan's own passes 1-2

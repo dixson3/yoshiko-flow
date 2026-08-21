@@ -44,9 +44,8 @@ by Issue 6.3 once the number exists.
 `skills/yf-plan/agents/red-team.md` makes the reviewer read-only (REQ-AGENT-043), and the
 dispatching prose in `SKI...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** deferred
+**Notes:** **D-9 — SPLIT OUT to plan-051**, with #182 (same epic, same deadlock). The evidence for it is unaffected and strong: this plan's own passes 1-2 were main-session self-review and advanced it to `ready-for-approval`; three independent passes then returned REVISE with 11, 17 and 14 concerns
 ## #181 — doc_lint: a bundle copied outside docs/plans/ returns a silent green, indistinguishable from clean
 
 > ## Copying a bundle outside `docs/plans/` to verify it yields a silent green
@@ -54,9 +53,8 @@ dispatching prose in `SKI...
 A natural way to test "would this bundle pass at `status: review`?" is to copy it to a scratch
 directory, force the status...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** include
+**Notes:** **D-1.** `--path` on an unselected file returns `files_checked: 0, verdict: PASS` — byte-identical to a nonexistent path
 ## #180 — yf-plan: close-reconcile-step requires the reconcile gate resolved first — undocumented chain ordering
 
 > ## `close-reconcile-step` requires the reconcile GATE resolved first — undocumented ordering
@@ -64,9 +62,8 @@ directory, force the status...
 `SKILL.md` §6.4's close chain lists `close-reconcile-step` before `verify-reconcile`, cascade-close
 and th...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** include
+**Notes:** **D-1.** Same two plans, same forecast-and-hit
 ## #179 — yf-plan: the start-gate wrapper task is orphaned at pour and blocks cascade-close
 
 > ## The start-gate wrapper task is orphaned at pour, and blocks cascade-close
@@ -74,9 +71,8 @@ and th...
 `SKILL.md` §5.2a pours a gate-type formula step that yields **two** beads: a task wrapper
 (`plan-execute.start-gate`, what...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** include
+**Notes:** **D-1.** Hit by plan-048 and plan-049. Forecast to plan-049's executor at launch and hit anyway
 ## #178 — yf-plan: generate the upstream-write authorization grant FROM the Upstream Issues table, not the draft list
 
 > ## An upstream-write authorization grant should be GENERATED from the Upstream Issues table
@@ -84,9 +80,8 @@ and th...
 plan-048 halted its own reconcile because the operator's authorization grant was **hand-listed from
 the dra...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** include
+**Notes:** **D-1.** plan-048 halted its own reconcile on an omitted `include` close. plan-049 avoided it only because the operator derived the grant by hand
 ## #177 — yf-plan red-team: no check that a numeric target is derivable from the plan's own scope rules
 
 > ## A numeric target can be fixed-at-approval, falsifiable, and still contradict the plan's own rules
@@ -94,9 +89,8 @@ the dra...
 Every red-team pass in plan-047 verified that its residue target was **fixed at approval** — the
 p...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** partial
+**Notes:** **D-6 — DROPPED from this plan after EXP-001 refuted it.** **IN:** a comment recording the refutation, so the next attempt does not rebuild the same inadequate scanner. **OUT:** any check. Derivability is not decidable from `plan.md` — `81` is textually identical whether measured or guessed, and the…
 ## #176 — plan-048-james-dixson-ed68a5 execution tracking
 
 > Coarse tracking issue for `plan-048-james-dixson-ed68a5` — one issue per plan-scale effort, per the
@@ -106,16 +100,14 @@ repo's Upstream Tracking convention.
 
 **Supers...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** deferred
+**Notes:** **D-9 — SPLIT OUT to plan-051.** Pass-5 C39: Epic 5's gate membership was an unconditional deadlock — the control-builders sat inside the gate's own `Blocks` set, so neither the RED nor the GREEN observation was producible. The fix is structural, not a patch
 ## #174 — yf-plan: a review-phase validation pass — falsify every criterion, and cross-check every claim against the code that scores it
 
 > **Proposes the mechanism for the defect family #173 diagnoses.** #173 records *what went wrong and why five red-team cycles missed it*, under an explicit "record, do not fix" instruction. This issue p...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** partial
+**Notes:** #177 and #182 close named sub-cases; the general falsification pass stays open
 ## #173 — yf-plan: success criteria and upstream dispositions are never checked against the engine that enforces them
 
 > Filed from plan-046 execution, at operator instruction: **record, do not fix**.
@@ -126,18 +118,16 @@ repo's Upstream Tracking convention.
 
 plan-046 Issue...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** partial
+**Notes:** Adjacent to #177 and #178 — both are instances of it. The general cross-check stays open
 ## #171 — yf-okf: nested index.md generation, deferred behind a `description:` producer change (plan-046 D-9)
 
 > Filed by plan-046 Issue 5.5(iv). This is the **deferred half of #140**, filed upstream so the deferral is visible to the issue tracker and not only to `skills/yf-okf/spec/OKF-YF-EXTENSIONS.md` §9a.
 
 R...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** exclude
+**Notes:** plan-049's coarse tracker, closed by plan-049's own land-the-plane sweep. Not `tracker`: `_TRACKER_ROW_RE.search()` takes the FIRST `tracker` row, so this row would stamp plan-050's epic with plan-049's URL. Not `supersede`: that requires CLOSED as NOT_PLANNED, false of a completed plan
 ## #170 — OKF consumer round-trip fidelity is unverified — #92 carve-out 3 of 3
 
 > Filed by plan-046 Issue 5.5(iii) as one of **three named carve-outs** from closing #92 as superseded.
@@ -244,9 +234,8 @@ Bundle: docs/research/004-plan-process-defect-mining/ — commit 2adad77 on main
 
 QUESTION: across 83 plan bundles in five re...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** partial
+**Notes:** **D-9.** **IN:** the four mechanical fixes (#178-#181) as worked instances of the ranked classes. **OUT:** M9, the M11 probe mechanism, and the remaining 14 classes — M9 goes to plan-051, the rest stay unscheduled
 ## #149 — M5/M9: process rules that nothing executes, and remediation edges that exist only in prose
 Labels: type::task, priority::high
 > Filed from research 004 (docs/research/004-plan-process-defect-mining, epic yf-mol-fsp, commit 2adad77).
@@ -255,9 +244,8 @@ Two defect classes that share one root cause: a step with no exit code is not a 
 
 M9 (ran...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** deferred
+**Notes:** **D-9 — SPLIT OUT to plan-051.** M9's detector was designed and its premise measured (EXP-004; pass-5 independently reproduced the 26 edges, both `created_at` fields and the 7-hour skew), but pass-5 C40 measured that the host it was wired into cannot express the INCONCLUSIVE contract the design depe…
 ## #147 — Source-scorer defect: domain_authority floors all non-docs.<vendor>.com hosts at 30
 Labels: type::task, priority::medium
 > Found during REFINE of research 003 (critique C-7). The credibility scorer used by yf-research assigns domain_authority=30 to every source whose host does not match docs.<vendor>.com. In research 003 ...
@@ -273,9 +261,8 @@ Labels: type::task, priority::medium
 
 A new **`yf-r...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** deferred
+**Notes:** **D-3.** Own plan. The emit side already exists and is accumulating; a consumer built now reads a thin corpus
 ## #140 — yf-okf: enforce OKF structure below the bundle root (nested index.md/log.md), and adopt an index drift/regeneration model
 
 > ## Summary
@@ -351,9 +338,8 @@ Across `d3-pxe` plan-013, four real defects were found in review. **All four are
 | :-- | :-- |
 | Conformance | Issu...
 
-**Disposition:**
-**Notes:**
-
+**Disposition:** exclude
+**Notes:** Different axis — DAG rehearsal, not defect detection
 ## #111 — Investigate `br` (beads_rust) and `ticket-rs` as beads alternatives
 
 > ## Context
