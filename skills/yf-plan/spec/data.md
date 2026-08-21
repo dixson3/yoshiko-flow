@@ -183,9 +183,19 @@ The **engine contract**:
   `e-doclint-spec` drift edge added by the same issue reported it on its first run, which is the
   class of divergence that edge exists to catch.)*
 - **`INCONCLUSIVE` means "the linter could not run"** and only that; it maps to **exit 2**.
-  "Not finished yet" is expressed as `W` severity **inside a PASS**, so the exit contract stays
-  **binary at every binding point**: 0 = no error-severity finding, 1 = at least one, 2 = the
-  harness could not run.
+  "Not finished yet" is expressed as `W` severity **inside a PASS**, so the **lint mode's** exit
+  contract stays binary: 0 = no error-severity finding, 1 = at least one, 2 = the harness could
+  not run. *(Amended by plan-050 Issue 0.1 (#181). This bullet read "binary at every binding
+  point", asserting ONE exit vocabulary for the whole executable. `REQ-DATA-061` adds a second
+  MODE — `classify` — to the same executable, whose `0/1/2` means lintable / not-lintable /
+  could-not-run. The two vocabularies are **keyed by mode** and neither is "binary at every
+  binding point"; a `classify` run over a selected-but-empty document exits **0** while a lint
+  run over the same document exits **1** on its 6 `E` findings. Leaving the old wording in place
+  would put the spec, the engine banner and `document_types/README.md` in agreement with each
+  other and in disagreement with the code — the plan-049 D-9 shape the `e-doclint-spec` edge
+  exists to catch. The amendment is scoped to THIS SENTENCE: the **verdict** vocabulary
+  (`PASS | FAIL | INCONCLUSIVE`) is closed and unchanged, because `classify` emits a `class`,
+  never a verdict.)*
 - **Status-aware promotion.** A plan's `status` selects the severity mapping:
   `scoping | investigating | drafting` → `W` findings are informational;
   `review | ready-for-approval` → `W` is **promoted to `E`**;
@@ -658,3 +668,82 @@ Verification: plan-investigate.formula.toml `phase = "vapor"`.
 REQ-DATA-042: Both formulas require variables `objective` and `plan_dir`.
 Rationale: These are the two values that link a formula instance to a specific plan.
 Verification: Both `.formula.toml` files have `[vars.objective]` and `[vars.plan_dir]` with `required = true`.
+
+REQ-DATA-061: `doc_lint.py` shall provide a **`classify` mode** — a *preflight* that runs
+**before** the lint and answers whether linting a given input is meaningful at all. It emits a
+**`class`**, one of:
+
+| `class` | Meaning | Exit |
+| :-- | :-- | --: |
+| `selected` | the path is selected by at least one schema's globs and is non-empty | `0` |
+| `empty` | the path is selected but its content is empty | `0` |
+| `not-selected` | the path exists but **no schema's path globs select it** | `1` |
+| `no-such-path` | the path does not exist | `1` |
+
+The exit contract of **this mode** is `0` = lintable, `1` = not lintable, `2` = the classifier
+could not run. It does **not** replace the lint mode's contract (REQ-DATA-024 as amended); the
+two vocabularies are keyed by mode.
+
+- **`empty` is on the LINTABLE side, deliberately.** A selected-but-empty `plan.md` fails its
+  schema, and the lint already says so loudly (measured: 6 `E` findings, exit 1). Skipping it
+  would manufacture a new silent green inside the fix for a silent green. `empty` stays a
+  distinguishable *class* because the diagnostic value is real; it does not get skip semantics.
+- **Callers branch on `class`, never on the exit code alone.** The three non-`selected` classes
+  would otherwise collapse into one, reinstating #181's conflation one layer up.
+- **`classify` changes nothing about the lint.** No new verdict string, no new lint exit code, no
+  change to selection. `--path` remains the explicit override REQ-DATA-024's engine documents.
+- **`not-selected` means *not selected by PATH ROUTING*.** A `--type`-forced lint is unaffected:
+  `plan_manager.py` deliberately re-lints a bundle's `plan.md` with the type forced, so a path
+  `classify` calls `not-selected` *is* lintable by that route.
+- `classify` accepts the same `--path` / `--root` inputs as the lint, so the `--root` form — a
+  plan bundle **copied outside** `docs/plans/` — is answerable, which is #181's titled scenario.
+
+Rationale: #181. `--path` on a real-but-unselected file and `--path` on a **nonexistent** file
+both return `files_checked: 0, verdict: PASS`, exit 0 — byte-identical (EXP-003). Three states,
+one verdict. Three earlier scopes were each refuted by measurement, and all three had mutated
+the lint's own reporting: a general `files_checked == 0` form breaks `_shared/test_doc_lint.py`'s
+SC42, and a `--path`-keyed-always form breaks its SC17 block, which pins an unselected `--path`
+to `PASS`/rc 0 and identical to a nonexistent path. A separate preflight touches neither
+assertion, so both remain literally true. `DOC-LINT.md`'s on-edit rule — today prose instructing
+an agent to parse `files_checked` and reinterpret it — becomes an executed step with an exit
+code, which is the whole deliverable: a step with no exit code is not a step.
+Verification: `ctl-181-silent-green` drives five scenarios across the four classes and asserts
+the exit on the `empty` and `selected` arms as well as the class; `uv run _shared/test_doc_lint.py`
+reports `all passed` with the lint path unchanged; the corpus `files_checked` figure is equal
+before and after (REQ-DATA-059 self-exclusion), any delta being a failure.
+
+REQ-DATA-062: **Title fidelity.** Every title `plan_extract.py` emits — an epic `name` and an
+issue `title` — shall equal its source line's corresponding span **verbatim**, inline code spans
+included. The capture shall be taken from the **unmasked** source line by **offset-slicing** the
+match (`raw[m.start(<group>):m.end(<group>)]`), which `mask_inline_code`'s documented
+length-preservation guarantees correct, and **never** by re-matching `ISSUE`/`EPIC` against
+`raw`. `try_trailing`, `SUBKEY`, `EPIC` and `ISSUE` continue to match against the **masked**
+line; only the title capture reads `raw`. Both capture sites are in scope — the `EPIC` name and
+the `ISSUE` title.
+Rationale: #186. `mask_inline_code` blanks `` `code` `` to spaces so a `depends-on:` written
+inside a code span is documentation rather than a declaration (`plan_extract.py:142`) — correct,
+and preserved. But the title is captured from the *masked* line, so every backticked term is
+blanked out of the emitted title, and `--strict` reports `unparsed: []` and exit **0** while the
+output is corrupt. §5.2a pours that corruption straight into the bead DAG. Measured upstream: 4
+of 35 titles blanked on one plan; 27 of 34 on this one. The naive `ln = raw` repair was measured
+at pass 10 producing a **spurious edge to a nonexistent target** and driving `--strict` non-zero
+— which is why the requirement names the offset form specifically rather than "read `raw`".
+Verification: `ctl-186-masked-title` exits non-zero pre-fix and zero post-fix; a code-span
+`depends-on:` still produces no edge (REQ-DATA-062's companion assertion); re-extracting this
+plan's own bundle restores the measured title delta.
+
+REQ-DATA-063: **Issue `detail`.** Each issue object `plan_extract.py` emits shall carry a
+**`detail`** field: the issue bullet's continuation lines, joined, **minus** the sub-key bullets
+the parser already consumes (`depends-on:`, `resolves-upstream:`, in both the two-space-indented
+and recovered column-0 forms). An issue with no remaining continuation prose carries an **empty**
+`detail`, which is a valid value and not an error.
+Rationale: #187. SKILL.md §5.2a instructs an executor to derive the bead DAG mechanically from
+`plan_extract.py`'s output and pass `--description=${issue_detail}` — but the extractor emits no
+such field, so a mechanical pour yields beads with **empty descriptions** (measured: 35 of 35 on
+one plan) while the DAG itself is perfect. This is framing 1 of the issue — make the extractor
+honest — rather than framing 2, weakening the documentation to match. The exclusion of the parsed
+sub-keys is what makes the field a *schema* addition rather than a raw-text dump: the same bytes
+must not be reachable both as a structured edge and as prose.
+Verification: `ctl-187-empty-detail` exits non-zero pre-fix and zero post-fix; a bead poured from
+the output of a plan whose issues carry continuation prose has a non-empty description; on a plan
+whose issues carry none, every `detail` is empty and that is recorded as a negative observation.

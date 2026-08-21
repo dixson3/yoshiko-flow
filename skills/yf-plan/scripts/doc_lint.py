@@ -14,11 +14,27 @@ and full path machinery land in Epic 4; what is here is exactly enough to make t
 finding.** EXP-005 reproduced a linter printing `errors=4` while the delegating engine reported
 `status: pass`, because it exited 0. A linter with no exit code is not a step.
 
-Exit contract (REQ-DATA-024), binary at every binding point:
+Exit contract — TWO vocabularies, KEYED BY MODE (REQ-DATA-024 as amended by plan-050, and
+REQ-DATA-061). The old "binary at every binding point" wording is retired: `classify` gives this
+same executable a second `0/1/2` meaning.
+
+LINT mode (the default):
 
     0  no error-severity finding            (verdict PASS)
     1  at least one error-severity finding  (verdict FAIL)
     2  the linter could not run             (verdict INCONCLUSIVE)
+
+CLASSIFY mode (`--classify`, REQ-DATA-061) — a PREFLIGHT, not a lint:
+
+    0  lintable      (class `selected` or `empty`)
+    1  not lintable  (class `not-selected` or `no-such-path`)
+    2  the classifier could not run
+
+A `classify` run over a selected-but-empty document exits 0 while a lint run over the same
+document exits 1 on its `E` findings — which is why the contract is stated per mode. Callers
+branch on the emitted `class`, never on the classify exit code alone: the two non-lintable
+classes are different facts and collapsing them is the very conflation #181 was filed about.
+The VERDICT vocabulary is unchanged and closed — `classify` emits a `class`, never a verdict.
 
 `INCONCLUSIVE` means *only* "could not run". "Not finished yet" is a `W` finding **inside a
 PASS** — it never changes the exit code. `INCOMPLETE` is the reviewer agent's vocabulary and

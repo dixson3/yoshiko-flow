@@ -47,9 +47,16 @@ Only `E` sets a non-zero exit code.
 ## Verdict and exit contract (REQ-DATA-024)
 
 `PASS | FAIL | INCONCLUSIVE`. `INCOMPLETE` is the *reviewer agent's* vocabulary and never
-appears here. Exit **0** = no error-severity finding, **1** = at least one, **2** = the linter
-could not run (the only thing `INCONCLUSIVE` means). "Not finished yet" is a `W` **inside a
-PASS**, so the exit contract stays binary at every binding point.
+appears here. In **lint** mode, exit **0** = no error-severity finding, **1** = at least one,
+**2** = the linter could not run (the only thing `INCONCLUSIVE` means). "Not finished yet" is a
+`W` **inside a PASS**, so the lint mode's exit contract stays binary.
+
+There is a **second** exit vocabulary, keyed by mode: `classify` (REQ-DATA-061) is a *preflight*
+that decides whether linting a path is meaningful at all, and its **0** = lintable
+(`selected`, `empty`), **1** = not lintable (`not-selected`, `no-such-path`), **2** = could not
+run. The retired "binary at every binding point" phrasing asserted one vocabulary for the whole
+executable and is false after plan-050; the **verdict** vocabulary above is unchanged and closed,
+because `classify` emits a `class`, never a verdict.
 
 Status-aware promotion (plan bundles only): `scoping|investigating|drafting` → `W` is
 informational; `review|ready-for-approval` → `W` is promoted to `E`; `complete` →
