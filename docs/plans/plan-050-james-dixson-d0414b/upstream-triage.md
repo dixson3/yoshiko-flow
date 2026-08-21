@@ -18,7 +18,7 @@ unknown". Following §3 literally produces a drafter reviewing its own draft.
 **Disposition:** deferred
 **Notes:** **D-9 — SPLIT OUT to plan-051**, with #182 (same epic, same deadlock). The evidence for it is unaffected and strong: this plan's own passes 1-2 were main-session self-review and advanced it to `ready-for-approval`; three independent passes then returned REVISE with 11, 17 and 14 concerns
 Measured on this plan: passes 1-2 were main-session and advanced it to `ready-for-approval`; the
-first independent pass returned REVISE with 11 concerns, 2 high. Resolved by 5.3.
+first independent pass returned REVISE with 11 concerns, 2 high.
 
 
 ## #183 — plan-049-james-dixson-725bc0 execution tracking

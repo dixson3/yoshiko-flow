@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-20
+- review-pass: red-team pass 7 (fifth independent): REVISE — 10 concerns, 1 high (Epic 1's #179 control had no satisfiable RED->GREEN pair); 13 of 15 pass-6 resolutions held; all resolved
 - review-pass: red-team pass 6 (fourth independent, first against the split): REVISE — 15 concerns, 3 high (gate Test unsatisfiable by its own harness; the GREEN observation had no producer; upstream-triage filled by ordinal not issue number); all resolved
 - review: D-9 split: Epics 4-5 to plan-051; pass-5 concerns resolved or deferred
 - review-pass: red-team pass 5 (third independent, via Agent): REVISE — 14 concerns, 3 high. PRE-REGISTERED MEASUREMENT: injection 11/17 ~= 65% vs baseline 36% — delegated resolution did NOT lower the rate; the SKILL.md §3 resolution-delegation change is NOT filed

@@ -30,7 +30,7 @@ plan's own thesis about itself."
 
 ## Concerns
 
-| # | Sev | Concern | Resolution |
+| Concern | Sev | Detail | Resolution |
 | :-- | :-- | :-- | :-- |
 | C52 | **high** | **The gate's `Test` could not be satisfied by the harness 0.2 specifies.** It invoked `redcheck.sh` with no verb; 0.2 defined only two verbs, both requiring arguments, with a *per-control* contract, while the Instructions demand an *aggregate* one. Spiked: `unknown verb: '' → exit 2`, which per the gate's own Instructions leaves it **permanently UNRESOLVED**, so 1.4/2.4/3.4 and all of Epic 6 never unblock | 0.2 gains a third verb `verify-all` (no args) that walks `red-prework.md` against a manifest `assets/controls.txt` and returns the aggregate 0/1/2; the gate `Test` now names it |
 | C53 | **high** | **C38's fix was half-applied: the zero-on-GREEN observation had no producer.** `grep` found `assert-distinguishes` in 0.2, in 1.4/2.4/3.4, in the Condition and in SC2b — but in **none** of Issues 1.2, 1.3, 2.2, 3.2a, the four the Condition names as producers. An executor working 2.2 from its text would never run it. The RED half was done correctly, which is what made the gap visible | Explicit producing clause appended to 1.2, 1.3, 2.2 and 3.2a; 1.4/2.4/3.4 reworded to "assert `red-prework.md` **contains** both records… runs no `redcheck.sh` verb", removing the ambiguity that let 1.4 be read as producing evidence inside `Blocks` |
@@ -48,7 +48,7 @@ plan's own thesis about itself."
 | C65 | low | plan.md said #183 **is** closed; `gh` says OPEN | Changed to "currently OPEN; **is closed by** plan-049's own sweep" |
 | C66 | low | The gate disclosed that its `gate_type` line is hand-read, but not that its **0/1/2 mapping** is too — no gate-`Test` executor exists | Disclosure extended to both halves. "C40 died on exactly this distinction" |
 
-## Missing (all now closed)
+## Missing
 
 - No issue produced the GREEN observation (C53) — "the single largest gap".
 - No `verify-all` mode on `redcheck.sh` (C52).
