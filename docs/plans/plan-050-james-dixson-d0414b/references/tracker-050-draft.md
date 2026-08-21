@@ -19,7 +19,7 @@ plan-050-james-dixson-d0414b execution tracking
 > Coarse tracking issue for `plan-050-james-dixson-d0414b` — one issue per plan-scale effort,
 > per this repo's Upstream Tracking convention.
 >
-> **Plan folder:** [`docs/plans/plan-050-james-dixson-d0414b/`](../../../docs/plans/plan-050-james-dixson-d0414b/)
+> **Plan folder:** [`docs/plans/plan-050-james-dixson-d0414b/`](https://github.com/dixson3/yoshiko-flow/tree/main/docs/plans/plan-050-james-dixson-d0414b)
 > **Epic:** `yf-mol-m3e`
 > **Landed on `main`:** `cacb834` (bundle) · `849003e` (the six fixes)
 >

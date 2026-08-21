@@ -4,16 +4,18 @@ okf_spec: OKF-PLAN
 id: plan-050-james-dixson-d0414b
 author: james-dixson
 created: '2026-08-20'
-status: executing
+status: complete
 fingerprint: 5535a9f6bb5c5bf4e6a7d37e819349cba532e1e09e51aef53864e63cdad6c466
 epic: yf-mol-m3e
+deliverable_class: standard
 ---
 # Plan: Fix the six mechanical process defects this session's plans demonstrably hit (#178-#181, #186, #187)
 
 **ID:** plan-050-james-dixson-d0414b
 **Author:** james-dixson
 **Created:** 2026-08-20
-**Status:** executing
+**Status:** complete
+**Deliverable-class:** standard
 **Epic:** yf-mol-m3e
 **Fingerprint:** 5535a9f6bb5c5bf4e6a7d37e819349cba532e1e09e51aef53864e63cdad6c466
 

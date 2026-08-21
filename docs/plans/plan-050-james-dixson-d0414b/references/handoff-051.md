@@ -80,9 +80,13 @@ earlier scopes were each refuted by the same mechanism.
 
 ## 5. Where the descoped work's evidence lives
 
-plan-051 starts from measurements, not from scratch:
+plan-051 starts from measurements, not from scratch. Paths are **bundle-root-relative**
+and unlinked on purpose: a `../` link is what the portability audit's parent-traversal
+check flags, because it breaks the moment the bundle is read from anywhere but its own
+directory — and a portable bundle is the whole point of this folder.
 
-- [`findings/exp-004-m9-remediation-edge.md`](../findings/exp-004-m9-remediation-edge.md) — M9's premise, **revised by measurement**: 26 `discovered-from` edges, **0** with plan attribution on either endpoint. The edges are intact and resolvable; only attribution is missing. Independently reproduced at pass 5, including the 7-hour bead-vs-edge skew.
-- [`findings/exp-006-red-team-rule.md`](../findings/exp-006-red-team-rule.md) — #182's rule is **one line** (`red-team.md:63`) and says *"never writes files"*. It never forbade a spike at all. The defect is **under-specification**, silence read as prohibition — which matters, because a spike is what caught #186's second call site.
+
+- `findings/exp-004-m9-remediation-edge.md` — M9's premise, **revised by measurement**: 26 `discovered-from` edges, **0** with plan attribution on either endpoint. The edges are intact and resolvable; only attribution is missing. Independently reproduced at pass 5, including the 7-hour bead-vs-edge skew.
+- `findings/exp-006-red-team-rule.md` — #182's rule is **one line** (`red-team.md:63`) and says *"never writes files"*. It never forbade a spike at all. The defect is **under-specification**, silence read as prohibition — which matters, because a spike is what caught #186's second call site.
 - `reviews/pass-5.md` — C39 (Epic 5's unconditional gate deadlock) and C40 (Epic 4's host cannot express INCONCLUSIVE). Both are **structural**, so plan-051 needs a different shape, not a patch.
 
