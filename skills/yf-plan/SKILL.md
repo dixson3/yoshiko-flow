@@ -944,13 +944,28 @@ ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${issue_description}" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
 
-**Derive the DAG mechanically, do not transcribe it.** `_shared/plan_extract.py` reads
-`plan.md` into JSON — epics, issues, edges, gates — and reports anything it cannot parse in
-`unparsed[]` rather than degrading. Use it to drive the `bd create` calls above:
+**Derive the DAG mechanically, do not transcribe it.** `plan_extract.py` reads `plan.md` into
+JSON — epics, issues, edges, gates — and reports anything it cannot parse in `unparsed[]`
+rather than degrading. Use it to drive the `bd create` calls above:
 
 ```bash
-uv run _shared/plan_extract.py "${plan_dir}" --json --strict
+uv run ${SKILL_DIR}/scripts/plan_extract.py "${plan_dir}" --json --strict
 ```
+
+**The path is `${SKILL_DIR}/scripts/`, not `_shared/`** (plan-050 Issue 7.3). `_shared/` is a
+path inside *this repository*; the `SKILL_DIR` resolver's six roots do not include it, so an
+operator following the old line verbatim in any other repo got a file-not-found. The vendored
+copy is kept byte-identical to the canonical `_shared/plan_extract.py` by `_shared/sync.py`,
+which `CHANGE-VALIDATION.md` runs in the FAST tier — so editing either alone fails the on-edit
+gate.
+
+Each extracted issue carries a **`detail`** field (REQ-DATA-063): its continuation prose, minus
+the `depends-on:` / `resolves-upstream:` bullets the parser already consumed. That is what
+`--description` above is populated from. An issue whose only continuation was its sub-key
+bullets carries an **empty** `detail`, which is a valid value, not an error. Titles are captured
+**verbatim** from the unmasked source line (REQ-DATA-062), inline code spans included, while
+parsing continues to read the masked line — so a `depends-on:` written inside a code span still
+produces no edge.
 
 `--strict` exits **2 (INCONCLUSIVE)**, never 1, on a non-empty `unparsed[]` (REQ-DATA-043):
 the extractor did not *see* part of the plan, which is a different claim from the plan being
