@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-20
+- autonomy: max-review-cycles raised to 9 for this invocation (cycles=9) — escalation override
+- review-pass: red-team pass 9 (seventh independent): REVISE — 6 concerns, 1 execution-blocking (C86: the --path-keyed scope from pass-8's fix breaks test_doc_lint SC17 and does not fix #181's titled scenario); adopted #181's own option 2, an opt-in --require-selection flag, measured green by the reviewer
 - review-pass: red-team pass 8 (sixth independent): REVISE — 9 concerns, 1 high (Issue 2.2's change scope was unspecified; the general reading breaks test_doc_lint SC42 in both CI tiers); 9 of 10 pass-7 resolutions held; all resolved
 - review-pass: red-team pass 7 (fifth independent): REVISE — 10 concerns, 1 high (Epic 1's #179 control had no satisfiable RED->GREEN pair); 13 of 15 pass-6 resolutions held; all resolved
 - review-pass: red-team pass 6 (fourth independent, first against the split): REVISE — 15 concerns, 3 high (gate Test unsatisfiable by its own harness; the GREEN observation had no producer; upstream-triage filled by ordinal not issue number); all resolved

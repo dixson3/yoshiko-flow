@@ -7,6 +7,16 @@ status: complete
 
 # Finding: Can the upstream grant be generated from the Upstream Issues table? (#178)
 
+
+> **SUPERSEDED at pass-3 C12 — read this before acting on anything below.** This finding's central
+> recommendation, that the grant generator can call `_verify_row` itself, was **refuted by measurement**:
+> `_verify_row` returns no `required_action` (only `{detail, disposition, issue, verdict}`), is
+> **network-bound** (its first act is `gh issue view` per row, returning `inconclusive` before consulting
+> any table), and returns `fail: "unrecognised literal"` when handed an `exclude` row directly. The plan
+> ships a **shared requirement table** instead — Issues **3.2** (extract the table, make `_verify_row` read
+> it) and **3.2a** (the `grant` verb on top of it). The finding is retained unedited below because the
+> refutation is the useful part; do not build the design it recommends.
+
 ## Approach Tested
 
 Looked for an existing disposition → end-state map in `plan_manager.py`, to determine whether a

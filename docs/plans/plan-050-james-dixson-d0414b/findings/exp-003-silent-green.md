@@ -42,6 +42,15 @@ path-keying exactly — selection semantics do not change, only their reportabil
 
 ## Recommendations
 
+> **REFINED at pass-9 C86.** The recommendations below are directionally right — add verdicts, do not
+> change selection — but they predate a measurement they did not have: making the new verdicts
+> **unconditional** breaks `_shared/test_doc_lint.py`, in two different ways depending on the scope
+> chosen (`SC42` under the general `files_checked == 0` form, `SC17` under a `--path`-keyed-always
+> form), and `doclint-tests` sits in **both** CI tiers. The plan therefore ships them behind an
+> **opt-in `--require-selection` flag** (Issue 2.2), which needs no test edits and also covers the
+> `--root` form this finding did not measure — the form in #181's own title.
+
+
 - Add the third and fourth verdicts rather than changing selection. Any change to which files are
   selected is out of scope and would perturb the corpus figures plan-048/049 established.
 - The `INCONCLUSIVE = 2` convention already exists in this repo's gate discipline (exit 0 present,
