@@ -40,6 +40,12 @@ the excluded figure is recorded here.
 
 ## How SC7 is discharged
 
-Issue 2.3 re-runs the **identical** command against the post-classifier tree. The criterion is
-**equality**; any delta is a failure, because REQ-DATA-061 forbids the classifier from touching
-selection. A delta would mean the preflight leaked into the lint path.
+Issue 2.3 re-runs the **identical** command against the post-classifier tree and asserts
+**equality against 757** — the excluded figure, and nothing else. Any delta is a failure,
+because REQ-DATA-061 forbids the classifier from touching selection; a delta would mean the
+preflight leaked into the lint path.
+
+**The unfiltered figure is DIAGNOSTIC ONLY and is never a criterion.** It has moved
+817 → 820 → 828 → 829 → 830 → 832 across this plan's drafting and review, one step per file
+written into this plan's own bundle. Comparing it across the change would report a failure
+caused entirely by this document existing.

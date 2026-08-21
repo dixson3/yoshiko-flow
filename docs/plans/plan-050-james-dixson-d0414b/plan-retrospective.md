@@ -89,3 +89,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-20 |
+| `stop_class` |  |
+| `asked` | Issue 0.2: is the driven-red harness itself trustworthy before any control depends on it? |
+| `answered` | Self-spiked redcheck.sh in a scratch dir across 8 arms BEFORE any control used it. Arm 7 FAILED, and it failed with this plan's own thesis defect: a MISSING FIXTURE reported 'RED observed' and exited 0, writing a record whose exit-code field was empty. A silent green in the instrument built to grade silent greens. Cause: harness_fail's 'exit 2' ran inside a command-substitution subshell (rc=$(_run_fixture ...)), so it killed only the subshell; the caller continued with an empty rc, '[ "" -eq 0 ]' errored non-zero, and the non-zero was read as 'the fixture failed, therefore RED'. Fixed by replacing the substitution with a global FIXTURE_RC plus an explicit 'return 2'. Re-spiked: all 8 arms correct and no garbage record. CHECKED THE SAME SHAPE IN gate-run.sh: it is NOT present there — gate-run.sh runs its target directly ('bash $target', then rc=$?) with no command substitution anywhere, and every unknown code including 126/127/128+N is mapped to an explicit 2 by a case statement in the parent shell. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | PRE-FIX: bash assets/redcheck.sh record-red PWD/nope.sh ctl-178-grant -> stderr 'redcheck: HARNESS FAILURE - fixture does not exist: .../nope.sh' then 'assets/redcheck.sh: line 129: [: : integer expression expected' then 'redcheck: RED observed - ctl-178-grant exited  against ...', rc=0; and the record 'record-red, ctl-178-grant, nope.sh, , ...' was appended with an EMPTY exit-code field. POST-FIX: same command -> 'redcheck: HARNESS FAILURE - fixture does not exist', rc=2, and 'grep -c nope.sh assets/red-prework.md' -> 0. gate-run.sh audit: 'grep -n \$( assets/gate-run.sh' -> no matches. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-20 |
+| `stop_class` |  |
+| `asked` | Did the RE-005 retrospective entry actually get written when the commit message said it had? |
+| `answered` | NO. The first retrospective-append invocation reported exit 0 and JSON on stdout, and the Issue 0.2 commit message asserted 'Recorded as RE-002 in plan-retrospective.md' on the strength of that. The file was never re-read. It in fact still carried 4 entries; the append had not landed, and the id would have been RE-005 rather than the RE-002 the message named. Detected only because the operator asked for the entry to exist with evidence rather than be mentioned in a commit message. Re-run and VERIFIED by re-reading the file (grep -c '^## RE-' 4 -> 5). The claim in commit d94f7f2's message is therefore wrong on both the fact and the id; this entry is the correction of record. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | grep -c '^## RE-' docs/plans/plan-050-james-dixson-d0414b/plan-retrospective.md -> 4 AFTER the append that commit d94f7f2 claims recorded it; -> 5 after the verified re-run, whose entry is RE-005 not RE-002. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
