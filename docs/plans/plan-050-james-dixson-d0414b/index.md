@@ -4,9 +4,9 @@ okf_version: 0.2
 
 # plan-050-james-dixson-d0414b
 
-> Fix the four mechanical process defects this session's plans demonstrably hit (#178-#181). Every control
+> Fix the six mechanical process defects this session's plans demonstrably hit (#178-#181, #186, #187). Every control
 > ships having been observed RED before its fix landed. **Narrowed by the D-9 split at review cycle 5**: M9/#149,
-> #182 and #184 went to plan-051; #177 was dropped on evidence (D-6). Epic numbering is gapped (0-3, then 6)
+> #182 and #184 went to plan-051; #177 was dropped on evidence (D-6). Epic numbering is gapped and out of order (0-3, 7, then 6)
 > deliberately — renumbering is what produced stale references in three consecutive review rounds.
 
 This plan folder is **portable** — a cold reader understands its purpose, environment, reviewer history, and upstream context from the files below alone, without the drafting conversation.
