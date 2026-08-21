@@ -1,5 +1,9 @@
 # Log
 
+## 2026-08-21
+
+- executing: deploy: yf self install --from-build --build --force — yf --version (1dcb95f) == HEAD; consent gate did NOT fire, no --allow-permissions-write needed; skills+rules deployed to 5 harnesses and verified byte-identical
+
 ## 2026-08-20
 - executing: start gate resolved
 - intake: epic yf-mol-m3e poured
