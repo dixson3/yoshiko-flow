@@ -54,7 +54,9 @@ documentation half has no scheduled issue — either add one or downgrade #181 t
 SC11-SC14 gap wants the same annotation the epic gap has), **C108** (§5.2a's `_shared/` path does
 not resolve in an installed skill), **C109** (D-5's re-measure range should extend to #187).
 
-## Missing (all now closed)
+## Missing
+
+_All now closed._
 
 REQ ids for Epic 7; Epic 7 entries in `controls.txt`; `log.md` entries for both changes; the
 `selected`/exit-0 arm in the gate's fixture; named surfaces for Epic 7.
