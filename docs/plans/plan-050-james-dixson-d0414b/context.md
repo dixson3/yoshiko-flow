@@ -27,9 +27,10 @@ runtime, not merely stale. See AGENTS.md "Three artifacts, not one".
 and the pour seam in `SKILL.md` §5.2a (the wrapper close), **`SKILL.md` §6.4** (Issue 1.3's ordering
 assertion needs a caller — `SKILL.md:1440` captures `RSTEP` and never checks it), `_shared/doc_lint.py`
 **plus its byte-identical vendored copy `skills/yf-plan/scripts/doc_lint.py`** (guarded by
-`_shared/sync.py --check`), `_shared/test_doc_lint.py` (its SC42 assertion pins the silent green), and
-`skills/yf-plan/protocols/DOC-LINT.md`, an **always-loaded** on-edit protocol whose table asserts the
-behaviour Issue 2.2 changes. The last four were added at pass 8 (C77/C79) — the plan bounded the corpus
+`_shared/sync.py --check`), and `skills/yf-plan/protocols/DOC-LINT.md`, an **always-loaded** on-edit
+protocol whose "read `files_checked`" section Issue 2.2a replaces with an executed classifier call.
+**`_shared/test_doc_lint.py` is deliberately NOT on this list**: the classifier design leaves the
+lint path untouched, so SC17 and SC42 stay true unedited — Issue 2.3 measures that claim. The last four were added at pass 8 (C77/C79) — the plan bounded the corpus
 figure via SC7 but never the contract surface. The D-9 split removed four further surfaces to plan-051:
 `skills/yf-beads-hygiene/scripts/beads_hygiene.py`, repo-root `CHANGE-VALIDATION.md`, `SKILL.md` §3, and
 `skills/yf-plan/agents/red-team.md` + `skills/yf-plan/spec/agents.md`. `_shared/` is a real constraint: `derive_from`

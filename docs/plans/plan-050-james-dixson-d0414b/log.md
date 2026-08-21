@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-20
+- autonomy: max-review-cycles raised to 12 for this invocation (cycles=9) — escalation override
 - autonomy: max-review-cycles raised to 14 for this invocation (cycles=9) — escalation override
 - autonomy: max-review-cycles raised to 9 for this invocation (cycles=9) — escalation override
 - review-pass: red-team pass 9 (seventh independent): REVISE — 6 concerns, 1 execution-blocking (C86: the --path-keyed scope from pass-8's fix breaks test_doc_lint SC17 and does not fix #181's titled scenario); adopted #181's own option 2, an opt-in --require-selection flag, measured green by the reviewer
