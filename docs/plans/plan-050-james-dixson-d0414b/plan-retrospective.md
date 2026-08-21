@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | GENERAL: these suites assert the SHAPE of a tool's output and never the FIDELITY of its content. That is the same shape as #181 (files_checked counts how many files were checked, never whether the right one was) and as this repo's recurring 'a control that reports clean while checking nothing'. A round-trip or identity assertion is the cheap countermeasure: for every extractor, assert that a field carried through unchanged EQUALS its source; for every filter, assert the selected set is non-empty on a known-positive input. Recommend a dedicated failure-mode pass over every script in _shared/ and skills/*/scripts/ — 5 of 20 script directories have NO test file at all (yf-beads-init, yf-okf, yf-optimal-instructions, yf-skill-authoring, and the untested half of yf-research) — scoped as its own plan or research project, not folded into plan-050. |
 | `cost` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-20 |
+| `stop_class` |  |
+| `asked` | Issue 0.2: build redcheck.sh. Is the harness itself trustworthy before any control depends on it? |
+| `answered` | Self-spiked the harness in a scratch dir against 8 arms before use. Arm 7 FAILED: a missing fixture reported 'RED observed' and exited 0, writing a garbage record with an empty exit-code field. Cause: harness_fail's 'exit 2' ran inside a command-substitution SUBSHELL, so it killed only the subshell; the caller continued with an empty rc. Fixed by replacing the substitution with a global FIXTURE_RC and an explicit 'return 2'. Re-spiked: all 8 arms correct, no garbage record. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | spike: bash assets/redcheck.sh record-red PWD/nope.sh ctl-178-grant -> pre-fix 'redcheck: RED observed — ctl-178-grant exited  against ...' rc=0; post-fix 'HARNESS FAILURE — fixture does not exist' rc=2; grep -c nope.sh red-prework.md -> 0 |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

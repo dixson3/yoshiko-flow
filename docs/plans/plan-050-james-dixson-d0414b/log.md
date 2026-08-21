@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-20
+- executing: start gate resolved
+- intake: epic yf-mol-m3e poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-13 APPROVE + audit pass
 - review-pass: red-team pass 13 (eleventh independent, NARROW verification by operator decision): APPROVE — all 5 pass-12 fixes verified by execution; the anchored derivation returns 6 and is immune to its own literal text; 2 low concerns, both resolved. FIRST CLEAN ROUND IN NINE — no self-injected defect
