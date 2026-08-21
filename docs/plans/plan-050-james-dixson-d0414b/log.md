@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-08-20
+- autonomy: max-review-cycles raised to 12 for this invocation (cycles=11) — escalation override
+- review-pass: red-team pass 11 (ninth independent): REVISE — 12 concerns, 2 execution-blocking; both were pass-10's own named mechanism recurring (edited Issue 2.2/2.2a without walking up to SC6 and Issue 2.3), plus 3 unwalked satellites; 8 of 10 pass-10 resolutions reproduced by execution; all 12 resolved, none deferred
 - autonomy: max-review-cycles raised to 12 for this invocation (cycles=10) — escalation override
 - review-pass: red-team pass 10 (eighth independent): REVISE — 15 concerns, 5 execution-blocking; 4 of the 5 injected by this round's own changes, by a NEW mechanism (edited the leaf without updating the artifacts that enumerate over it); all resolved
 - drafting: #181 REDESIGNED at operator direction — a preflight classifier that runs BEFORE the lint and decides applicability, leaving doc_lint's lint path and verdict vocabulary untouched. Three earlier scopes were each refuted by measurement; all three had mutated the lint's own reporting (RE-002)

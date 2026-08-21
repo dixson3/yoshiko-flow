@@ -49,6 +49,13 @@ path-keying exactly — selection semantics do not change, only their reportabil
 > form), and `doclint-tests` sits in **both** CI tiers. The plan therefore ships them behind an
 > **opt-in `--require-selection` flag** (Issue 2.2), which needs no test edits and also covers the
 > `--root` form this finding did not measure — the form in #181's own title.
+>
+> **SUPERSEDED at pass-10 (operator redirect), recorded at pass-11 C115.** The `--require-selection`
+> flag above is **not** what ships. The verdict-and-flag family was abandoned after three refuted
+> scopes; the plan now ships a **preflight classifier** — a separate `classify` mode emitting
+> `selected` | `empty` | `not-selected` | `no-such-path`, with `doc_lint`'s own verdict vocabulary and
+> exit codes **entirely unchanged** (**Issue 2.2**), plus the `DOC-LINT.md` caller rewrite that
+> actually closes #181 (**Issue 2.2a**). Read this section as the history of a rejected design.
 
 
 - Add the third and fourth verdicts rather than changing selection. Any change to which files are

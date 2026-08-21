@@ -235,7 +235,7 @@ Bundle: docs/research/004-plan-process-defect-mining/ — commit 2adad77 on main
 QUESTION: across 83 plan bundles in five re...
 
 **Disposition:** partial
-**Notes:** **D-9.** **IN:** the four mechanical fixes (#178-#181) as worked instances of the ranked classes. **OUT:** M9, the M11 probe mechanism, and the remaining 14 classes — M9 goes to plan-051, the rest stay unscheduled
+**Notes:** **D-9.** **IN:** the **six** mechanical fixes (#178-#181, **#186, #187**) as worked instances of the ranked classes. **OUT:** M9, the M11 probe mechanism, and the remaining 14 classes — M9 goes to plan-051, the rest stay unscheduled
 ## #149 — M5/M9: process rules that nothing executes, and remediation edges that exist only in prose
 Labels: type::task, priority::high
 > Filed from research 004 (docs/research/004-plan-process-defect-mining, epic yf-mol-fsp, commit 2adad77).
@@ -465,4 +465,4 @@ Longer-term alternative to the in-repo `_shared/` vendoring pattern (plan-014, e
 > The per-issue schema has no `description`/`detail` field, but §5.2a tells the executor to drive `bd create --description="${issue_detail}"` from exactly this output. `${issue_detail}` has no source.
 
 **Disposition:** include
-**Notes:** Pulled in after pass 9 at operator request. Measured 35 of 35 beads with empty descriptions in `astrospike` plan-001 — with a DAG that is otherwise perfect, which is what makes it hard to notice. Directly relevant here: every correction this plan's nine review passes bought lives in the continuation bullets, and under §5.2a as written **none of it would reach the beads**.
+**Notes:** Pulled in after pass 9 at operator request. Measured 35 of 35 beads with empty descriptions in `astrospike` plan-001 — with a DAG that is otherwise perfect, which is what makes it hard to notice. An earlier version of this note claimed "every correction this plan's review passes bought lives in the continuation bullets"; pass-10 C99 measured that FALSE and pass-11 re-measured it — **0 of 35** continuation bullets carry prose, all being `depends-on:` / `resolves-upstream:` sub-keys. The defect is real and general; it simply does not bite *this* bundle, which is why SC24's `detail` arm records an expected **zero** as a valid negative observation rather than asserting non-empty.
