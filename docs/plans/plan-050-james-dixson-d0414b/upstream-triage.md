@@ -15,8 +15,8 @@ _Full issue bodies are inlined under `references/upstream-<N>.md` (regenerated o
 adversarial review" — read-and-perform, in the main session — while §2 says "Spawn a sub-agent per
 unknown". Following §3 literally produces a drafter reviewing its own draft.
 
-**Disposition:** include
-**Notes:** Filed during this plan's own pass-3 resolution round and folded in as Issues 5.3/5.4.
+**Disposition:** deferred
+**Notes:** **D-9 — SPLIT OUT to plan-051**, with #182 (same epic, same deadlock). The evidence for it is unaffected and strong: this plan's own passes 1-2 were main-session self-review and advanced it to `ready-for-approval`; three independent passes then returned REVISE with 11, 17 and 14 concerns
 Measured on this plan: passes 1-2 were main-session and advanced it to `ready-for-approval`; the
 first independent pass returned REVISE with 11 concerns, 2 high. Resolved by 5.3.
 
@@ -29,9 +29,9 @@ so the constructs plan-048 refuses become readable, and bind the document linter
 enforcement ...
 
 **Disposition:** exclude
-**Notes:** plan-049's own coarse tracker; it is closed by plan-049's land-the-plane sweep, not by
+**Notes:** plan-049's coarse tracker, closed by plan-049's own land-the-plane sweep. Not `tracker`: `_TRACKER_ROW_RE.search()` takes the FIRST `tracker` row, so this row would stamp plan-050's epic with plan-049's URL. Not `supersede`: that requires CLOSED as NOT_PLANNED, false of a completed plan
 this plan's reconciliation. **Deliberately NOT given `tracker`, and NOT given `supersede`.**
-`tracker`: `_tracker_url_from_plan_md` (`plan_manager.py:1404`) takes the **FIRST** `tracker` row in
+`tracker`: `_tracker_url_from_plan_md` (`_TRACKER_ROW_RE.search()`) takes the **FIRST** `tracker` row in
 plan.md, so a #183 tracker row would make `stamp-tracker` stamp plan-050's epic with **plan-049's**
 URL. `supersede`: `_verify_row` requires a `supersede` row to be CLOSED as **NOT_PLANNED**, which is
 false of a plan that completed. SC10's real `tracker` instance is plan-050's OWN tracker row, added
@@ -45,7 +45,7 @@ by Issue 6.3 once the number exists.
 dispatching prose in `SKI...
 
 **Disposition:** deferred
-**Notes:** **D-9 — SPLIT OUT to plan-051**, with #182 (same epic, same deadlock). The evidence for it is unaffected and strong: this plan's own passes 1-2 were main-session self-review and advanced it to `ready-for-approval`; three independent passes then returned REVISE with 11, 17 and 14 concerns
+**Notes:** **D-9 — SPLIT OUT to plan-051.** Pass-5 C39: Epic 5's gate membership was an unconditional deadlock — the control-builders sat inside the gate's own `Blocks` set, so neither the RED nor the GREEN observation was producible. The fix is structural, not a patch
 ## #181 — doc_lint: a bundle copied outside docs/plans/ returns a silent green, indistinguishable from clean
 
 > ## Copying a bundle outside `docs/plans/` to verify it yields a silent green
@@ -100,8 +100,8 @@ repo's Upstream Tracking convention.
 
 **Supers...
 
-**Disposition:** deferred
-**Notes:** **D-9 — SPLIT OUT to plan-051.** Pass-5 C39: Epic 5's gate membership was an unconditional deadlock — the control-builders sat inside the gate's own `Blocks` set, so neither the RED nor the GREEN observation was producible. The fix is structural, not a patch
+**Disposition:**
+**Notes:**
 ## #174 — yf-plan: a review-phase validation pass — falsify every criterion, and cross-check every claim against the code that scores it
 
 > **Proposes the mechanism for the defect family #173 diagnoses.** #173 records *what went wrong and why five red-team cycles missed it*, under an explicit "record, do not fix" instruction. This issue p...
@@ -126,8 +126,8 @@ plan-046 Issue...
 
 R...
 
-**Disposition:** exclude
-**Notes:** plan-049's coarse tracker, closed by plan-049's own land-the-plane sweep. Not `tracker`: `_TRACKER_ROW_RE.search()` takes the FIRST `tracker` row, so this row would stamp plan-050's epic with plan-049's URL. Not `supersede`: that requires CLOSED as NOT_PLANNED, false of a completed plan
+**Disposition:**
+**Notes:**
 ## #170 — OKF consumer round-trip fidelity is unverified — #92 carve-out 3 of 3
 
 > Filed by plan-046 Issue 5.5(iii) as one of **three named carve-outs** from closing #92 as superseded.

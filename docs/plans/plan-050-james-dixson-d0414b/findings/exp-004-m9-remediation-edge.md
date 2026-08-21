@@ -18,7 +18,7 @@ research 004's cross-repo `0 of 53` as a local figure), then inspected the endpo
 
 But the sharper measurement is why:
 
-**measured: of those 26 edges, ZERO have both endpoints carrying `metadata.plan`.** Only 162 of
+**measured: of those 26 edges, ZERO have `metadata.plan` on *either* endpoint** — the stronger form, re-verified independently at the D-9 split (`both endpoints attributed: 0`, `at least ONE endpoint attributed: 0`). An earlier draft recorded only the weaker "both endpoints" claim; pass-6 C64 measured the stronger one and it holds. This matters because this finding is now plan-051's starting evidence and will be read without plan.md beside it. Only 162 of
 1481 beads carry the field at all. Sampling the 26 sources:
 
 ```

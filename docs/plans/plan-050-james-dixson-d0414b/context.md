@@ -65,15 +65,15 @@ resolves **only** modules under that directory.
   issue's body.
 - **Network:** required for `gh` in **Epic 3 and Epic 6**. Epic 3's grant path calls `_verify_row`,
   whose first act is `gh issue view` per row, so **Epic 3 is not local** — an earlier draft of this
-  file claimed it was, and pass-3 C17 refuted it. Epics 0-2, 4 and 5 are entirely local.
+  file claimed it was, and pass-3 C17 refuted it. Epics 0-2 are entirely local.
 - **Credentials:** `gh` auth is present and owns its own credential store — no token is ever passed
   inline or written to config.
 - **Side-effect permissions this plan assumes:**
   - Writes under `_shared/`, `skills/`, `tests/fixtures/`, and this plan's own bundle.
   - **NO corpus rewrite.** This plan modifies **zero** documents under `docs/plans/` outside its own
     bundle. SC7 asserts that `doc_lint`'s verdict change perturbed no selection.
-  - **Bead writes:** it pours and closes its own molecule, and Issue 4.2 changes how
-    `discovered-from` beads are stamped **going forward only** (D-7) — no historical bead is edited.
+  - **Bead writes:** it pours and closes its own molecule. Nothing else — the `discovered-from`
+    stamping change (D-7) left with the plan-051 split (D-9).
   - **Outward-facing `gh` comments and a tracker**, gated by the Upstream-write gate (Epic 6).
   - A deploy (Issue **6.6**) at land-the-plane only — **never mid-execution**, per AGENTS.md.
 - **Never `bd dolt push`** — this repo is `dolt.local-only = true`.
