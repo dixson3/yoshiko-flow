@@ -10,8 +10,21 @@ records the machine and date of capture._
 
 ## Project environment
 
-Describe the project this plan belongs to: what it does, what stack it uses,
-any non-obvious setup. A cold reader should not need to infer this from code.
+`yoshiko-flow` (`dixson3/yoshiko-flow`) ships **beads-backed skills for Claude Code and four other
+harnesses**, plus `yf`, a Rust CLI that embeds the skill tree (`rust-embed`) and deploys it. The
+skills are markdown instruction files with Python scripts (`uv`-run, PEP-723 inline deps) and a
+`spec/*.md` requirements corpus.
+
+**The repo is both the SOURCE and a CONSUMER of its own skills**, and this plan edits the very skill
+it is executing under. Three artifacts move independently — repo source (`skills/`), the
+binary-embedded tree, and the session-installed copy under `~/.claude/skills/` — and the `SKILL_DIR`
+resolver reaches **none** of the repo's `skills/` paths. So `SKILL.md` prose and
+`${SKILL_DIR}/scripts/*.py` resolve to the INSTALLED copy: there is no self-modification hazard
+mid-run, and the one real constraint is **no `yf skills install` / `yf self install` mid-execution**
+(`plan_manager.py` is re-invoked per call, so a mid-execution deploy would run new scripts against
+old prose).
+
+Task tracking is `bd` (beads) on Dolt, `dolt.local-only = true` — **never `bd dolt push`**.
 
 ## Tool inventory
 
@@ -34,14 +47,29 @@ any non-obvious setup. A cold reader should not need to infer this from code.
 ## Operator identity
 
 - Git user: `james-dixson`
-- Attribution: fill in role, contact, and authority scope before intake.
+- Role: **sole maintainer and operator** of `dixson3/yoshiko-flow`; authors and approves plans.
+- Authority scope: authorizes upstream writes (`gh issue` comment / create / close) against a
+  generated grant, and authorizes deploys. Capability gates typed `human` are resolved by this
+  operator alone and are **never** auto-resolved on a green test.
+- Contact: `james@yoshikostudios.com`; upstream issues are filed against the same repo.
 
 ## Runtime assumptions
 
-List the assumptions this plan makes about the environment it will execute in
-(OS, shell, network access, credentials, side-effect permissions). A cold
-reader on a different machine should be able to decide whether the plan is
-safe to run as-is.
+- **OS / shell:** macOS (darwin 25.5.0), `zsh`. Non-interactive flags are mandatory (`rm -f`,
+  `cp -f`, `mv -f`) — an `-i` alias would otherwise hang on a confirmation prompt.
+- **Toolchain:** `uv` for every Python script; `cargo` for the `yf` build; `bd` **1.1.2**;
+  `gh` authenticated against `dixson3/yoshiko-flow`.
+- **Network:** required for `gh` (upstream reads and the authorized writes) and for `cargo` on a cold
+  build. `bd` is entirely local.
+- **Credentials:** `gh` owns its own token store — this plan handles no token and writes none to
+  config.
+- **Side effects, and where consent is required:** upstream writes are gated (`Upstream write`, human)
+  and never happen without an explicit authorization file. Deploying with `--allow-permissions-write`
+  is a **separate** operator decision from deploying at all. No `bd dolt push` under any circumstance.
+- **Safe to run as-is on a different machine? NO.** This plan measures *this* repo's SPEC corpus and
+  skill tree and fixes expectations against those measurements (251 `Verification:` clauses, 1
+  executed; 0 `Agent` occurrences across 7 `agents/*.md`; 3 sites pinning one literal; 2 deployed
+  harness roots). A cold reader on another checkout must **re-measure before acting** — which is D-5.
 
 ## Adjacent-concept glossary
 
