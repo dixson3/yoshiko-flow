@@ -59,7 +59,7 @@ measured. This plan ships the improvement it has evidence for and does not overc
 ## Upstream Issues
 
 | Issue | Title | Disposition | Notes | Resolved By |
-|-------|-------|-------------|-------|-------------|
+| :-- | :-- | :-- | :-- | :-- |
 | [#184](https://github.com/dixson3/yoshiko-flow/issues/184) | red-team is never dispatched as a sub-agent — the drafter reviews its own draft | include | **D-2.** The §2-vs-§3 asymmetry is verbatim: `SKILL.md:315` says **spawn**, `:489` says **perform**. Measured RED: `Agent` appears **0** times across all 7 `agents/*.md`. Needs a **NEW** `REQ-AGENT-*` — none of 040-048 says who RUNS the review | |
 | [#182](https://github.com/dixson3/yoshiko-flow/issues/182) | the read-only rule forbids the sandbox spike that catches specification defects | include | **D-1.** exp-006 **narrows** this issue: `red-team.md:63` says only "never writes files" — it never forbade a spike. Under-specification, not a wrong rule. One line, **plus `spec/agents.md:73`**, whose Verification clause pins the exact string | |
 | [#149](https://github.com/dixson3/yoshiko-flow/issues/149) | M5/M9: process rules that nothing executes, and remediation edges that exist only in prose | partial | **D-3.** **IN:** a comment correcting the refuted premise — **26** `discovered-from` edges, **0** attributed on either endpoint, so the relationship exists and only attribution is missing; plus C40 and the no-seam finding. **OUT:** M9 itself | |
@@ -83,6 +83,7 @@ this plan was about to inherit.** Full records in `findings/`.
 | [EXP-002](findings/exp-002-182-blast-radius.md) | What is #182's complete edit set? | **exp-006's "one line in one file" is wrong by ~7x** — 7 files minimum, 8 with the reviewer sibling. And the FAST tier passes green on the broken intermediate state |
 | [EXP-003](findings/exp-003-executable-verification.md) | Does any SPEC `Verification:` line execute today? | **Yes — 1 of 251.** Prior art exists and is green, so #165 stays in scope. The "no prior art → drop it" branch is refuted |
 | [EXP-004](findings/exp-004-redcheck-reuse.md) | Can plan-050's control harness be reused, and is a control possible? | **Reuse as-is, and a control is possible for ALL THREE subjects** — which **refutes plan-050's D-8** as written |
+| EXP-005 | Is a `plan-review` **wisp** with parallel lenses buildable without `waits-for`, and is there evidence parallel beats sequential-independent? | **OPEN** — commissioned after a cross-session recommendation. Either half can refute it |
 
 ### The four results that change the plan
 
@@ -123,6 +124,43 @@ not into this plan's scope.
 | Free `REQ-AGENT-*` ids | **049, 052-059** | `050`, `051`, `060`-`064` are taken |
 | Harness roots deployed on this machine | **2** | `~/.claude`, `~/.agents`; codex/opencode/pi absent |
 | `gate-run.sh` copies in the corpus, materially drifted | **3** | plan-048, -049, -050 |
+
+### The beads-capability reconciliation (cross-session, VERIFIED not accepted)
+
+A parallel session reconciled `bd` 1.1.2's surface against yf-plan's usage. **Its structural finding
+holds and two of its named primitives do not exist.** Re-verified here against the installed `bd`:
+
+| Claim | Verdict |
+| :-- | :-- |
+| Phase 3 has **no bead representation** — Phase 2 is a wisp, Phase 5 a pour, Phase 3 a prose loop | **TRUE.** Only two formulas ship: `plan-investigate`, `plan-execute` |
+| `bd cook --dry-run` / `--mode=compile` previews a resolved DAG | **TRUE.** `--dry-run` exists; `--mode=compile` is the **default** |
+| `mol bond` / `squash` / `progress` are unused in every skill | **TRUE** — 0 hits (`mol distill` has 2 prose hits, not 0) |
+| **`waits-for` dep type** (the proposed join) | **DOES NOT EXIST** |
+| **`conditional-blocks` dep type** | **DOES NOT EXIST** |
+
+`bd dep add --type` accepts exactly `blocks, tracks, related, parent-child, discovered-from, until,
+caused-by, validates, relates-to, supersedes`. **EXP-005** tests whether a join is expressible without
+`waits-for`.
+
+**One argument corrected.** The recommendation claims parallel fan-out *"is the substance of #184"*,
+citing plan-050's 5 → 4 → 11 → 17 → 14 concerns-per-pass. That series measures **independence**, not
+**parallelism** — all eleven passes were sequential and single-reviewer. It is the same shape as
+plan-050's resolution-vs-review conflation: a real result read as support for an adjacent claim it
+does not test. EXP-005's second half tests the parallel claim on its own evidence.
+
+### NON-GOAL — the review-cycle counter stays in FILES
+
+**Recorded as an explicit non-goal so a later cycle does not "simplify" it back in.** The bound is
+`len(glob('reviews/pass-*.md'))`, deliberately file-based and **monotonic** (REQ-PLAN-030;
+REQ-PORT-006's count-equality against `log.md`'s `review-pass:` bullets). A wisp is **ephemeral and
+burnable** — moving the bound inside one makes it **resettable by `bd mol burn`**, restoring exactly
+the unbounded self-resolving loop D-8 forbids. If any wisp ships, it orchestrates **dispatch only**;
+the file remains the ledger.
+
+Also non-goals, filed upstream for a later plan rather than scoped here: modelling plan drafting as a
+molecule (it is conversational — beads are pure overhead); `bd mol bond` for plan-to-plan chaining
+(`handoff-051.md` is generated with a `--check` regeneration diff that exits 1, already stronger than
+a bond edge); and `mol distill` / formula aspects.
 
 ### Two defects found by the experiments, both out of scope
 
