@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 177
 - **Title:** yf-plan red-team: no check that a numeric target is derivable from the plan's own scope rules
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/177
 - **State:** OPEN
 - **Labels:** 
 

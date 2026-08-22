@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 145
 - **Title:** New skill: yf-retrospective — measure escape rate (intra-plan + post-release) and enforce a fix+prevention contract
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/145
 - **State:** OPEN
 - **Labels:** 
 

@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 150
 - **Title:** research 004: process-defect mining across 83 plan bundles
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/150
 - **State:** OPEN
 - **Labels:** priority::medium
 

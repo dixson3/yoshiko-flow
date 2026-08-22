@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 184
 - **Title:** yf-plan §3: the red-team is never dispatched as a sub-agent — the drafter reviews its own draft
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/184
 - **State:** OPEN
 - **Labels:** 
 

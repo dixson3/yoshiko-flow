@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 188
 - **Title:** Test suites assert output STRUCTURE and never payload FIDELITY — the blind spot #186/#187 lived in
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/188
 - **State:** OPEN
 - **Labels:** 
 

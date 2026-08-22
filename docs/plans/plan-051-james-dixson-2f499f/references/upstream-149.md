@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 149
 - **Title:** M5/M9: process rules that nothing executes, and remediation edges that exist only in prose
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/149
 - **State:** OPEN
 - **Labels:** type::task, priority::high
 

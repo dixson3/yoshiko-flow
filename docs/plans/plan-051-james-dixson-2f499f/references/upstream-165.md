@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 165
 - **Title:** SPEC `Verification:` lines are prose shaped like commands — a FULL tier can be all-green while a spec's own stated verification is false
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/165
 - **State:** OPEN
 - **Labels:** 
 

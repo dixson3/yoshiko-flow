@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 173
 - **Title:** yf-plan: success criteria and upstream dispositions are never checked against the engine that enforces them
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/173
 - **State:** OPEN
 - **Labels:** 
 

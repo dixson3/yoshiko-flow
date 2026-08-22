@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 190
 - **Title:** Require plans to ship tests for code they write, at >= 80% coverage of that code — with a recipe row that enforces it
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/190
 - **State:** OPEN
 - **Labels:** 
 

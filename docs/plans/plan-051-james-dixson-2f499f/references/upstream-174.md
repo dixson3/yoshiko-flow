@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 174
 - **Title:** yf-plan: a review-phase validation pass — falsify every criterion, and cross-check every claim against the code that scores it
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/174
 - **State:** OPEN
 - **Labels:** 
 

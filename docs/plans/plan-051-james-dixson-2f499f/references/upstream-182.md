@@ -6,7 +6,7 @@ okf_spec: OKF-PLAN
 
 - **Number:** 182
 - **Title:** yf-plan red-team: the read-only rule forbids the sandbox spike that catches specification defects
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/182
 - **State:** OPEN
 - **Labels:** 
 
