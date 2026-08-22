@@ -12,3 +12,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
 - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
 - [upstream-triage.md](upstream-triage.md) - Disposition of each candidate upstream issue (include / exclude / partial / supersede / deferred) with the reasoning. The triage record behind plan.md's Upstream Issues table.
+- [findings/](findings/) - The five investigation records this plan's decisions rest on. EXP-001 (what #184's Verification can honestly assert), EXP-002 (#182's 7-file blast radius), EXP-003 (executable-Verification prior art), EXP-004 (control-harness reuse, and the refutation of plan-050's D-8), EXP-005 (the review wisp: buildable, unevidenced).
+- [references/](references/) - Full untruncated bodies of the eleven candidate upstream issues, so a cold reader can judge each disposition without network access.
