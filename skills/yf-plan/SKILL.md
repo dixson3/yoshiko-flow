@@ -486,10 +486,35 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "review"
 Two passes, in order. Both agents are read-only with respect to the repository under review (REQ-AGENT-043/045); the main session acts on their verdicts.
 
 1. **Conformance** — read `${SKILL_DIR}/agents/reviewer.md` and run its mechanical checklist. Verdict `PASS | INCOMPLETE`. On `INCOMPLETE`, resolve the listed gaps and re-run before proceeding — this is a mechanical gate, not a phase transition. It does not produce a `pass-N.md`.
-2. **Adversarial** — once conformance is `PASS`, read `${SKILL_DIR}/agents/red-team.md` and perform a structured adversarial review. **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Under the **autonomous default**, *the main session* resolves the concerns and re-runs the red-team itself, cycling to `APPROVE` **without an operator acknowledgement per cycle** — bounded by `max_review_cycles`. Report the verdict and concerns; do not stop for them. Under `checkpointed`, present them to the operator and wait.
+2. **Adversarial** — once conformance is `PASS`, **dispatch the red-team as a sub-agent** (REQ-AGENT-049). Do
+   **not** perform this pass in the main session: the main session drafted the plan, so it shares every
+   assumption the pass is supposed to attack, and a concern the drafter cannot see is a concern the review
+   cannot raise. Spawn a sub-agent to perform the adversarial pass, mirroring the Phase 2 INVESTIGATE dispatch
+   form:
+
+   ```
+   Read ${SKILL_DIR}/agents/red-team.md and follow its instructions.
+
+   PLAN: {plan_dir}/plan.md
+   PRIOR PASSES: {reviews/pass-*.md, if any}
+   ```
+
+   Use `Agent` with `subagent_type="general-purpose"`. The agent is **read-only with respect to the repository
+   under review** and returns a verdict; a **sandbox spike outside that repository is authorized**
+   (REQ-AGENT-043). **The main session remains the sole writer** — it writes `reviews/pass-N.md` and the
+   `log.md` `review-pass:` bullet, as the create-on-present step below describes.
+
+   **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Under the
+   **autonomous default**, *the main session* resolves the concerns and **re-dispatches** the red-team,
+   cycling to `APPROVE` **without an operator acknowledgement per cycle** — bounded by `max_review_cycles`.
+   Report the verdict and concerns; do not stop for them. Under `checkpointed`, present them to the operator
+   and wait.
+
+   **Honesty clause (R2/R3).** REQ-AGENT-049 constrains this *text*, not reviewer conduct: that a pass was
+   genuinely dispatched has no exit code, and `ctl-184-dispatch` does not claim to verify it.
 
 - **APPROVE**: run the portability audit, then the `ready-check` gate (below) before the approval prompt
-- **REVISE**: **the main session** addresses the concerns, stays in PLAN, and **re-runs the red-team** (a new cycle → new `pass-(N+1).md`). This is the same autonomy the conformance step above already has — it is a mechanical loop, not a phase transition, and needs no per-cycle acknowledgement. It is bounded: see `max_review_cycles` below.
+- **REVISE**: **the main session** addresses the concerns, stays in PLAN, and **re-dispatches the red-team** as a fresh sub-agent (a new cycle → new `pass-(N+1).md`). This is the same autonomy the conformance step above already has — it is a mechanical loop, not a phase transition, and needs no per-cycle acknowledgement. It is bounded: see `max_review_cycles` below.
 - **INVESTIGATE-MORE**: return to INVESTIGATE for additional experiments
 
 **The review loop is BOUNDED (`max_review_cycles`, 2.4a).** Before each autonomous
