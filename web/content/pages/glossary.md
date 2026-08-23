@@ -87,7 +87,8 @@ approved plan into an execution-eligible one.
 
 ### red-team
 
-The adversarial plan-review pass in yf-plan: a read-only agent performs a structured, skeptical
+The adversarial plan-review pass in yf-plan: an agent that is read-only with respect to the repository
+under review (a sandbox spike outside it is authorized) performs a structured, skeptical
 critique of a plan once its conformance check passes, and returns a verdict of **APPROVE**,
 **REVISE**, or **INVESTIGATE-MORE**. The verdict drives the phase transition — only a final
 `APPROVE` (with a passing portability audit) lets a plan reach `ready-for-approval`. A `REVISE`

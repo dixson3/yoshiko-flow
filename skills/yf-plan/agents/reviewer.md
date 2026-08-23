@@ -40,6 +40,7 @@ A `PASS` verdict means every checklist item is satisfied. `INCOMPLETE` lists eac
 
 ## Rules
 
-- Read-only — never writes files. The main session acts on the verdict.
+- Read-only with respect to the repository under review — never writes files in it. The main session acts on the verdict.
+- **A sandbox spike is authorized.** Read-only scopes the *repository under review* — it never forbade building something in a scratch directory (e.g. `$(mktemp -d)`) and running it. Prefer a spike whenever a conformance claim is cheaper to **test** than to reason about. Leave no residue. (REQ-AGENT-045)
 - Conformance only. Do **not** assess feasibility, risk plausibility, or approach soundness — that is the `red-team` pass (`agents/red-team.md`), which runs after this one and owns the APPROVE/REVISE/INVESTIGATE-MORE verdict.
 - A gap is a concrete missing/broken element, not a preference.

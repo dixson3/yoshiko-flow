@@ -62,7 +62,8 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `REVISE` verdict blocks the plan from reaching `ready-for-approval` until a later red-team cycle
   returns `APPROVE`. Readiness keys on the **last recorded** red-team verdict being `APPROVE` — an
   earlier APPROVE followed by a REVISE (whose revisions were never re-reviewed) is **not** ready.
-  Both agents are **read-only**; the main session writes files.
+  Both agents are **read-only with respect to the repository under review**; the main session writes
+  files. A sandbox spike outside that repository is authorized (REQ-AGENT-043/045).
 - **REQ-PLAN-031** *(testable)* at red-team presentation the main session shall write
   `reviews/pass-N.md` **and** append the `log.md` `review:` line atomically (create-on-present),
   preserving `count(reviews/pass-*.md) == count(log.md review: lines)` (REQ-PORT-006).
@@ -387,7 +388,8 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 - **GR-PLAN-001** *Drift:* using native plan mode / `TodoWrite` / markdown task lists. *Rule:* all
   planning is `yf-plan`; all task tracking is `bd`. *Why:* one tracker, portable plans.
 - **GR-PLAN-002** *Drift:* review agents editing the plan. *Rule:* conformance + red-team are
-  **read-only**; only the main session writes. *Why:* auditable, deterministic review.
+  **read-only with respect to the repository under review**; only the main session writes. A
+  sandbox spike outside that repository is authorized. *Why:* auditable, deterministic review.
 - **GR-PLAN-003** *Drift:* auto-**pushing**, or committing to the default branch. *Rule:* git
   authority is conservative for the **remote** — report and await authorization before any push.
   **Carve-out:** a **local** commit at the PLAN→EXECUTE boundary is permitted (REQ-PLAN-064), scoped

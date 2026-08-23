@@ -78,6 +78,7 @@ approved: yes
 | `uv-yf-gates` | `uv run skills/yf-plan/scripts/test_gates.py` |  |  |
 | `uv-yf-retro` | `uv run skills/yf-plan/scripts/test_retrospective.py` |  |  |
 | `uv-yf-cli-enum` | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
+| `uv-yf-review-agent` | `uv run skills/yf-plan/scripts/test_review_agent_contract.py` |  |  |
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
@@ -179,7 +180,7 @@ approved: yes
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent` |
 | `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
@@ -197,10 +198,12 @@ approved: yes
 | `skills/yf-plan/scripts/test_gates.py` | `uv-yf-gates` |
 | `skills/yf-plan/scripts/test_retrospective.py` | `uv-yf-retro` |
 | `skills/yf-plan/scripts/test_cli_enumeration.py` | `uv-yf-cli-enum` |
+| `skills/yf-plan/scripts/test_review_agent_contract.py` | `uv-yf-review-agent` |
 | `skills/yf-plan/scripts/test_upstream_requirements.py` | `uv-yf-upstream-req` |
 | `skills/yf-plan/spec/cli.md` | `uv-yf-cli-enum` |
-| `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-gates` |
-| `skills/yf-plan/agents/*.md` | `uv-yf-gates` |
+| `skills/yf-plan/spec/agents.md` | `uv-yf-review-agent` |
+| `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-gates`, `uv-yf-review-agent` |
+| `skills/yf-plan/agents/*.md` | `uv-yf-gates`, `uv-yf-review-agent` |
 | `skills/yf-herdr/**` | `uv-herdr-launch` |
 | `skills/yf-herdr/SKILL.md` | `uv-herdr-launch` |
 | `skills/yf-herdr/scripts/test_launch_contract.py` | `uv-herdr-launch` |
