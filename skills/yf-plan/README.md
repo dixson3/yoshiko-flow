@@ -132,6 +132,7 @@ agents/
 formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp
+  plan-review.formula.toml   Beads molecule for the Phase-3 review loop (sequencing only)
 scripts/
   plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery
                              resume scan, worktree lifecycle, landing lock, merged-state
