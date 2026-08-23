@@ -1,6 +1,10 @@
 # Log
 
 ## 2026-08-23
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-3he poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 
 - approved: operator approved
 

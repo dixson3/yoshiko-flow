@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-051-james-dixson-2f499f
 author: james-dixson
 created: '2026-08-21'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: 5ae7142e324519b8fbce38ec7c4308a8e325bcdf574c987fd9cabad54caf8717
+epic: yf-mol-3he
 ---
 # Plan: Land the descoped plan-050 work: the red-team sandbox-spike rule (#182), sub-agent dispatch for review (#184), and M9 remediation-edge attribution (#149) — each from plan-050's measured evidence
 
 **ID:** plan-051-james-dixson-2f499f
 **Author:** james-dixson
 **Created:** 2026-08-21
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-3he
 **Fingerprint:** 5ae7142e324519b8fbce38ec7c4308a8e325bcdf574c987fd9cabad54caf8717
 
 ## Objective
