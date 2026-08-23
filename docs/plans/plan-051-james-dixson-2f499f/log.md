@@ -1,5 +1,9 @@
 # Log
 
+## 2026-08-23
+
+- approved: operator approved
+
 ## 2026-08-21
 - review-pass: red-team pass 5 (fifth independent): APPROVE — the streak breaks; no blocking defect inside pass-4's fixes, all four verified by execution. ctl-182-spike re-spiked 1/1/0/1; SC4b confirmed falsifiable AND passable. 1 medium (C41: 0.1's shape could not satisfy 3.2's meta-assertion — pass-2 C22's residue) + 4 lows, all resolved, none blocking
 - review-pass: red-team pass 4 (fourth independent): REVISE — 5 concerns, 1 high. ctl-182-spike FINALLY SATISFIABLE, measured on four arms (1/1/0) — pass-3's deletion of the parser choice worked. But SC4b, the criterion pass 3 added, was broken both ways: the table cell's `\|` escaping made it an escaped literal pipe, so it matched nothing and was unfalsifiable; read as alternation it failed by 22 paths. Pattern moved out of the table into a fenced snippet. All 5 resolved, none deferred
