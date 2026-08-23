@@ -1,0 +1,73 @@
+formula = "plan-review"
+description = "One Phase-3 review cycle: conformance -> red-team -> resolve -> approval gate"
+version = 1
+type = "workflow"
+phase = "vapor"
+
+# THE PHASE-3 WISP (plan-051 Issue 2.3, D-7).
+#
+# Phase 3 was the only phase with NO BEAD REPRESENTATION: Phase 2 is a wisp
+# (plan-investigate), Phase 5 is a pour (plan-execute), and Phase 3 was a prose loop. This
+# formula gives the review loop the representation it lacked.
+#
+# SCOPE: SEQUENCING ONLY. The arms below are a CHAIN — conformance, then red-team, then
+# resolve, then the gate — one reviewer per cycle. That order is not incidental: it is the
+# CHAIN PROPERTY in which each pass verifies the previous pass's resolutions, and it produced
+# most of plan-050's yield.
+#
+# NO PARALLEL LENSES (D-7). EXP-005 built the fan-out and drove it — the schema's `needs` is
+# an array and multi-parent fan-in is first-class — so parallelism is BUILDABLE. It is
+# declined because there is NO EVIDENCE for it: 29 review passes across four plans, all
+# sequential, one reviewer each. The 5 -> 4 -> 11 -> 17 -> 14 concerns-per-pass series that is
+# sometimes cited for it measures INDEPENDENCE, not parallelism.
+#
+# THE REVIEW-CYCLE COUNTER STAYS IN FILES — an explicit NON-GOAL, recorded here so a later
+# cycle does not "simplify" it in. The bound is `len(glob('reviews/pass-*.md'))`: file-based
+# and MONOTONIC (REQ-PLAN-030, with REQ-PORT-006's count-equality against log.md's
+# `review-pass:` bullets). A wisp is EPHEMERAL AND BURNABLE, so a counter inside one would be
+# RESETTABLE BY `bd mol burn` — restoring exactly the unbounded self-resolving loop that bound
+# exists to forbid. This wisp orchestrates DISPATCH; the file remains the ledger. Accordingly
+# no step and no var below records a cycle count.
+#
+# BURNING THIS WISP: `bd mol burn <id> --force`, and CHECK THE OUTPUT, NOT THE EXIT CODE.
+# Measured: a cancelled burn on a wisp with an open APPROVE gate exits 0. Without --force the
+# burn prompts [y/N] and defaults to No in a non-interactive context, silently orphaning the
+# wisp. Filed upstream by Issue 4.6 so the fix is not private to this plan.
+
+[vars.objective]
+description = "Plan objective"
+required = true
+
+[vars.plan_dir]
+description = "Plan directory path (e.g., docs/plans/plan-001-dixson3-abc123 or Incubator/<slug>/plans/plan-001-dixson3-abc123)"
+required = true
+
+[[steps]]
+id = "conformance"
+title = "Conformance review: {{objective}}"
+type = "task"
+description = "Dispatch agents/reviewer.md over {{plan_dir}}/plan.md and run its mechanical checklist. Verdict PASS | INCOMPLETE. On INCOMPLETE the main session resolves the listed gaps and re-runs this step before the red-team sees the plan — a mechanical gate, not a phase transition. Produces no pass-N.md."
+
+[[steps]]
+id = "red-team"
+title = "Adversarial review: {{objective}}"
+type = "task"
+needs = ["conformance"]
+description = "DISPATCH agents/red-team.md as a sub-agent (REQ-AGENT-049) over the conformance-passed {{plan_dir}}/plan.md, together with any prior reviews/pass-*.md. Never perform this pass in the main session. Returns APPROVE | REVISE | INVESTIGATE-MORE with severity-tagged concerns. The agent is read-only with respect to the repository under review; a sandbox spike outside it is authorized (REQ-AGENT-043). The MAIN SESSION writes reviews/pass-N.md and the log.md review-pass: bullet at presentation, as one atomic step."
+
+[[steps]]
+id = "resolve"
+title = "Resolve concerns: {{objective}}"
+type = "task"
+needs = ["red-team"]
+description = "The main session resolves each concern and updates that concern's row in the SAME pass-N.md in place — resolution, actor, and status unresolved -> resolved. Never a second file and never a second review-pass: bullet. On REVISE this cycle ends and a NEW cycle begins with a fresh conformance step, bounded by max_review_cycles read from len(glob('reviews/pass-*.md')) — the file, never this wisp."
+
+[[steps]]
+id = "gate"
+title = "Review verdict gate: {{objective}}"
+type = "gate"
+needs = ["resolve"]
+description = "Holds until the LAST RECORDED red-team verdict is APPROVE (REQ-PLAN-030). An earlier APPROVE followed by an un-re-reviewed REVISE is not ready. Downstream: the portability audit and ready-check."
+[steps.gate]
+type = "human"
+approvers = ["operator"]
