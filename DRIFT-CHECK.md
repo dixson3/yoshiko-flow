@@ -80,6 +80,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | Edge ID | Source Node | Derived Node | Check Category |
 |:--------|:------------|:-------------|:---------------|
 | `e-spec-compliance` | `spec` | `skill-md` | contract |
+| `e-spec-agent` | `spec` | `agent` | contract |
 | `e-skill-script-cli` | `script` | `skill-md` | cross-ref |
 | `e-formula-name` | `formula` | `skill-md` | cross-ref |
 | `e-agent-ref` | `agent` | `skill-md` | cross-ref |
@@ -143,6 +144,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-protocol-rule` | `field-set-subset` | every trigger/gate/invariant the always-loaded companion rule (`skills/*/protocols/*.md`) binds is consistent with — and does not contradict — the procedure in the SKILL.md it points to. The rule carries trigger + gate condition + a pointer only (procedure lives in SKILL.md); the SKILL.md and the rule must **agree** on the gate condition and the disabled/no-op semantics. For `yf-beads-upstream`: the default-deny disabled test (`custom.upstream.enabled` ≠ `true`) and the gated one-shot preflight detect-and-offer (gate = github/gitlab origin + unconfigured upstream; durable marker on either outcome) must read identically in `UPSTREAM_TRACKING.md` and `SKILL.md` init §0. The rule is the trigger surface (derived from SKILL.md procedure); a rule that overstates/contradicts the procedure is the rule drifting (FAIL on the rule). |
 | `e-json-contract` | `field-set-subset` | the JSON keys SKILL.md parses from a script's `--json` output are a subset of the keys the script actually emits; read the script's output construction and list them. |
 | `e-status-values` | `field-set-subset` | status values used in `update-status` calls / agent prompts are a subset of those declared in the SKILL.md Phase Model. |
+| `e-spec-agent` | `contract` | every `REQ-AGENT-*` `Verification:` clause that quotes a literal from an `agents/*.md` file resolves to a string **present in that file**. Read each REQ's `Verification:` line, extract the quoted fragments and the agent file each one names, and check the fragment occurs there verbatim. `spec` is **fixed authority**: a dangling pointer is the pair drifting apart, reported against whichever side is stale — a genuinely obsolete spec statement is a CONFLICT (§7), never a silent pass. **Why this edge exists:** EXP-002 measured that **no `spec → agent` edge existed at all**, so the state in which an agent file is reworded and the spec still pins the old string is invisible to every engine in the repo — the FAST tier returns `pass, first_failure None` on it. That is the single riskiest step in a #182-class edit set, and it had nothing behind it (plan-051 D-9). |
 | `e-formula-vars` | `field-set-equal` | the `--var` names SKILL.md passes to `bd mol pour` equal the variables the `.formula.toml` declares. |
 | `e-install-url` | `value-equal` | any install URL duplicated across SKILL.md and the skill README is byte-identical. |
 | `e-readme-layout` | `field-set-equal` | the skill README file-layout fence lists exactly the files `find skills/<skill> -type f` reports. |
@@ -224,8 +226,8 @@ content-agreement axis).
 | Changed-Path Glob | Scopes To |
 |:------------------|:----------|
 | `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd`, `e-protocol-rule`, `e-web-skill-counts`, `e-web-skill-groups`, `e-skill-page-desc` |
-| `skills/*/spec/*.md` | `e-spec-compliance` |
-| `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values` |
+| `skills/*/spec/*.md` | `e-spec-compliance`, `e-spec-agent` |
+| `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values`, `e-spec-agent` |
 | `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
 | `_shared/active_set.py` | `e-active-set-copy-hygiene`, `e-active-set-copy-upstream` |
 | `_shared/json_extract.py` | `e-json-extract-copy-plan`, `e-json-extract-copy-research` |
