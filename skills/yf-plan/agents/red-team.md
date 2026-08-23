@@ -60,7 +60,8 @@ approval is blocked for no stated reason (#116).
 
 ## Rules
 
-- Read-only — never writes files. The main session writes `reviews/pass-N.md` and the phase-log `review:` line **at presentation** (create-on-present), then updates the same file in place as concerns are resolved — by the main session under the autonomous default, by the operator under `checkpointed`. The resolver is actor-agnostic (REQ-AGENT-043); the `actor` column records which.
+- Read-only with respect to the repository under review — never writes files in it. The main session writes `reviews/pass-N.md` and the phase-log `review:` line **at presentation** (create-on-present), then updates the same file in place as concerns are resolved — by the main session under the autonomous default, by the operator under `checkpointed`. The resolver is actor-agnostic (REQ-AGENT-043); the `actor` column records which.
+- **A sandbox spike is authorized.** Read-only scopes the *repository under review* — it never forbade building something in a scratch directory (e.g. `$(mktemp -d)`) and running it. Prefer a spike whenever a claim is cheaper to **test** than to reason about; measured, a review pass that built the thing it doubted caught a specification defect four prose-only passes had read past. Leave no residue. (REQ-AGENT-043)
 - Every concern includes a recommendation
 - Review against stated objective and scope, not what you think it should cover
 - High blocks approval. Medium prompts discussion. Low is nice-to-have.

@@ -169,7 +169,8 @@ never by a runtime guard.
 ### The yf-plan subagents
 
 All are dispatched by the main session via the `Agent` tool, reading their prompt from
-`skills/yf-plan/agents/<name>.md`. The review agents are **read-only** — they never write files;
+`skills/yf-plan/agents/<name>.md`. The review agents are **read-only with respect to the repository under
+review** — they never write files in it, though a sandbox spike outside it is authorized;
 the main session acts on their verdicts.
 
 | Subagent | Role | Inputs | Output | Read-only? |

@@ -483,7 +483,7 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "review"
 
 ### Review
 
-Two passes, in order. Both agents are read-only (REQ-AGENT-043); the main session acts on their verdicts.
+Two passes, in order. Both agents are read-only with respect to the repository under review (REQ-AGENT-043/045); the main session acts on their verdicts.
 
 1. **Conformance** — read `${SKILL_DIR}/agents/reviewer.md` and run its mechanical checklist. Verdict `PASS | INCOMPLETE`. On `INCOMPLETE`, resolve the listed gaps and re-run before proceeding — this is a mechanical gate, not a phase transition. It does not produce a `pass-N.md`.
 2. **Adversarial** — once conformance is `PASS`, read `${SKILL_DIR}/agents/red-team.md` and perform a structured adversarial review. **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Under the **autonomous default**, *the main session* resolves the concerns and re-runs the red-team itself, cycling to `APPROVE` **without an operator acknowledgement per cycle** — bounded by `max_review_cycles`. Report the verdict and concerns; do not stop for them. Under `checkpointed`, present them to the operator and wait.
@@ -513,7 +513,7 @@ has burned `N` review cycles should not silently resume.
 
 **Mandatory re-run after any major-concern revision (REQ-PLAN-030).** A `REVISE` verdict blocks the plan from reaching `ready-for-approval` until a *later* red-team cycle returns `APPROVE`. Readiness keys on the **last recorded** verdict — an earlier APPROVE followed by a REVISE whose revisions were never re-reviewed is **not** ready. Do not solicit approval on a REVISE'd-but-unre-reviewed plan.
 
-**Red-team is read-only** (REQ-AGENT-043). The agent never writes files — the main session does.
+**Red-team is read-only with respect to the repository under review** (REQ-AGENT-043). The agent never writes files in that repository — the main session does. **A sandbox spike is authorized**: building and running throwaway code in a scratch directory outside the repository is not a write to it, and it leaves no residue.
 
 **Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends a `log.md` **`- review-pass:`** bullet, as a **single atomic step**. The token is `review-pass:`, **not** `review:` — a `review:` bullet is what a *status transition into the review phase* writes, and counting both against the pass-file total made a correct bundle hard-fail the audit (REQ-PORT-006 as amended by plan-047 Issue 0.9b/2.7). Like `intake:` and `validated:`, `review-pass:` is a recognized non-status token: it never advances `status`. The file captures, verbatim:
 
