@@ -89,3 +89,59 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-23 |
+| `stop_class` | 3 |
+| `asked` | Issue 4.7: run 'yf self install --from-build --build' at land-the-plane |
+| `answered` | REFUSED, and NOT on the consent gate the operator anticipated. The binary promote step refused with 'error: /Users/james/.local/bin/yf already exists — pass --force to overwrite', exit 1. Overwriting the operator's installed binary is a destructive local operation and --force was not authorized, so this halts for the operator rather than being self-resolved. NOTHING deployed: the refusal precedes the install-time sync, so the binary, the skills tree and the rules aggregate are ALL still stale — verified, the installed SKILL.md does not carry the dispatch fix and plan-review.formula.toml is absent from the installed skill dir. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | yf self install --from-build (unpiped) -> exit 1; installed yf --version = 0.4.0 (1517ced), HEAD = ee2a449, ./target/release/yf --version = 0.4.0 (ee2a449-dirty); awk-scoped installed SKILL.md grep for 'Spawn a sub-agent' -> absent |
+| `escape_class` |  |
+
+**Resolution: the `--force` refusal was operator-authorized and the deploy completed.** `--force`
+is the **established** path rather than an exception — the binary at `~/.local/bin/yf` always
+exists after a first install, so every subsequent deploy needs it, and plan-050's `log.md` records
+the identical command. The stop was still correct: a destructive local overwrite is not the
+executor's call to make. The frontloadable answer is to name `--force` in the plan's own Issue 4.7
+text, which says only `yf self install --from-build --build`.
+
+**Second, separate finding in the same entry — the masked exit code.** The backgrounded deploy run
+reported *"exit code 0"* while the command had really exited **1**: the pipe (`| tail -60`)
+returned `tail`'s status, not the command's. Caught only by re-running unpiped. This is **the same
+defect class this plan exists to close**, occurring in the executor's own harness rather than in
+the artifact under test.
+
+**The class is filed upstream as
+[#203](https://github.com/dixson3/yoshiko-flow/issues/203)** — collecting five instances across
+five instruments, including this one. It is cited here rather than restated, and nothing further
+was filed for it.
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-23 |
+| `stop_class` |  |
+| `asked` | Reconcile Gate's Test as written in plan.md: bd list ... jq '[.[]|select(.metadata.plan=="plan-051..." and .issue_type!="gate" and .status!="closed")]|length==0' |
+| `answered` | The Test is SELF-BLOCKING and can never exit 0 on its own terms: it counts every non-gate bead carrying the plan metadata, which INCLUDES the reconcile step — the very bead this gate Blocks. The reconcile step cannot close until the gate resolves, and the gate cannot pass while the step is open. This is precisely the REQ-AGENT-046 gate-reachability defect (a Condition depending on state produced inside its own Blocks set), and FIVE independent red-team passes did not catch it. Resolved on the INTENDED condition, which SKILL.md states as 'all execution beads close': all 23 beads carrying plan_issue metadata are verified closed, 0 open. The remedy REQ-AGENT-046 itself prescribes would be to scope the Test to execution beads, e.g. add a `.metadata.plan_issue` predicate (the fragment shell-substitution ate when this entry was first written). |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | gate Test exit=1; execution beads carrying plan_issue = 23, not-closed = 0; the sole non-closed non-gate match is yf-mol-3he.9, the reconcile step the gate Blocks |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
