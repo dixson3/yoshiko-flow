@@ -532,6 +532,22 @@
 >   it (D-7) — `coverage.rs` fails on a *stale* row as well as a missing test, so the bridge must
 >   not outlive its tag by even one commit. Implementation lands in Epics 1–3; this entry records
 >   the SPEC-first Epic 0 amendment.
+> - **plan-051 (2026-08-23, #182/#184/#165):** yf-plan **review contract**. Added
+>   **`REQ-AGENT-049`** (the adversarial red-team pass **shall be dispatched as a sub-agent**, not
+>   performed by the main session — Phase 2 said *spawn* and Phase 3 said *perform*, so following
+>   Phase 3 literally produced a self-review; it carries an explicit honesty clause that the
+>   requirement constrains the specifying TEXT, never reviewer conduct, which has no exit code).
+>   Amended **`REQ-AGENT-043`** and **`REQ-AGENT-045`** to scope read-only to *the repository under
+>   review* and to **authorize the sandbox spike** — `red-team.md` never forbade building something
+>   in `$(mktemp -d)` and running it, so #182 is a **clarification of under-specification, not a
+>   reversal** (D-1); the carve-out is applied to both review agents together because `reviewer.md`
+>   carried the identical sentence (D-8). All three `Verification:` lines are retargeted to the
+>   **executable** whole-line-command shape (#165, scoped to this plan's own REQs — the corpus-wide
+>   sweep stays open): `uv run skills/yf-plan/scripts/test_review_agent_contract.py` conjoined with
+>   `grep -qF` literal/path pairs, so each line is run rather than read. Measured: 1 of 251
+>   corpus `Verification:` clauses executes today. The three lines are RED from this commit until
+>   the Epic 1/2 agent-file rewordings land — that is the intended SPEC-first order, not a defect.
+>   Implementation lands in Epics 1–3; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 
