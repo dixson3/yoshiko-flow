@@ -34,3 +34,11 @@ timestamp	ctl_id	exit
 2026-08-24T23:37:37Z	ctl-199b-inconclusive	1
 2026-08-24T23:37:37Z	ctl-199b-recursion	1
 2026-08-24T23:37:37Z	ctl-199b-halt	1
+2026-08-24T23:39:17Z	ctl-205-fixture-flag	1
+2026-08-24T23:39:17Z	ctl-205-tombstone	1
+2026-08-24T23:39:17Z	ctl-205-promote	1
+2026-08-24T23:39:23Z	ctl-205-fixture-flag	1
+2026-08-24T23:39:24Z	ctl-205-tombstone	1
+2026-08-24T23:39:24Z	ctl-205-promote	1
+2026-08-24T23:39:45Z	ctl-205-promote	1
+2026-08-24T23:39:50Z	ctl-205-promote	1
