@@ -175,7 +175,16 @@ def build() -> str:
     L.append("*Declared exemption: a separate file, not a table.*")
     L.append("")
     if RETRO.is_file():
-        ids = re.findall(r"^###\s+(RE-\d+)", RETRO.read_text(encoding="utf-8"), re.M)
+        # plan-052 Issue 0.4 (#199-adjacent): the extractor matched `^###` — THREE hashes —
+        # while the entries are written `## RE-001`. It reported **0 where 6 existed**, and
+        # `--check` reported OK because it regenerated the same wrong number and diffed it
+        # against itself. plan-051's own SC14 was green on false content.
+        #
+        # `^#{2,}` accepts either depth, so the count survives a heading-level change instead
+        # of silently returning to zero — the defect was a one-character mismatch between a
+        # writer and a reader, and pinning the reader to exactly one depth reproduces the
+        # class the moment the writer moves.
+        ids = re.findall(r"^#{2,}\s+(RE-\d+)", RETRO.read_text(encoding="utf-8"), re.M)
         L.append(f"`plan-retrospective.md` carries **{len(ids)}** entr{'y' if len(ids)==1 else 'ies'}"
                  f"{': ' + ', '.join(f'`{i}`' for i in ids) if ids else ''}.")
     else:

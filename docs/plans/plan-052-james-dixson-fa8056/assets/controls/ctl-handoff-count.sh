@@ -51,10 +51,16 @@ echo "ok: reported count $GOT == ground truth $TRUTH"
 cp -R "$SRC" "$tmp/broken"
 python3 - "$tmp/broken/scripts/gen_handoff.py" <<'PYEOF'
 import pathlib, re, sys
+# Break the extractor GENERICALLY: rewrite whatever heading-depth pattern the re.findall
+# currently uses into one that matches nothing. Pinning this to a specific spelling made the
+# arm silently vacuous the moment Issue 0.4 changed `^###` to `^#{2,}` — the mutation stopped
+# mutating and the control reported the deliberately-broken extractor as correct.
 p = pathlib.Path(sys.argv[1]); s = p.read_text(encoding="utf-8")
-s2 = re.sub(r'r"\^#+\\s\+\(RE-\\d\+\)"', r'r"^####\\s+(RE-\\d+)"', s)
-if s2 == s:
-    s2 = s.replace('re.findall(r"^##', 're.findall(r"^####')
+pat = re.compile(r'(re\.findall\(r")\^[^"]*?(\(RE)')
+s2, n = pat.subn(r'\1^#########\\s+\2', s)
+if n == 0:
+    print("MUTATION-FAILED: no re.findall heading pattern to break", file=sys.stderr)
+    raise SystemExit(3)
 p.write_text(s2, encoding="utf-8")
 PYEOF
 BGOT=$(reported "$tmp/broken") || { echo "INCONCLUSIVE: generator failed on the broken fixture" >&2; exit 2; }

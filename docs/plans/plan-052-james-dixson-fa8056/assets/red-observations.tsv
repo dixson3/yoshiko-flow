@@ -90,3 +90,8 @@ timestamp	ctl_id	exit
 2026-08-24T23:48:38Z	ctl-touches-coverage	1
 2026-08-24T23:48:38Z	ctl-touches-subkey	1
 2026-08-24T23:48:39Z	ctl-tracker-endstate	1
+2026-08-24T23:49:30Z	ctl-handoff-count	1
+2026-08-24T23:49:31Z	ctl-handoff-drift	0
+2026-08-24T23:49:36Z	ctl-handoff-count	1
+2026-08-24T23:49:50Z	ctl-handoff-count	0
+2026-08-24T23:49:51Z	ctl-handoff-count	0
