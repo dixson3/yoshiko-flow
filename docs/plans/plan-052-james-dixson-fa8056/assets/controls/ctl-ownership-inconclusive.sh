@@ -66,14 +66,14 @@ if v != "INCONCLUSIVE":
     raise SystemExit(1)
 blob = json.dumps(d).lower()
 if "orthogonal" in blob:
-    print(f"FAIL: {label} — reported \"orthogonal\" on input below the floor", file=sys.stderr)
+    print(f"FAIL: {label} — reported 'orthogonal' on input below the floor", file=sys.stderr)
     raise SystemExit(1)
 floor = d.get("coverage_floor")
 if floor is None or float(floor) != float(sys.argv[2]):
     print(f"FAIL: {label} — coverage_floor is {floor!r}, expected the NUMBER {sys.argv[2]}",
           file=sys.stderr)
     raise SystemExit(1)
-print(f"ok: {label} -> INCONCLUSIVE, floor={floor}, no \"orthogonal\"")
+print(f"ok: {label} -> INCONCLUSIVE, floor={floor}, no 'orthogonal'")
 ' "$1" "$FLOOR" || fail=1
 }
 
@@ -94,10 +94,10 @@ if v == "INCONCLUSIVE":
           file=sys.stderr)
     raise SystemExit(1)
 if d.get("report_only") is not True:
-    print(f"FAIL: report_only is {d.get(\"report_only\")!r}, expected True (R1)", file=sys.stderr)
+    print(f"FAIL: report_only is {d.get('report_only')!r}, expected True (R1)", file=sys.stderr)
     raise SystemExit(1)
 print("ok: 100% coverage -> not INCONCLUSIVE, report_only=true")
 ' || fail=1
 
 [ "$fail" -eq 0 ] || exit 1
-echo "PASS: the ${FLOOR}% floor is a number, fires below it, and never reports \"orthogonal\" on no input"
+echo "PASS: the ${FLOOR}% floor is a number, fires below it, and never reports 'orthogonal' on no input"

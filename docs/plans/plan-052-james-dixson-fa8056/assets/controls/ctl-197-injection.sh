@@ -62,7 +62,7 @@ if not beads:
     print(f"FAIL: no verify beads emitted; got keys {sorted(d)}", file=sys.stderr)
     raise SystemExit(1)
 if str(d.get("formula") or d.get("target") or "").find("plan-execute") < 0:
-    print(f"FAIL: the emission does not target plan-execute (formula={d.get(\"formula\")!r})",
+    print(f"FAIL: the emission does not target plan-execute (formula={d.get('formula')!r})",
           file=sys.stderr)
     raise SystemExit(1)
 # ONE verify bead per real execution bead — never a single blanket bead.
