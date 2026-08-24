@@ -5,3 +5,11 @@ timestamp	ctl_id	exit
 2026-08-24T23:22:57Z	ctl-harness-contract	0
 2026-08-24T23:23:16Z	ctl-harness-contract	1
 2026-08-24T23:23:35Z	ctl-harness-contract	1
+2026-08-24T23:27:08Z	ctl-baseline-pathspec	1
+2026-08-24T23:27:08Z	ctl-baseline-pathspec	1
+2026-08-24T23:27:25Z	ctl-baseline-pathspec	1
+2026-08-24T23:27:40Z	ctl-baseline-pathspec	0
+2026-08-24T23:28:21Z	ctl-req-landed	1
+2026-08-24T23:28:21Z	ctl-req-landed	0
+2026-08-24T23:28:48Z	ctl-spec-first-order	1
+2026-08-24T23:28:48Z	ctl-spec-first-order	0
