@@ -297,7 +297,14 @@ check("the linter does not mutate the tree", before == after,
 
 rc, out = run("--json")
 check("a clean corpus exits 0", rc == 0, f"got {rc}")
-check("...and never reports INCONCLUSIVE", "INCONCLUSIVE" not in out)
+# plan-052 Issue 1.2: this asserted the WORD never appears anywhere in the JSON, which is a
+# different claim from "the VERDICT is never INCONCLUSIVE". Findings quote document content
+# back to the reader, so any plan whose own `Verification` cell contains the word trips a
+# substring scan — and one does. The verdict vocabulary is what Issue 4.4 was about, so the
+# assertion now reads the field it was always about.
+check("...and never reports INCONCLUSIVE",
+      json.loads(out).get("verdict") != "INCONCLUSIVE",
+      f'verdict={json.loads(out).get("verdict")!r}')
 
 # --- plan-048 Issue 2.10: one fixture pair per newly instantiated type -------------------
 #
@@ -852,11 +859,18 @@ check("SC21: ...and in the engine's own docstring for the kind",
       or "denominator-only" in (SHARED / "doc_lint.py").read_text(encoding="utf-8").lower())
 
 # The promotion carve-out must be SURGICAL: other `plan` checks still promote at `review`.
+#
+# plan-052 Issue 1.2 added the SECOND opt-out, `verification-clause`. The invariant this
+# guards is "carve-outs are rare and each is justified", not "there can only ever be one" —
+# so the list is expected to grow slowly and each entry must carry its measurement in the
+# schema. Measured before shipping that one: 0 of 186 criteria across 52 bundles are in the
+# clause grammar, so promoting it would hard-fail intake on 51 of 52 plans for a convention
+# that did not exist when they were written. That is an outage, not a check.
 _sch = [s for s in doc_lint_mod.load_schemas("plan")][0]
 _promoting = [c["id"] for c in _sch["checks"] if c.get("promote", True)]
 _not = [c["id"] for c in _sch["checks"] if not c.get("promote", True)]
 check("check-level `promote = false` is SURGICAL — only the hint opts out",
-      _not == ["stale-measured-literal"] and len(_promoting) > 5,
+      _not == ["stale-measured-literal", "verification-clause"] and len(_promoting) > 5,
       f"opted-out={_not} promoting={len(_promoting)}")
 
 

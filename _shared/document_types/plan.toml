@@ -132,3 +132,16 @@ statuses = ["scoping", "investigating", "drafting", "review", "ready-for-approva
 # overlap at 144 of 1340" drifts silently when 1340 moves, and prose like "roughly a third"
 # has no literal at all. A numerator-drift instance passes green.
 promote = false
+
+[[checks]]
+id = "verification-clause"
+severity = "W"
+kind = "verification-clause"
+section = "Success Criteria"
+column = "Verification"
+# ADVISORY, PERMANENTLY — `promote = false` keeps it `W` at `review` too (REQ-DATA-053 at the
+# CHECK level). Measured before shipping: 0 of 186 criteria across 52 bundles are in this
+# grammar, so promoting it would hard-fail intake on 51 of 52 plans for a convention that did
+# not exist when they were written. That is an outage, not a check — the same reasoning
+# REQ-DATA-057 applies to an INCONCLUSIVE linter.
+promote = false
