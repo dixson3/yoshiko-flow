@@ -220,8 +220,10 @@ chain — a guard that refused at depth 1 would make every fixture-driven contro
 standalone and INCONCLUSIVE under the chain.
 
 **An INCONCLUSIVE re-check maps to `warn` and shall never hard-fail completion** (the
-REQ-DATA-057 precedent): the corpus is unmigrated — the criteria table exists in 5 of 53
-bundles at authoring time — so INCONCLUSIVE is the *expected* verdict almost everywhere, and a
+REQ-DATA-057 precedent): the corpus is unmigrated — measured over pathspec
+`docs/plans/plan-*/plan.md` at authoring time, **6 of 52** bundles carry the four-column
+`Verification | Discharged-by` shape and exactly **1** (this plan) carries any clause-form
+criterion — so INCONCLUSIVE is the *expected* verdict almost everywhere, and a
 hard gate on it would be an outage rather than a check.
 
 A re-check that returns **exit 1** shall **HALT** the §6.4 close chain, and the chain's caller

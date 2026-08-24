@@ -772,9 +772,11 @@ shall **unescape GFM table pipes** (`\|` → `|`, `\\` → `\`) before execution
 inside a GFM table, so a piped command is necessarily escaped there and is otherwise executed
 as a truncated command that means something else.
 
-The polarity marker is the load-bearing part. Measured on the corpus at authoring time: **0 of
-155** criteria carried a machine-readable clause, and plan-051's `SC4` passes on exit **1**
-while its `SC6` passes on exit **0** — a fact that existed nowhere but prose.
+The polarity marker is the load-bearing part. Measured on the corpus at authoring time (pathspec
+`docs/plans/plan-*/plan.md`, excluding this plan): **0 of 186** criteria carried a
+machine-readable clause, across **52** bundles of which only **6** even use the four-column
+`Verification | Discharged-by` shape. plan-051's `SC4` passes on exit **1** while its `SC6`
+passes on exit **0** — a fact that existed nowhere but prose.
 Rationale: #199. A criterion whose Verification is prose cannot be re-run, so it is only ever
 as true as the last time a human read it. plan-051 shipped `SC4b` measured green at the issue
 that discharged it and **false two epics later**, caught by an operator re-measurement rather
