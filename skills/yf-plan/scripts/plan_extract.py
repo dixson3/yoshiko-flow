@@ -73,7 +73,7 @@ ISSUE = re.compile(r"^- +(?:\*\*)?(?:Issue +)?(?P<id>[0-9]+|[A-Z])\.(?P<sub>[0-9
 
 # A sub-key written at COLUMN 0 instead of two-space-indented. Recovered by attaching it to
 # the immediately preceding issue bullet — no other referent is possible.
-COL0_SUBKEY = re.compile(r"^- +(depends-on|resolves-upstream)\s*:\s*(?P<val>.*)$", re.I)
+COL0_SUBKEY = re.compile(r"^- +(depends-on|resolves-upstream|touches)\s*:\s*(?P<val>.*)$", re.I)
 
 # Noise-word prefixes inside a `Blocks:` referent. `Issue 5.1` and `5.1` are the same
 # referent; the prefix (singular or plural) carries no information.
@@ -81,7 +81,7 @@ _ISSUE_PREFIX = re.compile(r"^Issues?\s+(?P<rest>.+)$", re.I)
 _EPIC_PREFIX = re.compile(r"^Epics?\s+(?P<rest>[0-9]+|[A-Z])$", re.I)
 
 # Sub-keys are TWO-SPACE-INDENTED bullets under their issue. Anchored: `^ {2}- key:`.
-SUBKEY = re.compile(r"^ {2}- +(depends-on|resolves-upstream)\s*:\s*(?P<val>.*)$", re.I)
+SUBKEY = re.compile(r"^ {2}- +(depends-on|resolves-upstream|touches)\s*:\s*(?P<val>.*)$", re.I)
 
 # TRAILING-INLINE sub-key (REQ-DATA-052, plan-049 Issue 2.1). The declaration is written at
 # the END of an issue bullet, or of one of its two-space continuation lines, instead of as
@@ -143,6 +143,25 @@ def mask_inline_code(line: str) -> str:
     inline code span is DOCUMENTATION, not a declaration.
     """
     return re.sub(r"`[^`]*`", lambda m: " " * len(m.group(0)), line)
+
+
+def _subkey_value_verbatim(raw: str) -> str:
+    """The sub-key's value, taken from the UNMASKED line by splitting on its first colon.
+
+    NOT an offset slice of the match's `val` group, and the difference is load-bearing. The
+    match ran against `mask_inline_code(raw)`, where a backticked term is blanked to a run of
+    spaces — so the pattern's whitespace run after the colon GREEDILY SWALLOWS the first
+    backticked value. Measured on plan-052: every `touches:` list lost its FIRST path, and a
+    single-path list came back EMPTY (13 of 31 issues), while `--strict` still reported
+    `unparsed: []` and exit 0. That is the same silent-corruption shape #186 found in titles,
+    reached by a different route: there the masked text was captured, here the masked text
+    moved the offsets.
+
+    Splitting on the first colon is safe because the key (`depends-on`, `resolves-upstream`,
+    `touches`) contains none.
+    """
+    _, sep, rest = raw.partition(":")
+    return rest.strip() if sep else ""
 
 
 def _verbatim(raw: str, m: "re.Match[str]", group) -> str:
@@ -264,9 +283,33 @@ def extract(path: Path) -> dict:
     cur_epic: dict | None = None
     cur_issue: dict | None = None
 
-    def handle_subkey(key: str, val: str, col0: bool) -> None:
+    def handle_subkey(key: str, val: str, col0: bool, val_verbatim: str | None = None) -> None:
         """One implementation for both the canonical two-space form and the
         recovered column-0 form, so the two can never diverge."""
+        if key == "touches":
+            # plan-052 Issue 1.4 (REQ-DATA-071). `- touches:` becomes a FIRST-CLASS field so
+            # single-writer ownership is measurable at authoring time. Consumed here — and so
+            # excluded from `detail` on the same grounds as the other two sub-keys: the same
+            # bytes must not be reachable both as a structured field and as prose.
+            #
+            # Deliberately NOT all-or-nothing, unlike `depends-on`. That rule exists because a
+            # half-recovered EDGE LIST silently reorders execution; a path list materializes no
+            # edge and drives no ordering, so refusing the whole declaration over one odd entry
+            # would discard good data to protect an invariant this field does not have.
+            if col0:
+                rec(i, "col0-subkey", raw.strip(), f"  - touches: {val}")
+            # READ THE VALUE VERBATIM (REQ-DATA-062's rule, applied to this field). The match
+            # ran against `mask_inline_code(raw)`, where every backticked term is blanked to a
+            # run of spaces — and a `touches:` value is ENTIRELY backticked paths, so the
+            # masked value is whitespace and the field silently came back empty on every
+            # issue. Masking is still correct for PARSING; it is only the captured text that
+            # must come from the unmasked source.
+            src = val_verbatim if val_verbatim is not None else val
+            for q in src.split(","):
+                q = q.strip().strip("`").strip("*").strip()
+                if q and q not in cur_issue["touches"]:
+                    cur_issue["touches"].append(q)
+            return
         if key == "depends-on":
             parts = [q.strip().strip("`").strip("*") for q in val.split(",")
                      if q.strip()]
@@ -383,7 +426,7 @@ def extract(path: Path) -> dict:
                              "title": _verbatim(raw, m, "rest"),
                              "epic": cur_epic["num"], "line": i + 1,
                              "detail_lines": [],
-                             "depends_on": [], "resolves_upstream": []}
+                             "depends_on": [], "resolves_upstream": [], "touches": []}
                 issues.append(cur_issue)
                 cur_epic["issue_ids"].append(cur_issue["id"])
                 # ...and a declaration written at the END OF THE BULLET ITSELF.
@@ -395,7 +438,8 @@ def extract(path: Path) -> dict:
                 if cur_issue is None:
                     bad(i, "sub-key bullet with no owning issue", raw)
                     continue
-                handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=False)
+                handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=False,
+                              val_verbatim=_subkey_value_verbatim(raw))
                 continue
 
             # RECOVERED (plan-048 Issue 1.3): a sub-key written at column 0 instead of
@@ -406,7 +450,8 @@ def extract(path: Path) -> dict:
                 if cur_issue is None:
                     bad(i, "sub-key bullet with no owning issue", raw)
                     continue
-                handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=True)
+                handle_subkey(m.group(1).lower(), m.group("val").strip(), col0=True,
+                              val_verbatim=_subkey_value_verbatim(raw))
                 continue
 
             # A two-space continuation of the current issue — and ONLY that, FOR THE
