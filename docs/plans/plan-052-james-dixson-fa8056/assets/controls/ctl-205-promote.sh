@@ -65,24 +65,52 @@ if not rules:
     raise SystemExit(1)
 
 by_id = {str(r.get("id") or r.get("name")): r for r in rules if isinstance(r, dict)}
-missing = [r for r in ("R1", "R2a") if r not in by_id]
-if missing:
-    print(f"FAIL: rule(s) {missing} absent; present: {sorted(by_id)}", file=sys.stderr)
-    raise SystemExit(1)
 
+# THE CLOSE-OUT BINDING, asserted against the mechanism that actually implements it rather
+# than a key name. `statuses` decides WHETHER a check runs (REQ-DATA-058), and `reconciling`
+# / `complete` are the only statuses the §6.3-§6.4 close-out runs under — so a check scoped
+# to them IS close-out-bound. An earlier draft of this control looked for a `promote_at` key
+# that no engine reads; it would have gone green on a declaration nothing consumed, which is
+# the defect this plan exists to remove.
+CLOSEOUT = {"reconciling", "complete"}
 problems = []
-for rid in ("R1", "R2a"):
-    r = by_id[rid]
-    # ARM 1: a CLOSE-OUT binding must promote it to error severity.
-    promote = r.get("promote_at") or r.get("promote") or r.get("bindings")
-    blob = str(promote).lower()
-    if "close" not in blob:
-        problems.append(f"{rid}: no close-out binding declared (promote_at={promote!r})")
-    # ARM 2: authoring-time severity must be UNCHANGED (not a hard error).
-    sev = str(r.get("severity") or "").upper()
-    if sev == "E":
-        problems.append(f"{rid}: severity is E at AUTHORING time — the promotion is GLOBAL, "
-                        f"not close-out-scoped; an in-flight plan would hard-fail")
+
+for base in ("R1", "R2a"):
+    if base not in by_id:
+        problems.append(f"{base}: absent; present ids are {sorted(by_id)}")
+        continue
+
+    # ARM 1: authoring-time severity is UNCHANGED. An in-flight plan legitimately has rows
+    # whose Discharged-by / Resolved By are not yet knowable.
+    authoring = [r for r in rules
+                 if str(r.get("rule") or r.get("id")) == base
+                 and not (set(r.get("statuses") or []) and
+                          set(r.get("statuses") or []) <= CLOSEOUT)]
+    if not authoring:
+        problems.append(f"{base}: no authoring-time check remains — the promotion replaced "
+                        f"it instead of adding a binding")
+    for r in authoring:
+        if str(r.get("severity") or "").upper() == "E":
+            problems.append(f"{base}: authoring-time check {r.get('id')!r} is severity E — "
+                            f"the promotion is GLOBAL, not close-out-scoped; an in-flight "
+                            f"plan would hard-fail")
+
+    # ARM 2: a close-out-scoped check exists AND is error-severity there.
+    bound = [r for r in rules
+             if str(r.get("rule") or r.get("id")) == base
+             and set(r.get("statuses") or []) and set(r.get("statuses") or []) <= CLOSEOUT]
+    if not bound:
+        problems.append(f"{base}: no check is scoped to the close-out statuses {sorted(CLOSEOUT)}")
+    elif not any(str(r.get("severity") or "").upper() == "E" for r in bound):
+        problems.append(f"{base}: a close-out-scoped check exists but none is severity E — "
+                        f"it is bound but not promoted")
+
+# ARM 3: the promotion must SURVIVE at `complete`. STATUS_SEVERITY demotes E -> R there, and
+# only the file-level `promote = false` bypasses it. Without that the close-out E is silently
+# downgraded at the exact status it exists to fire on.
+if d.get("promote", True):
+    problems.append("the schema does not set `promote = false`, so STATUS_SEVERITY demotes "
+                    "the close-out E to R at `complete` — the promotion would be inert")
 
 if problems:
     print("FAIL: the R1/R2a promotion is not close-out-scoped:", file=sys.stderr)

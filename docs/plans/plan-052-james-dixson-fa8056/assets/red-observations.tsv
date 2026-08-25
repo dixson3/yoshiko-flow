@@ -254,3 +254,10 @@ timestamp	ctl_id	exit
 2026-08-25T00:08:15Z	ctl-205-tombstone	0
 2026-08-25T00:11:09Z	ctl-205-fixture-flag	0
 2026-08-25T00:11:09Z	ctl-205-tombstone	0
+2026-08-25T00:12:19Z	ctl-205-promote	0
+2026-08-25T00:12:19Z	ctl-205-promote	0
+2026-08-25T00:12:37Z	ctl-205-promote	1
+2026-08-25T00:12:37Z	ctl-205-promote	1
+2026-08-25T00:12:38Z	ctl-205-promote	1
+2026-08-25T00:12:38Z	ctl-205-promote	1
+2026-08-25T00:12:38Z	ctl-205-promote	0
