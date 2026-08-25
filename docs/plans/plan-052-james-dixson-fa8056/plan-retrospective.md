@@ -108,3 +108,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-24 |
+| `stop_class` | 5 |
+| `asked` | The §6.4 close chain halted: recheck-criteria exit 1, SC1c and SC20 FALSE at completion. Are these regressions? |
+| `answered` | NO — both are VERIFICATION-CLAUSE / CRITERION MISMATCHES, the same class as the D8 gate defect (#219) but in Success Criteria rather than in a gate. Neither criterion's SUBSTANCE is false. SC1c: its clause runs ctl-spec-first-order, which measures 'main..HEAD'; post-merge we are ON main so the range is EMPTY and the control correctly returns 2 (INCONCLUSIVE). SC1c's own text says it is checked PRE-MERGE and PRE-SQUASH at 7.1, and it WAS green there (first spec commit #1 precedes first non-spec skills/** commit #14). The clause names no range, so at completion it measures nothing. SC20: its clause asserts verify-reconcile's verdict == 'pass', but the verdict is 'inconclusive' because the #218 tracker row is REPORT-ONLY BY DESIGN — verify-reconcile states a tracker 'carries no end-state contract in EITHER direction'. 25 of 26 rows pass and the 26th has no contract to check, so the criterion's substance ('every upstream row reached the end state its disposition requires') IS satisfied while its predicate is wrong. I did NOT amend either criterion to make the chain pass; that is the inversion this plan exists to prevent. HALTED and escalated. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | recheck-criteria exit 1, verdict FAIL, class_a_fraction 0.9722 (35/36), evaluated_fraction 0.9722 (35/36), failed ['SC1c','SC20']. SC1c actual_exit=2 want=0, control prints 'INCONCLUSIVE: range main..HEAD is empty' and git rev-list --count main..HEAD = 0. SC20 actual_exit=1; verify-reconcile rows = 25 pass + 1 inconclusive (#218, disposition=tracker). |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

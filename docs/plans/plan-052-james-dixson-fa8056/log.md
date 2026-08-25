@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-24
+- reconciling: post-execution reconciliation
 - executing: start gate resolved
 - intake: epic yf-mol-f2q poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
