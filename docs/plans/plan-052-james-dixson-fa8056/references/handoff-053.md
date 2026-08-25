@@ -23,7 +23,7 @@ wrong number and diffed it against itself.
 
 ## Process findings (`plan-retrospective.md`)
 
-`plan-retrospective.md` carries **3** entries: `RE-001`, `RE-002`, `RE-003`.
+`plan-retrospective.md` carries **4** entries: `RE-001`, `RE-002`, `RE-003`, `RE-004`.
 
 *Declared exemption: the paragraphs below appear in no table and are carried as
 literals, so a tables-only generator cannot silently drop what plan-053 needs.*

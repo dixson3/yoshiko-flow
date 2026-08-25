@@ -429,9 +429,9 @@ independent**, which is the worst single-writer violation in the corpus by the p
 ### Reconcile Gate
 - Type: auto (all execution beads closed)
 - Condition: every non-gate execution bead under this plan's epic, EXCLUDING the reconcile step itself, is closed
-- Test: bd list --all --include-gates --json | jq -e '[.[]|select(.metadata.plan=="plan-052-james-dixson-fa8056" and .issue_type!="gate" and ((.title|startswith("Reconcile:"))|not) and .status!="closed")]|length==0'
+- Test: bd list --all --include-gates --json | jq -e '[.[]|select(.metadata.plan=="plan-052-james-dixson-fa8056" and .metadata.plan_issue != null and .issue_type!="gate" and ((.title|startswith("Reconcile:"))|not) and .status!="closed")]|length==0'
 - Blocks: reconcile step
-- Instructions: the exclusion is REQUIRED and was verified load-bearing at pass 1 by running the jq against live bd (REQ-AGENT-046)
+- Instructions: the exclusion is REQUIRED and was verified load-bearing at pass 1 by running the jq against live bd (REQ-AGENT-046). AMENDED AT EXECUTION (operator-detected): the Test lacked `.metadata.plan_issue != null` and so counted the SEVEN deferred-defect beads Issue 7.3 files, which are OPEN BY DESIGN because they track upstream issues #211-#217 that are open upstream — they never close, so the gate could never open. Those beads are `parent=-`, which protects cascade-close (it walks the epic tree) but NOT this Test, which keys on `metadata.plan` and never looks at parentage. The CONDITION was already correct — it says `under this plan's epic` — so this was a Test/Condition FIDELITY defect, not a Condition change. Discriminator measured on live bd: of 43 beads stamped `plan=plan-052`, 31 carry `metadata.plan_issue` (every execution bead, REQ-DATA-026/D-10) and 12 do not (the reconcile step, the 7 defect beads, and 4 gates). The `startswith("Reconcile:")` clause is retained as redundant-but-defensive
 
 ## Risks & Mitigations
 
