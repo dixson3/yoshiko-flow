@@ -165,3 +165,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-009
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-24 |
+| `stop_class` |  |
+| `asked` | SC24 is FALSE at the plan's completion. Why is the plan still 'complete', and why was SC24 not amended? |
+| `answered` | OPERATOR RULING: push as-is and file the formulation as a defect (D10/#221). SC24 asserts a MOVING fact (stamp == HEAD) where it should assert a DURABLE one (stamp == the commit it was built from, recorded at deploy). The deploy was real and SC24 was genuinely green at ed0803f; then the commit RECORDING that the close chain passed moved HEAD and re-staled it — and that commit touches docs/plans/** only, which cargo:rerun-if-changed does not watch, so no rebuild would have re-stamped it either. RE-STAMPING DOES NOT TERMINATE: any further commit re-stales it, INCLUDING the commit that records the check passing. So the criterion as specified can never be permanently true, and amending it here would be lowering a claim to match what the check returns — the one thing this plan consistently refused. PREDICTED AND CLOSED ON A FALSE PREMISE: red-team pass 4 raised it as M7 ('recheck-criteria runs at completion, AFTER 7.5's commit') and the resolution was 'rebuild-then-verify after the final commit'. THERE IS NO FINAL COMMIT. The resolution assumed one exists. FOURTH INSTANCE OF ONE CLASS — SC1c, SC20, the Reconcile Gate, SC24 — a predicate that does not implement the claim it verifies. SC1c's accepted fix is the template: stop measuring a spelling that stops naming the thing, measure something permanent. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | Re-measured independently before filing: yf --version stamp ed0803f, HEAD e94206a, ctl-deploy-stamp exit 1 printing 'stamp ed0803f does NOT match HEAD e94206a'; git show --name-only 8026fe7 touches docs/ only. D10 filed as #221, verified by RETURNED URL (https://github.com/dixson3/yoshiko-flow/issues/221) with 6 key evidence strings present in the body, not by an exit code. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-010
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-24 |
+| `stop_class` |  |
+| `asked` | The completion report said 'zero open beads' and 'working tree clean'. Were both accurate? |
+| `answered` | NEITHER WAS PRECISE. (1) 'Zero open beads' should have read ZERO OPEN EXECUTION BEADS. Nine tracking beads (D1-D9, now D10) are open BY DESIGN because their upstream issues are open — and my OWN Reconcile Gate amendment is what established exactly that distinction, via the metadata.plan_issue guard separating execution beads from out-of-tree defect beads. I had the vocabulary and did not use it. (2) 'Working tree clean' was true when measured and was then dirtied by a parent audit run of recheck-criteria, which appended 29 rows to the ledger. Those rows were COMMITTED rather than reverted, because deleting real control-run records to keep a tree clean is the evidence-destruction this plan refused elsewhere. And the ledger cannot tell a parent AUDIT run from an EXECUTION run — a LIVE INSTANCE of D9/#220, appearing in the same session that filed it. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | bd list --all --include-gates: open execution beads under yf-mol-f2q = 0; open beads carrying metadata.deferred_defect = 9 (D1-D9) at the time of the report. Ledger gained 29 rows from the parent's audit run, indistinguishable in schema (timestamp, ctl_id, exit) from execution runs. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

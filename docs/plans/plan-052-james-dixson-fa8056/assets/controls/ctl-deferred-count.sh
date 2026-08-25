@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ctl-deferred-count (SC21a) — all NINE deferred defects are filed, the count DERIVED from
+# ctl-deferred-count (SC21a) — all TEN deferred defects are filed, the count DERIVED from
 # assets/deferred-defects.md.
 #
 # SPLIT FROM SC21b DELIBERATELY. Whether each defect carries a CORRECT measurement is a
@@ -18,7 +18,7 @@ DOC="$ASSETS/deferred-defects.md"
 # gap, #219) and added to the enumeration. The alternative — leaving a real defect out of the
 # document so this count stayed at 7 — is the inversion this plan exists to prevent: a control
 # is for catching reality, not for being kept green.
-EXPECTED=9
+EXPECTED=10
 
 # A MISSING declared artifact is EXIT 1 (a real negative).
 if [ ! -f "$DOC" ]; then

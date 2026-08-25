@@ -1,10 +1,10 @@
 # plan-052 — deferred defects
 
-**Nine** defects this plan **found and deliberately did not fix**. Each is declared out of scope
+**Ten** defects this plan **found and deliberately did not fix**. Each is declared out of scope
 with its measurement, and each is filed upstream so it survives this plan rather than living
 in a findings file nobody re-reads.
 
-`ctl-deferred-count` (SC21a) asserts mechanically that there are **nine** rows and that every
+`ctl-deferred-count` (SC21a) asserts mechanically that there are **ten** rows and that every
 row names a filed issue. **SC21b is `manual:` deliberately** — whether each filing carries a
 *correct* measurement is a reader judgement over issue prose. The count is checkable and IS
 checked; only the substance is waived, rather than waiving both and calling the pair verified.
@@ -66,3 +66,14 @@ proving none of them.
 | # | Defect | Measurement | Filed |
 | :-- | :-- | :-- | :-- |
 | D9 | **`red-observations.tsv` cannot distinguish a driven RED from a real failure**, and records no subject — plus **`grant --check` does not verify AMENDMENTS** | Schema is `(timestamp, ctl_id, exit)`. For `ctl-spec-first-order` alone: **18** records, **11** exit-0, **9** of those pre-merge, nothing distinguishing which run measured what; both exit-1 records are `CTL_RED` driven REDs, indistinguishable from failures. So `SC2` and both red-prework Conditions — *"a recorded RED observation with EXIT 1"* — are **weaker than their wording**. Second finding, same class one layer up: two grant amendments were written to a stale worktree copy and never reached the authoritative file, and `grant --check` returned **exit 0** anyway; only counting `AMENDMENT` markers caught it | [#220](https://github.com/dixson3/yoshiko-flow/issues/220) (`yf-sfle`) |
+
+## SC24's formulation (found by the completion commit itself)
+
+The plan was **NOT** reverted to `reconciling` and `SC24` was **NOT** amended. The operator
+ruled that its falseness is recorded upstream rather than papered over — the same direction as
+everything else here: fix the predicate, or file it, but never lower the claim to match what the
+check happens to return.
+
+| # | Defect | Measurement | Filed |
+| :-- | :-- | :-- | :-- |
+| D10 | **`SC24` asserts a MOVING fact (`stamp == HEAD`) where it should assert a DURABLE one** (`stamp ==` the commit it was built from, recorded at deploy) | Stamp `ed0803f`, HEAD `e94206a`. The deploy was real and `SC24` was genuinely green at `ed0803f`; then the commit **recording that the close chain passed** moved HEAD and re-staled it — and that commit touches `docs/plans/**` only, which `cargo:rerun-if-changed` does not watch, so no rebuild would have re-stamped it either. **Re-stamping does not terminate:** any further commit re-stales it, including the one recording the check passing. **Predicted and closed on a false premise** — red-team pass 4 raised it as `M7` and the resolution was *"rebuild-then-verify after the final commit"*. **There is no final commit.** FOURTH instance of one class, with `SC1c`, `SC20` and the Reconcile Gate | [#221](https://github.com/dixson3/yoshiko-flow/issues/221) (`yf-487t`) |
