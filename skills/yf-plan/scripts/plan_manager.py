@@ -2604,6 +2604,27 @@ def _recheck_holds(rc: int, want: str) -> bool:
     return rc == int(want)
 
 
+@cli.command("gate-consistency")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "json_output", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def gate_consistency_cmd(plan_dir: str, json_output: bool):
+    """Check every capability gate against its own Blocks set (#113, Issue 4.2).
+
+    A thin wrapper over `gate_consistency.py`, so the check is reachable through the same
+    verb surface as the rest of the chain. Exit: 0 clean · 1 finding · 2 could not run.
+    """
+    engine = Path(__file__).resolve().parent / "gate_consistency.py"
+    if not engine.is_file():
+        click.echo(json.dumps({"verdict": "INCONCLUSIVE",
+                               "reason": f"gate_consistency.py not found at {engine}"}))
+        sys.exit(2)
+    proc = subprocess.run(["uv", "run", str(engine), plan_dir, "--json"],
+                          capture_output=True, text=True)
+    click.echo(proc.stdout.strip() or proc.stderr.strip())
+    sys.exit(proc.returncode)
+
+
 @cli.command("recheck-criteria")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "json_output", is_flag=True,
