@@ -132,3 +132,34 @@ AMENDMENT 3 — 2026-08-24. AUTHORIZED BY THE OPERATOR, explicitly, in session.
 
   Same constraints as the original grant: route through /yf-beads-upstream, verify the write
   STRUCTURALLY (returned URL on create), heredoc body, fail-closed.
+
+────────────────────────────────────────────────────────────────────────────────
+AMENDMENT 4 — 2026-08-24. AUTHORIZED BY THE OPERATOR, explicitly, in session.
+
+  File ONE NEW issue (D10). Total outward-facing actions is now 27.
+
+  D10 — SC24 ASSERTS A MOVING FACT WHERE IT SHOULD ASSERT A DURABLE ONE, and as specified
+        it can never be permanently true. Measured at plan-052's completion:
+
+          yf --version stamp: ed0803f
+          HEAD:               8026fe7   ("plan-052: COMPLETE — the close chain passed")
+          that commit touches docs/plans/** ONLY — nothing cargo:rerun-if-changed watches
+
+        The deploy genuinely happened and SC24 was genuinely green at ed0803f. Then the
+        commit RECORDING that the close chain passed moved HEAD, and re-staled the stamp.
+        Any further commit does the same, INCLUDING the commit that records the check
+        passing, so re-stamping does not terminate.
+
+        THIS WAS PREDICTED AND CLOSED ON A FALSE PREMISE. plan-052's red-team pass 4 raised
+        it as M7 — "recheck-criteria runs at completion, AFTER 7.5's commit" — and the
+        resolution was "7.5 reworded to rebuild-then-verify after the final commit". There
+        is no final commit. The resolution assumed one exists.
+
+        FOURTH INSTANCE OF ONE CLASS. SC1c, SC20, the Reconcile Gate and now SC24 are all
+        criteria or gates asserting a MOVING fact instead of a DURABLE one. SC1c's accepted
+        fix is the template: it stopped measuring `main..HEAD` (a spelling that stops naming
+        the range) and measures `M^1..M^2` (permanent). SC24's equivalent: assert that the
+        deployed binary's stamp equals THE COMMIT IT WAS BUILT FROM — recorded at deploy —
+        rather than equals HEAD, which moves.
+
+        Same constraints: route through /yf-beads-upstream, verify STRUCTURALLY, heredoc body.
