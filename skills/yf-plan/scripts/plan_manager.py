@@ -2604,6 +2604,32 @@ def _recheck_holds(rc: int, want: str) -> bool:
     return rc == int(want)
 
 
+@cli.command("verify-beads")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--fixture", type=click.Path(), default=None,
+              help="pinned JSON bead snapshot instead of live bd state")
+@click.option("--json-output", "--json", "json_output", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+def verify_beads_cmd(plan_dir: str, fixture: str | None, json_output: bool):
+    """Emit injection-time verify beads for `plan-execute` (#197, Issue 5.2).
+
+    A thin wrapper over `verify_beads.py`. `plan-execute` declares ONE step and its real DAG
+    is built from plan.md, so there is nothing for an aspect to weave over — this is the
+    mechanism for that case, not the same mechanism applied twice.
+    """
+    engine = Path(__file__).resolve().parent / "verify_beads.py"
+    if not engine.is_file():
+        click.echo(json.dumps({"verdict": "INCONCLUSIVE",
+                               "reason": f"verify_beads.py not found at {engine}"}))
+        sys.exit(2)
+    args = ["uv", "run", str(engine), "--plan", _plan_id_from_dir(Path(plan_dir)), "--json"]
+    if fixture:
+        args += ["--fixture", fixture]
+    proc = subprocess.run(args, capture_output=True, text=True)
+    click.echo(proc.stdout.strip() or proc.stderr.strip())
+    sys.exit(proc.returncode)
+
+
 @cli.command("gate-consistency")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "json_output", is_flag=True,
