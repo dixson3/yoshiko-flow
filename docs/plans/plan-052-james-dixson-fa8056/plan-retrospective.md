@@ -51,3 +51,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-24 |
+| `stop_class` |  |
+| `asked` | The first upstream-authorization.txt named every issue under CLASS HEADERS ('A. comment + CLOSE ... #198'). Did the grant check accept it? |
+| `answered` | No — grant --check returned EXIT=1 with 18 UNCOVERED actions. Coverage is judged PER ACTION and the search window is THE LINE NAMING THE ISSUE, so a class header does not reach it. The fix was to make every issue line carry its own action verbs. This is plan-048's exact defect — a close missed on an issue the grant already mentioned, surfacing only at verify-reconcile AFTER writes had begun — and here the round-trip check caught it BEFORE any write. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | plan_manager.py grant <plan_dir> --check <plan_dir>/assets/upstream-authorization.txt --json: first attempt EXIT=1, 18 uncovered; after rewriting each issue line to carry its own verbs, EXIT=0 verdict pass uncovered 0, confirmed independently by operator and executor |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
