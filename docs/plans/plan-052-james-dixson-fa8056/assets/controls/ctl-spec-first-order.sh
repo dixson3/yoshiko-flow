@@ -83,8 +83,38 @@ fi
 echo "ok: pinned negative fixture -> exit 1 (a real negative)"
 
 # --- live branch, PRE-MERGE and PRE-SQUASH ---------------------------------------
+# THE RANGE MUST STILL RESOLVE AFTER THE MERGE. `<base>..HEAD` is the pre-merge range and is
+# EMPTY once the branch has landed and HEAD is the base — so at completion this control
+# returned 2 (INCONCLUSIVE) and `recheck-criteria` read that as SC1c being FALSE. The
+# criterion was true; the range had simply stopped naming anything.
+#
+# So: use `<base>..HEAD` while it is non-empty, and otherwise fall back to the MOST RECENT
+# MERGE COMMIT's parent range (`M^1..M^2`), which is exactly the set of commits the branch
+# contributed — the same commits the pre-merge range named, still in order. No literal sha
+# appears anywhere, so this does not go stale.
 BASE="${CTL_BASE:-main}"
-predicate "$REPO" "${BASE}..HEAD"; live=$?
+RANGE="${BASE}..HEAD"
+if [ -z "$(git -C "$REPO" rev-list "$RANGE" 2>/dev/null)" ]; then
+  M="$(git -C "$REPO" rev-list --merges -1 HEAD 2>/dev/null)"
+  if [ -n "$M" ] && git -C "$REPO" rev-parse -q --verify "${M}^2" >/dev/null 2>&1; then
+    RANGE="${M}^1..${M}^2"
+    echo "ok: '${BASE}..HEAD' is empty (post-merge); using the merge's parent range instead"
+  else
+    # SQUASH-MERGE GUARD. Under a squash the branch's commits do NOT survive as a second
+    # parent, so there is no range that preserves their ORDER — and order is the entire
+    # claim. INCONCLUSIVE is the only honest answer: the instrument cannot see the property,
+    # which is a different fact from the property being false.
+    #
+    # §6.1 mandates `--no-ff`, so this arm does not fire today. It is stated anyway, because
+    # a control that silently mis-measures when the landing strategy changes is worse than
+    # one that says it cannot tell.
+    echo "INCONCLUSIVE: '${BASE}..HEAD' is empty and no merge with a second parent was found." >&2
+    echo "              Under a SQUASH merge the branch's commits do not survive as a parent," >&2
+    echo "              so commit ORDER — which is the whole claim — is unrecoverable." >&2
+    exit 2
+  fi
+fi
+predicate "$REPO" "$RANGE"; live=$?
 [ "$live" -eq 2 ] && exit 2
 [ "$live" -eq 0 ] || exit 1
-echo "PASS: SPEC-first ordering holds on ${BASE}..HEAD; the fixture is a real negative"
+echo "PASS: SPEC-first ordering holds on ${RANGE}; the fixture is a real negative"

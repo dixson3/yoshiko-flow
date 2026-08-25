@@ -127,3 +127,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-24 |
+| `stop_class` |  |
+| `asked` | SC1c and SC20 were FALSE at completion and the §6.4 chain halted. Both were amended mid-completion. WHICH WAY did the amendment go — were the clauses fixed to match the criteria, or the criteria weakened to match the clauses? |
+| `answered` | THE CLAUSES WERE FIXED TO MATCH THE CRITERIA. The CRITERION TEXT OF BOTH IS UNCHANGED, byte for byte. This is the single most important fact in this entry: a reader six months from now must be able to tell that the predicates were corrected to express what the criteria always claimed, and NOT that the claims were lowered to whatever the predicates happened to return. SC20: the criterion says 'every upstream row reached the end state its disposition requires'. A report-only row (the #218 tracker) HAS no required end state — verify-reconcile says a tracker 'carries no end-state contract in EITHER direction' — so the old predicate .verdict=='pass' OVER-SPECIFIED the claim. New predicate asserts NO ROW FAILED, with a non-empty guard so an empty rows array cannot pass vacuously (P3-C1's lesson). Field is .verdict, not .status. SC1c: the criterion says the spec commit precedes the first non-spec skills/** commit, checked PRE-MERGE and PRE-SQUASH. Its control measured '<base>..HEAD', which is EMPTY once the branch has landed and HEAD is the base, so the control correctly returned 2 and recheck read that as FALSE. The criterion was true; the RANGE had stopped naming anything. The control now falls back to the merge's parent range M^1..M^2, which names exactly the commits the branch contributed, in order, and resolves permanently with no literal sha. REJECTED ALTERNATIVES: (a) a LEDGER RECEIPT — not constructible, see the measurement below; (b) 'accept exit 2 as the post-merge answer' — a criterion whose expected exit is INCONCLUSIVE asserts nothing and can never fail, which is the false-comfort mode this plan spent three review passes closing. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | recheck-criteria exit 1, failed ['SC1c','SC20'], class_a 35/36, evaluated 35/36. LEDGER-RECEIPT INFEASIBILITY, measured: red-observations.tsv schema is only (timestamp, ctl_id, exit); it holds 18 ctl-spec-first-order records of which NINE are pre-merge exit-0, and nothing distinguishes the 7.1 run from the other eight; BOTH exit-1 records are CTL_RED driven REDs and the ledger has NO field recording mode, so a driven RED is indistinguishable from a real failure; and no range or commit is recorded, so an exit-0 says nothing about what was measured. SC20 clause verified three ways: live exit 0, empty rows exit 1, a failing row exit 1. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
