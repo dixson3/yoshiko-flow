@@ -1,10 +1,10 @@
 # plan-052 — deferred defects
 
-**Eight** defects this plan **found and deliberately did not fix**. Each is declared out of scope
+**Nine** defects this plan **found and deliberately did not fix**. Each is declared out of scope
 with its measurement, and each is filed upstream so it survives this plan rather than living
 in a findings file nobody re-reads.
 
-`ctl-deferred-count` (SC21a) asserts mechanically that there are **eight** rows and that every
+`ctl-deferred-count` (SC21a) asserts mechanically that there are **nine** rows and that every
 row names a filed issue. **SC21b is `manual:` deliberately** — whether each filing carries a
 *correct* measurement is a reader judgement over issue prose. The count is checkable and IS
 checked; only the substance is waived, rather than waiving both and calling the pair verified.
@@ -56,3 +56,13 @@ was amended from seven to eight in the same change, and the reason is recorded i
 | # | Defect | Measurement | Filed |
 | :-- | :-- | :-- | :-- |
 | D8 | **`gate_consistency.py` does not check TEST/CONDITION FIDELITY** | 4.2 ships two arms — Blocks-set self-satisfaction and discharger closure — and neither compares a gate's `Test` to its own `Condition`. Worked instance: this plan's own Reconcile Gate, whose Condition read *"every non-gate execution bead UNDER THIS PLAN'S EPIC"* while the Test keyed only on `metadata.plan`, so it counted 7 out-of-tree beads that are open by design and the gate could never open. `gate_consistency.py` reports that gate **PASS, 0 findings**. A gap in #113's sub-case SCOPE, not a bug in 4.2 — SC13 asserts the two arms commissioned, and both work | [#219](https://github.com/dixson3/yoshiko-flow/issues/219) (`yf-q4rr`) |
+
+## The harness's own record-keeping (found by the §6.4 halt)
+
+**Discovered by trying to build a receipt and failing.** That failure IS the finding: a plan
+that had accepted the receipt would have shipped a green clause matching nine records and
+proving none of them.
+
+| # | Defect | Measurement | Filed |
+| :-- | :-- | :-- | :-- |
+| D9 | **`red-observations.tsv` cannot distinguish a driven RED from a real failure**, and records no subject — plus **`grant --check` does not verify AMENDMENTS** | Schema is `(timestamp, ctl_id, exit)`. For `ctl-spec-first-order` alone: **18** records, **11** exit-0, **9** of those pre-merge, nothing distinguishing which run measured what; both exit-1 records are `CTL_RED` driven REDs, indistinguishable from failures. So `SC2` and both red-prework Conditions — *"a recorded RED observation with EXIT 1"* — are **weaker than their wording**. Second finding, same class one layer up: two grant amendments were written to a stale worktree copy and never reached the authoritative file, and `grant --check` returned **exit 0** anyway; only counting `AMENDMENT` markers caught it | [#220](https://github.com/dixson3/yoshiko-flow/issues/220) (`yf-sfle`) |

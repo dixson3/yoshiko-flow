@@ -93,6 +93,7 @@ Plus the two "prose that nothing executes" instances that share the thesis: form
 | #216 | coordinator: batched closes make 84% of interval overlap an artifact | deferred | Deferred defect D6 (D-26 / EXP-006 I-5) | 7.3 |
 | #217 | yf-change-validation: `change_validation.py` persists no run record | deferred | Deferred defect D7 (D-13 / EXP-004 §4) | 7.3 |
 | #219 | yf-plan: `gate_consistency.py` does not check TEST/CONDITION FIDELITY | deferred | Deferred defect D8, found AT EXECUTION by the operator — a gap in #113's sub-case SCOPE, not a bug in 4.2. Filed under an AMENDED grant clause, since the original authorized exactly 23 actions | 7.3 |
+| #220 | yf-plan: the RED-observation ledger cannot distinguish a driven RED from a real failure | deferred | Deferred defect D9, found by the §6.4 halt when a ledger receipt for SC1c proved impossible. Carries a second finding: `grant --check` does not verify AMENDMENTS. Filed under grant AMENDMENT 3 | 7.3 |
 
 ## Scoping decisions
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ctl-deferred-count (SC21a) — all EIGHT deferred defects are filed, the count DERIVED from
+# ctl-deferred-count (SC21a) — all NINE deferred defects are filed, the count DERIVED from
 # assets/deferred-defects.md.
 #
 # SPLIT FROM SC21b DELIBERATELY. Whether each defect carries a CORRECT measurement is a
@@ -14,11 +14,11 @@
 set -uo pipefail
 ASSETS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOC="$ASSETS/deferred-defects.md"
-# EIGHT, not seven. An eighth defect was found AT EXECUTION (the gate Test/Condition fidelity
+# NINE. An eighth defect was found AT EXECUTION, and a ninth by the §6.4 halt (the gate Test/Condition fidelity
 # gap, #219) and added to the enumeration. The alternative — leaving a real defect out of the
 # document so this count stayed at 7 — is the inversion this plan exists to prevent: a control
 # is for catching reality, not for being kept green.
-EXPECTED=8
+EXPECTED=9
 
 # A MISSING declared artifact is EXIT 1 (a real negative).
 if [ ! -f "$DOC" ]; then

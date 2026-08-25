@@ -146,3 +146,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-008
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-24 |
+| `stop_class` |  |
+| `asked` | How was SC1c actually resolved, and what did the attempt to resolve it uncover? |
+| `answered` | NOT a receipt and NOT a criterion amendment — a RE-MEASUREMENT on a permanent range. The control falls back from '<base>..HEAD' to the merge's parent range M^1..M^2, which names exactly the commits the branch contributed, in order, resolves permanently, and contains no literal sha. It returns INCONCLUSIVE (exit 2) under a squash merge, where the branch's commits do not survive as a second parent and commit ORDER — the whole claim — is unrecoverable. THE PRE-MERGE RANGE NEVER CEASED TO EXIST; only the SPELLING 'main..HEAD' stopped naming it. That distinction is why the re-measurement works and the receipt idea did not: a range that is still there and merely needs a durable name is a RE-MEASUREMENT problem, not a PROVENANCE problem. THE LEDGER'S INSUFFICIENCY WAS DISCOVERED BY TRYING TO BUILD THE RECEIPT AND FAILING, and that failure is the finding — filed as D9/#220. A plan that had accepted the receipt would have shipped a green clause matching nine records and proving none of them. A second finding of the same class surfaced one layer up and went into the same issue: grant --check returned exit 0 while two authorization amendments were missing entirely, because it verifies coverage of the PROPOSAL's actions and never reads amendment blocks. That is the check failing on itself — the third time in this plan. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | Ledger: red-observations.tsv schema (timestamp, ctl_id, exit); 18 ctl-spec-first-order records, 11 exit-0, 9 pre-merge, both exit-1 records CTL_RED driven. Grant: authorization file measured at 81 lines with ONE AMENDMENT marker while three were claimed, grep -cE 'D9|ledger|219' = 0, and grant --check exit 0; after the operator landed amendments on the AUTHORITATIVE copy at 5621b94 the same file measured 134 lines with three markers and 5 hits. SC1c control now exits 0 printing 'first spec commit #1 precedes first non-spec skills/** commit #14' on 53e1a87^1..53e1a87^2 (32 commits). |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
