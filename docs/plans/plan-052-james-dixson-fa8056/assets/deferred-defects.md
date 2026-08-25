@@ -1,10 +1,10 @@
 # plan-052 — deferred defects
 
-Seven defects this plan **found and deliberately did not fix**. Each is declared out of scope
+**Eight** defects this plan **found and deliberately did not fix**. Each is declared out of scope
 with its measurement, and each is filed upstream so it survives this plan rather than living
 in a findings file nobody re-reads.
 
-`ctl-deferred-count` (SC21a) asserts mechanically that there are **seven** rows and that every
+`ctl-deferred-count` (SC21a) asserts mechanically that there are **eight** rows and that every
 row names a filed issue. **SC21b is `manual:` deliberately** — whether each filing carries a
 *correct* measurement is a reader judgement over issue prose. The count is checkable and IS
 checked; only the substance is waived, rather than waiving both and calling the pair verified.
@@ -45,3 +45,14 @@ they are filed rather than quietly worked around.
 | # | Defect | Measurement | Filed |
 | :-- | :-- | :-- | :-- |
 | D7 | `change_validation.py` **persists no run record** | EXP-004 §4. It is the shared prerequisite for BOTH the recipe-row predicate (P5) and the criterion-re-check predicate (P6): neither can ask "did this actually run, and when?" without one. Filed, not built — building it inside this plan would have pulled two more predicates into scope with it | [#217](https://github.com/dixson3/yoshiko-flow/issues/217) (`yf-ku0x`) |
+
+## The gate Test/Condition fidelity gap (found at execution)
+
+**This one was found AFTER the other seven**, at execution, by a human — not by the checker this
+plan shipped for gates. It is added here rather than left out, because excluding a real defect to
+keep a control's count green is the exact inversion of what this plan is for. `ctl-deferred-count`
+was amended from seven to eight in the same change, and the reason is recorded in the control.
+
+| # | Defect | Measurement | Filed |
+| :-- | :-- | :-- | :-- |
+| D8 | **`gate_consistency.py` does not check TEST/CONDITION FIDELITY** | 4.2 ships two arms — Blocks-set self-satisfaction and discharger closure — and neither compares a gate's `Test` to its own `Condition`. Worked instance: this plan's own Reconcile Gate, whose Condition read *"every non-gate execution bead UNDER THIS PLAN'S EPIC"* while the Test keyed only on `metadata.plan`, so it counted 7 out-of-tree beads that are open by design and the gate could never open. `gate_consistency.py` reports that gate **PASS, 0 findings**. A gap in #113's sub-case SCOPE, not a bug in 4.2 — SC13 asserts the two arms commissioned, and both work | [#219](https://github.com/dixson3/yoshiko-flow/issues/219) (`yf-q4rr`) |

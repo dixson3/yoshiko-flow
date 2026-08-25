@@ -59,3 +59,23 @@ OPERATOR CONSTRAINTS ON THE WRITE:
   - `closable` at land-the-plane stays PROPOSE-ONLY and comes back to the operator.
     Note plan-052 itself shipped the tombstone suppression, so its proposals should
     now exclude the six tombstone_only rows — report what it proposes either way.
+
+────────────────────────────────────────────────────────────────────────────────
+AMENDMENT — 2026-08-24. AUTHORIZED BY THE OPERATOR, explicitly, in session.
+
+The scope above reads "ALL 23 ACTIONS AS PROPOSED. Nothing beyond them." This amendment
+authorizes ONE further outward-facing write, bringing the total to 24. It is recorded here
+rather than by editing the clause above, so the original grant and its extension stay
+separately auditable — plan-048's amendment precedent.
+
+  D8 — file a NEW issue: 4.2's gate-consistency predicate does not check TEST/CONDITION
+       FIDELITY. It checks Blocks-set self-satisfaction and discharger closure, both of
+       which ship and work, but a gate whose Test contradicts its own Condition passes it
+       clean. plan-052's OWN Reconcile Gate is the worked instance: the Condition read
+       "every non-gate execution bead UNDER THIS PLAN'S EPIC" while the Test keyed only on
+       metadata.plan, so it counted 7 out-of-tree beads that are open by design and the
+       gate could never open. Found at execution by a human, not by the checker this plan
+       shipped for gates. File against #113's sub-case, WITH that measurement.
+
+  Same constraints as the original grant: route through /yf-beads-upstream, verify the
+  write STRUCTURALLY (returned URL on create), heredocs for the body, fail-closed.

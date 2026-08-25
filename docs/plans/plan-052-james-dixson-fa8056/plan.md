@@ -6,7 +6,7 @@ author: james-dixson
 created: '2026-08-23'
 status: executing
 deliverable_class: standard
-fingerprint: f8bb106e39e99a49943197ecb19162a7e95712527bf1b40a7fe77f0deacc5ada
+fingerprint: 564d1dacf35f540ab41798ca303356adf15998cc36ee12c0f199e327e57ea90f
 epic: yf-mol-f2q
 ---
 # Plan: Give yf-plan's review-and-close loop a mechanical spine: a bead representation for the Phase 3 review loop, an end-state re-check of plan.md Success Criteria, and evidence-bearing close-out at land-the-plane
@@ -17,7 +17,7 @@ epic: yf-mol-f2q
 **Status:** executing
 **Deliverable-class:** standard
 **Epic:** yf-mol-f2q
-**Fingerprint:** f8bb106e39e99a49943197ecb19162a7e95712527bf1b40a7fe77f0deacc5ada
+**Fingerprint:** 564d1dacf35f540ab41798ca303356adf15998cc36ee12c0f199e327e57ea90f
 
 ## Objective
 Give yf-plan's review-and-close loop a mechanical spine: a bead representation for the Phase 3 review loop, an end-state re-check of plan.md Success Criteria, and evidence-bearing close-out at land-the-plane
@@ -92,6 +92,7 @@ Plus the two "prose that nothing executes" instances that share the thesis: form
 | #215 | coordinator/bd: `started_at` written for 86 of 225 beads, not exposed by `bd list --json` | deferred | Deferred defect D5 (D-26 / EXP-006 §1) | 7.3 |
 | #216 | coordinator: batched closes make 84% of interval overlap an artifact | deferred | Deferred defect D6 (D-26 / EXP-006 I-5) | 7.3 |
 | #217 | yf-change-validation: `change_validation.py` persists no run record | deferred | Deferred defect D7 (D-13 / EXP-004 §4) | 7.3 |
+| #219 | yf-plan: `gate_consistency.py` does not check TEST/CONDITION FIDELITY | deferred | Deferred defect D8, found AT EXECUTION by the operator — a gap in #113's sub-case SCOPE, not a bug in 4.2. Filed under an AMENDED grant clause, since the original authorized exactly 23 actions | 7.3 |
 
 ## Scoping decisions
 

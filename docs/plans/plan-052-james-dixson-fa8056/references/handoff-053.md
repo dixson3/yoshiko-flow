@@ -15,7 +15,7 @@ wrong number and diffed it against itself.
 
 ## Upstream state this plan leaves behind
 
-- **deferred** (11): #145, #188, #190, #165, #211, #212, #213, #214, #215, #216, #217
+- **deferred** (12): #145, #188, #190, #165, #211, #212, #213, #214, #215, #216, #217, #219
 - **exclude** (5): #194, #191, #177, #201, #204
 - **include** (5): #198, #199, #205, #197, #196
 - **partial** (8): #113, #192, #203, #173, #174, #149, #150, #202
@@ -23,7 +23,7 @@ wrong number and diffed it against itself.
 
 ## Process findings (`plan-retrospective.md`)
 
-`plan-retrospective.md` carries **4** entries: `RE-001`, `RE-002`, `RE-003`, `RE-004`.
+`plan-retrospective.md` carries **5** entries: `RE-001`, `RE-002`, `RE-003`, `RE-004`, `RE-005`.
 
 *Declared exemption: the paragraphs below appear in no table and are carried as
 literals, so a tables-only generator cannot silently drop what plan-053 needs.*

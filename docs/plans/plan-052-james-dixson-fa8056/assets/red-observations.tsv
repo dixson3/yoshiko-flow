@@ -356,3 +356,5 @@ timestamp	ctl_id	exit
 2026-08-25T01:08:59Z	ctl-tracker-endstate	0
 2026-08-25T01:08:59Z	ctl-tracker-endstate	0
 2026-08-25T01:11:45Z	ctl-handoff-drift	0
+2026-08-25T01:24:34Z	ctl-deferred-count	0
+2026-08-25T01:24:34Z	ctl-deferred-count	0

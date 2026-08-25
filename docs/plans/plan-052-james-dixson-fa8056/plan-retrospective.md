@@ -89,3 +89,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-24 |
+| `stop_class` |  |
+| `asked` | SKILL.md §5.3 puts the plan folder PRIMARY-side and reserves the worktree for project code/build artifacts. Where did this execution actually write plan.md, log.md and plan-retrospective.md? |
+| `answered` | IN THE WORKTREE, contrary to §5.3, and deliberately so from Issue 7.4 onward. The split is unworkable for a plan whose OWN BUNDLE is a deliverable: Issue 7.4's gen_handoff.py derives the handoff from plan.md and plan-retrospective.md, and it runs in the worktree — so with the bookkeeping primary-side it generated a handoff missing the 8 Upstream Issues rows Issue 7.3 had just added, and would have shipped a wrong count. Earlier writes (record-epic, update-status, the first two retrospective entries) DID land primary-side, so the two copies genuinely diverged: primary frozen at intake (status=approved, no **Epic:** field), worktree carrying every execution update. Resolved by copying the primary state into the worktree, resetting the primary copies to HEAD, and letting the branch own them so §6.1's merge-back reconciles it. The worktree version is the correct one. A reader of §5.3 would NOT predict this, and the next plan will repeat it unless it is written down — which is why this entry exists rather than a silent fix. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | Measured mid-execution: primary plan.md 491 lines vs worktree 481; log.md 27 vs 24; plan-retrospective.md diverged. gen_handoff.py --write in the worktree produced 'deferred (4)' where the primary's plan.md had 11 deferred rows; after reconciling, the same command produced 'deferred (11)' and 'tracker (1)'. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
