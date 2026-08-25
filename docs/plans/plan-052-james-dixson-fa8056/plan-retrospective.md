@@ -39,11 +39,11 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `kind` | deviation |
 | `when` | 2026-08-24 |
 | `stop_class` |  |
-| `asked` | Does bd 1.1.2 weave aspects? I measured 'bd formula show' (4 steps, unchanged) and 'bd mol wisp' (6 beads, no verify steps) across six schema shapes and concluded 5.1 was blocked. |
-| `answered` | WRONG CONCLUSION from correct measurements. Aspects weave at COOK time — 'bd cook <formula> --dry-run' — over formula-declared steps only. Both surfaces I checked are expected to show no woven steps: formula show renders the RAW formula, and a wisp/pour of an UNCOOKED proto has nothing woven yet. EXP-005 recorded the mechanism verbatim ('Aspects weave at COOK time, over formula-declared steps only') and named the verb I never ran. The working schema is EXP-005's: [[pointcuts]] with glob, [[advice]] array-of-tables with target, and the injected step in the sub-table [advice.after]. |
-| `frontloadable` | yes |
-| `detected_by` | operator |
-| `evidence` | Operator reproduced end to end in a scratch repo on bd 1.1.2 Homebrew: 'bd cook wf-aspect2 --dry-run' -> Steps (4) including write-plan-verify and write-context-verify, each tagged [from: wf-aspect2@advice]; then 'bd cook' + 'bd mol pour --json' -> id_mapping (5) carrying both verify beads, so the weave survives the pour. |
+| `asked` | Issue 1.2 declared touches: _shared/doc_lint.py, _shared/document_types/plan.toml, skills/yf-plan/scripts/doc_lint.py. Shipping the verification-clause check broke two assertions in _shared/test_doc_lint.py, which the issue does not declare. |
+| `answered` | Edited the undeclared file. Both assertions were fragile by implementation, not deep invariants: one scanned the whole JSON for the literal word INCONCLUSIVE (which document content quoted back into a finding trips), the other pinned the promote=false opt-out list to exactly one entry. Leaving them red would have blocked 7.1's FULL tier. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | uv run _shared/test_doc_lint.py -> 2 failure(s) before the edit, 'all passed' after; git stash confirmed both failures were introduced by this change and not pre-existing |
 | `escape_class` |  |
 | `adjudication` |  |
 | `origin` |  |
@@ -55,14 +55,14 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 
 | field | value |
 | :-- | :-- |
-| `kind` | deviation |
+| `kind` | stop |
 | `when` | 2026-08-24 |
-| `stop_class` |  |
-| `asked` | The first upstream-authorization.txt named every issue under CLASS HEADERS ('A. comment + CLOSE ... #198'). Did the grant check accept it? |
-| `answered` | No — grant --check returned EXIT=1 with 18 UNCOVERED actions. Coverage is judged PER ACTION and the search window is THE LINE NAMING THE ISSUE, so a class header does not reach it. The fix was to make every issue line carry its own action verbs. This is plan-048's exact defect — a close missed on an issue the grant already mentioned, surfacing only at verify-reconcile AFTER writes had begun — and here the round-trip check caught it BEFORE any write. |
+| `stop_class` | 2 |
+| `asked` | Issue 5.1 requires a verify-artifact aspect that weaves over all four plan-review steps via [compose] aspects. Does bd 1.1.2 support aspect weaving? |
+| `answered` | No. bd classifies the formula as type=aspect and parses [compose] aspects, but weaves nothing. Six schema shapes produce zero woven steps at both formula show and mol wisp. 5.1 and 5.2 are blocked; surfaced to the operator rather than severed unilaterally. |
 | `frontloadable` | yes |
 | `detected_by` | mechanical-check |
-| `evidence` | plan_manager.py grant <plan_dir> --check <plan_dir>/assets/upstream-authorization.txt --json: first attempt EXIT=1, 18 uncovered; after rewriting each issue line to carry its own verbs, EXIT=0 verdict pass uncovered 0, confirmed independently by operator and executor |
+| `evidence` | bd formula list --type aspect -> classifies correctly; bd formula show plan-review --json -> steps=4 unchanged across 6 shapes; bd mol wisp plan-review --json -> created=6, id_mapping has only plan-review{,.conformance,.gate,.gate-gate,.red-team,.resolve} |
 | `escape_class` |  |
 | `adjudication` |  |
 | `origin` |  |

@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-052-james-dixson-fa8056
 author: james-dixson
 created: '2026-08-23'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: f8bb106e39e99a49943197ecb19162a7e95712527bf1b40a7fe77f0deacc5ada
+epic: yf-mol-f2q
 ---
 # Plan: Give yf-plan's review-and-close loop a mechanical spine: a bead representation for the Phase 3 review loop, an end-state re-check of plan.md Success Criteria, and evidence-bearing close-out at land-the-plane
 
 **ID:** plan-052-james-dixson-fa8056
 **Author:** james-dixson
 **Created:** 2026-08-23
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-f2q
 **Fingerprint:** f8bb106e39e99a49943197ecb19162a7e95712527bf1b40a7fe77f0deacc5ada
 
 ## Objective
@@ -82,6 +84,14 @@ Plus the two "prose that nothing executes" instances that share the thesis: form
 | #177 | no check that a numeric target is derivable from the plan's own scope rules | exclude | **CLOSED as wontfix** at scoping — refuted by plan-050 EXP-001 (`81` is textually identical whether measured or guessed) and declined by three successive plans. plan-052 did not investigate it; the close is housekeeping, not a deliverable | — |
 | #201 | `change_validation.py`: repeated `--changed` silently drops all but the last path | exclude | Real bug, unrelated seam | — |
 | #204 | yf-herdr: no teardown contract | exclude | Sibling of #205 and shares the harvest-before-prune constraint, but is a yf-herdr lifecycle change | — |
+| #218 | plan-052-james-dixson-fa8056 execution tracking | tracker | The coarse tracker, filed THROUGH `/yf-beads-upstream` so epic `yf-mol-f2q` carries it as `external_ref` (SC23 asserts that END STATE, never the route) | 7.3 |
+| #211 | bd: `distill --var` silently substitutes nothing and exits 0 | deferred | Filed by 7.2/7.3 as deferred defect D1 (EXP-005 I-4(i)) | 7.3 |
+| #212 | bd: a `type = "gate"` step with no `[steps.gate]` pours as a plain task | deferred | Deferred defect D2 (EXP-005 I-4(ii)) | 7.3 |
+| #213 | bd: `distill` cannot reconstruct gate steps | deferred | Deferred defect D3 (EXP-005 I-4(iii)) | 7.3 |
+| #214 | yf-plan: `REQ-PLAN-073` id collision | deferred | Deferred defect D4 (D-18), re-confirmed on the tree at execution time | 7.3 |
+| #215 | coordinator/bd: `started_at` written for 86 of 225 beads, not exposed by `bd list --json` | deferred | Deferred defect D5 (D-26 / EXP-006 §1) | 7.3 |
+| #216 | coordinator: batched closes make 84% of interval overlap an artifact | deferred | Deferred defect D6 (D-26 / EXP-006 I-5) | 7.3 |
+| #217 | yf-change-validation: `change_validation.py` persists no run record | deferred | Deferred defect D7 (D-13 / EXP-004 §4) | 7.3 |
 
 ## Scoping decisions
 

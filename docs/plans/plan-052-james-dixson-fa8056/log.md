@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-24
+- executing: start gate resolved
+- intake: epic yf-mol-f2q poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-6 APPROVE + audit pass
 - review-pass: red-team pass 6 (CONFIRMING, sixth independent): APPROVE — 0 high, 1 medium, 3 low. All EIGHT pass-5 edits verified LANDED by execution; the builder-precedes-fixer sweep was re-implemented independently and reproduced the author's result exactly. Both gates sound, closure 29/29/0, DAG acyclic with a single root. The one medium was found by RUNNING arm 3 rather than reading it — the plan's own thesis holding at the last step
