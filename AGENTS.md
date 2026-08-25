@@ -179,3 +179,9 @@ current.
 - **Source / repo / tool:** github · `dixson3/yoshiko-flow` · `gh issue`
 - **Granularity:** coarse (default). File ONE tracking issue per plan-scale effort (e.g. per `/yf-plan` plan), linking the plan + epic — NOT one per execution bead. At land-the-plane, create/update that single coarse issue; do NOT push granular sub-beads upstream unless explicitly asked. Precedent: #13 (plan-005), #14 (plan-006), #16 (plan-007).
 - **Notes:** Issues filed against the published skill repo; this working directory (`beads-skills`) is the same codebase.
+- **Composing bodies:** always `--body-file -` fed by a **quoted** heredoc (`<<'EOF'`), never
+  `--body '...'`. Issue and PR bodies are markdown full of backticks and backslashes; a
+  single-quoted `--body` passes backslashes through literally (`\`abc\`` renders as typed) and
+  an unquoted one lets the shell expand `` ` `` and `$`. The heredoc form is the only one that
+  survives both. Same rule for `gh issue comment` and `gh pr create`. Verify a posted body by
+  reading it back (`gh issue view N --comments`), not by trusting exit 0.
