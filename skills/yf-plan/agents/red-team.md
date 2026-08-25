@@ -58,6 +58,47 @@ form `ready-check` parses. Emitting `### Verdict:` makes the review **silently u
 `ready-check` reports no verdict at all rather than an error, so the mismatch is invisible until
 approval is blocked for no stated reason (#116).
 
+## The exit test reads the file THIS cycle wrote, and proves it is FRESH
+
+**Existence is not the test; FRESHNESS is** (plan-052 Issue 6.1, #198). An exit test that
+asserts `reviews/pass-*.md` merely *exists* is satisfied by a file an EARLIER cycle wrote.
+Under a REVISE loop that is the common case, not the exotic one: `pass-1.md` is already on
+disk when cycle 2 runs, so cycle 2's exit test passes before its reviewer has written
+anything.
+
+The exit test therefore reads the file the child wrote and establishes it is **newer than a
+cycle marker captured BEFORE dispatch**:
+
+```bash
+# BEFORE dispatching the reviewer, capture the marker. Its mtime is the reference point.
+CYCLE_MARKER="$(mktemp)"
+
+# ... dispatch the red-team sub-agent; the MAIN SESSION writes reviews/pass-N.md ...
+
+# The exit test: some pass file must be NEWER than the marker.
+FRESH="$(find "${plan_dir}/reviews" -name 'pass-*.md' -newer "$CYCLE_MARKER" -print -quit)"
+[ -n "$FRESH" ] || { echo "FAIL: no pass file was written by THIS cycle — a stale prior file
+does not satisfy the exit test"; exit 1; }
+rm -f "$CYCLE_MARKER"
+```
+
+Any equivalent reference point works — an mtime compared against a cycle start, a content
+hash captured before dispatch, or an explicit cycle marker. What does **not** work is a bare
+existence check, and what does not work is comparing against "now": the child writes before
+the check runs, so every file is older than "now".
+
+### What this does NOT prove, stated because the mechanism invites the opposite reading
+
+**A gate resolution carries NO RESOLVER IDENTITY. It is a RECORD, NOT A GUARANTEE.** `bd`
+accepts `--actor` and `BEADS_ACTOR` and **DISCARDS BOTH** (EXP-001, re-measured) — nothing in
+the bead records who resolved a gate, so no gate can establish that a particular agent
+performed a particular review.
+
+Freshness is checkable; **authorship is not**. This section claims exactly the first. A
+document implying otherwise would overstate what the mechanism proves, and REQ-AGENT-049's
+honesty clause exists for the same reason: that a pass was genuinely dispatched has no exit
+code, and nothing in this skill claims to verify it.
+
 ## Rules
 
 - Read-only with respect to the repository under review — never writes files in it. The main session writes `reviews/pass-N.md` and the phase-log `review:` line **at presentation** (create-on-present), then updates the same file in place as concerns are resolved — by the main session under the autonomous default, by the operator under `checkpointed`. The resolver is actor-agnostic (REQ-AGENT-043); the `actor` column records which.

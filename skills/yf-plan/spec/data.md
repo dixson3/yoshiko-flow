@@ -747,3 +747,65 @@ must not be reachable both as a structured edge and as prose.
 Verification: `ctl-187-empty-detail` exits non-zero pre-fix and zero post-fix; a bead poured from
 the output of a plan whose issues carry continuation prose has a non-empty description; on a plan
 whose issues carry none, every `detail` is empty and that is recorded as a negative observation.
+
+REQ-DATA-070: **The `Verification` clause grammar.** A `## Success Criteria` row's
+`Verification` cell shall be authored in one of **five** forms, and `doc_lint.py` shall
+recognize exactly these:
+
+| Form | Meaning |
+| :-- | :-- |
+| `` `<command>` → exit 0 `` | the command must succeed (PASS) |
+| `` `<command>` → exit 1 `` | the command must FAIL **specifically** — a real negative, not merely "not zero" |
+| `` `<command>` → exit 2 `` | the command must be INCONCLUSIVE — the instrument could not run |
+| `` `<command>` → exit non-zero `` | permitted **only** where exits 1 and 2 are genuinely equivalent for the claim |
+| `manual: <why it cannot be mechanized>` | a first-class disposition, **not** a failure |
+
+The grammar is **three-valued because REQ-DATA-024's exit contract is**. A two-valued form
+would let `→ exit non-zero` be satisfied by an INCONCLUSIVE, so a criterion asserting *"the
+harness is not a silent green"* would pass **while the harness was broken**. The `manual:`
+disposition is first-class for the symmetric reason: without it, an unmechanizable criterion
+is authored as a fake command written to satisfy a shape check, which is strictly worse than
+an honest waiver.
+
+Every command is run **from the repo root** unless its clause says otherwise, and a consumer
+shall **unescape GFM table pipes** (`\|` → `|`, `\\` → `\`) before execution — a cell is
+inside a GFM table, so a piped command is necessarily escaped there and is otherwise executed
+as a truncated command that means something else.
+
+The polarity marker is the load-bearing part. Measured on the corpus at authoring time (pathspec
+`docs/plans/plan-*/plan.md`, excluding this plan): **0 of 186** criteria carried a
+machine-readable clause, across **52** bundles of which only **6** even use the four-column
+`Verification | Discharged-by` shape. plan-051's `SC4` passes on exit **1** while its `SC6`
+passes on exit **0** — a fact that existed nowhere but prose.
+Rationale: #199. A criterion whose Verification is prose cannot be re-run, so it is only ever
+as true as the last time a human read it. plan-051 shipped `SC4b` measured green at the issue
+that discharged it and **false two epics later**, caught by an operator re-measurement rather
+than by anything the plan shipped.
+Verification: `ctl-199a-grammar` asserts a prose cell FAILS the shape check, a clause-form cell
+passes, and a clause containing a GFM-escaped pipe survives unescaping — non-zero pre-fix, zero
+post-fix; `ctl-class-a-fraction` reports the machine-readable fraction of a plan's own criteria
+as a NUMBER via a non-recursive reader over `plan_extract.py` output.
+
+REQ-DATA-071: **`touches[]` as a first-class field.** An issue bullet in `## Epics` may carry a
+two-space-indented `- touches:` sub-key whose value is a comma-separated list of repository
+paths (each conventionally in a backtick code span). `plan_extract.py` shall emit it as a
+first-class **`touches`** array on each issue object, consumed like `depends_on` and
+`resolves_upstream` rather than left inside `detail` — an issue that declares no `touches:`
+carries an **empty** array, which is a valid value and not an error.
+
+Because the sub-key is consumed by the parser, it shall be **excluded from `detail`** on the
+same grounds as `depends-on:` and `resolves-upstream:` (REQ-DATA-063): the same bytes must not
+be reachable both as a structured field and as prose.
+
+The field exists to make **single-writer ownership** measurable. Its consumer is report-only
+(REQ-PLAN-080's sibling `ownership-report`), and shall return **INCONCLUSIVE below 80% path
+coverage** — a stated number, never a verdict of "orthogonal" computed over no input.
+Rationale: an ownership signal measured at p=3.4e-11 over shared declared paths is unusable
+while the paths themselves live only in prose. Declaring them makes a plan's worst
+single-writer violations visible at authoring time; this plan's own previous shape measured
+**9 writers on one file with 28 of 36 pairs topologically independent**.
+Verification: `ctl-touches-subkey` asserts `touches` is a first-class field returned by
+`plan_extract.py` — non-zero pre-fix, zero post-fix; `ctl-touches-coverage` asserts a plan's
+issues declare `touches:` at 100%, driven RED against a pinned fixture carrying a
+`touches:`-less issue; `ctl-ownership-inconclusive` asserts the consumer returns INCONCLUSIVE
+below the 80% floor and never reports "orthogonal" on no input.

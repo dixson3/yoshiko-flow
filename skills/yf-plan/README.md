@@ -133,6 +133,8 @@ formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp
   plan-review.formula.toml   Beads molecule for the Phase-3 review loop (sequencing only)
+  verify-artifact.formula.toml  ASPECT woven over plan-review's steps at COOK time —
+                             one verify step per declared step (#197)
 scripts/
   plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery
                              resume scan, worktree lifecycle, landing lock, merged-state
@@ -141,6 +143,11 @@ scripts/
                              from _shared/, synced by _shared/sync.py)
   okf.py                     Vendored OKF engine (byte-identical to _shared/okf.py)
   close_cascade.py           Bottom-up cascade-close of all-terminal containers (§6.4)
+  gate_consistency.py        Gate/Blocks-set consistency: self-satisfaction and
+                             discharger-closure arms (#113)
+  verify_beads.py            Injection-time verify beads for plan-execute, which
+                             declares one step and cannot be woven (#197)
+  retrospective_fields.py    prevention_formula enum check + prevention_vars (#196)
   repair_dangling_epics.py   One-shot repair for epics orphaned by a crashed pour
   manifest_update.py         Vendored manifest hash/version helper
   fixtures/classify/         Ground-truth corpus for test_classify_deliverable.py

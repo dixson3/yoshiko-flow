@@ -58,7 +58,9 @@ SAFETY INVARIANTS preserved (see spec/safety.md):
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
+import pathlib
 import re
 import subprocess
 import sys
@@ -1243,6 +1245,49 @@ CLOSABLE_CAVEAT = (
 )
 
 
+#: A hoist tombstone's close_reason, as `close_reason()` writes it. Matched on the STABLE
+#: prefix rather than the whole string, because the destination URL varies per issue.
+_TOMBSTONE_MARK = "hoisted upstream to "
+
+
+def is_hoist_tombstone(bead: dict) -> bool:
+    """True when this bead was closed by a HOIST, not by being finished (REQ-BUP-070).
+
+    The follow-on hoist closes a bead locally with a reversible `bd close -r` tombstone
+    PRECISELY BECAUSE the work moved upstream and is STILL OPEN there. Counting that closure
+    as evidence of completion inverts its meaning: REQ-BUP-052's per-bead signal reads a
+    hoisted issue as fully discharged at the exact moment it became least discharged.
+    """
+    reason = (bead.get("close_reason") or "").strip().lower()
+    return reason.startswith(_TOMBSTONE_MARK) or "reversible tombstone" in reason
+
+
+def load_fixture_rows(path: str) -> list[dict]:
+    """Read a PINNED bead snapshot in place of live `bd` state (REQ-BUP-070a).
+
+    Without this, every control over `closable` runs against live machine state — which is not
+    a control at all: it passes or fails for reasons unrelated to the code under test, and it
+    cannot be made RED on demand.
+
+    An ABSENT fixture is exit 1 (a real negative — the caller named a file that is not there);
+    a present-but-MALFORMED one is exit 2 (the instrument failed). Under REQ-BUP-070a's
+    exit-1 rule that distinction is load-bearing.
+    """
+    f = pathlib.Path(path)
+    if not f.exists():
+        print(f"FAIL: fixture not found: {path}", file=sys.stderr)
+        raise SystemExit(1)
+    try:
+        rows = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"INCONCLUSIVE: fixture is unreadable or malformed: {e}", file=sys.stderr)
+        raise SystemExit(2)
+    if not isinstance(rows, list):
+        print("INCONCLUSIVE: fixture must be a JSON array of bead rows", file=sys.stderr)
+        raise SystemExit(2)
+    return rows
+
+
 def closable_candidates(beads: list[dict]) -> list[dict]:
     """Group beads by the upstream issue they map to and report which are closable (pure).
 
@@ -1266,17 +1311,34 @@ def closable_candidates(beads: list[dict]) -> list[dict]:
     for ext in sorted(by_issue):
         mapped = by_issue[ext]
         open_ids = sorted(b["id"] for b in mapped if not _is_closed(b))
+        closed = [b for b in mapped if _is_closed(b)]
+        tombstones = sorted(b["id"] for b in closed if is_hoist_tombstone(b))
+        # REQ-BUP-070. Suppress ONLY when EVERY closed mapped bead is a tombstone — a mix
+        # still carries real completion evidence, and the requirement is scoped to "only".
+        tombstone_only = bool(closed) and len(tombstones) == len(closed)
+        closable = (not open_ids) and not tombstone_only
+
+        if open_ids:
+            reason = f"still open: {', '.join(open_ids)}"
+        elif tombstone_only:
+            # ANNOTATED, NEVER DROPPED. A dropped row is indistinguishable from "no such
+            # issue" — the same silent-absence failure REQ-BUP-064 rejects for an
+            # unresolvable ref — so the operator is told WHY rather than shown nothing.
+            reason = (f"NOT closable: every closed mapped bead is a HOIST TOMBSTONE "
+                      f"({', '.join(tombstones)}) — the work moved upstream and is still "
+                      f"open there, so these closures are not evidence of completion")
+        else:
+            reason = "all mapped beads are closed"
+
         out.append(
             {
                 "external": ext,
                 "beads": sorted(b["id"] for b in mapped),
-                "closable": not open_ids,
+                "closable": closable,
                 "blocking": open_ids,
-                "reason": (
-                    "all mapped beads are closed"
-                    if not open_ids
-                    else f"still open: {', '.join(open_ids)}"
-                ),
+                "hoist_tombstones": tombstones,
+                "tombstone_only": tombstone_only,
+                "reason": reason,
             }
         )
     return out
@@ -1415,21 +1477,54 @@ def cmd_reconcile(as_json: bool, apply: bool) -> int:
     return 0
 
 
-def cmd_closable(as_json: bool) -> int:
+def _repo_root_for_render() -> pathlib.Path:
+    """The repository root, for resolving plan bundles off disk."""
+    try:
+        out = run(["git", "rev-parse", "--show-toplevel"])
+        if out.strip():
+            return pathlib.Path(out.strip())
+    except Exception:  # noqa: BLE001
+        pass
+    return pathlib.Path(__file__).resolve().parents[3]
+
+
+def _load_render_module():
+    """Load the co-resident `upstream_render` module.
+
+    Absence is FAIL-SOFT — the proposal still renders, just without the evidence block. A
+    missing renderer must not take out `closable` itself; the `evidence_complete` flag is
+    what a caller asserts on, and an unenriched row simply lacks it.
+    """
+    cand = pathlib.Path(__file__).resolve().parent / "upstream_render.py"
+    if not cand.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("upstream_render", cand)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def cmd_closable(as_json: bool, fixture: str | None = None) -> int:
     """Propose which upstream issues can be closed. NEVER closes anything (REQ-BUP-052).
 
     Closing an upstream issue is outward-facing, so it gets the same confirm contract
     as a push: this verb emits the `gh issue close` commands for operator confirmation
     and stops.
     """
-    if not upstream_enabled():
+    # A FIXTURE run is a test of THIS code, not an upstream operation, so it bypasses the
+    # disabled short-circuit: whether the operator's repo has upstream tracking switched on
+    # says nothing about whether the grouping logic is correct.
+    if fixture is None and not upstream_enabled():
         print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to report.")
         return 0
     # ONE `bd list` for the whole universe; ZERO per-bead `bd show` (REQ-BUP-052).
     # Filtering to mapped beads here — rather than after building the full list — keeps
     # the unmapped majority (998 of 1019 on this repo) out of closable_candidates, which
     # only groups by external ref anyway.
-    rows = load_universe_rows()
+    rows = load_fixture_rows(fixture) if fixture else load_universe_rows()
 
     # plan-044 Issue 3.4 (REQ-BUP-063): an UNPARSEABLE ref is REPORTED, never
     # silently dropped. The old code filtered mapped beads with a bare walrus and
@@ -1446,16 +1541,43 @@ def cmd_closable(as_json: bool) -> int:
         if normalize_external_ref(ext) is None:
             unparseable.append({"id": r["id"], "external": ext})
             continue
-        beads.append({"id": r["id"], "status": r.get("status", ""), "external": ext})
+        # `close_reason` and `title` are carried through DELIBERATELY. The projection used
+        # to drop them, which made the hoist-tombstone signal (REQ-BUP-070) invisible to
+        # `closable_candidates` — every tombstoned issue read as fully discharged — and left
+        # REQ-BUP-070b with no reason text to render.
+        beads.append({"id": r["id"], "status": r.get("status", ""), "external": ext,
+                      "close_reason": r.get("close_reason") or "",
+                      "title": r.get("title") or "",
+                      "metadata": r.get("metadata") or {}})
 
     report = closable_candidates(beads)
+
+    # REQ-BUP-070b: EVERY proposal renders its mapped beads, their close_reason, AND the plan
+    # Success Criteria those beads discharge. A close-out proposal is an outward-facing
+    # recommendation the operator is asked to authorize; without this it asks for consent to a
+    # claim whose evidence the operator would have to reconstruct by hand.
+    _render = _load_render_module()
+    if _render is not None:
+        _render.enrich(report, {b["id"]: b for b in beads}, _repo_root_for_render())
 
     # plan-044 Issue 3.3 (REQ-BUP-060/064): annotate each row with its UPSTREAM
     # state and emit NO command for a non-OPEN issue. Baseline before this: 35
     # commands emitted, 6 actionable — 29 were no-ops or errors against issues
     # already closed or deleted.
-    states = resolve_upstream_states(r["external"] for r in report)
+    # A fixture has no real upstream, so no network read is attempted and no row is
+    # actionable. Claiming otherwise would be manufacturing an upstream state.
+    # A fixture has no real upstream, so no network read is attempted. An EMPTY
+    # UpstreamStates (not None) is used deliberately: every downstream reader keeps its
+    # normal shape, and `inconclusive` stays False because nothing failed — nothing was
+    # asked. Claiming an upstream state for a fixture would be manufacturing one.
+    states = (UpstreamStates() if fixture
+              else resolve_upstream_states(r["external"] for r in report))
     for row in report:
+        if fixture:
+            row["issue"] = normalize_external_ref(row["external"])
+            row["upstream_state"] = "FIXTURE"
+            row["actionable"] = False
+            continue
         n = normalize_external_ref(row["external"])
         row["issue"] = n
         row["upstream_state"] = (
@@ -1572,6 +1694,12 @@ def main() -> int:
         help="propose upstream issues whose mapped beads are all closed (never closes)",
     )
     p_clos.add_argument("--json", action="store_true", dest="as_json")
+    p_clos.add_argument(
+        "--fixture",
+        metavar="PATH",
+        help="read a PINNED JSON bead snapshot instead of live `bd` state (REQ-BUP-070a). "
+             "An absent fixture exits 1; a malformed one exits 2.",
+    )
 
     p_rec = sub.add_parser(
         "reconcile",
@@ -1638,7 +1766,7 @@ def main() -> int:
     if args.cmd == "followons":
         return cmd_followons(args.parent, args.intake, args.as_json)
     if args.cmd == "closable":
-        return cmd_closable(args.as_json)
+        return cmd_closable(args.as_json, getattr(args, "fixture", None))
     if args.cmd == "reconcile":
         return cmd_reconcile(args.as_json, args.apply)
     if args.cmd == "push":

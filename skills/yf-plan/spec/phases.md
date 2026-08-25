@@ -194,3 +194,50 @@ Verification: `ctl-180-chain-order` runs `close-reconcile-step` with the reconci
 unresolved and asserts a non-zero exit — non-zero pre-fix (the ordering assertion does not
 exist), zero post-fix (it fires); SKILL.md §6.4's invocation branches on the captured status.
 
+
+REQ-PLAN-080: **Completion-time re-check of `plan.md` Success Criteria.** `plan_manager.py`
+shall expose a **`recheck-criteria`** verb that re-evaluates every `## Success Criteria` row
+whose `Verification` cell is authored in the REQ-DATA-070 clause grammar, and shall report the
+result on the **0/1/2 contract**: **0** every evaluated criterion holds · **1** at least one
+evaluated criterion is FALSE · **2** INCONCLUSIVE, the re-check could not run.
+
+It shall report **two distinct fields**, never one conflated number:
+
+- **`class_a_fraction`** — the fraction of the plan's criteria that are machine-readable at all.
+- **`evaluated_fraction`** — the fraction actually evaluated on this run.
+
+Reporting them separately is required because they answer different questions, and a single
+"coverage" number lets a plan whose criteria are 20% machine-readable read the same as one
+whose harness failed on 80% of them.
+
+**Recursion is guarded by `YF_RECHECK_DEPTH`, which is LOAD-BEARING; any name-check is
+BEST-EFFORT** and shall scan the **executed command string only**, never the criterion row —
+a criterion row may legitimately *discuss* the verb. The depth rule is stated as a rule about
+what each depth MAY DO: **depth 0 and depth 1 evaluate; depth 2 returns exit 2 (INCONCLUSIVE)
+without executing.** Depth 1 must evaluate, because a criterion's own command routes through
+the plan's harness and therefore runs one level down when the verb is invoked from the close
+chain — a guard that refused at depth 1 would make every fixture-driven control valid
+standalone and INCONCLUSIVE under the chain.
+
+**An INCONCLUSIVE re-check maps to `warn` and shall never hard-fail completion** (the
+REQ-DATA-057 precedent): the corpus is unmigrated — measured over pathspec
+`docs/plans/plan-*/plan.md` at authoring time, **6 of 52** bundles carry the four-column
+`Verification | Discharged-by` shape and exactly **1** (this plan) carries any clause-form
+criterion — so INCONCLUSIVE is the *expected* verdict almost everywhere, and a
+hard gate on it would be an outage rather than a check.
+
+A re-check that returns **exit 1** shall **HALT** the §6.4 close chain, and the chain's caller
+shall branch on the **verb's exit code**, not on its captured stdout — the REQ-COMPLETE-004
+requirement applied to this step.
+Rationale: #199, #203. plan-051's `SC4b` was measured green at the issue that discharged it and
+was **false two epics later**: a file added downstream matched its pattern and nothing re-ran
+the check. The general form is *"a criterion is only as good as the last time something re-ran
+it"* — discharge-time measurement proves a criterion held once, which is not the claim a
+Success Criterion makes.
+Verification: `ctl-199b-fields` asserts `class_a_fraction` and `evaluated_fraction` are reported
+as distinct numbers against a fixture plan; `ctl-199b-rot` reproduces plan-051's `SC4b` — a
+criterion true at discharge and FALSE at completion is caught; `ctl-199b-inconclusive` asserts
+exit 2 maps to `warn` and never hard-fails completion; `ctl-199b-recursion` asserts depth 0 and
+depth 1 evaluate while depth 2 returns exit 2 without executing; `ctl-199b-halt` asserts a
+failing re-check HALTS the close chain, observed on a fixture rather than grepped from prose.
+Each is non-zero pre-fix and zero post-fix.

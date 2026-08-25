@@ -71,3 +71,12 @@ description = "Holds until the LAST RECORDED red-team verdict is APPROVE (REQ-PL
 [steps.gate]
 type = "human"
 approvers = ["operator"]
+
+# plan-052 Issue 5.1 (#197): attach the verify-artifact aspect.
+#
+# `[compose] aspects` is the key that WEAVES. A top-level `aspects = [...]` is silently
+# ignored — it parses and composes nothing — so it would look correct in review while doing
+# nothing at runtime. The weave is observable at `bd cook plan-review --dry-run`, which is
+# where ctl-aspect-weave asserts; `bd formula show` renders the raw formula by design.
+[compose]
+aspects = ["verify-artifact"]

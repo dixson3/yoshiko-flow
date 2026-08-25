@@ -515,6 +515,43 @@ companion rule.
   `push`, whose preview is local): when the read fails, the correct output is "I could not tell",
   because an empty proposal is indistinguishable from "nothing to do" and reads as success.
 
+### 2.8 Hoist-tombstone suppression and evidence-bearing close-out (plan-052)
+
+- **REQ-BUP-070** *(testable, #205)* `closable` shall **not** propose closing an upstream issue
+  whose only closed mapped beads are **hoist tombstones**. The follow-on hoist closes a bead
+  locally with a reversible `bd close -r` tombstone precisely **because the work moved
+  upstream and is still open there**; counting that closure as evidence of completion inverts
+  its meaning, so REQ-BUP-052's per-bead signal reads a hoisted issue as fully discharged at
+  the exact moment it became least discharged.
+
+  The suppressed row shall be **ANNOTATED, never dropped**. A dropped row is
+  indistinguishable from "no such issue", which is the same silent-absence failure
+  REQ-BUP-064 rejects for an unresolvable ref; an annotated `not-closable` row naming the
+  tombstone tells the operator *why*.
+
+- **REQ-BUP-070a** *(testable)* `closable` shall accept a **`--fixture <path>`** flag reading a
+  pinned JSON bead snapshot in place of live `bd` state. It does not exist today — `closable
+  --help` shows `[-h] [--json]` only — and without it every control over this verb is written
+  against live machine state, which is not a control at all. An **absent** fixture file is
+  **exit 1** (a real negative); a present-but-**malformed** one is **exit 2** (the instrument
+  failed).
+
+- **REQ-BUP-070b** *(testable)* **every** proposal `closable` emits shall render its mapped
+  beads, each bead's **`close_reason`**, **and the plan Success Criteria those beads
+  discharge**. A present-but-**empty** key does not discharge this requirement — an empty
+  `close_reasons` array renders as "evidence supplied" while supplying none, which is the
+  silent-green class this requirement exists to close.
+  Rationale: #205. A close-out proposal is an outward-facing recommendation the operator is
+  asked to authorize; without the reasons and the discharged criteria it asks for consent to a
+  claim whose evidence lives somewhere the operator would have to reconstruct by hand.
+  Verification: `ctl-205-tombstone` asserts no close proposal is emitted for an issue whose only
+  closed beads are hoist tombstones; `ctl-205-fixture-flag` asserts `--fixture` EXISTS;
+  `ctl-205-promote` asserts the `plan-relations` R1/R2a promotion binds at the CLOSE-OUT binding
+  only, leaving authoring-time severity unchanged. Each is driven against a **pinned fixture
+  snapshot**, never live `bd` state, and each RED is a **real negative (exit 1)** — never an
+  argparse exit 2 from the not-yet-existing flag.
+
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/upstream.py` — `enumerate [--json]` (non-active push candidates via
@@ -628,6 +665,12 @@ companion rule.
   push survives inside fenced ` ```bash ` blocks within the Push step and Backend generalization
   sections. It is **deliberately not** a global grep — prose, tables, and blockquotes are out of
   scope, and the check passes on the invariant statements and dated verification blockquotes.
+
+- **REQ-BUP-070 / 070a / 070b** are checked by fixture tests over a pinned bead snapshot: an
+  issue whose only closed mapped beads are hoist tombstones yields a `not-closable` row
+  **annotated with the tombstone reason** rather than an absent row; `closable --help` lists
+  `--fixture`; an absent fixture exits 1 and a malformed one exits 2; and every emitted proposal
+  carries non-empty `close_reasons` and `discharges` arrays. No `gh issue close` is executed.
 
 ## 6. References
 

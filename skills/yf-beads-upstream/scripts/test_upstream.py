@@ -1273,3 +1273,116 @@ def test_reconcile_upstream_half_is_propose_only():
     """The local half is --apply-able; the upstream half is NOT (REQ-BUP-052)."""
     assert up.reconcile_supports_apply(half="local") is True
     assert up.reconcile_supports_apply(half="upstream") is False
+
+
+# --- plan-052 Issue 3.3 / 3.2 (REQ-BUP-070, 070a, 070b) ------------------------------------
+#
+# Fixture-driven throughout: no live `bd`, no network. The point of `--fixture` is that these
+# assertions are about the CODE, not about the machine they run on.
+
+import importlib.util as _ilu
+import pathlib as _pl
+
+_RENDER_PATH = _pl.Path(__file__).resolve().parent / "upstream_render.py"
+
+
+def _render_mod():
+    spec = _ilu.spec_from_file_location("upstream_render_under_test", _RENDER_PATH)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _tombstone_bead(bid, ext, dest=None):
+    return {"id": bid, "status": "closed", "external": ext,
+            "close_reason": up.close_reason(dest or ext), "title": bid,
+            "metadata": {}}
+
+
+def _done_bead(bid, ext, reason="finished"):
+    return {"id": bid, "status": "closed", "external": ext,
+            "close_reason": reason, "title": bid, "metadata": {}}
+
+
+def test_hoist_tombstone_is_recognised_from_its_generated_reason():
+    """The predicate keys on the reason `close_reason()` actually writes, not a guess."""
+    assert up.is_hoist_tombstone(_tombstone_bead("b1", "#900"))
+    assert not up.is_hoist_tombstone(_done_bead("b2", "#900"))
+    assert not up.is_hoist_tombstone({"id": "b3", "status": "closed"})
+
+
+def test_tombstone_only_issue_is_not_closable_but_is_still_reported():
+    """REQ-BUP-070: suppressed AND annotated. A dropped row would be a silent absence."""
+    rows = up.closable_candidates([
+        _tombstone_bead("t1", "#901"), _tombstone_bead("t2", "#901"),
+    ])
+    assert len(rows) == 1, "the row must be PRESENT, never dropped"
+    row = rows[0]
+    assert row["closable"] is False
+    assert row["tombstone_only"] is True
+    assert sorted(row["hoist_tombstones"]) == ["t1", "t2"]
+    assert "TOMBSTONE" in row["reason"].upper(), "the row must say WHY it was suppressed"
+
+
+def test_suppression_is_scoped_to_only_and_does_not_over_reach():
+    """A MIX still carries real completion evidence; only an all-tombstone set is suppressed."""
+    mixed = up.closable_candidates([
+        _tombstone_bead("t1", "#903"), _done_bead("d1", "#903"),
+    ])
+    assert mixed[0]["closable"] is True, "a mix must remain closable"
+    clean = up.closable_candidates([_done_bead("d1", "#900"), _done_bead("d2", "#900")])
+    assert clean[0]["closable"] is True
+    still_open = up.closable_candidates([
+        _done_bead("d1", "#902"), {"id": "o1", "status": "open", "external": "#902"},
+    ])
+    assert still_open[0]["closable"] is False
+    assert still_open[0]["blocking"] == ["o1"]
+
+
+def test_missing_fixture_is_exit_1_and_malformed_is_exit_2(tmp_path):
+    """REQ-BUP-070a's load-bearing distinction: a real negative vs an instrument failure."""
+    import pytest
+    with pytest.raises(SystemExit) as e:
+        up.load_fixture_rows(str(tmp_path / "nope.json"))
+    assert e.value.code == 1, "an ABSENT fixture is a real negative"
+
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json", encoding="utf-8")
+    with pytest.raises(SystemExit) as e:
+        up.load_fixture_rows(str(bad))
+    assert e.value.code == 2, "a MALFORMED fixture is an instrument failure"
+
+    notlist = tmp_path / "obj.json"
+    notlist.write_text('{"a": 1}', encoding="utf-8")
+    with pytest.raises(SystemExit) as e:
+        up.load_fixture_rows(str(notlist))
+    assert e.value.code == 2
+
+
+def test_enrich_reports_evidence_and_flags_a_thin_row():
+    """REQ-BUP-070b: a present-but-EMPTY key must not read as evidence supplied."""
+    m = _render_mod()
+    beads = {
+        "b1": {"id": "b1", "close_reason": "done", "title": "t",
+               "metadata": {"plan": "no-such-plan-999", "plan_issue": "1.1"}},
+    }
+    rows = [{"external": "#900", "beads": ["b1"], "closable": True}]
+    m.enrich(rows, beads, _pl.Path(__file__).resolve().parents[3])
+    assert rows[0]["close_reasons"], "reasons must be rendered"
+    assert rows[0]["discharges"] == [], "an unresolvable plan yields no criteria"
+    assert rows[0]["evidence_complete"] is False, (
+        "evidence_complete must be FALSE when discharges is empty — otherwise an empty "
+        "array renders as 'evidence supplied' while supplying none"
+    )
+
+
+def test_render_text_marks_tombstones_and_thin_evidence():
+    m = _render_mod()
+    rows = [{"issue": 901, "closable": False, "reason": "suppressed",
+             "beads": ["t1"], "hoist_tombstones": ["t1"],
+             "close_reasons": [{"bead": "t1", "title": "t", "close_reason": "hoisted",
+                                "is_hoist_tombstone": True}],
+             "discharges": []}]
+    out = m.render_text(rows)
+    assert "[HOIST TOMBSTONE]" in out
+    assert "THIN" in out.upper(), "a row with no resolvable criteria must say so"

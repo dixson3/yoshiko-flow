@@ -617,6 +617,47 @@ def run_check(chk: dict, text: str, schema: dict, path: Path | None = None) -> l
                 if not cell:
                     out.append(f"row {rid!r}: required cell {c!r} is empty")
         return out
+    if kind == "verification-clause":
+        # plan-052 Issue 1.2 (REQ-DATA-070). A `Verification` cell written as PROSE cannot be
+        # re-run, so the criterion it belongs to is only ever as true as the last time a human
+        # read it. Measured over `docs/plans/plan-*/plan.md` at authoring time: **0 of 186**
+        # criteria carried a machine-readable clause.
+        #
+        # THREE-VALUED, because REQ-DATA-024's exit contract is. A two-valued form would let
+        # `-> exit non-zero` be satisfied by an INCONCLUSIVE, so a criterion asserting "the
+        # harness is not a silent green" would pass WHILE THE HARNESS WAS BROKEN.
+        #
+        # `manual:` is FIRST-CLASS, not a failure. Without it an unmechanizable criterion gets
+        # authored as a fake command written to satisfy a shape check, which is strictly worse
+        # than an honest waiver.
+        body = section_body(text, chk["section"])
+        if body is None:
+            return [f"section not found: {chk['section']}"]
+        tbl = first_table(body)
+        if tbl is None:
+            # A section written as a LIST is `table-columns`' business, not this check's.
+            return []
+        header, data = tbl
+        col = chk.get("column", "Verification")
+        if col not in header:
+            # An absent column is `table-columns`' finding; double-counting one defect as two
+            # swamps the signal this check carries.
+            return []
+        i = header.index(col)
+        out = []
+        for r in data:
+            rid = (r[0].strip() if r else "") or "?"
+            if not _norm_cell(rid):
+                continue  # a DECLARED-EMPTY marker row asserts nothing, correctly
+            cell = (r[i] if i < len(r) else "").strip()
+            if not _norm_cell(cell):
+                continue  # emptiness is `cell-non-empty`'s finding
+            if not _verification_clause_ok(cell):
+                out.append(
+                    f"row {rid!r}: Verification is PROSE, not a clause — expected "
+                    f"`<command>` -> exit 0|1|2|non-zero, or `manual: <why>`; got {cell[:70]!r}"
+                )
+        return out
     if kind == "stale-measured-literal":
         # plan-049 Issue 5.2 (REQ-DATA-060, upstream #135).
         #
@@ -664,6 +705,30 @@ def run_check(chk: dict, text: str, schema: dict, path: Path | None = None) -> l
         # Start Gate is a COMPLETE gate: the approver IS the condition.
         return _gate_completeness(text)
     raise Inconclusive(f"unknown check kind: {kind!r}")
+
+
+#: REQ-DATA-070's clause grammar. `->` and the arrow are both accepted so an author is not
+#: forced into a non-ASCII keystroke. The polarity marker is the load-bearing part: plan-051's
+#: SC4 passes on exit 1 and its SC6 on exit 0, and before this rule that fact existed nowhere
+#: but prose.
+_CLAUSE_RE = re.compile(r"`.+`\s*(?:\u2192|->)\s*exit\s+(?:0|1|2|non-zero)\s*\Z", re.S)
+_MANUAL_RE = re.compile(r"\Amanual:\s*\S", re.S)
+
+
+def _unescape_gfm(s: str) -> str:
+    """Undo GFM table escaping so a clause's command is the command the author meant.
+
+    A `Verification` cell lives INSIDE a GFM table, so a piped command is necessarily written
+    `\\|`. Executing the raw cell runs a truncated command that means something else — risk
+    R9, which fired on plan-052's own first control before this rule existed.
+    """
+    return s.replace("\\|", "|").replace("\\\\", "\\")
+
+
+def _verification_clause_ok(cell: str) -> bool:
+    """True when `cell` is in the REQ-DATA-070 grammar (either form)."""
+    c = _unescape_gfm(cell).strip()
+    return bool(_MANUAL_RE.match(c) or _CLAUSE_RE.search(c))
 
 
 def _norm_cell(s: str) -> str:

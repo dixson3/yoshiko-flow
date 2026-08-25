@@ -90,6 +90,10 @@ approved: yes
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
 | `uv-yf-upstream-req` | `uv run skills/yf-plan/scripts/test_upstream_requirements.py` |  |  |
+| `uv-yf-gate-consistency` | `uv run skills/yf-plan/scripts/test_gate_consistency.py` |  |  |
+| `uv-yf-verify-beads` | `uv run skills/yf-plan/scripts/test_verify_beads.py` |  |  |
+| `uv-yf-retro-fields` | `uv run skills/yf-plan/scripts/test_retrospective_fields.py` |  |  |
+| `gate-plan052` | `bash docs/plans/plan-052-james-dixson-fa8056/assets/gate-run.sh verify-partition` |  |  |
 
 ### full
 
@@ -140,6 +144,10 @@ approved: yes
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
 | `uv-yf-upstream-req` | `uv run skills/yf-plan/scripts/test_upstream_requirements.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_gate_consistency.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_verify_beads.py` |  |  |
+|  | `uv run skills/yf-plan/scripts/test_retrospective_fields.py` |  |  |
+|  | `bash docs/plans/plan-052-james-dixson-fa8056/assets/gate-run.sh verify-partition` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -180,6 +188,15 @@ approved: yes
 | `skills/yf-change-validation/scripts/test_change_validation.py` | `uv-skills` |
 | `skills/yf-markdown-lint/scripts/**` | `uv-pytest` |
 | `skills/yf-markdown-lint/scripts/test_markdown_lint.py` | `uv-pytest` |
+| `skills/yf-plan/scripts/gate_consistency.py` | `uv-yf-gate-consistency` |
+| `skills/yf-plan/scripts/test_gate_consistency.py` | `uv-yf-gate-consistency` |
+| `skills/yf-plan/scripts/verify_beads.py` | `uv-yf-verify-beads` |
+| `skills/yf-plan/scripts/test_verify_beads.py` | `uv-yf-verify-beads` |
+| `skills/yf-plan/scripts/retrospective_fields.py` | `uv-yf-retro-fields` |
+| `skills/yf-plan/scripts/test_retrospective_fields.py` | `uv-yf-retro-fields` |
+| `skills/yf-plan/formulas/**` | `uv-yf-gates` |
+| `skills/yf-beads-upstream/scripts/upstream_render.py` | `uv-with` |
+| `docs/plans/plan-052-james-dixson-fa8056/assets/**` | `gate-plan052` |
 | `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent` |
 | `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |

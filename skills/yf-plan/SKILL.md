@@ -1513,6 +1513,36 @@ fi
 # NOTE: an `inconclusive` verdict exits 0 and does NOT halt — a `gh` outage must never block
 # completion on healthy work (R1). It is still printed above; read it.
 
+# Re-check the plan's own Success Criteria at COMPLETION (REQ-PLAN-080, #199/#203).
+# HALTING. Runs after `verify-reconcile` and BEFORE the first destructive step (cascade-close),
+# which is the only window where reconcile is done and nothing has been torn down yet — the
+# same slot, and the same reason, as the step above it.
+#
+# WHY THIS STEP EXISTS: plan-051 shipped `SC4b` measured green at the issue that discharged it
+# and FALSE two epics later, because a file added downstream matched its pattern and nothing
+# re-ran the check. A criterion is only as good as the last time something re-ran it, and
+# discharge-time measurement proves it held ONCE — which is not the claim a Success Criterion
+# makes.
+RECHECK=$(uv run ${SKILL_DIR}/scripts/plan_manager.py recheck-criteria "${plan_dir}" --json)
+RECHECK_RC=$?
+echo "$RECHECK"
+if [ "$RECHECK_RC" -ne 0 ]; then
+  if [ "$RECHECK_RC" -eq 2 ]; then
+    # INCONCLUSIVE maps to `warn` and NEVER hard-fails completion (REQ-DATA-057 precedent).
+    # Measured: 6 of 52 bundles carry the four-column shape and exactly 1 carries a
+    # clause-form criterion, so INCONCLUSIVE is the EXPECTED verdict on an unmigrated plan.
+    # Hard-gating on it would be an outage, not a check.
+    echo "WARN: the criteria re-check was INCONCLUSIVE — no clause-form criterion could be"
+    echo "evaluated. Completion is NOT blocked. Read the verdict above; consider migrating the"
+    echo "plan's Success Criteria to the REQ-DATA-070 clause grammar."
+  else
+    echo "FAIL-LOUD: a Success Criterion that was true at discharge is FALSE at completion."
+    echo "Completion HALTS; do NOT set 'complete'. Fix the regression, or amend the criterion if"
+    echo "it no longer states what the plan means, then re-run §6.4."
+    exit 1
+  fi
+fi
+
 # Cascade-close all-terminal containers under the plan molecule (incl. ${EPIC} itself).
 # "Terminal" = closed, or a resolved/verified gate; an unsatisfied gate is a genuine open
 # child (never force-closed). Exit 0 = clean; exit 2 = fail-loud (blocked set non-empty).
@@ -1697,7 +1727,7 @@ derivable from each other:
 | Portability `audit` / `ready-check` failure | `stop` | 5 |
 | §5.2 resume — a stuck-bead sweep or a **dirty worktree** | `stop` | 5 |
 | §6.1.5 `validate-merged` FAIL, or a §6.1 merge conflict | `stop` | 5 |
-| §6.4 chain halt — `verify-reconcile`, cascade-close, completion gate | `stop` | 5 |
+| §6.4 chain halt — `verify-reconcile`, `recheck-criteria`, cascade-close, completion gate | `stop` | 5 |
 | A destructive local operation requiring confirmation | `stop` | 3 |
 | **Every `--force` override** (stale-approval, audit bypass) | `deviation` | — |
 

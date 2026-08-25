@@ -78,3 +78,36 @@ id = "R3"
 rule = "R3"
 severity = "W"
 kind = "plan-relations"
+
+# --- plan-052 Issue 3.4 (REQ-BUP-070 companion): the CLOSE-OUT binding -----------------
+#
+# R1 and R2a are promoted to `E` **at the close-out binding ONLY**. The authoring-time rules
+# above are UNTOUCHED and stay `W` — an in-flight plan legitimately has rows whose
+# `Discharged-by` / `Resolved By` are not yet knowable, and a global promotion would hard-fail
+# exactly the drafting state the `W` severity exists to permit. That is the same reasoning the
+# banner at the top of this file gives for R1b.
+#
+# The mechanism is the two EXISTING schema keys, not a new one:
+#
+#   * `statuses` decides WHETHER a check runs (REQ-DATA-058). Scoping it to `reconciling` and
+#     `complete` IS the close-out binding — those are the only statuses §6.3/§6.4 run under.
+#   * the file-level `promote = false` (REQ-DATA-053) already bypasses `STATUS_SEVERITY` in
+#     BOTH directions for this kind, so an `E` here is NOT demoted to `R` at `complete`.
+#     Without that, a close-out `E` would be silently downgraded at the exact status it
+#     exists to fire on.
+#
+# These are SEPARATE checks rather than a mutation of R1/R2a because one check cannot carry
+# two severities. Their ids are distinct so a finding names which binding produced it.
+[[checks]]
+id = "R1-closeout"
+rule = "R1"
+severity = "E"
+kind = "plan-relations"
+statuses = ["reconciling", "complete"]
+
+[[checks]]
+id = "R2a-closeout"
+rule = "R2a"
+severity = "E"
+kind = "plan-relations"
+statuses = ["reconciling", "complete"]
