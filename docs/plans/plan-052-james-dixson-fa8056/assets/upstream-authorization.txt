@@ -79,3 +79,56 @@ separately auditable — plan-048's amendment precedent.
 
   Same constraints as the original grant: route through /yf-beads-upstream, verify the
   write STRUCTURALLY (returned URL on create), heredocs for the body, fail-closed.
+
+────────────────────────────────────────────────────────────────────────────────
+AMENDMENT 2 — 2026-08-24. AUTHORIZED BY THE OPERATOR, explicitly, in session.
+
+  Post ONE COMMENT on #219 (comment only — do NOT close it). Total outward-facing
+  actions is now 25.
+
+  Content: #219 was filed as a GATE defect (Test contradicts Condition). Record that the
+  same class has now appeared TWICE MORE, in CRITERIA rather than gates, both caught by
+  this plan's own recheck-criteria at §6.4:
+
+    SC1c  — clause runs ctl-spec-first-order over `main..HEAD`, which is EMPTY post-merge,
+            so the control correctly returns exit 2. The criterion's own text says it is
+            checked PRE-MERGE at 7.1, and it WAS green there. The clause cannot express
+            "true at a point in time".
+    SC20  — clause asserts verify-reconcile verdict=="pass", but the criterion means "every
+            row reached the end state its disposition requires". #218 is REPORT-ONLY and has
+            no required end state, so the verdict is `inconclusive`: 25/26 pass, the 26th has
+            no contract to check. The clause over-specifies its own criterion.
+
+  The generalization, which is what makes this worth filing: NOTHING CHECKS THAT A
+  VERIFICATION CLAUSE EXPRESSES ITS CRITERION. doc_lint checks the cell is filled and
+  well-shaped; gate_consistency.py checks Blocks-set self-satisfaction and discharger
+  closure. Neither reads the clause against the prose beside it. Three instances now:
+  the Reconcile Gate (Test vs Condition), SC1c and SC20 (Verification vs Criterion).
+
+────────────────────────────────────────────────────────────────────────────────
+AMENDMENT 3 — 2026-08-24. AUTHORIZED BY THE OPERATOR, explicitly, in session.
+
+  File ONE NEW issue (D9). Total outward-facing actions is now 26.
+
+  D9 — assets/red-observations.tsv CANNOT DISTINGUISH A DRIVEN RED FROM A REAL FAILURE,
+       and records no subject. Measured schema: (timestamp, ctl_id, exit) — three columns.
+       For ctl-spec-first-order alone there are 18 records, 11 with exit 0, and NOTHING
+       distinguishes which run measured what.
+
+       WHY IT MATTERS BEYOND BOOKKEEPING: SC2 and both red-prework gate Conditions assert
+       "every control has a recorded RED observation with exit 1". That is satisfied by ANY
+       exit-1 — including an accidental breakage, a missing fixture, or a control that was
+       simply broken at the time. The ledger cannot tell the intended driven RED from a
+       genuine failure, so the assertion is weaker than its wording implies. It was the
+       reason a receipt clause for SC1c could not be written at all: nine indistinguishable
+       exit-0 records, none of which proves anything about what was measured.
+
+       PROPOSED FIX: extend the schema with (a) a `subject` column recording WHAT was
+       measured — the range, tree SHA, or fixture path — and (b) an explicit `driven`
+       flag set by the CTL_RED path, so a driven RED is distinguishable from a failure.
+       Then SC2's assertion becomes what it already claims to be.
+
+       Filed as a plan-052 finding: the plan's own harness, found by its own halt.
+
+  Same constraints as the original grant: route through /yf-beads-upstream, verify the write
+  STRUCTURALLY (returned URL on create), heredoc body, fail-closed.

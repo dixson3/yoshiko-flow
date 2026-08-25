@@ -6,7 +6,7 @@ author: james-dixson
 created: '2026-08-23'
 status: reconciling
 deliverable_class: standard
-fingerprint: 564d1dacf35f540ab41798ca303356adf15998cc36ee12c0f199e327e57ea90f
+fingerprint: 0369486508083bf41ee84bdf3086e077d76d41875e5ee3b497ec46ef3a6400e4
 epic: yf-mol-f2q
 ---
 # Plan: Give yf-plan's review-and-close loop a mechanical spine: a bead representation for the Phase 3 review loop, an end-state re-check of plan.md Success Criteria, and evidence-bearing close-out at land-the-plane
@@ -17,7 +17,7 @@ epic: yf-mol-f2q
 **Status:** reconciling
 **Deliverable-class:** standard
 **Epic:** yf-mol-f2q
-**Fingerprint:** 564d1dacf35f540ab41798ca303356adf15998cc36ee12c0f199e327e57ea90f
+**Fingerprint:** 0369486508083bf41ee84bdf3086e077d76d41875e5ee3b497ec46ef3a6400e4
 
 ## Objective
 Give yf-plan's review-and-close loop a mechanical spine: a bead representation for the Phase 3 review loop, an end-state re-check of plan.md Success Criteria, and evidence-bearing close-out at land-the-plane
