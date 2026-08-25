@@ -2528,6 +2528,231 @@ def ownership_report(plan_dir: str, json_output: bool):
     sys.exit(0)
 
 
+# --- recheck-criteria — completion-time re-check of Success Criteria (REQ-PLAN-080) ----
+#
+# THE TRIGGER, STATED AS A MEASUREMENT: plan-051 shipped `SC4b` measured green at the issue
+# that discharged it and FALSE two epics later — a file added downstream matched its pattern
+# and nothing re-ran the check. It was caught by an operator re-measurement, not by anything
+# the plan shipped. A criterion is only as good as the last time something re-ran it.
+#
+# `YF_RECHECK_DEPTH` IS THE LOAD-BEARING GUARD. The name-check below is BEST-EFFORT and scans
+# THE EXECUTED COMMAND STRING ONLY, never the criterion row — a criterion row may legitimately
+# *discuss* this verb, and in plan-052 every clause routes through `gate-run.sh` so no clause
+# contains the literal `recheck-criteria` at all. A name-check over rows would therefore be
+# both unnecessary and wrong.
+#
+# THE DEPTH RULE IS ABOUT WHAT EACH DEPTH MAY DO:
+#     depth 0 and depth 1 EVALUATE;  depth 2 returns exit 2 (INCONCLUSIVE) WITHOUT EXECUTING.
+# Depth 1 must evaluate because a criterion's command routes through the plan's own harness
+# and therefore runs one level down when this verb is invoked from the §6.4 close chain. A
+# guard that refused at depth 1 would make every fixture-driven control valid standalone and
+# INCONCLUSIVE under the chain — the exact state this plan exists to prevent.
+RECHECK_MAX_DEPTH = 2
+
+#: REQ-DATA-070's clause grammar, duplicated here rather than imported: `doc_lint` owns the
+#: AUTHORING-time shape check, this owns EXECUTION. They read the same grammar for different
+#: purposes, and coupling the close chain to the linter would make a linter outage a
+#: completion outage.
+_RECHECK_CLAUSE = re.compile(
+    r"`(?P<cmd>.+)`\s*(?:\u2192|->)\s*exit\s+(?P<want>0|1|2|non-zero)\s*\Z", re.S)
+_RECHECK_MANUAL = re.compile(r"\Amanual:\s*\S", re.S)
+
+
+def _repo_root_for(plan_dir: Path) -> Path:
+    """The repo root a criterion's command should run from.
+
+    REQ-DATA-070: every command runs FROM THE REPO ROOT unless its clause says otherwise. A
+    plan bundle can sit at `docs/plans/<id>/` or `Incubator/<slug>/plans/<id>/`, so the depth
+    varies — `git rev-parse` is asked first and the walk is the fallback.
+    """
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             cwd=str(plan_dir), capture_output=True, text=True, timeout=5)
+        if out.returncode == 0 and out.stdout.strip():
+            return Path(out.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    for d in [plan_dir.resolve(), *plan_dir.resolve().parents]:
+        if (d / ".git").exists():
+            return d
+    return plan_dir.resolve()
+
+
+def _recheck_unescape(cell: str) -> str:
+    """Undo GFM table escaping before execution (REQ-DATA-070).
+
+    A Verification cell lives inside a GFM table, so a piped command is necessarily written
+    `\\|`. Executing the raw cell runs a TRUNCATED command that means something else — risk R9.
+    """
+    return cell.replace("\\|", "|").replace("\\\\", "\\")
+
+
+def _classify_criterion(cell: str) -> tuple[str, str | None, str | None]:
+    """-> (kind, command, expected). kind in {clause, manual, prose}."""
+    c = _recheck_unescape(cell).strip()
+    if _RECHECK_MANUAL.match(c):
+        return "manual", None, None
+    m = _RECHECK_CLAUSE.search(c)
+    if m:
+        return "clause", m.group("cmd").strip(), m.group("want")
+    return "prose", None, None
+
+
+def _recheck_holds(rc: int, want: str) -> bool:
+    if want == "non-zero":
+        return rc != 0
+    return rc == int(want)
+
+
+@cli.command("recheck-criteria")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "json_output", is_flag=True,
+              help="Emit the structured verdict (default is also JSON).")
+@click.option("--timeout", default=300, show_default=True,
+              help="Per-criterion command timeout, in seconds.")
+def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
+    """Re-evaluate every clause-form Success Criterion at completion (REQ-PLAN-080).
+
+    Exit: 0 every evaluated criterion holds · 1 at least one is FALSE · 2 INCONCLUSIVE.
+    """
+    depth = 0
+    try:
+        depth = int(os.environ.get("YF_RECHECK_DEPTH", "0"))
+    except ValueError:
+        depth = 0
+
+    base = {"plan_dir": plan_dir, "depth": depth, "max_depth": RECHECK_MAX_DEPTH}
+
+    # THE GUARD. At the limit we refuse WITHOUT EXECUTING anything.
+    if depth >= RECHECK_MAX_DEPTH:
+        click.echo(json.dumps({
+            **base, "verdict": "INCONCLUSIVE", "severity": "warn",
+            "class_a_fraction": 0.0, "evaluated_fraction": 0.0, "criteria": [],
+            "reason": (f"YF_RECHECK_DEPTH={depth} has reached the limit of "
+                       f"{RECHECK_MAX_DEPTH}; refusing WITHOUT executing any criterion"),
+        }))
+        sys.exit(2)
+
+    pdir = Path(plan_dir)
+    plan_md = pdir / "plan.md"
+    if not plan_md.exists():
+        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE", "severity": "warn",
+                               "class_a_fraction": 0.0, "evaluated_fraction": 0.0,
+                               "criteria": [],
+                               "reason": f"plan.md not found under {plan_dir}"}))
+        sys.exit(2)
+
+    try:
+        docs = _run_plan_extract(pdir)
+        rows = docs.get("criteria") or []
+    except Exception as e:  # noqa: BLE001
+        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE", "severity": "warn",
+                               "class_a_fraction": 0.0, "evaluated_fraction": 0.0,
+                               "criteria": [],
+                               "reason": f"plan_extract could not read the plan: {e}"}))
+        sys.exit(2)
+
+    if not rows:
+        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE", "severity": "warn",
+                               "class_a_fraction": 0.0, "evaluated_fraction": 0.0,
+                               "criteria": [],
+                               "reason": "the plan declares no Success Criteria table"}))
+        sys.exit(2)
+
+    child_env = dict(os.environ, YF_RECHECK_DEPTH=str(depth + 1))
+    repo_root = _repo_root_for(pdir)
+
+    results, class_a, evaluated, failed = [], 0, 0, []
+    for r in rows:
+        cid = r.get("id") or "?"
+        kind, cmd, want = _classify_criterion(r.get("verification") or "")
+        rec = {"id": cid, "kind": kind}
+        if kind != "clause":
+            rec["status"] = "not-evaluated"
+            results.append(rec)
+            continue
+        class_a += 1
+        rec["command"], rec["expected_exit"] = cmd, want
+
+        # BEST-EFFORT name check — the EXECUTED COMMAND STRING ONLY, never the criterion row.
+        if "recheck-criteria" in (cmd or ""):
+            rec["status"] = "skipped-self-reference"
+            results.append(rec)
+            continue
+
+        try:
+            proc = subprocess.run(["bash", "-c", cmd], cwd=str(repo_root), env=child_env,
+                                  capture_output=True, text=True, timeout=timeout)
+            rc = proc.returncode
+        except subprocess.TimeoutExpired:
+            rec["status"] = "inconclusive"
+            rec["detail"] = f"timed out after {timeout}s"
+            results.append(rec)
+            continue
+        except OSError as e:
+            rec["status"] = "inconclusive"
+            rec["detail"] = f"could not execute: {e}"
+            results.append(rec)
+            continue
+
+        rec["actual_exit"] = rc
+        # 126/127 mean the INSTRUMENT could not run (not executable / not found). That is a
+        # different claim from the criterion being false, so it is never counted as evaluated.
+        if rc in (126, 127):
+            rec["status"] = "inconclusive"
+            rec["detail"] = "command not found or not executable"
+            results.append(rec)
+            continue
+
+        evaluated += 1
+        if _recheck_holds(rc, want):
+            rec["status"] = "holds"
+        else:
+            rec["status"] = "FALSE"
+            failed.append(cid)
+        results.append(rec)
+
+    total = len(rows)
+    out = {
+        **base,
+        # TWO DISTINCT FIELDS, never one conflated "coverage". They answer different
+        # questions: how much of the plan is machine-readable AT ALL, versus how much this
+        # run actually managed to evaluate. A single number lets a plan whose criteria are
+        # 20% machine-readable read the same as one whose harness failed on 80% of them.
+        "class_a_fraction": round(class_a / total, 4),
+        "evaluated_fraction": round(evaluated / total, 4),
+        "total": total, "class_a": class_a, "evaluated": evaluated,
+        "failed": failed, "criteria": results,
+    }
+
+    if failed:
+        out.update({"verdict": "FAIL", "severity": "error",
+                    "reason": f"{len(failed)} criterion/criteria are FALSE at completion: "
+                              f"{', '.join(failed)}",
+                    "remediation": ("Each criterion above was true when its issue closed and "
+                                    "is false now. Fix the regression, or amend the criterion "
+                                    "if it no longer states what the plan means, then re-run "
+                                    "§6.4.")})
+        click.echo(json.dumps(out, indent=1))
+        sys.exit(1)
+
+    if evaluated == 0:
+        # INCONCLUSIVE MAPS TO `warn` AND NEVER HARD-FAILS COMPLETION (REQ-DATA-057
+        # precedent). Measured over `docs/plans/plan-*/plan.md`: 6 of 52 bundles carry the
+        # four-column shape and exactly 1 carries any clause-form criterion, so INCONCLUSIVE
+        # is the EXPECTED verdict almost everywhere. Hard-gating on it is an outage.
+        out.update({"verdict": "INCONCLUSIVE", "severity": "warn",
+                    "reason": ("no criterion could be evaluated — the plan carries no "
+                               "clause-form Verification cell this run could run")})
+        click.echo(json.dumps(out, indent=1))
+        sys.exit(2)
+
+    out.update({"verdict": "PASS", "severity": "ok",
+                "reason": f"all {evaluated} evaluated criterion/criteria hold"})
+    click.echo(json.dumps(out, indent=1))
+    sys.exit(0)
+
+
 @cli.command("verify-reconcile")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "json_output", is_flag=True,

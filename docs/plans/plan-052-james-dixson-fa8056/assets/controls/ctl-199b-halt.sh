@@ -137,4 +137,12 @@ if not re.search(r'_RC=\$\?', window) or not re.search(
     raise SystemExit(1)
 print("ok: SKILL.md §6.4 branches on recheck-criteria's exit code")
 PYEOF
+# READ THE HEREDOC'S EXIT CODE. Without this the block printed its FAIL to stderr, the
+# script fell through, and the final echo made the control exit 0 — a FALSE GREEN inside the
+# control whose whole subject is "an exit code nothing reads is not a step". Caught by
+# reading the output rather than the exit code, which is the same discipline in reverse.
+SKILL_RC=$?
+if [ "$SKILL_RC" -ne 0 ]; then
+  exit "$SKILL_RC"
+fi
 echo "PASS: a failing re-check exits non-zero and the close chain branches on it"
