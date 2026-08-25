@@ -34,11 +34,17 @@ except OSError as e:
 
 # One row per defect in the document's table, each naming a filed upstream issue.
 rows = []
+header: list[str] = []
 for ln in text.splitlines():
     if not ln.startswith("|"):
         continue
     cells = [c.strip() for c in ln.strip().strip("|").split("|")]
-    if len(cells) < 2 or set(cells[0]) <= set(":- ") or cells[0].lower() in ("#", "id"):
+    if set(cells[0]) <= set(":- "):
+        continue
+    if cells[0].strip().lower() in ("#", "id"):
+        header = cells          # the most recent header wins; all tables share a shape
+        continue
+    if len(cells) < 2:
         continue
     rows.append(cells)
 
@@ -50,8 +56,17 @@ if len(rows) != expected:
     print(f"FAIL: {len(rows)} defect(s) recorded, expected {expected}", file=sys.stderr)
     raise SystemExit(1)
 
-# Each must actually be FILED — a row with no issue number is a plan, not a filing.
-unfiled = [r[0] for r in rows if not re.search(r"#\d+", " ".join(r))]
+# Each must actually be FILED — read the `Filed` CELL, never the whole row. An earlier
+# draft scanned the joined row and counted D4 as filed because its MEASUREMENT cites #107;
+# a citation in prose is not a filing, and a check that cannot tell them apart reports a
+# green for work nobody did.
+try:
+    filed_col = next(i for i, h in enumerate(header) if h.strip().lower() == "filed")
+except (StopIteration, NameError):
+    print("INCONCLUSIVE: no `Filed` column in the defect table", file=sys.stderr)
+    raise SystemExit(2)
+unfiled = [r[0] for r in rows
+           if filed_col >= len(r) or not re.search(r"#\d+", r[filed_col])]
 if unfiled:
     print(f"FAIL: {len(unfiled)} defect(s) recorded but NOT filed (no #N): {unfiled}",
           file=sys.stderr)
