@@ -358,3 +358,12 @@ timestamp	ctl_id	exit
 2026-08-25T01:11:45Z	ctl-handoff-drift	0
 2026-08-25T01:24:34Z	ctl-deferred-count	0
 2026-08-25T01:24:34Z	ctl-deferred-count	0
+2026-08-25T01:28:40Z	ctl-deploy-stamp	1
+2026-08-25T01:28:40Z	ctl-deploy-stamp	1
+2026-08-25T01:29:24Z	ctl-deploy-stamp	1
+2026-08-25T01:29:25Z	ctl-deploy-stamp	1
+2026-08-25T01:30:51Z	ctl-deploy-stamp	0
+2026-08-25T01:30:51Z	ctl-deploy-stamp	0
+2026-08-25T01:30:59Z	ctl-deploy-stamp	1
+2026-08-25T01:31:00Z	ctl-deploy-stamp	1
+2026-08-25T01:31:01Z	ctl-deploy-stamp	0

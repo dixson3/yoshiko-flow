@@ -68,14 +68,42 @@ predicate "$STAMP" "$HEAD"; live=$?
 SKILLS_SRC="$REPO/skills"
 SKILLS_DEP="$HOME/.claude/skills"
 [ -d "$SKILLS_DEP" ] || { echo "INCONCLUSIVE: no deployed skills tree at $SKILLS_DEP" >&2; exit 2; }
+# EXCLUDE DEPLOYMENT ARTIFACTS, which are not drift:
+#   * `__pycache__` / `.pytest_cache` / `*.pyc` — build and test residue on either side;
+#   * the INJECTED PROVENANCE BANNER `<!-- yf-skills: v=... tree=... -->`, which the
+#     installer adds to every deployed SKILL.md by design. It is present in the deployed
+#     copy and absent from source BY CONSTRUCTION, so a naive diff reports every skill as
+#     drifted on every deploy — measured: 4 skills, and the ONLY content difference in each
+#     was that one line.
+# A control that fires on its own deployment mechanism reports a constant, and a constant
+# carries no information. Real content drift is still caught.
 drift=0
+norm() { grep -v '^<!-- yf-skills: ' "$1" 2>/dev/null; }
 for d in "$SKILLS_SRC"/*/; do
   name="$(basename "$d")"
   [ -d "$SKILLS_DEP/$name" ] || continue
-  if ! diff -rq "$d" "$SKILLS_DEP/$name" >/dev/null 2>&1; then
-    echo "FAIL: deployed skill '$name' differs from source" >&2
-    drift=1
-  fi
+  while IFS= read -r rel; do
+    src="$d$rel"; dep="$SKILLS_DEP/$name/$rel"
+    if [ ! -e "$dep" ]; then
+      echo "FAIL: '$name/$rel' is in source but NOT deployed" >&2; drift=1; continue
+    fi
+    # BINARIES ARE COMPARED BYTE-FOR-BYTE. Running the banner filter over a PNG mangles
+    # both sides differently and reports a difference where `cmp` says the files are
+    # IDENTICAL — measured on spec/worktree-execute-lifecycle.png. Only the text files that
+    # can carry the injected banner get normalized.
+    case "$rel" in
+      *.md)
+        if ! diff -q <(norm "$src") <(norm "$dep") >/dev/null 2>&1; then
+          echo "FAIL: deployed '$name/$rel' differs from source" >&2; drift=1
+        fi ;;
+      *)
+        if ! cmp -s "$src" "$dep"; then
+          echo "FAIL: deployed '$name/$rel' differs from source" >&2; drift=1
+        fi ;;
+    esac
+  done < <(cd "$d" && find . -type f \
+             ! -path '*/__pycache__/*' ! -path '*/.pytest_cache/*' ! -name '*.pyc' \
+             | sed 's|^\./||')
 done
 [ "$drift" -eq 0 ] || exit 1
 echo "PASS: stamp matches HEAD ($HEAD) and the deployed tree matches source"
