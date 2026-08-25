@@ -58,6 +58,7 @@ SAFETY INVARIANTS preserved (see spec/safety.md):
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import pathlib
 import re
@@ -1476,6 +1477,36 @@ def cmd_reconcile(as_json: bool, apply: bool) -> int:
     return 0
 
 
+def _repo_root_for_render() -> pathlib.Path:
+    """The repository root, for resolving plan bundles off disk."""
+    try:
+        out = run(["git", "rev-parse", "--show-toplevel"])
+        if out.strip():
+            return pathlib.Path(out.strip())
+    except Exception:  # noqa: BLE001
+        pass
+    return pathlib.Path(__file__).resolve().parents[3]
+
+
+def _load_render_module():
+    """Load the co-resident `upstream_render` module.
+
+    Absence is FAIL-SOFT — the proposal still renders, just without the evidence block. A
+    missing renderer must not take out `closable` itself; the `evidence_complete` flag is
+    what a caller asserts on, and an unenriched row simply lacks it.
+    """
+    cand = pathlib.Path(__file__).resolve().parent / "upstream_render.py"
+    if not cand.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("upstream_render", cand)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def cmd_closable(as_json: bool, fixture: str | None = None) -> int:
     """Propose which upstream issues can be closed. NEVER closes anything (REQ-BUP-052).
 
@@ -1520,6 +1551,14 @@ def cmd_closable(as_json: bool, fixture: str | None = None) -> int:
                       "metadata": r.get("metadata") or {}})
 
     report = closable_candidates(beads)
+
+    # REQ-BUP-070b: EVERY proposal renders its mapped beads, their close_reason, AND the plan
+    # Success Criteria those beads discharge. A close-out proposal is an outward-facing
+    # recommendation the operator is asked to authorize; without this it asks for consent to a
+    # claim whose evidence the operator would have to reconstruct by hand.
+    _render = _load_render_module()
+    if _render is not None:
+        _render.enrich(report, {b["id"]: b for b in beads}, _repo_root_for_render())
 
     # plan-044 Issue 3.3 (REQ-BUP-060/064): annotate each row with its UPSTREAM
     # state and emit NO command for a non-OPEN issue. Baseline before this: 35

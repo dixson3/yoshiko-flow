@@ -6,7 +6,10 @@
     "issue_type": "task",
     "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/900",
     "close_reason": "Issue 1.1: shipped the predicate and its two fixtures; ctl-fx-1 green",
-    "metadata": {"plan": "plan-997-fixture", "plan_issue": "1.1"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056",
+      "plan_issue": "1.1"
+    }
   },
   {
     "id": "fx-clean-2",
@@ -15,9 +18,11 @@
     "issue_type": "task",
     "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/900",
     "close_reason": "Issue 1.2: wired the predicate into the close chain; ctl-fx-2 green",
-    "metadata": {"plan": "plan-997-fixture", "plan_issue": "1.2"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056",
+      "plan_issue": "1.3"
+    }
   },
-
   {
     "id": "fx-tombstone-1",
     "title": "Issue 2.1: work that MOVED UPSTREAM and is still open there",
@@ -25,7 +30,10 @@
     "issue_type": "task",
     "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/901",
     "close_reason": "hoisted upstream to https://github.com/dixson3/yoshiko-flow/issues/901 (reversible tombstone; un-hoist to restore)",
-    "metadata": {"plan": "plan-997-fixture", "plan_issue": "2.1"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056",
+      "plan_issue": "2.1"
+    }
   },
   {
     "id": "fx-tombstone-2",
@@ -34,9 +42,11 @@
     "issue_type": "task",
     "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/901",
     "close_reason": "hoisted upstream to https://github.com/dixson3/yoshiko-flow/issues/901 (reversible tombstone; un-hoist to restore)",
-    "metadata": {"plan": "plan-997-fixture", "plan_issue": "2.2"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056",
+      "plan_issue": "3.1"
+    }
   },
-
   {
     "id": "fx-open-1",
     "title": "Issue 3.1: still open",
@@ -44,7 +54,10 @@
     "issue_type": "task",
     "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/902",
     "close_reason": "",
-    "metadata": {"plan": "plan-997-fixture", "plan_issue": "3.1"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056",
+      "plan_issue": "4.1"
+    }
   },
   {
     "id": "fx-open-2",
@@ -53,15 +66,19 @@
     "issue_type": "task",
     "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/902",
     "close_reason": "Issue 3.2: done",
-    "metadata": {"plan": "plan-997-fixture", "plan_issue": "3.2"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056",
+      "plan_issue": "5.0"
+    }
   },
-
   {
     "id": "fx-unmapped",
-    "title": "a bead with no upstream mapping at all — must be invisible to closable",
+    "title": "a bead with no upstream mapping at all \u2014 must be invisible to closable",
     "status": "closed",
     "issue_type": "task",
     "close_reason": "unmapped work",
-    "metadata": {"plan": "plan-997-fixture"}
+    "metadata": {
+      "plan": "plan-052-james-dixson-fa8056"
+    }
   }
 ]
