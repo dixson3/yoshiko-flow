@@ -41,3 +41,25 @@ id = "entry-ids"
 severity = "R"
 kind = "regex-present"
 pattern = '(?m)^#{1,3} +RE-[0-9]+'
+
+# --- plan-052 Issue 5.3 (#196): structured prevention fields --------------------------
+#
+# `prevention` STAYS PROSE and is deliberately NOT checked here. A prevention narrative is a
+# human judgement, and mechanizing it would produce fake entries — the same reasoning that
+# makes `manual:` a first-class disposition in REQ-DATA-070 rather than a failure.
+#
+# What IS checkable is the FORMULA NAME: an identifier with a closed domain (`bd formula
+# list`), where an unchecked typo silently prevents nothing. `retrospective_fields.py
+# --check-formula` owns that check; this schema only records that the two fields are
+# recognized, so a reader meeting the document meets the convention too.
+#
+# Report-only (`R`): a retrospective is a historical record, and an entry written before these
+# fields existed must not be re-judged by a rule added after it.
+[[checks]]
+id = "prevention-formula-shape"
+severity = "R"
+kind = "regex-absent"
+# A `prevention_formula:` line whose value is empty or a placeholder. The DOMAIN check is the
+# executable one; this only catches a field that was added and then left blank.
+pattern = "(?m)^[-*]?\\s*\\*{0,2}prevention_formula\\*{0,2}\\s*:\\s*(?:$|_?TBD_?|N/?A|-{1,2}\\s*$)"
+message = "prevention_formula is present but empty — validate the name with `retrospective_fields.py --check-formula <name>`, or omit the field"

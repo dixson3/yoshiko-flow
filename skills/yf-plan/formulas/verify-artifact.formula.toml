@@ -1,0 +1,43 @@
+formula = "verify-artifact"
+description = "Verify the artifact each woven step claims to have produced"
+version = 1
+type = "aspect"
+
+# THE VERIFY-ARTIFACT ASPECT (plan-052 Issue 5.1, #197).
+#
+# A review step that REPORTS a verdict and a review step that WROTE the file carrying it are
+# different facts, and only the second one is checkable after the session ends. This aspect
+# attaches one verify step to every step of the formula that composes it, so the obligation
+# EXECUTES rather than living in prose.
+#
+# ASPECTS WEAVE AT **COOK** TIME, over formula-declared steps only. That is the whole
+# mechanism, and it names the observation point: `bd cook <formula> --dry-run` shows the woven
+# plan; `bd formula show` renders the RAW formula and is expected to show NO woven steps, as is
+# a pour of an UNCOOKED proto. Measured on bd 1.1.2 — checking either of those two surfaces and
+# concluding the aspect does not weave is a reading error, not a bd defect.
+#
+# THE ATTACHMENT IS `[compose] aspects` IN THE CONSUMER, NEVER A TOP-LEVEL `aspects` KEY. A
+# top-level key is SILENTLY IGNORED: it parses, it cooks, and it composes nothing — so an
+# implementation using it looks correct in review and does nothing at runtime.
+
+# `pointcuts` selects which steps this aspect is willing to attach to. `*` = every declared
+# step, which is what SC14's "ALL FOUR plan-review steps" requires; narrowing it here would
+# make the aspect's reach depend on step naming rather than on the consumer's own choice to
+# compose it.
+[[pointcuts]]
+glob = "*"
+
+# `advice` is an ARRAY OF TABLES carrying a `target`, and the injected step lives in the
+# SUB-TABLE `[advice.after]`. Both details are load-bearing: a flat `after` key or a
+# non-array `advice` is not the schema bd reads.
+[[advice]]
+target = "*"
+[advice.after]
+id = "{step.id}-verify"
+title = "Verify artifact: {step.id}"
+type = "task"
+description = """Assert the artifact `{step.id}` claims to have produced EXISTS and is FRESH — \
+written by THIS cycle, not left behind by an earlier one. A step that reports a verdict and a \
+step that wrote the file carrying it are different facts; only the second survives the session. \
+Where the step produces no file, record that as a negative observation rather than passing \
+silently."""
