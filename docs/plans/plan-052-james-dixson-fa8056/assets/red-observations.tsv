@@ -118,3 +118,10 @@ timestamp	ctl_id	exit
 2026-08-25T00:03:44Z	ctl-199b-halt	0
 2026-08-25T00:04:02Z	ctl-199b-halt	1
 2026-08-25T00:04:02Z	ctl-199b-halt	1
+2026-08-25T00:05:04Z	ctl-199b-halt	0
+2026-08-25T00:05:05Z	ctl-199b-halt	0
+2026-08-25T00:05:14Z	ctl-199b-fields	0
+2026-08-25T00:05:15Z	ctl-199b-rot	0
+2026-08-25T00:05:15Z	ctl-199b-inconclusive	0
+2026-08-25T00:05:16Z	ctl-199b-recursion	0
+2026-08-25T00:05:16Z	ctl-199b-halt	0
