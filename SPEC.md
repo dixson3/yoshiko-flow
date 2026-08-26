@@ -236,7 +236,10 @@
 >   **three-tier key-by-key merge**, and added **`REQ-YF-PRE-004a`** introducing the **committed**
 >   `.yf/<short>/config.json` tier — the single carve-out in the otherwise fully-ignored `.yf/` tree,
 >   for decisions that are properties of the repository rather than of a checkout. Added
->   **`REQ-PLAN-073`** (configurable, import-safe `plans-root` / `incubator-root`). `plan_manager.py`
+>   **`REQ-PLAN-079`** (configurable, import-safe `plans-root` / `incubator-root`;
+>   allocated under the number **073** at the time and renumbered by plan-053 / #214 to resolve
+>   an id collision with the `stamp-tracker` requirement — plan-037-era records cite it under the
+>   old number). `plan_manager.py`
 >   is now aligned to the binary: same three tiers, short-name `.yf/plan/` state with migration from
 >   the full-name dir; `change_validation.py`'s `validate-cmd` seed reads the same reader (#101).
 >   Operator decision recorded at `docs/plans/plan-037-james-dixson-cab694/decisions/config-tier.md`.
@@ -706,6 +709,40 @@ requirement lives only in code (GUARDRAILS GR-010).
   is merely one file short. Verification shall exercise the **addition** case specifically: a
   content-edit test passes with the defect present and is therefore not a guard for this
   requirement.
+- **REQ-YF-EMBED-005** *(testable, added plan-053 / #210)* every **script path referenced in a
+  skill instruction document** shall resolve under an installed `SKILL_DIR`. The scope is the
+  instruction surface a *consumer* reads — `skills/*/SKILL.md`, `skills/*/README.md`,
+  `skills/*/agents/*.md`, `skills/*/protocols/*.md`, `skills/*/reference/*.md` — and a reference
+  is any invocation naming a script (`uv run …`, `bash …`, `python …`) inside a shell fence. The
+  path shall be **rooted at `${SKILL_DIR}/`** (or another consumer-resolvable root), never at a
+  path that exists only in *this* repository's working tree. A repo check shall enforce this
+  across the whole `skills/` tree and run in the **fast and full** validation tiers, with its own
+  path in scope so that **deleting** the check fires it.
+
+  The `_shared/` prefix is the measured instance. `_shared/` is a directory in this repository; it
+  is not one of the six roots the `SKILL_DIR` resolver searches, so an operator following such a
+  line verbatim in any other repository gets a file-not-found. A second, distinct failure shape
+  shares the requirement: a path may be *correctly rooted* and still name a script that was never
+  vendored into the skill at all (`missing-in-repo`) — `pour_fidelity.py` had **no vendored copy**,
+  so rewriting its `SKILL.md` line alone would have produced a rooted path that still did not
+  resolve. Both shapes are in scope.
+
+  The check shall carry the standard three-valued exit contract (`0` clean, `1` violations, `2`
+  the check could not run), emit `--json`, offer an `--all` mode, carve out **illustrative** (as
+  opposed to executable) invocations, honour an explicit
+  `<!-- skill-script-refs: allow <why> -->` opt-out marker for deliberate external references,
+  and exclude `skills/*/scripts/fixtures/**`, which holds corpus fixture documents carrying
+  arbitrary invocations by design.
+
+  **It is a repo-level guard (`scripts/`), not a shipped skill script** — the precedent is
+  `scripts/check_frontmatter.py`, and shipping the check *inside* a skill would make it
+  self-referential. Rationale: this is the **second** instance of one mechanism — plan-050 fixed
+  exactly this break for `plan_extract.py` and did not close the class, so the remedy is the one
+  plan-052's `RE-002` prescribes: when successive fixes to one defect are each refuted by the same
+  mechanism, stop iterating on the fix and put a check in front of the failing component. The
+  justification is a **mutation**, not volume: re-inserting plan-050's original bug makes the
+  check go red, which is the evidence that it would have caught the first instance. False-positive
+  surface was measured at **zero** over the tree at authoring time.
 
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 
@@ -916,7 +953,7 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
 - **REQ-YF-PRE-004a** *(testable, plan-037)* the **committed** config tier
   `.yf/<short>/config.json` shall hold decisions that are properties of the **repository** rather
   than of a checkout — layout being the motivating case (`plans-root` / `incubator-root`,
-  REQ-PLAN-073). It is the single exception to the otherwise fully-ignored `.yf/` tree: the
+  REQ-PLAN-079). It is the single exception to the otherwise fully-ignored `.yf/` tree: the
   gitignore shall keep `/.yf/` ignored and carve out **only** `.yf/<short>/config.json`, never
   state and never a `*.local.json`. Both the kernel (`preflight.rs`) and any skill-side reader
   (`plan_manager.py`) shall implement the same three-tier merge — two readers disagreeing about
