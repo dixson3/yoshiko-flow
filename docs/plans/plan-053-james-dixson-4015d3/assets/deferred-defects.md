@@ -18,6 +18,8 @@ not deferred. A plan must not both fix and defer the same defect (pass-4 C45).
 
 ## D1 — the COLUMN-0 PARAGRAPH drop: #206's third family member
 
+**Filed upstream as [#225](https://github.com/dixson3/yoshiko-flow/issues/225).**
+
 A column-0 paragraph inside `## Epics` under an open issue is dropped **silently**, with
 `unparsed: []` and exit 0 — the same silent-loss signature #206 is about, in a shape neither
 Epic 2 fix reaches.
@@ -35,6 +37,8 @@ collecting it into `detail` would be wrong. The right answer is probably `unpars
 makes it a *different* change with a different risk profile, not a bigger version of this one.
 
 ## D2 — the LEADING-CODE-SPAN trailing declaration is not read
+
+**Filed upstream as [#226](https://github.com/dixson3/yoshiko-flow/issues/226).**
 
 A real trailing declaration sitting behind a leading inline code span yields **no edge**, on
 both the base and the fixed tree.
@@ -55,6 +59,8 @@ RED fixture and its own corpus delta.
 
 ## D3 — `yf-incubator`'s `STATUS_VALUES` is DEAD CODE: #208's defect one skill over
 
+**Filed upstream as [#227](https://github.com/dixson3/yoshiko-flow/issues/227).**
+
 `skills/yf-incubator/scripts/incubator-index.py:47` defines a `STATUS_VALUES` set and
 **never reads it** — one occurrence in the whole file, the definition itself.
 
@@ -72,6 +78,8 @@ closed) and deliberately did not reach into another skill's runtime.
 
 ## D4 — TITLE-BORNE citations (D-13)
 
+**Filed upstream as [#228](https://github.com/dixson3/yoshiko-flow/issues/228).**
+
 `#209`'s provenance header reaches a bead's **description**. It does not reach citations that
 migrated into bead **titles**, which is where this repo's newest bundles actually put them.
 
@@ -83,6 +91,8 @@ Recorded rather than papered over: the header still makes a bundle findable from
 is a real gain on an otherwise-blank description. It is simply not the larger class.
 
 ## D5 — `redcheck.sh`'s `YF_TREE` default is a PORTABILITY defect (#210's class)
+
+**Filed upstream as [#229](https://github.com/dixson3/yoshiko-flow/issues/229).**
 
 The adopted plan-050 harness computes
 
@@ -107,6 +117,8 @@ plan-053 fixed its own copy by RESOLVING rather than assuming (probe for
 becomes the canonical harness.
 
 ## D6 — `bd close` REFUSES AND EXITS 0 on a bead blocked by an open dependency
+
+**Filed upstream as [#230](https://github.com/dixson3/yoshiko-flow/issues/230).**
 
 `bd close <id>` on a bead with an open blocking dependency prints
 
@@ -146,6 +158,8 @@ That half is a caller error, recorded honestly in `plan-retrospective.md` rather
 on the tool.
 
 ## D7 — Success-Criterion COMMANDS are never executed before approval (the residual finding)
+
+**Filed upstream as [#232](https://github.com/dixson3/yoshiko-flow/issues/232).**
 
 Not a code defect — a **process** one, and the most valuable thing plan-053 produced about
 itself.
@@ -192,6 +206,8 @@ yet".
 This is simply **extending D-4's existing discipline from controls to criteria**.
 
 ## D8 — `audit-close`'s OKF check has no fixture carve-out, so pinned fixture corpora fail it
+
+**Filed upstream as [#233](https://github.com/dixson3/yoshiko-flow/issues/233).**
 
 Found at plan-053's own close step, by running `audit-close`.
 
