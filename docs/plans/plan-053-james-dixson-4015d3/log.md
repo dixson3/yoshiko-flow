@@ -1,6 +1,11 @@
 # Log
 
 ## 2026-08-25
+- executing: KNOWN AND ACCEPTED, from Epic 1 until Issue 5.3: the repo FAST tier's doclint-tests row is RED. Its two failures are this plan's OWN ctl-208-fail-closed arm-1 and distinguishability assertions, which D-4 requires to be observed failing BEFORE the fix. Every other FAST row passes -- doc_lint itself reports 938 files / 0 errors, and test_sync 27 passed. This is the RED-before-GREEN discipline's expected cost, not a regression; Issue 5.3 turns it green and Issue 7.1 re-observes the FULL tier over the merged tree.
+- executing: SS6.1 disposition DECIDED IN ADVANCE (frontloaded, not discovered at merge-back): the primary checkout carries plan-folder artifacts (log.md, plan.md, plan-retrospective.md) modified on main per the SS5.3 address-space model. git pull --rebase refuses on a dirty tree and commit-plan refuses on the default branch (REQ-PLAN-065), so neither is the answer. CHOSEN: a plain git commit of the plan bundle to main immediately before SS6.1 acquires the landing lock. These are bundle RECORDS, not code; they never touched the execute branch, so the merge cannot conflict on them.
+- executing: start gate resolved
+- intake: epic yf-mol-bh8 poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-5 APPROVE + audit pass
 - review-pass: red-team pass 5 (fifth independent, CONFIRMING): APPROVE — 3 low concerns, 0 high, all resolved. Six of six pass-4 verification commands PASS. Reproduction 9 of 10 (90%) against 64/60/50 — the procedural remedy (apply, then RUN the check, then re-sweep) is the first one that measurably worked. Gate clean: 0 cycles over 62 edges, Blocks closure exactly the 26 fixers, every issue an ancestor of 7.1

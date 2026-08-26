@@ -51,3 +51,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-25 |
+| `stop_class` |  |
+| `asked` | Issue 1.1(b) required exit 2 to be made UNRECORDABLE rather than merely rejected: move the rc check ahead of _append in redcheck.sh's cmd_record_red, because a record-time guard cannot un-write a record. Was that fix worth making, or was it a theoretical hardening of a path that never fires? |
+| `answered` | It fired on its FIRST REAL USE, before any control had been recorded. Recording the RED for ctl-206-dropped-continuation, the fixture exited 2 (HARNESS) because redcheck.sh's INHERITED YF_TREE default -- ': ${YF_TREE:=${REPO_ROOT}/.worktrees/${PLAN_ID}}' -- assumed the assets live in the PRIMARY checkout, which was plan-050's layout. plan-053 keeps its assets in the EXECUTION WORKTREE, so REPO_ROOT already WAS the worktree and the default produced the doubled path '<worktree>/.worktrees/<plan-id>/_shared/plan_extract.py', which does not exist. The hardened cmd_record_red REFUSED the observation and wrote nothing. Under the harness exactly as adopted from plan-050, _append ran BEFORE the rc check, so this would have printed 'RED observed', returned 0, and banked a permanent 'record-red, ctl-206-dropped-continuation, ..., 2, ...' line -- which _has_record 'nonzero' matches -- certifying a RED for a fixture that never executed a single assertion. YF_TREE now RESOLVES (probe for .worktrees/<plan-id>/_shared, else use REPO_ROOT) instead of assuming. This is R3's exact failure mode -- a control written so it cannot go RED -- occurring INSIDE the instrument built to grade silent greens, and it is the second time this harness has caught that shape in itself (plan-050's own self-spike caught the command-substitution subshell bug in _run_fixture). |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | COMMAND: bash redcheck.sh record-red fixtures/ctl-206-dropped-continuation.sh ctl-206-dropped-continuation | OUTPUT (verbatim): 'ctl-206: HARNESS - no extractor at /Users/james/workspace/dixson3/yoshiko-flow/.worktrees/plan-053-james-dixson-4015d3/.worktrees/plan-053-james-dixson-4015d3/_shared/plan_extract.py' followed by 'redcheck: FAIL - ctl-206-dropped-continuation fixture exited 2 (INCONCLUSIVE): the fixture could not run at all. ... NOTHING WAS RECORDED. Repair the fixture, then re-run.' Exit code 1. VERIFICATION THAT NOTHING WAS WRITTEN: 'grep -c ctl-206 red-prework.md' -> file did not yet exist (0 records), and 'bash redcheck.sh verify-red-all' still returned rc=1 with all 11 controls unobserved. WHAT WOULD HAVE BEEN RECORDED WITHOUT THE GUARD: the line 'record-red, ctl-206-dropped-continuation, fixtures/ctl-206-dropped-continuation.sh, 2, `YF_TREE=... bash fixtures/ctl-206-dropped-continuation.sh`, <utc>, <git-describe>' -- rc=2, which the pre-fix _has_record 'nonzero' predicate matches, so verify-all would later have certified this control red->green. INDEPENDENTLY CONFIRMED by a deliberate spike against a fixture whose entire body is 'exit 2': refused, rc 1, zero records on disk. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-25 |
+| `stop_class` |  |
+| `asked` | Verifying SC6 by hand -- test -f skills/yf-plan/scripts/pour_fidelity.py && grep -q '${SKILL_DIR}/scripts/pour_fidelity.py' skills/yf-plan/SKILL.md -- returned NON-ZERO even though the literal was verifiably present in the file. Is SC6's verification command defective? |
+| `answered` | NO. The criterion is sound; the MEASUREMENT ENVIRONMENT was not. The interactive session's `grep` is a SHELL FUNCTION wrapping ugrep, installed by a Claude Code shell snapshot (~/.claude/shell-snapshots/snapshot-zsh-*.sh), not /usr/bin/grep. ugrep's default matcher treats the unescaped { } in ${SKILL_DIR} differently and reported 0 matches, while /usr/bin/grep and grep -F both report 1. Verified: 'grep -c' -> 0, 'grep -cF' -> 1, '/usr/bin/grep -c' -> 1, and the same command under 'bash -c' (where grep resolves to /usr/bin/grep) -> rc 0. SC4, SC6 and SC6b are all GREEN when run with the system binary. CONSEQUENCE FOR THE REST OF THIS PLAN: every grep-based criterion must be verified through 'bash -c' or /usr/bin/grep, never through the interactive shell's grep, or a TRUE criterion reports FALSE. recheck-criteria at SS6.4 runs its commands via subprocess rather than through this shell function, so the automated re-check is unaffected -- but a hand-verification is not, and this session had already hand-verified several grep-based assertions. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | COMMANDS AND OUTPUTS: 'type grep' -> 'grep is a shell function from /Users/james/.claude/shell-snapshots/snapshot-zsh-1787705623143-ft9k73.sh' wrapping 'ARGV0=ugrep $_cc_bin -G --ignore-files ...'; 'grep --version' -> 'ugrep 7.5.0 aarch64-apple-macosx'; 'grep -c -- ${SKILL_DIR}/scripts/pour_fidelity.py skills/yf-plan/SKILL.md' -> 0; 'grep -cF -- <same>' -> 1; '/usr/bin/grep -c -- <same>' -> 1; 'bash -c type grep' -> 'grep is /usr/bin/grep'. Final verification of all three affected criteria through bash -c: SC4 rc=0, SC6 rc=0, SC6b rc=0. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

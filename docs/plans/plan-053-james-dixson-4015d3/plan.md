@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-053-james-dixson-4015d3
 author: james-dixson
 created: '2026-08-25'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 36936c6e41e812cf4639ec6161660f729396cf013db935c54d212eeb28f26c71
+epic: yf-mol-bh8
 ---
 # Plan: Close the yf-plan execution engine's silent-data-loss and plan-stranding defects (#206, #207, #208, #209, #210, #214)
 
 **ID:** plan-053-james-dixson-4015d3
 **Author:** james-dixson
 **Created:** 2026-08-25
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-bh8
 **Fingerprint:** 36936c6e41e812cf4639ec6161660f729396cf013db935c54d212eeb28f26c71
 
 ## Objective
