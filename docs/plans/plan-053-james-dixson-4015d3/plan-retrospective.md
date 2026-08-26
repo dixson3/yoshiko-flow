@@ -108,3 +108,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | SC19's Verification command, as written in plan.md, is: bd show "$(uv run skills/yf-plan/scripts/plan_manager.py json-get epic < docs/plans/plan-053-james-dixson-4015d3/plan.md)" --json | jq -e '.[0].external_ref | startswith("https://github.com/")'. Run verbatim at 7.3 it FAILED. Is the end state wrong? |
+| `answered` | NO -- the END STATE is correct and the COMMAND is defective. json-get is a JSON extractor and plan.md is MARKDOWN, so 'json-get epic < plan.md' returns 'ERROR: key epic not found in path epic', the command substitution yields that error text as the bead id, and jq then fails with 'Cannot index object with number'. Exit 5. The epic DOES carry the ref: 'bd show yf-mol-bh8 --json | jq -e '.[0].external_ref | startswith("https://github.com/")'' returns true, with external_ref = https://github.com/dixson3/yoshiko-flow/issues/231. This is the THIRD criterion-command defect this plan has hit (SC6's ugrep artifact, SC16's wrong path measured at exit 2 during planning, and now SC19), which is itself the finding: plan-053 spent five review passes on criterion SEMANTICS and the residual defects are all in criterion MECHANICS -- commands that were written but never EXECUTED before being committed to. SC19's own text says it asserts 'on the END STATE, never on the route', and the end state is what was verified; the correct reader is 'bd show <epic> --json'. Note this defect could NOT have been caught earlier by construction: before 7.3 there was no tracker to stamp, so the command had nothing to return either way. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | AS WRITTEN: 'bd show "$(uv run skills/yf-plan/scripts/plan_manager.py json-get epic < docs/plans/plan-053-james-dixson-4015d3/plan.md)" --json | jq -e ...' -> stderr 'ERROR: key epic not found in path epic'; then 'jq: error (at <stdin>:4): Cannot index object with number'; exit 5. CORRECTED READER: 'bd show yf-mol-bh8 --json | jq -e '.[0].external_ref | startswith("https://github.com/")'' -> true, rc 0; 'bd show yf-mol-bh8 --json | jq -r .[0].external_ref' -> https://github.com/dixson3/yoshiko-flow/issues/231. STAMP VERB OUTPUT: {"status": "stamped", "epic": "yf-mol-bh8", "tracker": "https://github.com/dixson3/yoshiko-flow/issues/231", "reason": "epic is now visible to upstream.py closable"}. SC18 alongside: verify-reconcile exit 0, 8 of 9 rows pass, the single inconclusive being the tracker row itself which is report-only BY CONSTRUCTION (REQ-CLI-018) and explicitly does not block completion. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
