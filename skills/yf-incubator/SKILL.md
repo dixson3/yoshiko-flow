@@ -135,6 +135,7 @@ carries no `type`/`okf_spec` (REQ-INCUB-043).
 3. `created` = `last_reviewed` = today; `status: incubating`.
 4. Write `## Resume` so a cold reader can resume immediately.
 5. If the `obsidian-lint` skill is present, normalize frontmatter:
+   <!-- skill-script-refs: allow obsidian-lint is a THIRD-PARTY skill this repo does not ship; the step is guarded by the "if present" condition below and by the explicit skip instruction -->
    `uv run .agents/skills/obsidian-lint/scripts/obsidian-autofix.py Incubator/<kebab>`.
    It is not part of this project by default — skip this step when the script is absent.
 6. Report path; set active.

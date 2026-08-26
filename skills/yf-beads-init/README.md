@@ -26,10 +26,10 @@ skill for direct-CLI semantics.
 Or invoke the engine directly:
 
 ```bash
-uv run scripts/beads_init.py verify --json-output   # read-only health check
-uv run scripts/beads_init.py repair                 # dry-run: print the fix plan
-uv run scripts/beads_init.py repair --apply         # apply standard repairs
-uv run scripts/beads_init.py repair --apply --local-only   # also assert no Dolt remote
+uv run ${SKILL_DIR}/scripts/beads_init.py verify --json-output   # read-only health check
+uv run ${SKILL_DIR}/scripts/beads_init.py repair                 # dry-run: print the fix plan
+uv run ${SKILL_DIR}/scripts/beads_init.py repair --apply         # apply standard repairs
+uv run ${SKILL_DIR}/scripts/beads_init.py repair --apply --local-only   # also assert no Dolt remote
 ```
 
 `verify` returns `status ∈ {ok, deps_missing, not_initialized, corrupted}` with diagnostics

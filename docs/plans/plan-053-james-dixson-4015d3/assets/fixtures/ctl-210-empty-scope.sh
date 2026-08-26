@@ -105,14 +105,19 @@ grep -v '^\*\*Epic:\*\*' "${work}/plans/plan-nomap-fixture-aaaaaa/plan.md" \
   > "${work}/plans/plan-noepic-fixture-bbbbbb/plan.md"
 
 # ---- Beads: an epic with two children carrying NO recoverable issue id ------------------
+# CONTAINMENT IS THE `parent` KEY, not a parent-child `dependencies` entry — `load_beads`
+# reads `b["parent"]` (or `metadata.parent`) to build the descendant tree. An earlier draft of
+# this fixture expressed containment as a dependency and produced ZERO descendants, which made
+# even the NEGATIVE control land in `no-mapping`. Caught by that negative control.
 cat > "${work}/beads.json" <<'BEADS'
 [
  {"id": "fx-epic-1", "title": "plan-execute", "issue_type": "epic", "status": "open",
   "metadata": {"plan_dir": "plans/plan-nomap-fixture-aaaaaa"}},
  {"id": "fx-epic-1.1", "title": "Do the first thing", "issue_type": "task", "status": "closed",
-  "metadata": {}, "dependencies": [{"depends_on_id": "fx-epic-1", "type": "parent-child"}]},
+  "parent": "fx-epic-1", "metadata": {}},
  {"id": "fx-epic-1.2", "title": "Do the second thing", "issue_type": "task", "status": "closed",
-  "metadata": {}, "dependencies": [{"depends_on_id": "fx-epic-1", "type": "parent-child"}]}
+  "parent": "fx-epic-1", "metadata": {},
+  "dependencies": [{"depends_on_id": "fx-epic-1.1", "type": "blocks"}]}
 ]
 BEADS
 
@@ -155,17 +160,23 @@ mkdir -p "${work}/plans/plan-joinable-fixture-cccccc"
 sed 's/plan-nomap-fixture-aaaaaa/plan-joinable-fixture-cccccc/' \
   "${work}/plans/plan-nomap-fixture-aaaaaa/plan.md" \
   > "${work}/plans/plan-joinable-fixture-cccccc/plan.md"
+# A REALISTIC POUR, not a minimal one. `clean` requires issue-count, issue-id-set, edge-set,
+# GATE-count and EPIC-count all to match, so the negative control needs the child epic and the
+# gate the fixture plan declares. An earlier draft omitted both and returned 1 — a real
+# divergence, correctly reported. That is the comparator working; the fixture was wrong.
 cat > "${work}/beads-ok.json" <<'BEADS2'
 [
  {"id": "fx-epic-2", "title": "plan-execute", "issue_type": "epic", "status": "open",
   "metadata": {"plan_dir": "plans/plan-joinable-fixture-cccccc"}},
+ {"id": "fx-epic-2.e1", "title": "Epic 1: Work", "issue_type": "epic", "status": "closed",
+  "parent": "fx-epic-2", "metadata": {}},
+ {"id": "fx-epic-2.g1", "title": "Gate: Start Gate", "issue_type": "gate", "status": "closed",
+  "parent": "fx-epic-2", "metadata": {}},
  {"id": "fx-epic-2.1", "title": "Do the first thing", "issue_type": "task", "status": "closed",
-  "metadata": {"plan_issue": "1.1"},
-  "dependencies": [{"depends_on_id": "fx-epic-2", "type": "parent-child"}]},
+  "parent": "fx-epic-2.e1", "metadata": {"plan_issue": "1.1"}},
  {"id": "fx-epic-2.2", "title": "Do the second thing", "issue_type": "task", "status": "closed",
-  "metadata": {"plan_issue": "1.2"},
-  "dependencies": [{"depends_on_id": "fx-epic-2", "type": "parent-child"},
-                   {"depends_on_id": "fx-epic-2.1", "type": "blocks"}]}
+  "parent": "fx-epic-2.e1", "metadata": {"plan_issue": "1.2"},
+  "dependencies": [{"depends_on_id": "fx-epic-2.1", "type": "blocks"}]}
 ]
 BEADS2
 sed -i.bak 's/^\*\*Epic:\*\* fx-epic-1$/**Epic:** fx-epic-2/' \

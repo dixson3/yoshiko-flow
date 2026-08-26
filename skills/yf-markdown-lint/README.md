@@ -35,7 +35,7 @@ User-invocable. Lint files or directories, optionally scoping the rule set:
 ```
 
 ```bash
-uv run .claude/skills/markdown-lint/scripts/markdown_lint.py ${ARGS:-.}
+uv run .claude/skills/yf-markdown-lint/scripts/markdown_lint.py ${ARGS:-.}
 ```
 
 Exit 1 on any violation. Rules ML001–ML007 are documented in

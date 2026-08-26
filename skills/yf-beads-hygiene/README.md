@@ -33,13 +33,13 @@ Mirrors SKILL.md frontmatter `depends-on-tool: [bd, uv, git]`. Depends on `yf-be
 Or invoke the engine directly:
 
 ```bash
-uv run scripts/beads_hygiene.py audit                 # read-only four-class edge report
-uv run scripts/beads_hygiene.py audit --json          # machine-readable
-uv run scripts/beads_hygiene.py reconcile             # read-only: hoist candidates + obsolete upstream
-uv run scripts/beads_hygiene.py reconcile --apply --record hoist.json   # delegate hoists (prompts)
-uv run scripts/beads_hygiene.py repair                # dry run: list truly-dangling proposals
-uv run scripts/beads_hygiene.py repair --apply --record removed.json   # mutate (prompts)
-uv run scripts/beads_hygiene.py restore --record removed.json --apply  # round-trip undo
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py audit                 # read-only four-class edge report
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py audit --json          # machine-readable
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py reconcile             # read-only: hoist candidates + obsolete upstream
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py reconcile --apply --record hoist.json   # delegate hoists (prompts)
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py repair                # dry run: list truly-dangling proposals
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py repair --apply --record removed.json   # mutate (prompts)
+uv run ${SKILL_DIR}/scripts/beads_hygiene.py restore --record removed.json --apply  # round-trip undo
 ```
 
 `audit` classifies every dependency edge into `true-orphan` / `truly-dangling` /

@@ -5,14 +5,25 @@
 # ///
 """check_skill_script_refs — REQ-YF-EMBED-005 / #210.
 
-THE PROTOTYPE, REBUILT (plan-053 Issue 1.0).
+A REPO-LEVEL GUARD, not a shipped skill script (plan-053 Issue 3.5, D-3).
 
-This file is the **prototype** rebuilt from EXP-003's stated predicate. No worktree from the
-investigation survives, so nothing here was recovered — it is re-derived from the finding's
-own specification (EXP-003 § "The predicate"). Issue 3.5 promotes it to its repo-level home
-at `scripts/check_skill_script_refs.py`; until then it lives here so Issue 1.6 can drive a
-RED against a *present* instrument rather than against an absent one. A fixture that fails
-because its instrument is missing is an absent-instrument red, which is R3's named pattern.
+The precedent is `scripts/check_frontmatter.py`. This tool polices `skills/` from OUTSIDE;
+shipping it *inside* a skill would make it self-referential and put a repo-time tool on the
+install path.
+
+It was rebuilt at Issue 1.0 from EXP-003's stated predicate — nothing was recovered, since no
+worktree from the investigation survives — and lived in the plan's `assets/fixtures/` until
+this promotion, so that Issue 1.6 could drive its RED against a *present* instrument. A
+fixture that fails only because its instrument is missing is an absent-instrument red, which
+is R3's named pattern: it can never distinguish "the fix has not landed" from "the fix is
+impossible".
+
+WHY A CLASS FIX AND NOT AN INSTANCE FIX. Volume is the wrong argument — the `_shared/` class
+is EXACTLY ONE live break (#210). The right one is plan-052's `RE-002`: when successive fixes
+to one defect are each refuted by the same mechanism, stop iterating on the fix and put a
+check in front of the failing component. This is the SECOND instance; plan-050 Issue 7.3 fixed
+exactly this break for `plan_extract.py` and did not close the class. The evidence is a
+MUTATION — re-inserting plan-050's original bug makes this check go red — not a count.
 
 THE PREDICATE
 -------------

@@ -70,6 +70,8 @@ approved: yes
 | `uv-yf-cascade-root` | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 | `uv-yf-epic-ref` | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 | `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
+| `skill-script-refs` | `uv run scripts/check_skill_script_refs.py` |  |  |
+| `skill-script-refs-tests` | `uv run scripts/test_check_skill_script_refs.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 | `uv-research-cred` | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 | `uv-_shared` | `uv run _shared/sync.py --check` |  |  |
@@ -125,6 +127,8 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 |  | `uv run scripts/check_frontmatter.py` |  |  |
+|  | `uv run scripts/check_skill_script_refs.py` |  |  |
+|  | `uv run scripts/test_check_skill_script_refs.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_credibility_scorer.py` |  |  |
 |  | `uv run _shared/sync.py --check` |  |  |
@@ -231,6 +235,14 @@ approved: yes
 | `skills/*/SKILL.md` | `frontmatter` |
 | `skills/*/agents/*.md` | `frontmatter` |
 | `scripts/check_frontmatter.py` | `frontmatter` |
+| `skills/*/SKILL.md` | `skill-script-refs` |
+| `skills/*/README.md` | `skill-script-refs` |
+| `skills/*/agents/*.md` | `skill-script-refs` |
+| `skills/*/protocols/*.md` | `skill-script-refs` |
+| `skills/*/reference/*.md` | `skill-script-refs` |
+| `skills/*/scripts/**` | `skill-script-refs` |
+| `scripts/check_skill_script_refs.py` | `skill-script-refs`, `skill-script-refs-tests` |
+| `scripts/test_check_skill_script_refs.py` | `skill-script-refs-tests` |
 | `skills/yf-plan/agents/**` | `uv-yf-review-verdict` |
 | `skills/yf-research/scripts/**` | `uv-research`, `uv-research-cred` |
 | `skills/yf-research/scripts/test_link_normalizer.py` | `uv-research` |

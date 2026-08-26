@@ -27,12 +27,12 @@ every `skills/*/` directory (group `markdown`). See the project
 User-invocable. Render one or more Markdown files to PDF:
 
 ```bash
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py <input.md> [-o OUT.pdf]
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py <input.md> [-o OUT.pdf]
 # batch; override font; rotate wide tables to landscape
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py a.md b.md
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --mainfont "STIX Two Text" --table-font normalsize --landscape-cols 8
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py a.md b.md
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --mainfont "STIX Two Text" --table-font normalsize --landscape-cols 8
 # keep ```d2```/```csv``` fences verbatim instead of rendering them
-uv run .claude/skills/markdown-pdf/scripts/md2pdf.py r.md --no-render-fences
+uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py r.md --no-render-fences
 ```
 
 Output defaults to `<input>.pdf` beside the source. Pipeline defaults, font

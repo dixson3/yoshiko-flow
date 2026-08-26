@@ -1575,10 +1575,32 @@ fi
 # the beads the plan declared. HALTING for THIS plan only (`--plan`), so a historical
 # divergence elsewhere in the corpus can never block an unrelated completion.
 bd list --all --include-gates --limit 5000 --json > /tmp/yf-beads.json
-FIDELITY=$(uv run _shared/pour_fidelity.py /tmp/yf-beads.json "${plan_dir}" \
-             --strict --plan "${plan_id}" --json)
+# THE PATH IS `${SKILL_DIR}/scripts/`, NOT `_shared/` (plan-053 Issue 3.3, #210). `_shared/`
+# is a directory in THIS repository and is not one of the six roots the `SKILL_DIR` resolver
+# searches, so an operator following the old line verbatim in any other repo got a
+# file-not-found. The vendored copy is kept byte-identical by `_shared/sync.py`, which the
+# FAST tier gates on. `REQ-YF-EMBED-005`'s repo check now enforces this class repo-wide.
+#
+# `2>&1` is deliberate: the reason for an INCONCLUSIVE is written to STDERR, and under
+# `--json` a bare capture of stdout DISCARDS it — leaving the caller with an exit code and no
+# statement of what could not be measured.
+FIDELITY=$(uv run ${SKILL_DIR}/scripts/pour_fidelity.py /tmp/yf-beads.json "${plan_dir}" \
+             --strict --plan "${plan_id}" --json 2>&1)
 FIDELITY_RC=$?
 echo "$FIDELITY"
+# THREE-VALUED, NOT TWO. Branching on `-ne 0` reported an INCONCLUSIVE as a DIVERGENCE — two
+# different facts collapsed into one signal, which is the same conflation as `doc_lint`'s
+# `not-selected` vs `no-such-path` (#181) and `resume-scan`'s `found` (#207). Read the code,
+# never the flag.
+if [ "$FIDELITY_RC" -eq 2 ]; then
+  echo "FAIL-LOUD: pour fidelity is INCONCLUSIVE — the comparison could not be made at all."
+  echo "This is a statement about the INSTRUMENT, not a verdict on the DAG: an empty scope"
+  echo "(a 'no-mapping' plan, a --plan matching nothing, or a bundle with no **Epic:** field)"
+  echo "or an unparsed construct in plan.md. Completion HALTS; do NOT set 'complete' — an"
+  echo "unjudgeable plan is not a clean one. Read the INCONCLUSIVE lines above, repair the"
+  echo "cause, then re-run §6.4."
+  exit 1
+fi
 if [ "$FIDELITY_RC" -ne 0 ]; then
   echo "FAIL-LOUD: the poured bead DAG does not match the plan's declared DAG."
   echo "Read the three populations separately — a 'no-mapping' verdict is an identity"
