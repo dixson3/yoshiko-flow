@@ -60,8 +60,15 @@ def _write_plan(tmp_path: Path, epic: str | None, scoped: str = RECENT) -> Path:
     pdir = tmp_path / PLAN_ID
     pdir.mkdir()
     epic_line = f"**Epic:** {epic}\n" if epic else ""
+    # DUAL-WRITE the frontmatter `epic:` key alongside the `**Epic:**` header line
+    # (REQ-DATA-015). This helper wrote only the header line, so every test built on it
+    # exercised exactly ONE of the two surfaces a real plan.md carries — and `clear-epic`
+    # (REQ-CLI-027) has to remove BOTH. A fixture that can only ever contain one of them
+    # cannot observe a verb that clears one and leaves the other, which is the precise
+    # failure mode #207's operators hit by hand-editing plan.md.
+    epic_fm = f"epic: {epic}\n" if epic else ""
     (pdir / "plan.md").write_text(
-        f"---\ntype: Plan\nid: {PLAN_ID}\n---\n"
+        f"---\ntype: Plan\nid: {PLAN_ID}\n{epic_fm}---\n"
         f"# Plan: tester\n\n**ID:** {PLAN_ID}\n**Status:** executing\n{epic_line}"
         f"**Phase log:**\n- {scoped} scoping: initial scope captured\n\n"
         "## Objective\n\ntest\n\n"
@@ -178,6 +185,188 @@ def test_resume_scan_epic_resolves_is_none_when_unknowable(tmp_path, monkeypatch
     pdir2 = _write_plan(tmp_path / "b", None)
     monkeypatch.setattr(pm, "_all_plan_beads", lambda: {"yf-real": {"id": "yf-real"}})
     assert pm._resume_scan(pdir2)["epic_resolves"] is None
+
+
+
+
+# --- plan-053 / #207: the SIX-VALUED `epic_state` -----------------------------------------
+#
+# THE DEFECT, RESTATED. `found` is one boolean carrying two facts whose handling is
+# OPPOSITE: "a pointer is recorded" and "that pointer is live". A burned epic reports
+# `found: true, total: 0`, which is indistinguishable from a legitimately completed plan, so
+# `SKILL.md` §5.2 — which extracts only `found` — reads "no open work" and skips the plan
+# entirely. `epic_resolves` has shipped since plan-044 and answers the second question
+# already (D-11: read the check that exists, do not re-implement it); the defect is that
+# nothing reads it.
+#
+# These five assertions fail today with `KeyError: 'epic_state'`, which is the strongest
+# possible RED — the field does not exist at all.
+
+
+def _scan(tmp_path, monkeypatch, epic, beads):
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: beads)
+    return pm._resume_scan(_write_plan(tmp_path, epic))
+
+
+def _epic(bid, plan_dir, status="open"):
+    return {"id": bid, "issue_type": "epic", "status": status,
+            "metadata": {"plan_dir": plan_dir}}
+
+
+def test_epic_state_none_when_no_epic_is_recorded(tmp_path, monkeypatch):
+    r = _scan(tmp_path, monkeypatch, None, {"yf-other": _epic("yf-other", "/somewhere/else")})
+    assert r["epic_state"] == "none"
+    # EXECUTE must POUR here — this is the normal first execution.
+    assert r["found"] is False, "back-compat: `found` keeps its meaning verbatim"
+
+
+def test_epic_state_stale_on_a_dangling_ref(tmp_path, monkeypatch):
+    """#207's wedge. The recorded id resolves to NOTHING."""
+    r = _scan(tmp_path, monkeypatch, "yf-BURNED", {"yf-live": _epic("yf-live", "/elsewhere")})
+    assert r["epic_state"] == "stale"
+    # The two legacy fields are UNCHANGED — that is what makes `epic_state` additive.
+    assert r["found"] is True
+    assert r["epic_resolves"] is False
+
+
+def test_epic_state_present_when_the_epic_resolves_with_open_work(tmp_path, monkeypatch):
+    pdir = str(tmp_path / PLAN_ID)
+    beads = {
+        "yf-e": _epic("yf-e", pdir),
+        "yf-e.1": {"id": "yf-e.1", "issue_type": "task", "status": "open", "parent": "yf-e"},
+    }
+    r = _scan(tmp_path, monkeypatch, "yf-e", beads)
+    assert r["epic_state"] == "present"
+    assert r["epic_resolves"] is True
+
+
+def test_epic_state_complete_when_every_descendant_is_terminal(tmp_path, monkeypatch):
+    pdir = str(tmp_path / PLAN_ID)
+    beads = {
+        "yf-e": _epic("yf-e", pdir, status="closed"),
+        "yf-e.1": {"id": "yf-e.1", "issue_type": "task", "status": "closed", "parent": "yf-e"},
+    }
+    r = _scan(tmp_path, monkeypatch, "yf-e", beads)
+    assert r["epic_state"] == "complete", (
+        "an epic whose work is all terminal is COMPLETE, not PRESENT — and it must never "
+        "re-pour"
+    )
+
+
+def test_epic_state_foreign_when_the_epic_belongs_to_another_bundle(tmp_path, monkeypatch):
+    """EXP-005's measured live hazard: a COPIED bundle silently resumes another plan's epic."""
+    beads = {"yf-e": _epic("yf-e", "/some/other/plan-042-someone-else")}
+    r = _scan(tmp_path, monkeypatch, "yf-e", beads)
+    assert r["epic_state"] == "foreign"
+    assert r["epic_plan_dir"] == "/some/other/plan-042-someone-else", (
+        "the caller must be able to report WHY, not merely THAT"
+    )
+    # It RESOLVES — which is exactly why `epic_resolves` alone cannot catch this.
+    assert r["epic_resolves"] is True
+
+
+def test_epic_state_unknown_when_bd_is_unreadable(tmp_path, monkeypatch):
+    """`unknown` is NOT a synonym for "gone"."""
+    r = _scan(tmp_path, monkeypatch, "yf-e", {})
+    assert r["epic_state"] == "unknown", (
+        "an unreachable tracker looks EXACTLY like a burned epic; guessing 'gone' produces "
+        "the duplicate pour REQ-RESUME-004 exists to prevent"
+    )
+    assert r["epic_resolves"] is None
+
+
+def test_epic_status_and_plan_dir_are_surfaced(tmp_path, monkeypatch):
+    pdir = str(tmp_path / PLAN_ID)
+    r = _scan(tmp_path, monkeypatch, "yf-e", {"yf-e": _epic("yf-e", pdir, status="in_progress")})
+    assert r["epic_status"] == "in_progress"
+    assert r["epic_plan_dir"] == pdir
+
+
+def test_a_gates_only_bead_dict_does_not_libel_a_healthy_epic(tmp_path, monkeypatch):
+    """The latent false negative D-11 names.
+
+    `_all_plan_beads` MERGES two `bd list` calls. A partial failure yields a dict holding
+    only the gate query's results — non-empty, so the `not beads` guard does not fire — in
+    which a perfectly healthy epic reports `epic_resolves: false` and would be classified
+    `stale`. A `stale` verdict sends EXECUTE to POUR, which is the duplicate-epic failure.
+    """
+    beads = {"yf-g": {"id": "yf-g", "issue_type": "gate", "status": "open", "metadata": {}}}
+    r = _scan(tmp_path, monkeypatch, "yf-e", beads)
+    assert r["epic_state"] == "unknown", (
+        "a bead dict carrying no non-gate bead at all is not evidence that an epic is gone; "
+        "it is evidence that the query was partial"
+    )
+
+
+# --- plan-053 / #207: `clear-epic` (REQ-CLI-027) -------------------------------------------
+
+
+def test_clear_epic_removes_BOTH_dual_written_surfaces(tmp_path, monkeypatch):
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: {})
+    pdir = _write_plan(tmp_path, "yf-BURNED")
+    before = (pdir / "plan.md").read_text()
+    assert "epic: yf-BURNED" in before and "**Epic:** yf-BURNED" in before
+
+    res = pm._clear_epic(pdir, force=True)
+    after = (pdir / "plan.md").read_text()
+    assert "yf-BURNED" not in after, (
+        "hand-editing reliably removes ONE of the two surfaces; the verb must remove both"
+    )
+    assert res["cleared"] is True
+
+
+def test_clear_epic_is_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: {})
+    pdir = _write_plan(tmp_path, "yf-BURNED")
+    pm._clear_epic(pdir, force=True)
+    res = pm._clear_epic(pdir, force=True)
+    assert res["cleared"] is False and res.get("verdict") == "noop"
+
+
+def test_clear_epic_refuses_on_present_and_unknown_without_force(tmp_path, monkeypatch):
+    pdir_s = str(tmp_path / PLAN_ID)
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: {"yf-e": _epic("yf-e", pdir_s)})
+    pdir = _write_plan(tmp_path, "yf-e")
+    res = pm._clear_epic(pdir, force=False)
+    assert res["cleared"] is False and res["verdict"] == "refused", (
+        "clearing a LIVE pointer strands real work"
+    )
+
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: {})
+    pdir2 = _write_plan(tmp_path / "u", "yf-e")
+    res2 = pm._clear_epic(pdir2, force=False)
+    assert res2["cleared"] is False and res2["verdict"] == "refused", (
+        "clearing a pointer whose state could not be determined is that same act, blind"
+    )
+
+
+def test_clear_epic_reports_metadata_fallback_remains(tmp_path, monkeypatch):
+    """R6, measured: clearing the fields does NOT reopen the pour path.
+
+    `_resume_scan` falls back to the epic bead's `metadata.plan_dir`, so a surviving epic
+    bead is still found. A verb that appears to succeed and changes nothing is the
+    silent-success class this plan exists to close.
+    """
+    pdir_s = str(tmp_path / PLAN_ID)
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: {"yf-e": _epic("yf-e", pdir_s)})
+    pdir = _write_plan(tmp_path, "yf-e")
+    res = pm._clear_epic(pdir, force=True)
+    assert res["metadata_fallback_remains"] is True
+    # And the fallback really does still resolve the epic.
+    assert pm._resume_scan(pdir)["epic_id"] == "yf-e"
+
+
+def test_clear_epic_keeps_the_intake_history_and_appends_pointer_cleared(tmp_path, monkeypatch):
+    monkeypatch.setattr(pm, "_all_plan_beads", lambda: {})
+    pdir = _write_plan(tmp_path, "yf-BURNED")
+    (pdir / "log.md").write_text(
+        "# Log\n\n## 2026-08-25\n\n- intake: epic yf-BURNED poured\n", encoding="utf-8")
+    pm._clear_epic(pdir, force=True, reason="burned by hand")
+    log = (pdir / "log.md").read_text()
+    assert "intake: epic yf-BURNED poured" in log, (
+        "the record of WHAT WAS POURED survives the clearing of the pointer to it"
+    )
+    assert "pointer cleared" in log
 
 
 if __name__ == "__main__":

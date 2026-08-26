@@ -874,5 +874,87 @@ check("check-level `promote = false` is SURGICAL — only the hint opts out",
       f"opted-out={_not} promoting={len(_promoting)}")
 
 
+# --- 20. THE NARROW FAIL-CLOSED `STATUS_SEVERITY` (REQ-DATA-072 / #208) --------------------
+#
+# TWO ARMS, AND ONLY ARM 1 CARRIES THE RED (pass-1 C12).
+#
+# ARM 1 (the RED bearer): a status that is PRESENT but UNRECOGNISED must select the STRICTEST
+#   mapping — `W` promoted to `E` — flipping the verdict PASS -> FAIL. Today
+#   `STATUS_SEVERITY.get(status or "", {})` returns the EMPTY map for such a status, which is
+#   the most PERMISSIVE setting available: inventing a status silently DISABLES the promotion
+#   the linter relies on at `review`. Fail-open on an unknown input is the wrong default for
+#   a gate.
+#
+# ARM 2 (invariant, regression protection — NOT evidence): a document with NO
+#   `bundle_status` at all must be UNCHANGED. This arm passes both before and after the fix,
+#   which is precisely why redcheck classifies it a NEGATIVE control and the RED record does
+#   not certify it. Its value is at 7.1, not here.
+#
+# ARM 2 IS WHY THE ONE-LINE FIX IS WRONG. The obvious implementation treats any status that
+# misses the map as unrecognised — the BROAD form — and it was measured reddening 31 documents
+# plus this repository's own FAST tier, because a null status is the ordinary state of a great
+# many documents that were never part of a plan bundle. A fail-closed rule that reddens the
+# tree is a rule that gets reverted, so the narrow form is not a weaker compromise; it is the
+# only form that survives contact with the corpus.
+
+with tempfile.TemporaryDirectory() as td:
+    # A body with an unfilled placeholder yields a `W` completeness finding, which is the
+    # thing the severity map acts on. At `drafting` that `W` stays a `W` and the doc PASSES.
+    _base = _plan_repo(Path(td) / "known", "drafting")
+    _known = dl.lint(_base, "plan", None)
+    check("ARM 0 (baseline): a `drafting` plan with placeholders has W findings and 0 errors",
+          _known["errors"] == 0 and _known["warnings"] > 0,
+          f'errors={_known["errors"]} warnings={_known["warnings"]}')
+
+    # ---- ARM 1: PRESENT but UNRECOGNISED -> fail closed -----------------------------------
+    _bogus = _plan_repo(Path(td) / "bogus", "definitely-not-a-real-status")
+    _res = dl.lint(_bogus, "plan", None)
+    check("ARM 1: a PRESENT but UNRECOGNISED status fails CLOSED (W promoted to E)",
+          _res["errors"] > 0,
+          "an unrecognised status currently selects the EMPTY map — the most PERMISSIVE "
+          "setting there is — so inventing a status silently disables promotion")
+
+    # ---- ARM 2: ABSENT status -> UNCHANGED (the narrowness assertion) ---------------------
+    # THE FIXTURE IS A `skills/*/SKILL.md`, NOT A PLAN. A plan.md can never have a null
+    # status — the `plan` schema's `identity-frontmatter` check makes `status` REQUIRED, so
+    # omitting it errors for an unrelated reason and the arm would test that instead.
+    #
+    # `skills/**` IS the real null-status population, and `document_types/skill.toml` says so
+    # in its own header: "`skills/**` is OUTSIDE a plan bundle, so `bundle_status` is null,
+    # `STATUS_SEVERITY` returns `{}`, and an `E` stays `E` with no softening available." That
+    # whole severity table was calibrated against the empty map. The BROAD one-liner promotes
+    # every `W` there to `E` — which is the measured 31-document breakage, and it would
+    # redden this repository's own FAST tier.
+    _sk = Path(td) / "nullstatus" / "skills" / "yf-demo"
+    _sk.mkdir(parents=True)
+    # Valid REQUIRED frontmatter (so `required-frontmatter`, an `E`, passes) but omitting the
+    # two optional keys, each of which is a `W`. That `W` is the thing under test.
+    (_sk / "SKILL.md").write_text(
+        "---\nname: yf-demo\ndescription: a fixture\nskill-group: yf\n"
+        "depends-on-tool: []\n---\n# yf-demo\n\nbody\n"
+    )
+    check("ARM 2 (invariant): bundle_status is genuinely None for the null fixture",
+          dl.bundle_status(_sk / "SKILL.md") is None,
+          "the fixture must actually exercise the None branch, or arm 2 is vacuous")
+    _null = dl.lint(Path(td) / "nullstatus", "skill", None)
+    check("ARM 2 (invariant): the null fixture really carries a `W` finding",
+          _null["warnings"] > 0,
+          "if it carried no W at all, 'unchanged' would be trivially true and arm 2 vacuous")
+    check("ARM 2 (invariant): a NULL-`bundle_status` document is UNCHANGED (0 errors)",
+          _null["errors"] == 0,
+          "the BROAD one-liner reddens this — measured at 31 documents plus the repo's own "
+          "FAST tier. The requirement is scoped 'present and unrecognised', never 'absent "
+          "or unrecognised'")
+
+    # ---- The two branches must be DISTINGUISHABLE ----------------------------------------
+    # If arm 1 and arm 2 ever agree, the implementation collapsed `None` and
+    # present-but-unmapped back into one signal — the same two-facts-one-signal conflation as
+    # doc_lint's `not-selected` vs `no-such-path` (#181) and resume-scan's `found` (#207).
+    check("the None and present-but-unrecognised branches are DISTINGUISHABLE",
+          (_res["errors"] > 0) != (_null["errors"] > 0),
+          "a single `.get(status or '', {})` lookup cannot tell them apart; REQ-DATA-072 "
+          "requires an explicit two-branch predicate")
+
+
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)
