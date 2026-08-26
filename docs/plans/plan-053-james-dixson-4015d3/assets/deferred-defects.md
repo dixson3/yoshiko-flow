@@ -190,3 +190,61 @@ a false negative on a condition already true, and a `jq` type error. None resemb
 yet".
 
 This is simply **extending D-4's existing discipline from controls to criteria**.
+
+## D8 — `audit-close`'s OKF check has no fixture carve-out, so pinned fixture corpora fail it
+
+Found at plan-053's own close step, by running `audit-close`.
+
+### Measured
+
+```text
+Counter({'fail': 26, 'warn': 19})
+fail findings NOT in a pinned fixture tree: 1
+```
+
+**25 of 26 `fail` findings are pinned-fixture files** under
+`docs/plans/<plan>/assets/fixtures/corpus/**` — verbatim frozen copies of real repository files
+(`SKILL.md`, `SPEC.md`, `DRIFT-CHECK.md`, `web/content/*.md`) captured at a pre-fix commit so a
+control can be driven RED against them.
+
+They are reported as:
+
+```text
+REQ-OKF-003: no YAML frontmatter block
+REQ-OKF-003: missing or empty `type`
+REQ-OKF-030: missing `okf_spec` member key
+```
+
+All true, and all irrelevant: **a frozen copy of a non-OKF file is not a bundle artifact.**
+Adding OKF frontmatter to them would *corrupt the fixture*, because the fixture's whole purpose
+is to be byte-faithful to what the tree looked like.
+
+The same applies to the one remaining `dangling-refs` finding: `ctl-214-pre-fix/SPEC.md`
+contains `../` parent traversal because **the real `SPEC.md` does**.
+
+### Why this is a known class, already solved once in this same plan
+
+Issue 3.6 hit precisely this and carved it out — `skills/*/scripts/fixtures/**` is excluded
+from `check_skill_script_refs.py` because *"it holds corpus fixture documents carrying
+arbitrary invocations by design"* (pass-4 C45). `audit-close`'s OKF walk needs the same carve
+for `assets/fixtures/**`.
+
+### Why it did not halt anything
+
+`audit-close` is **advisory by contract** (`REQ-PLAN-075`) — it exits 0 unconditionally and
+never gates `set complete`. So this is noise, not an outage. But it is *loud* noise that will
+recur for **every** plan that pins a negative fixture, and pinned negative fixtures are the
+standard remedy for the SPEC-first ordering inversion (plan-052 Issue 0.3, plan-053 Issues 1.6a
+/ 1.6c / 5.4 / 6.1). The technique is becoming common; the false positives will scale with it.
+
+### Suggested remedy
+
+Exclude `assets/fixtures/**` from `audit-close`'s OKF conformance walk and from its
+dangling-ref scan, mirroring the carve `check_skill_script_refs.py` already ships.
+
+### A second, much smaller note
+
+One finding is genuine and deliberately left: `plan-retrospective.md` quotes an absolute
+`/Users/...` path. That path is **verbatim evidence** in an RE-entry — the whole value of the
+entry is that the command and its output are reproduced exactly — so genericising it would
+weaken the record to satisfy a portability rule aimed at something else.

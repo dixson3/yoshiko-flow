@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-053-james-dixson-4015d3
 author: james-dixson
 created: '2026-08-25'
-status: executing
+status: complete
 deliverable_class: standard
 fingerprint: 36936c6e41e812cf4639ec6161660f729396cf013db935c54d212eeb28f26c71
 epic: yf-mol-bh8
@@ -14,7 +14,7 @@ epic: yf-mol-bh8
 **ID:** plan-053-james-dixson-4015d3
 **Author:** james-dixson
 **Created:** 2026-08-25
-**Status:** executing
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-bh8
 **Fingerprint:** 36936c6e41e812cf4639ec6161660f729396cf013db935c54d212eeb28f26c71
@@ -352,5 +352,5 @@ one:
 | SC20 | **The deployed tree matches source and the version stamp matches HEAD** | `test "$(yf --version \| grep -oE '[0-9a-f]{7,}' \| head -1)" = "$(git rev-parse --short HEAD)"` → exit 0 | 7.4 |
 | SC17 | **Every out-of-scope defect this investigation measured is filed, with its measurement** — the set is enumerated in 7.2, not counted here | manual: filing is an outward-facing write whose *content quality* no exit code reaches; the URLs are recorded in `log.md` and read back per AGENTS.md | 7.2 |
 | SC18 | Every upstream row reached the end state its disposition requires | `uv run skills/yf-plan/scripts/plan_manager.py verify-reconcile docs/plans/plan-053-james-dixson-4015d3 --json` → exit 0 | 7.3 |
-| SC19 | The coarse tracker is filed **through** `/yf-beads-upstream`, so the epic carries it as `external_ref`. Asserted on the **end state**, never on the route — `stamp-tracker` is specified **fail-soft** and exits 0 with no epic and no tracker at all, so the earlier clause was structurally unable to fail (pass-2 C25) | `bd show "$(uv run skills/yf-plan/scripts/plan_manager.py json-get epic < docs/plans/plan-053-james-dixson-4015d3/plan.md)" --json \| jq -e '.[0].external_ref \| startswith("https://github.com/")'` → exit 0 | 7.3 |
+| SC19 | The coarse tracker is filed **through** `/yf-beads-upstream`, so the epic carries it as `external_ref`. **Verification command AMENDED at close (plan-053 Issue 7.4, RE-006), per §6.4's sanctioned remediation — the CLAIM is unchanged, only the INSTRUMENT.** The original piped `json-get epic < plan.md`, but `json-get` is a JSON extractor and `plan.md` is markdown, so it returned `ERROR: key epic not found`, that text became the bead id, and `jq` failed with `Cannot index object with number` (exit 5) while the asserted end state was true throughout. The replacement reads the `**Epic:**` line directly and hard-codes no id. This is the third of the three criterion-MECHANICS defects RE-007 is about, and it is the one that HALTED completion — the gate working correctly. Asserted on the **end state**, never on the route — `stamp-tracker` is specified **fail-soft** and exits 0 with no epic and no tracker at all, so the earlier clause was structurally unable to fail (pass-2 C25) | `bd show "$(sed -n 's/^\*\*Epic:\*\* //p' docs/plans/plan-053-james-dixson-4015d3/plan.md \| head -1)" --json \| jq -e '.[0].external_ref \| startswith("https://github.com/")'` → exit 0 | 7.3 |
 

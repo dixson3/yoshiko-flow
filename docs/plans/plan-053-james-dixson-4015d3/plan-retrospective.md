@@ -146,3 +146,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-008
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | SS6.4's recheck-criteria HALTED completion with failed: ['SC19'], exit 1. Is this a regression -- a criterion true at discharge and false at completion, which is exactly what recheck-criteria exists to catch? |
+| `answered` | NO. It is RE-007's finding biting at the last gate, and THE MECHANISM WORKED. SC19's COMMAND is defective (RE-006) -- it pipes 'json-get epic < plan.md', but json-get is a JSON extractor and plan.md is markdown, so it emits 'ERROR: key epic not found in path epic', that error text becomes the bead id, and jq fails 'Cannot index object with number', exit 5. The ASSERTED END STATE was true throughout and remains true: epic yf-mol-bh8 carries external_ref = https://github.com/dixson3/yoshiko-flow/issues/231. 28 of 29 criteria held; SC17 is manual and correctly not-evaluated. REMEDY TAKEN, and it is the one SS6.4 itself sanctions in as many words: 'Fix the regression, OR AMEND THE CRITERION if it no longer states what the plan means, then re-run SS6.4.' SC19's claim is unchanged; only its instrument was corrected, to a reader that derives the epic from plan.md's **Epic:** line and hard-codes no id. Re-run: exit 0, 28 evaluated, 0 failed. TWO THINGS WORTH RECORDING BEYOND THE FIX. (1) THIS IS THE STRONGEST POSSIBLE EVIDENCE FOR RE-007's REMEDY. A criterion whose command was never executed sat through five red-team passes, intake, approval, and six epics -- and was stopped by the FIRST gate that actually ran it. It could not have been caught earlier by construction, since before Issue 7.3 there was no tracker to stamp; but a criteria-dry-run at ready-check would have surfaced the jq type error immediately, because a malformed command does not resemble an unsatisfied one. (2) THE FINGERPRINT NECESSARILY MOVED. plan.md's Success Criteria section is inside the fingerprint scope (Objective through Success Criteria), so amending SC19 makes the stored **Fingerprint:** stale. That is INERT here and deliberately not re-written: the fingerprint gates EXECUTE (REQ-PORT-041), and this plan will never execute again -- it is being set complete. Re-stamping it would assert that the amended text was the reviewed text, which is false. Leaving it stale is the honest record. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | HALT: 'recheck-criteria <plan_dir> --json' -> exit 1, {'total': 29, 'class_a': 28, 'evaluated': 28, 'failed': ['SC19']}; SC19 row: {'kind': 'clause', 'expected_exit': '0', 'actual_exit': 5, 'status': 'FALSE'}. END STATE VERIFIED INDEPENDENTLY THROUGHOUT: 'bd show yf-mol-bh8 --json | jq -r .[0].external_ref' -> https://github.com/dixson3/yoshiko-flow/issues/231. CORRECTED READER, verified before amending: E=$(sed -n 's/^\*\*Epic:\*\* //p' <plan.md> | head -1) -> 'yf-mol-bh8'; 'bd show $E --json | jq -e .[0].external_ref | startswith("https://github.com/")' -> true, rc 0. AFTER AMENDING: 'recheck-criteria <plan_dir> --json' -> exit 0, {'total': 29, 'class_a': 28, 'evaluated': 28, 'failed': []}. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
