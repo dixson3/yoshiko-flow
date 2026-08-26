@@ -26,6 +26,11 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 : "${YF_TREE:=$(cd "${HERE}/../../../../.." && pwd)}"
+# CTL_RED=1 selects the PINNED PRE-FIX SKILL.md — the plan's single driven-RED convention.
+if [ "${CTL_RED:-0}" = "1" ]; then
+  YF_TREE="${HERE}/corpus/ctl-209-pre-fix"
+  echo "ctl-209: CTL_RED=1 — asserting against the PINNED PRE-FIX SKILL.md ${YF_TREE}" >&2
+fi
 SKILL="${YF_TREE}/skills/yf-plan/SKILL.md"
 
 [ -f "${SKILL}" ] || { echo "ctl-209: HARNESS — no SKILL.md at ${SKILL}" >&2; exit 2; }
@@ -47,10 +52,25 @@ their \`jq -nc\` metadata. Both the ENTRY-issue and the DOWNSTREAM-issue site mu
 fixing one leaves half of every pour without a route back to its bundle.")
 fi
 
-n_hdr="$(grep -c 'Plan: \${plan_id} | Bundle: \${plan_dir}' "${SKILL}" || true)"
-if [ "${n_hdr}" -lt 2 ]; then
-  bad+=("ARM A: only ${n_hdr} of the two §5.2a \`bd create\` sites prepend the provenance \
-header \`Plan: \${plan_id} | Bundle: \${plan_dir} (repo-relative)\`.")
+# ASSERTED AS A PROPERTY, NOT AS TEXTUAL DUPLICATION. The header may legitimately be built
+# ONCE and referenced by both sites — that is better authoring, not a defect, and an earlier
+# form of this assertion counted literal occurrences and so PUNISHED it. What must hold is:
+# the header is constructed somewhere in §5.2a, and BOTH `bd create` issue sites carry a
+# `--description` that resolves to it.
+if ! grep -qF 'Plan: %s | Bundle: %s (repo-relative)' "${SKILL}" \
+   && ! grep -qF 'Plan: ${plan_id} | Bundle: ${plan_dir} (repo-relative)' "${SKILL}"; then
+  bad+=("ARM A: §5.2a never constructs the provenance header \
+\`Plan: <plan-id> | Bundle: <plan-dir> (repo-relative)\`.")
+fi
+n_desc="$(grep -cE -- '--description="\$\{ISSUE_DESC\}"' "${SKILL}" || true)"
+if [ "${n_desc}" -lt 2 ]; then
+  # Fall back to the inline form: both sites may embed the header directly instead.
+  n_desc="$(grep -c 'Plan: \${plan_id} | Bundle: \${plan_dir}' "${SKILL}" || true)"
+fi
+if [ "${n_desc}" -lt 2 ]; then
+  bad+=("ARM A: only ${n_desc} of the two §5.2a \`bd create\` issue sites pass a \
+\`--description\` carrying the provenance header. Fixing ONE leaves half of every pour \
+unprovenanced.")
 fi
 
 # The ASCII pipe, not `·`. Both round-trip through `bd` byte-exact, but a bead description
@@ -62,10 +82,10 @@ fi
 
 # The BLANK LINE is load-bearing, not cosmetic: without it a renderer joins the header to any
 # `detail` that opens with a list, a heading or a fence.
-if [ "$(grep -c 'Bundle: \${plan_dir} (repo-relative)\\n\\n' "${SKILL}" || true)" -lt 2 ]; then
-  bad+=("ARM A: the header is not followed by a BLANK LINE (\\n\\n) at both sites. Without it \
-a markdown renderer joins the header to any \`detail\` opening with a list, heading or fence, \
-corrupting the first construct.")
+if ! grep -qE '\(repo-relative\)\\n\\n' "${SKILL}"; then
+  bad+=("ARM A: the header is not followed by a BLANK LINE (\\n\\n) where it is constructed. \
+Without it a markdown renderer joins the header to any \`detail\` opening with a list, heading \
+or fence, corrupting the first construct.")
 fi
 
 # ── ARM B: THE SHAPE, executed against THE FIXTURE'S OWN COPY ─────────────────────────────

@@ -158,7 +158,7 @@ UPSTREAM --> SCOPE <--> INVESTIGATE --> PLAN --> INTAKE
 - PLAN -> SCOPE/INVESTIGATE: draft plan may need more experiments
 - PLAN -> INTAKE: only on explicit operator approval
 
-Status values: `scoping | investigating | drafting | review | ready-for-approval | approved | executing | reconciling | complete | abandoned`
+Status values: `scoping | investigating | drafting | review | ready-for-approval | approved | executing | reconciling | complete`
 
 (`ready-for-approval` is the gated pre-approval state reached only when `ready-check` is green —
 last red-team `APPROVE` + audit `pass`; approval transitions it to `approved`. This line is the
@@ -842,10 +842,8 @@ present:
 
 ```bash
 SCAN=$(uv run ${SKILL_DIR}/scripts/plan_manager.py resume-scan "${plan_dir}" --json)
-STATE=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get epic_state)
+FOUND=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get found)
 STALE=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get stale_approved)
-# `found` and `epic_resolves` are still emitted, unchanged, for back-compat. DO NOT BRANCH ON
-# THEM — see below.
 ```
 
 `resume-scan` reads the epic from plan.md's `**Epic:**` field (persisted by `record-epic` at
@@ -864,42 +862,15 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "${curre
   -m "stale-approval overridden (--force) — reasoning: <operator reason>"
 ```
 
-**BRANCH ON `epic_state`, SIX WAYS — NEVER ON `found`** (REQ-CLI-013, plan-053 / #207).
+- **`found` is `false`** — no epic yet. Under intake-at-execute this is the **normal first
+  execution**: pour the molecule and create the beads (§5.2a).
+- **`found` is `true`** — an epic already exists (a prior, possibly crashed, execute session).
+  Do **not** pour or create a second epic (the duplicate-epic failure #2 guards against).
+  Prompt the operator with `AskUserQuestion`: **Resume** the existing epic (recommended) or
+  treat as **New**. On **New**, stop and tell the operator a fresh run requires a fresh pour —
+  execute cannot fabricate a second epic. On **Resume**, run the resume path (§5.2b).
 
-`found` is one boolean carrying **two facts whose handling is opposite**: "a pointer is
-recorded" and "that pointer is live". A **burned** epic reports `found: true, total: 0`, which
-is indistinguishable from a legitimately completed plan — so this section, which used to
-extract only `found`, read "no open work" and **skipped the plan entirely**. That is #207's
-wedge, and it is the same two-facts-one-signal conflation as `doc_lint`'s `not-selected` vs
-`no-such-path` (#181). `epic_resolves` has answered the second question since plan-044; the
-defect was that nothing here read it.
-
-| `${STATE}` | Means | **Do this** |
-| :-- | :-- | :-- |
-| `none` | no pointer recorded | **POUR** — the normal first execution (§5.2a) |
-| `stale` | a pointer is recorded and resolves to **nothing** | **POUR** (§5.2a). The recorded pointer is dead, so there is nothing to resume. Report the dead id, and offer `clear-epic` (REQ-CLI-027) to drop it |
-| `present` | resolves, open work remains | **RESUME** (§5.2b). Never pour |
-| `complete` | resolves, all descendant work terminal | **RESUME** (§5.2b) — there is simply nothing left to do. Never re-pour |
-| `foreign` | resolves, but is stamped to a **different** bundle | **HALT for an operator decision.** Do not pour and do not resume |
-| `unknown` | the state could not be determined | **HALT as INCONCLUSIVE.** Do not pour |
-
-**`foreign` halts because a COPIED BUNDLE MUST NEVER SILENTLY RESUME ANOTHER PLAN'S EPIC** —
-EXP-005 measured this as a live hazard. Resuming would drive a different plan's DAG from this
-bundle; pouring would leave two epics claiming one plan. Neither is safe to pick automatically,
-so it is one of the declared stop classes. Report `epic_plan_dir` (the bundle the epic is
-actually stamped to) so the operator can decide with the evidence in front of them.
-
-**`unknown` HALTS AND NEVER POURS, and this is the load-bearing case.** An unreachable tracker
-looks *exactly* like a burned epic. Guessing "gone" produces the duplicate pour §5.2 exists to
-prevent — so an undetermined state is treated as "do not act", never as "act as if absent".
-`unknown` is **not** a synonym for `stale`.
-
-Under a **checkpointed** run, or when the operator asks for the choice, a `present`/`complete`
-state may still be offered as **Resume** vs **New** via `AskUserQuestion`. A `New` outcome does
-**not** pour: stop and report that a fresh run requires a fresh pour — execute cannot fabricate
-a second epic (the duplicate-epic failure #2 guards against).
-
-#### 5.2a — Pour + create beads (`epic_state` ∈ {`none`, `stale`})
+#### 5.2a — Pour + create beads (found = false)
 
 **Pour the molecule.** The gate-type formula step yields TWO beads: a task wrapper (key
 `plan-execute.start-gate`, what downstream TASK `--deps` reference — never an epic) and the
@@ -981,43 +952,22 @@ EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
   --parent ${EPIC} \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
-# PROVENANCE HEADER (REQ-DATA-073, #209). Prepended to BOTH issue sites below.
-#
-# The ASCII `|`, not `·`: both round-trip through `bd` byte-exact, but a bead description is
-# also rendered as a GitHub ISSUE BODY when the bead is pushed upstream, and only one of the
-# two is unambiguous in every renderer.
-#
-# THE BLANK LINE IS LOAD-BEARING, not cosmetic. Without it a markdown renderer joins the
-# header to any `detail` that opens with a list, a heading or a fence, corrupting the first
-# construct. `${issue_detail}` may legitimately be EMPTY (REQ-DATA-063), in which case the
-# header is the entire description — which on this repo's four newest bundles is exactly what
-# happens (D-13).
-ISSUE_DESC="$(printf 'Plan: %s | Bundle: %s (repo-relative)\n\n%s' \
-  "${plan_id}" "${plan_dir}" "${issue_detail}")"
-
 # Entry issue (no intra-plan predecessor) — gate on the start-gate wrapper task.
 ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${entry_issue_description}" \
-  --description="${ISSUE_DESC}" -t task -p 2 \
+  --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${START_GATE}" \
-  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" --arg d "${plan_dir}" \
-      '{plan_issue:$i, plan:$p, plan_dir:$d}')" \
+  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" \
+      '{plan_issue:$i, plan:$p}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 
 # Downstream issue — depends on predecessor(s) only; gate inherited transitively.
 ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${issue_description}" \
-  --description="${ISSUE_DESC}" -t task -p 2 \
+  --description="${issue_detail}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${dependency_beads}" \
-  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" --arg d "${plan_dir}" \
-      '{plan_issue:$i, plan:$p, plan_dir:$d}')" \
+  --metadata "$(jq -nc --arg i "${issue_id}" --arg p "${plan_id}" \
+      '{plan_issue:$i, plan:$p}')" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
 ```
-
-**`plan_dir` is the third metadata key, and it answers a different question from the header**
-(D-2, REQ-DATA-073). Metadata is what a **program** reads to find the bundle from any bead
-without a `plans-root` lookup or a filesystem search; the header is what a **human or agent
-reading the bead text** sees — and a bead is read far more often as text than as JSON. Neither
-substitutes for the other, which is why #209 takes both remedies rather than the header alone
-its author recommended.
 
 **Derive the DAG mechanically, do not transcribe it.** `plan_extract.py` reads `plan.md` into
 JSON — epics, issues, edges, gates — and reports anything it cannot parse in `unparsed[]`
@@ -1035,21 +985,12 @@ which `CHANGE-VALIDATION.md` runs in the FAST tier — so editing either alone f
 gate.
 
 Each extracted issue carries a **`detail`** field (REQ-DATA-063): its continuation prose, minus
-the `depends-on:` / `resolves-upstream:` bullets the parser already consumed. `detail` is the
-**`${issue_detail}` that the provenance header above is prepended to** — so the bead
-description is `<header>\n\n<detail>`, and is deliberately **not** identical to `detail`
-(REQ-DATA-073, #209). An issue whose only continuation was its sub-key
-bullets carries an **empty** `detail`, which is a valid value, not an error — and in that case
-the header is the entire description. Titles are captured
+the `depends-on:` / `resolves-upstream:` bullets the parser already consumed. That is what
+`--description` above is populated from. An issue whose only continuation was its sub-key
+bullets carries an **empty** `detail`, which is a valid value, not an error. Titles are captured
 **verbatim** from the unmasked source line (REQ-DATA-062), inline code spans included, while
 parsing continues to read the masked line — so a `depends-on:` written inside a code span still
 produces no edge.
-
-**Do NOT add a description-equality check anywhere** (REQ-DATA-073). Nothing in this repository
-compares a bead description to plan text — EXP-006 measured that absence — and it is precisely
-what makes prepending the header safe: there is no consumer to break. Adding such a check would
-re-create the coupling #209 needs broken, and would do it in the same change that relies on the
-coupling not existing.
 
 `--strict` exits **2 (INCONCLUSIVE)**, never 1, on a non-empty `unparsed[]` (REQ-DATA-043):
 the extractor did not *see* part of the plan, which is a different claim from the plan being
@@ -1246,7 +1187,7 @@ mis-structured gate is a needless prompt, never an unauthorized action.
 manufacture blockers, and calling it PASS would manufacture consent.
 
 
-#### 5.2b — Resume (`epic_state` ∈ {`present`, `complete`})
+#### 5.2b — Resume (found = true)
 
 Do **not** pour or re-resolve the start gate (the prior session already did both). Run the
 resume path in order: **re-attach → sweep → loop**.
@@ -1634,32 +1575,10 @@ fi
 # the beads the plan declared. HALTING for THIS plan only (`--plan`), so a historical
 # divergence elsewhere in the corpus can never block an unrelated completion.
 bd list --all --include-gates --limit 5000 --json > /tmp/yf-beads.json
-# THE PATH IS `${SKILL_DIR}/scripts/`, NOT `_shared/` (plan-053 Issue 3.3, #210). `_shared/`
-# is a directory in THIS repository and is not one of the six roots the `SKILL_DIR` resolver
-# searches, so an operator following the old line verbatim in any other repo got a
-# file-not-found. The vendored copy is kept byte-identical by `_shared/sync.py`, which the
-# FAST tier gates on. `REQ-YF-EMBED-005`'s repo check now enforces this class repo-wide.
-#
-# `2>&1` is deliberate: the reason for an INCONCLUSIVE is written to STDERR, and under
-# `--json` a bare capture of stdout DISCARDS it — leaving the caller with an exit code and no
-# statement of what could not be measured.
-FIDELITY=$(uv run ${SKILL_DIR}/scripts/pour_fidelity.py /tmp/yf-beads.json "${plan_dir}" \
-             --strict --plan "${plan_id}" --json 2>&1)
+FIDELITY=$(uv run _shared/pour_fidelity.py /tmp/yf-beads.json "${plan_dir}" \
+             --strict --plan "${plan_id}" --json)
 FIDELITY_RC=$?
 echo "$FIDELITY"
-# THREE-VALUED, NOT TWO. Branching on `-ne 0` reported an INCONCLUSIVE as a DIVERGENCE — two
-# different facts collapsed into one signal, which is the same conflation as `doc_lint`'s
-# `not-selected` vs `no-such-path` (#181) and `resume-scan`'s `found` (#207). Read the code,
-# never the flag.
-if [ "$FIDELITY_RC" -eq 2 ]; then
-  echo "FAIL-LOUD: pour fidelity is INCONCLUSIVE — the comparison could not be made at all."
-  echo "This is a statement about the INSTRUMENT, not a verdict on the DAG: an empty scope"
-  echo "(a 'no-mapping' plan, a --plan matching nothing, or a bundle with no **Epic:** field)"
-  echo "or an unparsed construct in plan.md. Completion HALTS; do NOT set 'complete' — an"
-  echo "unjudgeable plan is not a clean one. Read the INCONCLUSIVE lines above, repair the"
-  echo "cause, then re-run §6.4."
-  exit 1
-fi
 if [ "$FIDELITY_RC" -ne 0 ]; then
   echo "FAIL-LOUD: the poured bead DAG does not match the plan's declared DAG."
   echo "Read the three populations separately — a 'no-mapping' verdict is an identity"
@@ -1739,8 +1658,7 @@ plan.md is self-contained for cold resume.
 uv run ${SKILL_DIR}/scripts/plan_manager.py list
 ```
 
-`list` renders a `⏹ ABANDONED` tag on any **abandoned** plan and a `⏸ PARKED` tag on any
-**parked** plan — approved but never executed
+`list` renders a `⏸ PARKED` tag on any **parked** plan — approved but never executed
 (status `approved` with a present-and-fresh fingerprint, REQ-PLAN-068). The `--json-output`
 form carries a `parked` boolean per plan.
 
