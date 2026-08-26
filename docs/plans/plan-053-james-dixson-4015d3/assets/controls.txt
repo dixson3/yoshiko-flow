@@ -1,0 +1,31 @@
+# plan-053 redcheck manifest — the AUTHORITATIVE control set.
+#
+# One red->green control per line. `verify-red-all` and `verify-all` read THIS FILE; a
+# control missing from it is a control the gate CANNOT SEE.
+#
+# THIS FILE IS AUTHORITATIVE AND THE DERIVATION MUST AGREE WITH IT. `verify-red-all`
+# re-derives the set from plan.md with the ANCHORED pattern `ctl-[0-9]{3}-[a-z-]+` and fails
+# if the two disagree. The anchoring is load-bearing: measured on this plan.md, the loose
+# `ctl-[a-z0-9-]*` returns 14 against this file's 11 — it additionally extracts the bare
+# `ctl-` prefix out of the sentence that SPECIFIES the pattern, plus the bare `ctl-187` and
+# `ctl-206` back-references. The controls were RENAMED to fit the anchored pattern rather
+# than the pattern loosened, because loosening reintroduces the `ctl-187` false positive the
+# anchoring was added against.
+#
+# TWO CRITERIA-ONLY ASSERTIONS ARE DELIBERATELY ABSENT FROM THIS FILE.
+# `assets/checks/check-full-tier-record.sh` (SC16) and `assets/checks/check-suite-portable.sh`
+# (SC5b) live under a `check-` prefix, OUTSIDE the `ctl-` namespace and outside this manifest.
+# They are plain criterion checks with no RED/GREEN pair. Naming them `ctl-NNN-` made the
+# derivation count 13 against 11 builders and rendered this gate UNSATISFIABLE while it
+# blocked every fix head (pass-4 C44).
+ctl-053-spec-order
+ctl-206-dropped-continuation
+ctl-207-epic-state
+ctl-207-human-output
+ctl-208-edge-scope
+ctl-208-fail-closed
+ctl-208-vocabulary-sites
+ctl-209-provenance
+ctl-210-empty-scope
+ctl-210-script-refs
+ctl-214-id-collision

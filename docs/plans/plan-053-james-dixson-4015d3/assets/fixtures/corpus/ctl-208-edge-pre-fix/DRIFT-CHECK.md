@@ -1,0 +1,290 @@
+# DRIFT-CHECK.md — beads-skills manifest
+
+The `yf-drift-check` engine's per-repo configuration for **this** repository. It declares the
+artifact graph the engine verifies: nodes, source-of-truth edges, per-edge contracts, the
+changed-path globs that scope an on-edit check, and the fixed-authority policy. The reusable
+mechanism (cascade principle, isolated evidence-based sub-agent, the four check categories,
+spec-bootstrap/conflict handling) lives in the `yf-drift-check` skill — not here.
+
+This file is the ported, corrected successor to the engine prose that used to live inline in
+`AGENTS/CONSISTENCY.md` and `AGENTS/DOCUMENTATION.md`. One correction is baked in: the README
+prerequisites source is the SKILL.md frontmatter `depends-on-tool` (+ checks stated in SKILL.md),
+**not** a `scripts/check-prereqs.sh` (which does not exist in this repo — the stale reference the
+old `DOCUMENTATION.md` carried; see `e-readme-prereqs`).
+
+The graph this manifest declares — nodes, source-of-truth edges, and the four check categories
+(edge colors) — rendered:
+
+![artifact graph declared by this DRIFT-CHECK.md](docs/diagrams/drift-check-artifact-graph.png)
+
+## 0. Status
+
+`approved: yes` — this repo is the reference/regression instance for the yf-drift-check engine
+(plan-007, operator-approved). The engine enforces this manifest.
+
+## 1. Artifact Nodes
+
+`Kind` ∈ {source, doc, spec}. `Authority` ∈ {fixed, derived}. `Reachability` ∈ {required, optional}.
+
+| Node ID | Glob | Kind | Authority | Reachability |
+|:--------|:-----|:-----|:----------|:-------------|
+| `spec` | `skills/*/spec/*.md` | spec | fixed | optional |
+| `skill-md` | `skills/*/SKILL.md` | source | derived | required |
+| `frontmatter-contract` | `skills/*/SKILL.md` (frontmatter `skill-group` / `depends-on-tool` / `depends-on-skill`) | source | derived | required |
+| `agent` | `skills/*/agents/*.md` | source | derived | optional |
+| `script` | `skills/*/scripts/*.{sh,py}` | source | derived | optional |
+| `formula` | `skills/*/formulas/*.toml` | source | derived | optional |
+| `template` | `skills/*/templates/*` | source | derived | optional |
+| `protocol-rule` | `skills/*/protocols/*.md` | source | derived | optional |
+| `skill-readme` | `skills/*/README.md` | doc | derived | required |
+| `project-readme` | `README.md` | doc | derived | required |
+| `macro-spec` | `SPEC.md` | spec | fixed | required |
+| `crate-version` | `yf/Cargo.toml` (`[package]` `version`) | source | fixed | required |
+| `changelog` | `CHANGELOG.md` | doc | derived | required |
+| `guardrails` | `GUARDRAILS.md` | spec | fixed | required |
+| `per-skill-spec` | `skills/*/SPEC.md` | spec | fixed | optional |
+| `skill-diagram-src` | `skills/*/spec/*.d2` | source | derived | optional |
+| `skill-diagram-png` | `skills/*/spec/*.png` | source | derived | optional |
+| `docs-diagram-src` | `docs/diagrams/*.d2` | source | derived | optional |
+| `docs-diagram-png` | `docs/diagrams/*.png` | source | derived | optional |
+| `classifier-canonical` | `_shared/active_set.py` (the marker-fenced canonical active-set classifier region) | source | fixed | required |
+| `classifier-copy-hygiene` | `skills/yf-beads-hygiene/scripts/beads_hygiene.py` (the generated `active-set classifier` region) | source | derived | required |
+| `classifier-copy-upstream` | `skills/yf-beads-upstream/scripts/upstream.py` (the generated `active-set classifier` region) | source | derived | required |
+| `json-extract-canonical` | `_shared/json_extract.py` (the marker-fenced canonical defensive `--json` extractor region) | source | fixed | required |
+| `json-extract-copy-plan` | `skills/yf-plan/scripts/plan_manager.py` (the generated `defensive json extractor` region) | source | derived | required |
+| `json-extract-copy-research` | `skills/yf-research/scripts/research_manager.py` (the generated `defensive json extractor` region) | source | derived | required |
+| `renderable-fences-canonical` | `_shared/renderable_fences.py` (the marker-fenced canonical renderable-fence registry region) | source | fixed | required |
+| `renderable-fences-copy-lint` | `skills/yf-markdown-lint/scripts/markdown_lint.py` (the generated `renderable-fence registry` region) | source | derived | required |
+| `renderable-fences-lua-mirror` | `skills/yf-markdown-pdf/scripts/blocks.lua` (the generated `renderable-fence registry` Lua region) | source | derived | required |
+| `manifest-update-canonical` | `_shared/manifest_update.py` (the canonical, whole-file manifest hash/version updater) | source | fixed | required |
+| `manifest-update-copy-beads-upstream` | `skills/yf-beads-upstream/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
+| `manifest-update-copy-optimal-instructions` | `skills/yf-optimal-instructions/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
+| `manifest-update-copy-plan` | `skills/yf-plan/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
+| `manifest-update-copy-research` | `skills/yf-research/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
+| `manifest-update-copy-skill-authoring` | `skills/yf-skill-authoring/scripts/manifest_update.py` (verbatim whole-file copy) | source | derived | required |
+| `okf-canonical` | `_shared/okf.py` (the canonical, whole-file OKF bundle engine) | source | fixed | required |
+| `doclint-canonical` | `_shared/doc_lint.py` **and** `_shared/document_types/*.toml` (the document-linter engine and its type schemas) | source | derived | required |
+| `okf-baseline-spec` | `skills/yf-okf/spec/OKF-BASELINE.md` (the authored, human-readable upstream OKF baseline; declares the `okf_version` pin) | spec | fixed | required |
+| `okf-copy-plan` | `skills/yf-plan/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
+| `okf-copy-research` | `skills/yf-research/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
+| `okf-copy-incubator` | `skills/yf-incubator/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
+| `okf-copy-okf` | `skills/yf-okf/scripts/okf.py` (verbatim whole-file copy) | source | derived | required |
+| `web-skill-facts` | `web/content/pages/architecture.md` (the skill-count total + per-`skill-group` count claims) | doc | derived | required |
+| `web-skill-pages-plugin` | `web/plugins/skill_pages.py` (the `GROUP_ORDER` / `GROUP_LABELS` / `GROUP_BLURBS` group registry) | source | derived | required |
+| `skill-page` | `web/content/skills/*.md` (the authored per-skill web-page prose body) | doc | derived | optional |
+
+## 2. Source-of-Truth Edges
+
+`Check Category` ∈ {cross-ref, contract, behavioral, required-section}.
+
+| Edge ID | Source Node | Derived Node | Check Category |
+|:--------|:------------|:-------------|:---------------|
+| `e-spec-compliance` | `spec` | `skill-md` | contract |
+| `e-spec-agent` | `spec` | `agent` | contract |
+| `e-skill-script-cli` | `script` | `skill-md` | cross-ref |
+| `e-formula-name` | `formula` | `skill-md` | cross-ref |
+| `e-agent-ref` | `agent` | `skill-md` | cross-ref |
+| `e-template-ref` | `template` | `skill-md` | cross-ref |
+| `e-protocol-rule` | `protocol-rule` | `skill-md` | behavioral |
+| `e-json-contract` | `script` | `skill-md` | contract |
+| `e-status-values` | `skill-md` | `agent` | contract |
+| `e-formula-vars` | `skill-md` | `formula` | contract |
+| `e-install-url` | `skill-md` | `skill-readme` | behavioral |
+| `e-readme-layout` | `skill-md` | `skill-readme` | required-section |
+| `e-readme-prereqs` | `frontmatter-contract` | `skill-readme` | contract |
+| `e-readme-usage` | `skill-md` | `skill-readme` | required-section |
+| `e-readme-desc` | `skill-md` | `skill-readme` | contract |
+| `e-index-table` | `skill-readme` | `project-readme` | contract |
+| `e-index-desc` | `skill-readme` | `project-readme` | behavioral |
+| `e-frontmatter` | `frontmatter-contract` | `project-readme` | contract |
+| `e-prereqs-union` | `skill-readme` | `project-readme` | contract |
+| `e-skill-diagram-ref` | `skill-diagram-png` | `skill-readme` | cross-ref |
+| `e-docs-diagram-ref` | `docs-diagram-png` | `project-readme` | cross-ref |
+| `e-changelog-version` | `crate-version` | `changelog` | contract |
+| `e-spec-guardrails` | `macro-spec` | `guardrails` | contract |
+| `e-spec-readme` | `macro-spec` | `project-readme` | behavioral |
+| `e-guardrails-readme` | `guardrails` | `project-readme` | cross-ref |
+| `e-skillspec-skillmd` | `per-skill-spec` | `skill-md` | contract |
+| `e-active-set-copy-hygiene` | `classifier-canonical` | `classifier-copy-hygiene` | contract |
+| `e-active-set-copy-upstream` | `classifier-canonical` | `classifier-copy-upstream` | contract |
+| `e-json-extract-copy-plan` | `json-extract-canonical` | `json-extract-copy-plan` | contract |
+| `e-json-extract-copy-research` | `json-extract-canonical` | `json-extract-copy-research` | contract |
+| `e-renderable-fences-copy-lint` | `renderable-fences-canonical` | `renderable-fences-copy-lint` | contract |
+| `e-renderable-fences-lua-mirror` | `renderable-fences-canonical` | `renderable-fences-lua-mirror` | contract |
+| `e-manifest-update-copy-beads-upstream` | `manifest-update-canonical` | `manifest-update-copy-beads-upstream` | contract |
+| `e-manifest-update-copy-optimal-instructions` | `manifest-update-canonical` | `manifest-update-copy-optimal-instructions` | contract |
+| `e-manifest-update-copy-plan` | `manifest-update-canonical` | `manifest-update-copy-plan` | contract |
+| `e-manifest-update-copy-research` | `manifest-update-canonical` | `manifest-update-copy-research` | contract |
+| `e-manifest-update-copy-skill-authoring` | `manifest-update-canonical` | `manifest-update-copy-skill-authoring` | contract |
+| `e-okf-version-pin` | `okf-baseline-spec` | `okf-canonical` | value-equal |
+| `e-okf-copy-plan` | `okf-canonical` | `okf-copy-plan` | contract |
+| `e-okf-copy-research` | `okf-canonical` | `okf-copy-research` | contract |
+| `e-okf-copy-incubator` | `okf-canonical` | `okf-copy-incubator` | contract |
+| `e-okf-copy-okf` | `okf-canonical` | `okf-copy-okf` | contract |
+| `e-web-skill-counts` | `frontmatter-contract` | `web-skill-facts` | contract |
+| `e-web-skill-groups` | `frontmatter-contract` | `web-skill-pages-plugin` | contract |
+| `e-skill-page-desc` | `skill-md` | `skill-page` | behavioral |
+| `e-skill-page-readme` | `skill-readme` | `skill-page` | behavioral |
+| `e-skill-page-spec` | `per-skill-spec` | `skill-page` | behavioral |
+| `e-doclint-spec` | `spec` | `doclint-canonical` | contract |
+| `e-skill-diagram-fresh` | `skill-diagram-src` | `skill-diagram-png` | contract |
+| `e-docs-diagram-fresh` | `docs-diagram-src` | `docs-diagram-png` | contract |
+
+## 3. Per-Edge Contracts
+
+`Contract` ∈ {path-resolves, identifier-matches, value-equal, field-set-subset, field-set-equal, section-present}.
+
+| Edge ID | Contract | Verification |
+|:--------|:---------|:-------------|
+| `e-spec-compliance` | `field-set-subset` | for a skill with `spec/`, the SKILL.md behavior does not violate any REQ-* statement; read each spec file and the SKILL.md, compare. A fixed-authority conflict (spec wrong) is a CONFLICT, not a FAIL. |
+| `e-skill-script-cli` | `identifier-matches` | every script subcommand/flag SKILL.md invokes matches the script's actual CLI — read **all** `@cli.command` decorators / argparse subparsers and compare names+flags character-for-character. |
+| `e-formula-name` | `identifier-matches` | two halves. **(a) pour/wisp ↔ shipped formula:** every concrete `bd mol pour <name>` / `bd mol wisp <name>` in a runnable bash fence of SKILL.md matches a `<name>.formula.toml` in the skill's `formulas/` (placeholder tokens like `<name>` / `${VAR}` and prose/inline mentions are excluded — same extraction contract as `yf doctor`'s `FormulaCheck`, REQ-YF-DOCTOR-004). **(b) staging ownership:** `yf preflight` OWNS staging (REQ-YF-PRE-011), so a migrated SKILL.md must NOT hand-stage — a per-call `cp … .beads/formulas/` or `rm … .beads/formulas/` bracket around a pour/wisp is drift (FAIL on `skill-md`). The canonical pattern is a bare `bd mol pour\|wisp <name>` with no `cp`/`rm`. (Descriptive prose ABOUT the removed bracket — e.g. yf-beads-authoring documenting the migration — is not a runnable staging line and passes.) |
+| `e-agent-ref` | `path-resolves` | every `${SKILL_DIR}/agents/<name>.md` referenced in SKILL.md resolves to a file in the skill's `agents/`. |
+| `e-template-ref` | `path-resolves` | every template path referenced in SKILL.md (init flows) resolves to a file under the skill's `templates/`. |
+| `e-protocol-rule` | `field-set-subset` | every trigger/gate/invariant the always-loaded companion rule (`skills/*/protocols/*.md`) binds is consistent with — and does not contradict — the procedure in the SKILL.md it points to. The rule carries trigger + gate condition + a pointer only (procedure lives in SKILL.md); the SKILL.md and the rule must **agree** on the gate condition and the disabled/no-op semantics. For `yf-beads-upstream`: the default-deny disabled test (`custom.upstream.enabled` ≠ `true`) and the gated one-shot preflight detect-and-offer (gate = github/gitlab origin + unconfigured upstream; durable marker on either outcome) must read identically in `UPSTREAM_TRACKING.md` and `SKILL.md` init §0. The rule is the trigger surface (derived from SKILL.md procedure); a rule that overstates/contradicts the procedure is the rule drifting (FAIL on the rule). |
+| `e-json-contract` | `field-set-subset` | the JSON keys SKILL.md parses from a script's `--json` output are a subset of the keys the script actually emits; read the script's output construction and list them. |
+| `e-status-values` | `field-set-subset` | status values used in `update-status` calls / agent prompts are a subset of those declared in the SKILL.md Phase Model. |
+| `e-spec-agent` | `contract` | every `REQ-AGENT-*` `Verification:` clause that quotes a literal from an `agents/*.md` file resolves to a string **present in that file**. Read each REQ's `Verification:` line, extract the quoted fragments and the agent file each one names, and check the fragment occurs there verbatim. `spec` is **fixed authority**: a dangling pointer is the pair drifting apart, reported against whichever side is stale — a genuinely obsolete spec statement is a CONFLICT (§7), never a silent pass. **Why this edge exists:** EXP-002 measured that **no `spec → agent` edge existed at all**, so the state in which an agent file is reworded and the spec still pins the old string is invisible to every engine in the repo — the FAST tier returns `pass, first_failure None` on it. That is the single riskiest step in a #182-class edit set, and it had nothing behind it (plan-051 D-9). |
+| `e-formula-vars` | `field-set-equal` | the `--var` names SKILL.md passes to `bd mol pour` equal the variables the `.formula.toml` declares. |
+| `e-install-url` | `value-equal` | any install URL duplicated across SKILL.md and the skill README is byte-identical. |
+| `e-readme-layout` | `field-set-equal` | the skill README file-layout fence lists exactly the files `find skills/<skill> -type f` reports. |
+| `e-readme-prereqs` | `field-set-subset` | the skill README Prerequisites match the SKILL.md frontmatter `depends-on-tool` + any prereq checks stated in SKILL.md. **Source is frontmatter `depends-on-tool`, NOT a `check-prereqs.sh`** (corrected E4). |
+| `e-readme-usage` | `section-present` | every invocation command in the SKILL.md usage/invocation list appears in the skill README Usage section. |
+| `e-readme-desc` | `value-equal` | the skill README one-line description matches the SKILL.md `description` intent. |
+| `e-index-table` | `field-set-equal` | the project README skills index has exactly one row per `skills/*/` dir that has a SKILL.md. |
+| `e-index-desc` | `value-equal` | each skill's description in the project README index matches that skill's README description. |
+| `e-frontmatter` | `field-set-subset` | the project README "Skill frontmatter contract" section's documented keys/rules match the frontmatter `install.py` actually reads (`skill-group` / `depends-on-tool` / `depends-on-skill`). |
+| `e-prereqs-union` | `field-set-equal` | the project README Prerequisites table is the union of all skill READMEs' prerequisites. |
+| `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render **freshness** is checked by the sibling edge `e-skill-diagram-fresh`; diagram-vs-prose semantics remain out of scope. |
+| `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render **freshness** is checked by the sibling edge `e-docs-diagram-fresh`; semantics remain out of scope. |
+| `e-changelog-version` | `value-equal` | the top-most **released** version heading in `CHANGELOG.md` (`## v<X> — <date>`) matches the `yf/Cargo.toml` `[package]` `version`. Between releases the crate version stays at the last release and pending user-facing changes accumulate under a `## Unreleased` section **above** it; at a release cut the version bump and the `Unreleased`→`## v<X>` rename land together (a bumped crate version with no matching `## v<X>` heading, or a `## v<X>` heading that is empty / has no Added/Changed/Fixed entries, is drift). The section must record the notable user-facing changes for `<X>` — a released version whose changes merged since the previous tag are not reflected is out-of-date. `crate-version` is fixed authority: a mismatch is the **changelog** drifting (FAIL on `changelog`), never the version — unless the crate version itself is wrong (CONFLICT, §7). |
+| `e-spec-guardrails` | `field-set-subset` | `GUARDRAILS.md` does not contradict any `SPEC.md` REQ-* statement; read both and compare. The macro spec is fixed authority — a guardrail that conflicts with a REQ is the guardrail drifting (FAIL on guardrails), unless the SPEC itself is stale (CONFLICT, §7). |
+| `e-spec-readme` | `field-set-subset` | the operational model `README.md` describes (install / preflight / config-and-state paths / skill names) does not contradict any `SPEC.md` REQ-* statement; read both and compare. SPEC is fixed authority. (The REQ-YF-PRE-004 config-path typo was operator-ratified and corrected in SPEC — SPEC/README/impl now agree on `.yf-<skill>.local.json`.) |
+| `e-guardrails-readme` | `field-set-subset` | any guardrail (`GUARDRAILS.md` GR-*) that constrains user-facing behavior README documents (e.g. operator-owned files `yf` must not edit, install/migration behavior) is reflected, not contradicted, in `README.md`. |
+| `e-skillspec-skillmd` | `field-set-subset` | for a skill carrying a `SPEC.md`, the `SKILL.md` behavior does not violate any REQ-* statement in that spec; read each and compare. A fixed-authority conflict (the spec is stale) is a CONFLICT, not a FAIL (§7). |
+| `e-active-set-copy-hygiene` | `value-equal` | the active-set classifier is authored once in `_shared/active_set.py` (canonical, fixed authority) and **vendored** — regenerated in-place by `_shared/sync.py` — as a marker-fenced region in `skills/yf-beads-hygiene/scripts/beads_hygiene.py`. The body between that region's `>>> BEGIN active-set classifier … >>>` / `<<< END active-set classifier <<<` markers must be **byte-identical** to the canonical region body (marker lines themselves excluded — the consumer's "generated by" banner differs from the canonical banner by design). A divergent region is the **copy** drifting (FAIL on `classifier-copy-hygiene`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop for the same check. |
+| `e-active-set-copy-upstream` | `value-equal` | as `e-active-set-copy-hygiene`, for the marker-fenced region in `skills/yf-beads-upstream/scripts/upstream.py`: its region body must be **byte-identical** to the `_shared/active_set.py` canonical region body. A divergent region is the **copy** drifting (FAIL on `classifier-copy-upstream`), never the canonical. |
+| `e-json-extract-copy-plan` | `value-equal` | the defensive `--json` extractor is authored once in `_shared/json_extract.py` (canonical, fixed authority) and **vendored** — regenerated in-place by `_shared/sync.py` — as a marker-fenced region in `skills/yf-plan/scripts/plan_manager.py`. The body between that region's `>>> BEGIN defensive json extractor … >>>` / `<<< END defensive json extractor <<<` markers must be **byte-identical** to the canonical region body (marker lines excluded — the consumer's "generated by" banner differs from canonical by design). A divergent region is the **copy** drifting (FAIL on `json-extract-copy-plan`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
+| `e-json-extract-copy-research` | `value-equal` | as `e-json-extract-copy-plan`, for the marker-fenced region in `skills/yf-research/scripts/research_manager.py`: its region body must be **byte-identical** to the `_shared/json_extract.py` canonical region body. A divergent region is the **copy** drifting (FAIL on `json-extract-copy-research`), never the canonical. |
+| `e-renderable-fences-copy-lint` | `value-equal` | the renderable-fence registry is authored once in `_shared/renderable_fences.py` (canonical, fixed authority) and **vendored** — regenerated in-place by `_shared/sync.py` — as a marker-fenced region in `skills/yf-markdown-lint/scripts/markdown_lint.py`. The body between that region's `>>> BEGIN renderable-fence registry … >>>` / `<<< END renderable-fence registry <<<` markers must be **byte-identical** to the canonical region body (marker lines excluded — the consumer's "generated by" banner differs from canonical by design). A divergent region is the **copy** drifting (FAIL on `renderable-fences-copy-lint`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
+| `e-renderable-fences-lua-mirror` | `field-set-equal` | the pandoc Lua filter `skills/yf-markdown-pdf/scripts/blocks.lua` cannot import Python, so its `RENDERABLE_FENCES` class list (the `{ … }` table in the `>>> BEGIN renderable-fence registry … >>>` / `<<< END renderable-fence registry <<<` region) is **generated** from `_shared/renderable_fences.py` by `_shared/sync.py`'s Python→Lua emitter. The **set** of fence-class strings in that Lua table must equal the set of keys in the canonical `RENDERABLE_FENCES` dict (`renderable_fence_classes()`). A divergent set is the **mirror** drifting (FAIL on `renderable-fences-lua-mirror`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
+| `e-manifest-update-copy-beads-upstream` | `value-equal` | `manifest_update.py` is authored once as `_shared/manifest_update.py` (canonical, fixed authority) and **vendored whole-file** — regenerated verbatim by `_shared/sync.py` — to `skills/yf-beads-upstream/scripts/manifest_update.py`. The copy must be **byte-identical** to canonical (a 100%-shared file carries no in-band markers). A divergent copy is the copy drifting (FAIL on `manifest-update-copy-beads-upstream`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
+| `e-manifest-update-copy-optimal-instructions` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-optimal-instructions/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-optimal-instructions`. |
+| `e-manifest-update-copy-plan` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-plan/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-plan`. |
+| `e-manifest-update-copy-research` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-research/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-research`. |
+| `e-manifest-update-copy-skill-authoring` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-skill-authoring/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-skill-authoring`. |
+| `e-okf-version-pin` | `value-equal` | the OKF baseline version is a single fact with **two surfaces**, and they must agree: the version `spec/OKF-BASELINE.md` declares (its `# OKF-BASELINE — upstream Open Knowledge Format vX.Y` heading and its `Pinned to `okf_version: X.Y`` status line) must equal the `okf_version = "X.Y"` constant in `_shared/okf.py` (and therefore, via the `e-okf-copy-*` edges, in all four vendored copies). **The baseline is fixed authority** (SPEC `REQ-OKF-FAM-005`): on a mismatch the **engine constant** is the drifted node (FAIL on `okf-canonical`), unless the baseline document itself is stale against the vendored upstream spec, which is a CONFLICT under §7. **Why this edge exists (plan-046 Issue 2.8):** `OKF-BASELINE.md` already *declared* a coupling to the baked-in ruleset (SPEC `REQ-OKF-FAM-002`), and **no edge encoded it** — a v0.1→v0.2 edit to the baseline fired `e-spec-compliance` against `SKILL.md` but nothing that inspected `okf_version` at all. |
+| `e-okf-copy-plan` | `value-equal` | `okf.py` is authored once as `_shared/okf.py` (canonical, fixed authority) and **vendored whole-file** — regenerated verbatim by `_shared/sync.py` — to `skills/yf-plan/scripts/okf.py`. The copy must be **byte-identical** to canonical (a 100%-shared file carries no in-band markers). A divergent copy is the copy drifting (FAIL on `okf-copy-plan`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
+| `e-okf-copy-research` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-research/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-research`. |
+| `e-okf-copy-incubator` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-incubator/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-incubator`. |
+| `e-okf-copy-okf` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-okf/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-okf`. |
+| `e-web-skill-counts` | `value-equal` | the skill-count claims in `web/content/pages/architecture.md` equal the real tallies from `skills/*/SKILL.md`, counted by each skill's `skill-group` frontmatter. The total "**N skills**" equals the number of `skills/*/` dirs carrying a `SKILL.md`, and each per-group count (`workflows (N)` / `beads (N)` / `utility (N)` / `markdown (N)`) equals the number of skills whose `skill-group` is that group. The grouped `/skills/` index, the per-skill "At a glance" block, the skill count, and the `SKILL_NAV` sidebar stay auto-derived from the same frontmatter and never drift; the per-skill page **prose** is authored (`web/content/skills/*.md`) and guarded separately by the `e-skill-page-*` edges. `frontmatter-contract` is the source of truth: a mismatch is the **web page** drifting (FAIL on `web-skill-facts`), never the skills. |
+| `e-web-skill-groups` | `field-set-subset` | every `skill-group` value present across `skills/*/SKILL.md` (currently `workflows`, `beads`, `utility`, `markdown`) is represented in the `web/plugins/skill_pages.py` group registry (`GROUP_ORDER`, `GROUP_LABELS`, and `GROUP_BLURBS`), so every group renders on the generated `/skills/` index and left-nav with a defined order + label + blurb rather than being silently appended unlabeled. A `skill-group` value missing from that registry is the **plugin** drifting (FAIL on `web-skill-pages-plugin`), never the skills. |
+| `e-skill-page-desc` | `field-set-subset` | the authored `web/content/skills/<name>.md` prose does not **contradict** the `skills/<name>/SKILL.md` (name-paired by the shared `*`): its factual claims about the skill — invocation, when-it-fires / when-to-skip triggers, dependencies, and behavior — must agree with the `SKILL.md` `description` and body. Read the authored page and the SKILL.md, compare only affirmative factual claims. Subset semantics: a page that **curates or omits** repo-dev detail PASSes — only an affirmative contradiction FAILs. The mechanical "At a glance" block, `/skills/` index, and `SKILL_NAV` are generated by `skill_pages.py` from frontmatter and are explicitly **out of scope** (they cannot drift). `skill-md` is the source of truth: a contradiction is the **authored page** drifting (FAIL on `skill-page`), never the SKILL.md. Report-only and INCONCLUSIVE-tolerant. |
+| `e-skill-page-readme` | `field-set-subset` | as `e-skill-page-desc`, against the name-paired `skills/<name>/README.md`: the authored page's factual claims (how it works, usage, behavior model) must not contradict the skill README exposition. A curated/omitted subset PASSes; only a contradiction FAILs. `skill-readme` is the source of truth (FAIL on `skill-page`). |
+| `e-skill-page-spec` | `field-set-subset` | as `e-skill-page-desc`, against the name-paired `skills/<name>/SPEC.md`: the authored page's behavior claims must not contradict any REQ-* statement in that spec. A curated/omitted subset PASSes; only a contradiction FAILs. The per-skill SPEC is fixed authority — a contradiction where the page is wrong is the **authored page** drifting (FAIL on `skill-page`); a genuinely stale spec is a CONFLICT (§7), not a FAIL. |
+| `e-doclint-spec` | `field-set-equal` | every severity-and-promotion behaviour `_shared/doc_lint.py` IMPLEMENTS agrees with what `skills/yf-plan/spec/data.md` DECLARES, in both directions. Read the `REQ-DATA-024` / `REQ-DATA-043` / `REQ-DATA-044` / `REQ-DATA-045` / `REQ-DATA-053` statements and the engine's `STATUS_SEVERITY` map, its `promote` handling in `lint()`, and each `document_types/*.toml`'s declared `severity` and `promote` keys. **A declaration the engine does not implement is a FAIL, not a gap** — that is the whole reason this edge exists: `REQ-DATA-044`, the engine's own module banner, and `plan-relations.toml`'s banner all asserted `STATUS_SEVERITY` promotion was OFF for the `plan-relations` kind for a full plan cycle while `lint()` applied the map unconditionally to every schema (plan-049 D-9). Three documents agreed with each other and none agreed with the code, which no prose-vs-prose edge could catch. `spec` is **fixed authority**: a divergence is the **engine** drifting (FAIL on `doclint-canonical`); a spec statement that is genuinely obsolete is a CONFLICT (§7), never a silent FAIL against the code. |
+| `e-skill-diagram-fresh` | `value-equal` | each `skills/*/spec/<slug>.png` is a current render of its sibling `skills/*/spec/<slug>.d2`: read the `.d2` source **and** Read the `.png` image, and confirm the rendered nodes / edges / labels reflect the current `.d2` (a `.d2` edited without re-rendering leaves a stale `.png`). `uv run skills/yf-diagram-authoring/scripts/render.py check-dir skills/<skill>/spec` is the mechanical backstop — **authoritative on a missing render** (a `.d2` with no `.png` → FAIL), advisory (mtime) on staleness. The `.d2` is the source of truth: a stale or missing render is the **png** drifting (FAIL on `skill-diagram-png`), never the `.d2`. Regenerate with `render.py render-dir skills/<skill>/spec`. |
+| `e-docs-diagram-fresh` | `value-equal` | as `e-skill-diagram-fresh`, for each `docs/diagrams/<slug>.png` against its sibling `docs/diagrams/<slug>.d2` (backstop `render.py check-dir docs/diagrams`). A stale or missing render is the **png** drifting (FAIL on `docs-diagram-png`); regenerate with `render.py render-dir docs/diagrams`. |
+
+## 4. Referencers (orphan check)
+
+| Required Node | Valid Referencers |
+|:--------------|:------------------|
+| `skill-md` | every `skills/*/` dir must contain one `SKILL.md` |
+| `script` | referenced by the skill's SKILL.md, an agent, or another script |
+| `agent` | referenced by the skill's SKILL.md or another agent |
+| `formula` | referenced by the skill's SKILL.md |
+| `template` | referenced by the skill's SKILL.md or a script |
+| `protocol-rule` | referenced by the skill's SKILL.md (the SKILL points to its companion rule; the rule points back to the SKILL procedure) |
+| `skill-readme` | every `skills/*/` dir must contain one `README.md` |
+
+## 5. Required-Section Contracts
+
+Sections a `doc` node must contain (from `DOCUMENTATION.md`'s README requirements), and the
+source that makes each mandatory.
+
+| Required Section | Source Node | Source detail |
+|:-----------------|:------------|:--------------|
+| One-line description | `skill-readme` | SKILL.md `description` |
+| Prerequisites | `skill-readme` | SKILL.md frontmatter `depends-on-tool` + SKILL.md checks |
+| Install | `skill-readme` | repo-level `install.sh` reference |
+| Usage | `skill-readme` | SKILL.md invocation list |
+| Phase/Behavior model | `skill-readme` | SKILL.md Phase Model / behavior section |
+| File layout | `skill-readme` | actual `find skills/<skill> -type f` listing |
+| Skills index table | `project-readme` | one row per skill |
+| Prerequisites table | `project-readme` | union of all skill prerequisites |
+| Install instructions | `project-readme` | `install.sh` actual flags |
+| Per-skill summary | `project-readme` | each skill's description, setup, usage, README link |
+
+## 6. Trigger Scope
+
+A source-node edit fans out to every derived edge it feeds. Globs retain **skill-dir
+coverage** (yf-drift-check fires on skill-dir edits alongside yf-skill-authoring, on the orthogonal
+content-agreement axis).
+
+| Changed-Path Glob | Scopes To |
+|:------------------|:----------|
+| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd`, `e-protocol-rule`, `e-web-skill-counts`, `e-web-skill-groups`, `e-skill-page-desc` |
+| `skills/*/spec/*.md` | `e-spec-compliance`, `e-spec-agent` |
+| `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values`, `e-spec-agent` |
+| `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
+| `_shared/active_set.py` | `e-active-set-copy-hygiene`, `e-active-set-copy-upstream` |
+| `_shared/json_extract.py` | `e-json-extract-copy-plan`, `e-json-extract-copy-research` |
+| `_shared/renderable_fences.py` | `e-renderable-fences-copy-lint`, `e-renderable-fences-lua-mirror` |
+| `_shared/manifest_update.py` | `e-manifest-update-copy-beads-upstream`, `e-manifest-update-copy-optimal-instructions`, `e-manifest-update-copy-plan`, `e-manifest-update-copy-research`, `e-manifest-update-copy-skill-authoring` |
+| `_shared/okf.py` | `e-okf-copy-plan`, `e-okf-copy-research`, `e-okf-copy-incubator`, `e-okf-copy-okf`, `e-okf-version-pin` |
+| `_shared/doc_lint.py` | `e-doclint-spec` |
+| `_shared/document_types/*.toml` | `e-doclint-spec` |
+| `skills/yf-okf/spec/OKF-BASELINE.md` | `e-spec-compliance`, `e-okf-version-pin` |
+| `skills/yf-beads-hygiene/scripts/beads_hygiene.py` | `e-skill-script-cli`, `e-json-contract`, `e-active-set-copy-hygiene` |
+| `skills/yf-beads-upstream/scripts/upstream.py` | `e-skill-script-cli`, `e-json-contract`, `e-active-set-copy-upstream` |
+| `skills/yf-plan/scripts/plan_manager.py` | `e-skill-script-cli`, `e-json-contract`, `e-json-extract-copy-plan` |
+| `skills/yf-research/scripts/research_manager.py` | `e-skill-script-cli`, `e-json-contract`, `e-json-extract-copy-research` |
+| `skills/yf-markdown-lint/scripts/markdown_lint.py` | `e-skill-script-cli`, `e-json-contract`, `e-renderable-fences-copy-lint` |
+| `skills/yf-markdown-pdf/scripts/blocks.lua` | `e-renderable-fences-lua-mirror` |
+| `skills/yf-beads-upstream/scripts/manifest_update.py` | `e-manifest-update-copy-beads-upstream` |
+| `skills/yf-optimal-instructions/scripts/manifest_update.py` | `e-manifest-update-copy-optimal-instructions` |
+| `skills/yf-plan/scripts/manifest_update.py` | `e-manifest-update-copy-plan` |
+| `skills/yf-research/scripts/manifest_update.py` | `e-manifest-update-copy-research` |
+| `skills/yf-skill-authoring/scripts/manifest_update.py` | `e-manifest-update-copy-skill-authoring` |
+| `skills/yf-plan/scripts/okf.py` | `e-okf-copy-plan` |
+| `skills/yf-research/scripts/okf.py` | `e-okf-copy-research` |
+| `skills/yf-incubator/scripts/okf.py` | `e-okf-copy-incubator` |
+| `skills/yf-okf/scripts/okf.py` | `e-skill-script-cli`, `e-json-contract`, `e-okf-copy-okf` |
+| `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars` |
+| `skills/*/templates/*` | `e-template-ref` |
+| `skills/*/protocols/*.md` | `e-protocol-rule` |
+| `skills/*/README.md` | `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table`, `e-index-desc`, `e-prereqs-union`, `e-skill-diagram-ref`, `e-skill-page-readme` |
+| `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref`, `e-spec-readme`, `e-guardrails-readme` |
+| `yf/Cargo.toml` | `e-changelog-version` |
+| `CHANGELOG.md` | `e-changelog-version` |
+| `SPEC.md` | `e-spec-guardrails`, `e-spec-readme` |
+| `GUARDRAILS.md` | `e-spec-guardrails`, `e-guardrails-readme` |
+| `skills/*/SPEC.md` | `e-skillspec-skillmd`, `e-skill-page-spec` |
+| `DRIFT-CHECK.md` | `e-docs-diagram-ref` |
+| `skills/*/spec/*.d2` | `e-skill-diagram-fresh` |
+| `skills/*/spec/*.png` | `e-skill-diagram-ref`, `e-skill-diagram-fresh` |
+| `docs/diagrams/*.d2` | `e-docs-diagram-fresh` |
+| `docs/diagrams/*.png` | `e-docs-diagram-ref`, `e-docs-diagram-fresh` |
+| `web/content/pages/architecture.md` | `e-web-skill-counts` |
+| `web/plugins/skill_pages.py` | `e-web-skill-groups` |
+| `web/content/skills/*.md` | `e-skill-page-desc`, `e-skill-page-readme`, `e-skill-page-spec` |
+
+## 7. Fixed-Authority Conflict Policy
+
+The `fixed`-authority nodes are the spec set — `spec` (`skills/*/spec/*.md`), `macro-spec`
+(`SPEC.md`), `guardrails` (`GUARDRAILS.md`), `per-skill-spec` (`skills/*/SPEC.md`) — plus
+`crate-version` (`yf/Cargo.toml` `[package]` `version`), the release source of truth. On a
+conflict across any spec-rooted edge (`e-spec-compliance`, `e-skillspec-skillmd`,
+`e-spec-guardrails`, `e-spec-readme`, `e-guardrails-readme`) or the version edge
+(`e-changelog-version`), the spec/guardrail/version wins: report
+the derived node (SKILL.md, README.md, GUARDRAILS.md, or other implementation/doc) as drifted;
+never edit a spec or guardrail to make a derived artifact fit. **Exception (the E4 lesson):** if
+the evidence shows the authority itself is stale — it names a file, tool, or identifier that does
+not exist, or carries a known unratified typo — emit a **CONFLICT**, report it to the operator,
+and halt; never silently rewrite either side. This is exactly how the old `DOCUMENTATION.md` came
+to name a `check-prereqs.sh` that was never in the repo. (The plan-010 REQ-YF-PRE-004 config-path
+typo — `SPEC.md` had `.yf/<skill>.local.json` vs the `.yf-<skill>.local.json` used by `README.md`,
+`docs/MIGRATION.md`, and the implementation — was **operator-ratified and corrected in `SPEC.md`**;
+SPEC, README, and the implementation now agree, so `e-spec-readme` has no held conflict.)

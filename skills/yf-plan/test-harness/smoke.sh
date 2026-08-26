@@ -374,7 +374,7 @@ cmd_gate() {
   cmd_verify "${project}" || verify_rc=$?
 
   echo ""
-  echo "==================== [4/5] CONFIG TIERS (REQ-YF-PRE-004 / REQ-PLAN-073) ======="
+  echo "==================== [4/5] CONFIG TIERS (REQ-YF-PRE-004 / REQ-PLAN-079) ======="
   local cfg_rc=0
   cmd_config "${project}" || cfg_rc=$?
 
@@ -402,7 +402,7 @@ cmd_gate() {
 
 # ------------------------------------------------------------- config-tiers ----
 # Mechanically drive the THREE-TIER config reader (REQ-YF-PRE-004 / -004a) and the
-# configurable roots (REQ-PLAN-073) with the MODIFIED skill, under the sandbox HOME.
+# configurable roots (REQ-PLAN-079) with the MODIFIED skill, under the sandbox HOME.
 #
 # Tier-1 (test_config_tiers.py) covers this by importing the module; this phase is
 # the Tier-2 counterpart — a real `plan_manager.py init` subprocess resolving real

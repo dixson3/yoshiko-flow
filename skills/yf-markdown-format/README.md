@@ -34,11 +34,11 @@ idempotent in-place autofix, or bare stdout:
 
 ```bash
 # CI / pre-commit gate: exit 1 if any table would change, mutating nothing
-uv run .claude/skills/markdown-format/scripts/md_table_align.py --check PATH...
+uv run .claude/skills/yf-markdown-format/scripts/md_table_align.py --check PATH...
 # idempotent in-place autofix (running twice is a no-op)
-uv run .claude/skills/markdown-format/scripts/md_table_align.py --write PATH...
+uv run .claude/skills/yf-markdown-format/scripts/md_table_align.py --write PATH...
 # normalized document to stdout
-uv run .claude/skills/markdown-format/scripts/md_table_align.py PATH...
+uv run .claude/skills/yf-markdown-format/scripts/md_table_align.py PATH...
 ```
 
 `--check` reports at **file granularity** (no per-table line number): it lists
@@ -50,9 +50,9 @@ exits 0.
 
 ```bash
 # dry-run: report the rewrites it WOULD make, touching no files
-uv run .claude/skills/markdown-format/scripts/convert_wikilinks.py <dir>... --vault-root DIR --dry-run
+uv run .claude/skills/yf-markdown-format/scripts/convert_wikilinks.py <dir>... --vault-root DIR --dry-run
 # in-place migration + a full conversion report
-uv run .claude/skills/markdown-format/scripts/convert_wikilinks.py <dir>... --vault-root DIR --report report.md
+uv run .claude/skills/yf-markdown-format/scripts/convert_wikilinks.py <dir>... --vault-root DIR --report report.md
 ```
 
 Both scripts are documented in [SKILL.md](SKILL.md): the three alignment modes,

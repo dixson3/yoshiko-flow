@@ -42,7 +42,8 @@ authorisation.
   a spawn.
 - **REQ-HERDR-002** — Readiness **shall** be verified mechanically at trigger time, never inferred
   from conversation. For `yf-plan`: status `approved` **and** a non-stale fingerprint
-  (`resume-scan` → `stale_approved: false`). A plan in `ready-for-approval`, or `approved` with a
+  (`resume-scan` → `stale_approved: false`). A plan in `abandoned` is terminal and NOT
+  execute-eligible, so it is never ready. A plan in `ready-for-approval`, or `approved` with a
   stale fingerprint, is **not** ready.
 - **REQ-HERDR-003** — A **fresh** (non-context-dirty) parent session **shall** execute in place
   rather than spawning a tab. The session boundary is the only justification for a subordinate; a

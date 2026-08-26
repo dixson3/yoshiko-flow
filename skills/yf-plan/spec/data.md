@@ -137,7 +137,7 @@ REQ-DATA-020: Operator config and runtime state are separate buckets per the Sur
 `plan_manager.py`'s own state (e.g. `landing.lock`) now lands in the short-name `.yf/plan/` directory, matching where the preflight kernel writes `preflight.json`; state written by an earlier version under the full-name `.yf/yf-plan/` is migrated on first use.
 
 Rationale: Config = operator decisions a fresh clone would need; state = caches/derived values tied to one checkout. Conflating them commits machine-specific state or loses operator intent. The committed tier exists because some of those decisions — the plan/incubator roots — are properties of the repository, not of a checkout: plan-id numbering is global across roots, so two clones disagreeing about the root silently fragments it.
-Verification: plan_manager.py `_read_config()` (three-tier merge) and `STATE_DIR` (short-name `.yf/plan/`); `yf/src/preflight.rs` `read_config` / `state_path`; `scripts/test_config_tiers.py` (Tier-1, tagged REQ-YF-PRE-004/-004a, REQ-PLAN-073); SKILL.md Pre-flight section.
+Verification: plan_manager.py `_read_config()` (three-tier merge) and `STATE_DIR` (short-name `.yf/plan/`); `yf/src/preflight.rs` `read_config` / `state_path`; `scripts/test_config_tiers.py` (Tier-1, tagged REQ-YF-PRE-004/-004a, REQ-PLAN-079); SKILL.md Pre-flight section.
 
 REQ-DATA-021: The config/state split is by **role, not by count**. **Config** is operator decision: `ignore-skill`, `plans-root`, `incubator-root`, `execute.worktree`, `validate-cmd`, `landing-strategy`, `autonomy`, `sweep-gates`, `max-attempts`, `max-review-cycles` — **ten** keys as of plan-045, and the set grows. **State** is runtime cache: `prereqs-present` (deps cache) and `scaffold-ensured` (scaffold-version marker). *(This REQ previously read "`ignore-skill` … is the only config key", which was true when written and has been false since; a REQ stated as a count goes stale on the next key added, so it is restated as the distinguishing rule.)*
 Rationale: Minimal config surface; the only operator decision is whether to opt out. Both state keys are recomputable caches, so they are state.
@@ -199,7 +199,11 @@ The **engine contract**:
 - **Status-aware promotion.** A plan's `status` selects the severity mapping:
   `scoping | investigating | drafting` → `W` findings are informational;
   `review | ready-for-approval` → `W` is **promoted to `E`**;
-  `complete` → **report-only, never an error**.
+  `complete` → **report-only, never an error**;
+  `abandoned` → **report-only, never an error** — the same profile as `complete` and for the same
+  reason: both are terminal, so a finding on one is a report about a record, never an actionable
+  defect. It is listed explicitly rather than left to fall through a default, because an
+  unmapped status is exactly what `STATUS_SEVERITY`'s fail-closed treatment reddens.
 - **Path-keying, never filename-keying.** Type selection keys on the document's path
   (`docs/plans/**/*.md`, `Incubator/*/plans/**/*.md`, `docs/research/**/*.md`), so the engine is
   **inert** in a repo with no yf documents and does not fire on the 17 test-fixture `plan.md`
@@ -744,9 +748,33 @@ one plan) while the DAG itself is perfect. This is framing 1 of the issue — ma
 honest — rather than framing 2, weakening the documentation to match. The exclusion of the parsed
 sub-keys is what makes the field a *schema* addition rather than a raw-text dump: the same bytes
 must not be reachable both as a structured edge and as prose.
+**The parse/capture split is part of the requirement, not an implementation detail.** Every
+branch that reads a **declaration** — the issue bullet, the `SUBKEY` and `COL0_SUBKEY` forms, the
+trailing-inline form — shall read the **masked** line, so a construct written inside an inline
+code span produces no edge (REQ-DATA-062's companion assertion). The gate that decides whether a
+continuation line is **captured into `detail`** shall read the **unmasked** line. The two reads
+are not interchangeable: a continuation whose entire visible content is one inline code span
+masks to whitespace, so a capture gate reading the masked line sees no non-space character and
+drops the line silently while `--strict` still reports `unparsed: []` and exit **0**. Widening
+the *capture* gate cannot widen *parsing*, because the capture branch reads no parsing pattern —
+it collects and returns.
+
+**A fenced block under an issue is continuation, and its indentation decides ownership.** An
+**indented** fence (the opening ``` preceded by at least one space) opened while an issue is
+open is that issue's continuation: its lines shall be collected **verbatim, minus the opening
+fence's indent**, so internal indentation survives into `detail`. A **column-0** fence is plan
+body, not continuation, and shall **not** be collected — the guard is load-bearing, and its
+absence was measured swallowing a plan-body fence into the last issue's bead description,
+introducing a new silent-corruption shape while closing an old one. Fenced continuation is the
+one capture path exempt from the ordinary `strip()`, because a code block whose leading
+whitespace is normalised away is no longer the block the author wrote.
 Verification: `ctl-187-empty-detail` exits non-zero pre-fix and zero post-fix; a bead poured from
 the output of a plan whose issues carry continuation prose has a non-empty description; on a plan
 whose issues carry none, every `detail` is empty and that is recorded as a negative observation.
+`ctl-206-dropped-continuation` asserts **five** things — both recovered drop shapes (the
+inline-code-only continuation and the indented fence), both adversarial no-edge cases (a
+`depends-on:` inside a code span, a fence containing a `- Issue 9.9:` line), and the column-0
+fence boundary — non-zero pre-fix and zero post-fix.
 
 REQ-DATA-070: **The `Verification` clause grammar.** A `## Success Criteria` row's
 `Verification` cell shall be authored in one of **five** forms, and `doc_lint.py` shall
@@ -809,3 +837,65 @@ Verification: `ctl-touches-subkey` asserts `touches` is a first-class field retu
 issues declare `touches:` at 100%, driven RED against a pinned fixture carrying a
 `touches:`-less issue; `ctl-ownership-inconclusive` asserts the consumer returns INCONCLUSIVE
 below the 80% floor and never reports "orthogonal" on no input.
+
+REQ-DATA-072: **`STATUS_SEVERITY` shall fail CLOSED on a status that is present and
+unrecognised.** When a document's resolved `bundle_status` is a non-empty value that is not a key
+of `STATUS_SEVERITY`, the severity mapping applied shall be the strictest one — `W` promoted to
+`E` — rather than the permissive empty map that applies today.
+
+**The scope of this requirement is exactly "present and unrecognised", never "absent or
+unrecognised", and the distinction is the whole requirement.** A document with **no**
+`bundle_status` at all (`None`) shall be **unchanged**: it keeps the existing empty-map treatment.
+The obvious one-line implementation — treating any status that misses the map as unrecognised —
+is the **broad** form, and it was measured reddening **31** documents and the repository's own
+FAST tier, because a null status is the ordinary state of a great many documents that were never
+part of a plan bundle. A fail-closed rule that reddens the tree is a rule that gets reverted, so
+the narrow form is not a weaker compromise — it is the only form that survives contact with the
+corpus.
+
+Implementations shall therefore distinguish `None` from a present-but-unmapped value as an
+explicit two-branch predicate, not as a single `.get(status or "", {})` lookup, which collapses
+the two into one signal. That collapse is the same two-facts-one-signal conflation as
+`doc_lint`'s `not-selected` vs `no-such-path` (#181) and `resume-scan`'s `found` (#207).
+Rationale: #208. A status outside the vocabulary previously selected the **most permissive**
+mapping available, so inventing a status silently *disabled* the promotion the linter relies on at
+`review`. Fail-open on an unknown input is the wrong default for a gate.
+Verification: `_shared/test_doc_lint.py` asserts (arm 1) a present-but-unrecognised status flips a
+`W` finding's verdict `PASS` → `FAIL`, and (arm 2) a null-`bundle_status` document is **unchanged**
+— `ctl-208-fail-closed` carries the RED on arm 1 only, since arm 2 is invariant across the fix and
+is regression protection rather than evidence; and `_shared/doc_lint.py --root . --json` reports
+`errors: 0` over the whole corpus after the change.
+
+REQ-DATA-073: **Issue-bead provenance at pour time.** Every issue bead SKILL.md §5.2a pours
+shall carry, in **both** of the two places a consumer can reach:
+
+- **metadata** — `plan_issue`, `plan`, **and `plan_dir`** (the repo-relative bundle path). The
+  first two already shipped; `plan_dir` is what lets a *program* find the bundle from any bead
+  without a `plans-root` lookup or a filesystem search.
+- **description** — the shape `<provenance header>\n\n<detail>`, where the header is the single
+  line `Plan: <plan-id> | Bundle: <plan-dir> (repo-relative)` and `<detail>` is the issue's
+  extracted `detail` (REQ-DATA-063), which may be **empty**.
+
+The two answer different halves and neither substitutes for the other: metadata is what a program
+reads, the header is what a **human or agent reading the bead text** sees — and a bead is read far
+more often as text than as JSON. A bead description is also rendered as a GitHub issue body when
+the bead is pushed upstream, which is why the separator is the ASCII `|` rather than `·`: both
+round-trip through `bd` byte-exact, but only one is unambiguous in every renderer.
+
+**The blank line between header and detail is load-bearing, not cosmetic.** Without it a markdown
+renderer joins the header to any `detail` that opens with a list, a heading or a fence, producing
+a corrupted first construct.
+
+**No description-equality check shall be added anywhere.** Nothing in the repository compares a
+bead description to plan text, and that absence is precisely what makes prepending the header
+safe. Adding such a check would re-create the coupling this requirement depends on not existing.
+This requirement constrains the **pour**; it does not amend REQ-DATA-063, which constrains the
+**extractor**.
+Rationale: #209. A bead carries no route back to the bundle that declared it, so an agent holding
+a bead id cannot find the plan without guessing the plans root. Corpus severity was measured at a
+**14.2%** mean (not the 60% the issue estimated), and this repository's four newest bundles carry
+**zero** non-empty `detail` — so on those the header is the *entire* description. Title-borne
+citations are a larger, separate class and are explicitly out of scope (D-13).
+Verification: `ctl-209-provenance` asserts a poured issue bead's metadata carries all three keys
+and that its description's first line matches `^Plan: \S+ \| Bundle: \S+` with a blank line before
+the detail — non-zero pre-fix, zero post-fix.

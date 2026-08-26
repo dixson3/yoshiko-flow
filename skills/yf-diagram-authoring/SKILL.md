@@ -35,13 +35,13 @@ Defaults: `--theme 0` (light), `--layout elk`.
 
 ## Workflow
 
-1. **Preflight.** `uv run scripts/render.py preflight` — confirms `d2` is on PATH (the *only*
+1. **Preflight.** `uv run ${SKILL_DIR}/scripts/render.py preflight` — confirms `d2` is on PATH (the *only*
    contract; OS-independent). If missing: `brew install d2`. First PNG render fetches a one-time
    ~140MB Chromium; on this toolchain that warm-up is owned by the dotfiles bootstrap, not this
    skill — just render and let any fetch happen.
 2. **Write `<slug>.d2`** into the caller's diagrams location (see below). Slug is kebab-case,
    derived from the section/topic.
-3. **Render** `uv run scripts/render.py render <slug>.d2` → sibling `<slug>.png` (theme 0, elk).
+3. **Render** `uv run ${SKILL_DIR}/scripts/render.py render <slug>.d2` → sibling `<slug>.png` (theme 0, elk).
 4. **Verify by Read.** Open the PNG: white background, labels legible, structure correct. Fix the
    `.d2` and re-render on any problem — never hand-edit the `.png`.
 
@@ -71,7 +71,7 @@ project README or other top-level docs. The `.d2` source always sits beside the 
 ## Regeneration discipline
 
 A `.d2` edited without re-rendering leaves a stale `.png`. Before committing, run
-`uv run scripts/render.py render-dir <dir>` to regenerate all, then `check-dir <dir>` —
+`uv run ${SKILL_DIR}/scripts/render.py render-dir <dir>` to regenerate all, then `check-dir <dir>` —
 authoritative on missing renders (exit 1 on any `.d2` with no `.png`), advisory on staleness
 (WARN when a `.d2` is newer than its `.png` in the same tree; cross-clone freshness can't be
 enforced because git normalizes mtimes).
@@ -87,11 +87,11 @@ A d2 diagram can live in a markdown doc two ways. Pick per the trade-off below; 
 | Standalone | a committed `.d2` + rendered `.png`, referenced by `![alt](slug.png)` | the `.png` previews anywhere with no render step | a committed binary + regeneration discipline (`check-dir`) |
 
 ```bash
-uv run scripts/render.py embed <src.d2> <tgt.md>   # insert source as an inline ```d2 fence
-uv run scripts/render.py embed - <tgt.md>          #   (or read d2 source from stdin)
-uv run scripts/render.py embed <src.d2> <tgt.md> --anchor "<text>"  # insert after a marker line
-uv run scripts/render.py lift <tgt.md>             # inline ```d2 -> standalone .d2 + .png, link
-uv run scripts/render.py inline <tgt.md>           # standalone .png link -> inline ```d2 fence
+uv run ${SKILL_DIR}/scripts/render.py embed <src.d2> <tgt.md>   # insert source as an inline ```d2 fence
+uv run ${SKILL_DIR}/scripts/render.py embed - <tgt.md>          #   (or read d2 source from stdin)
+uv run ${SKILL_DIR}/scripts/render.py embed <src.d2> <tgt.md> --anchor "<text>"  # insert after a marker line
+uv run ${SKILL_DIR}/scripts/render.py lift <tgt.md>             # inline ```d2 -> standalone .d2 + .png, link
+uv run ${SKILL_DIR}/scripts/render.py inline <tgt.md>           # standalone .png link -> inline ```d2 fence
 ```
 
 - **embed** — inserts a ```` ```d2 ```` fence into `<tgt.md>`. Appends to end of file by default;

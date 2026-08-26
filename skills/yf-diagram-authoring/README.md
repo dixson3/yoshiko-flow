@@ -25,13 +25,13 @@ directory. No hook, no companion rule. See the project [README](../../README.md)
 User-invocable. Drive d2 through `scripts/render.py` (run via `uv run`):
 
 ```bash
-uv run scripts/render.py preflight                 # OS-independent `command -v d2` check
-uv run scripts/render.py render <slug>.d2          # one .d2 -> sibling .png (theme 0, elk)
-uv run scripts/render.py render-dir <dir>          # (re)render every .d2 under <dir>
-uv run scripts/render.py check-dir <dir>           # every .d2 has a .png (+ advisory staleness)
-uv run scripts/render.py embed <src.d2> <tgt.md>   # insert source as an inline ```d2 fence
-uv run scripts/render.py lift <tgt.md>             # inline ```d2 -> standalone .d2 + .png + link
-uv run scripts/render.py inline <tgt.md>           # standalone .png link -> inline ```d2 fence
+uv run ${SKILL_DIR}/scripts/render.py preflight                 # OS-independent `command -v d2` check
+uv run ${SKILL_DIR}/scripts/render.py render <slug>.d2          # one .d2 -> sibling .png (theme 0, elk)
+uv run ${SKILL_DIR}/scripts/render.py render-dir <dir>          # (re)render every .d2 under <dir>
+uv run ${SKILL_DIR}/scripts/render.py check-dir <dir>           # every .d2 has a .png (+ advisory staleness)
+uv run ${SKILL_DIR}/scripts/render.py embed <src.d2> <tgt.md>   # insert source as an inline ```d2 fence
+uv run ${SKILL_DIR}/scripts/render.py lift <tgt.md>             # inline ```d2 -> standalone .d2 + .png + link
+uv run ${SKILL_DIR}/scripts/render.py inline <tgt.md>           # standalone .png link -> inline ```d2 fence
 ```
 
 Write `.d2` source into the caller's diagrams location, render, then `Read` the PNG to verify

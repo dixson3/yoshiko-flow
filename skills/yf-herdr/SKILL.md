@@ -46,7 +46,8 @@ uv run <yf-plan>/scripts/plan_manager.py resume-scan "<plan_dir>" --json   # sta
 # yf-research: the coordinate gate must be resolvable
 ```
 
-   A plan in `ready-for-approval`, or `approved` with a **stale** fingerprint, is **not** ready — it
+   A plan in `ready-for-approval`, in `abandoned` (deliberately stopped — it is terminal and
+   not execute-eligible), or `approved` with a **stale** fingerprint, is **not** ready — it
    needs re-approval, not a session. Report that and stop.
 
 4. **This session must be context-dirty** — it did the planning work. A fresh session has no

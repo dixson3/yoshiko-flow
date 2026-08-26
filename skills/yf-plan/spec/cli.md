@@ -30,7 +30,7 @@ REQ-CLI-006: `plan_manager.py` exposes its subcommands **flat** — one `@cli.co
 
 > the set of verbs enumerated in this REQ **equals** the set of `@cli.command` names in `skills/yf-plan/scripts/plan_manager.py`.
 
-The enumeration (currently **31**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `grant` (REQ-CLI-025), `ownership-report` (REQ-DATA-071), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `verify-beads` (#197).
+The enumeration (currently **32**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `grant` (REQ-CLI-025), `ownership-report` (REQ-DATA-071), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `verify-beads` (#197), `clear-epic` (REQ-CLI-027).
 
 Adding a verb **requires** adding it here. The count is written as *currently N* precisely because it is a **derived** fact: the invariant is the set equality, and the number is a convenience that the executing check re-derives. Separately, `plan_manager.py` also exposes the click **groups** `fingerprint`, `worktree` and `landing-lock`, whose subcommands are registered on the group (`@fingerprint.command`, etc.) and are therefore **outside** both the enumeration and the check — which is why REQ-CLI-021 mandates the flat form.
 Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. This REQ has drifted **three times**: it read 10 while the script carried 21; plan-045 corrected it to 23, then to 24 when `review-loop-check` landed; and it was *still* wrong at 25 because `retrospective-report` was added in the same epic that fixed the previous drift. Each fix bumped a hardcoded literal, which is a repair that re-breaks on the very next verb.
@@ -53,7 +53,7 @@ real deviation-vocabulary overlap, and that is what the choice turns on:
 - **A distinct name, because `--force` is already overloaded on other verbs and means different
   things on each**: file overwrite on `capture`, stale-approval bypass on `execute`, lock
   stealing on `landing-lock release`, dirty-tree override on `worktree teardown`.
-  `update-status` writes **nine** different statuses, so a bare `--force` there would not say
+  `update-status` writes **ten** different statuses, so a bare `--force` there would not say
   *what* it forces — and the one thing it must never be read as forcing is a status the plan has
   not earned.
 - **It stays in the `--force` deviation FAMILY** for retrospective purposes: the entry is
@@ -69,7 +69,35 @@ REQ-CLI-012: `plan_manager.py record-epic <plan-dir> <epic-id>` persists the pla
 Rationale: The resume guard needs a deterministic epic pointer that survives a crash. The inert `log.md` entry records the linkage without perturbing the review/scoping counts the portability audit keys on.
 Verification: `record_epic` in plan_manager.py writes both the `epic` frontmatter key and the `**Epic:**` header line and the `log.md` `intake:` entry; SKILL.md §4.2 invokes it after the pour.
 
-REQ-CLI-013: `plan_manager.py resume-scan <plan-dir> [--json-output|--json]` resolves the plan's epic (plan.md `epic` frontmatter key, then `**Epic:**` header line, then `metadata.plan_dir` fallback — REQ-DATA-015) and returns `{plan_dir, epic_id, epic_source (plan_md|bd_metadata|none), found, epic_resolves, counts, total, stuck, open_work_remaining}`. **`epic_resolves`** *(plan-044, #143)* is `true` when the resolved epic id actually **exists in `bd`**, and `false` when the plan records an id that resolves to nothing — the **dangling-ref** case. This is the distinction the execute path turns on: a dangling ref yields `found: true, total: 0`, which is indistinguishable from a legitimately completed plan, so execute reads "no open work" and **skips the plan entirely** — a silent false success. `resume-scan` is the only verb the execute path consults, which is why the signal belongs here and not solely in `audit`. `stuck` lists `in_progress`/claimed descendant beads. bd JSON is parsed defensively (multi-document tolerant). Default output is a human-readable summary; `--json`/`--json-output` emits the structured object.
+REQ-CLI-013: `plan_manager.py resume-scan <plan-dir> [--json-output|--json]` resolves the plan's epic (plan.md `epic` frontmatter key, then `**Epic:**` header line, then `metadata.plan_dir` fallback — REQ-DATA-015) and returns `{plan_dir, epic_id, epic_source (plan_md|bd_metadata|none), found, epic_resolves, epic_state, epic_status, epic_plan_dir, counts, total, stuck, open_work_remaining}`.
+
+**`epic_state`** *(plan-053, #207)* is the **six-valued** field the execute path shall branch on:
+
+| `epic_state` | Means | What EXECUTE does |
+| :-- | :-- | :-- |
+| `none` | the plan records no epic | **pour** — the normal first execution |
+| `present` | the epic resolves and has open work | **resume** |
+| `complete` | the epic resolves and all its work is terminal | resume (nothing left to do) — never re-pour |
+| `stale` | the plan records an id that resolves to **nothing** (the burned/dangling ref) | **pour** — the recorded pointer is dead, so there is nothing to resume |
+| `foreign` | the epic resolves but its `metadata.plan_dir` names a **different** bundle | **halt** for an operator decision — a copied bundle must never silently resume another plan's epic |
+| `unknown` | the state could not be determined (`bd` unavailable or unreadable) | **halt as INCONCLUSIVE** — never pour |
+
+`epic_state` exists because **`found` is one boolean carrying two facts** — "a pointer is
+recorded" and "that pointer is live" — and the two have opposite handling. That is the same
+conflation as `doc_lint`'s `not-selected` vs `no-such-path` (#181), and the remedy is the same:
+**add a field that names the state and branch on it, never on the flag.** `epic_status` is the
+epic bead's own `status` (or `null`), and `epic_plan_dir` is the `metadata.plan_dir` the epic
+carries (or `null`) — the two signals `foreign` is derived from, surfaced so a caller can report
+*why* rather than only *that*.
+
+**`found` and `epic_resolves` keep their existing meanings verbatim**, unchanged and still
+emitted, so every existing consumer is unaffected. `epic_state` is additive: it is derived from
+signals already in hand, and shall **not** re-implement the existence check `epic_resolves`
+already performs.
+
+`unknown` is a first-class value and **not** a synonym for "gone". An unreachable tracker looks
+exactly like a burned epic, and guessing "gone" produces the duplicate pour REQ-RESUME-004 exists
+to prevent. **`epic_resolves`** *(plan-044, #143)* is `true` when the resolved epic id actually **exists in `bd`**, and `false` when the plan records an id that resolves to nothing — the **dangling-ref** case. This is the distinction the execute path turns on: a dangling ref yields `found: true, total: 0`, which is indistinguishable from a legitimately completed plan, so execute reads "no open work" and **skips the plan entirely** — a silent false success. `resume-scan` is the only verb the execute path consults, which is why the signal belongs here and not solely in `audit`. `stuck` lists `in_progress`/claimed descendant beads. bd JSON is parsed defensively (multi-document tolerant). Default output is a human-readable summary; `--json`/`--json-output` emits the structured object.
 Rationale: SKILL.md §5.2's resume guard and §4.2's duplicate-pour guard branch on `found`; the coordinator's orphan sweep consumes `stuck`. A machine-readable shape is required for both.
 Verification: `_resume_scan`/`resume_scan` in plan_manager.py construct the documented keys; `_parse_bd_json` tolerates concatenated documents; SKILL.md §5.2 and §4.2 consume the JSON via `json-get`.
 
@@ -173,3 +201,53 @@ mutate one entry in a throwaway copy of the table, re-run `grant` and `_verify_r
 in `UPSTREAM_DISPOSITIONS` has exactly one table entry; `test_cli_enumeration.py` asserts `grant`
 is present in the REQ-CLI-006 enumeration.
 
+
+REQ-CLI-026: **`update-status` shall WARN on an unrecognised status, on stderr, and still exit
+0.** When the status argument is not in REQ-STATUS-001's vocabulary, `update-status` shall write
+the status as asked and emit a warning to **stderr only** naming (a) the value written, (b) the
+full recognised vocabulary, and (c) the three known consequences of writing outside it — the plan
+is invisible to `list`'s status filters, `_is_parked` will not classify it, and `doc_lint`'s
+`STATUS_SEVERITY` treats it fail-closed (REQ-DATA-072).
+
+**The exit code stays 0, and that is the requirement, not an omission.** `update-status` is not a
+gate; refusing the write would strand a plan whose operator has a reason this vocabulary does not
+yet cover, which is the failure mode #208 was filed about in the first place. The warning removes
+the *silence*, which is the actual defect — the write was accepted with no signal whatsoever, so
+an invented status looked exactly like a supported one. `scripts/test_update_status_gate.py`
+asserts exit **0** for every non-`approved` status, so a non-zero exit here would flip a passing
+assertion on a behaviour that is deliberate.
+
+Warning on **stderr only** is what keeps the verb composable: `--json` consumers parse stdout, and
+a warning on stdout would corrupt every one of them.
+Rationale: #208. An operator with no legal state for "approved but deliberately not executing"
+invented one, and `update-status` accepted it without a word. D-1 takes the widest remedy — the
+vocabulary gains a real value for that case (`abandoned`, REQ-STATUS-001), the write warns instead
+of being silent, and the linter stops treating an unknown status as permissive.
+Verification: `scripts/test_update_status_gate.py` asserts an unrecognised status writes, warns on
+stderr, and exits 0, and that `abandoned` is accepted with **no** warning.
+
+REQ-CLI-027: *(plan-053, #207)* `plan_manager.py clear-epic <plan-dir> [-m REASON] [--force]
+[--json]` shall clear a plan's recorded epic pointer — removing **both** dual-written surfaces
+(REQ-DATA-015): the `epic` frontmatter key **and** the `**Epic:**` header line. It shall **keep**
+the existing `- intake: epic <id> poured` history bullet in `log.md` and **append** a
+`- pointer cleared` bullet, so the record of what was poured survives the clearing of the pointer
+to it. Both bullets are inert tokens: neither advances `status`, and neither matches the
+`review:` or `scoping:` audit regexes, so REQ-PORT-006's count-equality is untouched.
+
+The verb is **idempotent** (clearing an already-clear plan is a reported no-op at exit 0) and
+**refuses without `--force`** when `epic_state` is `present` or `unknown` — clearing a live
+pointer strands real work, and clearing one whose state could not be determined is that same act
+performed blind.
+
+It shall report **`metadata_fallback_remains`**. Measured: clearing the two plan.md surfaces does
+**not** on its own reopen the pour path, because `_resume_scan` falls back to the epic bead's
+`metadata.plan_dir` stamp (REQ-CLI-013), so a surviving epic bead is still found. A verb that
+appears to succeed and changes nothing is the silent-success class this plan exists to close, so
+the residual fallback is **reported**, never silently tolerated.
+Rationale: #207. A plan whose epic was burned records a pointer to nothing and has no supported
+way to drop it — the operator's only recourse was hand-editing plan.md, which reliably updates one
+of the two dual-written surfaces and leaves the other.
+Verification: `scripts/test_epic_ref_audit.py` asserts both surfaces are removed, the `intake:`
+bullet survives, a `pointer cleared` bullet is appended, a second run is a no-op, `present` and
+`unknown` refuse without `--force`, and `metadata_fallback_remains` is reported when the epic bead
+still carries a matching `metadata.plan_dir`.

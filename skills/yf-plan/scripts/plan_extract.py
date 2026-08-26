@@ -209,6 +209,47 @@ def _split_h2(lines: list[str]) -> dict[str, tuple[int, int]]:
     return out
 
 
+def _fence_indents(lines: list[str]) -> dict[int, int]:
+    """Map each line inside an **indented** fenced block to that fence's opening indent.
+
+    REQ-DATA-063 as amended by plan-053 (#206), drop shape 2. Returns only the lines belonging
+    to a fence whose OPENING delimiter is indented — the CommonMark rule: an indented opening
+    fence is list-item continuation, a **column-0** fence is document content.
+
+    THE COLUMN-0 EXCLUSION IS LOAD-BEARING, NOT AN OPTIMISATION. What terminates an issue's
+    continuation is an epic `###`, any other `###`, a column-0 `- ` bullet, or the end of
+    `## Epics` — **a column-0 fence terminates nothing**. So a "collect every fenced line"
+    variant attributes a plan-body fence written after the last issue to that issue, and it
+    lands in the issue's BEAD DESCRIPTION. Measured: fixing #206 naively introduces a new
+    silent-corruption shape while closing an old one. `ctl-206-dropped-continuation`'s fifth
+    assertion is the guard.
+
+    The recorded value is the opening fence's indent so the caller can strip exactly that much
+    and no more, leaving INTERNAL indentation intact — a code block whose leading whitespace is
+    normalised away is no longer the block the author wrote.
+    """
+    out: dict[int, int] = {}
+    indent: int | None = None
+    for i, ln in enumerate(lines):
+        stripped = ln.lstrip()
+        if stripped.startswith("```"):
+            if indent is None:
+                lead = len(ln) - len(stripped)
+                # A column-0 fence is plan body. Enter a "skip" state (indent < 0) so its
+                # CLOSING delimiter is still consumed and does not open a spurious block.
+                indent = lead if lead > 0 else -1
+                if indent > 0:
+                    out[i] = indent
+            else:
+                if indent > 0:
+                    out[i] = indent
+                indent = None
+            continue
+        if indent is not None and indent > 0:
+            out[i] = indent
+    return out
+
+
 def _fenced_spans(lines: list[str]) -> set[int]:
     inside, fenced = set(), False
     for i, ln in enumerate(lines):
@@ -255,6 +296,7 @@ def extract(path: Path) -> dict:
     text = path.read_text(encoding="utf-8", errors="replace")
     lines = text.split("\n")
     fenced_lines = _fenced_spans(lines)
+    fence_indents = _fence_indents(lines)
     h2 = _split_h2(lines)
     unparsed: list[dict] = []
 
@@ -388,12 +430,38 @@ def extract(path: Path) -> dict:
         if text:
             cur_issue["detail_lines"].append(text)
 
+    def _collect_fence_line(raw: str, indent: int) -> None:
+        """Append one INDENTED-fence continuation line VERBATIM (REQ-DATA-063, #206).
+
+        Exempt from `_collect_detail`'s `strip()` by design: this is the one capture path
+        where whitespace is content. Only the OPENING fence's indent is removed, so a line
+        indented more deeply than its fence keeps the difference.
+
+        A blank line inside a fence is preserved as a blank line — `_collect_detail` drops
+        falsy text, which would silently close up the blank lines in a code block.
+        """
+        if cur_issue is None:
+            return
+        cur_issue["detail_lines"].append(raw[indent:].rstrip("\n") if len(raw) > indent
+                                         else raw.strip())
+
 
     if "Epics" in h2:
         s, e = h2["Epics"]
         for i in range(s, e):
             raw = lines[i]
             if i in fenced_lines:
+                # REQ-DATA-063 (#206), drop shape 2. An INDENTED fence under an open issue is
+                # that issue's continuation and is collected VERBATIM, minus the opening
+                # fence's own indent. Previously EVERY fenced line was skipped, so the whole
+                # block vanished while `--strict` reported `unparsed: []` and exit 0.
+                #
+                # `_fence_indents` yields only indented-fence lines, so a COLUMN-0 fence still
+                # falls through to the `continue` below and is never collected — the guard
+                # against the new corruption shape a naive fix introduces.
+                indent = fence_indents.get(i)
+                if indent is not None and cur_issue is not None:
+                    _collect_fence_line(raw, indent)
                 continue
             ln = mask_inline_code(raw)
 
@@ -470,7 +538,19 @@ def extract(path: Path) -> dict:
             # this, such a line was dropped silently and `--description` had nothing to
             # carry: 35 of 35 beads poured from one plan came out with empty descriptions
             # on a DAG that was otherwise perfect.
-            if cur_issue is not None and re.match(r"^\s+\S", ln):
+            # THE OPERAND IS `raw`, NOT THE MASKED `ln` — REQ-DATA-063 (#206), drop shape 1.
+            #
+            # A continuation line whose entire visible content is ONE INLINE CODE SPAN masks
+            # to whitespace, so `^\s+\S` finds no non-space character on `ln` and the line is
+            # dropped SILENTLY while `--strict` still reports `unparsed: []` and exit 0.
+            #
+            # This widens CAPTURE and CANNOT widen PARSING. The branch is capture-only: it
+            # calls `_collect_detail(raw, False)` and returns. It never calls `try_trailing`
+            # and matches no `ISSUE` / `EPIC` / `SUBKEY` / `COL0_SUBKEY` pattern — every one
+            # of those branches sits ABOVE this line and still tests `ln`. So a `depends-on:`
+            # written inside a code span still produces no edge (REQ-DATA-062's companion
+            # assertion), and `ctl-206-dropped-continuation` asserts exactly that.
+            if cur_issue is not None and re.match(r"^\s+\S", raw):
                 _collect_detail(raw, False)
                 continue
 

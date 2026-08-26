@@ -215,6 +215,22 @@ WHOLE_FILE_ASSETS = [
         canonical=REPO_ROOT / "_shared" / "plan_extract.py",
         consumers=[_skill("yf-plan", "scripts", "plan_extract.py")],
     ),
+    # plan-053 Issue 3.2 (#210). THE HALF #210 OMITS.
+    #
+    # `pour_fidelity.py` had NO vendored copy at all — it was the only `_shared` script a
+    # SKILL.md invokes that `sync.py` did not carry (EXP-003). So rewriting SKILL.md §6.4's
+    # line to `${SKILL_DIR}/scripts/pour_fidelity.py` ALONE would have produced a correctly
+    # rooted path that still did not resolve: the `missing-in-repo` class, which is a
+    # DIFFERENT failure from the `repo-only` one #210 names, and a green-looking fix that
+    # fixes nothing.
+    #
+    # Vendorable as a unit: it imports only the stdlib plus a sibling `plan_extract` (already
+    # vendored above), so the closure is satisfied for any consumer that has both.
+    WholeFileAsset(
+        name="pour_fidelity.py",
+        canonical=REPO_ROOT / "_shared" / "pour_fidelity.py",
+        consumers=[_skill("yf-plan", "scripts", "pour_fidelity.py")],
+    ),
     WholeFileAsset(
         name="okf.py",
         canonical=REPO_ROOT / "_shared" / "okf.py",

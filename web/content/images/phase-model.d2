@@ -108,6 +108,14 @@ plan_seq: {
     status -> complete: "cascade-close →\ncomplete-gate → set-complete"
   }
 
+  abandoned: {
+    label: "ABANDONED\nterminal STATUS\ndeliberately stopped"
+    shape: oval
+    style.fill: "#fef2f2"
+    style.stroke: "#b91c1c"
+    style.bold: true
+  }
+
   # main forward flow
   scope.status <-> investigate.status: "findings ⇄ scope"
   investigate.status -> plan.status: "draft"

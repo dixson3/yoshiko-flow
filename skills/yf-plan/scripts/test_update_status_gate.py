@@ -111,11 +111,12 @@ def test_a_green_plan_is_unaffected(tmp_path):
 def test_the_gate_is_scoped_to_approved_only(tmp_path):
     """Every other status stays free-form.
 
-    Gating all nine would break drafting by construction: a plan in `scoping` has no
+    Gating all ten would break drafting by construction: a plan in `scoping` has no
     red-team verdict, so a blanket gate would make the first transition unreachable.
     """
     d = _bundle(tmp_path, ready=False)
-    for status in ("drafting", "review", "executing", "reconciling", "complete"):
+    for status in ("drafting", "review", "executing", "reconciling", "complete",
+                   "abandoned"):
         r = CliRunner().invoke(pm.cli, ["update-status", str(d), status, "-m", "t"])
         assert r.exit_code == 0, f"{status} was gated: {r.output}"
         assert _status(d) == status
@@ -125,7 +126,7 @@ def test_the_flag_is_not_named_force():
     """REQ-CLI-024: the name was decided before the implementation (Issue 2.6).
 
     `--force` already means four different things on four other verbs, and `update-status`
-    writes nine statuses — a bare `--force` there would not say what it forces.
+    writes ten statuses — a bare `--force` there would not say what it forces.
     """
     params = {
         o.name
@@ -134,6 +135,59 @@ def test_the_flag_is_not_named_force():
     }
     assert "override_ready_check" in params
     assert "force" not in params, "the override must not be a bare --force"
+
+
+# --- REQ-CLI-026 (#208): WARN on an unrecognised status, stderr-only, EXIT 0 ---------------
+
+
+@pytest.mark.skipif(not SRC.exists(), reason="plan-047 bundle not present")
+def test_an_unrecognised_status_warns_and_still_exits_0(tmp_path):
+    """The defect was the SILENCE, not the permissiveness.
+
+    An operator with no legal state for "approved but deliberately not executing" invented
+    one, and `update-status` accepted it without a word — so an invented status looked
+    exactly like a supported one. The remedy removes the silence and KEEPS the write.
+    """
+    d = _bundle(tmp_path, ready=False)
+    r = CliRunner().invoke(
+        pm.cli, ["update-status", str(d), "in-limbo", "-m", "t"],
+        catch_exceptions=False,
+    )
+    assert r.exit_code == 0, (
+        "refusing the write would strand a plan whose operator has a reason this vocabulary "
+        f"does not cover — which is the failure #208 was filed about. Got: {r.output}"
+    )
+    assert _status(d) == "in-limbo", "the status must still be WRITTEN"
+    err = r.stderr if hasattr(r, "stderr") else r.output
+    assert "not a recognised plan status" in err
+    # It must name the vocabulary and the three known consequences, not merely grumble.
+    assert "abandoned" in err, "the warning must name the full recognised vocabulary"
+    for consequence in ("list", "_is_parked", "STATUS_SEVERITY"):
+        assert consequence in err, f"the warning must name the {consequence!r} consequence"
+
+
+@pytest.mark.skipif(not SRC.exists(), reason="plan-047 bundle not present")
+def test_abandoned_is_accepted_SILENTLY(tmp_path):
+    """The other half: a RECOGNISED status must produce no warning at all.
+
+    Without this the warn could be unconditional, which would train operators to ignore it —
+    and an ignored warning is the silence again, one step removed.
+    """
+    d = _bundle(tmp_path, ready=False)
+    r = CliRunner().invoke(pm.cli, ["update-status", str(d), "abandoned", "-m", "stopped"],
+                           catch_exceptions=False)
+    assert r.exit_code == 0
+    assert _status(d) == "abandoned"
+    err = r.stderr if hasattr(r, "stderr") else r.output
+    assert "not a recognised plan status" not in err
+
+
+def test_the_warning_goes_to_STDERR_not_stdout():
+    """`--json` consumers parse stdout; a warning there would corrupt every one of them."""
+    src = (Path(__file__).resolve().parent / "plan_manager.py").read_text()
+    i = src.index("REQ-CLI-026")
+    block = src[i:i + 1800]
+    assert "err=True" in block, "the unrecognised-status warning must be stderr-only"
 
 
 if __name__ == "__main__":

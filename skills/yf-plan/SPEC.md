@@ -23,13 +23,19 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
 ### 2.1 Lifecycle & phases (see `spec/phases.md`)
 
 - **REQ-PLAN-001** *(testable)* a plan shall carry a `status` from
-  `scoping | investigating | drafting | review | ready-for-approval | approved | executing | reconciling | complete`,
+  `scoping | investigating | drafting | review | ready-for-approval | approved | executing | reconciling | complete | abandoned`,
   advanced only via `plan_manager.py update-status`, which appends a phase-log line.
   `ready-for-approval` is the distinct pre-approval state a plan enters only when `ready-check`
   (REQ-PLAN-066) is green; it is **not** execute-eligible — only `approved` (with a fresh
-  fingerprint) is.
+  fingerprint) is. `abandoned` is the terminal-but-not-successful state for a plan deliberately
+  stopped: it is **not** execute-eligible and **not** `parked`.
 - **REQ-PLAN-002** the phase machine shall be `UPSTREAM → SCOPE ↔ INVESTIGATE → PLAN → INTAKE →
   (session boundary) → EXECUTE → RECONCILE → COMPLETE`; there is **no EXECUTE→PLAN transition**.
+  **Abandonment is an edge off that machine, not a stage in it:** a plan may enter `abandoned`
+  from **any** status except `complete`, and leaves it by **exactly one** edge — `abandoned →
+  drafting`, which resumes ordinary drafting. There is explicitly **no `abandoned → complete`
+  edge**: a plan that was stopped did not finish, and letting it claim completion is the silent
+  misreport this vocabulary exists to prevent.
 - **REQ-PLAN-003** *(testable)* every invocation except `init` shall run the preflight
   (`yf preflight yf-plan`) and branch on `ok | ignored | system_deps_missing | bd_not_initialized | rule_*`.
 
@@ -342,7 +348,7 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   yields a reported verdict rather than a bare `bd close`, and — as a regression pin on the
   measured behavior — that no code path can emit a `bd close` whose id argument is empty.
 
-- **REQ-PLAN-073** *(testable, plan-037 / #107)* the plan and incubator roots shall be
+- **REQ-PLAN-079** *(testable, plan-037 / #107)* the plan and incubator roots shall be
   **configurable**, not hard-coded: `plans-root` (default `docs/plans`) and `incubator-root`
   (default `Incubator`) are read through the **same** three-tier config reader as every other
   yf-plan config key (REQ-YF-PRE-004), with the committed `.yf/plan/config.json` as their
@@ -352,6 +358,12 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   defaults when no config is present, and shall tolerate malformed JSON at import rather than
   raising. Motivating case (#107): a repo that is also an Obsidian vault, where a visible
   top-level `Incubator/` trips the vault's structure linter.
+  Note on the id (#214): plan-037 allocated this requirement the number **073**, which was
+  independently allocated to the `stamp-tracker` requirement (`spec/phases.md`). plan-053
+  renumbered *this* one to `079` and left the stamp meaning at its original number. Frozen
+  plan-037-era bundles cite this requirement under **073**; they are records that are never
+  rewritten, so that citation stands as written and resolves here. This note deliberately
+  spells the retired number bare, so it is not itself a citation of the retired id.
 
 ### 2.8 Capture (manual)
 

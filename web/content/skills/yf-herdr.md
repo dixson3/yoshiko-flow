@@ -35,7 +35,8 @@ stops the check with an explanation rather than a launch:
 
 **Readiness is a measurement, not a claim.** For a plan, it means status `approved` *and* a
 non-stale fingerprint — `resume-scan` reporting `stale_approved: false`. A plan sitting in
-`ready-for-approval` is not ready. Neither is an `approved` plan whose content changed after
+`ready-for-approval` is not ready, and neither is one in `abandoned` — that status is terminal
+and not execute-eligible. Neither is an `approved` plan whose content changed after
 approval; that one needs a fresh review cycle, not a subordinate.
 
 The context-dirty condition is the one that surprises people. If you just opened a session

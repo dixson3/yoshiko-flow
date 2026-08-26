@@ -129,7 +129,20 @@ STATUS_SEVERITY = {
     "executing": {WARN: REPORT, ERROR: REPORT},
     "reconciling": {WARN: REPORT, ERROR: REPORT},
     "complete": {WARN: REPORT, ERROR: REPORT},
+    # `abandoned` (#208, plan-053): a plan deliberately stopped. SAME PROFILE AS `complete`
+    # and for the same reason -- both are TERMINAL, so a finding on one is a report about a
+    # record, never an actionable defect. Listed EXPLICITLY rather than left to fall through a
+    # default, because an unmapped status is exactly what REQ-DATA-072's fail-closed treatment
+    # reddens: inheriting this by accident would hard-fail every abandoned bundle.
+    "abandoned": {WARN: REPORT, ERROR: REPORT},
 }
+
+
+#: REQ-DATA-072 -- the mapping applied to a status that is PRESENT but UNRECOGNISED. The
+#: STRICTEST available: `W` is promoted to `E`, so an invented status cannot silently disable
+#: the promotion the linter relies on at `review`. Deliberately NOT the mapping for an ABSENT
+#: status, which stays the permissive empty map -- see the two-branch predicate in `lint()`.
+_UNRECOGNISED_STATUS_SEVERITY = {WARN: ERROR}
 
 
 class Inconclusive(RuntimeError):
@@ -859,7 +872,28 @@ def lint(root: Path, only_type: str | None, only_paths: list[Path] | None,
             # for a whole plan cycle while line 565 applied the map unconditionally; plan-049
             # D-9 measured the same fixture at `executing` -> `R` exit 0 and at `review` ->
             # `E` exit 1. Default is `True`, so every existing schema is unaffected.
-            status_map = STATUS_SEVERITY.get(status or "", {})
+            # REQ-DATA-072 (#208): FAIL CLOSED on a status that is PRESENT and UNRECOGNISED.
+            #
+            # TWO BRANCHES, NOT ONE `.get(status or "", {})` LOOKUP. That single lookup
+            # collapsed two different facts into one signal -- "this document is not in a plan
+            # bundle" (status is None) and "this bundle claims a status nobody recognises" --
+            # and handed BOTH the empty map, which is the most PERMISSIVE setting available.
+            # So inventing a status silently DISABLED the promotion the linter relies on at
+            # `review`. Fail-open on an unknown input is the wrong default for a gate. Same
+            # conflation as `not-selected` vs `no-such-path` (#181) and `resume-scan`'s
+            # `found` (#207); same remedy -- distinguish the two and branch on the state.
+            #
+            # THE SCOPE IS "PRESENT AND UNRECOGNISED", NEVER "ABSENT OR UNRECOGNISED", and the
+            # narrowness IS the requirement rather than a weaker compromise. A NULL status is
+            # the ordinary state of a great many documents that were never part of a plan
+            # bundle -- `skills/**` most of all, whose severity table `document_types/
+            # skill.toml` calibrated AGAINST the empty map in as many words. The broad form
+            # was measured reddening 31 documents plus this repository's own FAST tier, and a
+            # fail-closed rule that reddens the tree is a rule that gets reverted.
+            if status is None or status == "":
+                status_map = {}                       # not in a bundle: UNCHANGED
+            else:
+                status_map = STATUS_SEVERITY.get(status, _UNRECOGNISED_STATUS_SEVERITY)
             for chk in schema.get("checks", []):
                 # REQ-DATA-058: a check may declare the bundle statuses it APPLIES TO. This is
                 # orthogonal to `STATUS_SEVERITY`, which changes a finding's severity — this

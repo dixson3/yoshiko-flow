@@ -1063,3 +1063,66 @@ def test_reindex_emits_parent_dir_when_children_not_listed(tmp_path):
                for f in okf.reindex_check(b)["findings"])
     okf.reindex_write(b)
     assert "- [findings/](findings/)" in (b / "index.md").read_text()
+
+
+# --- plan-053 Issue 4.3 (#207): the frontmatter DELETE path --------------------------------
+#
+# `write_frontmatter` was MERGE-ONLY, so there was no supported way to un-set a key. An
+# operator whose plan recorded a burned epic could only hand-edit `plan.md`, which reliably
+# updates ONE of the two dual-written surfaces and leaves the other.
+#
+# R1 budgets these cases because `okf.py` has FOUR declared consumers — yf-plan (this plan's
+# own subject), yf-research, yf-incubator and yf-okf — so a regression here breaks three
+# skills this plan otherwise never touches.
+
+
+def test_write_frontmatter_deletes_named_keys(tmp_path):
+    p = tmp_path / "x.md"
+    p.write_text("---\ntype: Plan\nid: p1\nepic: yf-e\nauthor: t\n---\n# body\n")
+    okf.write_frontmatter(p, {}, delete=["epic"])
+    fm, body = okf.read_frontmatter(p)
+    assert "epic" not in fm
+    # Everything else keeps its value AND its position.
+    assert list(fm) == ["type", "id", "author"]
+    assert body.strip() == "# body"
+
+
+def test_write_frontmatter_delete_is_idempotent_and_absent_is_a_noop(tmp_path):
+    p = tmp_path / "x.md"
+    p.write_text("---\ntype: Plan\nepic: yf-e\n---\n# body\n")
+    okf.write_frontmatter(p, {}, delete=["epic"])
+    first = p.read_text()
+    # A key named in `delete` that is not present is a NO-OP, not an error — that is what
+    # makes `clear-epic` (REQ-CLI-027) idempotent.
+    okf.write_frontmatter(p, {}, delete=["epic", "never-existed"])
+    assert p.read_text() == first
+
+
+def test_write_frontmatter_delete_and_update_compose(tmp_path):
+    p = tmp_path / "x.md"
+    p.write_text("---\ntype: Plan\nepic: yf-e\nstatus: executing\n---\n# body\n")
+    okf.write_frontmatter(p, {"status": "abandoned"}, delete=["epic"])
+    fm, _ = okf.read_frontmatter(p)
+    assert fm["status"] == "abandoned" and "epic" not in fm
+
+
+def test_delete_is_a_SEPARATE_ARGUMENT_so_None_stays_a_legitimate_VALUE(tmp_path):
+    """`None` must mean "set this key to null", never "remove this key".
+
+    Overloading a sentinel value would make the two indistinguishable — the same
+    two-facts-one-signal conflation as `doc_lint`'s `not-selected` vs `no-such-path` (#181)
+    and `resume-scan`'s `found` (#207). This is the assertion that keeps them apart.
+    """
+    p = tmp_path / "x.md"
+    p.write_text("---\ntype: Plan\nepic: yf-e\n---\n# body\n")
+    okf.write_frontmatter(p, {"epic": None})
+    fm, _ = okf.read_frontmatter(p)
+    assert "epic" in fm and fm["epic"] is None
+
+
+def test_write_frontmatter_delete_honours_dry_run(tmp_path):
+    p = tmp_path / "x.md"
+    p.write_text("---\ntype: Plan\nepic: yf-e\n---\n# body\n")
+    before = p.read_text()
+    text = okf.write_frontmatter(p, {}, delete=["epic"], dry_run=True)
+    assert "epic" not in text and p.read_text() == before
