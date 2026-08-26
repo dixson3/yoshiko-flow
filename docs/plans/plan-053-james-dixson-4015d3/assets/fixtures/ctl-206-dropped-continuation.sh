@@ -85,6 +85,15 @@ if "PROSE BEFORE THE FENCE." not in d12:
 if "    RECOVERED_FENCE_INDENTED_LINE" not in d12:
     bad.append("assertion 2: the fence's INTERNAL indentation did not survive — `detail` "
                "must carry the block verbatim minus the OPENING fence's indent; got %r" % d12)
+# The FENCE DELIMITERS are kept, so `detail` is a RENDERABLE markdown code block. That matters
+# because a bead description is rendered as a GitHub issue body (REQ-DATA-073): stripping the
+# delimiters would turn a code block into ambiguous prose at exactly the surface #209 is about.
+# Pinned as an assertion rather than left incidental — it is the reason this fix measures +13
+# recovered detail lines on the corpus where EXP-001's prototype measured +12.
+if not (d12.strip().count("```") >= 2):
+    bad.append("assertion 2: the fence DELIMITERS were stripped, so `detail` is no longer a "
+               "renderable code block; a bead description becomes a GitHub issue body, where "
+               "that turns a code block into ambiguous prose. got %r" % d12)
 
 # --- 3. ADVERSARIAL: a code-span `depends-on:` is prose, never an edge -------------------
 if by["1.3"]["depends_on"]:
