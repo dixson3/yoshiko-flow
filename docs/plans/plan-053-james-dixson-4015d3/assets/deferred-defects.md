@@ -105,3 +105,42 @@ it on its FIRST REAL USE.
 plan-053 fixed its own copy by RESOLVING rather than assuming (probe for
 `.worktrees/<plan-id>/_shared`, else use `REPO_ROOT`); the fix belongs upstream in whatever
 becomes the canonical harness.
+
+## D6 — `bd close` REFUSES AND EXITS 0 on a bead blocked by an open dependency
+
+`bd close <id>` on a bead with an open blocking dependency prints
+
+```text
+cannot close <id>: blocked by open issues [<other-id>] (use --force to override)
+```
+
+**and returns exit code 0.** The refusal is real and correct; reporting it as success is not.
+
+**Measured directly, on this repository:**
+
+```console
+$ bd close yf-mol-bh8.3.3 --reason "TEST"
+cannot close yf-mol-bh8.3.3: blocked by open issues [yf-mol-bh8.3.2] (use --force to override)
+$ echo $?
+0
+```
+
+**This is exactly the defect class plan-053 exists to close**, in the tool the plan is tracked
+with: an operation that declines to act and reports success. Every consumer that branches on
+the exit code — which is every non-interactive consumer — records a close that never happened.
+
+**Measured blast radius, in this plan's own execution.** Six of plan-053's issue beads
+(`2.3`, `3.2`, `4.4`, `4.5`, `5.0`, `7.1`) silently failed to close. The divergence was caught
+from *outside* the session by an observer comparing the ledger against the completion reports;
+nothing inside the run detected it. The Reconcile Gate would eventually have caught it — but
+only **after** the upstream filings had already gone out, which is the worst possible ordering
+for an outward-facing write.
+
+**Suggested remedy:** exit non-zero on a refusal. `2` would fit an INCONCLUSIVE reading
+("the instrument declined to act"), `1` a FAIL reading; either is enormously better than `0`.
+
+**A second, lesser finding alongside it:** `bd close` accepts no `--notes` flag (only
+`-f/--force`, `-r/--reason`, `--reason-file`), which is fine — but the combination of an
+unknown flag and a caller suppressing output is what created the head of the cascade above.
+That half is a caller error, recorded honestly in `plan-retrospective.md` rather than blamed
+on the tool.

@@ -89,3 +89,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-25 |
+| `stop_class` |  |
+| `asked` | The bead ledger disagreed with the completion reports: 32 closed / 12 in_progress, where the in_progress set was issues inside epics already reported COMPLETE. An outside observer measured the closed count DECREASING across the run (35 -> 40 -> 42 -> 32) and asked whether beads had been reopened deliberately, whether closes simply had not been issued, or whether something reopened them unintentionally. |
+| `answered` | NEITHER a deliberate correction NOR an unintentional reopen. NOTHING WAS EVER REOPENED -- eleven closes NEVER TOOK EFFECT, via TWO stacked silent-failure mechanisms, and the apparent 'decrease' was an artifact of comparing counts that included beads whose closes had already silently no-opped. MECHANISM 1: 'bd close' HAS NO --notes FLAG (verified: bd close --help lists only -f/--force, -r/--reason, --reason-file). Five closes (2.2, 3.1, 3.3, 3.4, 4.3) were issued as 'bd close <id> --notes ... --reason ...' and errored outright. MECHANISM 2, THE SERIOUS ONE: 'bd close' on a bead BLOCKED BY AN OPEN DEPENDENCY REFUSES AND EXITS 0 -- it prints 'cannot close <id>: blocked by open issues [<id>] (use --force to override)' on stdout and returns success. So the six downstream closes (2.3, 3.2, 4.4, 4.5, 5.0, 7.1) silently no-opped once mechanism 1 left their predecessors open. MY OWN CONTRIBUTING ERROR, stated plainly: every close was issued as '-q >/dev/null 2>&1', which discarded the message, and the exit code was never read -- so BOTH mechanisms were invisible to me. That is the same 'a step with no exit code is not a step' defect this plan exists to close, committed by me while executing the plan that closes it. REPAIRED: all eleven re-closed in DEPENDENCY ORDER with their real reasons via --reason-file, each result verified by matching the success line rather than the exit code. Ledger now 43 closed (all with reasons), 3 non-closed = 7.2/7.3/7.4, which is correct. CAUGHT BY THE PARENT SESSION FROM OUTSIDE, not by me and not by any check in this plan -- the Reconcile Gate would have caught it, but only AFTER 7.2's upstream filings had gone out. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | ROOT CAUSE COMMANDS: 'bd close --help' -> flags are only '-f, --force', '-r, --reason string', '--reason-file string'; there is no --notes. 'bd close yf-mol-bh8.3.3 --reason TEST' -> 'cannot close yf-mol-bh8.3.3: blocked by open issues [yf-mol-bh8.3.2] (use --force to override)' with rc=0 -- a REFUSAL AT EXIT ZERO, measured directly. 'bd close yf-mol-bh8.3.2 --reason probe' immediately afterwards -> 'Closed' (so 2.2 was the head of the cascade, blocked by nothing, and had failed on mechanism 1 alone). LEDGER BEFORE: Counter({'closed': 32, 'in_progress': 12, 'open': 2}) of 46, in_progress = 2.2 2.3 3.1 3.2 3.3 3.4 4.3 4.4 4.5 5.0 7.1 7.2. LEDGER AFTER repair: Counter({'closed': 43, 'open': 2, 'in_progress': 1}) of 46, with 43 of 43 carrying a close_reason, and the only non-closed being 7.2 (in progress), 7.3 and 7.4. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
