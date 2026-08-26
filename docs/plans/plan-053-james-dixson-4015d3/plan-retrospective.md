@@ -127,3 +127,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | THE RESIDUAL FINDING OF THIS PLAN, recorded as its own entry because it is a pattern across entries rather than an incident. plan-053 spent FIVE red-team passes and 53 concerns on its Success Criteria. Every criterion-level defect that actually bit during EXECUTION was in criterion MECHANICS -- the command as typed -- and none was in criterion SEMANTICS. Why did five passes of review not catch a single one? |
+| `answered` | BECAUSE REVIEW READS COMMANDS AND DOES NOT RUN THEM. All three are recorded individually; the pattern is what this entry is for. (1) SC16 -- caught at PLANNING (pass-2 C19), the only one review did catch, and it was caught because someone RAN it and measured exit 2 'Failed to spawn'. Its sibling defect (recheck-criteria's 300s default turning a TimeoutExpired into inconclusive+continue) was found the same way, and together they forced SC16 to assert on a dated RECORD rather than re-executing the tier. (2) SC6 -- caught at Epic 3 by execution: 'grep -q' in the interactive session resolves to a ugrep SHELL FUNCTION from a Claude Code shell snapshot, not /usr/bin/grep, and it reported a TRUE criterion FALSE. Environment-dependent, so no amount of reading the criterion text could have found it. (3) SC19 -- caught at Issue 7.3 by execution: the command pipes 'json-get epic < plan.md', but json-get is a JSON extractor and plan.md is MARKDOWN. This one is READABLE -- a careful reader could have caught it -- and five passes did not, because the reviews were auditing what each criterion CLAIMED, not whether its command could produce that claim. THE STRUCTURAL POINT: a Success Criterion is a claim PLUS an instrument, and a review that only audits the claim leaves the instrument unexamined. This plan's own thesis is 'a step with no exit code is not a step'; the corollary it discovered about itself is A CRITERION WHOSE COMMAND WAS NEVER EXECUTED IS NOT A CRITERION. THE CHEAP REMEDY, and it is genuinely cheap: at the end of PLAN, before ready-check, EXECUTE EVERY criterion command once and record the exit code. Most will fail -- correctly, since the work has not been done -- but the three defects above are all distinguishable from an honest pre-work failure: SC16 gave 'Failed to spawn' (2), SC6 gave a false negative on a condition already true, SC19 gave a jq type error. None looks like 'not done yet'. NOTE THIS IS PRECISELY WHAT D-4 ALREADY MANDATES FOR CONTROLS and does NOT mandate for criteria: every ctl- fixture had to be observed RED before its fix, which is why ZERO of the eleven controls carried a mechanics defect into execution while THREE of the criteria did. The asymmetry is the evidence, and extending D-4's discipline from controls to criteria is the fix. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | THE THREE, with where each was caught and by what. SC16: caught at PLANNING by running it -- measured exit 2 'Failed to spawn'; recorded in plan.md's SC16 cell and in assets/full-tier-record.md's rationale section. SC6: caught at Epic 3 by running it -- 'type grep' -> 'grep is a shell function from ~/.claude/shell-snapshots/snapshot-zsh-1787705623143-ft9k73.sh' wrapping ugrep; 'grep -c PATTERN file' -> 0 while '/usr/bin/grep -c PATTERN file' -> 1 and 'grep -cF' -> 1; full detail in RE-004. SC19: caught at Issue 7.3 by running it -- 'ERROR: key epic not found in path epic' then 'jq: error (at <stdin>:4): Cannot index object with number', exit 5, while the asserted end state was true all along; full detail in RE-006. THE ASYMMETRY THAT IS THE ACTUAL EVIDENCE: 11 of 11 controls carried ZERO mechanics defects into execution (D-4 forced each to be OBSERVED failing first); 3 of 23 verifiable criteria carried one (no such discipline applies to criteria). Final state for the record: 23 of 23 verifiable criteria PASS once their commands are correct. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

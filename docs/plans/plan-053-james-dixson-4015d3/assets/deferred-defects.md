@@ -144,3 +144,49 @@ for an outward-facing write.
 unknown flag and a caller suppressing output is what created the head of the cascade above.
 That half is a caller error, recorded honestly in `plan-retrospective.md` rather than blamed
 on the tool.
+
+## D7 — Success-Criterion COMMANDS are never executed before approval (the residual finding)
+
+Not a code defect — a **process** one, and the most valuable thing plan-053 produced about
+itself.
+
+### The measurement
+
+plan-053 ran **five red-team passes** over **53 concerns**, heavily focused on its Success
+Criteria. Three criterion defects survived into execution. **All three were in criterion
+MECHANICS — the command as typed. None was in criterion SEMANTICS.**
+
+| | Defect | Caught | By what |
+| :-- | :-- | :-- | :-- |
+| SC16 | wrong command path | planning (pass-2 C19) | someone **ran** it: exit 2 `Failed to spawn` |
+| SC6 | `grep` resolves to a ugrep shell function, not `/usr/bin/grep` | Epic 3 | **running** it — reported a TRUE criterion FALSE |
+| SC19 | `json-get epic < plan.md` — a JSON extractor reading markdown | Issue 7.3 | **running** it — `Cannot index object with number` |
+
+### The asymmetry that IS the evidence
+
+- **11 of 11 controls** carried **zero** mechanics defects into execution.
+- **3 of 23 verifiable criteria** carried one.
+
+The difference is not care or attention — it is **D-4**. Every `ctl-` fixture had to be
+**observed RED before its fix existed**, so no control could reach execution with a command
+that does not run. **No such discipline applies to criteria.**
+
+### The structural point
+
+A Success Criterion is a **claim plus an instrument**. A review that audits only the claim
+leaves the instrument unexamined. This plan's thesis is *"a step with no exit code is not a
+step"*; the corollary it discovered about itself is:
+
+> **A criterion whose command was never executed is not a criterion.**
+
+### The remedy, and it is cheap
+
+At the end of PLAN, before `ready-check`, **execute every criterion command once and record the
+exit code.**
+
+Most will fail — correctly, since the work has not been done. That is fine, because **all three
+defects above are distinguishable from an honest not-done-yet failure**: `Failed to spawn` (2),
+a false negative on a condition already true, and a `jq` type error. None resembles "not done
+yet".
+
+This is simply **extending D-4's existing discipline from controls to criteria**.
