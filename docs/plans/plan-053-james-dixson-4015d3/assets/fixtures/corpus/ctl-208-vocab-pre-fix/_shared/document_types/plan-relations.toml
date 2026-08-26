@@ -1,0 +1,113 @@
+# plan.md RELATIONAL rules (plan-048 Epic 3; REQ-DATA-044).
+#
+# A THIRD check mechanism, not a variant of the two per-document schema flavours
+# REQ-DATA-024 declares. Those read one section in isolation; these reason ACROSS sections
+# and tables of the same bundle via `plan_extract.extract()`.
+#
+# EVERY RULE IS `W`, and `STATUS_SEVERITY` promotion is OFF for this kind — declared by
+# REQ-DATA-044 and IMPLEMENTED by the `promote = false` key below (REQ-DATA-053). If `W -> E` fired at `review`, every future plan
+# would hard-fail R1b unless every non-bookkeeping issue were named by a criterion. plan-048
+# itself carries four such issues and escapes only by being `executing` when the rule lands.
+# A rule no in-flight plan can satisfy trains authors to write FAKE criteria — the exact
+# failure R1b exists to prevent. **plan-049 is the first plan graded by this kind.**
+#
+# REQ-DATA-043 gates every rule: a plan with a non-empty `unparsed[]` yields INCONCLUSIVE
+# (exit 2), never FAIL (exit 1). A relational verdict drawn from a knowably incomplete DAG
+# is not a finding about the plan; it is a finding about the parser.
+type = "plan-relations"
+producer_class = "agent-written"
+# REQ-DATA-053. The promotion opt-out is now IMPLEMENTED, not merely declared: `doc_lint.py`
+# reads this key and bypasses `STATUS_SEVERITY` in BOTH directions for this schema. Before
+# plan-049 Issue 0.2 the two prose declarations above disagreed with the code, and every rule
+# here was silently promoted `W -> E` at `review` and demoted `W -> R` at `complete`.
+promote = false
+description = "Cross-section relational rules over a plan.md: criteria<->issues and upstream<->issues."
+
+paths = [
+    "docs/plans/*/plan.md",
+    "Incubator/*/plans/*/plan.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+# R1 — every `Discharged-by` names a real issue.
+[[checks]]
+id = "R1"
+rule = "R1"
+severity = "W"
+kind = "plan-relations"
+
+# R1b — every issue is named by at least one criterion, EXCEPT in an epic that DECLARES
+# itself bookkeeping with `<!-- epic-kind: bookkeeping -->`. The carve-out is declared,
+# never inferred: an inferred exemption is indistinguishable from an oversight, and a rule
+# with no escape hatch trains authors to invent criteria rather than to write real ones.
+[[checks]]
+id = "R1b"
+rule = "R1b"
+severity = "W"
+kind = "plan-relations"
+
+# R2a — every `Resolved By` names a real issue.
+[[checks]]
+id = "R2a"
+rule = "R2a"
+severity = "W"
+kind = "plan-relations"
+
+# R2b — `exclude` resolves nothing; `include` resolves something.
+[[checks]]
+id = "R2b"
+rule = "R2b"
+severity = "W"
+kind = "plan-relations"
+
+# R2c — the disposition is a recognised literal, after bold/italic normalization.
+[[checks]]
+id = "R2c"
+rule = "R2c"
+severity = "W"
+kind = "plan-relations"
+
+# R3 — TWO-PARSER AGREEMENT between `plan_extract` and `parse_upstream_rows`.
+# `verify-reconcile` is FAIL-LOUD and uses the latter, so a disagreement on row shape is a
+# fail-loud FALSE POSITIVE — the most expensive failure kind available here.
+[[checks]]
+id = "R3"
+rule = "R3"
+severity = "W"
+kind = "plan-relations"
+
+# --- plan-052 Issue 3.4 (REQ-BUP-070 companion): the CLOSE-OUT binding -----------------
+#
+# R1 and R2a are promoted to `E` **at the close-out binding ONLY**. The authoring-time rules
+# above are UNTOUCHED and stay `W` — an in-flight plan legitimately has rows whose
+# `Discharged-by` / `Resolved By` are not yet knowable, and a global promotion would hard-fail
+# exactly the drafting state the `W` severity exists to permit. That is the same reasoning the
+# banner at the top of this file gives for R1b.
+#
+# The mechanism is the two EXISTING schema keys, not a new one:
+#
+#   * `statuses` decides WHETHER a check runs (REQ-DATA-058). Scoping it to `reconciling` and
+#     `complete` IS the close-out binding — those are the only statuses §6.3/§6.4 run under.
+#   * the file-level `promote = false` (REQ-DATA-053) already bypasses `STATUS_SEVERITY` in
+#     BOTH directions for this kind, so an `E` here is NOT demoted to `R` at `complete`.
+#     Without that, a close-out `E` would be silently downgraded at the exact status it
+#     exists to fire on.
+#
+# These are SEPARATE checks rather than a mutation of R1/R2a because one check cannot carry
+# two severities. Their ids are distinct so a finding names which binding produced it.
+[[checks]]
+id = "R1-closeout"
+rule = "R1"
+severity = "E"
+kind = "plan-relations"
+statuses = ["reconciling", "complete"]
+
+[[checks]]
+id = "R2a-closeout"
+rule = "R2a"
+severity = "E"
+kind = "plan-relations"
+statuses = ["reconciling", "complete"]

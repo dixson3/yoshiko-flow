@@ -27,6 +27,14 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 : "${YF_TREE:=$(cd "${HERE}/../../../../.." && pwd)}"
+# CTL_RED=1 selects the PINNED PRE-FIX tree — the single convention every driven RED in this
+# plan uses. Needed here because the control was AMENDED after its first RED was recorded
+# (SITE 3's `_is_parked` assertion moved from grepping prose to reading logic), and a
+# red/green pair observed across two DIFFERENT instruments certifies nothing.
+if [ "${CTL_RED:-0}" = "1" ]; then
+  YF_TREE="${HERE}/corpus/ctl-208-vocab-pre-fix"
+  echo "ctl-208-vocab: CTL_RED=1 — asserting against the PINNED PRE-FIX tree ${YF_TREE}" >&2
+fi
 cd "${YF_TREE}" || { echo "ctl-208-vocab: HARNESS — cannot cd to ${YF_TREE}" >&2; exit 2; }
 
 bad=()
@@ -80,11 +88,22 @@ if ! grep -qE 'ABANDONED' skills/yf-plan/scripts/plan_manager.py; then
   bad+=("SITE 3 (plan_manager.py): \`list\` does not render an ⏹ ABANDONED tag.")
 fi
 # `_is_parked` MUST stay approved-only — an abandoned plan must never be nudged to execute.
-if sed -n "/^def _is_parked/,/^@/p" skills/yf-plan/scripts/plan_manager.py \
-   | grep -qE 'abandoned'; then
-  bad+=("SITE 3 (plan_manager.py): \`_is_parked\` now references \`abandoned\`. It must stay \
-\`approved\`-only — the parked nudge's text is literally 'run /yf-plan execute', which is \
-precisely wrong for a plan that was deliberately stopped.")
+#
+# ASSERTED ON THE LOGIC, NOT ON THE PROSE. An earlier form grepped the whole function body for
+# the word and fired on a DOCSTRING that exists to explain the exclusion — punishing the
+# documentation of the very invariant it checks. The load-bearing fact is what the predicate
+# RETURNS, so that is what is read: comments and the docstring are stripped first.
+_isparked_logic="$(sed -n '/^def _is_parked/,/^@/p' skills/yf-plan/scripts/plan_manager.py \
+  | sed '/"""/,/"""/d' | grep -v '^[[:space:]]*#')"
+if printf '%s' "${_isparked_logic}" | grep -qE 'abandoned'; then
+  bad+=("SITE 3 (plan_manager.py): \`_is_parked\`'s LOGIC references \`abandoned\`. It must \
+stay \`approved\`-only — the parked nudge's text is literally 'run /yf-plan execute', which is \
+precisely wrong for a plan that was deliberately stopped. The two tags must be mutually \
+exclusive.")
+fi
+if ! printf '%s' "${_isparked_logic}" | grep -qE 'status == "approved"'; then
+  bad+=("SITE 3 (plan_manager.py): \`_is_parked\` no longer keys on \`status == \"approved\"\`. \
+The exclusion of \`abandoned\` is only meaningful while the predicate is approved-only.")
 fi
 
 # ── 4. doc_lint.py — the STATUS_SEVERITY profile ──────────────────────────────────────────

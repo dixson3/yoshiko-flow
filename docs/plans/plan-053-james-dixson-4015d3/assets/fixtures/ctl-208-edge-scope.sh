@@ -42,6 +42,15 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 : "${YF_TREE:=$(cd "${HERE}/../../../../.." && pwd)}"
+# CTL_RED=1 selects the PINNED PRE-FIX manifest — the same single convention every driven
+# RED in this plan uses. Needed because the control was AMENDED after its first RED was
+# recorded (its glob-splitting was wrong), and a red/green pair observed across two DIFFERENT
+# instruments certifies nothing. This re-drives the RED with the instrument that produced the
+# GREEN.
+if [ "${CTL_RED:-0}" = "1" ]; then
+  YF_TREE="${HERE}/corpus/ctl-208-edge-pre-fix"
+  echo "ctl-208-edge: CTL_RED=1 — asserting against the PINNED PRE-FIX manifest ${YF_TREE}" >&2
+fi
 DC="${YF_TREE}/DRIFT-CHECK.md"
 
 [ -f "${DC}" ] || { echo "ctl-208-edge: HARNESS — no DRIFT-CHECK.md at ${DC}" >&2; exit 2; }
@@ -67,8 +76,12 @@ TARGETS="$(printf '%s' "${ROW}" | awk -F'|' '{gsub(/[` ]/,"",$4); print $4}')"
 # Resolve each declared target node id to its glob(s) from the §1 node table.
 GLOBS=""
 for node in $(printf '%s' "${TARGETS}" | tr ',+' '  '); do
+  # A node's Glob cell may list SEVERAL comma-separated globs. Split them — an earlier draft
+  # treated the whole cell as one pattern, so a multi-glob node matched NOTHING and the
+  # control reported every site uncovered even after the fix landed. The control's own bug,
+  # caught by running it.
   g="$(grep -m1 "^| \`${node}\` |" "${DC}" | awk -F'|' '{print $3}' \
-       | sed 's/`//g; s/([^)]*)//g; s/^ *//; s/ *$//')"
+       | sed 's/`//g; s/([^)]*)//g' | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -v '^$')"
   if [ -z "${g}" ]; then
     bad+=("the edge names target node \`${node}\`, which has NO row in the §1 Artifact Nodes \
 table — a target that resolves to no glob cannot see anything.")
@@ -97,14 +110,20 @@ done <<< "${RESTATERS}"
 # ---- ASSERTION 2: §6 Trigger Scope routes each restatement path to the edge ---------------
 # Coverage by the target GLOB is necessary but not sufficient: if no §6 row maps the changed
 # path to `e-status-values`, editing it never fires the edge at all.
-S6="$(sed -n '/^## 6\. Trigger Scope/,/^## 7\./p' "${DC}")"
+S6="$(sed -n '/^## 6\. Trigger Scope/,/^## 7\./p' "${DC}" \
+      | grep -F 'e-status-values' | awk -F'|' '{gsub(/[` ]/,"",$2); print $2}')"
 while IFS= read -r f; do
   [ -n "${f}" ] || continue
-  if ! printf '%s' "${S6}" | grep -F "e-status-values" | grep -qF "$(dirname "${f}")"; then
-    if ! printf '%s' "${S6}" | grep -F "e-status-values" | grep -qF "${f}"; then
-      bad+=("ASSERTION 2: no §6 Trigger Scope row maps \`${f}\` to \`e-status-values\`, so \
-editing it never fires the edge. Coverage by the target glob is necessary but NOT sufficient.")
-    fi
+  routed=0
+  while IFS= read -r g; do
+    [ -n "${g}" ] || continue
+    # shellcheck disable=SC2254
+    case "${f}" in ${g}) routed=1 ;; esac
+  done <<< "${S6}"
+  if [ "${routed}" -eq 0 ]; then
+    bad+=("ASSERTION 2: no §6 Trigger Scope row maps \`${f}\` to \`e-status-values\`, so \
+editing it never fires the edge. Coverage by the target glob is necessary but NOT sufficient. \
+§6 routes these globs to the edge: $(printf '%s' "${S6}" | tr '\n' ' ')")
   fi
 done <<< "${RESTATERS}"
 

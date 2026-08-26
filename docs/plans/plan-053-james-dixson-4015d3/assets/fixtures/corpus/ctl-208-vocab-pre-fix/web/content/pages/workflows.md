@@ -130,16 +130,9 @@ through RECONCILE; `complete` marks the plan as finished from inside RECONCILE.
 | INTAKE      | `approved`                                                   |
 | EXECUTE     | `executing`                                                  |
 | RECONCILE   | `reconciling`, then terminal `complete`                      |
-| (any phase) | `abandoned` — terminal, deliberately stopped                 |
 
 `ready-for-approval` is the gated pre-approval state reached only when `ready-check` is green
 (last red-team `APPROVE` plus audit `pass`); approval transitions it to `approved`.
-
-`abandoned` is the terminal state for a plan deliberately stopped. It is reachable from any
-non-`complete` status and leaves by **exactly one** edge — back to `drafting`. There is no
-`abandoned → complete` edge: a plan that was stopped did not finish, and letting it claim
-completion is the silent misreport the vocabulary exists to prevent. An abandoned plan is not
-execute-eligible and is not *parked*.
 
 **Overlays, not statuses.** Two labels you may see on an `approved` plan are *derived overlays*
 on the `approved` status, not members of the nine-value set. Both are computed from the content

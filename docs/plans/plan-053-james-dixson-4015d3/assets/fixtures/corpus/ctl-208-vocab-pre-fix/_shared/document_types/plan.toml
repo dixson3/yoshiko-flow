@@ -1,0 +1,147 @@
+# plan.md — CODE-GENERATED type (producer: plan_manager.seed_plan_md via plan_template).
+# Its required-section list is DERIVED from the producer, so the two cannot diverge (D-8).
+type = "plan"
+producer_class = "code-generated"
+derive_from = "plan_template.PLAN_SECTIONS"
+description = "A yf-plan bundle's plan.md — the plan DAG, gates, risks and success criteria."
+
+# Path-keyed, never filename-keyed (REQ-DATA-024). Filename-keying fires on the 17
+# test-fixture plan.md files and makes the trigger non-inert in a repo with no plans.
+paths = [
+    "docs/plans/*/plan.md",
+    "Incubator/*/plans/*/plan.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "docs/plans/*/findings/okf-migration-samples/**",
+]
+
+[[checks]]
+id = "required-sections"
+severity = "E"
+kind = "headings-present"   # `value` omitted -> taken from `derive_from`
+
+[[checks]]
+id = "identity-frontmatter"
+severity = "E"
+kind = "frontmatter-keys"
+value = ["type", "okf_spec", "id", "author", "created", "status"]
+
+[[checks]]
+id = "no-retired-phase-log"
+severity = "E"
+kind = "regex-absent"
+pattern = '^\*\*Phase log:\*\*'          # REQ-DATA-012: history lives in log.md
+
+[[checks]]
+id = "risks-table-columns"
+severity = "E"
+kind = "table-columns"
+section = "Risks & Mitigations"
+value = ["#", "Risk", "Severity", "Mitigation"]      # REQ-DATA-018 / D-6
+
+[[checks]]
+id = "criteria-table-columns"
+severity = "E"
+kind = "table-columns"
+section = "Success Criteria"
+value = ["#", "Criterion", "Verification", "Discharged-by"]   # REQ-DATA-018
+
+[[checks]]
+id = "criterion-ids"
+severity = "E"
+kind = "row-id-grammar"
+section = "Success Criteria"
+pattern = '^SC[0-9]+[a-z]?$'             # REQ-DATA-018: stable, unique, insertable
+
+[[checks]]
+id = "risk-ids"
+severity = "W"
+kind = "row-id-grammar"
+section = "Risks & Mitigations"
+pattern = '^R[0-9]+[a-z]?$'
+
+[[checks]]
+id = "upstream-table-columns"
+severity = "E"
+kind = "table-columns"
+section = "Upstream Issues"
+value = ["Issue", "Title", "Disposition", "Notes", "Resolved By"]   # REQ-DATA-013
+
+[[checks]]
+id = "motivation-filled"
+severity = "W"
+kind = "regex-absent"
+pattern = 'Replace this placeholder before intake'     # REQ-PORT-004
+
+# --- plan-049 Epic 3: the two checks that must exist BEFORE any document is written -----
+#
+# Both ship at `W`, deliberately. Off the plan-bundle axis an `E` has no softening available
+# (REQ-DATA-045), but ON it `STATUS_SEVERITY` gives exactly the migration window these two
+# need: `W` is informational while a plan is being drafted, becomes `E` at `review` /
+# `ready-for-approval` — where a NEW plan is graded and where the intake binding sits — and
+# is demoted to report-only once a plan is `complete`, so the historical corpus is not
+# re-judged by a rule written after it.
+#
+# Blast radius, RE-MEASURED here rather than cited (D-7), over the 48 non-self plans:
+#
+#     cell-non-empty / Success Criteria :  0 findings
+#     cell-non-empty / Upstream Issues  :  5 findings, all the ZERO-ROW shape
+#     gate-completeness                 :  2 findings   (plan-006, plan-008)
+#
+# All 7 sit in `complete` bundles, so every one is report-only today.
+
+[[checks]]
+id = "criteria-cells-filled"
+severity = "W"
+kind = "cell-non-empty"
+section = "Success Criteria"
+# `#` is the row id and is covered by `criterion-ids`; naming it here would double-count.
+columns = ["Criterion", "Verification", "Discharged-by"]
+
+[[checks]]
+id = "upstream-cells-filled"
+severity = "W"
+kind = "cell-non-empty"
+section = "Upstream Issues"
+# `Disposition` ONLY. `Resolved By` is legitimately empty for an `exclude` or `deferred`
+# row — measured firing 3 times on plan-049's own conformant table — and whether it SHOULD
+# be filled is disposition-dependent, which is exactly what `plan-relations` R2a/R2b already
+# own. Two checks owning one relationship is how they drift apart.
+columns = ["Disposition"]
+
+[[checks]]
+id = "gate-completeness"
+severity = "W"
+kind = "gate-completeness"
+
+[[checks]]
+id = "stale-measured-literal"
+severity = "W"
+kind = "stale-measured-literal"
+# In-flight ONLY (REQ-DATA-058 + the kind's own guard). A `complete` plan's measurement is a
+# HISTORICAL RECORD and is supposed to be frozen; EXP-005 measured the unscoped form firing
+# 41/41 with 39 correct-behaviour false positives.
+statuses = ["scoping", "investigating", "drafting", "review", "ready-for-approval"]
+# A HINT, permanently. `promote = false` keeps it `W` at `review` too (REQ-DATA-053 at the
+# CHECK level). Promoting it would hard-fail intake on advice — and this rule is explicitly
+# advisory: its blind spot (below) means a green tells you nothing.
+#
+# DENOMINATOR-ONLY BLIND SPOT, stated where a reader meets it: this finds a stale COUNT (a
+# literal beside a corpus noun). It cannot find a stale CLAIM ABOUT a count — "the populations
+# overlap at 144 of 1340" drifts silently when 1340 moves, and prose like "roughly a third"
+# has no literal at all. A numerator-drift instance passes green.
+promote = false
+
+[[checks]]
+id = "verification-clause"
+severity = "W"
+kind = "verification-clause"
+section = "Success Criteria"
+column = "Verification"
+# ADVISORY, PERMANENTLY — `promote = false` keeps it `W` at `review` too (REQ-DATA-053 at the
+# CHECK level). Measured before shipping: 0 of 186 criteria across 52 bundles are in this
+# grammar, so promoting it would hard-fail intake on 51 of 52 plans for a convention that did
+# not exist when they were written. That is an outage, not a check — the same reasoning
+# REQ-DATA-057 applies to an INCONCLUSIVE linter.
+promote = false

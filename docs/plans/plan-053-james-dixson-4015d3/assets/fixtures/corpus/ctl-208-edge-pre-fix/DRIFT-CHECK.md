@@ -32,7 +32,6 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `skill-md` | `skills/*/SKILL.md` | source | derived | required |
 | `frontmatter-contract` | `skills/*/SKILL.md` (frontmatter `skill-group` / `depends-on-tool` / `depends-on-skill`) | source | derived | required |
 | `agent` | `skills/*/agents/*.md` | source | derived | optional |
-| `status-restatement` | `skills/*/spec/*.md`, `skills/yf-plan/scripts/plan_manager.py`, `_shared/doc_lint.py`, `skills/yf-herdr/**`, `web/content/**` | source | derived | required |
 | `script` | `skills/*/scripts/*.{sh,py}` | source | derived | optional |
 | `formula` | `skills/*/formulas/*.toml` | source | derived | optional |
 | `template` | `skills/*/templates/*` | source | derived | optional |
@@ -88,7 +87,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-template-ref` | `template` | `skill-md` | cross-ref |
 | `e-protocol-rule` | `protocol-rule` | `skill-md` | behavioral |
 | `e-json-contract` | `script` | `skill-md` | contract |
-| `e-status-values` | `skill-md` | `status-restatement` | contract |
+| `e-status-values` | `skill-md` | `agent` | contract |
 | `e-formula-vars` | `skill-md` | `formula` | contract |
 | `e-install-url` | `skill-md` | `skill-readme` | behavioral |
 | `e-readme-layout` | `skill-md` | `skill-readme` | required-section |
@@ -144,7 +143,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-template-ref` | `path-resolves` | every template path referenced in SKILL.md (init flows) resolves to a file under the skill's `templates/`. |
 | `e-protocol-rule` | `field-set-subset` | every trigger/gate/invariant the always-loaded companion rule (`skills/*/protocols/*.md`) binds is consistent with — and does not contradict — the procedure in the SKILL.md it points to. The rule carries trigger + gate condition + a pointer only (procedure lives in SKILL.md); the SKILL.md and the rule must **agree** on the gate condition and the disabled/no-op semantics. For `yf-beads-upstream`: the default-deny disabled test (`custom.upstream.enabled` ≠ `true`) and the gated one-shot preflight detect-and-offer (gate = github/gitlab origin + unconfigured upstream; durable marker on either outcome) must read identically in `UPSTREAM_TRACKING.md` and `SKILL.md` init §0. The rule is the trigger surface (derived from SKILL.md procedure); a rule that overstates/contradicts the procedure is the rule drifting (FAIL on the rule). |
 | `e-json-contract` | `field-set-subset` | the JSON keys SKILL.md parses from a script's `--json` output are a subset of the keys the script actually emits; read the script's output construction and list them. |
-| `e-status-values` | `field-set-subset` | every plan-status literal RESTATED anywhere in the target set is a subset of the vocabulary declared on `skills/yf-plan/SKILL.md`'s Phase Model `Status values:` line — the single declared source of truth. **Target amended by plan-053 (D-6, #208): the `agent` node was REPLACED by `status-restatement`.** EXP-004 reported this edge vacuous on the grounds that no agent file carried a status literal; pass-2 C17 measured that FALSE (`agents/coordinator.md` and `agents/reconciler.md` both carry `complete`). The edge was weak for a different reason: every literal the agent files contain is IN the vocabulary, so a subset check over them cannot fail. Meanwhile the files that really restate the vocabulary — `plan_manager.py`'s status handling, `doc_lint.py`'s `STATUS_SEVERITY`, `yf-herdr`'s readiness rules and the `web/content/**` lifecycle tables — were **outside the target set entirely**, so a literal planted in any of them was invisible. Widening §6 alone is NOT the fix: measured, it makes the targets-carrying-a-status-literal ratio WORSE (2/23 agent files, 3/19 SKILL.md, going to 6/33), so the naive "every target contains a status literal" form is unsatisfiable. Asserted mechanically by `ctl-208-edge-scope`. |
+| `e-status-values` | `field-set-subset` | status values used in `update-status` calls / agent prompts are a subset of those declared in the SKILL.md Phase Model. |
 | `e-spec-agent` | `contract` | every `REQ-AGENT-*` `Verification:` clause that quotes a literal from an `agents/*.md` file resolves to a string **present in that file**. Read each REQ's `Verification:` line, extract the quoted fragments and the agent file each one names, and check the fragment occurs there verbatim. `spec` is **fixed authority**: a dangling pointer is the pair drifting apart, reported against whichever side is stale — a genuinely obsolete spec statement is a CONFLICT (§7), never a silent pass. **Why this edge exists:** EXP-002 measured that **no `spec → agent` edge existed at all**, so the state in which an agent file is reworded and the spec still pins the old string is invisible to every engine in the repo — the FAST tier returns `pass, first_failure None` on it. That is the single riskiest step in a #182-class edit set, and it had nothing behind it (plan-051 D-9). |
 | `e-formula-vars` | `field-set-equal` | the `--var` names SKILL.md passes to `bd mol pour` equal the variables the `.formula.toml` declares. |
 | `e-install-url` | `value-equal` | any install URL duplicated across SKILL.md and the skill README is byte-identical. |
@@ -227,12 +226,8 @@ content-agreement axis).
 | Changed-Path Glob | Scopes To |
 |:------------------|:----------|
 | `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd`, `e-protocol-rule`, `e-web-skill-counts`, `e-web-skill-groups`, `e-skill-page-desc` |
-| `skills/*/spec/*.md` | `e-spec-compliance`, `e-spec-agent`, `e-status-values` |
-| `skills/*/agents/*.md` | `e-agent-ref`, `e-spec-agent` |
-| `skills/yf-plan/scripts/plan_manager.py` | `e-status-values` |
-| `_shared/doc_lint.py` | `e-status-values` |
-| `skills/yf-herdr/**` | `e-status-values` |
-| `web/content/**` | `e-status-values` |
+| `skills/*/spec/*.md` | `e-spec-compliance`, `e-spec-agent` |
+| `skills/*/agents/*.md` | `e-agent-ref`, `e-status-values`, `e-spec-agent` |
 | `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
 | `_shared/active_set.py` | `e-active-set-copy-hygiene`, `e-active-set-copy-upstream` |
 | `_shared/json_extract.py` | `e-json-extract-copy-plan`, `e-json-extract-copy-research` |

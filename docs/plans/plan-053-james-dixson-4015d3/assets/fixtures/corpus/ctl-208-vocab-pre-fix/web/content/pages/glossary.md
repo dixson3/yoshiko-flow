@@ -110,16 +110,6 @@ no molecule was ever poured. yf-plan surfaces parked plans with a `⏸ PARKED` t
 nudges about them at land-the-plane, so approved-but-forgotten work does not silently rot. A
 parked plan is still execution-eligible; it is distinct from a stale-approved one.
 
-### abandoned plan
-
-A plan deliberately stopped. `abandoned` is a terminal status, reachable from any
-non-`complete` status and leaving by exactly one edge — back to `drafting`. There is
-deliberately **no** `abandoned → complete` edge: a plan that was stopped did not finish.
-yf-plan tags it `⏹ ABANDONED` in `list`. It is **not** execute-eligible and **not** parked —
-the parked nudge's text is literally "run /yf-plan execute", which is exactly wrong here. It
-exists because there was previously no legal state for "approved but deliberately not
-executing", so an operator invented one and `update-status` accepted it silently (#208).
-
 ### stale-approved
 
 An approved plan whose content changed after approval, so its stored `**Fingerprint:**` no
