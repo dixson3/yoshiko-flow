@@ -68,9 +68,9 @@ no fix-it-afterwards window — verifies all of it before cutting **v0.5.0**.
 
 ## Upstream Issues
 
-*The coarse tracker for plan-054 is filed at INTAKE (§4.5), not now, so it carries no issue
-number yet and deliberately has no row here — a numberless row is dropped by
-`parse_upstream_rows` and would assert an issue that does not exist.*
+*The coarse tracker for plan-054 is **#236**, filed at INTAKE §4.5. It is `tracker`-dispositioned
+(report-only) and is stamped onto the epic as `external_ref` at the pour, per REQ-PLAN-073 — the
+first moment an epic id exists.*
 
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
