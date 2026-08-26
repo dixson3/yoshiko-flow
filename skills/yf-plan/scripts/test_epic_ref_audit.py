@@ -58,7 +58,7 @@ RECENT = "2026-08-01"
 
 def _write_plan(tmp_path: Path, epic: str | None, scoped: str = RECENT) -> Path:
     pdir = tmp_path / PLAN_ID
-    pdir.mkdir()
+    pdir.mkdir(parents=True, exist_ok=True)
     epic_line = f"**Epic:** {epic}\n" if epic else ""
     # DUAL-WRITE the frontmatter `epic:` key alongside the `**Epic:**` header line
     # (REQ-DATA-015). This helper wrote only the header line, so every test built on it

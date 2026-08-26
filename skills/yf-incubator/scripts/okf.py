@@ -33,6 +33,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Optional, Union
@@ -174,6 +175,7 @@ def write_frontmatter(
     path: Union[str, Path],
     updates: dict,
     *,
+    delete: Iterable[str] | None = None,
     dry_run: bool = False,
 ) -> str:
     """Merge ``updates`` into ``path``'s frontmatter and write it back.
@@ -183,12 +185,25 @@ def write_frontmatter(
     foreign key (Obsidian ``tags``/``aliases``/``cssclass``) is never dropped.
     The frontmatter block sits at the file top — trivially above the first
     ``## `` heading (REQ-OKF-010). Returns the new file text.
+
+    **Deletion (plan-053 Issue 4.3, #207).** ``delete`` names keys to REMOVE. The writer was
+    merge-only, so there was no supported way to un-set a key — an operator whose plan
+    recorded a burned epic could only hand-edit ``plan.md``, which reliably updates one of the
+    two dual-written surfaces and leaves the other.
+
+    Deletion is deliberately a SEPARATE ARGUMENT rather than a sentinel value in ``updates``
+    (``None``, say): ``None`` is a legitimate frontmatter value, so overloading it would make
+    "set this key to null" and "remove this key" indistinguishable — the same
+    two-facts-one-signal conflation this plan exists to close. A key named in ``delete`` that
+    is not present is a no-op, not an error, which is what makes the caller idempotent.
     """
     p = Path(path)
     existing, body = read_frontmatter(p) if p.exists() else ({}, "")
     merged = dict(existing)  # ordered copy
     for k, v in updates.items():
         merged[k] = v  # in-place if present (order kept), else appended
+    for k in (delete or ()):
+        merged.pop(k, None)  # absent is a no-op, never an error
     text = _dump_frontmatter(merged) + body
     if not dry_run:
         p.write_text(text)

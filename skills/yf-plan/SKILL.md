@@ -842,8 +842,10 @@ present:
 
 ```bash
 SCAN=$(uv run ${SKILL_DIR}/scripts/plan_manager.py resume-scan "${plan_dir}" --json)
-FOUND=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get found)
+STATE=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get epic_state)
 STALE=$(echo "$SCAN" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get stale_approved)
+# `found` and `epic_resolves` are still emitted, unchanged, for back-compat. DO NOT BRANCH ON
+# THEM — see below.
 ```
 
 `resume-scan` reads the epic from plan.md's `**Epic:**` field (persisted by `record-epic` at
@@ -862,15 +864,42 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "${curre
   -m "stale-approval overridden (--force) — reasoning: <operator reason>"
 ```
 
-- **`found` is `false`** — no epic yet. Under intake-at-execute this is the **normal first
-  execution**: pour the molecule and create the beads (§5.2a).
-- **`found` is `true`** — an epic already exists (a prior, possibly crashed, execute session).
-  Do **not** pour or create a second epic (the duplicate-epic failure #2 guards against).
-  Prompt the operator with `AskUserQuestion`: **Resume** the existing epic (recommended) or
-  treat as **New**. On **New**, stop and tell the operator a fresh run requires a fresh pour —
-  execute cannot fabricate a second epic. On **Resume**, run the resume path (§5.2b).
+**BRANCH ON `epic_state`, SIX WAYS — NEVER ON `found`** (REQ-CLI-013, plan-053 / #207).
 
-#### 5.2a — Pour + create beads (found = false)
+`found` is one boolean carrying **two facts whose handling is opposite**: "a pointer is
+recorded" and "that pointer is live". A **burned** epic reports `found: true, total: 0`, which
+is indistinguishable from a legitimately completed plan — so this section, which used to
+extract only `found`, read "no open work" and **skipped the plan entirely**. That is #207's
+wedge, and it is the same two-facts-one-signal conflation as `doc_lint`'s `not-selected` vs
+`no-such-path` (#181). `epic_resolves` has answered the second question since plan-044; the
+defect was that nothing here read it.
+
+| `${STATE}` | Means | **Do this** |
+| :-- | :-- | :-- |
+| `none` | no pointer recorded | **POUR** — the normal first execution (§5.2a) |
+| `stale` | a pointer is recorded and resolves to **nothing** | **POUR** (§5.2a). The recorded pointer is dead, so there is nothing to resume. Report the dead id, and offer `clear-epic` (REQ-CLI-027) to drop it |
+| `present` | resolves, open work remains | **RESUME** (§5.2b). Never pour |
+| `complete` | resolves, all descendant work terminal | **RESUME** (§5.2b) — there is simply nothing left to do. Never re-pour |
+| `foreign` | resolves, but is stamped to a **different** bundle | **HALT for an operator decision.** Do not pour and do not resume |
+| `unknown` | the state could not be determined | **HALT as INCONCLUSIVE.** Do not pour |
+
+**`foreign` halts because a COPIED BUNDLE MUST NEVER SILENTLY RESUME ANOTHER PLAN'S EPIC** —
+EXP-005 measured this as a live hazard. Resuming would drive a different plan's DAG from this
+bundle; pouring would leave two epics claiming one plan. Neither is safe to pick automatically,
+so it is one of the declared stop classes. Report `epic_plan_dir` (the bundle the epic is
+actually stamped to) so the operator can decide with the evidence in front of them.
+
+**`unknown` HALTS AND NEVER POURS, and this is the load-bearing case.** An unreachable tracker
+looks *exactly* like a burned epic. Guessing "gone" produces the duplicate pour §5.2 exists to
+prevent — so an undetermined state is treated as "do not act", never as "act as if absent".
+`unknown` is **not** a synonym for `stale`.
+
+Under a **checkpointed** run, or when the operator asks for the choice, a `present`/`complete`
+state may still be offered as **Resume** vs **New** via `AskUserQuestion`. A `New` outcome does
+**not** pour: stop and report that a fresh run requires a fresh pour — execute cannot fabricate
+a second epic (the duplicate-epic failure #2 guards against).
+
+#### 5.2a — Pour + create beads (`epic_state` ∈ {`none`, `stale`})
 
 **Pour the molecule.** The gate-type formula step yields TWO beads: a task wrapper (key
 `plan-execute.start-gate`, what downstream TASK `--deps` reference — never an epic) and the
@@ -1187,7 +1216,7 @@ mis-structured gate is a needless prompt, never an unauthorized action.
 manufacture blockers, and calling it PASS would manufacture consent.
 
 
-#### 5.2b — Resume (found = true)
+#### 5.2b — Resume (`epic_state` ∈ {`present`, `complete`})
 
 Do **not** pour or re-resolve the start gate (the prior session already did both). Run the
 resume path in order: **re-attach → sweep → loop**.

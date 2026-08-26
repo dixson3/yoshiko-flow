@@ -188,6 +188,40 @@ def _write_plan_fields(plan_dir: Path, updates: dict[str, str]) -> None:
     # Surface 2: the YAML frontmatter block (merge-and-preserve foreign keys).
     okf.write_frontmatter(plan_md, dict(model))
 
+
+def _clear_plan_fields(plan_dir: Path, keys: tuple[str, ...]) -> bool:
+    """Remove header fields from BOTH dual-written surfaces (plan-053 Issue 4.3, #207).
+
+    The mirror of `_write_plan_fields`, and it exists for the same reason: there must be no
+    path that touches one surface without the other. Hand-editing `plan.md` reliably removes
+    the `**Epic:**` line and leaves the frontmatter `epic:` key (or the reverse), which is
+    precisely the half-cleared state #207's operators produced.
+
+    Returns True iff anything was actually removed — the caller's idempotency signal.
+    """
+    plan_md = plan_dir / "plan.md"
+    text = plan_md.read_text()
+    model: dict[str, str] = {}
+    removed = False
+    for k in PLAN_FIELD_ORDER:
+        v = _read_plan_field(text, k)
+        if v is None:
+            continue
+        if k in keys:
+            removed = True
+            continue
+        model[k] = v
+    # A frontmatter key may survive with no matching `**Field:**` line, so check surface 2
+    # independently rather than inferring from surface 1.
+    fm, _body = okf.read_frontmatter(plan_md)
+    if any(k in fm for k in keys):
+        removed = True
+    if not removed:
+        return False
+    plan_md.write_text(_rebuild_field_block(text, model))
+    okf.write_frontmatter(plan_md, dict(model), delete=list(keys))
+    return True
+
 # Skill Surface Convention (see skill-authoring/reference/SURFACE_CONVENTION.md):
 # operator config vs runtime state. Preflight (deps + installed-rule hash + the
 # idempotent gitignore scaffold) moved to the `yf preflight` kernel (plan-010);
@@ -1579,6 +1613,95 @@ def record_epic(plan_dir: str, epic_id: str):
         "epic_field": "written",
         "intake_log_entry": None if intake_present else intake_entry,
     }))
+
+
+@cli.command("clear-epic")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("-m", "--reason", default=None, help="Why the pointer is being cleared.")
+@click.option("--force", is_flag=True, help="Clear even on a `present` or `unknown` state.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the verdict as JSON.")
+def clear_epic(plan_dir: str, reason: str | None, force: bool, as_json: bool):
+    """Clear a plan's recorded epic pointer (REQ-CLI-027, plan-053 / #207).
+
+    Removes BOTH dual-written surfaces, KEEPS the `intake: epic <id> poured` history bullet,
+    and APPENDS a `pointer cleared` bullet — the record of what was poured survives the
+    clearing of the pointer to it. Both bullets are inert: neither advances `status`, and
+    neither matches the `review:` or `scoping:` audit regexes, so REQ-PORT-006's
+    count-equality is untouched.
+
+    REFUSES without `--force` on `present` (clearing a live pointer strands real work) and on
+    `unknown` (that same act, performed blind).
+    """
+    pdir = Path(plan_dir)
+    result = _clear_epic(pdir, force=force, reason=reason)
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"{result['verdict']}: {result['reason']}")
+        if result.get("metadata_fallback_remains"):
+            click.echo("  ⚠ metadata_fallback_remains: the epic bead still carries a matching "
+                       "`metadata.plan_dir`, so `resume-scan` will STILL resolve this epic. "
+                       "Clearing plan.md alone does NOT reopen the pour path.")
+    sys.exit(0 if result["verdict"] in ("cleared", "noop") else 3)
+
+
+def _clear_epic(plan_dir: Path, *, force: bool = False, reason: str | None = None) -> dict:
+    """Implementation of `clear-epic`, factored out so tests drive it without Click."""
+    scan = _resume_scan(plan_dir)
+    epic_id = scan.get("epic_id")
+    state = scan.get("epic_state", "unknown")
+
+    out: dict = {
+        "plan_dir": str(plan_dir),
+        "epic_id": epic_id,
+        "epic_state": state,
+        "cleared": False,
+        "verdict": "noop",
+        "reason": "",
+        "log_entry": None,
+        "metadata_fallback_remains": False,
+        "forced": bool(force),
+    }
+
+    # REFUSAL comes BEFORE the no-op check on purpose: a `present` epic with a recorded
+    # pointer must refuse, not report "nothing to do".
+    if state in ("present", "unknown") and not force:
+        out["verdict"] = "refused"
+        out["reason"] = (
+            f"epic_state is `{state}` — refusing without --force. "
+            + ("Clearing a LIVE pointer strands real work." if state == "present"
+               else "The state could not be determined; clearing now is that same act "
+                    "performed blind, and `unknown` is NOT a synonym for `gone`.")
+        )
+        return out
+
+    if not _clear_plan_fields(plan_dir, ("epic",)):
+        out["reason"] = "no epic pointer recorded in plan.md — nothing to clear."
+        return out
+
+    out["cleared"] = True
+    out["verdict"] = "cleared"
+    bullet = "pointer cleared" + (f": {reason}" if reason else "")
+    okf.append_log(plan_dir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
+    out["log_entry"] = f"- {bullet}"
+    out["reason"] = (
+        f"removed the frontmatter `epic:` key and the `**Epic:**` line"
+        + (f" (was {epic_id})" if epic_id else "")
+    )
+
+    # R6, MEASURED: clearing the two plan.md surfaces does NOT on its own reopen the pour
+    # path. `_resume_scan` falls back to a bead whose `metadata.plan_dir` matches, so a
+    # SURVIVING epic bead is still found. A verb that appears to succeed and changes nothing
+    # is the silent-success class this plan exists to close, so the residual is REPORTED.
+    after = _resume_scan(plan_dir)
+    if after.get("epic_id"):
+        out["metadata_fallback_remains"] = True
+        out["reason"] += (
+            f"; but `resume-scan` STILL resolves {after['epic_id']} via the "
+            f"`metadata.plan_dir` fallback — the clear will not reopen the pour path while "
+            f"that bead survives."
+        )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -4162,6 +4285,85 @@ def _read_plan_epic_field(plan_md_text: str) -> str | None:
     return _read_plan_field(plan_md_text, "epic")
 
 
+#: A bead dict carrying none of these is not evidence about any epic — see `_epic_state`.
+_NON_GATE_TYPES = ("epic", "task", "molecule", "bug", "feature", "chore")
+
+
+def _epic_state(epic_id: str | None, beads: dict, plan_dir: Path,
+                epic_resolves: bool | None) -> dict:
+    """Derive `epic_state` / `epic_status` / `epic_plan_dir` (REQ-CLI-013, #207).
+
+    Six values, each with a DIFFERENT execute action:
+
+      none      no pointer recorded          -> POUR (the normal first execution)
+      stale     recorded, resolves to nothing -> POUR (the pointer is dead; #207's wedge)
+      present   resolves, open work remains  -> RESUME
+      complete  resolves, all work terminal  -> RESUME (never re-pour)
+      foreign   resolves, but belongs to a DIFFERENT bundle -> HALT for an operator decision
+      unknown   could not be determined      -> HALT as INCONCLUSIVE, never pour
+
+    `unknown` IS NOT A SYNONYM FOR "GONE". An unreachable tracker looks exactly like a burned
+    epic, and guessing "gone" produces the duplicate pour REQ-RESUME-004 exists to prevent.
+    """
+    out: dict = {"epic_state": "none", "epic_status": None, "epic_plan_dir": None}
+    if epic_id is None:
+        return out
+
+    # THE LATENT FALSE NEGATIVE (D-11). `_all_plan_beads` MERGES two `bd list` calls. A
+    # partial failure yields a dict holding only the gate query's results — NON-EMPTY, so the
+    # `not beads` guard never fires — in which a perfectly healthy epic reports
+    # `epic_resolves: false` and would be classified `stale`. `stale` routes EXECUTE to POUR,
+    # which is the duplicate-epic failure. A bead dict carrying no non-gate bead at all is
+    # evidence that the QUERY was partial, not that the epic is gone.
+    if not beads or not any(b.get("issue_type") in _NON_GATE_TYPES for b in beads.values()):
+        out["epic_state"] = "unknown"
+        return out
+
+    epic = beads.get(epic_id)
+    if epic is None or epic_resolves is False:
+        out["epic_state"] = "stale"
+        return out
+    if epic_resolves is None:
+        out["epic_state"] = "unknown"
+        return out
+
+    out["epic_status"] = epic.get("status")
+    out["epic_plan_dir"] = (epic.get("metadata") or {}).get("plan_dir")
+
+    # FOREIGN — EXP-005's measured live hazard: a COPIED bundle silently resumes another
+    # plan's epic. Compared on the resolved path, so `docs/plans/x` and `./docs/plans/x/`
+    # are the same bundle. An epic with NO stamp is not foreign — it is merely unstamped
+    # (every epic poured before the stamp existed), and calling that foreign would halt every
+    # legacy resume.
+    stamped = out["epic_plan_dir"]
+    if stamped:
+        try:
+            same = Path(stamped).resolve() == Path(plan_dir).resolve()
+        except OSError:
+            same = str(stamped).rstrip("/") == str(plan_dir).rstrip("/")
+        if not same:
+            out["epic_state"] = "foreign"
+            return out
+
+    children_of: dict[str | None, list[dict]] = {}
+    for b in beads.values():
+        children_of.setdefault(b.get("parent"), []).append(b)
+    seen: set[str] = set()
+    stack = [epic_id]
+    open_work = 0
+    while stack:
+        for child in children_of.get(stack.pop(), []):
+            cid = child.get("id")
+            if not cid or cid in seen:
+                continue
+            seen.add(cid)
+            stack.append(cid)
+            if child.get("issue_type") != "gate" and child.get("status") != "closed":
+                open_work += 1
+    out["epic_state"] = "present" if open_work or epic.get("status") != "closed" else "complete"
+    return out
+
+
 def _resume_scan(plan_dir: Path) -> dict:
     """Report a plan's epic and the bead state a resumed execute session faces.
 
@@ -4214,6 +4416,19 @@ def _resume_scan(plan_dir: Path) -> dict:
         # §5.2 execute path checks — a stale-approved plan must re-review before pouring.
         **_fingerprint_status(plan_dir),
     }
+    # plan-053 / #207 (REQ-CLI-013): the SIX-VALUED `epic_state`.
+    #
+    # `found` is ONE BOOLEAN CARRYING TWO FACTS whose handling is OPPOSITE — "a pointer is
+    # recorded" and "that pointer is live". A burned epic reports `found: true, total: 0`,
+    # indistinguishable from a legitimately completed plan, so §5.2 (which extracts only
+    # `found`) reads "no open work" and skips the plan entirely. Same conflation as
+    # `doc_lint`'s `not-selected` vs `no-such-path` (#181): the remedy is to ADD A FIELD THAT
+    # NAMES THE STATE and branch on it, never on the flag.
+    #
+    # DERIVED FROM SIGNALS ALREADY IN HAND (D-11). `epic_resolves` shipped with plan-044 and
+    # answers "is it live?" already; this must NOT re-implement that check. `found` and
+    # `epic_resolves` are emitted unchanged, so every existing consumer is unaffected.
+    result.update(_epic_state(epic_id, beads, plan_dir, result["epic_resolves"]))
     if not epic_id:
         return result
 
@@ -4287,12 +4502,35 @@ def resume_scan(plan_dir: str, as_json: bool):
         return
     if not result["found"]:
         click.echo(f"No epic found for {plan_dir} (plan.md **Epic:** field absent "
-                   f"and no bead metadata.plan_dir match). Treat as a fresh run.")
+                   f"and no bead metadata.plan_dir match). "
+                   f"[state: none] Treat as a fresh run.")
         return
     if result.get("stale_approved"):
         click.echo("  ⚠ STALE-APPROVED: plan content changed since approval — "
                    "re-review required before execute.")
-    click.echo(f"Epic {result['epic_id']} (source: {result['epic_source']})")
+    # THE HUMAN PATH NAMES THE STATE (plan-053 Issue 4.2, #207).
+    #
+    # A DANGLING ref was INVISIBLE here: this path printed the epic, "descendants: 0" and
+    # "no stuck beads" — character for character what a legitimately FINISHED plan prints —
+    # and said nothing about `epic_resolves`, which has been in the JSON since plan-044.
+    # EXP-005 called this surface "worse than the JSON", and it is the one an operator reads.
+    _STATE_NOTE = {
+        "stale": ("⚠ STALE POINTER: this epic id resolves to NOTHING in bd. This is NOT a "
+                  "finished plan — execute must POUR, not resume."),
+        "foreign": ("⚠ FOREIGN EPIC: this epic is stamped to a DIFFERENT bundle. A copied "
+                    "bundle must never silently resume another plan's epic — HALT and decide."),
+        "unknown": ("⚠ UNKNOWN: the epic's state could not be determined (bd unavailable or "
+                    "the query was partial). NOT the same as 'gone' — do NOT pour."),
+        "complete": "all descendant work is terminal.",
+        "present": "open work remains.",
+    }
+    _state = result.get("epic_state", "unknown")
+    click.echo(f"Epic {result['epic_id']} (source: {result['epic_source']}) "
+               f"[state: {_state}]")
+    if _STATE_NOTE.get(_state):
+        click.echo(f"  {_STATE_NOTE[_state]}")
+    if result.get("epic_plan_dir") and _state == "foreign":
+        click.echo(f"  epic is stamped to: {result['epic_plan_dir']}")
     click.echo(f"  descendants: {result['total']}  "
                f"counts: {result['counts']}")
     click.echo(f"  open work remaining (non-closed, non-gate): "
