@@ -14,9 +14,9 @@ Covers:
   (a) REQ-YF-PRE-004 precedence — canonical-only, committed-only, legacy-only,
       all-present (highest wins), none (defaults), and the KEY-BY-KEY merge that
       distinguishes this from whole-file first-match;
-  (b) import-safety (REQ-PLAN-073) — malformed JSON in any tier, a non-dict
+  (b) import-safety (REQ-PLAN-079) — malformed JSON in any tier, a non-dict
       top-level, and an unreadable tier must degrade to defaults, never raise;
-  (c) REQ-PLAN-073 root configurability — `plans-root` / `incubator-root` observed
+  (c) REQ-PLAN-079 root configurability — `plans-root` / `incubator-root` observed
       end-to-end through a real `init`, including a non-default root;
   (d) #100 state migration — pre-existing `.yf/yf-plan/` state moves to `.yf/plan/`,
       idempotently and without clobbering a canonical file that already exists;
@@ -24,7 +24,7 @@ Covers:
       order and reports the tier it used.
 
 Each test drives a real temp repo and re-imports the module with that repo as CWD,
-because the roots bind at import time — the exact constraint REQ-PLAN-073 is about.
+because the roots bind at import time — the exact constraint REQ-PLAN-079 is about.
 """
 from __future__ import annotations
 
@@ -169,7 +169,7 @@ def test_read_config_observes_a_config_written_after_import(repo):
 
 
 # ---------------------------------------------------------------------------
-# (b) import-safety (REQ-PLAN-073)
+# (b) import-safety (REQ-PLAN-079)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("tier", [LOCAL, SHARED, LEGACY])
@@ -200,7 +200,7 @@ def test_empty_root_value_falls_back_to_default(repo):
 
 
 # ---------------------------------------------------------------------------
-# (c) REQ-PLAN-073 — roots end-to-end through `init`
+# (c) REQ-PLAN-079 — roots end-to-end through `init`
 # ---------------------------------------------------------------------------
 
 def _init_plan(repo: Path, objective: str) -> dict:

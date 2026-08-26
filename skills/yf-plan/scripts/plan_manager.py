@@ -58,7 +58,7 @@ def _bootstrap_config() -> dict:
     """Read + merge the config tiers with no module-level dependencies.
 
     Called at import time because `PLANS_DIR` / `INCUBATOR_PARENT` are module
-    constants bound before most of this module exists (REQ-PLAN-073, import-safe
+    constants bound before most of this module exists (REQ-PLAN-079, import-safe
     resolution). Deliberately dependency-free — it runs before `_read_json` is
     defined — and deliberately total: a malformed or unreadable tier is skipped,
     never raised, so a bad config file cannot make the module unimportable.
@@ -79,7 +79,7 @@ def _bootstrap_config() -> dict:
 
 _CONFIG = _bootstrap_config()
 
-# Repo layout is configurable (REQ-PLAN-073 / #107): a project whose plan or
+# Repo layout is configurable (REQ-PLAN-079 / #107): a project whose plan or
 # incubator roots are not the defaults — e.g. a repo that is also an Obsidian
 # vault, where a visible top-level `Incubator/` trips the vault's structure
 # linter — sets `plans-root` / `incubator-root`. These belong in the COMMITTED
@@ -460,7 +460,7 @@ def make_plan_dir(plan_id: str, plans_dir: Path | None = None) -> Path:
     """Create plan directory structure under the given root.
 
     `plans_dir` defaults to the configured `PLANS_DIR` (`plans-root`, default
-    `docs/plans` — REQ-PLAN-073); callers that target an incubator should pass
+    `docs/plans` — REQ-PLAN-079); callers that target an incubator should pass
     `resolve_plans_dir(incubator)`.
     """
     root = plans_dir if plans_dir is not None else PLANS_DIR
