@@ -22,7 +22,13 @@ Via repo-level installer:
 ./install.sh
 ```
 
-Or per-skill: copy the `skills/beads-extra` directory to `~/.claude/skills/beads-extra`.
+Or per-skill, use the canonical installer, which resolves the destination for
+**whichever harness you name** rather than hardcoding claude-code's — and deploys
+the companion rule with it:
+
+```bash
+yf harness skills install yf-beads-extra --harness pi     # or claude-code, codex, opencode, agents
+```
 
 ## Usage
 

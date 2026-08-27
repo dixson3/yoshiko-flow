@@ -62,7 +62,13 @@ Via the repo-level installer (installs the skill + its companion rule):
 ./install.sh --force yf-plan        # reinstall yf-plan, overwriting its rule
 ```
 
-Or per-skill: copy the `skills/yf-plan` directory to `~/.claude/skills/yf-plan` and its `protocols/PLANS.md` to `~/.claude/rules/PLANS.md`.
+Or per-skill, use the canonical installer, which resolves the destination for
+**whichever harness you name** rather than hardcoding claude-code's — and deploys
+the companion rule with it:
+
+```bash
+yf harness skills install yf-plan --harness pi     # or claude-code, codex, opencode, agents
+```
 
 ## Usage
 
