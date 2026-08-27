@@ -107,11 +107,47 @@ pub struct Profile {
     /// The tool that must NEVER be denied/disabled (every yf agent fans out
     /// through it) — the `Agent`-never-denied invariant (REQ-YF-TUNE-005).
     pub agent_tool: String,
+    /// Every config file this harness ITSELF reads, **highest precedence first**
+    /// (`REQ-YF-TUNE-030`, added plan-054 / EXP-003).
+    ///
+    /// # The read set is DECOUPLED from the write target
+    ///
+    /// `yf` writes exactly one config file per harness — [`Self::settings_filename`] — and that
+    /// is unchanged. But every **audit-class** consumer (`yf doctor`, the settings-drift axis,
+    /// tune's pre-write inspection) must read *every* layer the harness obeys, not the write
+    /// target alone.
+    ///
+    /// Measured (EXP-003): **opencode reads both `opencode.json` and `opencode.jsonc`, and
+    /// `.jsonc` has the HIGHER precedence.** Today's agreement between what yf writes and what
+    /// opencode actually obeys is therefore **coincidence**. An audit whose read set is
+    /// narrower than the harness's own reports a confident green over a higher-precedence
+    /// layer it cannot see.
+    ///
+    /// EXP-003 also **refuted** the scoping hypothesis that named `drift.rs`: that module never
+    /// opens a harness config file at all.
+    ///
+    /// Defaults to empty, which every consumer must treat as "fall back to
+    /// [`Self::settings_filename`] alone" — so a profile that has not declared its layers keeps
+    /// today's behaviour rather than silently reading nothing.
+    #[serde(default)]
+    pub settings_read_layers: Vec<String>,
     /// The recommended entries.
     pub entries: Vec<Entry>,
 }
 
 impl Profile {
+    /// The ordered read set for audit-class consumers (`REQ-YF-TUNE-030`).
+    ///
+    /// Falls back to `[settings_filename]` when the profile declares no layers, so an
+    /// undeclared profile keeps today's single-file behaviour instead of reading nothing.
+    pub fn read_layers(&self) -> Vec<String> {
+        if self.settings_read_layers.is_empty() {
+            vec![self.settings_filename.clone()]
+        } else {
+            self.settings_read_layers.clone()
+        }
+    }
+
     /// The set-valued `permissions.deny` entry, if the profile has one. Used by
     /// the profile tests and the `yf doctor` Agent-denied check (Epic 4).
     #[allow(dead_code)]
@@ -408,5 +444,57 @@ mod tests {
         assert!(available.contains(&"claude-code".to_string()));
         assert!(available.contains(&"codex".to_string()));
         assert!(available.contains(&"opencode".to_string()));
+    }
+
+    // REQ-YF-TUNE-030 (plan-054 / EXP-003). Named by SC10, so the criterion and the test
+    // cannot drift apart — a criterion naming a test that does not exist is satisfied by a
+    // zero-match `cargo test` filter, which exits 0.
+    #[test]
+    fn opencode_read_layers_surface_shadowed_keys() {
+        let p = load_profile("opencode")
+            .expect("opencode profile must load")
+            .expect("opencode profile must be embedded");
+
+        // The DECLARED read set: both files opencode reads, `.jsonc` FIRST.
+        assert_eq!(
+            p.read_layers(),
+            vec!["opencode.jsonc".to_string(), "opencode.json".to_string()],
+            "opencode reads BOTH files and .jsonc has the HIGHER precedence; an audit that \
+             consults .json first reports the value the harness does not obey"
+        );
+        // The WRITE target is unchanged — the read set is decoupled from it, not a rename.
+        assert_eq!(p.settings_filename, "opencode.json");
+
+        // A profile that declares nothing keeps today's single-file behaviour rather than
+        // reading nothing — the fallback that makes this change safe to land incrementally.
+        let cc = load_profile("claude-code").unwrap().unwrap();
+        assert_eq!(cc.read_layers(), vec![cc.settings_filename.clone()]);
+
+        // The SHADOW is surfaced: with a higher-precedence layer present on disk, the
+        // shadowing set is non-empty and names that layer. This is what the tune-time warning
+        // and the doctor axis both key on.
+        use super::super::settings::{shadowing_layers_at, TuneScope};
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path();
+        let surface = home.join(&p.surface_dir);
+        std::fs::create_dir_all(&surface).unwrap();
+        std::fs::write(surface.join("opencode.json"), "{}").unwrap();
+
+        assert!(
+            shadowing_layers_at(&p, TuneScope::User, home, home).is_empty(),
+            "with no .jsonc present nothing shadows the write target"
+        );
+
+        std::fs::write(surface.join("opencode.jsonc"), "{}").unwrap();
+        let shadows = shadowing_layers_at(&p, TuneScope::User, home, home);
+        assert_eq!(
+            shadows.len(),
+            1,
+            "the .jsonc layer must be reported as shadowing"
+        );
+        assert!(
+            shadows[0].ends_with("opencode.jsonc"),
+            "the shadowing layer must be NAMED, not merely counted: {shadows:?}"
+        );
     }
 }

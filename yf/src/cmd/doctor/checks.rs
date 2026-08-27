@@ -405,17 +405,30 @@ impl SettingsDriftCheck {
         let profile = crate::cmd::harness::profile::load_profile(harness)
             .ok()
             .flatten()?;
-        use crate::cmd::harness::settings::{settings_path_at, TuneScope};
+        use crate::cmd::harness::settings::TuneScope;
         let home = std::env::var_os("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
         let root = crate::dest::git_root_or_cwd();
         // Low → high precedence: user < project committed < project local.
-        let layers = vec![
-            settings_path_at(&profile, TuneScope::User, &home, &root),
-            settings_path_at(&profile, TuneScope::ProjectCommitted, &home, &root),
-            settings_path_at(&profile, TuneScope::ProjectLocal, &home, &root),
-        ];
+        //
+        // REQ-YF-TUNE-030 (plan-054 / EXP-003): each SCOPE contributes every config file the
+        // harness ITSELF reads at that scope, not just the one `yf` writes. opencode reads
+        // `opencode.jsonc` at HIGHER precedence than `opencode.json`, so an axis that saw only
+        // the write target reported a green over a layer that overrode everything it checked.
+        // `settings_read_paths_at` returns highest-first, so each scope's group is reversed to
+        // keep this vector's documented low→high ordering intact.
+        use crate::cmd::harness::settings::settings_read_paths_at;
+        let mut layers: Vec<PathBuf> = Vec::new();
+        for scope in [
+            TuneScope::User,
+            TuneScope::ProjectCommitted,
+            TuneScope::ProjectLocal,
+        ] {
+            let mut group = settings_read_paths_at(&profile, scope, &home, &root);
+            group.reverse(); // highest-first → low→high within the scope
+            layers.extend(group);
+        }
         Some(Self {
             harness: harness.to_string(),
             layers,

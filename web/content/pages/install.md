@@ -58,6 +58,51 @@ yf self uninstall         # remove the binary + yf-owned dirs (installed skills 
 (silence with `YF_NO_UPDATE_CHECK=1`). On macOS, `curl | sh`- and `self update`-installed
 binaries are **not** quarantined.
 
+### The install-time sync (default-on)
+
+`yf self update` and `yf self install` do **not** only swap the binary. After promoting it, each
+execs the freshly promoted copy once per detected harness and **syncs**: the embedded skills, the
+aggregated rules file, and — subject to the consent gate below — harness config. That is why the
+former three-step ritual (`self install`, then `skills install`, then `harness tune`) is retired.
+
+```bash
+yf self update                             # binary + sync (skills, rules, and config if authorized)
+yf self update --no-sync                   # binary ONLY — skip the sync entirely
+yf self update --allow-permissions-write   # additionally authorize the config half
+```
+
+`--no-sync` is available on both commands (`--binary-only` is a retained alias on
+`yf self update`).
+
+### The consent gate — read this before the first run
+
+**The sync will not write harness config without explicit authorization, and it says so by
+failing rather than by proceeding quietly.** On a machine with no config file — or when the
+change set touches an entry the harness profile declares `consent_required: true` — the sync
+prints the **per-key delta** and refuses, **exiting non-zero on the config half** while skills and
+the rules aggregate still deploy.
+
+Authorize it with `--allow-permissions-write`.
+
+The gate exists because the claude-code profile applies `permissions.defaultMode:
+"bypassPermissions"` and `skipDangerousModePermissionPrompt: true`, and would **create**
+`settings.json` where none exists. The same class of lever is `approval_policy = "never"` on codex
+and `permission.* = "allow"` on opencode — which is why the predicate is **profile-declared**
+rather than a `permissions.*` key-path match that would only ever have caught claude-code.
+
+`--allow-permissions-write` is **distinct from `--yes`**, which bypasses the multi-harness fan-out
+prompt and never authorizes a config write.
+
+Under `CI`, or with `YF_NO_CONFIG_SYNC`, the **config half only** is suppressed while skills and
+rules still deploy — the consent gate cannot be satisfied on an unattended runner, so without this
+the sync would hard-fail there.
+
+**Rollback is asymmetric.** `yf harness tune --revert` restores **config** precisely: it is
+manifest-driven, per-key, and guarded against clobbering anything you touched since the tune. The
+**rules aggregate** is weaker — revert will not delete a file whose pre-tune content `yf` never
+backed up, and on a symlinked target it keeps the file and reports rather than unlinking your
+pointer. That asymmetry is why the consent gate is the *primary* control rather than a backstop.
+
 ## Alternatives
 
 ### Homebrew (macOS and Linux)
@@ -112,8 +157,8 @@ yf harness skills install --scope project --harness codex    # <git-root>/.agent
 yf harness skills install --dry-run                          # preview without writing
 ```
 
-> `yf harness skills install` is the **canonical** command. `yf skills install` is kept as a
-> **deprecated alias** (it still works, including `yf skills install --tune`) and will be
+> `yf harness skills install` is the **canonical** command. `yf harness skills install` is kept as a
+> **deprecated alias** (it still works, including `yf harness skills install --tune`) and will be
 > removed in the next major release — prefer the `yf harness` spelling.
 
 Groups are computed from each skill's `skill-group` frontmatter (`workflows`, `beads`,

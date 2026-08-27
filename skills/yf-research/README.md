@@ -31,7 +31,13 @@ Via the repo-level installer (installs the skill + its companion rule):
 ./install.sh --force yf-research    # reinstall yf-research, overwriting its rule
 ```
 
-Or per-skill: copy the `skills/yf-research` directory to `~/.claude/skills/yf-research` and its `protocols/RESEARCH.md` to `~/.claude/rules/RESEARCH.md`.
+Or per-skill, use the canonical installer, which resolves the destination for
+**whichever harness you name** rather than hardcoding claude-code's — and deploys
+the companion rule with it:
+
+```bash
+yf harness skills install yf-research --harness pi     # or claude-code, codex, opencode, agents
+```
 
 ## Usage
 

@@ -604,8 +604,56 @@ def run_check(chk: dict, text: str, schema: dict, path: Path | None = None) -> l
             return []
         header, data = tbl
         if not data:
-            return [f"## {chk['section']} table has ZERO rows — a table with no rows "
-                    f"satisfies every column and id check while asserting nothing"]
+            # A ZERO-ROW table is UNDER-DETERMINED, not wrong (#185, plan-054 Issue 3.1). It is
+            # the identical artifact in two OPPOSITE situations:
+            #
+            #   author skipped triage entirely      -> the check SHOULD fire (its whole purpose)
+            #   author ran triage, upstream is empty -> the check should NOT fire; the emptiness
+            #                                          IS the finding
+            #
+            # The second is not exotic: it is EVERY PLAN AUTHORED IN A FRESHLY CREATED
+            # REPOSITORY. Measured live in dixson3/astrospike plan-001, where Phase 1.4 ran
+            # `gh issue list`, got `[]`, recorded that in prose beneath the table — and the
+            # check failed the plan anyway, because prose is not readable by a check. At
+            # `review`/`ready-for-approval` the finding promotes W -> E, so `_audit_plan` failed
+            # and `ready-check` blocked approval, leaving only two exits: fabricate a row
+            # (strictly worse than the finding it silences) or `--force` (which also suppresses
+            # any genuine finding in the same run, and records a bypass on a plan that had
+            # nothing wrong with it).
+            #
+            # So the absence is made DECLARABLE (#185's option 1). A measured absence is an
+            # ASSERTION, and an assertion is exactly what the check's own rationale asks for —
+            # the complaint was never "no rows", it was "asserting nothing". Two signals count,
+            # either alone sufficient:
+            #
+            #   * an explicit `no-upstream-issues:` sentinel in the section, carrying the
+            #     command and date that produced the result; or
+            #   * sibling TRIAGE EVIDENCE — an `upstream-triage.md` in the bundle, which
+            #     `plan_manager.py triage` writes in Phase 1.4 (#185's option 2). This makes the
+            #     distinction mechanical for plans that never hand-write a sentinel.
+            #
+            # #185's option 3 (drop the promotion) was rejected by the issue itself as its
+            # weakest: it trades the false positive for a lost signal. The skipped case still
+            # fires, exactly as before.
+            body_l = body.lower()
+            declared = "no-upstream-issues:" in body_l
+            triage_evidence = False
+            # `path` is the document under lint, already threaded into `run_check`. Reading it
+            # here rather than inventing a new key matters: a key nothing ever sets would make
+            # the triage-evidence half INERT — present in the code, never true in practice, and
+            # indistinguishable from working.
+            if path is not None:
+                try:
+                    triage_evidence = (path.parent / "upstream-triage.md").is_file()
+                except OSError:  # an unreadable bundle is not a finding about the document
+                    triage_evidence = False
+            if declared or triage_evidence:
+                return []
+            return [f"## {chk['section']} table has ZERO rows and NO declared absence — a "
+                    f"table with no rows satisfies every column and id check while asserting "
+                    f"nothing. If triage RAN and measured zero issues, say so: add a "
+                    f"`no-upstream-issues:` line recording the command and date, or keep the "
+                    f"`upstream-triage.md` the triage step writes."]
         want = chk.get("columns") or []
         idx = {c: header.index(c) for c in want if c in header}
         missing_cols = [c for c in want if c not in header]

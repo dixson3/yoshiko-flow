@@ -526,7 +526,29 @@ def extract(path: Path) -> dict:
             # PURPOSE OF READING A DECLARATION. A more deeply nested list item belongs to
             # its own sub-list, and attributing its DECLARATION to the issue is precisely
             # the mis-attribution REQ-DATA-052 forbids.
-            if re.match(r"^ {2}(?![ \t*-])\S", ln):
+            # THE GATE TESTS `raw`; THE DECLARATION IS STILL READ OFF THE MASKED `ln`
+            # (#226, plan-054 Issue 3.3). These are two different questions and they were
+            # conflated:
+            #
+            #   "is this a two-space continuation of the open issue?"  -> a LAYOUT question
+            #   "does it declare an edge?"                             -> a CONTENT question
+            #
+            # Testing layout on the MASKED line made a leading inline code span decide the
+            # answer: the mask replaces the span with spaces, pushing the first non-space
+            # character past column 2, so `^ {2}(?![ \t*-])\S` stopped matching and the line
+            # NEVER REACHED `try_trailing` at all. Measured unchanged on both the base and the
+            # plan-053 fixed tree:
+            #
+            #     - Issue 1.2: second
+            #       `foo.py` depends-on: 1.1        ->  depends_on = []   edges = []
+            #
+            # `try_trailing` still receives `ln`, so REQ-DATA-063's companion assertion is
+            # untouched: a `depends-on:` written WHOLLY INSIDE a code span masks to whitespace
+            # and yields no edge, exactly as before. This widens which lines are LOOKED AT, not
+            # what counts as a declaration — which is the distinction that makes a change to a
+            # PARSING branch safe here, since manufacturing a phantom edge would be a worse
+            # defect than the one being fixed.
+            if re.match(r"^ {2}(?![ \t*-])\S", raw):
                 consumed = try_trailing(i, raw, ln)
                 _collect_detail(raw, consumed)
                 continue
@@ -563,6 +585,58 @@ def extract(path: Path) -> dict:
             # this parser exists to not have.
             if re.match(r"^- +\S", ln):
                 bad(i, "column-0 bullet in ## Epics is not a conformant issue bullet", raw)
+                cur_issue = None
+                continue
+
+            # A column-0 PARAGRAPH under an open issue (#225, plan-054 Issue 3.2).
+            #
+            # Until now this had NO BRANCH AT ALL: the line matched nothing above, fell off the
+            # end of the loop, and vanished. Measured by plan-053 EXP-001 and RE-VERIFIED on the
+            # merged tree after both #206 fixes landed, so it is a surviving shape rather than
+            # one those fixes were expected to reach:
+            #
+            #     unparsed: []      any issue detail carrying the paragraph: False
+            #
+            # `--strict` exited 0. That is the same silent-loss signature #206 is about:
+            # content disappears while the extractor reports it read the document completely.
+            #
+            # IT IS REPORTED, NOT COLLECTED, and that is the whole decision. Folding it into
+            # the issue's `detail` would be WRONG — a column-0 line is NOT a continuation under
+            # CommonMark, so attributing it to the issue is exactly the mis-attribution
+            # plan-053's column-0 fence guard exists to prevent (`ctl-206` assertion 5). The
+            # construct is non-conformant, so the extractor SAYS SO rather than either
+            # swallowing it or ignoring it. `--strict` then exits 2 (INCONCLUSIVE): the
+            # extractor did not fully READ the document, which is a different claim from the
+            # document being wrong.
+            # THE BLANK-LINE TEST IS THE WHOLE PRECISION OF THIS RULE.
+            #
+            # Under CommonMark a BLANK LINE followed by a column-0 paragraph ENDS the list: it
+            # is a new block, and it is unambiguously epic-level prose rather than anything to
+            # do with the last issue. Three bundles in this corpus do exactly that
+            # (plan-036, plan-047, plan-050 — an italic aside, an editorial note about a deleted
+            # issue, and an HTML comment about a numbering gap), and every one of them is
+            # legitimate authoring. Reporting those would be a false positive on a convention
+            # working as intended.
+            #
+            # #225's defect is the OTHER shape: a column-0 paragraph with NO intervening blank
+            # line. That is a LAZY-CONTINUATION candidate — it LOOKS like it continues the
+            # issue, a reader will read it as the issue's body, and the parser attributes it to
+            # nothing and drops it. The ambiguity is precisely what makes it dangerous, and the
+            # blank line is precisely what removes the ambiguity.
+            prev_blank = i > s and not lines[i - 1].strip()
+            if cur_issue is not None and prev_blank and re.match(r"^\S", ln):
+                # The blank line ENDED THE LIST, so this is epic-level prose. CLOSE THE ISSUE
+                # rather than merely skipping this one line: a paragraph is a BLOCK, and its
+                # second and later lines are no longer preceded by a blank one. Skipping
+                # line-by-line would report every line of a legitimate multi-line aside except
+                # its first — which is how plan-047's editorial note came back as a finding on
+                # its second line after the first was correctly ignored.
+                cur_issue = None
+                continue
+            if cur_issue is not None and not prev_blank and re.match(r"^\S", ln):
+                bad(i, "column-0 paragraph under an open issue in ## Epics is not a "
+                       "continuation (CommonMark) and is not a conformant construct — it is "
+                       "reported rather than attributed to the issue or dropped", raw)
                 cur_issue = None
 
     # --- ## Gates ----------------------------------------------------------------------

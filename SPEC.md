@@ -551,6 +551,35 @@
 >   corpus `Verification:` clauses executes today. The three lines are RED from this commit until
 >   the Epic 1/2 agent-file rewordings land — that is the intended SPEC-first order, not a defect.
 >   Implementation lands in Epics 1–3; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-054 (2026-08-26, release readiness for v0.5.0):** the **harness-resolution** and
+>   **read-set** amendments the v0.5.0 release depends on. Added **`REQ-YF-CLI-005`** — a top-level
+>   `yf skill-dir <name>` verb resolving an installed skill across **all five** harness
+>   destinations, with a three-valued 0/1/2 exit contract and an **existence-only** predicate
+>   (it asserts a directory exists and asserts nothing about its contents). The verb exists because
+>   the `SKILL_DIR` `find` idiom embedded in **19** files searches six roots, and neither
+>   `~/.pi/agent/skills` nor `~/.config/opencode/skills` is among them: on a pi-only machine every
+>   script-backed skill dies, and on a mixed machine it silently resolves to the *claude-code* copy
+>   while the install reports success either way (EXP-002, reproduced live). Added
+>   **`REQ-YF-TUNE-030`** — a per-profile `settings_read_layers` decoupling the **audit read set**
+>   from the single **write target**, because `opencode` reads both `opencode.json` and
+>   `opencode.jsonc` with `.jsonc` at **higher** precedence, so today's agreement is coincidence and
+>   an audit narrower than the harness's own read set reports green over an override it cannot see
+>   (EXP-003, which **refuted** the scoping hypothesis: `drift.rs` never opens a config file).
+>   Added **`REQ-YF-EMBED-006`** — a decision-of-record that `allowed-tools` is **claude-only** and
+>   is not a cross-harness scoping mechanism (zero occurrences in either the pi or the opencode
+>   bundle format; ten shipped `SKILL.md` files carry it). Amended **`REQ-YF-TUNE-022`** with a
+>   **symlink-aware delete**: revert's rules-side delete branch unlinks the *symlink* rather than
+>   the content while reporting success (EXP-006), so it shall resolve the target or refuse and
+>   report, and never claim a successful revert for a link it merely unlinked.
+>
+>   **The `find` idiom is REPLACED, not extended (D-1, amended at pass-1 C8).** EXP-001 measured
+>   `find` exiting **1 on a missing root even when it found the target**, masked today by
+>   `| head -1`. Widening the root list guarantees a missing root on most machines, and #203
+>   proposes mandating `set -o pipefail` — so retaining the idiom as a fallback would ship a
+>   resolver that fails precisely once the exit-code discipline this same release adds takes effect.
+>   The fallback is a pure-bash existence loop over a cwd-inclusive superset of yf's own anchors.
+>
+>   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 
@@ -605,10 +634,36 @@ requirement lives only in code (GUARDRAILS GR-010).
   an unknown id + the legacy `.<id>/skills` fallback). The **entire** top-level `yf skills` group
   (`install|upgrade|remove|status`) shall remain a **deprecated alias** delegating verb-for-verb to
   `yf harness skills <verb>` with identical behavior, kept until the next major release of `yf`.
-- **REQ-YF-CLI-003** *(testable)* every subcommand shall support `--json` for machine-readable
-  output and shall exit non-zero on failure.
+- **REQ-YF-CLI-003** *(testable)* *(amended plan-054 / #203)* every subcommand shall support
+  `--json` for machine-readable output and shall exit non-zero on failure. The exit contract is
+  **three-valued** and is the repo-wide convention, not a per-plan asset: **`0`** the assertion
+  holds · **`1`** it does not · **`2`** the instrument **could not run** (INCONCLUSIVE). `2` is a
+  statement about the *instrument*, never about the subject, and is deliberately distinct from
+  `1` — a caller that collapses them cannot tell "failed" from "could not look".
+  **An instrument shall not report failure in its OUTPUT and success in its EXIT CODE.** Measured
+  five times in five separate instruments (#203), three of them tools this repo wrote: a scripted
+  caller reads `$?`, sees `0`, and proceeds, so the failure is not merely missed — it is converted
+  into a positive signal. Two corollaries, each costing one line: a shipped harness script sets
+  `set -o pipefail` (without it a pipeline returns the LAST command's status, and a real exit `1`
+  is read as `0`), and any instrument this repo ships has a **failure-path arm** in its tests —
+  an instrument never observed failing is not known to be able to fail.
+
+  The **bare** `*(testable)*` marker is retained deliberately: `coverage.rs`'s enforced set is
+  bare-only, so folding the amendment note into the marker would drop this requirement out of the
+  gate and strand its ALLOWLIST row — measured, while making this very edit.
 - **REQ-YF-CLI-004** *(testable)* `yf version` shall print the semver version (and build metadata
   when available).
+- **REQ-YF-CLI-005** *(testable)* `yf` shall expose a top-level **`skill-dir`**
+  verb, `yf skill-dir <name>`, which resolves an installed skill directory across **every** harness
+  destination `yf` itself installs to (`claude-code`, `codex`, `opencode`, `pi`, `agents`), in both
+  `user` and `project` scope, and prints the resolved absolute path on stdout. Its exit contract
+  shall be **three-valued**: **0** — exactly one directory resolved, path printed; **1** — no
+  directory resolved (the skill is not installed at any known destination); **2** — the lookup could
+  not be performed at all (INCONCLUSIVE: an unreadable root, an indeterminate scope). The resolution
+  predicate is **existence-only**: the verb asserts that a directory of that name exists at a known
+  destination and asserts **nothing** about its contents — it performs no marker-file check, no
+  `SKILL.md` presence check, and no integrity or version verification. A caller needing those
+  guarantees shall check them itself.
 
 ### 3.2 Embedding (`REQ-YF-EMBED`)
 
@@ -718,7 +773,6 @@ requirement lives only in code (GUARDRAILS GR-010).
   path that exists only in *this* repository's working tree. A repo check shall enforce this
   across the whole `skills/` tree and run in the **fast and full** validation tiers, with its own
   path in scope so that **deleting** the check fires it.
-
   The `_shared/` prefix is the measured instance. `_shared/` is a directory in this repository; it
   is not one of the six roots the `SKILL_DIR` resolver searches, so an operator following such a
   line verbatim in any other repository gets a file-not-found. A second, distinct failure shape
@@ -743,6 +797,15 @@ requirement lives only in code (GUARDRAILS GR-010).
   justification is a **mutation**, not volume: re-inserting plan-050's original bug makes the
   check go red, which is the evidence that it would have caught the first instance. False-positive
   surface was measured at **zero** over the tree at authoring time.
+
+- **REQ-YF-EMBED-006** *(added plan-054, decision-of-record)* the `allowed-tools` frontmatter key in
+  a shipped `SKILL.md` is **claude-code-only** and shall **not** be treated as a cross-harness tool
+  scoping mechanism. Measured: `allowed-tools` occurs **zero** times in either the `pi` or the
+  `opencode` skill bundle format, while **ten** shipped `SKILL.md` files carry it. A skill that
+  relies on `allowed-tools` to constrain what it may do is therefore **unconstrained** under every
+  harness but claude-code. The key is retained for claude-code's benefit; no requirement in this
+  spec shall depend on it for a portability, safety, or scoping guarantee, and any such guarantee
+  shall be specified by a harness-independent mechanism instead.
 
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 
@@ -1478,6 +1541,13 @@ rule deployment.
   own guard with the same conservative-keep semantics, specified separately as `REQ-YF-TUNE-029`.
   Revert's config half is manifest-driven and per-key; its rules half shall not be assumed to
   inherit those semantics without that requirement.
+  **Symlink-aware delete (amended plan-054, EXP-006).** Where revert's rules half takes its
+  **delete** branch, it shall resolve the target before unlinking. When the recorded rule target is
+  a **symlink** — the shape a surface-symlinked install produces — unlinking the link removes the
+  operator's *pointer* while leaving the content orphaned, and today that path **reports success**
+  while having reverted nothing at the real location. Revert shall therefore either operate on the
+  **resolved** path or **refuse and report** the symlink, and shall never report a successful revert
+  for a target it only unlinked at the link.
 - **REQ-YF-TUNE-023** *(testable, plan-033)* `--tune` on `yf harness skills install` shall remain an
   **opt-in bridge** — install and tune stay **separable**: without `--tune`, install is skills-only
   and reports that tuning is available (`REQ-YF-INSTALL-008`); with `--tune`, the bridge also runs
@@ -1579,6 +1649,18 @@ rule deployment.
   aggregate's revert branch shall match its `kind` **explicitly**, never via a catch-all arm, so a
   future artifact kind cannot silently inherit delete semantics. This is the narrow hand-edit
   tolerance `REQ-YF-FLOW-004` carves out.
+
+- **REQ-YF-TUNE-030** *(testable)* every harness profile shall carry a
+  **`settings_read_layers`** field: the ordered list of config files that harness *itself* reads,
+  highest precedence first. The **read** set shall be **decoupled from the single write target** —
+  `yf` writes exactly one config file per harness (unchanged), but every audit-class consumer
+  (`yf doctor`, the settings-drift axis, `yf harness tune`'s pre-write inspection) shall read
+  **every** layer in `settings_read_layers`, not the write target alone. Rationale, measured:
+  `opencode` reads both `opencode.json` and `opencode.jsonc`, and **`.jsonc` has the higher
+  precedence**; today's agreement between yf's write target and the harness's effective config is
+  therefore **coincidence**, and an audit whose read set is narrower than the harness's own will
+  report a green while a higher-precedence layer overrides everything it just checked. An audit that
+  cannot see a layer the harness obeys shall report **INCONCLUSIVE** for that key, never `ok`.
 
 ## 4. Skill catalog (per-skill specs)
 

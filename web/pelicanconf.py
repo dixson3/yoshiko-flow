@@ -8,7 +8,7 @@ SITESUBTITLE = "portable, beads-backed agent skills + the yf CLI"
 # Latest released version, shown in the site header so visitors see it immediately.
 # MUST be bumped in lockstep with every release tag (see AGENTS.md "Upstream Tracking"
 # / the yf workspace version in yf/Cargo.toml).
-YOSHIKOFLOW_RELEASE = "v0.4.0"
+YOSHIKOFLOW_RELEASE = "v0.5.0"
 # Full-sentence description for meta/OG (crawlers want >=100 chars).
 SITE_DESCRIPTION = (
     "yoshiko-flow is a family of portable, cross-harness AI-agent skills plus a single "

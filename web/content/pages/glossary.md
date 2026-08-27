@@ -153,3 +153,86 @@ or Jira) as an upstream issue, then closing the local bead with a tombstone. At 
 follow-on beads created during a session can be hoisted so the durable worklist lives upstream;
 by default this is propose-with-confirm, and only a narrow, opt-in signal is ever hoisted
 unattended.
+
+## Execution, artifacts, and failure vocabulary
+
+The terms below appear constantly across the shipped skills and had no definition here. Each
+entry's count is how many files under `skills/` use it.
+
+### preflight
+
+*(50 files)* The shared readiness gate a beads-backed skill runs **before** it does any work,
+rather than each skill reimplementing the same probes. `yf preflight <skill>` checks system
+dependencies and the minimum `bd` version, verifies the skill's companion rule against the
+embedded manifest, and ensures the gitignore scaffold — returning a single authoritative
+`status` the skill branches on. It is **read-only** with respect to your beads configuration: it
+reports a problem and routes you to `/yf-beads-init`, and never repairs on its own. Parse the
+`status` field, not the exit code.
+
+### OKF bundle
+
+*(48 files)* An artifact **folder** — not a single file — laid out so a cold reader in a
+different repository can understand it from the folder alone. Every `yf-plan` plan, `yf-research`
+project and `yf-incubator` topic is one. A bundle carries reserved files at its root (`index.md`
+listing its contents, `log.md` a newest-first history) alongside the artifact of record and its
+supporting material. **Portability is the point**: the drafting conversation is gone, so
+everything load-bearing has to be *in the folder*.
+
+### worktree / execute branch
+
+*(29 files)* A separate git working directory (`.worktrees/<plan-id>`) on its own branch
+(`<plan-id>-execute`), cut from a **pinned** base rather than from whatever happened to be
+checked out. Plan execution edits project code there while the plan folder and all bead tracking
+stay in the primary checkout — so only code changes accumulate on the plan branch, and the
+primary stays usable. At the end the branch is merged back and the merged tree is re-validated.
+
+### fail-closed
+
+*(28 files)* On uncertainty, **refuse** rather than proceed. A fail-closed check that cannot
+determine whether a condition holds reports that it could not tell and stops, instead of
+assuming the favourable answer. The opposite — fail-open — is how a broken instrument turns into
+a green result: the check could not run, nothing said so, and the caller read success.
+
+### silent no-op
+
+*(25 files)* A trigger that, when its precondition is absent, does **nothing and says nothing**
+— no prompt, no nag, no offer to bootstrap. Most yf triggers are opt-in per repository, and the
+opt-out is silence: with no approved manifest or marker file, the trigger simply never fires.
+This is a deliberate contract, not an oversight; a trigger that announced its own absence on
+every edit would be worse than the check it is offering.
+
+### discovered-from
+
+*(23 files)* A beads dependency type recording that one issue was **found while working on**
+another. It captures provenance — where a piece of work came from — rather than ordering, and
+unlike `blocks` it does not gate readiness. It is what distinguishes genuine follow-on work
+discovered mid-execution from disposable scratch.
+
+### epistemic rules
+
+*(11 files)* The evidence standard every `yf-research` agent works under: **absence is a valid
+finding**, direct quotes are preferred over paraphrase, and no assertion goes uncited. They exist
+because the failure mode of research is not usually a wrong answer — it is a confident answer
+with nothing behind it.
+
+### session boundary
+
+*(11 files)* The point where one agent session ends and a new one begins. It is load-bearing
+because some gates can **only** be resolved on the far side of it: a `yf-plan` start gate is
+released in a fresh `/yf-plan execute` session, not in the session that wrote the plan. What
+carries across the boundary is what was written to disk — which is why plan folders are portable
+by contract.
+
+### stuck-bead sweep
+
+*(10 files)* The resume-time pass that finds beads a crashed session left claimed or
+`in_progress` and **resets** them to open so they can be worked again. It runs strictly before
+the ready loop, so reconciliation cannot fire on a resumed-but-incomplete plan. It never
+auto-closes anything: no reliable signal separates disposable scratch from real
+`discovered-from` work, so anything it cannot positively classify is reported for a human.
+
+### descope
+
+*(5 files)* To deliberately remove work from a plan's scope — recording the decision and its
+reason — rather than silently dropping it or quietly leaving it unfinished. A descoped item is
+still a decision with an owner: it is either filed upstream or explicitly declared a non-goal.

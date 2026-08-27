@@ -137,6 +137,124 @@ def emit_plan_md_skeleton() -> str:
     return _load_plan_template().skeleton_doc()
 
 
+# --------------------------------------------------------------------------------------
+# SKILL_DIR resolver (plan-054 Issue 1.3, REQ-YF-CLI-005)
+# --------------------------------------------------------------------------------------
+#
+# WHY THIS IS GENERATED AND NOT HAND-WRITTEN. The resolver was copy-pasted into 19 files, and
+# when it turned out to be WRONG - it searched six fixed roots and neither `~/.pi/agent/skills`
+# nor `~/.config/opencode/skills` was among them, while `yf` installs to exactly those - there
+# were 19 places to fix and nothing to keep them in step. Generating it makes `sync.py --check`
+# the standing anti-drift gate (Issue 1.4).
+#
+# WHY `find` IS REPLACED AND NOT MERELY WIDENED (D-1, amended at pass-1 C8). EXP-001 measured
+# `find` exiting 1 on a missing root EVEN WHEN IT FOUND THE TARGET, masked today by
+# `| head -1`. Widening the root list GUARANTEES a missing root on most machines, and #203
+# proposes mandating `set -o pipefail` - so keeping `find` as the fallback would ship a
+# resolver that breaks precisely when this same release's exit-code discipline takes effect.
+# The fallback is a pure-bash existence loop instead: no subprocess, no pipeline, no exit code
+# to misread.
+#
+# THE FALLBACK IS A cwd-INCLUSIVE SUPERSET of yf's own anchors, and its ORDER MATCHES yf's
+# (anchor-major: HOME, then git root, then cwd; within an anchor, the descriptor-table order
+# with codex/agents' shared `.agents/skills` appearing once). That ordering is what makes SC4b
+# CONTAINMENT true rather than approximately true: for every anchor `yf skill-dir` can resolve,
+# the fallback resolves THE SAME PATH. It is stated as containment rather than equality because
+# the fallback also searches cwd-relative roots that `yf` does not, and an equality assertion
+# would be false by construction.
+
+_SKILL_DIR_BEGIN = ">>> BEGIN SKILL_DIR resolver"
+_SKILL_DIR_END = "<<< END SKILL_DIR resolver"
+
+
+def emit_skill_dir_block(skill_name: str) -> str:
+    """Emit the SKILL_DIR resolver block for one consumer.
+
+    `skill_name` is substituted verbatim. The three files that are PROSE ABOUT THE IDIOM - the
+    two `yf-skill-authoring` reference templates and the yf-plan test-harness README - pass the
+    literal placeholder ``<skill-name>``, because emitting a concrete name into a template
+    would make the next skill be authored against one particular skill's copy.
+    """
+    return f"""```bash
+# Resolve this skill's installed directory across EVERY harness `yf` installs to.
+#
+# ENV-VAR FIRST. If the harness already exported SKILL_DIR, THAT WINS and nothing below runs.
+# This is the fix for the CROSS-TREE SKEW EXP-002 measured: a harness that knows where it
+# loaded this skill from can say so, and a resolver that overwrote the answer it was handed
+# would go on reading prose from one tree and scripts from another. `${{SKILL_DIR:-...}}`
+# substitutes the fallback only when the variable is unset OR empty.
+#
+# `yf skill-dir` is the authority when no harness supplied one: it reads the same descriptor
+# table `yf` installs with, so a sixth harness needs no edit here. Its exit contract is
+# three-valued (0 resolved / 1 not installed / 2 could not look), and `2>/dev/null` discards
+# only its diagnostics.
+#
+# KNOWN ASYMMETRY, recorded rather than papered over: pi tracks a per-skill `baseDir`, but
+# OPENCODE SUPPLIES ITS BASE DIRECTORY AS PROSE IN THE SYSTEM PROMPT ("Base directory for this
+# skill: ..."), not as an environment variable. Under opencode that path is an INSTRUCTION TO
+# THE MODEL, not a scripted lookup — so this line cannot consume it, and whether the prose
+# steers the model is observable only in a live transcript.
+SKILL_DIR="${{SKILL_DIR:-$(yf skill-dir {skill_name} 2>/dev/null)}}"
+
+# Fallback for a machine with no `yf` on PATH. A pure-bash existence loop, NOT `find`:
+# `find` exits 1 on a missing root EVEN WHEN IT FOUND THE TARGET, which `| head -1` hides
+# today and `set -o pipefail` would expose. The roots below are a cwd-inclusive SUPERSET of
+# yf's anchors, in yf's own order, so whatever `yf` would resolve this resolves identically.
+if [ -z "$SKILL_DIR" ]; then
+  GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
+  for _root in \\
+    "$HOME/.claude/skills" "$HOME/.agents/skills" \\
+    "$HOME/.config/opencode/skills" "$HOME/.pi/agent/skills" \\
+    "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" \\
+    "$GIT_ROOT/.opencode/skills" "$GIT_ROOT/.pi/skills" \\
+    ".claude/skills" ".agents/skills" ".opencode/skills" ".pi/skills"
+  do
+    if [ -d "$_root/{skill_name}" ]; then SKILL_DIR="$_root/{skill_name}"; break; fi
+  done
+  unset _root
+fi
+
+[ -z "$SKILL_DIR" ] && {{ echo "ERROR: {skill_name} skill directory not found" >&2; exit 1; }}
+```
+"""
+
+
+def _skill_dir_consumers() -> "list[tuple[Path, str]]":
+    """Derive the consumer set from the TREE, never from an enumeration.
+
+    An enumerated set was already measured incomplete - twice - which is why this walks
+    `skills/` and decides per file, keyed on the presence of the region markers.
+
+    DELIBERATELY OUT OF SCOPE, and recorded as such: agent files that declare `SKILL_DIR` as a
+    caller-supplied INPUT rather than resolving it themselves. Emitting a resolver into those
+    would override a value the caller is contractually supplying.
+    """
+    root = REPO_ROOT / "skills"
+    caller_supplied = {
+        root / "yf-okf" / "agents" / "assessor.md",
+        root / "yf-plan" / "agents" / "coordinator.md",
+        root / "yf-beads-authoring" / "agents" / "reviewer.md",
+    }
+    # PROSE ABOUT THE IDIOM: emitted with the placeholder, not a concrete skill name.
+    templates = {
+        root / "yf-skill-authoring" / "reference" / "PORTABILITY.md",
+        root / "yf-skill-authoring" / "reference" / "SURFACE_CONVENTION.md",
+        root / "yf-plan" / "test-harness" / "README.md",
+    }
+    out = []
+    for f in sorted(root.rglob("*")):
+        if not f.is_file() or f.suffix not in {".md", ".sh"}:
+            continue
+        if f in caller_supplied:
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if _SKILL_DIR_BEGIN not in text:
+            continue
+        name = "<skill-name>" if f in templates else f.relative_to(root).parts[0]
+        out.append((f, name))
+    return out
+
+
 def emit_lua_fence_list() -> str:
     """Emit the pandoc Lua filter's renderable-fence class list (one line) from the
     canonical Python registry, e.g. ``local RENDERABLE_FENCES = { "csv", "d2" }``."""
@@ -272,6 +390,24 @@ EMITTED_ASSETS = [
         emit=emit_lua_fence_list,
     ),
 ]
+
+# The SKILL_DIR resolver, one asset per consumer, DERIVED from the tree (Issue 1.3).
+#
+# `EmittedRegionAsset.emit` is a ZERO-ARG `Callable`, so the skill name cannot be passed at
+# call time. A DEFAULT-ARG CLOSURE binds it per consumer - which is why this is a loop rather
+# than N hand-written rows. (A bare `lambda: emit_skill_dir_block(_n)` would capture the loop
+# variable by reference and give every consumer the LAST skill's name.)
+EMITTED_ASSETS += [
+    EmittedRegionAsset(
+        name=f"SKILL_DIR resolver -> {_f.relative_to(REPO_ROOT)}",
+        begin=_SKILL_DIR_BEGIN,
+        end=_SKILL_DIR_END,
+        consumer=_f,
+        emit=(lambda n=_n: emit_skill_dir_block(n)),
+    )
+    for _f, _n in _skill_dir_consumers()
+]
+
 
 
 def extract_region(text: str, begin_re: re.Pattern, end_re: re.Pattern) -> str:

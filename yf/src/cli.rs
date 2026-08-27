@@ -52,8 +52,26 @@ pub enum Command {
         #[command(subcommand)]
         command: HarnessCommand,
     },
+    /// Resolve an installed skill's directory across every harness destination
+    /// (REQ-YF-CLI-005).
+    ///
+    /// Prints the absolute path on stdout. Exit contract is THREE-VALUED: `0` resolved,
+    /// `1` not installed anywhere known, `2` the lookup could not be performed. The
+    /// predicate is **existence-only** — it never inspects the directory's contents.
+    #[command(name = "skill-dir")]
+    SkillDir(SkillDirArgs),
     /// Print the `yf` version and build metadata.
     Version(VersionArgs),
+}
+
+/// `yf skill-dir <name>` (REQ-YF-CLI-005).
+#[derive(Debug, clap::Args)]
+pub struct SkillDirArgs {
+    /// Skill name to resolve (e.g. `yf-plan`).
+    pub name: String,
+    /// Emit machine-readable JSON (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// `yf harness …` subcommands (plan-032/033).

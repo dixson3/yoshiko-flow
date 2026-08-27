@@ -47,6 +47,16 @@ approved: yes
 | `cargo-fmt` | `cargo fmt --all -- --check` |  |  |
 | `cargo` | `cargo test --workspace` |  |  |
 | `sync-e2e` | `cargo test -p yf --test install_sync_e2e` |  |  |
+| `harness-e2e` | `cargo test -p yf --test harness_cross_e2e` |  |  |
+| `harness-smoke` | `bash docs/plans/plan-054-james-dixson-535968/assets/checks/check-harness-smoke.sh verify-all` |  |  |
+
+> **`harness-smoke` is FULL-tier ONLY, deliberately.** It is deliberately absent from every §3
+> trigger glob, so no ordinary edit fires it. It starts REAL `pi` and `opencode` sessions, which
+> costs real model calls, so it belongs in the multi-minute once-per-land gate §6.1.5 reserves —
+> not on every on-edit step. It exits **2 (INCONCLUSIVE)** when a harness is not installed, which
+> the engine surfaces to the operator rather than treating as a FAIL: an absent harness is a
+> statement about the machine, not about the change-set. It is never a silent pass, because SC18
+> gates a tag push that auto-publishes the website.
 | `uv` | `uv run --with pytest python3 -m pytest _shared/test_sync.py -q` |  |  |
 | `uv-run` | `uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q` |  |  |
 | `uv-with` | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
@@ -170,10 +180,11 @@ approved: yes
 | `**/*.rs` | `cargo-fmt`, `cargo` |
 | `Cargo.toml` | `cargo-fmt`, `cargo` |
 | `**/Cargo.toml` | `cargo-fmt`, `cargo` |
-| `yf/profiles/**` | `cargo`, `sync-e2e` |
-| `yf/profiles/*.json` | `cargo`, `sync-e2e` |
+| `yf/profiles/**` | `cargo`, `sync-e2e`, `harness-e2e` |
+| `yf/profiles/*.json` | `cargo`, `sync-e2e`, `harness-e2e` |
 | `yf/src/cmd/self_cmd/**` | `cargo-fmt`, `cargo`, `sync-e2e` |
-| `yf/src/cmd/harness/**` | `cargo-fmt`, `cargo`, `sync-e2e` |
+| `yf/src/cmd/harness/**` | `cargo-fmt`, `cargo`, `sync-e2e`, `harness-e2e` |
+| `yf/tests/harness_cross_e2e.rs` | `harness-e2e` |
 | `yf/tests/install_sync_e2e.rs` | `sync-e2e` |
 | `_shared/**` | `uv`, `uv-_shared` |
 | `_shared/test_sync.py` | `uv` |

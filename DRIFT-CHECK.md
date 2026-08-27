@@ -73,6 +73,9 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `web-skill-facts` | `web/content/pages/architecture.md` (the skill-count total + per-`skill-group` count claims) | doc | derived | required |
 | `web-skill-pages-plugin` | `web/plugins/skill_pages.py` (the `GROUP_ORDER` / `GROUP_LABELS` / `GROUP_BLURBS` group registry) | source | derived | required |
 | `skill-page` | `web/content/skills/*.md` (the authored per-skill web-page prose body) | doc | derived | optional |
+| `web-formulas` | `web/content/pages/formulas.md` (the shipped-formula table and its count claim) | doc | derived | required |
+| `web-cli-surface` | `web/content/pages/install.md`, `web/content/pages/harness-tune.md` (the flags and harness ids these pages teach) | doc | derived | required |
+| `cli-surface` | `yf/src/cli.rs` (the clap-declared verbs and flags), `yf/profiles/*.json` | source | derived | required |
 
 ## 2. Source-of-Truth Edges
 
@@ -90,6 +93,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-json-contract` | `script` | `skill-md` | contract |
 | `e-status-values` | `skill-md` | `status-restatement` | contract |
 | `e-formula-vars` | `skill-md` | `formula` | contract |
+| `e-web-formula-set` | `formula` | `web-formulas` | contract |
+| `e-web-cli-surface` | `cli-surface` | `web-cli-surface` | cross-ref |
 | `e-install-url` | `skill-md` | `skill-readme` | behavioral |
 | `e-readme-layout` | `skill-md` | `skill-readme` | required-section |
 | `e-readme-prereqs` | `frontmatter-contract` | `skill-readme` | contract |
@@ -147,6 +152,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-status-values` | `field-set-subset` | every plan-status literal RESTATED anywhere in the target set is a subset of the vocabulary declared on `skills/yf-plan/SKILL.md`'s Phase Model `Status values:` line — the single declared source of truth. **Target amended by plan-053 (D-6, #208): the `agent` node was REPLACED by `status-restatement`.** EXP-004 reported this edge vacuous on the grounds that no agent file carried a status literal; pass-2 C17 measured that FALSE (`agents/coordinator.md` and `agents/reconciler.md` both carry `complete`). The edge was weak for a different reason: every literal the agent files contain is IN the vocabulary, so a subset check over them cannot fail. Meanwhile the files that really restate the vocabulary — `plan_manager.py`'s status handling, `doc_lint.py`'s `STATUS_SEVERITY`, `yf-herdr`'s readiness rules and the `web/content/**` lifecycle tables — were **outside the target set entirely**, so a literal planted in any of them was invisible. Widening §6 alone is NOT the fix: measured, it makes the targets-carrying-a-status-literal ratio WORSE (2/23 agent files, 3/19 SKILL.md, going to 6/33), so the naive "every target contains a status literal" form is unsatisfiable. Asserted mechanically by `ctl-208-edge-scope`. |
 | `e-spec-agent` | `contract` | every `REQ-AGENT-*` `Verification:` clause that quotes a literal from an `agents/*.md` file resolves to a string **present in that file**. Read each REQ's `Verification:` line, extract the quoted fragments and the agent file each one names, and check the fragment occurs there verbatim. `spec` is **fixed authority**: a dangling pointer is the pair drifting apart, reported against whichever side is stale — a genuinely obsolete spec statement is a CONFLICT (§7), never a silent pass. **Why this edge exists:** EXP-002 measured that **no `spec → agent` edge existed at all**, so the state in which an agent file is reworded and the spec still pins the old string is invisible to every engine in the repo — the FAST tier returns `pass, first_failure None` on it. That is the single riskiest step in a #182-class edit set, and it had nothing behind it (plan-051 D-9). |
 | `e-formula-vars` | `field-set-equal` | the `--var` names SKILL.md passes to `bd mol pour` equal the variables the `.formula.toml` declares. |
+| `e-web-formula-set` | `field-set-equal` | the formulas `web/content/pages/formulas.md` tabulates equal the shipped set — every `skills/*/formulas/*.formula.toml`, with the staged copies under `.beads/formulas/` **excluded** (preflight rewrites those on every run, so counting them double-counts every formula and makes the number depend on whether a preflight has happened). The page's stated COUNT must agree too, in numeral or English-word form. This edge exists because the page asserted **three** formulas while **five** shipped — a claim nothing checked, and one a reader has no way to falsify. `formula` is the source of truth: a mismatch is the **page** drifting, never the formulas. |
+| `e-web-cli-surface` | `path-resolves` | every `yf` flag and `--harness` id that `install.md` / `harness-tune.md` teach exists in `yf/src/cli.rs` (the clap declarations) or, for harness ids, in `yf/profiles/`. Two failure directions, both real: a page teaching a flag that does not exist, and a page teaching a spelling `cli.rs` marks **deprecated** as if it were canonical — the README did exactly that for `yf skills install` across seven files, one of them a generator. `cli-surface` is the source of truth: a mismatch is the **page** drifting, never the CLI. |
 | `e-install-url` | `value-equal` | any install URL duplicated across SKILL.md and the skill README is byte-identical. |
 | `e-readme-layout` | `field-set-equal` | the skill README file-layout fence lists exactly the files `find skills/<skill> -type f` reports. |
 | `e-readme-prereqs` | `field-set-subset` | the skill README Prerequisites match the SKILL.md frontmatter `depends-on-tool` + any prereq checks stated in SKILL.md. **Source is frontmatter `depends-on-tool`, NOT a `check-prereqs.sh`** (corrected E4). |
@@ -230,6 +237,12 @@ content-agreement axis).
 | `skills/*/spec/*.md` | `e-spec-compliance`, `e-spec-agent`, `e-status-values` |
 | `skills/*/agents/*.md` | `e-agent-ref`, `e-spec-agent` |
 | `skills/yf-plan/scripts/plan_manager.py` | `e-status-values` |
+| `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars`, `e-web-formula-set` |
+| `web/content/pages/formulas.md` | `e-web-formula-set` |
+| `yf/src/cli.rs` | `e-web-cli-surface` |
+| `yf/profiles/*.json` | `e-web-cli-surface` |
+| `web/content/pages/install.md` | `e-web-cli-surface` |
+| `web/content/pages/harness-tune.md` | `e-web-cli-surface` |
 | `_shared/doc_lint.py` | `e-status-values` |
 | `skills/yf-herdr/**` | `e-status-values` |
 | `web/content/**` | `e-status-values` |

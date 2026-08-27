@@ -9,4 +9,5 @@ pub mod doctor;
 pub mod harness;
 pub mod install;
 pub mod self_cmd;
+pub mod skill_dir;
 pub mod status;

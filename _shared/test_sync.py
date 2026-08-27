@@ -333,3 +333,74 @@ def test_main_emitted_regenerates_then_idempotent(tmp_path, monkeypatch):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# --- the SKILL_DIR resolver asset (plan-054 Issue 1.4) ------------------------
+#
+# This is the STANDING ANTI-DRIFT GATE. The resolver was copy-pasted into 19 files and, when it
+# turned out to search the wrong roots, there were 19 places to fix and nothing keeping them in
+# step. These tests make `sync.py --check` the thing that notices.
+
+def test_skill_dir_asset_registered_for_every_consumer():
+    """Every file carrying the region markers must have a registered asset.
+
+    Asserted against the DERIVED consumer set rather than a literal count: a number here is the
+    same drift defect one layer down, going stale the moment a consumer is added.
+    """
+    consumers = {f for f, _ in sync._skill_dir_consumers()}
+    assert consumers, "the SKILL_DIR consumer set must not be empty"
+    registered = {a.consumer for a in sync.EMITTED_ASSETS if "SKILL_DIR resolver" in a.name}
+    assert consumers == registered, (
+        "every marked consumer must be registered and vice versa; "
+        f"unregistered={sorted(str(p) for p in consumers - registered)} "
+        f"orphaned={sorted(str(p) for p in registered - consumers)}"
+    )
+
+
+def test_skill_dir_block_names_its_own_skill():
+    """The emitter substitutes the skill name — the closure binds it PER CONSUMER.
+
+    `EmittedRegionAsset.emit` is zero-arg, so the name is bound by a default-arg closure. A bare
+    `lambda: emit(_n)` would capture the loop variable by reference and give every consumer the
+    LAST skill's name; this test is what would catch that.
+    """
+    for asset in sync.EMITTED_ASSETS:
+        if "SKILL_DIR resolver" not in asset.name:
+            continue
+        body = asset.emit()
+        parts = asset.consumer.relative_to(sync.REPO_ROOT / "skills").parts
+        templates = {"PORTABILITY.md", "SURFACE_CONVENTION.md", "README.md"}
+        expected = "<skill-name>" if (
+            asset.consumer.name in templates and parts[0] in {"yf-skill-authoring", "yf-plan"}
+            and "reference" in parts or "test-harness" in parts
+        ) else parts[0]
+        assert f"yf skill-dir {expected}" in body, (
+            f"{asset.consumer} should resolve {expected!r}, body was:\n{body[:400]}"
+        )
+
+
+def test_skill_dir_block_does_not_use_find():
+    """`find` is REPLACED, not retained as a fallback (D-1, amended at pass-1 C8).
+
+    EXP-001 measured `find` exiting 1 on a MISSING ROOT even when it found the target, masked by
+    `| head -1`. Widening the root list guarantees a missing root on most machines, and #203
+    proposes mandating `set -o pipefail` — so a retained `find` would break exactly when this
+    release's exit-code discipline lands.
+    """
+    # COMMENT LINES ARE STRIPPED FIRST. The block's own prose EXPLAINS why `find` and
+    # `| head -1` were removed, so an assertion over the raw body matches the explanation and
+    # fails on a correct resolver. The claim is about what the block EXECUTES.
+    body = sync.emit_skill_dir_block("yf-plan")
+    code = "\n".join(
+        ln for ln in body.splitlines()
+        if not ln.lstrip().startswith("#") and not ln.startswith("```")
+    )
+    assert "find " not in code, f"the find idiom must not survive in the emitted resolver:\n{code}"
+    assert "head -1" not in code, f"the exit-code-masking pipeline must not survive:\n{code}"
+
+
+def test_skill_dir_block_searches_pi_and_opencode_roots():
+    """The whole point: the roots `yf` installs to must be searchable by the fallback."""
+    body = sync.emit_skill_dir_block("yf-plan")
+    for root in (".pi/agent/skills", ".config/opencode/skills", ".opencode/skills", ".pi/skills"):
+        assert root in body, f"the fallback must search {root}"

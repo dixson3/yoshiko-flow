@@ -239,8 +239,8 @@ def _index_html(settings, grouped, known):
         "<strong>utility</strong> and <strong>markdown</strong> helpers. User-invocable skills "
         "are triggered with <code>/yf-&lt;skill&gt;</code>; <code>auto</code> skills fire from "
         "their description conditions when relevant work appears. Install them all with "
-        "<code>yf skills install</code>, or one group with "
-        "<code>yf skills install --group &lt;workflows|beads|utility|markdown&gt;</code> (see "
+        "<code>yf harness skills install</code>, or one group with "
+        "<code>yf harness skills install --group &lt;workflows|beads|utility|markdown&gt;</code> (see "
         '<a href="/install/">install</a>). The <strong>Depends on</strong> column shows each '
         "skill's <code>depends-on-skill</code> — installing a skill or a group pulls its "
         "transitive dependency closure automatically, so <code>--group workflows</code> also "
