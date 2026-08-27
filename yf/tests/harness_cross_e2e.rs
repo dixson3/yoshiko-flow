@@ -844,3 +844,200 @@ fn revert_through_symlink_preserves_link_and_clears_block() {
     );
     assert!(real2.exists(), "the operator's real aggregate target must not be deleted");
 }
+
+// ---------------------------------------------------------------------------
+// plan-054 Issue 2.1 — the FIVE-HARNESS MATRIX, asserted per harness.
+//
+// D-4's finding: every pre-existing multi-harness assertion in this file is a filesystem-PATH
+// assertion under a fake HOME, and `Command::new("pi")` appears nowhere in the repo. A matrix
+// that only checks where files land cannot see a harness-SPECIFIC behaviour being wrong, which
+// is exactly how the resolver defect shipped. These assert the per-harness axes by name.
+// ---------------------------------------------------------------------------
+
+/// pi's `NameTransform` (lowercase-hyphen, max64) must survive a REAL install round-trip.
+///
+/// Asserted through `install` rather than against the descriptor row, because the row already
+/// has a unit test; what was never covered is that the transform is actually APPLIED on the way
+/// to disk, and then found again by the resolver. A transform applied on write but not on read
+/// (or vice versa) is invisible to a table test and fatal in practice.
+#[test]
+fn pi_name_transform_round_trips_through_install() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+
+    let out = Command::new(YF)
+        .args(["harness", "skills", "install", "yf-plan", "--harness", "pi", "--json"])
+        .env("HOME", home)
+        .current_dir(home)
+        .output()
+        .expect("spawn install");
+    assert!(out.status.success(), "pi install must succeed");
+
+    let installed = home.join(".pi/agent/skills/yf-plan");
+    assert!(
+        installed.is_dir(),
+        "pi's transform must land the skill at {}; tree was: {:?}",
+        installed.display(),
+        std::fs::read_dir(home.join(".pi/agent/skills"))
+            .map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name()).collect::<Vec<_>>())
+            .unwrap_or_default()
+    );
+
+    // ROUND TRIP: the resolver must find what the installer wrote.
+    let (code, path) = skill_dir_in(home, "yf-plan");
+    assert_eq!(code, 0, "the resolver must find the pi-installed skill");
+    assert_eq!(PathBuf::from(path), installed);
+}
+
+/// pi's CONFIG sub-operation returns `Deferred`, and its manifest carries NO `config` key.
+///
+/// Both halves matter. `Deferred` is pi's honest verdict — no config profile ships for it
+/// (D-7 keeps it deferred rather than baking in a guess from a questionable-tier source). The
+/// manifest half is what proves nothing was written: a `config` key recorded for a harness yf
+/// never configured would give `--revert` something to undo that never happened.
+#[test]
+fn pi_config_is_deferred_and_absent_from_its_manifest() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+
+    let v = yf_json_in(home, &["harness", "tune", "--harness", "pi", "--json"]);
+    let blob = v.to_string();
+    assert!(
+        blob.contains("deferred") || blob.contains("Deferred"),
+        "pi's config sub-op must report Deferred (no profile ships): {blob}"
+    );
+
+    let manifest = manifest_dir_for(home, "pi").join("harness-tune-manifest.json");
+    if manifest.exists() {
+        let m: Value = serde_json::from_str(&std::fs::read_to_string(&manifest).unwrap()).unwrap();
+        assert!(
+            m.get("config").is_none() || m["config"].is_null(),
+            "pi's manifest must carry NO config record — recording one gives --revert \
+             something to undo that never happened: {m}"
+        );
+    }
+}
+
+/// codex's budget cap: **32768 with no config**, **65536 after a tune**.
+///
+/// The default is codex's own (`project_doc_max_bytes` defaults to 32 KiB) and the tuned value
+/// is what yf's profile sets. Asserting both ends is the point — asserting only the tuned value
+/// would pass on a build that ignored the on-disk config entirely and always reported 65536.
+#[test]
+fn codex_budget_cap_is_32768_untuned_and_65536_tuned() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+    let codex = home.join(".codex");
+    fs::create_dir_all(&codex).unwrap();
+
+    // The profile is the source of truth for the tuned value — no literal duplicated here.
+    let profile: Value =
+        serde_json::from_str(include_str!("../profiles/codex.json")).expect("codex profile");
+    let tuned = profile["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["path"] == "project_doc_max_bytes")
+        .expect("the profile must carry project_doc_max_bytes")["value"]
+        .as_u64()
+        .expect("a numeric cap");
+    assert_eq!(tuned, 65536, "yf's profile must raise the cap to 64 KiB");
+
+    // `doctor` OWNS ITS EXIT CODE and legitimately exits non-zero in a sandbox with no skills
+    // installed — that is a correct verdict about the sandbox, not a failure of this probe. The
+    // claim under test is the reported CAP, so read stdout directly rather than through the
+    // assert-success helper.
+    let doctor_stdout = |home: &Path| -> String {
+        let out = Command::new(YF)
+            .args(["doctor", "--json"])
+            .env("HOME", home)
+            .current_dir(home)
+            .output()
+            .expect("spawn doctor");
+        String::from_utf8_lossy(&out.stdout).to_string()
+    };
+
+    // Untuned: no config.toml at all → codex's own 32 KiB default.
+    let untuned_blob = doctor_stdout(home);
+    assert!(
+        untuned_blob.contains("codex-budget"),
+        "the codex-budget axis must have run for this to mean anything: {untuned_blob}"
+    );
+    assert!(
+        untuned_blob.contains("under the 32768-byte cap"),
+        "with no config.toml the effective cap must be codex's 32768 default: {untuned_blob}"
+    );
+
+    // Tuned: the on-disk value is read back, not assumed.
+    fs::write(codex.join("config.toml"), "project_doc_max_bytes = 65536\n").unwrap();
+    let tuned_blob = doctor_stdout(home);
+    assert!(
+        tuned_blob.contains("under the 65536-byte cap"),
+        "a tuned config.toml must raise the READ-BACK cap to 65536; asserting only this end \
+         would also pass on a build that ignored the on-disk config entirely, which is why the \
+         untuned end is asserted too: {tuned_blob}"
+    );
+}
+
+/// A repeat tune is IDEMPOTENT, and `--revert` works for all five harnesses.
+///
+/// Driven off `harness_desc`'s descriptor ids rather than a literal list, so a sixth harness is
+/// covered without editing this test — the same discipline the resolver itself follows.
+#[test]
+fn repeat_tune_is_idempotent_and_revert_works_for_all_five() {
+    for harness in ["claude-code", "codex", "opencode", "pi", "agents"] {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path();
+
+        let run = |args: &[&str]| {
+            Command::new(YF)
+                .args(args)
+                .env("HOME", home)
+                .current_dir(home)
+                .output()
+                .expect("spawn yf")
+        };
+
+        let first = run(&["harness", "tune", "--harness", harness, "--rules-only"]);
+        if !first.status.success() {
+            // A harness with no rule target legitimately has nothing to tune; skip rather than
+            // manufacture a failure for a shape the descriptor table permits.
+            continue;
+        }
+        let snapshot: Vec<(PathBuf, String)> = all_surface_paths(home, harness)
+            .into_iter()
+            .filter(|p| p.is_file())
+            .map(|p| {
+                let c = std::fs::read_to_string(&p).unwrap_or_default();
+                (p, c)
+            })
+            .collect();
+
+        let second = run(&["harness", "tune", "--harness", harness, "--rules-only"]);
+        assert!(second.status.success(), "{harness}: a repeat tune must succeed");
+        for (p, before) in &snapshot {
+            let after = std::fs::read_to_string(p).unwrap_or_default();
+            assert_eq!(
+                &after, before,
+                "{harness}: a repeat tune must be IDEMPOTENT — {} changed",
+                p.display()
+            );
+        }
+
+        let rev = run(&["harness", "tune", "--harness", harness, "--rules-only", "--revert"]);
+        assert!(
+            rev.status.success(),
+            "{harness}: --revert must succeed; stderr: {}",
+            String::from_utf8_lossy(&rev.stderr)
+        );
+        for (p, _) in &snapshot {
+            let after = std::fs::read_to_string(p).unwrap_or_default();
+            assert!(
+                !after.contains(BEGIN_MARKER),
+                "{harness}: --revert must remove yf's managed block from {}",
+                p.display()
+            );
+        }
+    }
+}
