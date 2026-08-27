@@ -127,3 +127,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | Did the backgrounded check-harness-smoke.sh run, and was its output trustworthy? |
+| `answered` | I reported to the operator that it 'did not run'. WRONG on both counts. It DID start (transcript header timestamped 03:44:43Z), TRUNCATED the hand-recorded transcript - the script rewrites the file on every invocation - wrote a partial pi section, and was killed by the 600s timeout mid-run. I then COMMITTED the resulting 19-line stub at 3c8a966 without noticing, and the full transcript had never been committed, so the original was lost and had to be rewritten from the conversation. Two distinct failures: (a) a background job with a destructive first action, whose partial completion I did not check before committing; (b) reporting 'did not run' from the absence of a completion notification rather than from reading the artifact. The artifact was on disk the whole time and said otherwise. Also surfaced a real script defect: the transcript recorded 'resolved tree: <unresolved>' for every harness, because the script called bare  and the PATH copy is the PRE-RELEASE binary with no such subcommand - so SC35's entire point (name the tree) degraded to a placeholder that still satisfied nothing. Fixed to resolve with the tree-under-test's binary. REMEDY: the rewritten transcript carries an explicit provenance note stating it is hand-recorded and that the script truncates on each run, so the next reader is not misled about which is authoritative. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | check-deployed-tree.sh exit 1 with 'does not cover opencode'; wc -l on the transcript = 19; git log on the path shows 3c8a966 as its ONLY commit, so the full version was never committed; transcript header timestamp 2026-08-27T03:44:43Z proves the run started |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

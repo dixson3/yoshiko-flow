@@ -61,7 +61,14 @@ _smoke_one() {
   # WHICH TREE DID IT READ? SC35 requires the transcript to record this, because EXP-002
   # measured BOTH harnesses resolving to the claude-code copy while reporting success — a pass
   # that does not name the tree cannot be distinguished from that exact failure.
-  tree="$(yf skill-dir yf-plan 2>/dev/null || echo '<unresolved>')"
+  # RESOLVE WITH THE TREE-UNDER-TEST'S BINARY, not whatever `yf` happens to be on PATH.
+  # Measured: the PATH copy is the PRE-RELEASE binary with no `skill-dir` subcommand, so this
+  # recorded `<unresolved>` for every harness — turning SC35's whole point (name the tree) into
+  # a placeholder. A transcript that records `<unresolved>` satisfies nothing.
+  local yf_bin="${YF_TREE:-.}/target/debug/yf"
+  [ -x "${yf_bin}" ] || yf_bin="yf"
+  tree="$("${yf_bin}" skill-dir yf-plan 2>/dev/null || true)"
+  [ -n "${tree}" ] || tree="<unresolved>"
   _record ""
   _record "### ${h}"
   _record ""
