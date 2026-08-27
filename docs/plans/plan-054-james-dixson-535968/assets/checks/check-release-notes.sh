@@ -9,9 +9,15 @@ CHECK_NAME=check-release-notes
 TREE="$(ck_tree)" || ck_inconclusive "cannot resolve the tree under test"
 CL="${TREE}/CHANGELOG.md"
 [ -f "${CL}" ] || ck_inconclusive "no CHANGELOG.md at ${CL}"
+# THE HEADING CONVENTION IS `## v<semver>`, WITH THE `v`. Measured against the real
+# CHANGELOG.md, whose released sections read `## v0.4.0 — 2026-07-09`. An earlier pattern
+# here omitted the `v`, so it found no 0.5.0 section AT ALL and reported a failure about
+# the changelog that was really a defect in this check.
 CK_RC=0
 
-body="$(sed -n '/^## \[\?0\.5\.0/,/^## \[\?0\.4\.0/p' "${CL}")"
+# `\?` IS A GNU EXTENSION and this repo runs on BSD sed (macOS), where it matches a
+# LITERAL question mark — so the pattern silently found nothing. Use a portable BRE.
+body="$(sed -n '/^## .*0\.5\.0/,/^## .*0\.4\.0/p' "${CL}")"
 [ -n "${body}" ] || { ck_fail "no 0.5.0 section found in CHANGELOG.md"; exit "${CK_RC}"; }
 printf '%s' "${body}" | grep -qi 'pi' \
   && printf '%s' "${body}" | grep -qiE 'rules[^.]*skills|skills[^.]*rules' \
