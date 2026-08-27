@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-26 |
+| `stop_class` | 5 |
+| `asked` | §6.1.5 validate-merged FULL tier on the merged tree |
+| `answered` | FAIL on first run: clippy items-after-test-module in yf/src/cmd/harness/revert.rs — remove_rule_target had been APPENDED to the end of the file at Issue 2.2, placing it after mod tests. Invisible to every pre-merge check in this plan because cargo build and cargo test both accept it; only the FULL tier runs clippy with -D warnings. Fixed by moving the function above the test module; FULL then passed 51 commands, 0 failures, and the merge was committed. Recorded rather than silently repaired because it is evidence FOR the merge-back-first ordering plan-009 INV-4 introduced: a pre-merge validation would not have caught it either, but a post-merge one did, before anything was pushed. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | change_validation.py run --tier full --json -> status fail, first_failure cargo clippy --workspace --all-targets -- -D warnings, returncode 101; after the fix -> status pass, 51 commands |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
