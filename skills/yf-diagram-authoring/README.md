@@ -29,7 +29,34 @@ All skill-internal paths use the `${SKILL_DIR}/` prefix. Resolve it once, here:
 # skill: ..."), not as an environment variable. Under opencode that path is an INSTRUCTION TO
 # THE MODEL, not a scripted lookup — so this line cannot consume it, and whether the prose
 # steers the model is observable only in a live transcript.
-SKILL_DIR="${SKILL_DIR:-$(yf skill-dir yf-diagram-authoring 2>/dev/null)}"
+# INSTALL-TIME STAMP. Empty in the repo source; `yf harness skills install` rewrites this one
+# line in EACH DEPLOYED COPY with that copy's own destination root. So pi's copy names pi's
+# root, opencode's names opencode's, and neither needs the harness to cooperate.
+#
+# THIS IS WHAT CLOSES THE CROSS-TREE SKEW (#248). Measured live: pi loaded its prose from
+# ~/.pi/agent/skills/yf-plan while its scripts resolved to ~/.claude/skills/yf-plan, because the
+# resolver could only ask "where is this skill installed?" and got the highest-precedence answer
+# rather than "where is THE COPY YOU ARE READING?". Only the copy itself knows that, so the copy
+# is what carries it.
+#
+# The env-var route cannot close it: measured, opencode exports only OPENCODE and OPENCODE_PID —
+# no path signal of any kind — and pi exports PI_CODING_AGENT (a boolean). Waiting on a harness
+# to export SKILL_DIR would leave the skew open indefinitely.
+#
+# The line is HASH-INVISIBLE: `strip_marker` drops it before the tree hash, exactly as it drops
+# the integrity marker, so a stamped copy still verifies as unmodified against the embedded
+# source (REQ-YF-MARK-001).
+SKILL_DIR_INSTALLED_AT=""
+
+# Order is deliberate. An exported SKILL_DIR still wins, so a harness that DOES cooperate is
+# never overridden. The stamp comes next because it knows WHICH COPY is running, where
+# `yf skill-dir` knows only which copy has the highest precedence. The `-d` guard means a moved
+# or stale stamp degrades to the search below rather than breaking.
+SKILL_DIR="${SKILL_DIR:-}"
+if [ -z "$SKILL_DIR" ] && [ -n "$SKILL_DIR_INSTALLED_AT" ] && [ -d "$SKILL_DIR_INSTALLED_AT" ]; then
+  SKILL_DIR="$SKILL_DIR_INSTALLED_AT"
+fi
+[ -n "$SKILL_DIR" ] || SKILL_DIR="$(yf skill-dir yf-diagram-authoring 2>/dev/null)"
 
 # Fallback for a machine with no `yf` on PATH. A pure-bash existence loop, NOT `find`:
 # `find` exits 1 on a missing root EVEN WHEN IT FOUND THE TARGET, which `| head -1` hides

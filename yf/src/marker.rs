@@ -47,6 +47,17 @@ use crate::embed;
 /// The SKILL.md filename whose bytes are marker-stripped before hashing.
 const SKILL_MD: &str = "SKILL.md";
 
+/// Install-time destination stamp (plan-054 Issue 6.10, #248).
+///
+/// `yf harness skills install` rewrites this one line in each DEPLOYED `SKILL.md` with that
+/// copy's own destination root, so the copy pi loads names pi's root and the copy opencode
+/// loads names opencode's — closing the cross-tree skew with **no harness cooperation**.
+///
+/// It is stripped before hashing, exactly as the integrity marker is, so a stamped copy still
+/// verifies as unmodified against the embedded source (REQ-YF-MARK-001). That is the whole
+/// reason it is a single self-contained line with a fixed prefix.
+pub const STAMP_PREFIX: &str = "SKILL_DIR_INSTALLED_AT=";
+
 /// Marker line prefix; the full line is `<!-- yf-skills: v=… tree=… -->`.
 const MARKER_PREFIX: &str = "<!-- yf-skills:";
 
@@ -67,7 +78,7 @@ pub fn tree_hash(files: &[(String, Vec<u8>)]) -> String {
             // Marker-strip before hashing (REQ-YF-MARK-001). Non-UTF8 SKILL.md
             // is implausible; fall back to raw bytes rather than panic.
             match std::str::from_utf8(bytes) {
-                Ok(text) => hasher.update(strip_marker(text).as_bytes()),
+                Ok(text) => hasher.update(strip_for_hash(text).as_bytes()),
                 Err(_) => hasher.update(bytes),
             }
         } else {
@@ -223,6 +234,60 @@ pub fn strip_marker(skill_md: &str) -> String {
         if line.trim_start().starts_with(MARKER_PREFIX) {
             // Drop this whole line including its newline. A marker with no
             // trailing newline (file-final) is simply dropped.
+            continue;
+        }
+        out.push_str(segment);
+    }
+    out
+}
+
+/// Rewrite the install-time destination stamp in a deployed `SKILL.md` (#248).
+///
+/// Replaces the emitted `SKILL_DIR_INSTALLED_AT=""` slot with the copy's own destination root.
+/// A `SKILL.md` carrying no slot is returned unchanged — an older or hand-written skill simply
+/// does not get the benefit, rather than failing to install.
+///
+/// The path is embedded in double quotes. A destination containing a `"` or a `$` would break
+/// the surrounding bash, so such a path is left unstamped: the resolver then falls through to
+/// `yf skill-dir` and the search loop, which is exactly today's behaviour. Refusing to stamp is
+/// strictly better than emitting a line that breaks every script in the skill.
+pub fn stamp_install_dest(skill_md: &str, dest: &Path) -> String {
+    let dest_str = dest.to_string_lossy();
+    if dest_str.contains('"') || dest_str.contains('$') || dest_str.contains('\\') {
+        return skill_md.to_string();
+    }
+    let mut out = String::with_capacity(skill_md.len() + dest_str.len());
+    for segment in skill_md.split_inclusive('\n') {
+        let line = segment.strip_suffix('\n').unwrap_or(segment);
+        if line.trim_start().starts_with(STAMP_PREFIX) {
+            out.push_str(&format!("{STAMP_PREFIX}\"{dest_str}\""));
+            if segment.ends_with('\n') {
+                out.push('\n');
+            }
+            continue;
+        }
+        out.push_str(segment);
+    }
+    out
+}
+
+/// Strip everything the tree hash must ignore: the integrity marker **and** the install-time
+/// destination stamp (#248).
+///
+/// This is deliberately NOT `strip_marker`. `strip_marker` is also called by
+/// [`inject_marker`] to make marking idempotent, and dropping the stamp there **deletes the
+/// slot before it can be filled** — measured: the deployed copies came out carrying the
+/// `if [ -n "$SKILL_DIR_INSTALLED_AT" ]` guard with the assignment line gone entirely, which
+/// fails closed to the search loop and is indistinguishable from the feature not existing.
+///
+/// The two callers want different things: `inject_marker` wants *its own line* removed so it
+/// can rewrite it; the hash wants *every install-time difference* removed so a correctly
+/// installed copy still verifies as unmodified (REQ-YF-MARK-001).
+pub fn strip_for_hash(skill_md: &str) -> String {
+    let mut out = String::with_capacity(skill_md.len());
+    for segment in strip_marker(skill_md).split_inclusive('\n') {
+        let line = segment.strip_suffix('\n').unwrap_or(segment);
+        if line.trim_start().starts_with(STAMP_PREFIX) {
             continue;
         }
         out.push_str(segment);
@@ -439,5 +504,71 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    // REQ-YF-MARK-001 + #248: a STAMPED SKILL.md must hash IDENTICALLY to the unstamped source.
+    // Without this the install-time stamp would make every correctly-installed skill report as
+    // modified — the stamp has to be invisible to the hash or it is not shippable.
+    #[test]
+    fn stamped_skill_md_hashes_equal_to_unstamped() {
+        let src = format!("{FM_SKILL}\n{}\"\"\n# body\n", STAMP_PREFIX);
+        let stamped = stamp_install_dest(&src, Path::new("/tmp/some/dest/yf-demo"));
+        assert!(
+            stamped.contains("/tmp/some/dest/yf-demo"),
+            "the stamp must actually be written: {stamped}"
+        );
+        let a = tree_hash(&[(SKILL_MD.to_string(), src.into_bytes())]);
+        let b = tree_hash(&[(SKILL_MD.to_string(), stamped.into_bytes())]);
+        assert_eq!(
+            a, b,
+            "a stamped copy must hash equal to its unstamped source"
+        );
+    }
+
+    // #248: the stamp survives BOTH orderings, and that is a property worth pinning.
+    //
+    // It was NOT always true. While `strip_marker` also dropped the stamp, stamping first and
+    // marking second DELETED the slot — measured on a real install, where the deployed copies
+    // came out with the `if [ -n "$SKILL_DIR_INSTALLED_AT" ]` guard intact and the assignment
+    // line gone, failing closed to the search loop in a way indistinguishable from the feature
+    // not existing.
+    //
+    // Separating `strip_for_hash` from `strip_marker` fixed that at the root: `strip_marker`
+    // now removes only its own line, so neither ordering can clobber the other's. This test
+    // exists so a future change that re-merges the two strips fails HERE, loudly, instead of
+    // silently un-stamping every deployed skill again.
+    #[test]
+    fn the_stamp_survives_either_ordering_with_the_marker() {
+        let src = format!("{FM_SKILL}\n{}\"\"\n# body\n", STAMP_PREFIX);
+        let dest = Path::new("/tmp/dest/yf-demo");
+
+        let mark_then_stamp = stamp_install_dest(&inject_marker(&src, "0.5.0", "abc"), dest);
+        let stamp_then_mark = inject_marker(&stamp_install_dest(&src, dest), "0.5.0", "abc");
+
+        for (label, out) in [
+            ("mark-then-stamp", &mark_then_stamp),
+            ("stamp-then-mark", &stamp_then_mark),
+        ] {
+            assert!(
+                out.contains("/tmp/dest/yf-demo"),
+                "{label} lost the stamp: {out}"
+            );
+            assert!(
+                parse_marker(out).is_some(),
+                "{label} lost the marker: {out}"
+            );
+        }
+    }
+
+    // #248: an un-stampable destination is left UNSTAMPED rather than emitting a line that
+    // breaks every script in the skill. Falling through to the search loop is today's behaviour;
+    // a broken quote is a new, worse failure.
+    #[test]
+    fn a_destination_that_would_break_bash_is_not_stamped() {
+        let src = format!("{FM_SKILL}\n{}\"\"\n", STAMP_PREFIX);
+        for bad in ["/tmp/we\"ird/yf-demo", "/tmp/$HOME/yf-demo"] {
+            let out = stamp_install_dest(&src, Path::new(bad));
+            assert_eq!(out, src, "must refuse to stamp a bash-hostile path: {bad}");
+        }
     }
 }

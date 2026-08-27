@@ -136,8 +136,30 @@ pub fn deploy_skill(
         }
         if relpath == "SKILL.md" {
             let text = String::from_utf8_lossy(&bytes).into_owned();
+            // Stamp THIS copy's own destination root into its resolver (#248), then inject the
+            // integrity marker. Both lines are stripped before hashing, so the deployed copy
+            // still verifies as unmodified against the embedded source.
+            //
+            // The stamp is what closes the cross-tree skew: measured live, pi loaded its prose
+            // from ~/.pi/agent/skills/yf-plan while its scripts resolved to the .claude copy,
+            // because the resolver could only ask "where is this skill installed?" and got the
+            // highest-precedence answer — not "where is THE COPY YOU ARE READING?". Only the
+            // copy knows that, so the copy carries it. No harness cooperation required, which
+            // matters because opencode exports no path signal at all.
+            // Mark, then stamp. The ordering is no longer load-bearing — but it WAS, and the
+            // reason it stopped being so is the reason this reads the way it does.
+            //
+            // While `strip_marker` also dropped the stamp line, stamping first and marking
+            // second DELETED the slot: measured, the deployed copies came out with the
+            // `if [ -n "$SKILL_DIR_INSTALLED_AT" ]` guard intact and the assignment line gone,
+            // failing closed to the search loop in a way indistinguishable from the feature not
+            // existing. The fix was not to freeze an ordering but to separate the two strips —
+            // `strip_marker` removes only its own line, `strip_for_hash` removes everything the
+            // hash must ignore. `the_stamp_survives_either_ordering_with_the_marker` pins that.
             let marked = marker::inject_marker(&text, version, &tree);
-            std::fs::write(&dest, marked).with_context(|| format!("writing {}", dest.display()))?;
+            let stamped = marker::stamp_install_dest(&marked, &skill_root);
+            std::fs::write(&dest, stamped)
+                .with_context(|| format!("writing {}", dest.display()))?;
         } else {
             std::fs::write(&dest, bytes.as_ref())
                 .with_context(|| format!("writing {}", dest.display()))?;
