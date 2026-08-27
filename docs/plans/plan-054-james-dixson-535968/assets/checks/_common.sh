@@ -31,10 +31,25 @@ ck_tree() {
   here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   plan_dir="$(cd "${here}/../.." && pwd)"
   root="$(git -C "${plan_dir}" rev-parse --show-toplevel 2>/dev/null)" || return 1
-  # Prefer this plan's execution worktree when one exists — that is where the fixes land.
+  # Prefer this plan's execution worktree — but ONLY WHILE IT IS STILL THE TREE UNDER TEST.
+  #
+  # Before the merge-back, fixes land on the execute branch and the worktree is where they are.
+  # AFTER the merge-back (§6.5a) the primary carries the merged tree and the worktree is a
+  # MERGED MIRROR: its source is identical, but its `target/` still holds a build from whenever
+  # it was last compiled there. Measured: `check-stamp-agrees` read the worktree's stale binary
+  # and reported the version stamp as `4172196-dirty` against a HEAD of `d793465` — a failure
+  # that was purely an artefact of which address space it looked in.
+  #
+  # So the predicate is "is the worktree's branch still UNMERGED?", not "does the worktree
+  # exist?". Once merged, the primary is the tree under test.
   local plan_id; plan_id="$(basename "${plan_dir}")"
-  if [ -d "${root}/.worktrees/${plan_id}" ]; then printf '%s' "${root}/.worktrees/${plan_id}"
-  else printf '%s' "${root}"; fi
+  local wt="${root}/.worktrees/${plan_id}"
+  if [ -d "${wt}" ] \
+     && ! git -C "${root}" merge-base --is-ancestor "${plan_id}-execute" main 2>/dev/null; then
+    printf '%s' "${wt}"
+  else
+    printf '%s' "${root}"
+  fi
 }
 
 ck_plan_dir() { cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd; }
