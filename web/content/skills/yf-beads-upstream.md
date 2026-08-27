@@ -1,10 +1,10 @@
 yf beads are always local-only: the bead database is gitignored and never travels with
 the repo. `yf-beads-upstream` is how work outlives a single clone. It binds a beads
-workspace to an issue tracker — GitHub, GitLab, or Jira — and owns three operations:
-`init` to configure a backend, a **push step** that sends open and deferred beads
-upstream as a land-the-plane action, and **status/pull**, which treats the upstream
-tracker as the authoritative worklist. GitHub is fully implemented and dry-run-and-live
-tested; GitLab and Jira ship as config-only stubs sharing the same verb shape.
+workspace to an issue tracker and owns three operations: `init` to configure the
+backend, a **push step** that sends open and deferred beads upstream as a land-the-plane
+action, and **status/pull**, which treats the upstream tracker as the authoritative
+worklist. **GitHub is the only supported backend** — the GitLab and Jira config-only
+stubs were removed in plan-040.
 
 Invoke it when you set up upstream tracking, when you want to push beads to the tracker
 mid-session ("push open work to GitHub", "mirror this bead upstream"), or when you ask
@@ -22,7 +22,7 @@ push`.
 | :-------- | :------------ | :---------- |
 | `git push` | repo content — code, docs, the plan folder | the git remote (`origin`) |
 | `bd dolt push` | the Dolt DB itself (versioned bead replication) | a Dolt remote |
-| **this skill** (`bd <backend> push` / `hoist`) | selected beads, as tracker issues | the GitHub/GitLab/Jira issue tracker |
+| **this skill** (`upstream.py push` / `hoist`) | selected beads, as tracker issues | the GitHub issue tracker |
 
 The three are independent. A local-only repo holds no Dolt remote — a stray one wedges
 `bd` 1.1.0's remote-migrate gate. So "push these upstream" means this skill's `gh`-based
@@ -47,8 +47,9 @@ with "upstream tracking disabled" and exit 0. No enumeration, no prompt, no upst
 call. Configuring `init` writes the backend keys; declining writes an explicit `none`
 marker so the one-shot preflight offer stays silent forever.
 
-Auth is always passed inline and never persisted:
-`GITHUB_TOKEN=$(gh auth token) bd github …`.
+**The skill handles no auth token at all.** Writes are `gh`-direct, and `gh` owns its own
+credential store — so there is nothing to pass inline and nothing that could be persisted.
+Never write a token to config.
 
 ## The push step
 
@@ -57,11 +58,13 @@ discovered-but-not-done, follow-ups — upstream. Closed beads are never pushed.
 sequence is fixed:
 
 1. **Disabled short-circuit** — check `custom.upstream.enabled`; exit 0 if not `true`.
-2. **Auth pre-flight** — resolve the token before any push; fail fast if empty.
-3. **Enumerate candidates** — list open, blocked, and deferred beads not yet mapped.
-4. **Dry-run, then scoped push** — `bd github push <ids> --dry-run` to confirm the
-   intended beads, then the real push. After success, `bd` records the new issue URL on
-   each bead as a single `External:` line.
+2. **Enumerate candidates** — list open, blocked, and deferred beads not yet mapped.
+3. **Preview, then apply** — `upstream.py push --issues <csv>` renders the planned
+   create/update per issue **locally, with no network round-trip**; the absent `--apply`
+   *is* the dry run. Re-run with `--apply` to perform it.
+4. **The write is `gh`-direct** — `bd` reads bead content, **`gh` creates or edits the
+   issue**, and `bd update --external-ref` records the mapping. `bd` is read-only on the
+   write path.
 
 That `External:` mapping is what suppresses duplicate creation on re-push. A re-push of
 an already-mapped bead updates its existing issue in place rather than creating a
@@ -97,10 +100,22 @@ tracking is disabled it falls back to the local worklist — `bd ready`, then
 
 ## Safety invariants
 
-- **Never a bare `bd <backend> sync`.** A bare sync re-imports every upstream issue as
-  a duplicate bead and pushes the entire local DB upstream. Always `--push-only`,
-  scoped to `--issues` or `--parent`, and `--dry-run` first.
-- **Auth is inline-only** — never written to config.
+- **Route every upstream write through the skill — never hand-run the underlying
+  commands.** A raw `gh issue create` looks harmless, but it skips enumeration, the
+  create-vs-update decision, and the label policy, and it **records no `external_ref`** —
+  leaving an issue nothing can ever map back to a bead.
+- **No `bd <backend>` write command is issued at all** — not a bare `sync`, not a scoped
+  `push`. `bd` is read-only on the write path; `gh` performs every upstream mutation and
+  `bd update --external-ref` records it. (The prohibition originally guarded against
+  `bd <backend> sync`, which is *destructive* — a bare sync re-imports every upstream
+  issue as a duplicate bead. That mechanism is gone; the routing rule survives on the
+  weaker-but-still-real grounds above.)
+- **The skill handles no auth token at all** — `gh` owns its credential store, so there is
+  nothing to pass inline and nothing to persist.
+- **An exit 0 is not proof of a write.** Success is a returned issue URL on create and a
+  clean exit on edit — never a scraped success line. The old check parsed `Pushed N
+  issues`, which `--dry-run` also printed, so it fired when **nothing** was pushed. The
+  sequences are fail-closed: an unverified write halts before any destructive follow-on.
 - **Only `description` syncs** — `bd update --description` replaces rather than
   appends, and `bd show --json` returns a list, so read and verify before you write.
 - **Hoist removes reversibly** — `bd close -r`, never `bd delete`.

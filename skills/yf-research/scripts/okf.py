@@ -6,7 +6,7 @@
 """OKF engine — construct, manage, and conformance-check yf artifact bundles.
 
 `yf-okf`'s canonical engine (SPEC `skills/yf-okf/SPEC.md`, REQ-OKF-*). Makes yf
-artifact folders ("bundles") compatible with the Open Knowledge Format v0.1
+artifact folders ("bundles") compatible with the Open Knowledge Format v0.2
 (reserved `index.md` / `log.md`; a non-empty `type` on every non-reserved `.md`)
 and layers the yoshiko-flow extensions on top (a dual **frontmatter + `**Field:**`**
 field model, an `okf_spec:` member key, per-skill `OKF-EXTENSION.md` composition).

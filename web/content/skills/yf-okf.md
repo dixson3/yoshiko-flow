@@ -1,6 +1,6 @@
 `/yf-okf` is the engine behind the folders every stateful yf skill emits. A [yf-plan](/skills/yf-plan/) plan folder, a [yf-research](/skills/yf-research/) report directory, and a [yf-incubator](/skills/yf-incubator/) topic file are all **bundles** — self-contained artifact folders that follow one shared shape. `/yf-okf` constructs those bundles, manages them, and conformance-checks them against that shape. It is also the owner of the OKF-\* spec family: the versioned ruleset that says how each kind of yf artifact is structured and annotated.
 
-The shape it enforces makes yf artifacts **compatible with** the Open Knowledge Format (OKF v0.1). It is a producer and manager plus a conformance self-check — not a third-party OKF validator. The ecosystem already ships linters and MCP servers; the value here is a shared construction engine and an owned spec family, not another validator.
+The shape it enforces makes yf artifacts **compatible with** the Open Knowledge Format (OKF v0.2). It is a producer and manager plus a conformance self-check — not a third-party OKF validator. The ecosystem already ships linters and MCP servers; the value here is a shared construction engine and an owned spec family, not another validator.
 
 ## When it fires
 
