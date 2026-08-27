@@ -51,3 +51,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | Epic-3 milestone claimed 'All 5 Epic-3 controls red->green' |
+| `answered` | FALSE at the time it was asserted. ctl-203-exit-discipline had a record-red row but NO assert-distinguishes row: Issue 3.6's body carries the SC2b obligation to run it on completion, and the issue was closed without it. The FIX was correct (the fixture exits 0 against the worktree) — the missing artifact was the GREEN RECORD, so redcheck.sh verify-all exited 1 while the milestone reported green. Detected by the parent session running verify-all independently from the primary checkout; confirmed here by measurement (verify-all REAL EXIT = 1 before, 0 after). This is the plan's own thesis defect reproduced in my own reporting: an issue closed reporting success while its postcondition was unverified. Issue 0.8a exists to catch exactly this and is now unblocked, so it WOULD have caught it at completion — but a milestone asserted it four issues early, which is the actual error. Remedy applied: ran assert-distinguishes for ctl-203, then AUDITED ALL EIGHT controls for a zero-exit assert-distinguishes row (all 8 now present) rather than fixing only the one reported. Standing correction: a milestone that names a mechanical verb must quote that verb's MEASURED exit code, never a summary claim derived from having run the underlying fixture. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | bash assets/redcheck.sh verify-all -> exit 1 (stderr: FAIL — ctl-203-exit-discipline: no assert-distinguishes observation with a ZERO exit); after assert-distinguishes -> exit 0, 'all 8 control(s) distinguished RED from GREEN' |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
