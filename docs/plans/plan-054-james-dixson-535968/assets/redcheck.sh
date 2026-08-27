@@ -193,6 +193,22 @@ _run_fixture() {
   return 0
 }
 
+# _run_check — `_run_fixture` with ARGUMENT PASS-THROUGH, for parameterised instruments.
+# Kept separate rather than widening `_run_fixture`, whose two `ctl-` callers pass a fixture
+# and nothing else; widening a shared helper to serve a second population is what made
+# `record-red` reject `check-*.sh` in the first place.
+_run_check() {
+  local script="$1"; shift
+  FIXTURE_RC=""
+  if [ ! -f "${script}" ]; then
+    echo "redcheck: HARNESS FAILURE — check does not exist: ${script}" >&2
+    return 2
+  fi
+  bash "${script}" "$@" >&2
+  FIXTURE_RC="$?"
+  return 0
+}
+
 _append() {
   # _append <verb> <control> <fixture> <rc> <cmd>
   local verb="$1" control="$2" fixture="$3" rc="$4" cmd="$5"
@@ -276,7 +292,7 @@ cmd_record_red() {
 #   - the rc-check-BEFORE-`_append` ordering, because a record-time guard cannot un-write a
 #     record. Both refusals write nothing at all.
 cmd_record_red_check() {
-  local script="$1"
+  local script="$1"; shift
   local name; name="$(basename "${script}")"
   [ -d "${CHECKS_DIR}" ] || harness_fail "checks dir missing: ${CHECKS_DIR}"
   case "${name}" in
@@ -286,7 +302,12 @@ cmd_record_red_check() {
   [ -f "${CHECKS_DIR}/${name}" ] || harness_fail \
     "check '${name}' is not in ${CHECKS_DIR} — an instrument the gate cannot see"
 
-  _run_fixture "${CHECKS_DIR}/${name}" || return 2
+  # ARGUMENTS ARE PASSED THROUGH, and they have to be. A PARAMETERISED instrument measures
+  # nothing without its parameter: `check-cargo-test-ran.sh` takes the test name whose
+  # existence-and-green it asserts, and a no-argument run exits 2 (usage) — an INCONCLUSIVE,
+  # which this verb correctly refuses to bank. Without pass-through that check could never be
+  # recorded at all, so `verify-red-checks` would demand a record that was unobtainable.
+  _run_check "${CHECKS_DIR}/${name}" "$@" || return 2
   local rc="${FIXTURE_RC}"
 
   if [ "${rc}" -eq 0 ]; then
@@ -306,7 +327,7 @@ cmd_record_red_check() {
   fi
 
   _append "record-red-check" "${name}" "${CHECKS_DIR}/${name}" "${rc}" \
-    "YF_TREE=${YF_TREE} bash assets/checks/${name}"
+    "YF_TREE=${YF_TREE} bash assets/checks/${name}${*:+ $*}"
   echo "redcheck: RED observed — ${name} exited ${rc} against ${YF_TREE}"
   return 0
 }
@@ -553,8 +574,8 @@ case "${verb}" in
     [ "$#" -eq 1 ] || harness_fail "usage: redcheck.sh verify-red-all"
     cmd_verify_red_all ;;
   record-red-check)
-    [ "$#" -eq 2 ] || harness_fail "usage: redcheck.sh record-red-check <checks/check-*.sh>"
-    cmd_record_red_check "$2" ;;
+    [ "$#" -ge 2 ] || harness_fail "usage: redcheck.sh record-red-check <checks/check-*.sh> [args...]"
+    shift; cmd_record_red_check "$@" ;;
   verify-red-checks)
     [ "$#" -eq 1 ] || harness_fail "usage: redcheck.sh verify-red-checks"
     cmd_verify_red_checks ;;

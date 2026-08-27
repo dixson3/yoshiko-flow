@@ -10,3 +10,5 @@
 # is inconvenient that it passes.
 
 check-harness-smoke.sh  authored by Issue 2.5, which sits DOWNSTREAM of the RED gate, so no pre-fix observation of it can exist at the moment the gate is evaluated — it is structurally unbaselineable rather than exempted. Its red evidence is Issue 6.7's live transcript instead.
+
+check-req-coverage.sh  SC1 is discharged by Issues 0.2-0.5, and the RED gate deliberately does NOT block those (it blocks 1.1, 2.2, 2.4, 3.1-3.4, 3.6). Issue 0.1 depends on 0.7/0.8, so by the time the baseline can be recorded the SPEC amendments have already landed and the criterion legitimately holds. Structurally unbaselineable under the plan's own DAG, not exempted for convenience. Measured green on 2026-08-26 with all four SPEC assertions passing.
