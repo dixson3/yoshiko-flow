@@ -17,7 +17,11 @@ PRESET="${TMP}/preset-skill-dir"; mkdir -p "${PRESET}"
 # Extract the resolver block from a shipped SKILL.md and run it with SKILL_DIR pre-set.
 SRC="${TREE}/skills/yf-plan/SKILL.md"
 [ -f "${SRC}" ] || ck_inconclusive "no yf-plan SKILL.md at ${SRC}"
-block="$(awk '/^GIT_ROOT=/{f=1} f{print} f&&/^\[ -z "\$SKILL_DIR" \]/{exit}' "${SRC}")"
+# Extract by the REGION MARKERS. Keying on a `GIT_ROOT=` prefix was correct only for the old
+# hand-written block; the generated one opens with the `yf skill-dir` call, so a prefix-based
+# extraction silently produced an EMPTY block and the check reported INCONCLUSIVE forever.
+block="$(awk '/BEGIN SKILL_DIR resolver/{f=1;next} /END SKILL_DIR resolver/{f=0} f' "${SRC}" \
+          | sed -e '/^```/d')"
 [ -n "${block}" ] || ck_inconclusive "could not extract a resolver block from ${SRC}"
 
 got="$(SKILL_DIR="${PRESET}" bash -c "${block}"$'\n''printf "%s" "$SKILL_DIR"' 2>/dev/null)" || true

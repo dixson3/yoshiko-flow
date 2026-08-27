@@ -28,14 +28,14 @@ n=0; [ -n "${consumers}" ] && n="$(printf '%s\n' "${consumers}" | grep -c .)"
 gen=0
 while IFS= read -r f; do
   [ -n "${f}" ] || continue
-  grep -q 'GENERATED from' "${f}" && gen=$((gen + 1))
+  grep -q 'BEGIN SKILL_DIR resolver' "${f}" && gen=$((gen + 1))
 done <<< "${consumers}"
 
 if [ "${gen}" -ne "${n}" ]; then
   ck_fail "${gen} of ${n} SKILL_DIR consumers are generated — $(( n - gen )) are still hand-written"
   while IFS= read -r f; do
     [ -n "${f}" ] || continue
-    grep -q 'GENERATED from' "${f}" || printf '  %s\n' "${f#${TREE}/}" >&2
+    grep -q 'BEGIN SKILL_DIR resolver' "${f}" || printf '  %s\n' "${f#${TREE}/}" >&2
   done <<< "${consumers}"
 fi
 
@@ -49,7 +49,14 @@ victim="$(printf '%s\n' "${consumers}" | head -1)"
 if [ -n "${victim}" ] && [ "${gen}" -eq "${n}" ] && [ "${rc}" -eq 0 ]; then
   cp -Rf "${TREE}" "${SCRATCH}/tree" 2>/dev/null || ck_inconclusive "could not copy the tree for the mutation probe"
   vrel="${victim#${TREE}/}"
-  printf '\n# hand-edit injected by check-sync-emits-all\n' >> "${SCRATCH}/tree/${vrel}"
+  # THE EDIT MUST LAND INSIDE THE REGION. Appending at end-of-file proves nothing: the region
+  # is marker-fenced, so `sync.py --check` compares only the marked interior and an append
+  # outside it is correctly ignored. An earlier draft appended at EOF and concluded the check
+  # "cannot detect drift", which was a defect in the PROBE, not in sync.py.
+  awk '
+    /BEGIN SKILL_DIR resolver/ { print; print "# hand-edit injected by check-sync-emits-all"; next }
+    { print }
+  ' "${SCRATCH}/tree/${vrel}" > "${SCRATCH}/mutated" && mv -f "${SCRATCH}/mutated" "${SCRATCH}/tree/${vrel}"
   if (cd "${SCRATCH}/tree" && env -u VIRTUAL_ENV uv run _shared/sync.py --check >/dev/null 2>&1); then
     ck_fail "a hand-edit to ${vrel} did NOT fail sync.py --check — the check cannot detect drift it is supposed to catch"
   fi
