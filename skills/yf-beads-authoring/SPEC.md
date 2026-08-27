@@ -26,10 +26,14 @@ parsing (`yf-beads-extra`); general skill layout/token rules (`yf-skill-authorin
 
 ### 2.1 Structure & self-location (see `spec/structure.md`)
 
-- **REQ-BAUTH-001** *(testable)* a beads-backed skill shall resolve its own directory at runtime
-  via the `SKILL_DIR` find idiom that includes the real `.agents/skills` path (not only the
-  symlinked `.claude/skills`), because BSD `find` does not follow a symlinked start path; all
-  skill-internal paths use the `${SKILL_DIR}/` prefix. (`spec/structure.md` REQ-STRUCT-001.)
+- **REQ-BAUTH-001** *(testable, amended plan-054)* a beads-backed skill shall resolve its own
+  directory at runtime via **`yf skill-dir <name>`**, falling back to a **pure-bash existence
+  loop** over a cwd-inclusive superset of yf's anchors covering **all five** harness
+  destinations; all skill-internal paths use the `${SKILL_DIR}/` prefix. The block shall be
+  **generated** by `_shared/sync.py`, not hand-copied, and shall honour a pre-set `SKILL_DIR`.
+  The superseded `find` idiom is forbidden: it omitted the pi and opencode destinations `yf`
+  installs to, and it exits 1 on a missing root even when it found the target.
+  (`spec/structure.md` REQ-STRUCT-001.)
 - **REQ-BAUTH-002** formulas (`formulas/*.formula.toml`) shall define *what work exists and how it
   connects* (the DAG); agent files (`agents/*.md`) shall define *how to execute* a step; the two
   are not conflated. (REQ-STRUCT-002.)
@@ -40,10 +44,11 @@ parsing (`yf-beads-extra`); general skill layout/token rules (`yf-skill-authorin
 
 ### 2.2 Formula authoring (see `spec/formulas.md`)
 
-- **REQ-BAUTH-010** *(testable)* a `.formula.toml` shall be bundled with its consumer skill
-  (`<skill>/formulas/`), staged transiently into `.beads/formulas/` only during pour, then removed
-  — keeping the source of truth in the skill while satisfying `bd`'s fixed formula search path.
-  (REQ-STRUCT-003.)
+- **REQ-BAUTH-010** *(testable, amended plan-027, recorded plan-054)* a `.formula.toml` shall be
+  bundled with its consumer skill (`<skill>/formulas/`), and **`yf preflight` shall stage it** into
+  the project's gitignored `.beads/formulas/` on every preflight (`REQ-YF-PRE-011`). A SKILL body
+  shall **not** hand-stage: a per-call `cp`/`rm` bracket around a pour is drift, and the
+  `e-formula-name` edge FAILs on it. (REQ-STRUCT-003.)
 - **REQ-BAUTH-011** *(testable)* a `type = "gate"` step shall be treated as pouring to **two**
   beads, both surfaced in `id_mapping`: `<formula>.<step-id>` (a `task` wrapper, `Begin: …`, the
   key downstream `needs`/`--deps` reference) and `<formula>.gate-<step-id>` (the actual `gate`, the

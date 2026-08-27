@@ -291,6 +291,16 @@ skill — that keeps `--group utility` provably beads-free. (`workflows` deliber
 
 ## Skills
 
+Per-skill **Usage** lines below use `${SKILL_DIR}` — the skill's installed directory. Resolve it
+with the binary, which searches every harness destination `yf` installs to:
+
+```bash
+SKILL_DIR="$(yf skill-dir yf-markdown-pdf)"    # or whichever skill you are invoking
+```
+
+They are written this way rather than as a literal `.claude/skills/…` path because that path is
+**one harness out of five** — it is wrong on pi and opencode, and wrong in project scope.
+
 | Skill | Invocable | Description |
 |:------|:----------|:------------|
 | [yf-plan](skills/yf-plan/README.md) | `/yf-plan` | Structured planning with beads-tracked execution and upstream issue reconciliation |
@@ -441,7 +451,7 @@ See [skills/yf-markdown-lint/README.md](skills/yf-markdown-lint/README.md).
 
 Render a `.md` file to PDF via the pandoc + xelatex pipeline (`scripts/md2pdf.py`, PEP 723 + argparse): xelatex engine, a broad-coverage Unicode main font (so glyphs like →, ≤, ≈ render), 1in margins, blue links, and relative image paths resolved against the source file's directory. PDF-specific table levers — `--table-font` shrink, dash-width column tuning, and a `--landscape-cols` Lua filter that rotates wide tables — handle the usual wide-table pain points. Triggers on `/yf-markdown-pdf` or intent like "export this report to PDF". `skill-group: markdown`; needs `pandoc` + `xelatex` on PATH (`depends-on-tool: [uv, pandoc, xelatex]`).
 
-**Usage:** `uv run .claude/skills/yf-markdown-pdf/scripts/md2pdf.py <input.md> [-o OUT.pdf]`.
+**Usage:** `uv run ${SKILL_DIR}/scripts/md2pdf.py <input.md> [-o OUT.pdf]`.
 
 See [skills/yf-markdown-pdf/README.md](skills/yf-markdown-pdf/README.md).
 
@@ -449,7 +459,7 @@ See [skills/yf-markdown-pdf/README.md](skills/yf-markdown-pdf/README.md).
 
 Render a `.md` file to a single, self-contained HTML file via pandoc (`scripts/md2html.py`, PEP 723 + argparse): a standalone document with all resources embedded (images, CSS, fonts), a broad-coverage default stylesheet, relative image paths (`![](diagrams/x.png)`) resolved against the source file's directory, self-contained math (MathML, no CDN), and opt-in CriticMarkup rendering. No `xelatex` needed — that is `yf-markdown-pdf`. Triggers on `/yf-markdown-html` or intent like "export this report to HTML". `skill-group: markdown`; needs `pandoc` on PATH (`depends-on-tool: [uv, pandoc]`).
 
-**Usage:** `uv run .claude/skills/yf-markdown-html/scripts/md2html.py <input.md> [-o OUT.html]`.
+**Usage:** `uv run ${SKILL_DIR}/scripts/md2html.py <input.md> [-o OUT.html]`.
 
 See [skills/yf-markdown-html/README.md](skills/yf-markdown-html/README.md).
 
@@ -457,7 +467,7 @@ See [skills/yf-markdown-html/README.md](skills/yf-markdown-html/README.md).
 
 The autofix side of `yf-markdown-lint` — rewrites Markdown in place to conform to plain GFM along the axes the linter flags. Owns two transforms: strict GFM **table alignment** (`scripts/md_table_align.py` — `--check` gate / `--write` idempotent autofix / bare stdout) and Obsidian → GFM **wiki-link migration** (`scripts/convert_wikilinks.py`, a one-time `[[…]]` → GFM migration tool with dry-run / in-place modes). Opt-in per repo — never an always-on autofix. Triggers on `/yf-markdown-format` or intent like "align these GFM tables" / "convert wiki-links to GFM". `skill-group: markdown`, beads-free and stdlib-only (`depends-on-tool: [uv]`).
 
-**Usage:** `uv run .claude/skills/yf-markdown-format/scripts/md_table_align.py <input.md> --write`.
+**Usage:** `uv run ${SKILL_DIR}/scripts/md_table_align.py <input.md> --write`.
 
 See [skills/yf-markdown-format/README.md](skills/yf-markdown-format/README.md).
 

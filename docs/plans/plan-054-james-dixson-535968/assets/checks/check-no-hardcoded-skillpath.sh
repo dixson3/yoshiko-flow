@@ -17,8 +17,18 @@ CK_RC=0
 # ship is not the defect SC6 is about. The measured instance is yf-incubator's guarded
 # `obsidian-lint` step, which carries the marker and an explicit "skip when absent" condition.
 # A check that ignored the spec's own opt-out would be demanding a change the spec forbids.
+# THE SCOPE IS EVERY INSTRUCTION SURFACE A READER MAY COPY FROM — including the PROJECT README,
+# which the original wording omitted (plan-054, widened after the drift sweep).
+#
+# That omission was not cosmetic. The project `README.md` carried THREE `uv run
+# .claude/skills/yf-markdown-*/scripts/…` invocations — a real functional bug for pi and opencode
+# users, since `.claude/skills` is one harness destination out of five — and they sat OUTSIDE the
+# criterion written to prevent exactly that class. An ENUMERATED scope ("SKILL.md or skill
+# README.md") was wrong where a DERIVED one ("every instruction surface") would have been right.
 raw="$(grep -rnE '(uv run|bash|python3?)[[:space:]]+\.?(claude|agents)/skills/' \
           "${TREE}/skills" --include='SKILL.md' --include='README.md' 2>/dev/null || true)"
+raw="${raw}$(grep -nE '(uv run|bash|python3?)[[:space:]]+\.?(claude|agents)/skills/' \
+          "${TREE}/README.md" 2>/dev/null | sed "s|^|${TREE}/README.md:|" || true)"
 hits=""
 while IFS= read -r line; do
   [ -n "${line}" ] || continue

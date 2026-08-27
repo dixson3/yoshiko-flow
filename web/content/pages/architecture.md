@@ -80,7 +80,7 @@ so they never drift from what ships.
 
 Each skill installs **with its companion rules** (`protocols/*.md`), copied into the sibling
 `rules/` surface so the always-loaded trigger contracts are in context. On install, `yf`
-injects a single integrity marker into the deployed `SKILL.md`; `yf skills status` and
+injects a single integrity marker into the deployed `SKILL.md`; `yf harness skills status` and
 `yf doctor` compare that marker's tree hash against the embedded source to report
 `up-to-date` / `modified` / `outdated`.
 

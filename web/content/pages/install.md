@@ -45,8 +45,8 @@ for `yf-markdown-pdf`.
 
 ## Keeping `yf` up to date
 
-`yf` manages its **own** binary (distinct from `yf skills upgrade`, which manages the embedded
-skills):
+`yf` manages its **own** binary (distinct from `yf harness skills upgrade`, which manages the
+embedded skills):
 
 ```bash
 yf self update            # check GitHub Releases + swap the binary in place (vendor installs)

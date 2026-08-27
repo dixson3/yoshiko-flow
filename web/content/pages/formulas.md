@@ -8,7 +8,7 @@ child steps, the gates, and the dependency edges between them — as a versioned
 is tracked until the formula is **poured**: `bd mol pour` instantiates it into a concrete tree of
 [beads](/beads-concepts/) with real, claimable ids. A formula is one of the core building blocks
 of a yf skill, alongside [skills](/architecture/) themselves, [plan states and phases](/lifecycle/),
-[agents](/workflows/), and beads. This page defines the concept, documents the three shipped
+[agents](/workflows/), and beads. This page defines the concept, documents the five shipped
 formulas, and explains why a skill declares a formula instead of hand-creating beads.
 
 ## What a formula is

@@ -89,3 +89,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | Parent verification instructed: 'DO NOT amend REQ-PORT-001/REQ-STRUCT-001/REQ-BAUTH-001 — amending them would write a false statement INTO the fixed-authority surface. There is NOTHING to amend.' |
+| `answered` | THE VERIFICATION ITSELF WAS THE DEFECT, and complying would have shipped a genuine SPEC-first violation. Re-measured before acting: REQ ids are PER-SKILL NAMESPACED, so REQ-PORT-001 and REQ-STRUCT-001 EACH EXIST TWICE. The parent measured yf-plan/spec/portability.md:19 (index.md listing) and yf-optimal-instructions/spec/structure.md:6 (AGENTS.md primary); the ones under amendment were yf-research/spec/portability.md:6 and yf-beads-authoring/spec/structure.md:8. REQ-BAUTH-001, claimed not to exist, is at yf-beads-authoring/SPEC.md:29. The refuting grep returned no matches and I REPRODUCED that exactly — but it searched for the SHELL LITERAL while all three specs pin the idiom in PROSE ('the SKILL_DIR find idiom'), so the pattern could not match. Parent re-measured and withdrew the call in full. THE GENERAL LESSON: a verification that returns a clean negative is indistinguishable from an instrument that cannot see the thing. Reproducing the parent's own command and getting their result, THEN asking what that command could not match, is what separated the two. Compliance would have been the failure mode here, not the safe choice. |
+| `frontloadable` | no |
+| `detected_by` | self-report |
+| `evidence` | git show HEAD:skills/yf-research/spec/portability.md | grep -n REQ-PORT-001 -> line 6, 'SKILL_DIR resolves via find over the root list ~/.claude/skills ...'; enumeration over git ls-files 'skills/*/spec/*.md' 'skills/*/SPEC.md' shows 5 distinct REQ-(PORT|STRUCT|BAUTH)-001 definitions across 5 files; parent's pattern 'find ~/\.claude/skills|SKILL_DIR=\$\(find' -> 0 matches (reproduced); 'SKILL_DIR.{0,40}find|find idiom' -> 3 matches |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-26 |
+| `stop_class` |  |
+| `asked` | Recurring class across this plan: when is an ENUMERATED set wrong where a DERIVED one would be right? |
+| `answered` | SIX measured instances in one plan, which is why it is recorded as a class rather than six bugs. (1) Issue 1.5's hardcoded-path count was wrong twice before being derived (14, then 16; measured 32 across 8 files). (2) Issue 5.3's file set was 7, not the 4 drafted — the three extras included a GENERATOR and a diagram SOURCE. (3) check-glossary-terms carried an INVENTED ten-term list while asserting it was the measurement; the real ten came from EXP-005's table. (4) check-bd-dep-types carried a hardcoded type vocabulary, making it vacuous by construction — a doc naming a type outside the list was invisible to it. (5) SC6 ENUMERATED its scope as 'SKILL.md or skill README.md', so three hardcoded .claude/skills paths in the PROJECT README — a real functional bug for pi/opencode users — sat outside the criterion written to prevent exactly that. (6) The parent's refuting grep: A GREP PATTERN IS ITSELF AN ENUMERATION OF THE FORMS YOU EXPECT. It enumerated the shell-literal form and could not see the prose form, and it enumerated one REQ-id spelling ('^REQ-X-001:') where the repo also uses a bullet-bold form. The sixth is the sharpest because the instrument looked like a measurement rather than a list. REMEDY APPLIED: SC6's wording and its check widened to every instruction surface a reader may copy from, with a mutation test proving the widened check fails on a planted violation. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | SC6 pre-widening matched 0 of the 3 project-README sites; post-widening it matched them and a planted violation drove it to exit 1, restored to 0. Parent's own re-measurement confirmed instances (6): grep -rh -A4 without filenames, ^REQ-X-001: line-anchored colon form, and the shell-literal search. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
