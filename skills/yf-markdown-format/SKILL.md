@@ -36,10 +36,23 @@ All skill-internal paths use the `${SKILL_DIR}/` prefix. Resolve it once, here:
 ```bash
 # Resolve this skill's installed directory across EVERY harness `yf` installs to.
 #
-# `yf skill-dir` is the authority: it reads the same descriptor table `yf` installs with, so a
-# sixth harness needs no edit here. Its exit contract is three-valued (0 resolved / 1 not
-# installed / 2 could not look), and `2>/dev/null` discards only its diagnostics.
-SKILL_DIR="$(yf skill-dir yf-markdown-format 2>/dev/null)"
+# ENV-VAR FIRST. If the harness already exported SKILL_DIR, THAT WINS and nothing below runs.
+# This is the fix for the CROSS-TREE SKEW EXP-002 measured: a harness that knows where it
+# loaded this skill from can say so, and a resolver that overwrote the answer it was handed
+# would go on reading prose from one tree and scripts from another. `${SKILL_DIR:-...}`
+# substitutes the fallback only when the variable is unset OR empty.
+#
+# `yf skill-dir` is the authority when no harness supplied one: it reads the same descriptor
+# table `yf` installs with, so a sixth harness needs no edit here. Its exit contract is
+# three-valued (0 resolved / 1 not installed / 2 could not look), and `2>/dev/null` discards
+# only its diagnostics.
+#
+# KNOWN ASYMMETRY, recorded rather than papered over: pi tracks a per-skill `baseDir`, but
+# OPENCODE SUPPLIES ITS BASE DIRECTORY AS PROSE IN THE SYSTEM PROMPT ("Base directory for this
+# skill: ..."), not as an environment variable. Under opencode that path is an INSTRUCTION TO
+# THE MODEL, not a scripted lookup — so this line cannot consume it, and whether the prose
+# steers the model is observable only in a live transcript.
+SKILL_DIR="${SKILL_DIR:-$(yf skill-dir yf-markdown-format 2>/dev/null)}"
 
 # Fallback for a machine with no `yf` on PATH. A pure-bash existence loop, NOT `find`:
 # `find` exits 1 on a missing root EVEN WHEN IT FOUND THE TARGET, which `| head -1` hides

@@ -19,6 +19,10 @@ user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, gh]
 depends-on-skill: [yf-beads-extra]
+# allowed-tools is CLAUDE-CODE-ONLY and is NOT a cross-harness scoping mechanism
+# (REQ-YF-EMBED-006). Measured: zero occurrences in the pi or opencode bundle formats,
+# so under every harness but claude-code this list constrains NOTHING. Do not rely on it
+# for a portability, safety, or scoping guarantee — use a harness-independent mechanism.
 allowed-tools:
   - Read
   - Bash
@@ -50,10 +54,23 @@ on (defensive `--json` parsing, issue-type semantics) see `yf-beads-extra`.
 ```bash
 # Resolve this skill's installed directory across EVERY harness `yf` installs to.
 #
-# `yf skill-dir` is the authority: it reads the same descriptor table `yf` installs with, so a
-# sixth harness needs no edit here. Its exit contract is three-valued (0 resolved / 1 not
-# installed / 2 could not look), and `2>/dev/null` discards only its diagnostics.
-SKILL_DIR="$(yf skill-dir yf-beads-upstream 2>/dev/null)"
+# ENV-VAR FIRST. If the harness already exported SKILL_DIR, THAT WINS and nothing below runs.
+# This is the fix for the CROSS-TREE SKEW EXP-002 measured: a harness that knows where it
+# loaded this skill from can say so, and a resolver that overwrote the answer it was handed
+# would go on reading prose from one tree and scripts from another. `${SKILL_DIR:-...}`
+# substitutes the fallback only when the variable is unset OR empty.
+#
+# `yf skill-dir` is the authority when no harness supplied one: it reads the same descriptor
+# table `yf` installs with, so a sixth harness needs no edit here. Its exit contract is
+# three-valued (0 resolved / 1 not installed / 2 could not look), and `2>/dev/null` discards
+# only its diagnostics.
+#
+# KNOWN ASYMMETRY, recorded rather than papered over: pi tracks a per-skill `baseDir`, but
+# OPENCODE SUPPLIES ITS BASE DIRECTORY AS PROSE IN THE SYSTEM PROMPT ("Base directory for this
+# skill: ..."), not as an environment variable. Under opencode that path is an INSTRUCTION TO
+# THE MODEL, not a scripted lookup — so this line cannot consume it, and whether the prose
+# steers the model is observable only in a live transcript.
+SKILL_DIR="${SKILL_DIR:-$(yf skill-dir yf-beads-upstream 2>/dev/null)}"
 
 # Fallback for a machine with no `yf` on PATH. A pure-bash existence loop, NOT `find`:
 # `find` exits 1 on a missing root EVEN WHEN IT FOUND THE TARGET, which `| head -1` hides

@@ -605,3 +605,136 @@ fn prune_fans_out_to_both_destinations_of_a_two_harness_install() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// plan-054 Issue 1.6 — SKILL_DIR resolution under ISOLATED harness roots.
+//
+// D-4's whole point: every pre-existing multi-harness assertion in this file is a
+// filesystem-PATH assertion, and `Command::new("pi")` appears nowhere in the repo. That gap
+// is exactly what let the resolver defect ship — `yf` installed to `~/.pi/agent/skills` and
+// `~/.config/opencode/skills` while the embedded `SKILL_DIR` idiom searched neither.
+//
+// The isolation is the test. Against a normal HOME all three arms pass by ACCIDENT, because
+// `~/.claude/skills` exists and answers; that accidental green IS the live defect (EXP-002
+// measured both pi and opencode resolving to the claude-code copy, so a skill's prose and its
+// scripts came from different trees, with the install reporting success either way).
+// ---------------------------------------------------------------------------
+
+/// Seed `<home>/<root>/<skill>` and return it.
+fn seed_skill(home: &Path, root: &str, skill: &str) -> PathBuf {
+    let d = home.join(root).join(skill);
+    std::fs::create_dir_all(&d).unwrap();
+    std::fs::write(d.join("SKILL.md"), "---\nname: probe\n---\n").unwrap();
+    d
+}
+
+/// Run `yf skill-dir <skill>` under a sandboxed HOME, returning (exit code, trimmed stdout).
+fn skill_dir_in(home: &Path, skill: &str) -> (i32, String) {
+    let out = Command::new(YF)
+        .args(["skill-dir", skill])
+        .env("HOME", home)
+        .current_dir(home)
+        .output()
+        .expect("spawn yf skill-dir");
+    (
+        out.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&out.stdout).trim().to_string(),
+    )
+}
+
+// REQ-YF-CLI-005: a HOME containing ONLY the pi root resolves. On a pi-only machine the old
+// idiom died at `ERROR: <skill> directory not found` for every script-backed skill.
+#[test]
+fn skill_dir_resolves_under_a_pi_only_home() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+    let want = seed_skill(home, ".pi/agent/skills", "yf-plan");
+    assert!(!home.join(".claude/skills").exists(), "sandbox must be pi-ONLY");
+
+    let (code, path) = skill_dir_in(home, "yf-plan");
+    assert_eq!(code, 0, "must resolve under a pi-only HOME");
+    assert_eq!(PathBuf::from(&path), want, "must resolve to the pi destination");
+}
+
+// REQ-YF-CLI-005: the same for an opencode-only HOME. Asserted separately rather than folded
+// into the pi arm, because the two roots differ (`.config/opencode/skills` vs
+// `.pi/agent/skills`) and pi additionally applies a NameTransform — a single arm covering both
+// would pass while one of them was broken.
+#[test]
+fn skill_dir_resolves_under_an_opencode_only_home() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+    let want = seed_skill(home, ".config/opencode/skills", "yf-plan");
+    assert!(!home.join(".claude/skills").exists(), "sandbox must be opencode-ONLY");
+
+    let (code, path) = skill_dir_in(home, "yf-plan");
+    assert_eq!(code, 0, "must resolve under an opencode-only HOME");
+    assert_eq!(PathBuf::from(&path), want, "must resolve to the opencode destination");
+}
+
+// SC4b CONTAINMENT: with `yf` ABSENT FROM PATH, the emitted bash fallback resolves the SAME
+// directory. This is the arm that matters on a machine that has the skills but not the binary,
+// and it is why the fallback is a pure-bash existence loop rather than `find` — `find` exits 1
+// on a missing root even when it found the target, which `| head -1` hides today and the
+// `set -o pipefail` #203 proposes would expose.
+//
+// Stated as containment, not equality: the fallback also searches cwd-relative roots `yf` does
+// not, so equality would be false by construction.
+#[test]
+fn bash_fallback_resolves_the_same_dir_with_yf_absent_from_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+    let want = seed_skill(home, ".pi/agent/skills", "yf-plan");
+
+    let (code, via_yf) = skill_dir_in(home, "yf-plan");
+    assert_eq!(code, 0);
+    assert_eq!(PathBuf::from(&via_yf), want);
+
+    // The fallback, verbatim from the generated block, with `yf` unavailable: PATH is emptied,
+    // so the `$(yf skill-dir ...)` substitution yields nothing and the loop must answer.
+    let script = r#"
+SKILL_DIR="${SKILL_DIR:-$(yf skill-dir yf-plan 2>/dev/null)}"
+if [ -z "$SKILL_DIR" ]; then
+  GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
+  for _root in \
+    "$HOME/.claude/skills" "$HOME/.agents/skills" \
+    "$HOME/.config/opencode/skills" "$HOME/.pi/agent/skills" \
+    "$GIT_ROOT/.claude/skills" "$GIT_ROOT/.agents/skills" \
+    "$GIT_ROOT/.opencode/skills" "$GIT_ROOT/.pi/skills" \
+    ".claude/skills" ".agents/skills" ".opencode/skills" ".pi/skills"
+  do
+    if [ -d "$_root/yf-plan" ]; then SKILL_DIR="$_root/yf-plan"; break; fi
+  done
+  unset _root
+fi
+printf '%s' "$SKILL_DIR"
+"#;
+    // PATH points at an EMPTY directory rather than being unset/blank: `yf` must be
+    // unreachable, but a blank PATH also makes `bash` itself unfindable, so the spawn fails
+    // before the fallback ever runs — a green-looking harness error, not a measurement. The
+    // interpreter is therefore named absolutely.
+    let empty_bin = tmp.path().join("empty-bin");
+    std::fs::create_dir_all(&empty_bin).unwrap();
+    let out = Command::new("/bin/bash")
+        .arg("-c")
+        .arg(script)
+        .env("HOME", home)
+        .env("PATH", &empty_bin)    // `yf` is unreachable: the fallback must carry the load
+        .env_remove("SKILL_DIR")
+        .current_dir(home)
+        .output()
+        .expect("spawn bash fallback");
+    assert!(
+        String::from_utf8_lossy(&out.stderr).find("yf: command not found").is_some()
+            || out.status.success(),
+        "the probe must actually have run with `yf` unavailable; stderr was: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let via_fallback = String::from_utf8_lossy(&out.stdout).trim().to_string();
+
+    assert_eq!(
+        PathBuf::from(&via_fallback),
+        want,
+        "the bash fallback must resolve the same directory `yf skill-dir` does"
+    );
+}
