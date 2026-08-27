@@ -487,11 +487,14 @@ mod tests {
 
         std::fs::write(surface.join("opencode.jsonc"), "{}").unwrap();
         let shadows = shadowing_layers_at(&p, TuneScope::User, home, home);
-        assert_eq!(shadows.len(), 1, "the .jsonc layer must be reported as shadowing");
+        assert_eq!(
+            shadows.len(),
+            1,
+            "the .jsonc layer must be reported as shadowing"
+        );
         assert!(
             shadows[0].ends_with("opencode.jsonc"),
             "the shadowing layer must be NAMED, not merely counted: {shadows:?}"
         );
     }
-
 }

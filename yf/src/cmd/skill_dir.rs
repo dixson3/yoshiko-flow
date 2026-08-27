@@ -74,7 +74,11 @@ pub fn candidates(name: &str, anchors: &[(Scope, PathBuf)]) -> Vec<Candidate> {
                 continue;
             }
             seen.push(dir.clone());
-            out.push(Candidate { path: dir, harness: d.id, scope: *scope });
+            out.push(Candidate {
+                path: dir,
+                harness: d.id,
+                scope: *scope,
+            });
         }
     }
     out
@@ -247,12 +251,19 @@ mod tests {
         let c = candidates("yf-plan", &anchors);
         let shared = home.join(".agents/skills").join("yf-plan");
         let n = c.iter().filter(|c| c.path == shared).count();
-        assert_eq!(n, 1, "the shared codex/agents path must appear exactly once");
+        assert_eq!(
+            n, 1,
+            "the shared codex/agents path must appear exactly once"
+        );
         let mut paths: Vec<_> = c.iter().map(|c| c.path.clone()).collect();
         let before = paths.len();
         paths.sort();
         paths.dedup();
-        assert_eq!(before, paths.len(), "no candidate path may be enumerated twice");
+        assert_eq!(
+            before,
+            paths.len(),
+            "no candidate path may be enumerated twice"
+        );
     }
 
     // REQ-YF-CLI-005: every harness destination is searched — the whole point of moving
@@ -265,7 +276,9 @@ mod tests {
         let anchors = vec![(Scope::User, home.clone())];
         let c = candidates("yf-plan", &anchors);
         for d in harness_desc::DESCRIPTORS {
-            let want = home.join(d.subpath(Scope::User)).join(d.transform_skill_name("yf-plan"));
+            let want = home
+                .join(d.subpath(Scope::User))
+                .join(d.transform_skill_name("yf-plan"));
             assert!(
                 c.iter().any(|c| c.path == want),
                 "destination for harness {} was never searched",
@@ -283,12 +296,17 @@ mod tests {
         std::fs::create_dir_all(&home).unwrap();
         let anchors = vec![(Scope::User, home)];
         assert!(
-            candidates("no-such-skill", &anchors).iter().all(|c| !c.path.is_dir()),
+            candidates("no-such-skill", &anchors)
+                .iter()
+                .all(|c| !c.path.is_dir()),
             "nothing may resolve for a skill that was never installed"
         );
         // The empty-name path is INCONCLUSIVE rather than not-found: nothing was looked up,
         // so "not installed" would be a claim the run never made.
-        let args = SkillDirArgs { name: String::new(), json: true };
+        let args = SkillDirArgs {
+            name: String::new(),
+            json: true,
+        };
         let code = run(&args).unwrap();
         assert_eq!(
             format!("{code:?}"),

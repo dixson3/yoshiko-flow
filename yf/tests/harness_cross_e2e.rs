@@ -649,11 +649,18 @@ fn skill_dir_resolves_under_a_pi_only_home() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
     let want = seed_skill(home, ".pi/agent/skills", "yf-plan");
-    assert!(!home.join(".claude/skills").exists(), "sandbox must be pi-ONLY");
+    assert!(
+        !home.join(".claude/skills").exists(),
+        "sandbox must be pi-ONLY"
+    );
 
     let (code, path) = skill_dir_in(home, "yf-plan");
     assert_eq!(code, 0, "must resolve under a pi-only HOME");
-    assert_eq!(PathBuf::from(&path), want, "must resolve to the pi destination");
+    assert_eq!(
+        PathBuf::from(&path),
+        want,
+        "must resolve to the pi destination"
+    );
 }
 
 // REQ-YF-CLI-005: the same for an opencode-only HOME. Asserted separately rather than folded
@@ -665,11 +672,18 @@ fn skill_dir_resolves_under_an_opencode_only_home() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
     let want = seed_skill(home, ".config/opencode/skills", "yf-plan");
-    assert!(!home.join(".claude/skills").exists(), "sandbox must be opencode-ONLY");
+    assert!(
+        !home.join(".claude/skills").exists(),
+        "sandbox must be opencode-ONLY"
+    );
 
     let (code, path) = skill_dir_in(home, "yf-plan");
     assert_eq!(code, 0, "must resolve under an opencode-only HOME");
-    assert_eq!(PathBuf::from(&path), want, "must resolve to the opencode destination");
+    assert_eq!(
+        PathBuf::from(&path),
+        want,
+        "must resolve to the opencode destination"
+    );
 }
 
 // SC4b CONTAINMENT: with `yf` ABSENT FROM PATH, the emitted bash fallback resolves the SAME
@@ -719,13 +733,15 @@ printf '%s' "$SKILL_DIR"
         .arg("-c")
         .arg(script)
         .env("HOME", home)
-        .env("PATH", &empty_bin)    // `yf` is unreachable: the fallback must carry the load
+        .env("PATH", &empty_bin) // `yf` is unreachable: the fallback must carry the load
         .env_remove("SKILL_DIR")
         .current_dir(home)
         .output()
         .expect("spawn bash fallback");
     assert!(
-        String::from_utf8_lossy(&out.stderr).find("yf: command not found").is_some()
+        String::from_utf8_lossy(&out.stderr)
+            .find("yf: command not found")
+            .is_some()
             || out.status.success(),
         "the probe must actually have run with `yf` unavailable; stderr was: {}",
         String::from_utf8_lossy(&out.stderr)
@@ -776,7 +792,10 @@ fn revert_through_symlink_preserves_link_and_clears_block() {
         .current_dir(&home)
         .output()
         .expect("spawn tune");
-    assert!(tune.status.success(), "tune must succeed to set the branch up");
+    assert!(
+        tune.status.success(),
+        "tune must succeed to set the branch up"
+    );
     let after_tune = std::fs::read_to_string(&real).unwrap();
     assert!(
         after_tune.contains(BEGIN_MARKER),
@@ -784,18 +803,30 @@ fn revert_through_symlink_preserves_link_and_clears_block() {
     );
 
     let _ = Command::new(YF)
-        .args(["harness", "tune", "--harness", "pi", "--rules-only", "--revert"])
+        .args([
+            "harness",
+            "tune",
+            "--harness",
+            "pi",
+            "--rules-only",
+            "--revert",
+        ])
         .env("HOME", &home)
         .current_dir(&home)
         .output()
         .expect("spawn revert");
 
     assert!(
-        std::fs::symlink_metadata(&link).map(|m| m.file_type().is_symlink()).unwrap_or(false),
+        std::fs::symlink_metadata(&link)
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false),
         "the SYMLINK must survive revert — unlinking it strands yf's content in the \
          operator's tracked file while reporting success (EXP-006)"
     );
-    assert!(real.exists(), "the operator's real target must not be deleted");
+    assert!(
+        real.exists(),
+        "the operator's real target must not be deleted"
+    );
     let after_revert = std::fs::read_to_string(&real).unwrap();
     assert!(
         !after_revert.contains(BEGIN_MARKER),
@@ -820,7 +851,13 @@ fn revert_through_symlink_preserves_link_and_clears_block() {
     std::os::unix::fs::symlink(&real2, &link2).unwrap();
 
     let t2 = Command::new(YF)
-        .args(["harness", "tune", "--harness", "claude-code", "--rules-only"])
+        .args([
+            "harness",
+            "tune",
+            "--harness",
+            "claude-code",
+            "--rules-only",
+        ])
         .env("HOME", &home2)
         .current_dir(&home2)
         .output()
@@ -832,17 +869,29 @@ fn revert_through_symlink_preserves_link_and_clears_block() {
     );
 
     let _ = Command::new(YF)
-        .args(["harness", "tune", "--harness", "claude-code", "--rules-only", "--revert"])
+        .args([
+            "harness",
+            "tune",
+            "--harness",
+            "claude-code",
+            "--rules-only",
+            "--revert",
+        ])
         .env("HOME", &home2)
         .current_dir(&home2)
         .output()
         .expect("spawn revert (aggregate)");
 
     assert!(
-        std::fs::symlink_metadata(&link2).map(|m| m.file_type().is_symlink()).unwrap_or(false),
+        std::fs::symlink_metadata(&link2)
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false),
         "the aggregate branch must not unlink a symlinked rule target either"
     );
-    assert!(real2.exists(), "the operator's real aggregate target must not be deleted");
+    assert!(
+        real2.exists(),
+        "the operator's real aggregate target must not be deleted"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -866,7 +915,15 @@ fn pi_name_transform_round_trips_through_install() {
     let home = tmp.path();
 
     let out = Command::new(YF)
-        .args(["harness", "skills", "install", "yf-plan", "--harness", "pi", "--json"])
+        .args([
+            "harness",
+            "skills",
+            "install",
+            "yf-plan",
+            "--harness",
+            "pi",
+            "--json",
+        ])
         .env("HOME", home)
         .current_dir(home)
         .output()
@@ -879,7 +936,10 @@ fn pi_name_transform_round_trips_through_install() {
         "pi's transform must land the skill at {}; tree was: {:?}",
         installed.display(),
         std::fs::read_dir(home.join(".pi/agent/skills"))
-            .map(|d| d.filter_map(|e| e.ok()).map(|e| e.file_name()).collect::<Vec<_>>())
+            .map(|d| d
+                .filter_map(|e| e.ok())
+                .map(|e| e.file_name())
+                .collect::<Vec<_>>())
             .unwrap_or_default()
     );
 
@@ -1015,17 +1075,28 @@ fn repeat_tune_is_idempotent_and_revert_works_for_all_five() {
             .collect();
 
         let second = run(&["harness", "tune", "--harness", harness, "--rules-only"]);
-        assert!(second.status.success(), "{harness}: a repeat tune must succeed");
+        assert!(
+            second.status.success(),
+            "{harness}: a repeat tune must succeed"
+        );
         for (p, before) in &snapshot {
             let after = std::fs::read_to_string(p).unwrap_or_default();
             assert_eq!(
-                &after, before,
+                &after,
+                before,
                 "{harness}: a repeat tune must be IDEMPOTENT — {} changed",
                 p.display()
             );
         }
 
-        let rev = run(&["harness", "tune", "--harness", harness, "--rules-only", "--revert"]);
+        let rev = run(&[
+            "harness",
+            "tune",
+            "--harness",
+            harness,
+            "--rules-only",
+            "--revert",
+        ]);
         assert!(
             rev.status.success(),
             "{harness}: --revert must succeed; stderr: {}",
