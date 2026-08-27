@@ -4,47 +4,155 @@ All notable changes to Yoshiko Flow (`yf`) are documented here. The version sour
 of truth is the `yf` crate version in `yf/Cargo.toml`; releases are cut by pushing a
 matching `v<semver>` git tag (cargo-dist builds the artifacts and GitHub release).
 
-## Unreleased
+## v0.5.0 — 2026-08-26
 
-Beads formula-staging kernel hardening (plan-027, #84): preflight now owns
-formula staging so beads-backed skills never ship a formula they forget to stage,
-and doctor gained static validation + provenance-tracked cleanup of the staging dir.
+**411 commits across 28 plans** since v0.4.0. The headline is **multi-harness
+provisioning**: `yf` now installs skills and deploys always-loaded rules to `claude-code`,
+`codex`, `opencode`, `pi` and `agents`, and this release closes the gap that made that
+claim only half true — skills reached pi and opencode, but the resolver embedded in the
+skills themselves could not find them there.
+
+Grouped by theme rather than by plan. Each theme cites the plans it covers, and every one
+of the 28 plans in this window appears in exactly one theme.
 
 ### Added
 
-- **`yf preflight` owns formula staging (REQ-YF-PRE-011).** On every preflight, the
-  kernel copies each beads-backed skill's embedded `formulas/*.formula.toml` into the
-  project's (gitignored) `.beads/formulas/`, verifying the destination on every run
-  (a destination deleted since a prior stage is re-created — not a source-hash-only
-  skip), records provenance in a `.beads/formulas/.yf-staged.json` marker, and anchors
-  `/.beads/formulas/` in the root `.gitignore`. `SCAFFOLD_VERSION` bumped 1→2 so
-  already-preflighted repos pick up the new anchor. `bd mol pour|wisp <name>` now
-  resolves with no per-call `cp`/`rm` staging in the SKILL body.
-- **`yf doctor` FormulaCheck axis (REQ-YF-DOCTOR-004).** A static, read-only check over
-  the embedded skill tree: every concrete `bd mol pour|wisp <name>` in a runnable bash
-  fence of a formula-shipping skill's SKILL.md must have a shipped
-  `formulas/<name>.formula.toml` (placeholders/prose/non-bash fences excluded).
-- **`yf doctor --prune-formulas`.** A provenance-tracked GC on its own affordance
-  (decoupled from `--repair`): removes only `.beads/formulas/` entries the yf-staged
-  marker attributes to yf that no currently-embedded skill still declares — never a
-  foreign/unmarked proto, and nothing at all when the marker is absent.
+- **Multi-harness provisioning** *(plan-032, plan-033, plan-034, plan-042)*. `yf harness
+  tune` aligns each harness's config and deploys the always-loaded rules as a minimized,
+  hash-bearing managed block: claude-code and opencode via JSON, codex via TOML
+  delta-replay, and `AGENTS.md` rule deployment for codex/opencode/pi. `--revert` reverses
+  yf's own additions from a sidecar ownership manifest, per key, with a touched-since-tune
+  guard that conservative-keeps anything you hand-edited. A per-harness `yf doctor`
+  settings-drift axis and a codex `project_doc_max_bytes` block-size-budget check make
+  drift visible rather than discovered. **`yf self install` / `yf self update` now sync at
+  install time**, deploying skills, rules, and — behind an explicit consent gate —
+  harness config, so the old three-step ritual is retired.
+
+- **`yf skill-dir <name>`, and a resolver that works on every harness** *(plan-041,
+  plan-054)*. Skills locate their own scripts through a single verb that reads the same
+  descriptor table `yf` installs with. Previously the resolver searched six fixed roots,
+  and **neither `~/.pi/agent/skills` nor `~/.config/opencode/skills` was among them**: on
+  a pi-only machine every script-backed skill died, and on a mixed machine it silently
+  resolved to the *claude-code* copy, so a skill's prose and its scripts came from
+  different trees — with the install reporting success either way. The verb's exit
+  contract is three-valued (`0` resolved, `1` not installed, `2` could not look), the
+  resolver block is now **generated** into all 32 consumers so the fleet cannot drift
+  again, and a harness that exports `SKILL_DIR` wins over both. This theme also closes the
+  build's **embed-addition blind spot**, where an incremental release build missed newly
+  *added* files under `skills/`.
+
+- **The documentation site** *(plan-031, plan-035, plan-036)*. `web/` builds the
+  yoshikoflow.sh Pelican site: authored per-skill pages seeded from each skill's own
+  `SKILL.md`/`README.md`/`SPEC.md` and held true by drift-check edges, concept pages for
+  the beads/upstream workflow and formulas, and a dark three-pane docs layout.
+
+- **`yf-okf` and the artifact-folder model** *(plan-029, plan-046)*. A skill that
+  constructs, manages and conformance-checks the OKF bundles `yf-plan`, `yf-research` and
+  `yf-incubator` emit, reconciled to OKF-BASELINE v0.2, with bundle index structure
+  **generated rather than asserted**.
+
+- **Machine-readable plan documents** *(plan-047, plan-048, plan-049)*. Formal templates
+  per document type, a per-type document linter, a corpus normalizer, and a common plan
+  extractor — so a plan's epics, issues, edges and gates are *parsed* rather than
+  transcribed, and anything unreadable is reported instead of silently dropped.
+
+- **Autonomous plan execution with frontloaded human gates** *(plan-030, plan-043,
+  plan-045)*. Review cycles self-resolve within a bound, the coordinator continues through
+  epic boundaries instead of stopping at them, capability gates are batched and answered
+  once up front, and `complete` is gated on a settled close-time contract — including a
+  CI/release completion criterion that will not let a runner-only-observable deliverable be
+  called done on the strength of a local green.
+
+- **Beads formula-staging kernel hardening** *(plan-027, #84)*. `yf preflight` **owns
+  formula staging** (`REQ-YF-PRE-011`): every run copies each beads-backed skill's embedded
+  `formulas/*.formula.toml` into the gitignored `.beads/formulas/`, verifies the
+  destination, records provenance in a `.yf-staged.json` marker and anchors
+  `/.beads/formulas/` in `.gitignore`, so `bd mol pour|wisp` resolves with no per-call
+  staging in the skill body. `yf doctor` gained a static **FormulaCheck** axis
+  (`REQ-YF-DOCTOR-004`) and a provenance-tracked `--prune-formulas` GC that never touches a
+  foreign or unmarked proto.
 
 ### Changed
 
-- **SKILL.md fleet migration.** Removed the per-call `cp`/`rm` `.beads/formulas/`
-  staging brackets from `yf-plan` (`plan-execute` pour + `plan-investigate` wisp) and
-  `yf-research` (`yf-research` pour); the permanent `--force` on `bd mol burn` is kept.
-  `yf-beads-authoring` documents the no-stage canonical pattern; the `e-formula-name`
-  drift edge now also flags a hand-staging bracket as drift.
-- **`workflows` promoted to a formal install group (`REQ-YF-INSTALL-003/004`).**
-  `yf-plan`, `yf-research`, and `yf-incubator` move from `skill-group: beads` to
-  `skill-group: workflows`; the `beads` install group is now the five `yf-beads-*`
-  support skills. `yf skills install --group workflows` installs those three workflows
-  **plus their `depends-on-skill` closure** (the beads skills they need) — a `--group`
-  install now closes over its members' dependencies, so groups pull in the groups they
-  depend on. `--group beads` installs only the `yf-beads-*` support skills. No engine
-  change (the closure already applied to a group base); the frozen `install-parity.json`
-  golden and the `computed_groups` / beads-membership unit tests were regenerated.
+- **`yf harness skills` is the canonical skills lifecycle home.** The top-level `yf skills`
+  group is retained as a deprecated alias — see **Deprecations** below.
+
+- **`workflows` is a formal install group** *(plan-027)*. `yf-plan`, `yf-research` and
+  `yf-incubator` move from `skill-group: beads` to `workflows`, and a `--group` install now
+  closes over its members' `depends-on-skill` dependencies — so `--group workflows` pulls in
+  the beads skills those workflows need. `--group beads` is now the five `yf-beads-*`
+  support skills alone.
+
+- **Upstream issue tracking is `gh`-direct** *(plan-038, plan-040)*. Pushing beads upstream
+  no longer routes through a `bd` backend command: `bd` reads, `gh` writes, and
+  `bd update --external-ref` records the mapping. A `closable` verb closes the write-only
+  gap by reporting which upstream issues have all their mapped beads closed, and the coarse
+  plan tracker is stamped onto its epic so it is visible to that verb at all.
+
+- **Review quality is mechanically checked** *(plan-039, plan-051, plan-052)*. Gate
+  reachability and premise verification are enforced rather than assumed, the adversarial
+  review pass is dispatched as a sub-agent instead of performed by the session that wrote
+  the plan, and a plan's Success Criteria are **re-checked at completion** — a criterion
+  measured green at the issue that discharged it can be false two epics later.
+
+- **Documentation and in-tree accuracy** *(plan-054)*. The README documents the canonical
+  command form and all five harnesses (it previously contained zero occurrences of
+  `opencode`, `pi` or `--harness`), `docs/` gains an index, and the claim that preflight
+  *repairs* the beads config is corrected — preflight is read-only there, and repair is
+  opt-in via `yf doctor --repair`.
+
+### Fixed
+
+- **Silent-failure defects across the shipped tools** *(plan-050, plan-053, plan-054)*.
+  This class is one where an instrument **reports failure in its output and success in its
+  exit code**, so a scripted caller reads `$?`, sees `0`, and proceeds. `yf skills status`
+  returned `Ok(())` unconditionally and now carries a real three-valued verdict;
+  `change_validation.py`'s repeated `--changed` dropped all but the last path, producing a
+  green that covered half a change-set; `plan_extract` dropped continuation detail, dropped
+  a column-0 paragraph outright, and lost a dependency edge whenever the declaration sat
+  behind a leading inline code span (eight real edges recovered across three historical
+  plans); `doc_lint` could not tell a **skipped** upstream triage from one that ran and
+  measured nothing, which blocked approval for every plan authored in a fresh repository;
+  and `resume-scan` reported a burned epic as live. `REQ-YF-CLI-003` now states the
+  `0`/`1`/`2` contract repo-wide rather than leaving each new instrument to rediscover it.
+
+- **Beads integrity and deploy-path defects** *(plan-037, plan-044)*. Local-only Dolt
+  remote enforcement, `YOSHIKO_FLOW.md` tune safety and surface resolution, a `--repair`
+  step that re-runs its own detecting predicate instead of reporting `ok` on faith, an
+  opt-in `install --prune` that fans out across every resolved destination, and stale
+  user-scope installs reconciled with `main`. `yf harness tune --revert` no longer unlinks
+  a **symlinked** rule target — it used to delete your pointer into a tracked dotfiles repo
+  and strand the content while reporting success.
+
+- **Markdown tooling** *(plan-026, plan-028)*. ML003 title parsing, an un-escaped-markup
+  lint rule, a blessed alt/title image convention shared by lint and PDF, a documented
+  CriticMarkup PDF hazard, the new `yf-markdown-html` skill, a `credibility_scorer`
+  timezone crash, and parked-plan visibility in `yf-plan` status.
+
+### Deprecations
+
+Both are **retained through the 0.x line** and removed no earlier than the next major
+release. This is why v0.5.0 is not 1.0.0: `cli.rs` promises these survive until then, and
+cutting 1.0.0 now would have obligated their removal in the same cycle.
+
+- **`yf skills <verb>`** → **`yf harness skills <verb>`**. The entire top-level group
+  (`install` / `upgrade` / `remove` / `status`) still works, delegates verb-for-verb with
+  identical behaviour, and prints a deprecation notice on stderr.
+- **`--surface {claude,agents}`** → **`--harness {claude-code,codex,opencode,pi,agents}`**.
+  `claude` maps to `claude-code`, `agents` to `agents`, with passthrough and the legacy
+  `.<id>/skills` fallback for anything else.
+
+### Known limitations
+
+- **`--harness pi` tunes rules and skills only.** Pi's config surface is documented on a
+  single questionable-tier source, and baking a guess into a released binary is strictly
+  worse than a clean deferral. Skills and the always-loaded rule block both deploy to pi
+  and are exercised by the live regression; only config alignment is deferred, tracked at
+  [#121](https://github.com/dixson3/yoshiko-flow/issues/121).
+- **`yf harness tune --revert` on a symlinked rule target keeps the file rather than
+  removing it.** Revert refuses to unlink a symlink, and it will not delete a target whose
+  pre-tune content `yf` never backed up. The managed block is cleared either way; an empty
+  file may be left behind. Remove the link yourself if you want it gone.
 
 ## v0.4.0 — 2026-07-09
 
