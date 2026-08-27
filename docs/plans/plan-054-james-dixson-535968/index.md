@@ -15,4 +15,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/](findings/) - The six investigation write-ups (EXP-001..EXP-006). Three refuted or corrected a scoping premise; plan.md's Investigation Findings table summarises them and cites each by id.
 - [references/](references/) - Full, untruncated bodies of every triaged upstream issue, one file per issue. Regenerated on re-triage; do not hand-edit.
 - [reviews/](reviews/) - Red-team pass reports, one per review cycle, each frozen once its concerns are resolved. The verdict history behind the plan's readiness.
+- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
 

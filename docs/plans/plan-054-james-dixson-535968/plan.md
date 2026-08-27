@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-054-james-dixson-535968
 author: james-dixson
 created: '2026-08-26'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 5de8e0829abea07c9b34e0aedf1101740a5a15b2b770ee461cbf886109c6a8ca
+epic: yf-mol-zli
 ---
 # Plan: Release readiness for yf v0.5.0: SKILL_DIR harness resolution, shipped silent-failure defects, changelog reconstruction, doc+website accuracy, and a pi/opencode regression
 
 **ID:** plan-054-james-dixson-535968
 **Author:** james-dixson
 **Created:** 2026-08-26
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-zli
 **Fingerprint:** 5de8e0829abea07c9b34e0aedf1101740a5a15b2b770ee461cbf886109c6a8ca
 
 ## Objective
@@ -74,6 +76,7 @@ first moment an epic id exists.*
 
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
+| #236 | plan-054-james-dixson-535968 execution tracking | tracker | Coarse tracker for this plan-scale effort; stamped onto the epic as `external_ref` at the pour (REQ-PLAN-073) | |
 | #185 | doc_lint: upstream-cells-filled cannot distinguish a skipped triage from a measured-empty one | include | Blocks approval in ANY fresh repo with no upstream issues — a first-run blocker for every new user | 3.1 |
 | #225 | plan_extract: a COLUMN-0 PARAGRAPH under an open issue is dropped silently | include | Silent plan-content loss at intake | 3.2 |
 | #226 | plan_extract: a trailing declaration behind a LEADING code span yields no edge | include | Silent DAG-edge loss; touches a parsing branch, so needs care | 3.3 |

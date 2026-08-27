@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-26
+- executing: start gate resolved
+- intake: epic yf-mol-zli poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-6 APPROVE + audit pass (0 findings)
 - review-pass: red-team pass 6 (sixth independent, via Agent): APPROVE — 8/8 pass-5 and 9/9 pass-4 resolutions reproduced, the phantom-edit class did NOT recur; 2 med + 4 low, all fail-closed and all resolved
