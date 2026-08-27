@@ -278,8 +278,11 @@ Three principles the findings forced:
   - depends-on: 6.6a
 - Issue 6.7a: Write the release notes — pi tunes rules and skills only; `--revert` edits the targets of symlinked surfaces and will leave a dotfiles repo dirty by design
   - depends-on: 6.3, 6.4
-- Issue 6.8: Push the `v0.5.0` tag
-  - depends-on: 6.1, 6.2, 6.3, 6.4, 6.7, 6.7a
+- Issue 6.9: Fix [#245](https://github.com/dixson3/yoshiko-flow/issues/245) — the `yf-beads-upstream` web page teaches the forbidden `bd <backend> push` path, and `yf-okf.md` claims OKF v0.1. **OPERATOR SCOPE ADDITION, post-approval.** The site auto-publishes on the tag, so a published page teaching the hand-run path `UPSTREAM_TRACKING.md` forbids must not ship
+- Issue 6.10: Close the cross-tree skew ([#248](https://github.com/dixson3/yoshiko-flow/issues/248)) by construction, before the tag. **OPERATOR SCOPE ADDITION, post-approval** — "latent, bites on divergence" is not acceptable for a release whose headline is multi-harness support. Measured: opencode exports no path signal at all, so no env-var approach can work; the install stamps each deployed copy's own destination root instead. **Mutation-tested with DIVERGENT trees**, since a test that passes on identical trees proves nothing
+  - depends-on: 6.9
+- Issue 6.8: Push the `v0.5.0` tag. **DESCOPED at close by operator decision** — deferred to a successor session ([#255](https://github.com/dixson3/yoshiko-flow/issues/255)) so the harnesses can be verified manually under a real `HOME` first. The push is irreversible AND auto-publishes the website, so it does not ride along at the end of an autonomous run
+  - depends-on: 6.1, 6.2, 6.3, 6.4, 6.7, 6.7a, 6.9, 6.10
 
 ## Gates
 
