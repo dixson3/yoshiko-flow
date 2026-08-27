@@ -1,5 +1,9 @@
 # Log
 
+## 2026-08-27
+
+- complete: plan complete — the v0.5.0 tag is DESCOPED and deferred to successor #255; everything else delivered and verified
+
 ## 2026-08-26
 - executing: SCOPE ADDITION (operator, post-approval): Issues 6.9 and 6.10 added to Epic 6 and dep-wired AHEAD of 6.8's tag push. 6.9 fixes #245 (the yf-beads-upstream web page teaches the forbidden bd-push path; the site auto-publishes on the tag). 6.10 closes the cross-tree skew #248 by construction rather than shipping it latent. Recorded rather than silently widening a closed issue.
 - executing: start gate resolved
