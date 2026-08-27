@@ -34,6 +34,12 @@ _want architecture.md 'pi'                      'Issue 5.4: five harnesses, not 
 # `deprecated` sits on the second.
 #
 # What a reader COPIES is a fenced command, so that is what is checked.
+# SCOPED TO `*.md`. An unscoped `grep -r` over `web/` matches BINARY files too, and the awk
+# fence-scan below then chokes on one — emitting `awk: towc: multibyte conversion failure` with
+# the raw offending bytes embedded in its own error text. Harmless here (the check still exited
+# 0), but it CRASHED `plan_manager.py recheck-criteria`, which decodes criterion output as UTF-8
+# with no error handler: an instrument taken down by a byte in its subject's stderr.
+# The criterion is about PAGES, so pages are what is scanned.
 stale=""
 while IFS= read -r f; do
   [ -n "${f}" ] || continue
@@ -42,7 +48,7 @@ while IFS= read -r f; do
     infence && /yf skills install/ { found = 1 }
     END          { exit(found ? 0 : 1) }
   ' "${f}" && stale="${stale}${f}"$'\n'
-done <<< "$(grep -rl 'yf skills install' "${TREE}/web" 2>/dev/null || true)"
+done <<< "$(grep -rl --include='*.md' 'yf skills install' "${TREE}/web" 2>/dev/null || true)"
 stale="$(printf '%s' "${stale}" | grep -v '^$' || true)"
 if [ -n "${stale}" ]; then
   ck_fail "$(printf '%s\n' "${stale}" | grep -c .) web file(s) still teach the deprecated \`yf skills install\` spelling:"

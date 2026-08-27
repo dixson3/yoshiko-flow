@@ -105,12 +105,28 @@ _smoke_one() {
   _record "\$ ${h} <plan_manager list>"
   _record "${out}"
   _record '```'
+  # FIND A CANDIDATE THAT ACTUALLY PARSES, rather than one greedy span.
+  #
+  # A single `re.search(r"[\[{].*[\]}]", …, re.S)` starts at the FIRST `{` in the output — and
+  # the harness echoes the resolver block, which contains `${SKILL_DIR:-}`. So the span began
+  # inside a shell parameter expansion and could never parse, and the check reported "a script
+  # resolved through SKILL_DIR did not run" while the JSON sat complete further down. That is a
+  # false FAIL on the single assertion SC18 gates an auto-publishing tag with.
   if ! printf '%s' "${out}" | python3 -c '
-import json,sys,re
+import json, sys
 t = sys.stdin.read()
-m = re.search(r"[\[{].*[\]}]", t, re.S)
-if not m: raise SystemExit(1)
-json.loads(m.group(0)); print("PARSES")
+for i, ch in enumerate(t):
+    if ch not in "[{":
+        continue
+    for j in range(len(t), i, -1):
+        if t[j-1] not in "]}":
+            continue
+        try:
+            json.loads(t[i:j])
+        except Exception:
+            continue
+        print("PARSES"); raise SystemExit(0)
+raise SystemExit(1)
 ' 2>/dev/null | grep -q PARSES; then
     fail "${h}: plan_manager.py list --json-output did not produce parseable JSON — a script resolved through SKILL_DIR did not run"
   fi

@@ -18,6 +18,29 @@
 # EXIT  0 reported in unparsed[] and not swallowed  ·  1 dropped silently (the defect)  ·  2 could not run
 set -uo pipefail
 
+# YF_TREE SELF-RESOLUTION (added at close). A fixture is invoked TWO ways: by `redcheck.sh`,
+# which exports YF_TREE, and DIRECTLY by its Success Criterion's Verification command, which does
+# not. Exiting 2 on an unset YF_TREE made every criterion that invokes a fixture directly
+# UNSATISFIABLE — SC7, SC7b, SC8, SC23 and SC24 could never pass, in either direction. That is a
+# criterion that cannot be met, which is worse than one that cannot fail: it halts the close
+# chain over nothing.
+#
+# So resolve it the way redcheck.sh does: the plan's execution worktree while its branch is still
+# UNMERGED, else the repo root. A genuinely unresolvable tree is still INCONCLUSIVE.
+if [ -z "${YF_TREE:-}" ]; then
+  _fx_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _fx_plan="$(cd "${_fx_here}/../.." && pwd)"
+  _fx_root="$(git -C "${_fx_plan}" rev-parse --show-toplevel 2>/dev/null)" || _fx_root=""
+  _fx_id="$(basename "${_fx_plan}")"
+  if [ -n "${_fx_root}" ] && [ -d "${_fx_root}/.worktrees/${_fx_id}" ] \
+     && ! git -C "${_fx_root}" merge-base --is-ancestor "${_fx_id}-execute" main 2>/dev/null; then
+    YF_TREE="${_fx_root}/.worktrees/${_fx_id}"
+  else
+    YF_TREE="${_fx_root}"
+  fi
+  export YF_TREE
+  unset _fx_here _fx_plan _fx_root _fx_id
+fi
 [ -n "${YF_TREE:-}" ] || { echo "ctl-225: INCONCLUSIVE — YF_TREE is not set" >&2; exit 2; }
 EXTRACT="${YF_TREE}/skills/yf-plan/scripts/plan_extract.py"
 [ -f "${EXTRACT}" ] || { echo "ctl-225: INCONCLUSIVE — no plan_extract.py at ${EXTRACT}" >&2; exit 2; }
