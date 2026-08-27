@@ -58,16 +58,47 @@ So a plan's start gate named `start-gate` becomes both `plan-execute.start-gate`
 `plan-execute.gate-start-gate` (the gate a human resolves). Downstream beads block on the wrapper;
 the operator resolves the gate; resolving it unblocks the wrapper, which unblocks the work.
 
-## The three shipped formulas
+## The five shipped formulas
 
-yf ships three standard formulas. They span the full range of the model: one declared step, zero
-declared steps, and a seven-step chain.
+yf ships **five** formulas. They span the full range of the model: zero declared steps, one, four,
+a seven-step chain — and one that declares no steps of its own at all, because it is an **aspect**
+that attaches steps to somebody else's.
 
-| Formula | Skill | Phase | Declared steps | Injected post-pour |
-| :------ | :---- | :---- | :------------- | :----------------- |
-| `plan-execute` | [yf-plan](/workflows/) | liquid | 1 (a human `start-gate`) | epics, issues, capability gates, and an optional reconcile gate + step |
-| `plan-investigate` | [yf-plan](/workflows/) | vapor (wisp) | 0 | one experiment bead per identified experiment |
-| `yf-research` | [yf-research](/workflows/) | liquid | 7 (linear chain) | retrieve beads, fanned out between `tooling` and `triangulate` |
+| Formula | Skill | Type | Phase | Declared steps | Injected / woven |
+| :------ | :---- | :--- | :---- | :------------- | :--------------- |
+| `plan-execute` | [yf-plan](/workflows/) | workflow | liquid | 1 (a human `start-gate`) | epics, issues, capability gates, and an optional reconcile gate + step |
+| `plan-investigate` | [yf-plan](/workflows/) | workflow | vapor (wisp) | 0 | one experiment bead per identified experiment |
+| `plan-review` | [yf-plan](/workflows/) | workflow | vapor (wisp) | 4 (conformance → red-team → resolve → approval gate) | one `verify` step per declared step, woven by the aspect below |
+| `verify-artifact` | [yf-plan](/workflows/) | **aspect** | — | 0 of its own | one `{step.id}-verify` task after every step of the formula that composes it |
+| `yf-research` | [yf-research](/workflows/) | workflow | liquid | 7 (linear chain) | retrieve beads, fanned out between `tooling` and `triangulate` |
+
+### Aspects, and when they weave
+
+An **aspect** (`type = "aspect"`) declares no pipeline of its own. It declares **pointcuts** — a
+glob selecting which steps it is willing to attach to — and **advice**, the step to inject
+relative to each match. `verify-artifact` uses `glob = "*"` and injects one task *after* every
+declared step.
+
+Two details are load-bearing, and both fail **silently** if you get them wrong:
+
+- **Aspects weave at COOK time, over formula-declared steps only.** The observation point is
+  `bd cook <formula> --dry-run`, which renders the woven plan. `bd formula show` renders the
+  **raw** formula and is *expected* to show no woven steps, as is a pour of an uncooked proto.
+  Checking either of those and concluding the aspect does not weave is a reading error, not a bd
+  defect.
+- **The attachment is `[compose] aspects` in the CONSUMER**, never a top-level `aspects` key. A
+  top-level key parses, cooks, and composes nothing — so an implementation using it looks correct
+  in review and does nothing at runtime.
+
+```toml
+# in the consuming formula
+[compose]
+aspects = ["verify-artifact"]
+```
+
+The point of `verify-artifact` is that **a step which reports a verdict and a step which wrote the
+file carrying it are different facts**, and only the second is checkable after the session ends.
+Attaching the obligation as a step makes it *execute* rather than live in prose.
 
 ### plan-execute
 

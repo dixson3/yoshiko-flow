@@ -1,6 +1,6 @@
 Title: beads & the yf-beads-* skills
 Slug: beads-concepts
-Subtitle: what beads is, why yf builds on it, and how the six yf-beads-* skills divide the work
+Subtitle: what beads is, why yf builds on it, and how the five yf-beads-* skills divide the work
 
 Beads (`bd`) is the task-tracking substrate under everything stateful in yoshiko-flow. A
 [`/yf-plan`](/lifecycle/) plan, a `/yf-research` project, and any multi-session skill all
@@ -8,7 +8,7 @@ record their work as beads rather than scratch TODO lists — so work survives a
 session. That resumption is local to one clone; carrying work to a different machine goes through
 the git-committed plan and a coarse upstream issue, not the bead database itself (see the
 **upstream strategy** below). This page explains what beads is, why yf uses it, the beads
-features yf leans on, the distinctive **upstream strategy**, and how the six `yf-beads-*`
+features yf leans on, the distinctive **upstream strategy**, and how the five `yf-beads-*`
 skills each own a distinct slice of that story. For one-line definitions of the vocabulary,
 see the [glossary](/glossary/).
 
@@ -150,7 +150,7 @@ than destroying history. Because the close is reversible, a mistakenly-hoisted b
 reopened. At land-the-plane this hoist is **propose-with-confirm** by default, and only a narrow,
 opt-in signal is ever hoisted unattended.
 
-## How the six yf-beads-* skills divide the work
+## How the five yf-beads-* skills divide the work
 
 Each `yf-beads-*` skill owns a distinct aspect of using beads well. They form a layered support
 stack under the workflow skills.

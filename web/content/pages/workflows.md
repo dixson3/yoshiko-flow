@@ -119,7 +119,7 @@ yf-plan has **seven phases**: UPSTREAM, SCOPE, INVESTIGATE, PLAN, INTAKE, EXECUT
 *status* that RECONCILE sets at the end of its close-out step. The seven phases are UPSTREAM
 through RECONCILE; `complete` marks the plan as finished from inside RECONCILE.
 
-**Status values.** yf-plan uses nine status values, mapped to phases many-to-one:
+**Status values.** yf-plan uses ten status values, mapped to phases many-to-one:
 
 | Phase       | Status value(s)                                              |
 | :---------- | :----------------------------------------------------------- |

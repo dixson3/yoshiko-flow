@@ -15,12 +15,42 @@ binary you install and run is `yf`.
 installer / verifier / preflight kernel. It does **not** run skills, track issues, or render
 markdown — those are the skills themselves. Its jobs:
 
-- **`yf skills`** — the lifecycle: `install`, `upgrade`, `remove`, `status`. Deploys skills
-  into a **scope** (`user` or `project`) and a **harness surface** (`claude` or `agents`).
+- **`yf harness skills`** — the lifecycle: `install`, `upgrade`, `remove`, `status`. Deploys
+  skills into a **scope** (`user` or `project`) and one of **five harnesses**: `claude-code`,
+  `codex`, `opencode`, `pi`, `agents`. (`yf skills` is a deprecated alias for the same verbs;
+  `--surface claude|agents` is a deprecated alias for `--harness`.)
+- **`yf harness tune`** — aligns a harness's config **and** deploys the always-loaded rules as a
+  minimized managed block. `--revert` reverses yf's own additions from a sidecar ownership
+  manifest, per key, keeping anything you hand-edited.
+- **`yf skill-dir <name>`** — resolves an installed skill's directory across **every** harness
+  destination above. This is how a shipped skill finds its own scripts, and it reads the same
+  descriptor table `install` writes to, so the two cannot disagree.
 - **`yf preflight <skill>`** — the shared readiness gate every beads-backed skill runs through,
-  rather than each skill reimplementing it. Returns a single authoritative `status`.
+  rather than each skill reimplementing it. Returns a single authoritative `status`. It is
+  **read-only**: it reports a beads-config problem and routes you to `/yf-beads-init` rather
+  than repairing it.
 - **`yf doctor`** — checks the environment (`bd`, `uv`, `git`) and every installed skill's
-  integrity marker and companion rule.
+  integrity marker and companion rule, plus per-harness settings-drift and managed-block axes.
+  `--repair` is the opt-in flag that applies fixes.
+- **`yf self`** — the **binary's** own lifecycle: `update`, `install`, `uninstall`. Distinct from
+  `skills`, which manages the embedded skills and rules. Both `self install` and `self update`
+  sync skills and rules at install time, with harness config behind a consent gate.
+- **`yf migrate`** — moves a project from the legacy `.state/<skill>/` + `.<skill>.local.json`
+  layout to the canonical `.yf/` namespace.
+
+### The five harnesses
+
+| `--harness` | user scope | project scope |
+| :-- | :-- | :-- |
+| `claude-code` | `~/.claude/skills` | `<git-root>/.claude/skills` |
+| `codex` | `~/.agents/skills` | `<git-root>/.agents/skills` |
+| `opencode` | `~/.config/opencode/skills` | `<git-root>/.opencode/skills` |
+| `pi` | `~/.pi/agent/skills` | `<git-root>/.pi/skills` |
+| `agents` | `~/.agents/skills` | `<git-root>/.agents/skills` |
+
+`codex` and `agents` share a directory deliberately. **pi** applies a lowercase-hyphen name
+transform to the on-disk skill directory, and its **config** tuning is deferred — `--harness pi`
+deploys skills and rules only.
 
 ## Embedded skills
 
@@ -37,11 +67,11 @@ already have. `yf` ships **19 skills**. Grouped by what they do:
 - **markdown (4)** — standalone GFM tooling: lint, format, PDF, HTML.
 
 Those four are the **install groups** — each skill's `skill-group` frontmatter — so
-`yf skills install --group <name>` selects one. Installing a group pulls the **transitive
-`depends-on-skill` closure** of its members, so `yf skills install --group workflows` also
+`yf harness skills install --group <name>` selects one. Installing a group pulls the **transitive
+`depends-on-skill` closure** of its members, so `yf harness skills install --group workflows` also
 installs the `beads` support skills the workflows depend on (see [install](/install/)). A
 **group invariant** keeps the split honest: no `utility` skill may (transitively, via
-`depends-on-skill`) depend on a `beads` skill, so `yf skills install --group utility` is
+`depends-on-skill`) depend on a `beads` skill, so `yf harness skills install --group utility` is
 provably beads-free. Browse them all on the [skills](/skills/) page — that catalog, its
 grouping, and each skill's dependency links are generated from the same `SKILL.md` frontmatter,
 so they never drift from what ships.

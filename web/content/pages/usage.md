@@ -8,7 +8,7 @@ inside your agent harness (Claude Code by default). Here are the paths you'll us
 ## Set up a project
 
 ```bash
-yf skills install                # deploy the skills into ~/.claude/{skills,rules}
+yf harness skills install                # deploy the skills into ~/.claude/{skills,rules}
 yf doctor                        # verify the toolchain + every install
 ```
 

@@ -11,9 +11,9 @@ before it does any work.
 ## 1. Install
 
 ```bash
-yf skills install                # all skills + companion rules -> ~/.claude/skills (+ rules/)
-yf skills install --group utility # just one group
-yf skills install yf-plan        # a named skill (pulls its depends-on-skill closure)
+yf harness skills install                # all skills + companion rules -> ~/.claude/skills (+ rules/)
+yf harness skills install --group utility # just one group
+yf harness skills install yf-plan        # a named skill (pulls its depends-on-skill closure)
 ```
 
 `yf` copies the skill's tree to the resolved destination and its companion rules
@@ -81,7 +81,7 @@ dispositions).
 ## The whole loop, once
 
 ```bash
-yf skills install                # 1. install
+yf harness skills install                # 1. install
 yf preflight yf-plan --json      # 2. preflight (status: ok)
 # 3. invoke — in your agent:  /yf-plan <objective>
 # 4. coordinate/execute — /yf-plan execute <plan-id> in a fresh session
