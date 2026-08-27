@@ -31,7 +31,13 @@ for root in ".claude/skills" ".agents/skills" ".pi/agent/skills" ".config/openco
   yf_out="$(cd "${TMP}" && HOME="${home}" "${YF}" skill-dir yf-plan 2>/dev/null)" || continue
   [ -n "${yf_out}" ] || continue
   checked=$((checked + 1))
-  fb_out="$(cd "${TMP}" && HOME="${home}" bash -c "${block}"$'\n''printf "%s" "$SKILL_DIR"' 2>/dev/null)" || true
+  # CLEAR SKILL_DIR FIRST. The emitted resolver is ENV-VAR FIRST by design (Issue 1.7), so an
+  # inherited SKILL_DIR short-circuits the whole block and the "fallback" never runs — the check
+  # would then be comparing yf's answer against an ambient value and calling the difference a
+  # containment failure. Measured: `recheck-criteria` runs criterion commands with a child env
+  # that carries SKILL_DIR, and this check reported CONTAINMENT BROKEN at three anchors while
+  # passing standalone. The variable under test must not be supplied by the tester.
+  fb_out="$(cd "${TMP}" && env -u SKILL_DIR HOME="${home}" bash -c "${block}"$'\n''printf "%s" "$SKILL_DIR"' 2>/dev/null)" || true
   [ "${fb_out}" = "${yf_out}" ] \
     || ck_fail "containment broken at ${root}: yf resolved '${yf_out}' but the fallback resolved '${fb_out:-<nothing>}'"
 done
