@@ -634,8 +634,23 @@ requirement lives only in code (GUARDRAILS GR-010).
   an unknown id + the legacy `.<id>/skills` fallback). The **entire** top-level `yf skills` group
   (`install|upgrade|remove|status`) shall remain a **deprecated alias** delegating verb-for-verb to
   `yf harness skills <verb>` with identical behavior, kept until the next major release of `yf`.
-- **REQ-YF-CLI-003** *(testable)* every subcommand shall support `--json` for machine-readable
-  output and shall exit non-zero on failure.
+- **REQ-YF-CLI-003** *(testable)* *(amended plan-054 / #203)* every subcommand shall support
+  `--json` for machine-readable output and shall exit non-zero on failure. The exit contract is
+  **three-valued** and is the repo-wide convention, not a per-plan asset: **`0`** the assertion
+  holds · **`1`** it does not · **`2`** the instrument **could not run** (INCONCLUSIVE). `2` is a
+  statement about the *instrument*, never about the subject, and is deliberately distinct from
+  `1` — a caller that collapses them cannot tell "failed" from "could not look".
+  **An instrument shall not report failure in its OUTPUT and success in its EXIT CODE.** Measured
+  five times in five separate instruments (#203), three of them tools this repo wrote: a scripted
+  caller reads `$?`, sees `0`, and proceeds, so the failure is not merely missed — it is converted
+  into a positive signal. Two corollaries, each costing one line: a shipped harness script sets
+  `set -o pipefail` (without it a pipeline returns the LAST command's status, and a real exit `1`
+  is read as `0`), and any instrument this repo ships has a **failure-path arm** in its tests —
+  an instrument never observed failing is not known to be able to fail.
+
+  The **bare** `*(testable)*` marker is retained deliberately: `coverage.rs`'s enforced set is
+  bare-only, so folding the amendment note into the marker would drop this requirement out of the
+  gate and strand its ALLOWLIST row — measured, while making this very edit.
 - **REQ-YF-CLI-004** *(testable)* `yf version` shall print the semver version (and build metadata
   when available).
 - **REQ-YF-CLI-005** *(testable)* `yf` shall expose a top-level **`skill-dir`**

@@ -86,7 +86,7 @@ fn run() -> Result<std::process::ExitCode> {
                 "warning: `yf skills <verb>` is deprecated and will be removed in the next \
                  major release; use `yf harness skills <verb>`."
             );
-            cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
+            cmd_skills(&command)
         }
         // Doctor owns its exit code (like preflight): a failing required check is
         // a verdict, not an error.
@@ -112,9 +112,7 @@ fn run() -> Result<std::process::ExitCode> {
         Command::Harness { command } => match command {
             HarnessCommand::Tune(args) => cmd::harness::run(&args),
             // Canonical skills lifecycle home (REQ-YF-CLI-001/002).
-            HarnessCommand::Skills { command } => {
-                cmd_skills(&command).map(|()| std::process::ExitCode::SUCCESS)
-            }
+            HarnessCommand::Skills { command } => cmd_skills(&command),
         },
     }
 }
@@ -133,11 +131,18 @@ fn cmd_version(args: &VersionArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_skills(command: &SkillsCommand) -> Result<()> {
+/// The skills verb group. `status` OWNS ITS EXIT CODE (#203, REQ-YF-CLI-003) — it reports an
+/// unhealthy tree as a non-zero verdict rather than printing failure and exiting 0. The other
+/// three verbs either succeed or return an `Err`, so they map to SUCCESS.
+fn cmd_skills(command: &SkillsCommand) -> Result<std::process::ExitCode> {
     match command {
-        SkillsCommand::Install(a) => cmd::install::run(a),
-        SkillsCommand::Upgrade(a) => cmd::status::upgrade(a),
-        SkillsCommand::Remove(a) => cmd::status::remove(a),
+        SkillsCommand::Install(a) => cmd::install::run(a).map(|()| std::process::ExitCode::SUCCESS),
+        SkillsCommand::Upgrade(a) => {
+            cmd::status::upgrade(a).map(|()| std::process::ExitCode::SUCCESS)
+        }
+        SkillsCommand::Remove(a) => {
+            cmd::status::remove(a).map(|()| std::process::ExitCode::SUCCESS)
+        }
         SkillsCommand::Status(a) => cmd::status::status(a),
     }
 }

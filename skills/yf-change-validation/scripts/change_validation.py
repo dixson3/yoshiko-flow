@@ -817,8 +817,12 @@ def cmd_run(args) -> int:
     tier = args.tier
     rows = manifest["tiers"].get(tier, [])
 
-    if args.changed and tier == "fast":
-        sel = _scoped_ids(manifest["scope"], args.changed)
+    # FLATTEN the list-of-lists `action="append"` + `nargs="*"` produces (#201). Doing this at
+    # the single consumer keeps the parser honest about both accepted call shapes while every
+    # downstream reader still sees a flat list of paths.
+    changed_paths = [p for group in (args.changed or []) for p in group]
+    if changed_paths and tier == "fast":
+        sel = _scoped_ids(manifest["scope"], changed_paths)
         rows = [r for r in rows if r.get("id") in sel]
 
     results = []
@@ -943,8 +947,21 @@ def build_parser() -> argparse.ArgumentParser:
     pr = sub.add_parser("run", help="run an approved tier; clean refusal if "
                                     "unapproved/absent")
     pr.add_argument("--tier", choices=["fast", "full"], required=True)
-    pr.add_argument("--changed", nargs="*", default=None,
-                    help="changed paths; FAST affected-scoping (§3)")
+    # `action="append"` + `nargs="*"`, NOT `nargs="*"` alone (#201, plan-054 Issue 3.4).
+    #
+    # THE DEFECT: a bare `nargs="*"` is ONE optional taking zero-or-more values, so a second
+    # `--changed` OVERWRITES the first. `run --tier fast --changed a.py --changed b.py`
+    # validated `b.py` ALONE and reported a green covering half the change-set, with nothing in
+    # the output to say so. That is the plan's whole thesis defect: an instrument that reports
+    # success while having measured less than it claims.
+    #
+    # Keeping `nargs="*"` alongside `append` preserves BOTH call shapes that already exist in
+    # the tree — `--changed a b c` (one flag, many values) and `--changed a --changed b`
+    # (repeated) — so this widens what is accepted and breaks no caller. It yields a LIST OF
+    # LISTS, which `cmd_run` flattens.
+    pr.add_argument("--changed", nargs="*", action="append", default=None,
+                    help="changed paths; FAST affected-scoping (§3). Repeatable, and "
+                         "accumulates: `--changed a --changed b` scopes to BOTH.")
     pr.add_argument("--json", action="store_true", help="emit JSON")
     pr.set_defaults(func=cmd_run)
 

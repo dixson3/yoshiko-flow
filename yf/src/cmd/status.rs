@@ -11,16 +11,55 @@ use super::common;
 use crate::cli::SkillsArgs;
 use crate::frontmatter;
 
-/// `yf skills status` (REQ-YF-MARK-003).
-pub fn status(args: &SkillsArgs) -> Result<()> {
+/// `yf skills status` (REQ-YF-MARK-003) — **owns its exit code** (REQ-YF-CLI-003, #203).
+///
+/// # Why this returns an `ExitCode`
+///
+/// This function used to end in a bare `Ok(())` on every path: it printed a per-skill
+/// INSTALLED / UP-TO-DATE / COMPLETE / UNMODIFIED table that could be uniformly "no" and still
+/// exited **0**. Any caller branching on `$?` — a CI step, a `set -e` script, a preflight —
+/// read *success* from an instrument that had just reported everything broken. That is #203's
+/// class in its purest form: **failure in the output, success in the exit code**, so the
+/// failure is not merely missed, it is converted into a positive signal. It needed a `jq -e`
+/// wrapper to be usable in a script at all.
+///
+/// The verdict is **three-valued**, matching the repo convention `doc_lint.py` and
+/// `gate-run.sh` already carry:
+///
+/// * **0** — every selected skill is healthy;
+/// * **1** — at least one is not (not installed / incomplete / outdated / modified);
+/// * **2** — the status could not be determined for a selected skill (an unreadable
+///   destination). INCONCLUSIVE is a statement about the *instrument*, not the skills, and is
+///   deliberately distinct from `1`: a caller that collapses them cannot tell "unhealthy" from
+///   "could not look".
+///
+/// The human-readable table and the `--json` payload are unchanged — this adds a signal, it
+/// removes none.
+pub fn status(args: &SkillsArgs) -> Result<std::process::ExitCode> {
     let skills = frontmatter::load_skills();
     let sel = common::resolve_selection(&skills, &args.names, args.group.as_deref())?;
     let (skills_dir, _rules_dir) = common::dirs_for(args);
 
     let mut healths = Vec::new();
+    let mut inconclusive = false;
     for name in &sel.install {
-        healths.push(common::skill_health(name, &skills_dir)?);
+        match common::skill_health(name, &skills_dir) {
+            Ok(h) => healths.push(h),
+            // The health of THIS skill could not be determined. Recorded and reported as
+            // INCONCLUSIVE rather than propagated as an error, so the remaining skills are
+            // still reported — a caller learns about every skill, and separately learns that
+            // the run was not complete.
+            Err(e) => {
+                eprintln!("yf skills status: cannot determine health of {name}: {e}");
+                inconclusive = true;
+            }
+        }
     }
+    let unhealthy: Vec<&str> = healths
+        .iter()
+        .filter(|h| h.doctor_state() != "ok")
+        .map(|h| h.name.as_str())
+        .collect();
 
     if args.json {
         let arr: Vec<_> = healths
@@ -44,7 +83,7 @@ pub fn status(args: &SkillsArgs) -> Result<()> {
             "skills": arr,
         });
         println!("{}", serde_json::to_string(&out)?);
-        return Ok(());
+        return Ok(verdict(inconclusive, &unhealthy));
     }
 
     println!("Skill status @ {}", skills_dir.display());
@@ -62,7 +101,27 @@ pub fn status(args: &SkillsArgs) -> Result<()> {
             yn(h.unmodified),
         );
     }
-    Ok(())
+    if !unhealthy.is_empty() {
+        eprintln!(
+            "yf skills status: {} skill(s) are not healthy: {}",
+            unhealthy.len(),
+            unhealthy.join(", ")
+        );
+    }
+    Ok(verdict(inconclusive, &unhealthy))
+}
+
+/// The three-valued verdict for `status` (#203). INCONCLUSIVE outranks unhealthy: if the run
+/// could not measure part of its own scope, the honest report is "I could not tell", not a
+/// verdict derived from the part it happened to see.
+fn verdict(inconclusive: bool, unhealthy: &[&str]) -> std::process::ExitCode {
+    if inconclusive {
+        std::process::ExitCode::from(2)
+    } else if unhealthy.is_empty() {
+        std::process::ExitCode::SUCCESS
+    } else {
+        std::process::ExitCode::from(1)
+    }
 }
 
 /// `yf skills upgrade` — rewrite + re-mark + prune (REQ-YF-MARK-004).

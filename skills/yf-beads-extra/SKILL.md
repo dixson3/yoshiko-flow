@@ -78,10 +78,34 @@ Gate types reported by `bd gate --help`: `human` (resolve via `bd gate resolve` 
 
 ## Dependency-edge mutation
 
+> **VERIFY A `bd` PRIMITIVE AGAINST THE INSTALLED BINARY, NEVER AGAINST THE DOCS SITE**
+> ([#195](https://github.com/dixson3/yoshiko-flow/issues/195), measured).
+>
+> `beads.gascity.com/workflows/molecules` documents four dependency types with execution
+> semantics — `blocks`, `parent-child`, **`conditional-blocks`** and **`waits-for`**. Installed
+> `bd` 1.1.2 accepts **neither of the last two**:
+>
+> ```bash
+> bd dep add --help    # -t, --type  (blocks|tracks|related|parent-child|discovered-from|
+>                      #              until|caused-by|validates|relates-to|supersedes)
+> ```
+>
+> Both absent types were **load-bearing** in a capability review: `waits-for` was proposed as the
+> join for a fan-out review wisp and `conditional-blocks` as the native expression of a RED/GREEN
+> control pattern. Both proposals were built on the docs and would have been **unbuildable**. The
+> divergence was caught only because a peer session ran `--help` instead of reading the site.
+>
+> This is the same shape as this repo's own three-artifacts problem (repo source vs embedded tree
+> vs installed skill): **the documentation and the binary are separate artifacts that move
+> independently**, and the docs site describes a version ahead of, or divergent from, what
+> `bd --version` reports. So: any yf work that plans against a `bd` primitive checks
+> `bd <verb> --help` first, and quotes what it saw.
+
 For what the four dependency types **mean** (`blocks` / `related` / `parent-child` /
 `discovered-from` — only `blocks` gates readiness), see the plugin's canonical
-`resources/DEPENDENCIES.md`. This section covers only the edge **mutation** mechanics and
-1.0.5 gotchas that doc omits.
+`resources/DEPENDENCIES.md` — **and confirm the type you intend to use appears in your own
+`bd dep add --help` output before you build on it.** This section covers only the edge
+**mutation** mechanics and 1.0.5 gotchas that doc omits.
 
 - **Add an edge with `bd dep` — it is additive.** Either form works and neither drops
   existing edges:
