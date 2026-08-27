@@ -23,8 +23,27 @@ _want architecture.md 'pi'                      'Issue 5.4: five harnesses, not 
 # apart. Measured: a blind sweep over every occurrence destroyed install.md's deprecation note,
 # leaving it asserting that the CANONICAL command was slated for removal. So lines that also
 # carry the word `deprecated` are excluded.
-stale="$(grep -rn 'yf skills install' "${TREE}/web" 2>/dev/null \
-         | grep -vi 'deprecated' | cut -d: -f1 | sort -u || true)"
+# THE PREDICATE IS "APPEARS IN A RUNNABLE FENCE", not "appears at all", and not line-adjacency.
+#
+# The criterion is that no page TEACHES the deprecated spelling as canonical. A line that names
+# `yf skills install` in order to say it is deprecated is the page doing its job. Two earlier
+# drafts of this check got the predicate wrong in opposite directions: a bare occurrence-count
+# flagged the deprecation notice itself (and a blind rename sweep then DESTROYED that notice,
+# leaving install.md asserting the canonical command was slated for removal); and a per-line
+# `grep -vi deprecated` still flagged it, because the sentence spans two lines and the word
+# `deprecated` sits on the second.
+#
+# What a reader COPIES is a fenced command, so that is what is checked.
+stale=""
+while IFS= read -r f; do
+  [ -n "${f}" ] || continue
+  awk '
+    /^```/       { infence = !infence; next }
+    infence && /yf skills install/ { found = 1 }
+    END          { exit(found ? 0 : 1) }
+  ' "${f}" && stale="${stale}${f}"$'\n'
+done <<< "$(grep -rl 'yf skills install' "${TREE}/web" 2>/dev/null || true)"
+stale="$(printf '%s' "${stale}" | grep -v '^$' || true)"
 if [ -n "${stale}" ]; then
   ck_fail "$(printf '%s\n' "${stale}" | grep -c .) web file(s) still teach the deprecated \`yf skills install\` spelling:"
   printf '%s\n' "${stale}" | sed "s|^${TREE}/|  |" >&2
