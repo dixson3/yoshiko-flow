@@ -21,6 +21,12 @@ whether the deferral still holds.
 | D5 | `RevertOutcome::KeptModified`'s reason string carries a run of ~30 spaces mid-sentence, from a wrapped Rust literal that was never joined — on the conservative-keep path, which is the highest-stakes string in the module | [#242](https://github.com/dixson3/yoshiko-flow/issues/242) | Observed at `yf/src/cmd/harness/revert.rs`: `"…kept, not                              deleted; remove it yourself…"` |
 | D6 | **Successor to the closed #154.** `yf harness tune` overwrites a pre-existing rules aggregate `yf` did not author, with **no backup** — so `--revert` has nothing to restore from, by construction. The loss happens at **tune**, not at revert | [#243](https://github.com/dixson3/yoshiko-flow/issues/243) | **Measured** by EXP-006: six sandbox spikes under a fake `HOME`, incl. a high-fidelity replica using the real `AGENTS.md` files with every path rewritten to the sandbox. The revert half is genuinely fixed (the `REQ-YF-TUNE-029` sha guard fires); this is the adjacent half it cannot reach |
 
+## Deferred at close, by operator decision
+
+| # | Deferred work | Filed | Measurement |
+| :-- | :-- | :-- | :-- |
+| D12 | **The `v0.5.0` tag push** (Issue 6.8, descoped). Deferred to a successor session so the operator can verify the harnesses manually under a real `HOME` first — the push is irreversible AND auto-publishes the website, so there is no fix-it-afterwards window. Its two human gates were **closed, not resolved**: resolving would assert evidence that does not exist, and release authorization is a human act no test can stand in for | [#255](https://github.com/dixson3/yoshiko-flow/issues/255) | **Measured** at close in the primary checkout: `main` at `1eba35d`, **0 unpushed**; crate / `Cargo.lock` / `CHANGELOG.md` / `web/pelicanconf.py` all read `0.5.0`; FULL tier **51/51**; `git tag -l v0.5.0` returns **0 rows**. SC29 was amended to assert this staged-and-untagged state and is mutation-proven — it fails if a tag exists |
+
 ## Found by the 52-edge drift sweep (Issue 6.6)
 
 The full sweep at `dd9adc2` returned **PASS 38 / FAIL 11 / CONFLICT 3 / INCONCLUSIVE 0**. Four
