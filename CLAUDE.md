@@ -1,3 +1,3 @@
-# beads-skills
+# yoshiko-flow
 
 @AGENTS.md

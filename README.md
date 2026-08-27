@@ -77,21 +77,59 @@ a vendor release.
 
 ### Deploy the skills
 
+The canonical form is **`yf harness skills <verb>`**. The bare `yf skills <verb>` still works
+and behaves identically, but it is a **deprecated alias** kept until the next major release and
+it prints a notice.
+
 ```bash
-yf skills install                    # all skills → ~/.claude/{skills,rules}/
-yf skills install --group workflows  # yf-plan/research/incubator + the beads skills they need
-yf skills install --group beads      # only the beads support skills (yf-beads-*)
-yf skills install --scope project --surface agents  # <git-root>/.agents/{skills,rules}/
-yf skills install --dry-run      # preview without writing
-yf doctor                        # verify the toolchain + skill-install health
+yf harness skills install                       # all skills → the detected harness(es)
+yf harness skills install --harness pi          # one named harness
+yf harness skills install --harness claude-code --harness codex   # repeatable
+yf harness skills install --group workflows     # yf-plan/research/incubator + the beads skills they need
+yf harness skills install --group beads         # only the beads support skills (yf-beads-*)
+yf harness skills install --scope project       # <git-root>/… instead of ~/…
+yf harness skills install --dry-run             # preview without writing
+yf doctor                                       # verify the toolchain + skill-install health
 ```
 
-`yf skills install` selectors: `--group <name>` (group computed from `skill-group`
-frontmatter), `--scope user|project`, `--surface claude|agents`, `--target <path>`,
+#### The five harnesses
+
+`yf` installs to a **descriptor table**, so every harness resolves from one source of truth —
+which is also what `yf skill-dir <name>` reads, so a skill and the tooling that finds it can
+never disagree.
+
+| `--harness` | user scope | project scope | notes |
+| :-- | :-- | :-- | :-- |
+| `claude-code` | `~/.claude/skills` | `<git-root>/.claude/skills` | rules land in the sibling `rules/` dir |
+| `codex` | `~/.agents/skills` | `<git-root>/.agents/skills` | rules go into `AGENTS.md` as a managed block |
+| `opencode` | `~/.config/opencode/skills` | `<git-root>/.opencode/skills` | reads `opencode.jsonc` **ahead of** `opencode.json` |
+| `pi` | `~/.pi/agent/skills` | `<git-root>/.pi/skills` | applies a lowercase-hyphen name transform; **config tuning is deferred** — `--harness pi` tunes rules and skills only |
+| `agents` | `~/.agents/skills` | `<git-root>/.agents/skills` | shares codex's path deliberately |
+
+`codex` and `agents` resolve to the **same** directory. That is intentional, not a duplicate row.
+
+With **no** `--harness`, install targets every auto-detected harness. `--surface claude|agents`
+is retained as a **deprecated alias** for `--harness` (`claude`→`claude-code`,
+`agents`→`agents`).
+
+#### Finding an installed skill
+
+```bash
+yf skill-dir yf-plan     # prints the absolute path; 0 resolved, 1 not installed, 2 could not look
+```
+
+This is what shipped skills use to locate their own scripts, and it searches **every** harness
+destination above. The exit code is three-valued on purpose: `1` and `2` are different facts, and
+a caller that collapses them cannot tell "not installed" from "could not look".
+
+`yf harness skills install` selectors: `--group <name>` (group computed from `skill-group`
+frontmatter), `--scope user|project`, repeatable `--harness {claude-code,codex,opencode,pi,agents}`,
+`--target <path>`,
 `--strict` (abort if a required tool is missing; default warns and installs anyway),
-`--dry-run`, and `--prune` (remove deployed files no longer in the embedded tree — **opt-in on
-`install`**, default-on for `upgrade`; `--dry-run --prune` reports the exact per-destination set
-first). `--force` no longer affects the companion ruleset — the aggregated `YOSHIKO_FLOW.md` is a
+`--dry-run`, `--tune` (also align config + deploy rules for the acted-on harnesses — an
+**opt-in bridge**; install and tune stay separable), and `--prune` (remove deployed files no
+longer in the embedded tree — **opt-in on `install`**, default-on for `upgrade`;
+`--dry-run --prune` reports the exact per-destination set first). `--force` no longer affects the companion ruleset — the aggregated `YOSHIKO_FLOW.md` is a
 fully `yf`-managed artifact whose sections are always regenerated to the embedded source, so it is
 inert on the rule axis. *(One narrow exception to "no hand-edit tolerance": `yf harness tune
 --revert` is **conservative-keep** — if you hand-edited the aggregate, revert keeps the file and
@@ -145,8 +183,14 @@ yf preflight <skill>             # a single skill's readiness check (e.g. yf pre
 
 `yf preflight <skill>` is the per-skill readiness gate the beads skills run before they do
 work — it probes system deps + min `bd` version, verifies the companion rule against the
-embedded manifest, checks/repairs the beads config (routing through `yf-beads-init`), and
-ensures the gitignore scaffold. Its `--json` output is the machine-readable verdict (a
+embedded manifest, **checks** the beads config, and ensures the gitignore scaffold.
+
+**Preflight does not repair the beads config.** It is **read-only** on that axis: it reports a
+`bd_not_initialized` (or corrupted) verdict and routes you to `/yf-beads-init`, which owns the
+repair sequence. Repair is **opt-in** and explicit — `yf doctor --repair` is the flag that
+applies it. An earlier version of this section said preflight "checks/repairs", which described
+a write that never happens and would have been the wrong default besides: a readiness probe that
+silently mutates a repository's beads state is not a probe. Its `--json` output is the machine-readable verdict (a
 `status` enum; parse the field, not the exit code). See
 [docs/yf/preflight-contract.md](docs/yf/preflight-contract.md) for the full contract.
 

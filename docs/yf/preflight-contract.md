@@ -110,6 +110,33 @@ Evaluation order in `_check_prerequisites()` (short-circuits top to bottom):
 | `manifest_missing` | `protocols/manifest.json` absent | `_check_rule()` (**REQ-YF-PRE-003**) | `instructions: [..]`, `rule: {outcome:"manifest_missing", rule}` |
 | `ok` | tools OK, bd initialized, rule outcome `ok` or `update_available`; scaffold ensured | full pass (**REQ-YF-PRE-003/005**) | `missing: []`, `rule: {outcome:"ok"\|"update_available", ...}`, `scaffold_added: [..]`, `instructions: []`, an update-available note, a canonicalization-drift offer, and/or a **self-update offer** (**REQ-YF-PRE-009**) |
 
+### Scaffold version and what the scaffold ensures
+
+`SCAFFOLD_VERSION: i64 = 3` (`preflight.rs:49`). The value is a **cache key, not a count**: the
+idempotent scaffold re-runs when the recorded `scaffold-ensured` version differs from the
+running one, so bumping it is how a new scaffold action reaches already-warm repositories.
+
+Version history, so a reader can tell which behaviour a stamped repo has:
+
+| version | adds |
+| --: | :-- |
+| 1 | the `docs/plans` dir and a single `/.yf/` gitignore anchor |
+| 2 | the `/.beads/formulas/` gitignore anchor, alongside **`REQ-YF-PRE-011`** formula staging |
+| 3 | the **`REQ-YF-PRE-004a`** committed-config carve-out |
+
+Three requirements govern this area and are named here because they were previously absent from
+this document while being live in the kernel:
+
+- **`REQ-YF-PRE-010`** — the canonical **minimal-local beads profile** (per-repo local server,
+  no Dolt remote), which preflight asserts rather than assumes.
+- **`REQ-YF-PRE-011`** — **preflight OWNS formula staging.** It writes each beads-backed skill's
+  embedded `formulas/*` into the project's `.beads/formulas/` on **every** preflight, which is
+  why `bd mol pour` resolves a proto with no per-call `cp`/`rm` staging by the caller. The
+  `/.beads/formulas/` gitignore anchor exists because those staged copies are derived artifacts,
+  not sources.
+- **`REQ-YF-PRE-004a`** — the **committed**-config carve-out in the three-tier key-by-key config
+  merge, so a shared committed config is distinguishable from a personal local one.
+
 `prereqs-present` caching: the system-deps + `bd status` block runs only when
 `state["prereqs-present"]` is unset. Once it passes, `prereqs-present: true` is
 written to state and that block is skipped on subsequent runs — so a warm repo
@@ -325,9 +352,11 @@ differences:
    `.state/bdresearch/`. Under the new `.yf/` naming (§7) these become per-skill
    `.yf-<skill>.local.json` and `.yf/<skill>/`.
 
-3. Everything else (`MIN_BD_VERSION=(1,0,5)`, `MANIFEST_SCHEMA=1`,
-   `SCAFFOLD_VERSION=1`, the `_RULE_INSTRUCTIONS` text, exit behavior) is the same
-   between the two.
+3. Everything else (`MIN_BD_VERSION=(1,0,5)`, `MANIFEST_SCHEMA=1`, the
+   `_RULE_INSTRUCTIONS` text, exit behavior) is the same between the two. The scaffold
+   version is **no longer 1** — it is `SCAFFOLD_VERSION: i64 = 3` (see the scaffold-version
+   section above for what each version adds). This paragraph described the two skills as
+   agreeing on a value that has since moved twice.
 
 ## 7. New `.yf/` paths vs legacy (REQ-YF-PRE-004, REQ-YF-MIGRATE-001)
 

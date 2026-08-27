@@ -266,9 +266,16 @@ surface and deploying the same always-loaded rules as a minimized managed block.
 The blocks below are **reference prose only** — the concrete, machine-readable
 source of truth is each harness's embedded profile (`yf/profiles/<harness>.json`)
 and the rule-target map; run `yf harness tune --harness <name> --dry-run` to see
-exactly what would change on your machine. (A per-harness `yf doctor`/drift axis —
-the codex/opencode/pi analog of the Claude-Code drift check — is deferred to a
-follow-on; there is no automated drift gate for these harnesses yet.)
+exactly what would change on your machine. (The per-harness `yf doctor` drift axis —
+the codex/opencode/pi analog of the Claude-Code drift check — **ships**: `yf doctor`
+emits a `settings:<harness>` axis for every harness with a config profile and a
+`managed-block:<harness>` axis for every harness with a rule target, so drift is
+gated automatically rather than by inspection. **pi's config axis remains deferred**,
+and deliberately so: `--harness pi` tunes rules and skills only, because pi's config
+surface is `[uncertain]` on a questionable-tier source and a compiled-in guess is
+strictly worse than a clean deferral — that half rides on
+[#121](https://github.com/dixson3/yoshiko-flow/issues/121). The **opencode** axis reads
+every layer opencode itself reads, `.jsonc` ahead of `.json`, per `REQ-YF-TUNE-030`.)
 
 Config alignment is universally an **enforcement / visibility** lever, never a
 trigger supplier: the load-bearing cross-harness substrate is the always-loaded
