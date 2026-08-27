@@ -149,10 +149,19 @@ cutting 1.0.0 now would have obligated their removal in the same cycle.
   worse than a clean deferral. Skills and the always-loaded rule block both deploy to pi
   and are exercised by the live regression; only config alignment is deferred, tracked at
   [#121](https://github.com/dixson3/yoshiko-flow/issues/121).
-- **`yf harness tune --revert` on a symlinked rule target keeps the file rather than
-  removing it.** Revert refuses to unlink a symlink, and it will not delete a target whose
-  pre-tune content `yf` never backed up. The managed block is cleared either way; an empty
-  file may be left behind. Remove the link yourself if you want it gone.
+- **On a symlinked rule surface, `yf harness tune` and `--revert` edit the SYMLINK'S TARGET —
+  so a dotfiles repo will come back dirty, by design.** If `~/.pi/agent/AGENTS.md` (or any
+  other rule target) is a symlink into a tracked dotfiles repository, both operations follow
+  the link and write the real file. That is the correct behaviour — the alternative is
+  replacing your pointer with a regular file — but it means **`git status` in your dotfiles
+  repo will show a change after either command.** Review and commit it as you would any other
+  edit.
+
+  Revert additionally **refuses to unlink a symlink**: it clears the managed block and keeps
+  the file, rather than removing your pointer and stranding yf's content in the real file. It
+  also will not delete a target whose pre-tune content `yf` never backed up, since restoring
+  content requires a real backup and deletion is not restoration. An empty file may therefore
+  be left behind; remove the link yourself if you want it gone.
 
 ## v0.4.0 — 2026-07-09
 
