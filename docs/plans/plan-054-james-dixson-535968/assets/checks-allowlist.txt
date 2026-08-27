@@ -1,0 +1,12 @@
+# checks-allowlist.txt — criterion instruments EXEMPT from the pre-fix RED requirement.
+#
+# FORMAT: `<check-name.sh>` then whitespace then the REASON, on one line. A bare name with
+# no reason is REJECTED by `verify-red-checks` — 0.1 requires the reason to be recorded, and
+# an allowlist entry nobody has to justify is not an allowlist.
+#
+# THE BAR IS HIGH BY DESIGN. Every entry here is a criterion whose instrument is NOT
+# evidence-backed by a red->green observation, so each one narrows what the RED gate proves.
+# Add an entry only when the check is STRUCTURALLY unbaselineable, never merely because it
+# is inconvenient that it passes.
+
+check-harness-smoke.sh  authored by Issue 2.5, which sits DOWNSTREAM of the RED gate, so no pre-fix observation of it can exist at the moment the gate is evaluated — it is structurally unbaselineable rather than exempted. Its red evidence is Issue 6.7's live transcript instead.

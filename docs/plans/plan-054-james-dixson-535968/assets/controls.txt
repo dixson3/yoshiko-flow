@@ -1,0 +1,31 @@
+# controls.txt — the authoritative red->green CONTROL set for plan-054.
+#
+# THIS FILE IS DERIVED, NOT AUTHORED FREELY. `redcheck.sh verify-manifest` (and every
+# verify verb) greps plan.md for `ctl-[0-9]{3}-[a-z-]+` and asserts the resulting set is
+# SET-WISE EQUAL to the non-comment lines below. A control missing here is a control the
+# gate CANNOT SEE; a control here but not in plan.md is a control nothing declared.
+#
+# NAMING GRAMMAR — EXACTLY THREE DIGITS, AND NO FURTHER DIGIT.
+# The derivation pattern `ctl-[0-9]{3}-[a-z-]+` is anchored on three digits and its tail
+# class excludes digits. So a name carrying a second number later in the name TRUNCATES at
+# that digit and silently registers as a different control, and a name with no number at
+# all is invisible to the derivation entirely.
+#
+# THE RESERVED 9xx RANGE. A control normally takes the number of the upstream issue it
+# grades (ctl-201 grades #201). A control with NO upstream issue — a plan-local behaviour
+# this plan asserts for its own sake — takes a number from the reserved **9xx** range,
+# assigned in order. 9xx is reserved precisely so a plan-local control can never collide
+# with a real issue number.
+#
+# A `check-*.sh` NEVER APPEARS HERE. Criterion instruments live in `assets/checks/` and are
+# a separate population with their own recorder (`record-red-check`) and their own verifier
+# (`verify-red-checks`) — see redcheck.sh's header.
+
+ctl-154-symlink-revert
+ctl-185-empty-triage
+ctl-201-changed-append
+ctl-203-exit-discipline
+ctl-225-columnzero-paragraph
+ctl-226-leading-code-span
+ctl-901-opencode-read-layers
+ctl-902-resolver-isolated
