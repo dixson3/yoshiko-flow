@@ -97,6 +97,11 @@ fn run() -> Result<std::process::ExitCode> {
         }
         // Preflight owns its exit code (REQ-YF-CLI-003: non-zero on a failing status).
         Command::Preflight(args) => preflight::run(&args.skill, args.json),
+        // `skill-dir` owns its exit code, and it is THREE-VALUED (REQ-YF-CLI-005): 0 resolved,
+        // 1 not installed at any known destination, 2 the lookup could not be performed. The
+        // 1/2 split is the point — a caller that collapses them cannot tell "not installed"
+        // from "could not look", which is the conflation this whole release is about.
+        Command::SkillDir(args) => cmd::skill_dir::run(&args),
         Command::Migrate(args) => migrate::run(args.path, args.dry_run, args.json)
             .map(|()| std::process::ExitCode::SUCCESS),
         // `self` owns its exit code: a refusal (e.g. a Homebrew copy) is a verdict,

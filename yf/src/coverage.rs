@@ -91,7 +91,6 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // requirement escape the coverage gate entirely rather than be bridged by it.
     //
     // Each row is removed in the SAME COMMIT as the `// REQ-…` tag that supersedes it.
-    ("REQ-YF-CLI-005", "plan-054 Issue 0.2 SPEC-first bridge: `yf skill-dir` is specified in Epic 0 and implemented in Epic 1 (Issue 1.1); this row is removed in the same commit as that issue's `// REQ-YF-CLI-005` tag"),
     ("REQ-YF-TUNE-030", "plan-054 Issue 0.3 SPEC-first bridge: `settings_read_layers` is specified in Epic 0 and implemented in Epic 2 (Issue 2.4); this row is removed in the same commit as that issue's `// REQ-YF-TUNE-030` tag"),
 ];
 
