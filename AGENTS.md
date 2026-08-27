@@ -29,10 +29,11 @@ separate artifacts and they move independently:
 | **Binary-embedded tree** | what `yf` carries (`rust-embed`, release builds) | on rebuild |
 | **Session-installed skill** | what the running session resolved at invocation | on deploy, then next invocation |
 
-The `SKILL_DIR` resolver searches `~/.claude/skills`, `~/.agents/skills`,
-`$GIT_ROOT/.{claude,agents}/skills`, and relative `.{claude,agents}/skills`. **The repo's
-`skills/` directory matches none of those six roots** — it is unreachable by the resolver, not
-merely stale.
+The `SKILL_DIR` resolver is `yf skill-dir <name>` with a pure-bash fallback, and it searches
+**every harness destination `yf` installs to** — `.claude/skills`, `.agents/skills`
+(codex + agents), `.config/opencode/skills` and `.pi/agent/skills` under `$HOME`, their
+project-scope equivalents under `$GIT_ROOT`, and the cwd-relative roots. **The repo's `skills/`
+directory matches none of them** — it is unreachable by the resolver, not merely stale.
 
 **The safety invariant that follows:** a plan or research project may freely rework the skill
 it is executing under. `SKILL.md` prose, `agents/*.md` and `uv run ${SKILL_DIR}/scripts/*.py`

@@ -27,8 +27,11 @@ formula-vs-agent separation and runtime self-location.
   project's gitignored `.beads/formulas/` on every preflight (`REQ-YF-PRE-011`). The SKILL body
   carries **no per-call `cp`/`rm` bracket**. — *Rationale:* the source of truth stays in the skill,
   but the staging obligation moves into the kernel, because a skill that forgets to stage its own
-  formula fails at pour time with nothing having warned it. — *Verify:* no `cp … .beads/formulas/`
-  in any SKILL.md; the `e-formula-name` drift edge FAILs a SKILL.md carrying a staging bracket.
+  formula fails at pour time with nothing having warned it. — *Verify:* no **runnable**
+  `cp … .beads/formulas/` line in any SKILL.md. The predicate is a **bash-fence line, not a bare
+  occurrence** — descriptive prose *about* the removed bracket legitimately names it
+  (`yf-beads-authoring/SKILL.md:134` does), and a bare grep cannot tell a runnable line from prose
+  about one. The `e-formula-name` drift contract already carves this out in the same words.
 
 - **REQ-STRUCT-004:** SKILL.md owns orchestration (prerequisites, scoping, planning, pour,
   handoff, coordinate); per-step execution lives in agent files. — *Rationale:* SKILL.md loads

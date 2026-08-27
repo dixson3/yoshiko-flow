@@ -13,7 +13,7 @@ contract, and implement a `coordinate` subcommand with gate auto-detection. It i
 for skill authors — not a runtime tool. `bdplan`/`bdresearch` (→ `yf-plan`/`yf-research`) are the
 in-repo worked examples.
 
-**In scope:** formula authoring + right-sizing, the stage/pour/remove formula lifecycle, post-pour
+**In scope:** formula authoring + right-sizing, the preflight-staged formula lifecycle, post-pour
 agent-metadata wiring, dynamic fan-out, the coordinator loop, the coordinator resilience contract
 (resume detection, stuck-bead sweep, stale-run threshold, blocked-gate draining, discovered-work
 re-entry, completion/git handoff), and the `coordinate` subcommand.

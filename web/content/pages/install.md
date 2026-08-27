@@ -157,9 +157,9 @@ yf harness skills install --scope project --harness codex    # <git-root>/.agent
 yf harness skills install --dry-run                          # preview without writing
 ```
 
-> `yf harness skills install` is the **canonical** command. `yf harness skills install` is kept as a
-> **deprecated alias** (it still works, including `yf harness skills install --tune`) and will be
-> removed in the next major release — prefer the `yf harness` spelling.
+> `yf harness skills install` is the **canonical** command. `yf skills install` is kept as a
+> **deprecated alias** (it still works, including `yf skills install --tune`) and will be
+> removed no earlier than the next major release — prefer the `yf harness` spelling.
 
 Groups are computed from each skill's `skill-group` frontmatter (`workflows`, `beads`,
 `utility`, `markdown`) — the valid `--group` names are the union of all skills' values, never

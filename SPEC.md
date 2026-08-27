@@ -774,7 +774,7 @@ requirement lives only in code (GUARDRAILS GR-010).
   across the whole `skills/` tree and run in the **fast and full** validation tiers, with its own
   path in scope so that **deleting** the check fires it.
   The `_shared/` prefix is the measured instance. `_shared/` is a directory in this repository; it
-  is not one of the six roots the `SKILL_DIR` resolver searches, so an operator following such a
+  is not one of the roots the `SKILL_DIR` resolver searches, so an operator following such a
   line verbatim in any other repository gets a file-not-found. A second, distinct failure shape
   shares the requirement: a path may be *correctly rooted* and still name a script that was never
   vendored into the skill at all (`missing-in-repo`) — `pour_fidelity.py` had **no vendored copy**,
