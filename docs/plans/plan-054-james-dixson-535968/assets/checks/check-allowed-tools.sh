@@ -10,11 +10,21 @@ TREE="$(ck_tree)" || ck_inconclusive "cannot resolve the tree under test"
 [ -d "${TREE}/skills" ] || ck_inconclusive "no skills/ under ${TREE}"
 CK_RC=0
 
+# THE CRITERION IS "RELIES ON ... FOR SCOPING", NOT "DECLARES". An earlier draft of this check
+# demanded ZERO carriers, which contradicts both SC33's own wording and REQ-YF-EMBED-006, whose
+# text RETAINS the key for claude-code's benefit and forbids only DEPENDING on it for a
+# portability, safety or scoping guarantee. Deleting the key would have removed a real
+# claude-code benefit to satisfy a check that had over-read its own criterion.
+#
+# So: a carrier is fine, an UNANNOTATED carrier is not. Each must record the claude-only caveat,
+# so no author can mistake the list for a cross-harness constraint.
 carriers="$(grep -rl '^allowed-tools:' "${TREE}/skills" --include='SKILL.md' 2>/dev/null || true)"
-n=0; [ -n "${carriers}" ] && n="$(printf '%s\n' "${carriers}" | grep -c .)"
-if [ "${n}" -ne 0 ]; then
-  ck_fail "${n} shipped SKILL.md still declare(s) allowed-tools:"
-  printf '%s\n' "${carriers}" | sed 's/^/  /' >&2
+if [ -n "${carriers}" ]; then
+  while IFS= read -r f; do
+    [ -n "${f}" ] || continue
+    grep -q 'REQ-YF-EMBED-006' "${f}" \
+      || ck_fail "${f#${TREE}/} declares allowed-tools with no claude-only caveat — nothing stops an author reading it as a cross-harness scoping guarantee"
+  done <<< "${carriers}"
 fi
 grep -q 'REQ-YF-EMBED-006' "${TREE}/SPEC.md" 2>/dev/null \
   || ck_fail "REQ-YF-EMBED-006 (the allowed-tools decision-of-record) is absent from SPEC.md"
