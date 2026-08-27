@@ -424,10 +424,18 @@ fn revert_rules(record: &SurfaceRecord, dry_run: bool) -> Result<RuleRevert> {
                 }),
                 Ok(BlockRemoval::Removed(out)) => {
                     let wrote = if !dry_run {
-                        // If removing the block empties the file, delete it; else write
-                        // the prose-only remainder back.
-                        if out.trim().is_empty() {
-                            std::fs::remove_file(&path)?;
+                        // If removing the block empties the file, delete it; else write the
+                        // prose-only remainder back.
+                        //
+                        // THE DELETE-WHEN-EMPTY OPTIMIZATION IS DROPPED FOR SYMLINKED PATHS
+                        // (EXP-006). `remove_file` unlinks the LINK while `write` follows it,
+                        // so on a symlinked surface this branch deleted the operator's pointer
+                        // into their tracked dotfiles and stranded the content — reporting
+                        // success. Writing the (empty) remainder through the link instead
+                        // leaves an empty file, which is recoverable; deleting their symlink
+                        // is not, and tidiness is not worth that trade.
+                        if out.trim().is_empty() && remove_rule_target(&path)? {
+                            // removed outright — a real file, safe to delete
                         } else {
                             std::fs::write(&path, &out)?;
                         }
@@ -472,17 +480,29 @@ fn revert_rules(record: &SurfaceRecord, dry_run: bool) -> Result<RuleRevert> {
                 .ok();
             match (&rule.sha256, &on_disk) {
                 // Recorded sha matches disk → this is yf's own output. Remove.
+                //
+                // SYMLINK-AWARE (EXP-006). A matching sha proves the CONTENT is yf's; it says
+                // nothing about whether `path` is a real file or the operator's symlink into a
+                // tracked dotfiles repo. `remove_file` would unlink the LINK, stranding the
+                // content and reporting success — measured at 31613 bytes in the aggregate
+                // variant specifically. When the path is a symlink we conservative-keep and
+                // report, exactly as the sha-mismatch arm below does, rather than deleting a
+                // target whose pre-tune content yf never backed up (REQ-YF-TUNE-029).
                 (Some(rec), Some(now)) if rec == now => {
-                    let wrote = if !dry_run {
-                        std::fs::remove_file(&path)?;
-                        true
-                    } else {
-                        false
-                    };
+                    if !dry_run && !remove_rule_target(&path)? {
+                        return Ok(RuleRevert::KeptModified {
+                            path,
+                            reason: "the rule target is a SYMLINK — unlinking it would remove \
+                                     your pointer and strand yf's content in the real file, \
+                                     while reporting success; kept, not deleted. Remove the \
+                                     link yourself if you want it gone."
+                                .to_string(),
+                        });
+                    }
                     Ok(RuleRevert::Aggregate {
                         path,
                         removed: true,
-                        wrote,
+                        wrote: !dry_run,
                     })
                 }
                 // Recorded sha differs → hand-edited since the tune. KEEP.
@@ -1254,4 +1274,43 @@ mod tests {
         let code = run(&revert_args("nonesuch", false, false)).unwrap();
         assert_eq!(format!("{code:?}"), format!("{:?}", ExitCode::SUCCESS));
     }
+}
+
+/// Remove a rule target that revert has decided should go away — **symlink-aware**
+/// (REQ-YF-TUNE-022, amended plan-054 / EXP-006).
+///
+/// # The defect this exists to prevent
+///
+/// `std::fs::remove_file` **unlinks the symlink itself**, whereas the paired write path uses
+/// `std::fs::write`, which **follows** it. So on a symlinked surface — the shape produced by a
+/// dotfiles repo, and the one the operator actually runs — a tune wrote *into the operator's
+/// real tracked file*, and the revert deleted their **pointer** while stranding the content.
+/// EXP-006 reproduced this twice, measuring **31613 bytes** left behind in one variant, with
+/// revert **reporting success** both times.
+///
+/// # Why it refuses rather than deleting the target
+///
+/// Following the link and deleting the *target* would be worse: the target is the operator's
+/// own file in their own repository, and yf never backed up its pre-tune content. Deleting it
+/// is unrecoverable, and `REQ-YF-TUNE-029` already states plainly that revert **shall not
+/// delete a file whose pre-tune content yf never backed up** — restoring content requires a
+/// real backup, and deletion is not restoration.
+///
+/// So the symlink case takes the same **conservative-keep** branch the sha-mismatch case takes:
+/// the link is left intact, and the caller reports it. Nothing is silently destroyed in either
+/// direction.
+///
+/// Returns `Ok(true)` when the file was removed, `Ok(false)` when it was conservative-kept
+/// because the path is a symlink.
+fn remove_rule_target(path: &std::path::Path) -> std::io::Result<bool> {
+    // `symlink_metadata` does NOT follow the link — that is the whole point. `metadata` would
+    // report on the TARGET and answer a different question.
+    let is_symlink = std::fs::symlink_metadata(path)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false);
+    if is_symlink {
+        return Ok(false);
+    }
+    std::fs::remove_file(path)?;
+    Ok(true)
 }

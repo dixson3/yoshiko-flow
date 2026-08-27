@@ -332,6 +332,35 @@ fn compute_config_subop(
     match profile::load_profile(harness)? {
         Some(profile) => {
             let path = settings::settings_path_at(&profile, scope, home, root);
+
+            // REQ-YF-TUNE-030 (plan-054 / EXP-003): warn when a HIGHER-PRECEDENCE layer that
+            // the harness itself reads exists on disk and will SHADOW what we are about to
+            // write. Measured: opencode reads `opencode.jsonc` ahead of `opencode.json`, so a
+            // tune of `opencode.json` can complete successfully and change nothing the harness
+            // obeys. The shadowed keys are named explicitly — "config may be shadowed" with no
+            // path is a warning the operator cannot act on.
+            //
+            // It WARNS rather than refusing: the write is still correct and still what the
+            // operator asked for, and a higher layer is a legitimate configuration the operator
+            // may have authored deliberately. What is not acceptable is doing it silently.
+            let shadows = settings::shadowing_layers_at(&profile, scope, home, root);
+            if !shadows.is_empty() {
+                eprintln!(
+                    "warning: {} reads {} at HIGHER precedence than {}, so these keys may be \
+                     overridden by a layer yf does not write:",
+                    harness,
+                    shadows
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    path.display(),
+                );
+                for e in &profile.entries {
+                    eprintln!("  {}", e.path);
+                }
+            }
+
             // REQ-YF-SELF-008: the consent gate. Active only on the `--tune` bridge
             // (the sync's entry point) and satisfiable only by the explicit D-N
             // flag — never by `--yes`, which is not consulted here at all.

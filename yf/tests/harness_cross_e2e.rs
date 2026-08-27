@@ -738,3 +738,109 @@ printf '%s' "$SKILL_DIR"
         "the bash fallback must resolve the same directory `yf skill-dir` does"
     );
 }
+
+// ---------------------------------------------------------------------------
+// plan-054 Issue 2.3 — symlinked rule target, BOTH delete branches (#154's surviving half).
+//
+// THE NAME IS FIXED BY CONTRACT. SC9 names this exact string, so the criterion and the test
+// cannot drift apart — a criterion naming a test that does not exist is satisfied by a
+// zero-match `cargo test` filter, which exits 0.
+//
+// Nothing existing could catch this: the ownership manifest records NOTHING distinguishing a
+// symlinked target from a regular one, and every other test in this file uses regular files.
+// ---------------------------------------------------------------------------
+
+// REQ-YF-TUNE-022 (symlink-aware delete, amended plan-054)
+#[test]
+fn revert_through_symlink_preserves_link_and_clears_block() {
+    // ---- branch 1: the managed-block "delete when empty" optimization ----
+    //
+    // An EMPTY operator file is what reaches that branch: with prose present, removing yf's
+    // block leaves a non-empty remainder and revert takes the write-back path, which
+    // `std::fs::write` handles correctly through a link. Only the empty case calls
+    // `remove_file`. (A fixture that seeded prose here passed on the UNFIXED tree.)
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().join("home");
+    let dotfiles = tmp.path().join("dotfiles");
+    std::fs::create_dir_all(home.join(".pi/agent")).unwrap();
+    std::fs::create_dir_all(&dotfiles).unwrap();
+
+    let real = dotfiles.join("AGENTS.md");
+    std::fs::write(&real, "").unwrap();
+    let link = home.join(".pi/agent/AGENTS.md");
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+
+    let tune = Command::new(YF)
+        .args(["harness", "tune", "--harness", "pi", "--rules-only"])
+        .env("HOME", &home)
+        .current_dir(&home)
+        .output()
+        .expect("spawn tune");
+    assert!(tune.status.success(), "tune must succeed to set the branch up");
+    let after_tune = std::fs::read_to_string(&real).unwrap();
+    assert!(
+        after_tune.contains(BEGIN_MARKER),
+        "the tune must have written THROUGH the link into the real target"
+    );
+
+    let _ = Command::new(YF)
+        .args(["harness", "tune", "--harness", "pi", "--rules-only", "--revert"])
+        .env("HOME", &home)
+        .current_dir(&home)
+        .output()
+        .expect("spawn revert");
+
+    assert!(
+        std::fs::symlink_metadata(&link).map(|m| m.file_type().is_symlink()).unwrap_or(false),
+        "the SYMLINK must survive revert — unlinking it strands yf's content in the \
+         operator's tracked file while reporting success (EXP-006)"
+    );
+    assert!(real.exists(), "the operator's real target must not be deleted");
+    let after_revert = std::fs::read_to_string(&real).unwrap();
+    assert!(
+        !after_revert.contains(BEGIN_MARKER),
+        "the managed block must be CLEARED from the target: {after_revert:?}"
+    );
+
+    // ---- branch 2: the `aggregate` kind, sha-matching arm ----
+    //
+    // Same shape, different code path: a matching sha proves the CONTENT is yf's but says
+    // nothing about whether the path is a real file or a symlink. Measured at 31613 bytes
+    // stranded in this variant.
+    let tmp2 = tempfile::tempdir().unwrap();
+    let home2 = tmp2.path().join("home");
+    let dotfiles2 = tmp2.path().join("dotfiles");
+    let rules2 = home2.join(".claude/rules");
+    std::fs::create_dir_all(&rules2).unwrap();
+    std::fs::create_dir_all(&dotfiles2).unwrap();
+
+    let real2 = dotfiles2.join("YOSHIKO_FLOW.md");
+    std::fs::write(&real2, "").unwrap();
+    let link2 = rules2.join("YOSHIKO_FLOW.md");
+    std::os::unix::fs::symlink(&real2, &link2).unwrap();
+
+    let t2 = Command::new(YF)
+        .args(["harness", "tune", "--harness", "claude-code", "--rules-only"])
+        .env("HOME", &home2)
+        .current_dir(&home2)
+        .output()
+        .expect("spawn tune (aggregate)");
+    assert!(t2.status.success(), "aggregate tune must succeed");
+    assert!(
+        !std::fs::read_to_string(&real2).unwrap().is_empty(),
+        "the aggregate tune must have written THROUGH the link"
+    );
+
+    let _ = Command::new(YF)
+        .args(["harness", "tune", "--harness", "claude-code", "--rules-only", "--revert"])
+        .env("HOME", &home2)
+        .current_dir(&home2)
+        .output()
+        .expect("spawn revert (aggregate)");
+
+    assert!(
+        std::fs::symlink_metadata(&link2).map(|m| m.file_type().is_symlink()).unwrap_or(false),
+        "the aggregate branch must not unlink a symlinked rule target either"
+    );
+    assert!(real2.exists(), "the operator's real aggregate target must not be deleted");
+}

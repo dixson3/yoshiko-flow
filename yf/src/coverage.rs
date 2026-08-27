@@ -83,15 +83,13 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // Owning issue per row is named in its reason. Issue 4.3 asserts this block is
     // net-clean at close — no row from this plan may survive it.
     //
-    // === plan-054 TEMPORARY BRIDGE (Issue 0.2 / 0.3) — same precedent, same invariant ===
-    //
-    // SPEC-first: Epic 0 lands these two bare `*(testable)*` REQs ahead of the epics that
-    // implement them. The bare marker is DELIBERATE — an annotated `*(testable, added …)*`
-    // marker is NOT in the enforced set this file parses, so annotating would have let the
-    // requirement escape the coverage gate entirely rather than be bridged by it.
-    //
-    // Each row is removed in the SAME COMMIT as the `// REQ-…` tag that supersedes it.
-    ("REQ-YF-TUNE-030", "plan-054 Issue 0.3 SPEC-first bridge: `settings_read_layers` is specified in Epic 0 and implemented in Epic 2 (Issue 2.4); this row is removed in the same commit as that issue's `// REQ-YF-TUNE-030` tag"),
+    // plan-054 note: `REQ-YF-CLI-005` (Issue 0.2) and `REQ-YF-TUNE-030` (Issue 0.3) used a
+    // temporary bridge while the SPEC-first Epic 0 landed ahead of the implementing epics.
+    // Both are now tagged by in-crate tests and their rows were removed in the same commits as
+    // those tags (plan-044 D-7), so none remains — net-clean, as designed. The bare
+    // `*(testable)*` marker was deliberate: an annotated marker is NOT in the enforced set this
+    // file parses, so annotating would have let the requirement escape the gate entirely
+    // rather than be bridged by it.
 ];
 
 /// Root of the `yf` crate (the dir holding `Cargo.toml`).

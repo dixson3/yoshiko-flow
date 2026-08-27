@@ -94,6 +94,54 @@ pub fn settings_path_at(profile: &Profile, scope: TuneScope, home: &Path, root: 
     anchor.join(&profile.surface_dir).join(filename)
 }
 
+/// Every config path this harness ITSELF reads at `scope`, **highest precedence first**
+/// (`REQ-YF-TUNE-030`, plan-054 / EXP-003).
+///
+/// This is the **audit-class** resolver and is deliberately distinct from
+/// [`settings_path_at`], which resolves the single **write** target and is unchanged. `yf`
+/// still writes exactly one file per harness; it must nevertheless *read* every layer the
+/// harness obeys, because a read set narrower than the harness's own reports a green over a
+/// higher-precedence layer it cannot see. Measured: opencode reads `opencode.jsonc` ahead of
+/// `opencode.json`, so today's agreement is coincidence.
+///
+/// A profile that declares no layers yields exactly `[settings_path_at(...)]`, preserving
+/// today's behaviour rather than reading nothing.
+pub fn settings_read_paths_at(
+    profile: &Profile,
+    scope: TuneScope,
+    home: &Path,
+    root: &Path,
+) -> Vec<PathBuf> {
+    let anchor = match scope {
+        TuneScope::User => home,
+        TuneScope::ProjectLocal | TuneScope::ProjectCommitted => root,
+    };
+    profile
+        .read_layers()
+        .into_iter()
+        .map(|f| anchor.join(&profile.surface_dir).join(f))
+        .collect()
+}
+
+/// Layers, other than the one `yf` writes, that EXIST on disk and therefore SHADOW it.
+///
+/// Returns the shadowing paths in precedence order. A non-empty result is the condition a
+/// tune-time warning must name explicitly: the operator is about to have `yf` write a file
+/// whose values the harness will not obey.
+pub fn shadowing_layers_at(
+    profile: &Profile,
+    scope: TuneScope,
+    home: &Path,
+    root: &Path,
+) -> Vec<PathBuf> {
+    let write_target = settings_path_at(profile, scope, home, root);
+    settings_read_paths_at(profile, scope, home, root)
+        .into_iter()
+        .take_while(|p| p != &write_target) // only HIGHER-precedence layers shadow
+        .filter(|p| p.exists())
+        .collect()
+}
+
 /// Resolve the always-loaded **rules dir** for `profile` at `scope`, anchored at
 /// `home` (user) or `root` (project) — the sibling `rules/` of the harness surface
 /// dir (e.g. `~/.claude/rules`). Anchored identically to [`settings_path_at`] so
