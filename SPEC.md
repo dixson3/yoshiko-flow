@@ -551,6 +551,54 @@
 >   corpus `Verification:` clauses executes today. The three lines are RED from this commit until
 >   the Epic 1/2 agent-file rewordings land — that is the intended SPEC-first order, not a defect.
 >   Implementation lands in Epics 1–3; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-055 (2026-08-27, #257 / #238-partial / #239-partial / #256-partial):** **one shared
+>   skills root where the harness reads it, a private root only where it does not.** One bullet
+>   per amended id:
+>   - **`REQ-YF-INSTALL-007`** (revised) — the descriptor's two conflated concerns are split into a
+>     **skills root** (`user_skills_subpath` / `project_skills_subpath`) and a **surface dir**
+>     (`user_surface_dir` / `project_surface_dir`), and the shipped table is restated with the
+>     collapsed skills column: **four of the five rows** (`codex`, `opencode`, `pi`, `agents`) share
+>     `.agents/skills` in both scopes, `claude-code` alone keeps `.claude/skills`. The rules
+>     directory is now derived from `surface_dir`, never from the skills root's parent — a
+>     derivation that was only incidentally correct while every root was private. The requirement
+>     additionally gained **both env-override columns** with a **three-valued** precedence
+>     (`replace` / `additive` / `none`), the skills-root column non-empty for `claude-code` alone;
+>     and its `name_transform` clause now records that pi 0.84.3 does **not** require the transform
+>     (name validation is warn-only) while **opencode's frontmatter `name:` rule** is the binding
+>     constraint on a shared tree, plus the invariant that rows sharing a root must agree on
+>     `name_transform`. The row count is unchanged at **five**, so the SPEC↔code parity test's
+>     count assertion is unchanged; the parity test now covers **both** surface columns.
+>   - **`REQ-YF-INSTALL-002`** (revised) — destination resolution is expressed over those two
+>     columns: the skills destination from the skills subpath, the rules destination from
+>     `<anchor>/<surface_dir>/rules`. Dedupe-by-resolved-path is scoped to the **skills** column
+>     alone — applying it to the surface column would collapse four harnesses' rules onto one.
+>   - **`REQ-YF-INSTALL-011`** (new) — install-time **warnings**: one when a harness's
+>     `replace`-precedence env override disagrees with the `$HOME`-derived default `yf` writes to
+>     (measured silent: the default dir still exists and looks correct), naming the directory the
+>     harness will actually read; one when `yf` **creates** `<repo>/.agents/skills`, which makes the
+>     repository trust-requiring for pi, whose project-scope gate then drops those skills with no
+>     diagnostic at all.
+>   - **`REQ-YF-MARK-006`** (new) — **marker-gated skills-tree removal**: a directory walk that sees
+>     members outside the embedded set (which the name-keyed `REQ-YF-MARK-003` status walk is
+>     structurally blind to) and classifies each into **four** outcomes — `owned-and-unmodified`
+>     delete, `owned-but-modified` keep, `no-marker` keep-as-foreign, `undetermined` keep-as-
+>     unjudgeable. Four, not three: collapsing `undetermined` into `no-marker` would assert a
+>     positive fact from an absence of evidence. Dry-run is the default and `apply` shall be
+>     **reversible** — a move to timestamped quarantine with a documented restore, never an unlink.
+>     Governing precedent: `REQ-YF-TUNE-029`'s conservative keep. The pre-existing
+>     `yf harness skills remove` (a name-keyed `remove_dir_all` with no ownership check) explicitly
+>     does not satisfy it and is not the migration primitive.
+>   - **`REQ-YF-DOCTOR-007`** (new) — a **pi project-trust** doctor axis, computed **statically from
+>     `trust.json` with no pi invocation**. The no-invocation clause is a requirement rather than an
+>     optimization: pi's project-scope gate fails silently (no stderr, no event, exit 0 under `-p` /
+>     `--mode json`), so an invocation-based probe would report `ok` on exactly the condition the
+>     axis exists to detect. Report-only; a trust decision is a human consent act.
+>
+>   **Cited but NOT amended**, recorded here so a reader does not mistake a citation for a change:
+>   `REQ-YF-TUNE-029` (the conservative-keep precedent), `REQ-YF-MARK-001` / `-002` / `-003` (the
+>   tree hash, the marker, and the name-keyed status walk `REQ-YF-MARK-006` is contrasted against),
+>   and `REQ-YF-MARK-005` (the residue ignore-list).
+>
 > - **plan-054 (2026-08-26, release readiness for v0.5.0):** the **harness-resolution** and
 >   **read-set** amendments the v0.5.0 release depends on. Added **`REQ-YF-CLI-005`** — a top-level
 >   `yf skill-dir <name>` verb resolving an installed skill across **all five** harness
@@ -814,14 +862,23 @@ requirement lives only in code (GUARDRAILS GR-010).
   writes **skill bodies only** (`REQ-YF-INSTALL-008`); surfacing companion rules (`protocols/*.md`)
   into the sibling `rules/` surface as the aggregated `YOSHIKO_FLOW.md` (`REQ-YF-FLOW-001`) is
   performed by `yf harness tune` (`REQ-YF-FLOW-007`), no longer by install.
-- **REQ-YF-INSTALL-002** *(testable, revised plan-033)* destination resolution shall be driven by
-  the **per-harness descriptor table** (`REQ-YF-INSTALL-007`): `--target` wins; else the resolved
-  skills destination is `<anchor>/<harness.subpath>`, where `<harness.subpath>` is the descriptor's
-  `user_subpath` (anchor = `$HOME`, user scope) or `project_subpath` (anchor = git-root/cwd,
-  project scope). Repeatable `--harness` values shall be **deduped by resolved absolute path** (e.g.
-  `codex` and `agents` both resolve to `.agents/skills`, yielding a single write). Install writes
-  **skill bodies only** (`REQ-YF-INSTALL-008`); the rules surface is written by `yf harness tune`
-  (`REQ-YF-FLOW-007`), not by install.
+- **REQ-YF-INSTALL-002** *(testable, revised plan-033; revised plan-055)* destination resolution
+  shall be driven by the **per-harness descriptor table** (`REQ-YF-INSTALL-007`) and shall be
+  expressed over that table's **two distinct columns**:
+  - the **skills destination** is `--target` when given, else `<anchor>/<harness.skills_subpath>`,
+    where `skills_subpath` is the descriptor's `user_skills_subpath` (anchor = `$HOME`, user scope)
+    or `project_skills_subpath` (anchor = git-root/cwd, project scope);
+  - the **rules destination** is `<anchor>/<harness.surface_dir>/rules` — derived from the
+    descriptor's `user_surface_dir` / `project_surface_dir`, **not** from the skills dir's parent.
+    With `--target`, the rules dir remains the target's sibling `<target>/../rules`.
+
+  Repeatable `--harness` values shall be **deduped by resolved absolute path**, and the guarantee is
+  unchanged by the plan-055 collapse: `codex`, `agents`, `opencode` and `pi` all resolve to
+  `.agents/skills`, yielding a **single** skills write for the four of them, while each retains its
+  **own** rules destination because that is resolved from `surface_dir`. Dedupe is a property of the
+  *skills* column alone; applying it to the surface column would collapse four harnesses' rules onto
+  one. Install writes **skill bodies only** (`REQ-YF-INSTALL-008`); the rules surface is written by
+  `yf harness tune` (`REQ-YF-FLOW-007`), not by install.
 - **REQ-YF-INSTALL-003** *(testable)* `yf` shall parse SKILL.md frontmatter (`name`, `skill-group`,
   `depends-on-tool`, `depends-on-skill`, `user-invocable`) and compute install groups from
   `skill-group` (current: `workflows`, `beads`, `utility`, `markdown`) — computed as the union of
@@ -839,17 +896,101 @@ requirement lives only in code (GUARDRAILS GR-010).
 - **REQ-YF-INSTALL-006** *(superseded by `REQ-YF-FLOW-004`)* the legacy "companion-rule install shall
   preserve an existing rule unless `--force`" no longer holds: under the aggregated ruleset there is
   no hand-edit tolerance (S3) — acted-on sections are always rewritten to the embedded source.
-- **REQ-YF-INSTALL-007** *(testable, plan-033)* `yf` shall carry a **harness descriptor table** as
-  the single source of truth for per-harness skills destinations — exactly **five rows**:
-  `claude-code`, `codex`, `opencode`, `pi`, and `agents`. Each row shall carry an `id`, a
-  `user_subpath`, a `project_subpath`, and an optional `name_transform`: claude-code `.claude/skills`
-  (both scopes); opencode `.config/opencode/skills` (user) / `.opencode/skills` (project); pi
-  `.pi/agent/skills` (user) / `.pi/skills` (project) with a `lowercase-hyphen,max64`
-  `name_transform`; codex **and** agents both `.agents/skills` (both scopes — hence the
-  `REQ-YF-INSTALL-002` dedupe-by-resolved-path). A **SPEC↔code parity test** shall parse this table
-  from the SPEC and assert it equals the shipped descriptor (id, both subpaths, `name_transform`,
-  and row count); pi's `lowercase-hyphen,max64` transform shall be validated against yf's long skill
-  names (e.g. `yf-change-validation`).
+- **REQ-YF-INSTALL-007** *(testable, plan-033; revised plan-055)* `yf` shall carry a **harness
+  descriptor table** as the single source of truth for per-harness destinations — exactly **five
+  rows**: `claude-code`, `codex`, `opencode`, `pi`, and `agents`. Each row shall carry an `id`, a
+  **skills root** (`user_skills_subpath` / `project_skills_subpath`), a **surface dir**
+  (`user_surface_dir` / `project_surface_dir`), and an optional `name_transform`.
+
+  **The two concerns are distinct and shall not be conflated.** The *skills root* is where skill
+  bodies are deployed, and is **shared wherever a harness reads the shared root**; the *surface dir*
+  is where that harness's config, hooks, extensions and rules aggregate live, and is **always
+  harness-specific**. The companion-rules directory shall be derived from the **surface dir**
+  (`<anchor>/<surface_dir>/rules`) and **never** from the skills root's parent — a derivation that
+  was only incidentally correct while every harness had a private skills root, and becomes wrong the
+  moment a root is shared.
+
+  The shipped values:
+
+  | Row | user skills root | project skills root | user surface dir | project surface dir | `name_transform` |
+  | :-- | :-- | :-- | :-- | :-- | :-- |
+  | `claude-code` | `.claude/skills` | `.claude/skills` | `.claude` | `.claude` | none |
+  | `codex` | `.agents/skills` | `.agents/skills` | `.agents` | `.agents` | none |
+  | `opencode` | `.agents/skills` | `.agents/skills` | `.config/opencode` | `.opencode` | none |
+  | `pi` | `.agents/skills` | `.agents/skills` | `.pi/agent` | `.pi` | `lowercase-hyphen,max64` |
+  | `agents` | `.agents/skills` | `.agents/skills` | `.agents` | `.agents` | none |
+
+  **Four of the five rows share one skills root** — `.agents/skills`, in **both** scopes. Measured
+  (plan-055 EXP-002): codex, opencode and pi all read that root with no configuration, so a private
+  per-harness copy buys nothing and creates a shadowing hazard. `claude-code` is the sole exception
+  (EXP-001): the string `.agents/` occurs zero times in its binary and its auto-load root set is
+  hardcoded to `.claude`, so it retains a private skills root. Rows sharing a resolved skills path
+  yield a **single write** per `REQ-YF-INSTALL-002`'s dedupe-by-resolved-path.
+
+  **Env overrides — TWO columns, because a harness's config root and its skills root move
+  independently.** Each row shall additionally carry a **surface-dir override** (the env var that
+  relocates that harness's *config/hooks/rules* root) and a **skills-root override** (the env var
+  that relocates its *skills* root). Each override carries a **three-valued precedence**, never a
+  boolean:
+
+  | Precedence | Meaning |
+  | :-- | :-- |
+  | `replace` | the var **replaces** the `$HOME`-derived default root |
+  | `additive` | the var **adds** a root; the default is **retained** |
+  | `none` | the row has no override on that column |
+
+  The shipped override values:
+
+  | Row | surface-dir override | precedence | skills-root override | precedence |
+  | :-- | :-- | :-- | :-- | :-- |
+  | `claude-code` | `CLAUDE_CONFIG_DIR` | `replace` | `CLAUDE_CONFIG_DIR` | `replace` |
+  | `codex` | `CODEX_HOME` | `replace` | — | `none` |
+  | `opencode` | `XDG_CONFIG_HOME` | `replace` | — | `none` |
+  | `opencode` | `OPENCODE_CONFIG_DIR` | `additive` | — | `none` |
+  | `pi` | `PI_CODING_AGENT_DIR` | `replace` | — | `none` |
+  | `agents` | — | `none` | — | `none` |
+
+  **The skills-root override column is non-empty for `claude-code` alone**, and that is a consequence
+  of the collapse rather than an omission: `.agents/skills` was measured **env-immune** on codex, pi
+  and opencode (plan-055 EXP-003 — `CODEX_HOME` does not move codex's `~/.agents/skills`, pi's
+  survives `PI_CODING_AGENT_DIR`, and opencode loaded it under all four override combinations), so
+  after the collapse `claude-code` is the only harness whose *skills* root any env var relocates.
+  `yf` shall **follow** `CLAUDE_CONFIG_DIR` when resolving claude-code's skills root, and shall
+  follow **no** env var when resolving any other row's skills root.
+
+  **`opencode` is encoded as two rows in the override table on purpose.** `XDG_CONFIG_HOME` and
+  `OPENCODE_CONFIG_DIR` are **orthogonal, not competing** — measured 7 roots vs 8 with the default
+  retained — so a two-valued model would **under-install for opencode and over-install for the other
+  three**. `XDG_CONFIG_HOME` is honoured by **opencode only**: codex's occurrences are vendored `gix`
+  git-config code and claude-code's are git discovery / completions / an env-scrubbing deny-list, and
+  **pi references it nowhere**.
+
+  `yf` does **not** resolve the surface-dir overrides — it writes to the `$HOME`-derived default and
+  **warns** when an override disagrees with it (`REQ-YF-INSTALL-011`).
+
+  A **SPEC↔code parity test** shall parse this table from the SPEC and assert it equals the shipped
+  descriptor — `id`, **both** skills subpaths, **both** surface dirs, `name_transform`, and the row
+  count.
+
+  **The `name_transform` column, and why it is nearly empty.** A transform normalizes a skill's
+  on-disk *directory* name for a harness that constrains names. pi is the only row that has ever
+  carried one (`lowercase-hyphen,max64`), and it is **not a pi requirement**: plan-055 EXP-002
+  measured pi 0.84.3 loading directories named `Zz_Probe_Name` and `Zz_Probe_Shared_NoName` —
+  pi's name validation is **warn-only**, and only a missing frontmatter `description` is fatal.
+  While the row is present it shall be validated against yf's long skill names (e.g.
+  `yf-change-validation`) and against a **>64-character** probe name.
+
+  **The binding constraint on a shared tree is opencode's, and it is the inverse.** opencode takes a
+  skill's name **only** from `SKILL.md` frontmatter and silently **skips** a `SKILL.md` with no
+  `name:`, ignoring the directory name entirely. So a shared skills root requires every `SKILL.md`
+  to carry `name:` (which `yf`'s embedded tree does) and places **no** constraint on the directory
+  name.
+
+  **Rows sharing a skills root shall agree on `name_transform`.** Dedupe-by-resolved-path keeps the
+  first matching row's descriptor, and the deployed directory name is derived from *that one row's*
+  transform — so two rows merged onto one root while disagreeing on the transform would make the
+  shared root's on-disk names **order-dependent on descriptor row order**.
+
 - **REQ-YF-INSTALL-008** *(testable, plan-033)* `yf harness skills install` (and its deprecated
   `yf skills install` alias) shall deploy **skill bodies only** — it shall write **no** rules: it
   shall not write `YOSHIKO_FLOW.md`, fold standalone rule files, or otherwise touch the `rules/`
@@ -874,6 +1015,25 @@ requirement lives only in code (GUARDRAILS GR-010).
   opt-in for `install`** (`REQ-YF-MARK-004`), sharing **one** implementation. `--prune` shall
   **not** be wired into the `REQ-YF-SELF-005` install-time sync, which would otherwise delete
   operator files on every `yf self install`.
+
+- **REQ-YF-INSTALL-011** *(testable, plan-055)* `yf` shall emit an **install-time warning** in each
+  of two situations where an install would otherwise be a **silent no-op or a silent hazard**:
+
+  1. **Replace-semantics override mismatch.** When a harness's `replace`-precedence env override
+     (`REQ-YF-INSTALL-007`) is set and resolves to a directory that **disagrees** with the
+     `$HOME`-derived default `yf` writes to, `yf` shall warn, **naming the directory the harness will
+     actually read**. Measured (plan-055 EXP-003): with `CODEX_HOME` / `PI_CODING_AGENT_DIR` /
+     `CLAUDE_CONFIG_DIR` exported, yf's `$HOME`-relative write lands where the harness no longer
+     reads — and it is **silent**, because the default directory still exists and looks correct on
+     disk. `yf` warns rather than resolving the surface column (the skills column is resolved for
+     claude-code alone); a warning that names the real read path is the whole remedy.
+  2. **Project-scope `.agents/skills` creation.** When `yf` **creates** `<repo>/.agents/skills`, it
+     shall warn that doing so makes the repository **trust-requiring for pi**, and that headless pi
+     then drops those skills with **no diagnostic** — measured: no stderr, no event, exit 0 under
+     `-p` / `--mode json`.
+
+  Both warnings are **user-visible behaviour**, so both are governed here rather than by the issues
+  that ship them.
 
 ### 3.3.1 Aggregated ruleset (`REQ-YF-FLOW`)
 
@@ -981,6 +1141,39 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   an unexcluded residue file is **baked into the released binary** and shipped to every user. The
   list is self-consistent by construction — a file excluded from the embed becomes an *extra
   deployed file*, which the same list then spares from prune.
+
+- **REQ-YF-MARK-006** *(testable, plan-055)* `yf` shall provide **marker-gated skills-tree removal**:
+  a **directory walk** over a skills root that enumerates **every** member directory — including
+  directories absent from the embedded skill set, which the name-keyed `REQ-YF-MARK-003` status walk
+  is structurally blind to — and classifies each into exactly **one of four** outcomes:
+
+  | Outcome | Evidence | Action |
+  | :-- | :-- | :-- |
+  | `owned-and-unmodified` | a well-formed `REQ-YF-MARK-002` marker **and** a recomputed marker-stripped tree hash (`REQ-YF-MARK-001`) equal to the marker's `tree=` | **remove** (under `apply`) |
+  | `owned-but-modified` | a well-formed marker, hash **differs** | **keep and report** |
+  | `no-marker` | `SKILL.md` readable, **no** marker | **keep and report as foreign** |
+  | `undetermined` | the classification could not be made at all: an unreadable/absent `SKILL.md`, a **malformed** marker, or a **symlinked** member | **keep and report as unjudgeable** |
+
+  **Four outcomes, not three.** Collapsing `undetermined` into `no-marker` would assert a positive
+  fact ("an operator placed this") from an **absence of evidence** — the same conflation as
+  `doc_lint`'s `not-selected`/`no-such-path` and `resume-scan`'s `found`. The walk shall **not follow
+  symlinks**; a symlinked member is `undetermined` by construction, because hashing through it hashes
+  a tree `yf` does not own.
+
+  The removal shall **default to a dry-run preview** that mutates nothing; only an explicit `apply`
+  shall mutate. `apply` shall be **REVERSIBLE**: a removed directory shall be **moved to a
+  timestamped quarantine** with a documented one-line restore, **never unlinked**. An irreversible
+  `apply` is non-conformant even when its classification is correct — reversibility is a property of
+  the requirement, not of the caller that happens to invoke it.
+
+  The report shall additionally flag any **kept** directory whose skill name **also exists in the
+  shared skills root**, since a kept-but-divergent private copy is exactly the shadowing hazard the
+  shared root exists to remove.
+
+  The governing precedent is `REQ-YF-TUNE-029`'s **conservative keep**: `yf` shall never remove what
+  it cannot prove it authored **and** left unmodified. The pre-existing `yf harness skills remove`
+  does **not** satisfy this requirement (it is a name-keyed `remove_dir_all` with no ownership check)
+  and shall not be used as the migration primitive.
 
 ### 3.5 Preflight/config kernel (`REQ-YF-PRE`)
 
@@ -1202,6 +1395,19 @@ by **`yf harness tune`**, not by `yf harness skills install` — install is skil
   re-run `has_local_only_remote` after applying and fail when a Dolt remote survives; and an
   **underivable or ambiguous** Dolt repo root shall propagate as an error (`REQ-BINIT-026`) rather
   than being swallowed into a silent `ok`.
+
+- **REQ-YF-DOCTOR-007** *(testable, plan-055)* `yf doctor` shall carry a **pi project-trust** axis.
+  It shall report when the repository holds **trust-requiring project resources** (a project-scope
+  `.agents/skills` / `.pi/skills` tree) and pi records **no applicable trust decision** for it.
+
+  The axis shall be computed **locally and statically** — by reading pi's `trust.json` — and shall
+  **never invoke pi**. That is a requirement, not an optimization: pi's project-scope gate fails
+  **silently** (plan-055 EXP-005 measured no stderr, no event, exit 0 under `-p` / `--mode json`), so
+  an invocation-based probe would report `ok` on exactly the condition the axis exists to detect.
+
+  The axis is **read-only and reports; it does not repair** — a trust decision is a human consent act
+  that no automated step may forge (`REQ-YF-DOCTOR-003`). Its absence is a finding, not an error: a
+  repository with no trust-requiring project resources reports `ok`.
 
 ### 3.7 Distribution (`REQ-YF-DIST`)
 
