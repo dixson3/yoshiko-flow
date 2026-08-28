@@ -123,6 +123,21 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     // (REQ-YF-INSTALL-002): `--harness codex --harness agents` → one destination.
     let dests = common::resolved_dests(args);
 
+    // REQ-YF-INSTALL-011 (2): keyed on CREATION, so the predicate must be sampled BEFORE the
+    // deploy. A directory that already existed was already making the repo trust-requiring and
+    // yf did not do it; warning on mere presence would fire on every install forever, which is
+    // how a real warning becomes noise.
+    let newly_created_shared_roots: Vec<std::path::PathBuf> = if matches!(args.scope, crate::cli::Scope::Project) {
+        dests
+            .iter()
+            .map(|d| d.skills_dir.clone())
+            .filter(|p| p.ends_with(".agents/skills") && !p.exists())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+
     // Tool prereqs (REQ-YF-INSTALL-005: --strict aborts on a missing tool).
     let missing = common::missing_tools(&skills, &sel.install);
     if !missing.is_empty() && args.strict {
@@ -183,20 +198,6 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     // The no-`--harness --tune` multi-harness auto path is bounded-blast-radius
     // gated (F6) — see `compute_tune_bridge`.
     let project = matches!(args.scope, crate::cli::Scope::Project);
-
-    // REQ-YF-INSTALL-011 (2): keyed on CREATION, so the predicate must be sampled BEFORE the
-    // deploy. A directory that already existed was already making the repo trust-requiring and
-    // yf did not do it; warning on mere presence would fire on every install forever, which is
-    // how a real warning becomes noise.
-    let newly_created_shared_roots: Vec<std::path::PathBuf> = if project {
-        dests
-            .iter()
-            .map(|d| d.skills_dir.clone())
-            .filter(|p| p.ends_with(".agents/skills") && !p.exists())
-            .collect()
-    } else {
-        Vec::new()
-    };
 
     let tune_result: Option<serde_json::Value> = compute_tune_bridge(args, project)?;
 

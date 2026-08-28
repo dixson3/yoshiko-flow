@@ -766,6 +766,19 @@ pub fn checks(skills_dir: &Path, rules_dir: &Path) -> Vec<Box<dyn Check>> {
         )),
         // REQ-YF-DOCTOR-006 (#160): read-only local-only/remote violation axis.
         Box::new(LocalOnlyRemoteCheck::new(crate::dest::git_root_or_cwd())),
+        // REQ-YF-DOCTOR-007 (plan-055, #239): pi project-trust axis. Static, pi-invocation-free.
+        Box::new(PiTrustCheck {
+            project: crate::dest::git_root_or_cwd(),
+            pi_agent_dir: std::env::var_os("PI_CODING_AGENT_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    std::env::var_os("HOME")
+                        .map(PathBuf::from)
+                        .unwrap_or_default()
+                        .join(".pi/agent")
+                }),
+            home: std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default(),
+        }),
     ];
 
     let skills = frontmatter::load_skills();
@@ -864,6 +877,106 @@ mod tests {
         assert!(rem.contains("yf doctor --repair --local-only --remove-remote"));
     }
     use super::*;
+
+    /// SC16 — `yf doctor` reports the pi-trust condition when the repo has trust-requiring
+    /// resources and no applicable decision, computed with **NO pi invocation**.
+    ///
+    /// The no-invocation half is not asserted by absence of a `Command` (which proves nothing);
+    /// it is asserted **structurally**: every input is a path under a temp dir, and the check
+    /// returns a verdict for a repo where no `pi` binary is involved and none could be — a
+    /// sandboxed project that pi has never seen. A probe-based implementation could not produce
+    /// a meaningful verdict here at all, and would in fact report `ok`, which is the silent
+    /// failure the axis exists to catch.
+    #[test]
+    fn doctor_pi_trust_axis() {
+        let td = tempfile::tempdir().unwrap();
+        let home = td.path().join("home");
+        let project = td.path().join("repo");
+        let pi_agent = home.join(".pi/agent");
+        std::fs::create_dir_all(&pi_agent).unwrap();
+        std::fs::create_dir_all(&project).unwrap();
+
+        let check = |p: &Path| PiTrustCheck {
+            project: p.to_path_buf(),
+            pi_agent_dir: pi_agent.clone(),
+            home: home.clone(),
+        }
+        .run();
+
+        // (a) NOTHING trust-requiring → ok. A bare `.pi/` deliberately does not count: with no
+        //     listed resource present pi returns trusted immediately and never prompts, so
+        //     firing here would warn about repos pi is perfectly happy with.
+        std::fs::create_dir_all(project.join(".pi")).unwrap();
+        let r = check(&project);
+        assert!(r.ok, "a bare .pi/ is not trust-requiring: {}", r.detail);
+
+        // (b) A trust-requiring resource, NO decision → the finding.
+        std::fs::create_dir_all(project.join(".pi/skills")).unwrap();
+        let r = check(&project);
+        assert!(!r.ok, "trust-requiring with no decision must be reported");
+        assert!(
+            !r.required,
+            "REPORT-ONLY: a trust decision is a human consent act, so this must never be a              required failure"
+        );
+        assert!(
+            r.detail.contains("SILENTLY"),
+            "the detail must state the failure is silent — that is the whole finding: {}",
+            r.detail
+        );
+        assert!(r.remediation.is_some(), "a finding must carry a remediation");
+
+        // (c) A saved TRUE decision on the project → ok.
+        let trust = pi_agent.join("trust.json");
+        std::fs::write(
+            &trust,
+            format!("{{\"{}\": true}}", project.display()),
+        )
+        .unwrap();
+        assert!(check(&project).ok, "a saved trust decision clears the axis");
+
+        // (d) NEAREST-ANCESTOR lookup, measured live in EXP-005: a `true` on the PARENT trusts
+        //     the child. This is the arm an exact-path lookup gets wrong.
+        let child = project.join("nested/deeper");
+        std::fs::create_dir_all(child.join(".pi/skills")).unwrap();
+        assert!(
+            check(&child).ok,
+            "an ancestor's trust decision must apply to a child directory"
+        );
+
+        // (e) ...and a NEARER `false` overrides a farther `true`.
+        std::fs::write(
+            &trust,
+            format!(
+                "{{\"{}\": true, \"{}\": false}}",
+                project.display(),
+                child.display()
+            ),
+        )
+        .unwrap();
+        let r = check(&child);
+        assert!(!r.ok, "the nearer NOT-TRUSTED decision must win");
+        assert!(r.detail.contains("NOT-TRUSTED"), "{}", r.detail);
+
+        // (f) The USER-SCOPE `~/.agents/skills` must NOT make a repo trust-requiring. EXP-005
+        //     measured both user roots added OUTSIDE pi's trust branch, which is precisely why
+        //     plan-055's core move is trust-neutral. Counting it here would report every machine
+        //     as untrusted the moment yf installed anything.
+        std::fs::create_dir_all(home.join(".agents/skills")).unwrap();
+        let clean = td.path().join("clean-repo");
+        std::fs::create_dir_all(&clean).unwrap();
+        assert!(
+            has_trust_requiring_resources(&clean, &home).is_none(),
+            "~/.agents/skills is user scope and must be excluded from the ancestor walk"
+        );
+
+        // (g) ...while a PROJECT-scope `.agents/skills` does make it trust-requiring — the exact
+        //     directory REQ-YF-INSTALL-011's second warning fires on.
+        std::fs::create_dir_all(clean.join(".agents/skills")).unwrap();
+        assert!(
+            has_trust_requiring_resources(&clean, &home).is_some(),
+            "a project-scope .agents/skills IS trust-requiring"
+        );
+    }
 
     // #32: BinCheck reports a missing binary as a required failure with remediation.
     #[test]
@@ -1496,5 +1609,149 @@ mod tests {
         assert!((1, 1, 0) >= BD_MIN);
         assert!((1, 0, 4) < BD_MIN);
         assert!((0, 9, 9) < BD_MIN);
+    }
+}
+
+/// `pi-trust` axis (`REQ-YF-DOCTOR-007`) — does this repository hold **trust-requiring project
+/// resources** with **no applicable pi trust decision**?
+///
+/// ## Why this axis exists at all
+///
+/// pi's project-scope trust gate fails **SILENTLY**. Measured (plan-055 EXP-005): headless pi
+/// (`-p` / `--mode json`) against an untrusted project emits **no stderr, no event, and exits
+/// 0**, having simply ignored every project resource. `resolveProjectTrusted` ends with
+/// `if (!options.projectTrustContext.hasUI) return false` — non-interactive pi proceeds
+/// untrusted rather than refusing, hanging, or prompting.
+///
+/// So there is nothing for an operator to notice, and nothing for a build to fail on. This axis
+/// is the only thing that says it out loud.
+///
+/// ## COMPUTED STATICALLY, WITH NO pi INVOCATION — a requirement, not an optimization
+///
+/// An invocation-based probe would report `ok` on exactly the condition the axis exists to
+/// detect, because that is what the silent failure *is*: a green-looking run that dropped the
+/// resources. The only sound instrument is a static read of pi's own trust store.
+///
+/// ## REPORT-ONLY
+///
+/// A trust decision is a human consent act (`REQ-YF-DOCTOR-003`); no repair step may forge one.
+/// The axis is therefore a **warning**, never a required failure — a repo with no applicable
+/// decision is a legitimate state an operator may simply not have got to yet.
+pub struct PiTrustCheck {
+    /// The repository root under test.
+    pub project: PathBuf,
+    /// pi's agent dir (`$HOME/.pi/agent`, or `PI_CODING_AGENT_DIR`).
+    pub pi_agent_dir: PathBuf,
+    /// `$HOME`, so the user-scope `~/.agents/skills` can be EXCLUDED from the ancestor walk.
+    pub home: PathBuf,
+}
+
+/// Does `project` hold resources that make pi require a trust decision?
+///
+/// Mirrors pi's own `hasTrustRequiringProjectResources`, measured in EXP-005: any of
+/// `<cwd>/.pi/{settings.json,extensions,skills,prompts,themes,SYSTEM.md,APPEND_SYSTEM.md}`, **or**
+/// a `.agents/skills` directory in cwd or any ancestor, **excluding** `$HOME/.agents/skills`.
+///
+/// A bare `.pi/` does **not** count — with no listed resource present, pi returns trusted
+/// immediately and never prompts. Treating a bare `.pi/` as trust-requiring would make this axis
+/// fire on repos pi is perfectly happy with.
+pub fn has_trust_requiring_resources(project: &Path, home: &Path) -> Option<PathBuf> {
+    const PI_RESOURCES: &[&str] = &[
+        "settings.json",
+        "extensions",
+        "skills",
+        "prompts",
+        "themes",
+        "SYSTEM.md",
+        "APPEND_SYSTEM.md",
+    ];
+    for r in PI_RESOURCES {
+        let p = project.join(".pi").join(r);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    // `.agents/skills` in cwd or ANY ancestor. The user-scope root is excluded because it is
+    // read unconditionally — EXP-005 measured both user roots added OUTSIDE the trust branch,
+    // which is exactly why plan-055's core move is trust-neutral.
+    let excluded = home.join(".agents/skills");
+    let mut cur = Some(project);
+    while let Some(dir) = cur {
+        let candidate = dir.join(".agents/skills");
+        if candidate.is_dir() && candidate != excluded {
+            return Some(candidate);
+        }
+        cur = dir.parent();
+    }
+    None
+}
+
+/// Is there a saved trust decision applicable to `project`?
+///
+/// pi's store is a flat map of canonicalized absolute dir → `true` | `false`, resolved by
+/// **NEAREST ANCESTOR** (verified live in EXP-005: a `true` entry on the sandbox *parent*
+/// trusted the child). So the lookup walks upward and takes the first entry it finds — a nearer
+/// `false` correctly overrides a farther `true`.
+///
+/// Returns `None` when no ancestor has an entry at all, which is the finding this axis reports.
+pub fn saved_trust_decision(trust_json: &Path, project: &Path) -> Option<bool> {
+    let text = std::fs::read_to_string(trust_json).ok()?;
+    let map: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&text).ok()?;
+    let mut cur = Some(project);
+    while let Some(dir) = cur {
+        if let Some(v) = map.get(&dir.to_string_lossy().to_string()) {
+            // `null` DELETES an entry in pi's store, so it is "no decision here" rather than
+            // "decided false" — keep walking rather than reporting a decision that was removed.
+            if let Some(b) = v.as_bool() {
+                return Some(b);
+            }
+        }
+        cur = dir.parent();
+    }
+    None
+}
+
+impl Check for PiTrustCheck {
+    fn run(&self) -> CheckResult {
+        let axis = "pi-trust";
+        let Some(resource) = has_trust_requiring_resources(&self.project, &self.home) else {
+            return CheckResult::ok(
+                axis,
+                "no trust-requiring project resources — pi will not prompt for this repo",
+            );
+        };
+        let trust_json = self.pi_agent_dir.join("trust.json");
+        match saved_trust_decision(&trust_json, &self.project) {
+            Some(true) => CheckResult::ok(
+                axis,
+                format!(
+                    "trust-requiring ({}) and a saved trust decision applies",
+                    resource.display()
+                ),
+            ),
+            Some(false) => CheckResult::warn(
+                axis,
+                false,
+                format!(
+                    "trust-requiring ({}) but the saved decision is NOT-TRUSTED — pi ignores \
+                     these project resources",
+                    resource.display()
+                ),
+                Some("run pi in this repo and use `/trust`, or `pi --approve`".to_string()),
+            ),
+            None => CheckResult::warn(
+                axis,
+                false,
+                format!(
+                    "trust-requiring ({}) and NO applicable pi trust decision — headless pi \
+                     DROPS these resources SILENTLY (no stderr, no event, exit 0)",
+                    resource.display()
+                ),
+                Some(format!(
+                    "run pi in this repo and use `/trust` (writes {}), or pass `--approve`",
+                    trust_json.display()
+                )),
+            ),
+        }
     }
 }
