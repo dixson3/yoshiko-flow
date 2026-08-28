@@ -396,27 +396,48 @@ pub fn run(args: &crate::cli::PrunePrivateArgs) -> anyhow::Result<std::process::
     Ok(std::process::ExitCode::SUCCESS)
 }
 
-/// The **private** (non-shared) skills roots for a scope — the roots this migration empties.
+/// The **legacy private** skills roots a scope's migration must empty.
 ///
-/// Derived from the descriptor table by *difference*: every distinct resolved skills root that
-/// is not the shared one. Deriving it rather than hardcoding two paths means the set shrinks to
-/// empty on its own once the collapse lands, instead of naming directories that no longer exist.
+/// ## Why this is a LIST and not a derivation — measured, not assumed
+///
+/// The first implementation derived it from the descriptor table by difference: "every resolved
+/// skills root that is not the shared one". That is elegant and it is **wrong**, and Issue 5.1
+/// caught it by running it: after the Issue 2.2 collapse **no descriptor row points at a private
+/// root any more**, so the difference is empty and the dry-run reported `delete: 0, kept: 0,
+/// undetermined: 0` against a machine holding 32 and 33 directories in exactly the two roots it
+/// was supposed to find.
+///
+/// The mistake was a category error. The descriptor describes **where yf writes now**; the
+/// migration is about **where yf wrote before**. A table that has already been corrected cannot
+/// describe the state it was corrected from — so the legacy roots have to be named.
+///
+/// It also means the list is **inherently finite and closed**: it enumerates the roots one
+/// specific historical version of `yf` created, and nothing will ever add to it. A future
+/// collapse would add its own entries deliberately.
+///
+/// `claude-code`'s `.claude/skills` is deliberately absent. It is not an unread legacy root — it
+/// is the one root claude-code actually reads (`.agents/` occurs zero times in its binary), so
+/// pruning it would delete a live deployment rather than a stale one.
 pub fn default_private_roots(scope: crate::cli::Scope) -> Vec<PathBuf> {
+    use crate::cli::Scope;
+    let subpaths: &[&str] = match scope {
+        Scope::User => &[".config/opencode/skills", ".pi/agent/skills"],
+        Scope::Project => &[".opencode/skills", ".pi/skills"],
+    };
+    let anchor = match scope {
+        Scope::User => std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_default(),
+        Scope::Project => crate::dest::git_root_or_cwd(),
+    };
     let shared = default_shared_root(scope);
-    let mut out: Vec<PathBuf> = Vec::new();
-    for d in crate::harness_desc::DESCRIPTORS {
-        // claude-code's private root is DELIBERATELY EXCLUDED: it is not "unread", it is the one
-        // root claude-code actually reads (`.agents/` occurs zero times in its binary). Pruning
-        // it would delete a live deployment.
-        if d.id == "claude-code" {
-            continue;
-        }
-        let root = crate::dest::resolve_skills_dir(scope, d.id, None);
-        if Some(&root) != shared.as_ref() && !out.contains(&root) {
-            out.push(root);
-        }
-    }
-    out
+    subpaths
+        .iter()
+        .map(|sp| anchor.join(sp))
+        // A belt-and-braces guard, not dead code: if a future descriptor change ever made one of
+        // these the shared root, pruning it would delete the live deployment.
+        .filter(|p| Some(p) != shared.as_ref())
+        .collect()
 }
 
 fn default_shared_root(scope: crate::cli::Scope) -> Option<PathBuf> {
@@ -722,6 +743,37 @@ mod tests {
         // The origin is recorded, so the restore is mechanical rather than reconstructed.
         let origin = fs::read_to_string(moved[0].parent().unwrap().join(".origin")).unwrap();
         assert_eq!(PathBuf::from(origin), f.root);
+    }
+
+    // REQ-YF-MARK-006 / Issue 5.1 REGRESSION GUARD — the legacy private roots are NON-EMPTY.
+    //
+    // This is the test the first implementation could not have passed. `default_private_roots`
+    // originally derived the set from the descriptor by difference, which silently became EMPTY
+    // the moment Issue 2.2 collapsed every non-claude row onto the shared root — so the migration
+    // dry-run reported `delete: 0` against a machine holding 65 directories in the two roots it
+    // was meant to find, and reported it with exit 0.
+    //
+    // An empty set is the failure mode, so the assertion is on non-emptiness, and the gate's
+    // deliberate empty-`delete`-set failure is the second line of defence behind it.
+    #[test]
+    fn legacy_private_roots_are_non_empty_after_the_collapse() {
+        for scope in [crate::cli::Scope::User, crate::cli::Scope::Project] {
+            let roots = default_private_roots(scope);
+            assert!(
+                !roots.is_empty(),
+                "the legacy private roots must not be derivable-to-empty ({scope:?}) — that \
+                 defect made the migration a silent no-op"
+            );
+            // Each names a real legacy subpath rather than the shared root.
+            for r in &roots {
+                let s = r.to_string_lossy();
+                assert!(
+                    s.contains("opencode") || s.contains(".pi"),
+                    "unexpected legacy root {s}"
+                );
+                assert!(!s.ends_with(".agents/skills"), "never the shared root: {s}");
+            }
+        }
     }
 
     // REQ-YF-MARK-006 — claude-code's root is NEVER a prune target. It is not an unread private
