@@ -154,6 +154,15 @@ pub fn config_half_suppressed(present: impl Fn(&str) -> bool) -> bool {
 /// returns `consent_required`, writes nothing, and (not being `"ok"`) is counted a
 /// failure by [`classify_tune_status`].
 pub fn install_args_with(harness: &str, rules_only: bool) -> Vec<String> {
+    install_args_full(harness, rules_only, false)
+}
+
+/// As [`install_args_with`], plus the Issue 2.5 skills-dedupe flag.
+///
+/// `skills_already_written` is set for a harness whose **resolved skills root** was already
+/// written earlier in this same sync. Its run still happens — the surface half is
+/// harness-specific — but the redundant skills write is dropped.
+pub fn install_args_full(harness: &str, rules_only: bool, skills_already_written: bool) -> Vec<String> {
     let mut v: Vec<String> = [
         "harness",
         "skills",
@@ -170,8 +179,34 @@ pub fn install_args_with(harness: &str, rules_only: bool) -> Vec<String> {
     if rules_only {
         v.push("--rules-only".to_string());
     }
+    if skills_already_written {
+        v.push("--no-skills".to_string());
+    }
     v.push("--json".to_string());
     v
+}
+
+/// Which of the selected harnesses may skip the skills write, by resolved skills root.
+///
+/// **The dedupe is by RESOLVED PATH, not by harness id** — the same key
+/// `REQ-YF-INSTALL-002` already uses, because it is the path that collides. Order-preserving:
+/// the first harness to claim a root writes it, and later claimants of that same root are
+/// marked. Returns one entry per input harness, aligned by index.
+///
+/// Note what this deliberately does NOT do: it never removes a harness from the fan-out. Four
+/// harnesses sharing `.agents/skills` still each need their own tune, because a surface dir is
+/// harness-specific even where a skills root is shared. Dropping the repeats would silently
+/// stop deploying three harnesses' rules and config.
+pub fn dedupe_skills_writes(home: &Path, harnesses: &[&str]) -> Vec<bool> {
+    let mut seen: std::collections::BTreeSet<std::path::PathBuf> = std::collections::BTreeSet::new();
+    harnesses
+        .iter()
+        .map(|h| {
+            let root = crate::dest::skills_dir_for_anchor(home, h, crate::cli::Scope::User);
+            // `insert` returns false when the root was already claimed → skip this write.
+            !seen.insert(root)
+        })
+        .collect()
 }
 
 /// Should the sync's exec carry the consent flag?
@@ -189,6 +224,9 @@ fn consent_args(allow_permissions_write: bool, rules_only: bool) -> Option<Strin
 #[derive(Debug, Default, Clone)]
 pub struct RefreshReport {
     pub refreshed: Vec<String>,
+    /// Harnesses whose redundant SKILLS write was skipped because an earlier harness in this
+    /// same sync already wrote their (shared) skills root — Issue 2.5. They were still tuned.
+    pub skills_write_skipped: Vec<String>,
     /// `"<surface>: <reason>"` for each surface whose refresh failed.
     pub failures: Vec<String>,
     /// The **per-key config delta**, `"<harness>: <change>"` (Issue 3.4).
@@ -297,8 +335,17 @@ pub fn run_sync(
     allow_permissions_write: bool,
 ) -> RefreshReport {
     let rules_only = config_half_suppressed(|k| std::env::var_os(k).is_some());
+    // Issue 2.5: which harnesses may skip the redundant SKILLS write, keyed by resolved path.
+    // Computed ONCE, before the fan-out, so the decision does not depend on iteration state
+    // inside the closure.
+    let selected = sync_harnesses(home);
+    let skip: std::collections::BTreeSet<&str> = dedupe_skills_writes(home, &selected)
+        .into_iter()
+        .zip(selected.iter().copied())
+        .filter_map(|(s, h)| s.then_some(h))
+        .collect();
     run_sync_with(home, |harness| {
-        let mut argv = install_args_with(harness, rules_only);
+        let mut argv = install_args_full(harness, rules_only, skip.contains(harness));
         if let Some(flag) = consent_args(allow_permissions_write, rules_only) {
             // Insert before --json so the arg order stays conventional.
             let at = argv.len() - 1;
@@ -327,7 +374,17 @@ where
     F: FnMut(&str) -> Result<(bool, Option<i32>, String), String>,
 {
     let mut report = RefreshReport::default();
-    for harness in sync_harnesses(home) {
+    let selected = sync_harnesses(home);
+    // Issue 2.5: after the collapse four of the five rows share one skills root, so an
+    // undeduped fan-out writes it once per harness. Computed here and consumed by the caller's
+    // `exec`, which is what actually builds the argv.
+    report.skills_write_skipped = dedupe_skills_writes(home, &selected)
+        .iter()
+        .zip(selected.iter())
+        .filter(|(skip, _)| **skip)
+        .map(|(_, h)| h.to_string())
+        .collect();
+    for harness in selected {
         match exec(harness) {
             Err(e) => report.failures.push(format!("{harness}: {e}")),
             Ok((false, code, _)) => report.failures.push(format!("{harness}: exited {code:?}")),

@@ -433,6 +433,20 @@ pub struct SkillsArgs {
     #[arg(long)]
     pub prune: bool,
 
+    /// Run ONLY the `--tune` bridge; deploy no skill bodies (plan-055 Issue 2.5).
+    ///
+    /// The complement of `--rules-only`, and it exists for exactly one caller: the
+    /// `REQ-YF-SELF-005` install-time sync, which fans out **once per detected harness**.
+    /// After the plan-055 collapse four of the five harnesses share one skills root, so an
+    /// undeduped fan-out writes that root **four times** — identical bytes, three times over.
+    ///
+    /// Deduping by dropping the repeat harnesses outright would be WRONG: each still needs its
+    /// own tune, because the *surface* dir is harness-specific even where the skills root is
+    /// shared. So the repeat runs keep their surface half and drop only the redundant skills
+    /// write.
+    #[arg(long)]
+    pub no_skills: bool,
+
     /// After a successful install, run `yf harness tune` to align the harness
     /// settings to the yf skill contracts (install only). Off by default — without
     /// it, install reports that tuning is available and changes no settings.

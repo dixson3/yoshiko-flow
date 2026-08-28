@@ -752,6 +752,7 @@ mod tests {
         let refresh = |target: &Path| -> RefreshReport {
             *seen.borrow_mut() = Some(target.to_path_buf());
             RefreshReport {
+                skills_write_skipped: Vec::new(),
                 refreshed: vec!["claude".to_string()],
                 failures: vec![],
                 config_changes: vec![],
@@ -827,6 +828,7 @@ mod tests {
         };
         let refresh = |_: &Path| -> RefreshReport {
             RefreshReport {
+                skills_write_skipped: Vec::new(),
                 refreshed: vec![],
                 failures: vec!["claude: exited Some(1)".to_string()],
                 config_changes: vec![],

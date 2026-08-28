@@ -5,12 +5,21 @@
 //! - `--target` wins: it **is** the skills dir; the rules dir is its **sibling**
 //!   `<target>/../rules` (i.e. `target.parent()/rules`), matching install.py's
 //!   `skills_dest.parent / "rules"`.
-//! - otherwise the skills destination is `<anchor>/<harness.subpath>`, where the
-//!   subpath is drawn from the [`crate::harness_desc`] descriptor table
-//!   (`user_subpath` for scope=user, `project_subpath` for scope=project); an
-//!   unknown harness id falls back to the legacy `.<id>/skills`. `anchor` is
-//!   `$HOME` for scope=user and the git-root (cwd fallback) for scope=project.
-//!   The companion rules dir is the **sibling** `rules/` of the skills dir.
+//! - otherwise the skills destination is `<anchor>/<harness.skills_subpath>`, drawn from the
+//!   [`crate::harness_desc`] descriptor table's **skills** column (`user_skills_subpath` for
+//!   scope=user, `project_skills_subpath` for scope=project); an unknown harness id falls back
+//!   to the legacy `.<id>/skills`. `anchor` is `$HOME` for scope=user and the git-root (cwd
+//!   fallback) for scope=project.
+//! - the companion rules dir is `<anchor>/<harness.surface_dir>/rules`, drawn from the
+//!   descriptor's **surface** column.
+//!
+//! ## Why the rules dir is NO LONGER the skills dir's parent (plan-055, REQ-YF-INSTALL-002)
+//!
+//! It used to be `skills_dir.parent()/rules`. That was **incidentally** correct only while
+//! every harness had a private skills root. Once `codex`, `opencode`, `pi` and `agents` share
+//! `.agents/skills`, the parent-derivation would send all four harnesses' rules to
+//! `.agents/rules` — collapsing four surfaces onto one and sending pi's rules somewhere pi
+//! does not read. Dedupe-by-resolved-path is a property of the **skills** column alone.
 //!
 //! The pure path-join logic is factored into [`skills_dir_for_anchor`] /
 //! [`rules_dir_for_anchor`] so it can be unit-tested without depending on the
@@ -50,18 +59,17 @@ pub fn resolve_rules_dir(scope: Scope, harness: &str, target: Option<&Path>) -> 
     rules_dir_for_anchor(&anchor_for(scope), harness, scope)
 }
 
-/// `<anchor>/<harness.subpath>` — pure path join (testable without env).
+/// `<anchor>/<harness.skills_subpath>` — pure path join (testable without env).
 pub fn skills_dir_for_anchor(anchor: &Path, harness: &str, scope: Scope) -> PathBuf {
     anchor.join(harness_desc::skills_subpath(harness, scope))
 }
 
-/// The sibling `rules/` dir of the resolved skills dir — pure path join.
+/// `<anchor>/<harness.surface_dir>/rules` — pure path join, derived from the descriptor's
+/// **surface** column and never from the skills dir's parent (see the module docs).
 pub fn rules_dir_for_anchor(anchor: &Path, harness: &str, scope: Scope) -> PathBuf {
-    let skills = skills_dir_for_anchor(anchor, harness, scope);
-    match skills.parent() {
-        Some(parent) => parent.join("rules"),
-        None => PathBuf::from("rules"),
-    }
+    anchor
+        .join(harness_desc::surface_subpath(harness, scope))
+        .join("rules")
 }
 
 /// The sibling `rules` dir of a `--target` skills dir: `<target>/../rules`.
@@ -198,20 +206,38 @@ mod tests {
             rules_dir_for_anchor(anchor, "agents", Scope::User),
             PathBuf::from("/home/jd/.agents/rules")
         );
-        // opencode: user root under `.config/opencode`, project under `.opencode`.
+        // COLLAPSED (plan-055 Issue 2.2): opencode and pi resolve their SKILLS to the shared
+        // `.agents/skills` in BOTH scopes...
+        for h in ["opencode", "pi", "codex", "agents"] {
+            for scope in [Scope::User, Scope::Project] {
+                assert_eq!(
+                    skills_dir_for_anchor(anchor, h, scope),
+                    PathBuf::from("/home/jd/.agents/skills"),
+                    "{h} must resolve skills to the shared root ({scope:?})"
+                );
+            }
+        }
+
+        // ...while each keeps its OWN surface dir, which is the entire point of the split. If
+        // the rules dir were still derived from the skills dir's parent, all four of these
+        // would now read `/home/jd/.agents/rules`.
         assert_eq!(
-            skills_dir_for_anchor(anchor, "opencode", Scope::User),
-            PathBuf::from("/home/jd/.config/opencode/skills")
+            rules_dir_for_anchor(anchor, "opencode", Scope::User),
+            PathBuf::from("/home/jd/.config/opencode/rules")
         );
         assert_eq!(
-            skills_dir_for_anchor(anchor, "opencode", Scope::Project),
-            PathBuf::from("/home/jd/.opencode/skills")
+            rules_dir_for_anchor(anchor, "opencode", Scope::Project),
+            PathBuf::from("/home/jd/.opencode/rules")
         );
-        // pi: user `.pi/agent/skills`, project `.pi/skills`.
         assert_eq!(
-            skills_dir_for_anchor(anchor, "pi", Scope::User),
-            PathBuf::from("/home/jd/.pi/agent/skills")
+            rules_dir_for_anchor(anchor, "pi", Scope::User),
+            PathBuf::from("/home/jd/.pi/agent/rules")
         );
+        assert_eq!(
+            rules_dir_for_anchor(anchor, "pi", Scope::Project),
+            PathBuf::from("/home/jd/.pi/rules")
+        );
+
         // Unknown harness → legacy `.<id>/skills` fallback.
         assert_eq!(
             skills_dir_for_anchor(anchor, "frobnicator", Scope::User),

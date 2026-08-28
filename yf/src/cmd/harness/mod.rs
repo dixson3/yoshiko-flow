@@ -1828,6 +1828,7 @@ mod tests {
         // --- skills-only install writes no aggregate (REQ-YF-FLOW-007). ---------
         let skills_dir = tmp.path().join("skills");
         let install_args = SkillsArgs {
+            no_skills: false,
             names: vec!["yf-beads-init".to_string(), "yf-plan".to_string()],
             scope: Scope::User,
             harness: Vec::new(),
@@ -2095,6 +2096,7 @@ mod tests {
 
         // Skills-only re-install (writes skill bodies only, never the rules surface).
         let install_args = SkillsArgs {
+            no_skills: false,
             names: vec!["yf-beads-init".to_string(), "yf-plan".to_string()],
             scope: Scope::User,
             harness: Vec::new(),

@@ -96,18 +96,18 @@ fn rule_target_subpath(surface: &str, kind: RuleTargetKind) -> String {
 pub fn check_install(doc: &str) -> Vec<Divergence> {
     let mut out = Vec::new();
     for d in DESCRIPTORS {
-        if !doc.contains(d.user_subpath) {
+        if !doc.contains(d.user_skills_subpath) {
             out.push(Divergence::InstallSubpathMissing {
                 harness: d.id,
                 scope: "user",
-                subpath: d.user_subpath,
+                subpath: d.user_skills_subpath,
             });
         }
-        if !doc.contains(d.project_subpath) {
+        if !doc.contains(d.project_skills_subpath) {
             out.push(Divergence::InstallSubpathMissing {
                 harness: d.id,
                 scope: "project",
-                subpath: d.project_subpath,
+                subpath: d.project_skills_subpath,
             });
         }
         if let Some(t) = d.name_transform {

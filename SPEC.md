@@ -917,7 +917,7 @@ requirement lives only in code (GUARDRAILS GR-010).
   | `claude-code` | `.claude/skills` | `.claude/skills` | `.claude` | `.claude` | none |
   | `codex` | `.agents/skills` | `.agents/skills` | `.agents` | `.agents` | none |
   | `opencode` | `.agents/skills` | `.agents/skills` | `.config/opencode` | `.opencode` | none |
-  | `pi` | `.agents/skills` | `.agents/skills` | `.pi/agent` | `.pi` | `lowercase-hyphen,max64` |
+  | `pi` | `.agents/skills` | `.agents/skills` | `.pi/agent` | `.pi` | none |
   | `agents` | `.agents/skills` | `.agents/skills` | `.agents` | `.agents` | none |
 
   **Four of the five rows share one skills root** — `.agents/skills`, in **both** scopes. Measured
@@ -972,16 +972,19 @@ requirement lives only in code (GUARDRAILS GR-010).
   descriptor — `id`, **both** skills subpaths, **both** surface dirs, `name_transform`, and the row
   count.
 
-  **The `name_transform` column, and why it is nearly empty.** A transform normalizes a skill's
-  on-disk *directory* name for a harness that constrains names. pi is the only row that has ever
-  carried one (`lowercase-hyphen,max64`), and it is **not a pi requirement**: plan-055 EXP-002
+  **The `name_transform` column is EMPTY on every row, and that is a measured result rather
+  than an oversight.** A transform would normalize a skill's on-disk *directory* name for a
+  harness that constrains names. pi is the only row that ever carried one
+  (a lowercase-hyphen/64-char rule), and it was **not a pi requirement**: plan-055 EXP-002
   measured pi 0.84.3 loading directories named `Zz_Probe_Name` and `Zz_Probe_Shared_NoName` —
   pi's name validation is **warn-only**, and only a missing frontmatter `description` is fatal.
-  While the row is present it shall be validated against yf's long skill names (e.g.
-  `yf-change-validation`) and against a **>64-character** probe name.
+  The row is therefore dropped, and with it the former requirement that it be validated against
+  long skill names: there is no transform left to validate. The mechanism
+  ([`NameTransform`]-shaped) is retained in the column's *type* so a future harness that really
+  does constrain names can declare one.
 
-  **The binding constraint on a shared tree is opencode's, and it is the inverse.** opencode takes a
-  skill's name **only** from `SKILL.md` frontmatter and silently **skips** a `SKILL.md` with no
+  **The binding constraint on a shared tree is opencode's, and it is the inverse.** opencode takes
+  a skill's name **only** from `SKILL.md` frontmatter and silently **skips** a `SKILL.md` with no
   `name:`, ignoring the directory name entirely. So a shared skills root requires every `SKILL.md`
   to carry `name:` (which `yf`'s embedded tree does) and places **no** constraint on the directory
   name.

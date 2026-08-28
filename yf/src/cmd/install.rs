@@ -32,7 +32,14 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     }
 
     let sel = common::resolve_selection(&skills, &args.names, args.group.as_deref())?;
-    let install: Vec<String> = sel.install.iter().cloned().collect();
+    // `--no-skills` (Issue 2.5): run the `--tune` bridge and deploy NO bodies. The selection is
+    // still computed, so the reporting shape is unchanged and the caller sees which skills WOULD
+    // have been written by the run that owns this root.
+    let install: Vec<String> = if args.no_skills {
+        Vec::new()
+    } else {
+        sel.install.iter().cloned().collect()
+    };
     // Repeatable `--harness` resolved and deduped by resolved absolute path
     // (REQ-YF-INSTALL-002): `--harness codex --harness agents` → one destination.
     let dests = common::resolved_dests(args);
@@ -431,11 +438,20 @@ mod tests {
         let pi = harness_desc::lookup("pi").expect("pi descriptor");
         let raw = "YF_Mixed_Case";
         let transformed = pi.transform_skill_name(raw);
-        assert_ne!(transformed, raw, "the fixture name must actually transform");
+        // plan-055 Issue 2.3: NO row carries a transform any more, so this is now the identity.
+        // The test is kept — and re-pointed rather than deleted — because what it guards is the
+        // ROUTING, not the transform: `extra_deployed_files` must resolve its skill root the
+        // same way `deploy_skill` writes it. Two functions deriving a directory name by
+        // different rules is a correctness bug the moment a future harness declares a transform,
+        // and that is exactly when nobody will be looking.
+        assert_eq!(
+            transformed, raw,
+            "no shipped row transforms names (Issue 2.3); this is the identity now"
+        );
 
         let tmp = tempfile::tempdir().unwrap();
         let skills_dir = tmp.path();
-        // Deployed under the TRANSFORMED dir name, as deploy_skill would write it.
+        // Deployed under the resolved dir name, as deploy_skill would write it.
         let root = skills_dir.join(&transformed);
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("STRAY.md"), b"orphan\n").unwrap();
@@ -448,13 +464,14 @@ mod tests {
              and reports an empty prune set"
         );
 
-        // A non-transforming harness still resolves the raw name.
-        let raw_root = skills_dir.join(raw);
-        std::fs::create_dir_all(&raw_root).unwrap();
-        std::fs::write(raw_root.join("OTHER.md"), b"x\n").unwrap();
+        // Every harness resolves the same directory now, because every row is the identity.
+        // (Before Issue 2.3 this half used a SEPARATE raw-named directory, because pi and
+        // claude-code resolved to two different paths for one skill name. They no longer do —
+        // which is itself the assertion.)
         assert_eq!(
             common::extra_deployed_files(raw, skills_dir, "claude-code").unwrap(),
-            vec!["OTHER.md".to_string()]
+            vec!["STRAY.md".to_string()],
+            "with no transform on any row, pi and claude-code resolve the SAME directory"
         );
     }
 
@@ -498,6 +515,7 @@ mod tests {
             force: false,
             dry_run: false,
             prune: false,
+        no_skills: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
