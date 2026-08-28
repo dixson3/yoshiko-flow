@@ -43,7 +43,7 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `answered` | Committed on green, but the quarantine was RETAINED rather than dropped. Dropping it is the single irreversible act in the whole migration and it buys nothing at this moment: the plan is not yet merged, 5.3's FULL tier has not run, and the Deferred table's own mid-execution-abandonment row prescribes 5.2a's restore as the recovery path — which requires the quarantine to still exist. Deleting it would remove the recovery this plan built two issues to guarantee, minutes before the validation that could need it. The quarantine is reported to the operator instead, who can drop it once the plan has landed. |
 | `frontloadable` | yes |
 | `detected_by` | self-report |
-| `evidence` | quarantine retained at /Users/james/.yf-quarantine/plan-055-1787886237 holding 38 skill directories + 1 operator-authorized symlink, each with .origin recorded; restore command emitted in the apply verdict and measured byte-exact by scripts/checks/check-quarantine-restore.sh |
+| `evidence` | quarantine retained at `/Users/james/.yf-quarantine/plan-055-1787886237` holding 38 skill directories + 1 operator-authorized symlink, each with .origin recorded; restore command emitted in the apply verdict and measured byte-exact by `scripts/checks/check-quarantine-restore.sh` |
 | `escape_class` |  |
 | `adjudication` |  |
 | `origin` |  |

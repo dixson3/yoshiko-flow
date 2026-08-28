@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+id: drive-verify-5.2
+plan: plan-055-james-dixson-5f1c40
+author: james-dixson
+created: '2026-08-27'
+title: Drive-verify evidence (Issue 5.2)
+---
 # Drive-verify — Issue 5.2 (SC17 / SC17b evidence)
 
 **Date:** 2026-08-27 · **Plan:** plan-055-james-dixson-5f1c40

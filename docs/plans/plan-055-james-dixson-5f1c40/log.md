@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-27
+- complete: plan complete — collapse landed, machine migrated and drive-verified, FULL tier green
 - executing: start gate resolved
 - intake: epic yf-mol-xga poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level

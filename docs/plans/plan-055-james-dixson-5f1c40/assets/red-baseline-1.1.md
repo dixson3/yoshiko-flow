@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+id: red-baseline-1.1
+plan: plan-055-james-dixson-5f1c40
+author: james-dixson
+created: '2026-08-27'
+title: RED baseline (Issue 1.1)
+---
 # RED baseline — Issue 1.1
 
 **Recorded:** 2026-08-27 · **Plan:** plan-055-james-dixson-5f1c40 · **Machine:** the migration target
