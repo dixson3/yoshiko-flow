@@ -24,6 +24,7 @@ pub mod manifest;
 pub mod merge;
 pub mod minimize;
 pub mod profile;
+pub mod prune_private;
 pub mod revert;
 pub mod settings;
 pub mod toml_adapter;

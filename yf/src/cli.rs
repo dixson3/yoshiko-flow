@@ -316,6 +316,41 @@ pub enum SkillsCommand {
     Remove(SkillsArgs),
     /// Report install / up-to-date / completeness status per skill.
     Status(SkillsArgs),
+    /// Marker-gated removal of now-unread PRIVATE skills trees (`REQ-YF-MARK-006`).
+    ///
+    /// Walks each private skills root DIRECTORY BY DIRECTORY — including members absent from
+    /// the embedded skill set, which `status` is structurally blind to — and classifies each
+    /// into one of four outcomes. **Dry-run is the default**; `--apply` is the only path that
+    /// mutates, and it MOVES to a timestamped quarantine rather than unlinking.
+    ///
+    /// This is deliberately NOT `skills remove`, which is a name-keyed `remove_dir_all` with no
+    /// ownership check at all.
+    PrunePrivate(PrunePrivateArgs),
+}
+
+/// `yf harness skills prune-private` (REQ-YF-MARK-006).
+#[derive(Debug, PartialEq, Eq, clap::Args)]
+pub struct PrunePrivateArgs {
+    /// Scope whose private roots are walked.
+    #[arg(long, value_enum, default_value_t = Scope::User)]
+    pub scope: Scope,
+
+    /// Explicit root(s) to walk (repeatable). When omitted, the private (non-shared) skills
+    /// roots for this scope are derived from the descriptor table.
+    #[arg(long, value_name = "PATH")]
+    pub root: Vec<std::path::PathBuf>,
+
+    /// The shared skills root a kept directory is checked against for D-2f's divergence flag.
+    #[arg(long, value_name = "PATH")]
+    pub shared_root: Option<std::path::PathBuf>,
+
+    /// MUTATE. Without it this command writes nothing at all — that is the default, not a mode.
+    #[arg(long)]
+    pub apply: bool,
+
+    /// Emit the machine-readable verdict (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Install surface (REQ-YF-CLI-002).
