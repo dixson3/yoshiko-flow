@@ -194,11 +194,16 @@ pub fn classify(path: &Path, is_symlink: bool) -> Member {
         (_, Some((_version, tree))) => match marker::deployed_tree_hash(path) {
             Err(e) => mk(
                 Outcome::Undetermined,
-                format!("the tree hash could not be recomputed ({e}) — the marker cannot be checked"),
+                format!(
+                    "the tree hash could not be recomputed ({e}) — the marker cannot be checked"
+                ),
             ),
             Ok(actual) if actual == tree => mk(
                 Outcome::OwnedAndUnmodified,
-                format!("marker tree={} matches the recomputed hash", &tree[..tree.len().min(12)]),
+                format!(
+                    "marker tree={} matches the recomputed hash",
+                    &tree[..tree.len().min(12)]
+                ),
             ),
             Ok(actual) => mk(
                 Outcome::OwnedButModified,
@@ -399,7 +404,6 @@ fn copy_tree(src: &Path, dst: &Path) -> io::Result<()> {
 /// Exit code: `SUCCESS` on a clean dry-run or a clean apply; `FAILURE` when a root could not be
 /// read or a quarantine move failed — an instrument failure, never a verdict about the tree.
 pub fn run(args: &crate::cli::PrunePrivateArgs) -> anyhow::Result<std::process::ExitCode> {
-
     let roots: Vec<PathBuf> = if !args.root.is_empty() {
         args.root.clone()
     } else {
@@ -605,7 +609,8 @@ mod tests {
                 MarkerKind::Truthful | MarkerKind::Lying => {
                     // Inject with a placeholder, recompute the real (marker-stripped) hash, then
                     // re-inject either it or a lie.
-                    let placeholder = crate::marker::inject_marker(&skill_md, "test", &"0".repeat(64));
+                    let placeholder =
+                        crate::marker::inject_marker(&skill_md, "test", &"0".repeat(64));
                     fs::write(dir.join("SKILL.md"), placeholder).unwrap();
                     let real = crate::marker::deployed_tree_hash(&dir).unwrap();
                     let tree = if matches!(marker_kind, MarkerKind::Truthful) {
@@ -656,8 +661,14 @@ mod tests {
         let members = classify_root(&f.root, None).unwrap();
         assert_eq!(members.len(), 4, "all four members must be enumerated");
 
-        assert_eq!(outcome_of(&members, "owned-clean"), Outcome::OwnedAndUnmodified);
-        assert_eq!(outcome_of(&members, "owned-edited"), Outcome::OwnedButModified);
+        assert_eq!(
+            outcome_of(&members, "owned-clean"),
+            Outcome::OwnedAndUnmodified
+        );
+        assert_eq!(
+            outcome_of(&members, "owned-edited"),
+            Outcome::OwnedButModified
+        );
         assert_eq!(outcome_of(&members, "operator-notes"), Outcome::NoMarker);
         assert_eq!(outcome_of(&members, "linked"), Outcome::Undetermined);
 
@@ -675,7 +686,7 @@ mod tests {
 
         // The verdict's three populations are DISJOINT — an undetermined member must not also
         // appear under `kept`, or the gate reads one member as two findings.
-        let v = verdict(&members, &[f.root.clone()], None);
+        let v = verdict(&members, std::slice::from_ref(&f.root), None);
         assert_eq!(v["delete"].as_array().unwrap().len(), 1);
         assert_eq!(v["kept"].as_array().unwrap().len(), 2);
         assert_eq!(v["undetermined"].as_array().unwrap().len(), 1);
@@ -691,7 +702,7 @@ mod tests {
         let clean = f.skill("owned-clean", "# clean\n", MarkerKind::Truthful);
 
         let members = classify_root(&f.root, None).unwrap();
-        let v = verdict(&members, &[f.root.clone()], None);
+        let v = verdict(&members, std::slice::from_ref(&f.root), None);
 
         assert!(v["dry_run"].as_bool().unwrap());
         assert_eq!(v["delete"].as_array().unwrap().len(), 1);
@@ -708,7 +719,11 @@ mod tests {
     #[test]
     fn enumerator_sees_foreign_directory() {
         let f = Fixture::new("foreign");
-        f.skill("definitely-not-an-embedded-yf-skill", "# hand placed\n", MarkerKind::None);
+        f.skill(
+            "definitely-not-an-embedded-yf-skill",
+            "# hand placed\n",
+            MarkerKind::None,
+        );
 
         let found = enumerate_root(&f.root).unwrap();
         assert_eq!(found.len(), 1);
@@ -770,7 +785,10 @@ mod tests {
         let members = classify_root(&f.root, Some(&shared)).unwrap();
         let edited = members.iter().find(|m| m.name == "owned-edited").unwrap();
         let clean = members.iter().find(|m| m.name == "owned-clean").unwrap();
-        assert!(edited.shadows_shared_root, "a kept shadowing copy is the hazard");
+        assert!(
+            edited.shadows_shared_root,
+            "a kept shadowing copy is the hazard"
+        );
         assert!(
             !clean.shadows_shared_root,
             "a removable copy is not flagged — it is about to stop existing"
@@ -793,7 +811,10 @@ mod tests {
         assert_eq!(moved.len(), 1, "only the removable outcome is moved");
         assert!(!clean.exists(), "the origin is gone from the skills root");
         assert!(kept.is_dir(), "a kept member is untouched");
-        assert!(moved[0].is_dir(), "the tree still EXISTS — it was moved, not unlinked");
+        assert!(
+            moved[0].is_dir(),
+            "the tree still EXISTS — it was moved, not unlinked"
+        );
         assert_eq!(
             fs::read_to_string(moved[0].join("SKILL.md")).unwrap(),
             before,
@@ -822,9 +843,15 @@ mod tests {
         let q = f.root.join(".q");
         let dest = quarantine_named_path(&link, &q).unwrap();
 
-        assert!(!link.exists() && fs::symlink_metadata(&link).is_err(), "the link is gone");
         assert!(
-            fs::symlink_metadata(&dest).unwrap().file_type().is_symlink(),
+            !link.exists() && fs::symlink_metadata(&link).is_err(),
+            "the link is gone"
+        );
+        assert!(
+            fs::symlink_metadata(&dest)
+                .unwrap()
+                .file_type()
+                .is_symlink(),
             "it was moved AS A LINK, not dereferenced into a copy"
         );
         assert!(target.is_dir(), "the TARGET is untouched — never followed");

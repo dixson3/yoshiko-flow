@@ -578,13 +578,29 @@ fn sync_dedupes_shared_skills_root() {
     let home = td.path();
 
     // A machine with all four shared-root harnesses present, and claude-code too.
-    for d in [".claude", ".codex", ".config/opencode", ".pi/agent", ".agents/skills"] {
+    for d in [
+        ".claude",
+        ".codex",
+        ".config/opencode",
+        ".pi/agent",
+        ".agents/skills",
+    ] {
         std::fs::create_dir_all(home.join(d)).unwrap();
     }
 
     // The argv builder is the unit under test at the boundary that matters: exactly one of the
     // four shared-root harnesses may carry a real skills write.
-    let (ok, _) = yf_at(home, &["harness", "skills", "install", "--harness", "codex", "--json"]);
+    let (ok, _) = yf_at(
+        home,
+        &[
+            "harness",
+            "skills",
+            "install",
+            "--harness",
+            "codex",
+            "--json",
+        ],
+    );
     assert!(ok, "seed install must succeed");
 
     let shared = home.join(".agents/skills");
@@ -596,7 +612,15 @@ fn sync_dedupes_shared_skills_root() {
     std::thread::sleep(std::time::Duration::from_millis(1100));
     let (ok, out) = yf_at(
         home,
-        &["harness", "skills", "install", "--harness", "pi", "--no-skills", "--json"],
+        &[
+            "harness",
+            "skills",
+            "install",
+            "--harness",
+            "pi",
+            "--no-skills",
+            "--json",
+        ],
     );
     assert!(ok, "the --no-skills run must succeed: {out}");
 
@@ -609,7 +633,10 @@ fn sync_dedupes_shared_skills_root() {
     // And the complement, so the test cannot pass by the flag being inert everywhere: WITHOUT
     // the flag, the same run DOES write. A dedupe that never writes is not a dedupe.
     std::thread::sleep(std::time::Duration::from_millis(1100));
-    let (ok, _) = yf_at(home, &["harness", "skills", "install", "--harness", "pi", "--json"]);
+    let (ok, _) = yf_at(
+        home,
+        &["harness", "skills", "install", "--harness", "pi", "--json"],
+    );
     assert!(ok);
     let rewritten = std::fs::metadata(&probe).unwrap().modified().unwrap();
     assert_ne!(

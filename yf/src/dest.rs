@@ -346,7 +346,11 @@ mod tests {
         // opencode carries TWO vars, and they differ in precedence. Asserted as a pair, because
         // the defect a single-var assertion misses is precisely the two being conflated.
         let oc = lookup("opencode").unwrap();
-        let xdg = oc.surface_env.iter().find(|o| o.var == "XDG_CONFIG_HOME").unwrap();
+        let xdg = oc
+            .surface_env
+            .iter()
+            .find(|o| o.var == "XDG_CONFIG_HOME")
+            .unwrap();
         let ocd = oc
             .surface_env
             .iter()

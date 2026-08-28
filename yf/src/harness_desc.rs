@@ -108,10 +108,16 @@ pub struct EnvOverride {
 
 impl EnvOverride {
     pub const fn replace(var: &'static str) -> Self {
-        EnvOverride { var, precedence: OverridePrecedence::Replace }
+        EnvOverride {
+            var,
+            precedence: OverridePrecedence::Replace,
+        }
     }
     pub const fn additive(var: &'static str) -> Self {
-        EnvOverride { var, precedence: OverridePrecedence::Additive }
+        EnvOverride {
+            var,
+            precedence: OverridePrecedence::Additive,
+        }
     }
 }
 

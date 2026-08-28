@@ -56,7 +56,9 @@ pub(crate) fn override_mismatch_warnings(
     use crate::harness_desc::{self, OverridePrecedence};
     let mut out = Vec::new();
     for h in harnesses {
-        let Some(d) = harness_desc::lookup(h) else { continue };
+        let Some(d) = harness_desc::lookup(h) else {
+            continue;
+        };
         for ov in d.surface_env {
             // ADDITIVE overrides are NOT a mismatch and must never warn. An additive var adds a
             // root the harness reads *in addition to* the default, so the default is still read
@@ -127,16 +129,16 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     // deploy. A directory that already existed was already making the repo trust-requiring and
     // yf did not do it; warning on mere presence would fire on every install forever, which is
     // how a real warning becomes noise.
-    let newly_created_shared_roots: Vec<std::path::PathBuf> = if matches!(args.scope, crate::cli::Scope::Project) {
-        dests
-            .iter()
-            .map(|d| d.skills_dir.clone())
-            .filter(|p| p.ends_with(".agents/skills") && !p.exists())
-            .collect()
-    } else {
-        Vec::new()
-    };
-
+    let newly_created_shared_roots: Vec<std::path::PathBuf> =
+        if matches!(args.scope, crate::cli::Scope::Project) {
+            dests
+                .iter()
+                .map(|d| d.skills_dir.clone())
+                .filter(|p| p.ends_with(".agents/skills") && !p.exists())
+                .collect()
+        } else {
+            Vec::new()
+        };
 
     // Tool prereqs (REQ-YF-INSTALL-005: --strict aborts on a missing tool).
     let missing = common::missing_tools(&skills, &sel.install);
@@ -631,7 +633,7 @@ mod tests {
             force: false,
             dry_run: false,
             prune: false,
-        no_skills: false,
+            no_skills: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,
@@ -794,14 +796,15 @@ mod tests {
 
         // (a) A REPLACE var disagreeing with the default → exactly one warning, and it names
         //     BOTH directories: where yf writes and where the harness will actually read.
-        let w = override_mismatch_warnings(
-            Scope::User,
-            &["codex".to_string()],
-            home,
-            |k| (k == "CODEX_HOME").then(|| elsewhere.clone()),
-        );
+        let w = override_mismatch_warnings(Scope::User, &["codex".to_string()], home, |k| {
+            (k == "CODEX_HOME").then(|| elsewhere.clone())
+        });
         assert_eq!(w.len(), 1, "one mismatch, one warning: {w:?}");
-        assert!(w[0].contains("CODEX_HOME"), "the warning must name the VAR: {}", w[0]);
+        assert!(
+            w[0].contains("CODEX_HOME"),
+            "the warning must name the VAR: {}",
+            w[0]
+        );
         assert!(
             w[0].contains("/elsewhere/codex-home"),
             "it must name where the harness will ACTUALLY read — the whole remedy: {}",
@@ -857,8 +860,14 @@ mod tests {
     #[test]
     fn warns_project_scope_makes_repo_trust_requiring() {
         let msg = project_scope_trust_warning(std::path::Path::new("/repo/.agents/skills"));
-        assert!(msg.contains("/repo/.agents/skills"), "names the directory: {msg}");
-        assert!(msg.to_lowercase().contains("trust"), "names the consequence: {msg}");
+        assert!(
+            msg.contains("/repo/.agents/skills"),
+            "names the directory: {msg}"
+        );
+        assert!(
+            msg.to_lowercase().contains("trust"),
+            "names the consequence: {msg}"
+        );
         assert!(msg.contains("pi"), "names the harness: {msg}");
         // The SILENCE is the substance of the warning — a reader who does not learn that pi
         // drops the skills without any diagnostic has not been warned about anything actionable.
@@ -866,6 +875,9 @@ mod tests {
             msg.contains("SILENTLY") || msg.to_lowercase().contains("silent"),
             "must state that the failure is SILENT: {msg}"
         );
-        assert!(msg.contains("exit 0"), "must state the measured symptom: {msg}");
+        assert!(
+            msg.contains("exit 0"),
+            "must state the measured symptom: {msg}"
+        );
     }
 }

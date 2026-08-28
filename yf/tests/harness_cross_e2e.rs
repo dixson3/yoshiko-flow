@@ -1157,8 +1157,15 @@ fn pi_opencode_resolve_shared_root_both_scopes() {
             let j = yf_json_in(
                 home,
                 &[
-                    "harness", "skills", "install", "--harness", harness, anchor_flag, scope,
-                    "--dry-run", "--json",
+                    "harness",
+                    "skills",
+                    "install",
+                    "--harness",
+                    harness,
+                    anchor_flag,
+                    scope,
+                    "--dry-run",
+                    "--json",
                 ],
             );
             let dir = PathBuf::from(j["skills_dir"].as_str().unwrap());
@@ -1173,8 +1180,15 @@ fn pi_opencode_resolve_shared_root_both_scopes() {
         let j = yf_json_in(
             home,
             &[
-                "harness", "skills", "install", "--harness", "claude-code", anchor_flag, scope,
-                "--dry-run", "--json",
+                "harness",
+                "skills",
+                "install",
+                "--harness",
+                "claude-code",
+                anchor_flag,
+                scope,
+                "--dry-run",
+                "--json",
             ],
         );
         let dir = PathBuf::from(j["skills_dir"].as_str().unwrap());
@@ -1213,8 +1227,15 @@ fn distinct_skills_roots_per_scope() {
             let j = yf_json_in(
                 home,
                 &[
-                    "harness", "skills", "install", "--harness", harness, "--scope", scope,
-                    "--dry-run", "--json",
+                    "harness",
+                    "skills",
+                    "install",
+                    "--harness",
+                    harness,
+                    "--scope",
+                    scope,
+                    "--dry-run",
+                    "--json",
                 ],
             );
             let dir = PathBuf::from(j["skills_dir"].as_str().unwrap());
@@ -1244,7 +1265,15 @@ fn distinct_skills_roots_per_scope() {
     let listing = |harness: &str| -> std::collections::BTreeSet<String> {
         let h = tempfile::tempdir().unwrap();
         let out = Command::new(YF)
-            .args(["harness", "skills", "install", "yf-plan", "--harness", harness, "--json"])
+            .args([
+                "harness",
+                "skills",
+                "install",
+                "yf-plan",
+                "--harness",
+                harness,
+                "--json",
+            ])
             .env("HOME", h.path())
             .current_dir(h.path())
             .output()
@@ -1258,7 +1287,10 @@ fn distinct_skills_roots_per_scope() {
     };
 
     let via_codex = listing("codex");
-    assert!(via_codex.contains("yf-plan"), "sanity: the install wrote something");
+    assert!(
+        via_codex.contains("yf-plan"),
+        "sanity: the install wrote something"
+    );
     for harness in ["pi", "opencode", "agents"] {
         assert_eq!(
             listing(harness),

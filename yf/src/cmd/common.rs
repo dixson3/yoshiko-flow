@@ -867,7 +867,7 @@ mod dest_dedupe_tests {
             force: false,
             dry_run: false,
             prune: false,
-        no_skills: false,
+            no_skills: false,
             tune: false,
             rules_only: false,
             allow_permissions_write: false,

@@ -153,16 +153,16 @@ pub fn config_half_suppressed(present: impl Fn(&str) -> bool) -> bool {
 /// write is gated on the far side — without `--allow-permissions-write` the bridge
 /// returns `consent_required`, writes nothing, and (not being `"ok"`) is counted a
 /// failure by [`classify_tune_status`].
-pub fn install_args_with(harness: &str, rules_only: bool) -> Vec<String> {
-    install_args_full(harness, rules_only, false)
-}
-
-/// As [`install_args_with`], plus the Issue 2.5 skills-dedupe flag.
+/// The install argv, plus the Issue 2.5 skills-dedupe flag.
 ///
 /// `skills_already_written` is set for a harness whose **resolved skills root** was already
 /// written earlier in this same sync. Its run still happens — the surface half is
 /// harness-specific — but the redundant skills write is dropped.
-pub fn install_args_full(harness: &str, rules_only: bool, skills_already_written: bool) -> Vec<String> {
+pub fn install_args_full(
+    harness: &str,
+    rules_only: bool,
+    skills_already_written: bool,
+) -> Vec<String> {
     let mut v: Vec<String> = [
         "harness",
         "skills",
@@ -198,7 +198,8 @@ pub fn install_args_full(harness: &str, rules_only: bool, skills_already_written
 /// harness-specific even where a skills root is shared. Dropping the repeats would silently
 /// stop deploying three harnesses' rules and config.
 pub fn dedupe_skills_writes(home: &Path, harnesses: &[&str]) -> Vec<bool> {
-    let mut seen: std::collections::BTreeSet<std::path::PathBuf> = std::collections::BTreeSet::new();
+    let mut seen: std::collections::BTreeSet<std::path::PathBuf> =
+        std::collections::BTreeSet::new();
     harnesses
         .iter()
         .map(|h| {
@@ -555,7 +556,7 @@ mod tests {
     #[test]
     fn install_args_are_explicit_per_harness() {
         for rules_only in [true, false] {
-            let args = install_args_with("codex", rules_only);
+            let args = install_args_full("codex", rules_only, false);
             let i = args.iter().position(|a| a == "--harness").expect(
                 "the exec must always name the harness explicitly (bypasses the fan-out gate)",
             );
@@ -575,13 +576,13 @@ mod tests {
     #[test]
     fn rules_only_is_emitted_iff_the_config_half_is_suppressed() {
         assert!(
-            install_args_with("codex", true)
+            install_args_full("codex", true, false)
                 .iter()
                 .any(|a| a == "--rules-only"),
             "suppressed → --rules-only"
         );
         assert!(
-            !install_args_with("codex", false)
+            !install_args_full("codex", false, false)
                 .iter()
                 .any(|a| a == "--rules-only"),
             "not suppressed → the consent-gated FULL tune (Issue 3.8's flip)"
@@ -612,7 +613,7 @@ mod tests {
 
         let seen = std::cell::RefCell::new(Vec::<Vec<String>>::new());
         let report = run_sync_with(home, |h| {
-            let args = install_args_with(h, /*suppressed=*/ true);
+            let args = install_args_full(h, /*suppressed=*/ true, false);
             seen.borrow_mut().push(args);
             Ok((true, Some(0), r#"{"status":"ok"}"#.to_string()))
         });
