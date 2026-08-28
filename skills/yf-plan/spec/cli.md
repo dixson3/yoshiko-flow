@@ -251,3 +251,97 @@ Verification: `scripts/test_epic_ref_audit.py` asserts both surfaces are removed
 bullet survives, a `pointer cleared` bullet is appended, a second run is a no-op, `present` and
 `unknown` refuse without `--force`, and `metadata_fallback_remains` is reported when the epic bead
 still carries a matching `metadata.plan_dir`.
+
+REQ-CLI-028: *(added plan-056 Issue 0.11)* **The test-invocation guard.** A criterion, recipe row,
+or check that asserts "a named test ran and passed" shall invoke the test through an instrument that
+guarantees two properties. Both are stated because each was violated in this repository, separately.
+
+**(1) Arguments shall be FORWARDED.** A Python test entrypoint invoked as `uv run <test_file.py>
+-k <selector>` in this repo **discards `sys.argv`**: every hand-rolled `__main__` block calls
+`pytest.main([])` or runs its own loop, so the selector is silently dropped and the whole file runs.
+A criterion written in that form therefore asserts *"some test in this file passed"*, not *"the named
+test passed"* — and it stays green when the named function is deleted.
+
+**The vacuity is form-specific, and the scope of this rule is exactly that form.** It is **not** true
+that pytest exits 0 on a selector matching nothing: measured, module-form
+`python -m pytest -k <no-match>` exits **5** (`N deselected`) and `pytest <missing-file>` exits **4**.
+`CHANGE-VALIDATION.md` already recorded this, and the repo's own recipe rows use the module form.
+The defect lives **only** in the direct-file form, which the recipe never uses and criteria did.
+
+**(2) A selector matching nothing shall FAIL, never pass.** The instrument shall first assert the
+named function exists (a `def <name>` grep against the target), then run it, then require a
+**non-zero passed count** — three separate assertions, because each of the three failure modes
+(function renamed away, file moved, collection error) produces a different wrong answer under the
+other two.
+
+**PEP 723 dependencies shall be parsed from the TARGET and forwarded.** Measured:
+`uv run --with pytest python -m pytest _shared/test_okf.py` dies at **collection with exit 2**,
+because module form makes `python` the entrypoint and the target's own inline dependency header is
+never read — while `test_cli_enumeration.py` happens to need nothing and passes. The per-file
+dependency set is heterogeneous, so a fixed `--with` list is a guess that is right by luck. Either
+parse the target's `dependencies` and forward them, or invoke via `uv run --script`.
+
+**A hand-rolled non-pytest entrypoint shall yield INCONCLUSIVE, never PASS.** Measured:
+`_shared/test_doc_lint.py` carries **0** `def test` functions, no pytest import and no `__main__`;
+**15** repo test files carry no `__main__` at all. Reporting a green on a file the instrument cannot
+drive is the "a check that cannot fail" defect one level up from the check.
+
+**The INCONCLUSIVE code is `2`**, per `scripts/checks/_common.sh` (REQ-CLI-029) — the contract every
+instrument in that directory already follows. It is **not** `3`: `redcheck.sh record-red-check`
+**refuses to bank a `2`** precisely because a `2` is not a red observation, whereas an invented `3`
+would be banked as one, converting "the instrument could not run" into "the criterion was measured
+false".
+
+**Codes `126` and `127` remain reserved to the shell.** Returning either would make every criterion
+routed through the instrument permanently unfailable, since a caller cannot distinguish the
+instrument's verdict from the shell's report that it could not execute the instrument at all.
+
+**Explicitly OUT OF SCOPE: rewriting the repository's `pytest.main` call sites.** The wrapper closes
+the gap on its own, and a repo-wide refactor touching every skill does not belong on the critical
+path of the criteria that invoke it.
+Rationale: three consecutive red-team passes of plan-056 found the criteria layer vacuous, each time
+through a different one of the mechanisms above. A criterion that cannot fail is not weaker
+evidence; it is no evidence, and it is worse than none because it reads as evidence.
+Verification: `scripts/checks/check-pytest-ran.sh <file> <test-name>` exits non-zero for a name that
+does not exist in the file and zero for one that does — a pair of exits that differ, so a missing
+instrument cannot satisfy the criterion.
+
+REQ-CLI-029: *(added plan-056 Issue 0.14)* **The check-harness contract for `scripts/checks/`.**
+Every executable check in `scripts/checks/` shall honour the three-valued exit contract its shared
+preamble `_common.sh` already declares — **`0` the criterion holds · `1` it does not · `2` the check
+could NOT RUN** — and shall additionally satisfy the three properties below, which `_common.sh` does
+not yet state.
+
+**(a) Two-branch where it asserts a failure code.** A check whose criterion is "X returns a
+*different* exit than Y" shall assert **both** exits and that they **differ**. A check asserting only
+"X returns non-zero" is satisfied by X being **absent**: `uv run <missing>.py` itself exits 2, which
+silently satisfied two criteria in an earlier draft of this plan. The pair is what distinguishes
+*correct* from *merely absent*.
+
+**(b) Fail loudly on an empty inspection.** A check that enumerates its own input set shall report
+how many items it inspected and shall return non-zero when that count is below a declared floor. A
+check that inspected nothing exits 0 on every rule it applies; without a floor, "clean" and "not
+read" are the same observation. `--min-roots N` (REQ-OKF-CHK-004) and `--require N` are the two
+shipped spellings.
+
+**(c) `126` and `127` are reserved to the CALLER.** No check shall return either. They are the
+shell's report that the check could not be executed — a bad shebang, a missing file, a lost
+executable bit — and a check that returns them makes its own absence indistinguishable from its
+verdict.
+
+**Self-enumeration shall be BY NAME, never by glob.** A harness that enumerates the checks it
+verifies shall list them explicitly. Measured on this plan's own ten instruments: they span three
+naming conventions and two languages, `redcheck.sh`'s `cmd_verify_red_checks` iterates `check-*.sh`,
+and `record-red-check` hard-rejects any other name — so a glob-based enumerator reaches **6 of 10**
+and reports success. Dispatch shall be per extension (`bash` for `.sh`, `uv run` for `.py`).
+
+**A selftest excludes ITSELF from its own count.** A selftest cannot be its own RED fixture, so its
+`--require N` is one below the instrument total; the criterion asserting all N+1 exist is a separate,
+presence-only check.
+
+Rationale: plan-055 landed `_common.sh` plus three checks in `scripts/checks/`; this plan lands eight
+more. That makes the directory a real repo surface, and SPEC-first requires the surface be declared
+before it is populated — otherwise the epic that enforces SPEC-first would itself violate it.
+Verification: `scripts/checks/harness-selftest.sh --require 9` — every instrument returns non-zero
+on a deliberately broken input, and the selftest reports how many it checked, so a selftest covering
+2 of 10 is distinguishable from one covering 10.

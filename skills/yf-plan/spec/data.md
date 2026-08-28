@@ -327,7 +327,16 @@ per-document schema check can do, since each of those reads one section in isola
 
 - **INCONCLUSIVE path:** a `plan-relations` check on a document with non-empty `unparsed[]`
   returns INCONCLUSIVE per REQ-DATA-043, never FAIL.
-- **Severity:** the `R*` rule family ships at severity **`W`**, uniformly.
+- **Severity:** *(amended plan-056 Issue 0.2 / #246)* the `R*` rule family ships at severity
+  **`W`** at its **authoring-time** binding. It is **not** uniformly `W`: the kind additionally
+  carries a **close-out binding** at severity **`E`** (REQ-DATA-074), scoped by `statuses` to
+  `reconciling`/`complete` and kept at `E` there by this kind's file-level `promote = false`.
+  The word "uniformly" was **false from plan-052 onward**, when `R1-closeout` and `R2a-closeout`
+  landed; #246 filed the resulting conformance defect. It resolves **toward the schema** (D-15) —
+  the two `E` checks are correct and are kept — because they are the **only 2 of 48** checks in the
+  whole `document_types/` set capable of producing an `E` at `bundle_status: complete`. Deleting
+  them to satisfy the old wording would make `doc_lint` **structurally incapable of failing a
+  completed bundle**, which is the defect this plan exists to remove, not a conformance fix.
 - **`STATUS_SEVERITY` promotion does NOT apply to this kind.** This is **declared, not
   inherited** — and, since plan-049 Issue 0.2, **implemented**: the schema declares
   `promote = false` and the engine bypasses the map in both directions (REQ-DATA-053). Between
@@ -458,6 +467,95 @@ Verification: plan-049 Issues 2.1–2.4; SC5 asserts ≥60 of the 89 recovered w
 modified**, SC6 drives a mis-attributable form and asserts refusal, SC7 hand-audits ≥20 across
 ≥4 plans, SC8 asserts `plan-006` and `plan-007` no longer report `0 edges`, and SC31 asserts
 corpus `unparsed[]` does not rise above its pre-widening value.
+
+REQ-DATA-074: *(added plan-056 Issue 0.2 / #246)* A document-type schema may bind a check at a
+**higher severity for a restricted set of `bundle_status` values** — a **close-out binding** — by
+declaring a **separate check** that carries (a) its own `id`, (b) the elevated `severity`, (c) a
+`statuses` list naming exactly the statuses it fires under, and (d) `promote = false` (file-level or
+check-level). All four are load-bearing and none is optional:
+
+- a **separate check**, because one check cannot carry two severities. The authoring-time rule and
+  its close-out counterpart are different assertions about different moments and must be
+  independently reportable; distinct ids are what let a finding name which binding produced it;
+- `statuses` decides **whether the check runs at all** (REQ-DATA-058) and is orthogonal to
+  `STATUS_SEVERITY`, which decides what severity a finding *carries*. Scoping to
+  `["reconciling", "complete"]` **is** the close-out binding — those are the only statuses §6.3/§6.4
+  run under;
+- `promote = false` (REQ-DATA-053) is what makes the elevated severity **survive**. Without it
+  `STATUS_SEVERITY` demotes `E → R` at exactly `reconciling`/`complete` — the statuses the check was
+  scoped to — so the binding would be silently disarmed at the only moment it can fire. A close-out
+  `E` without the opt-out is not a weaker check; it is **no check**.
+
+**This binding is the reason `doc_lint` can fail a completed bundle at all.** Measured 2026-08-28:
+with the terminal-status demotion disabled the corpus yields 197 `E` findings that are currently
+demoted to `R` (`findings/exec-001` in the plan-056 bundle); with it enabled, `errors: 0` across
+1116 files. `R1-closeout` and `R2a-closeout` are the **only** two checks that escape, and they
+escape **through this mechanism**. It was implemented by plan-052 and documented **nowhere** — the
+governing requirement said the family was uniformly `W`, this pattern had no requirement of its own,
+and the engine banner and schema banner both asserted the false claim. A mechanism that three
+documents contradict and one code path implements is exactly the drift REQ-DATA-053 was written
+about, recurring one layer up.
+
+**A close-out binding shall not be inferred.** An `E` check that merely *happens* to carry a
+`statuses` list is not one; the declaration is the four elements above, present together.
+
+Rationale: #246 reported REQ-DATA-044's "uniformly `W`" as a conformance defect against the shipped
+schema. Resolving it toward the prose would delete the only enforcement `doc_lint` has past intake;
+resolving it toward the schema requires a requirement for the pattern, which did not exist. This is
+that requirement.
+Verification: `scripts/checks/check-closeout-can-fail.sh` — a RED fixture carrying a close-out
+violation at `status: complete` shall produce at least one error, and the same fixture without the
+violation shall not. Two branches, so a missing linter cannot satisfy it.
+
+REQ-DATA-075: *(added plan-056 Issue 0.4 / #171-partial)* **`description:` is a PRODUCER CONTRACT,
+not a lint.** Every yf-plan producer that stamps OKF frontmatter onto a bundle `.md` shall stamp a
+non-empty `description:` **derived from content the producer already holds**, except for the types
+this requirement explicitly exempts.
+
+**The stamping sites and their derivations** — named, so the contract is checkable rather than
+aspirational:
+
+| Producer site | Type | `description:` derived from |
+| :-- | :-- | :-- |
+| `_write_upstream_reference` | `Reference` | `"Upstream issue #<N> — <title>"` |
+| `seed_plan_md` | `Plan` | the plan's **objective** |
+| the `upstream-triage.md` writer | `Triage` | a fixed statement of what the file records |
+
+**Deliberately EXEMPT, and the exemption is part of the contract:**
+
+- **`context.md`** (`Environment`) and **`plan-retrospective.md`** — one bundle each, one shape
+  each. A derived description there is the *same string in every bundle*: measured, 67 identical
+  copies. A key whose value is constant across the corpus carries zero information and dilutes the
+  ones that do not, which is the failure mode `REQ-OKF-011`'s "never invent a description" rule
+  already names one level down.
+- **Reserved `index.md` / `log.md`**, which carry no frontmatter at all (REQ-OKF-031).
+
+**The exemption is DECLARED, never inferred** — an inferred exemption is indistinguishable from an
+unstamped producer, which is the entire defect this requirement addresses.
+
+**A description states the ANSWER, not the question.** The convention is borrowed from the corpus's
+own best indexes: `docs/research/**` root indexes beat every generated one precisely because their
+entries carry a verdict (`"[critique] Red-team: the DAG has zero backward cross-epic edges"`), not a
+restatement of the filename. A description reading `"A finding"` satisfies the letter of this
+requirement and defeats its purpose.
+
+**This is enforced at the PRODUCER, and only advisorily at the linter.** The paired check — a
+`description` rule declared on the nested document types (`finding`, `review`, `reference`) by this
+same requirement — ships at **`W`** with a
+`regex-present` pattern `^description:\s*\S`, so an empty string cannot satisfy it. `research-*`
+types are scoped **out** of that check: their `bundle_status` is `None`, so `STATUS_SEVERITY`
+returns `{}` and a `W` there is permanent and never demoted (REQ-DATA-045) — a permanent warning is
+noise, not enforcement.
+
+Rationale: #171 asked for nested `index.md` generation. Measured, the leverage is not there — it is
+in **per-file entries in the ROOT index**, which require a `description:` the producers do not
+stamp. Re-measured 2026-08-28 (Issue 0.8): 165 of 983 nested files carry one, concentrated entirely
+in the twelve newest bundles, so coverage is a **producer-version artifact** rather than an authoring
+gap. Fixing the producer makes coverage grow forward without touching a single frozen bundle, which
+is D-1's forward-only principle applied to metadata.
+Verification: `uv run scripts/checks/check-description-coverage.py <plan-dir>` shall exit 0 on a
+bundle whose nested artifacts were written by the amended producers, and non-zero on one carrying an
+unstamped artifact of a non-exempt type. Two branches, so an absent script cannot satisfy it.
 
 REQ-DATA-054: `doc_lint.py` shall support a **`cell-non-empty`** check kind, asserting that
 each named column of a section's first table holds content in every row, and that the table

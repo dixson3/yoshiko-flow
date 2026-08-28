@@ -51,6 +51,8 @@ are per-skill (the three current models genuinely differ) and are specified in e
 > | `REQ-OKF-032` | `okf_version` frontmatter only on a bundle-**root** `index.md` | §2.4 (Issue 3.2) |
 > | `REQ-OKF-072` | prose preservation across index regeneration | §2.10, co-located with `reindex` (Issue 3.4) |
 > | `REQ-OKF-CHK-002` | index-drift findings (`ghost`/`missing`) at **warning** level | §2.8 (Issue 3.6) |
+> | `REQ-OKF-CHK-003` | member-declared path exclusion, applied at every walk site | §2.8 (plan-056 Issue 0.3) |
+> | `REQ-OKF-CHK-004` | the corpus index-drift driver + its `CHANGE-VALIDATION` binding | §2.8 (plan-056 Issue 0.9) |
 > | `REQ-OKF-FAM-005` | the OKF **v0.2** baseline pin | §2.5 (below) |
 >
 > **Unallocated but reserved by the same measurement** — still free for a later plan:
@@ -226,6 +228,78 @@ are per-skill (the three current models genuinely differ) and are specified in e
   3. re-run the corpus sweep **from a clean checkout**, in a different session from the one that
      produced the green state.
 
+- **REQ-OKF-CHK-003** *(testable)* *(added plan-056 / #233)* the engine shall carry a
+  **member-declared path-exclusion concept**, and shall apply it at **every walk site**.
+
+  **The declaration.** A per-skill `OKF-EXTENSION.md` MAY carry a **§3b Excluded paths** table whose
+  first column is a **bundle-relative glob**. `resolve_extension` shall parse it into
+  `ExtensionRuleset.exclude_globs`; an absent §3b yields an **empty list**, which is a legal and
+  common state, never an error.
+
+  **The matcher is `fnmatch`, not the engine's `_glob_match`.** `_glob_match` cannot express a
+  recursive `**`, and every exclusion this concept exists to declare (`assets/fixtures/**`,
+  `findings/okf-migration-samples/**`) is recursive. A matcher that silently cannot express the
+  patterns it is handed is a control that cannot fire — this SPEC's own recurring defect class.
+
+  **Every walk site, enumerated, because "the walk" is not one place.** The exclusion shall be
+  applied by `okf.py`'s `check_conformance`, `migrate` and `_listing_members`, and by
+  `plan_manager.py`'s bundle-conformance walk and its `dangling-refs` scan. Applying it at some
+  sites and not others is worse than not having it: a fixture excluded from `check` but still
+  reached by `audit-close` produces a finding the operator cannot silence at its declared source.
+
+  **The motivating defect (#233).** `audit-close`'s OKF walk has no carve-out, so a *deliberate*
+  migration-fixture corpus — 45 nested `.md` files under `findings/okf-migration-samples/**`, whose
+  whole purpose is to be non-conformant — reports as 34 real findings on an unrelated plan's close.
+  `doc_lint` had already solved this twice, per-schema, with `exclude` lists; the OKF layer simply
+  never grew the concept.
+
+  **Declaration, never derivation** (D-14). The two layers' exclusion lists are **independently
+  declared** and share a *mechanism*, not a *source*: they use different coordinate systems
+  (repo-relative vs bundle-relative) and different granularities, and deriving one from the other
+  would miss `assets/fixtures/**` entirely — `doc_lint` is silent there by **non-selection**, not by
+  exclusion, and those are different facts. The mechanism is shared **in both directions**:
+  `doc_lint` shall also be able to read a member's §3b, so the relationship between the two lists is
+  checkable from either side rather than asserted from one.
+
+  **The overlap invariant, and its non-vacuity guard.** A test shall assert the declared relationship
+  between the two lists **and** that **both lists are non-empty**. Without the second half the
+  invariant holds trivially when either side is empty — which is precisely the state the concept is
+  being introduced from, so the test would ship green and stay green through its own regression.
+
+  **`check` shall expose `--no-exclude`** as the positive control, mirroring `doc_lint`'s flag of the
+  same name: removing §3b, or passing `--no-exclude`, shall restore the suppressed findings. An
+  exclusion nothing can turn off is indistinguishable from a check that never fired.
+
+- **REQ-OKF-CHK-004** *(testable)* *(added plan-056 / #140, #247)* a **corpus index-drift driver**
+  shall exist as an executable check, and shall be **bound into `CHANGE-VALIDATION.md`** in both the
+  FAST and FULL tiers.
+
+  **Why a driver, and not `reindex` alone.** `reindex` judges **one** bundle. Measured at scoping:
+  `okf.py reindex` appears in **zero** `CHANGE-VALIDATION.md` rows, **zero** CI steps, and is called
+  by nothing in `plan_manager.py`. Root-index drift was repaired nine days earlier and had **already
+  regressed in 9 of the 30 index-bearing bundles** — every bundle authored after the repair. A verb
+  no gate invokes is not enforcement; the driver is what makes REQ-OKF-011 reachable from a gate.
+
+  **Root enumeration shall be a depth-1 glob, never `rglob`.** The roots are
+  `docs/plans/*`, `docs/research/*`, `Incubator/*/plans/*` and `Incubator/*/research/*`. `rglob`
+  would descend into a bundle's own `findings/okf-migration-samples/**` and treat each nested fixture
+  bundle as a corpus root — inflating the count while inspecting fixtures, which is REQ-OKF-CHK-003's
+  defect reappearing in the enumerator.
+
+  **The exclusion source is REQ-OKF-CHK-003's §3b**, not a second list. The driver shall additionally
+  be **gitignore-aware**, so an untracked scratch directory is never enumerated.
+
+  **Its exit contract is three-valued** and follows `scripts/checks/_common.sh` (REQ-CLI-029):
+  `0` clean · `1` drift · `2` INCONCLUSIVE. It shall **hard-error on a nonexistent enumerated root**
+  rather than skipping it, so a mistyped path can never be demoted into a clean verdict — this is
+  the consumer half of REQ-OKF-011's new `no-such-path`, and without it that new code buys nothing.
+
+  **It shall emit a `bundles_checked` count and support `--min-roots N`, failing when fewer than `N`
+  roots were enumerated.** A driver that enumerated nothing exits 0 on every other rule it applies;
+  the floor is what makes "the corpus is clean" distinguishable from "the corpus was not read". This
+  is the same guard REQ-CLI-029 requires of every check in that directory, stated here because this
+  driver is the one whose input set is discovered rather than given.
+
 ### 2.9 Migration semantics (`migrate`)
 
 - **REQ-OKF-MIG-001** *(testable)* `yf-okf migrate <dir>` shall convert a legacy folder **in place**
@@ -261,21 +335,24 @@ are per-skill (the three current models genuinely differ) and are specified in e
 
 ### 2.10 Index generation and drift (`reindex`)
 
-- **REQ-OKF-011** *(testable)* the engine shall expose a **`reindex`** verb over a bundle **root**
-  (REQ-OKF-004), in two modes, emitting **JSON on every path**:
+- **REQ-OKF-011** *(testable)* *(amended plan-056 / #140, #247)* the engine shall expose a
+  **`reindex`** verb over a bundle **root** (REQ-OKF-004), in two modes, emitting **JSON on every
+  path**:
   - **`reindex --check <bundle>`** — report index drift without mutating anything. Three finding
     kinds: **`missing`** (a listing member present on disk but absent from `index.md`), **`ghost`**
     (an entry whose relative target does not resolve — covering dead *files* **and** dead
     *directories*), and **`empty-dir`** (a listed subdirectory containing nothing).
   - **`reindex --write <bundle>`** — regenerate the listing, preserving prose (REQ-OKF-072).
 
-  **Exit codes are a three-way verdict, not a boolean:**
+  **Exit codes are a FIVE-way verdict, not a boolean and no longer a three-way one:**
 
   | exit | verdict | meaning |
   | :-: | :-- | :-- |
   | `0` | `clean` | an `index.md` exists and every entry resolves, with nothing unlisted |
   | `1` | `drift` | an `index.md` exists and at least one `missing` / `ghost` / `empty-dir` finding |
-  | `2` | `no-index` | the bundle has **no root `index.md`** |
+  | `2` | `no-index` | the path **exists and is a directory**, but carries no root `index.md` |
+  | `3` | `no-such-path` | the path **does not exist**, or is not a directory |
+  | `4` | `inconclusive` | the index exists but **could not be judged** |
 
   **`no-index` is its own verdict and MUST NOT collapse into either neighbour.** A bundle with no
   index is neither clean nor drifted — there is nothing to be in or out of agreement with. Reporting
@@ -283,15 +360,47 @@ are per-skill (the three current models genuinely differ) and are specified in e
   asserting something nothing checks" failure this requirement exists to prevent; reporting it as `1`
   would manufacture drift findings for a file that does not exist.
 
+  **`no-such-path` is a CALLER BUG and MUST NOT collapse into `no-index`.** Both states reach the
+  same line today — `index.md` is absent either way — so a **mistyped or moved bundle path was
+  reported as `no-index`**, indistinguishable from a real index-less bundle. Any driver that treats
+  `no-index` as tolerable (as a corpus sweep over a mixed corpus must, since most bundles have no
+  index) therefore reads a typo as a benign skip and certifies a corpus it never inspected. This is
+  the same two-facts-one-signal conflation as `doc_lint`'s `not-selected` vs `no-such-path` (#181)
+  and `resume-scan`'s `found` (#207), and it is fixed the same way: distinguish the two states and
+  give each its own code. `no-such-path` is never demotable — a consumer must surface it as an
+  error, because the instrument was pointed at nothing.
+
+  **`inconclusive` is a statement about the INSTRUMENT, not the artifact.** It is returned when the
+  index is present but the check cannot be made:
+  - an **unbalanced generated-region marker** (REQ-OKF-072) — `--check` shall run `check_markers`
+    over the index text. Until this amendment `--check` did not call it at all, so a
+    marker-imbalanced index — the one condition REQ-OKF-072 calls *unrecoverable* — was reported
+    **`clean`, exit 0**. Certifying it clean is worse than silence: it licenses the `--write` that
+    then hard-errors, and it is the only path by which a green `--check` precedes prose loss;
+  - an **unreadable** `index.md` (an I/O or decode failure).
+
+  A consumer must treat `4` as "repair the harness, then re-run" — never as clean and never as
+  drift, on the same reasoning `REQ-DATA-024` applies to `doc_lint`'s own `2`. **The two exit
+  vocabularies deliberately differ in the number they use**, because `reindex`'s `2` was already
+  shipped as `no-index` and re-pointing it would silently change the meaning of every existing
+  caller's `2`.
+
+  **Codes `126` and `127` are reserved to the shell and MUST NOT be allocated** (REQ-CLI-029), so a
+  non-executable or absent engine can never be mistaken for a verdict.
+
   **Root-only in v1, deliberately.** `reindex` is specified over the bundle root only. Nested
-  `index.md` generation is **deferred** behind a producer change that stamps `description:` — measured
-  at **0 of 423** nested files, so every generated nested entry would carry no description, and
+  `index.md` generation is **deferred** behind a producer change that stamps `description:`. **Measured
+  2026-08-28 (plan-056 Issue 0.8): 165 of 983 nested files carry one** — up from the plan-046-era
+  "0 of 423", which is stale on both terms. Coverage is real but **partial and recent**, confined to
+  the twelve newest bundles, so most generated nested entries would still carry no description, and
   **74 of 142 (52%)** of subdirectories would receive a listing of no value. The deferral is recorded
   in `spec/OKF-YF-EXTENSIONS.md` with its measurement and filed upstream, so a future reader inherits
   the evidence rather than the conclusion.
 
-  **No "stale metadata" check.** With `description` at 0/423 there is no metadata that could go stale;
-  a check for it would be a requirement with no reachable input.
+  **No "stale metadata" check.** At the 165/983 coverage measured 2026-08-28 there is too little
+  nested metadata for a staleness check to be worth its own requirement, and the entries that do
+  exist are the newest in the corpus — the population least likely to have gone stale. Revisit when
+  the producer contract (REQ-DATA-075) has run long enough to make coverage the common case.
 
 - **REQ-OKF-072** *(testable)* `reindex --write` shall **preserve author prose**. Generated content is
   delimited by `<!-- intro:start -->` / `<!-- intro:end -->` and `<!-- notes:start -->` /
@@ -308,8 +417,9 @@ are per-skill (the three current models genuinely differ) and are specified in e
   (§2.7) because preserving content the engine did not author is exactly that concern.
 
   **Never invent a description.** An existing description is preserved; a new entry is emitted as a
-  bare `- [title](path)`. Emitting a placeholder (`*description pending*`) would write 423 assertions
-  that a description exists when none does.
+  bare `- [title](path)`. Emitting a placeholder (`*description pending*`) would write an assertion
+  that a description exists when none does — 818 times over, on the 983-nested-file corpus measured
+  2026-08-28.
 
 ## 3. Interfaces
 
@@ -324,7 +434,7 @@ are per-skill (the three current models genuinely differ) and are specified in e
   | `write_frontmatter(path, *, type, meta)` / `read_frontmatter(path)` | OKF frontmatter I/O; merge-and-preserve on write (REQ-OKF-070) |
   | `write_fields(...)` / `read_fields(...)` | dual-mode field accessor (REQ-OKF-020/021) |
   | `render_index(dir)` / `add_index_entry(dir, path, desc, *, phase, ts)` | `index.md` listing (per-skill adapters) |
-  | `reindex(dir, *, write=False)` | root-scoped index generation + drift report; `clean`/`drift`/`no-index` (REQ-OKF-011) |
+  | `reindex(dir, *, write=False)` | root-scoped index generation + drift report; `clean`/`drift`/`no-index`/`no-such-path`/`inconclusive` (REQ-OKF-011) |
   | `append_log(dir, entry, *, date=None)` | newest-first ISO-8601 `log.md` entry (REQ-OKF-002) |
   | `resolve_extension(skill)` | `__file__`-relative find+parse of `skills/<skill>/OKF-EXTENSION.md` (REQ-OKF-FAM-003) |
   | `check_conformance(dir)` | composed-ruleset conformance report (REQ-OKF-CHK-001); report-only/crash-safe |
@@ -341,8 +451,9 @@ are per-skill (the three current models genuinely differ) and are specified in e
 > plan-046 SC10 permits.
 
 - **Operator surface:** `/yf-okf init | migrate | check | assess | reindex` (SKILL.md). `reindex`
-  exits `0` clean / `1` drift / `2` `no-index` (REQ-OKF-011) — the one verb whose exit code is a
-  three-way verdict rather than a pass/fail.
+  exits `0` clean / `1` drift / `2` `no-index` / `3` `no-such-path` / `4` `inconclusive`
+  (REQ-OKF-011) — the one verb whose exit code is a multi-way verdict rather than a pass/fail.
+  `126`/`127` stay reserved to the shell (REQ-CLI-029).
 - **Companion rule / config / state:** the OKF-\* family reference docs
   (`spec/OKF-BASELINE.md`, `spec/OKF-YF-EXTENSIONS.md`, Issue 1.2) and per-skill
   `skills/<skill>/OKF-EXTENSION.md` (Issue 1.3). No `.local.json` / `.yf/` state. The
@@ -385,6 +496,15 @@ are per-skill (the three current models genuinely differ) and are specified in e
 - Migration safety (REQ-OKF-MIG-001..003) is checked by migrating a copy of a real pre-activation
   plan folder and asserting the grandfather status, REQ-PORT-006 count-equality, and content
   fingerprint are all preserved (the Epic-3 migrated-legacy-plan Capability Gate; Issue 3.6 tests).
+- Path exclusion (REQ-OKF-CHK-003) is checked by `_shared/test_okf.py::exclude_globs_declared` (a
+  synthetic `OKF-EXTENSION.md` carrying a §3b; removing it restores the findings) and
+  `::overlap_invariant` (the two declared lists agree, and **both are non-empty** — the non-vacuity
+  half), plus `scripts/checks/check-fixture-carveout.sh` over a real bundle.
+- The corpus drift driver (REQ-OKF-CHK-004) is checked by
+  `scripts/checks/check-drift-driver-contract.sh`, which asserts a **nonexistent enumerated root
+  yields a different exit than a clean corpus**, and by `check-recipe-row.sh okf-index-drift`, which
+  asserts the row is present in `CHANGE-VALIDATION.md` **and** appears in a FULL-tier run's JSON — a
+  bare full-tier run cannot show this, since it already exits 0 before the row exists.
 - Each *(testable)* REQ is the anchor a tagged test names.
 
 ## 6. References

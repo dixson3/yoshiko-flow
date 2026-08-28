@@ -628,6 +628,76 @@
 >   The fallback is a pure-bash existence loop over a cwd-inclusive superset of yf's own anchors.
 >
 >   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-056 (2026-08-28, #140-partial / #165-partial / #171-partial / #233 / #246 / #247-partial /
+>   #265):** **make the structural validation that already exists able to fail.** Measured: both
+>   structural validation layers were gates that could not fail — `doc_lint` demotes `E`/`W` to `R` at
+>   every terminal status (46 of 48 checks structurally incapable of a non-zero exit; re-measured
+>   2026-08-28 at **392 findings demoted, 197 of them truly `E`**, over 1116 files), and
+>   `okf.py reindex` appeared in **zero** `CHANGE-VALIDATION.md` rows, zero CI steps and zero
+>   `plan_manager.py` call sites while root-index drift had already regressed in 9 of 30
+>   index-bearing bundles. SPEC-first Epic 0, one bullet per id:
+>   - **`REQ-OKF-011`** (amended) — the `reindex` exit contract goes from three-way to **five-way**:
+>     `3 no-such-path` is split out of `2 no-index` (a mistyped path was reported as a benign
+>     index-less bundle, so any corpus driver read a typo as a skip), and `4 inconclusive` is
+>     allocated for an index that exists but cannot be judged. `--check` shall now run
+>     `check_markers`: until this amendment it did not call it at all, so a marker-imbalanced index —
+>     the one condition `REQ-OKF-072` calls *unrecoverable* — reported **clean, exit 0**.
+>   - **`REQ-OKF-CHK-003`** (added, #233) — the member-declared **path-exclusion** concept: an
+>     `OKF-EXTENSION.md` **§3b**, matched with `fnmatch` (never `_glob_match`, which cannot express
+>     the recursive `**` every real exclusion needs), applied at **all five** walk sites, with
+>     `--no-exclude` as the positive control and a **non-vacuity** guard on the overlap invariant.
+>   - **`REQ-OKF-CHK-004`** (added, #140/#247) — the **corpus index-drift driver** and its
+>     `CHANGE-VALIDATION` binding: depth-1 root enumeration (never `rglob`, which would descend into
+>     fixture bundles), the `0/1/2` contract, a **hard error on a nonexistent enumerated root** (the
+>     consumer half of `REQ-OKF-011`'s new `no-such-path`, without which that code buys nothing), and
+>     a `bundles_checked` + `--min-roots` floor.
+>   - **`REQ-DATA-044`** (amended, #246) — its "the `R*` family ships at `W`, **uniformly**" bullet
+>     was **false from plan-052 onward**. Resolved **toward the schema** (D-15): the two `E` close-out
+>     checks are kept, because they are the **only 2 of 48** checks capable of producing an `E` at
+>     `bundle_status: complete` — deleting them would make `doc_lint` structurally incapable of
+>     failing a completed bundle, which is the defect, not the fix.
+>   - **`REQ-DATA-074`** (added, #246) — declares the **close-out binding** that plan-052 implemented
+>     and documented nowhere: a separate check, an elevated severity, a `statuses` scope, and
+>     `promote = false`, all four load-bearing (without the last, `STATUS_SEVERITY` demotes the `E`
+>     at exactly the statuses the check was scoped to, so the binding is disarmed at the only moment
+>     it can fire).
+>   - **`REQ-DATA-075`** (added, #171-partial) — `description:` as a **producer contract** rather than
+>     a lint, naming the three stamping sites and their derivations and declaring `context.md` /
+>     `plan-retrospective.md` **exempt** (a derived description there is 67 identical strings). The
+>     paired linter check ships at `W` with `research-*` scoped out, since `bundle_status` is `None`
+>     there and a `W` would be permanent (`REQ-DATA-045`).
+>   - **`REQ-PLAN-080`** (amended, #265) — **`HARNESS_INCOMPLETE`** added as a **third, distinct**
+>     verdict. As shipped, an `inconclusive` row was counted in neither `failed` nor `evaluated`, so
+>     one green criterion alongside any number of unjudged ones yielded `PASS`, exit 0, reason *"all
+>     1 evaluated criterion holds"* — affecting every plan in the repo. Blocking is scoped to the
+>     completion binding (`YF_RECHECK_DEPTH = 0`); `INCONCLUSIVE` keeps `warn`/exit 2 unchanged.
+>   - **`REQ-PLAN-081`** (added, #140) — the **execution-time index member set** (`scripts/`, with an
+>     explicit note that `assets/` is unlisted for a *different* reason and must not be re-added as a
+>     look-alike fix), `reindex_write` at **intake / execute-start / close**, and the new public
+>     **`index-add`** verb. Index regeneration was measured **unreachable from the CLI**.
+>   - **`REQ-CLI-028`** (added) — the **test-invocation guard**. The `uv run <test.py> -k …` form
+>     discards `sys.argv` in this repo, so such a criterion asserts "some test passed" and stays green
+>     when the named function is deleted. The vacuity is form-specific: module-form pytest exits **5**
+>     on a no-match and **4** on a missing file, and the repo's recipe never uses the vacuous form.
+>   - **`REQ-CLI-029`** (added) — the **`scripts/checks/` harness contract**, codifying `_common.sh`'s
+>     `0/1/2` and adding the three properties it does not state: two-branch failure-code assertions,
+>     a declared inspection floor, and `126`/`127` reserved to the caller. Self-enumeration must be
+>     **by name** — measured, a `check-*.sh` glob reaches **6 of this plan's 10 instruments** and
+>     reports success.
+>
+>   Two bookkeeping corrections landed with the same epic: the unsourced "~423 findings" figure in
+>   D-1 is replaced by the reproducible **392** (`findings/exec-001` in the plan-056 bundle), and the
+>   stale **"0 of 423 nested files carry `description:`"** claim — 8 occurrences across 4 shipped
+>   files — is corrected to the re-measured **165 of 983** (2026-08-28), which materially weakens the
+>   premise those specs used to defer nested index generation and says so.
+>
+>   **Requirement-id note (execution deviation).** The plan allocated `REQ-DATA-071`, `REQ-DATA-072`,
+>   `REQ-CLI-017` and `REQ-CLI-018`; all four were **already shipped and unrelated**. They were
+>   reallocated to the next free ids in each family (`REQ-DATA-074`/`-075`, `REQ-CLI-028`/`-029`).
+>   `plan.md` was deliberately **not** edited — its `## Epics` section is fingerprinted, and the
+>   plan's SC1 asserts coverage *structure*, not specific numbers. Recorded as `RE-001` in
+>   `plan-retrospective.md`.
+>   Implementation lands in Epics 1–4; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 

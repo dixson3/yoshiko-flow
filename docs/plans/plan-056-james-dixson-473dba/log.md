@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-28
+- executing: start gate resolved
+- intake: epic yf-mol-xbp poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-9 APPROVE + audit pass
 

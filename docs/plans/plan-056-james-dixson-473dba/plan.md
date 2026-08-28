@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-056-james-dixson-473dba
 author: james-dixson
 created: '2026-08-28'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 5ad6019cc9c37df171bb70b90c749629aedf1fa4e7717773b725085435b8b634
+epic: yf-mol-xbp
 ---
 # Plan: OKF: make the structural validation that already exists able to fail, and reconcile the two layers that perform it
 
 **ID:** plan-056-james-dixson-473dba
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-xbp
 **Fingerprint:** 5ad6019cc9c37df171bb70b90c749629aedf1fa4e7717773b725085435b8b634
 
 ## Objective
@@ -72,6 +74,7 @@ Root-index depth, the `yf-okf-hygiene` skill and the baseline re-pin are **plan-
 | #246 | REQ-DATA-044 says R* is uniformly W but the schema ships two E close-out checks | include | A conformance defect inside doc_lint. Those two E checks are the ONLY ones surviving status demotion, so they sit directly in the enforcement path. | 0.2, 1.6 |
 | #265 | CRITICAL: recheck-criteria reports PASS when criteria were never judged | include | Filed BY this plan's red-team pass 3, not found in scoping. `recheck-criteria` counts `inconclusive` rows in neither `failed` nor `evaluated`, so one green criterion yields `verdict: PASS` while any number of criteria go unjudged. Affects every plan in the repo. Third shape of the collapsed-signal class tracked by #263. | 0.13, 1.10 |
 | #247 | Drift findings no edge covers | partial | IN: §1's mechanism only — a declared listing with no generator is the same defect as index drift, so one generator/checker serves both. OUT: the rest. | 3.1 |
+| #271 | plan-056-james-dixson-473dba execution tracking | tracker | Coarse tracking issue for this plan-scale effort (AGENTS.md coarse-granularity convention). Links the plan bundle and its epic. |  |
 
 ## Investigation Findings
 

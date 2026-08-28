@@ -963,8 +963,10 @@ def test_reindex_write_preserves_existing_descriptions(tmp_path):
 def test_reindex_write_never_invents_a_description(tmp_path):
     """REQ-OKF-072: a NEW entry is bare — no `*description pending*` placeholder.
 
-    `description` is present on 0 of 423 nested files; a placeholder would write
-    423 assertions that a description exists when none does.
+    Re-measured 2026-08-28 (plan-056 Issue 0.8): `description` is present on
+    165 of 983 nested files, so a placeholder would write 818 assertions that a
+    description exists when none does. The older "0 of 423" figure is stale on
+    both terms; the invariant this test pins is unchanged by the re-measurement.
     """
     b = _bundle(tmp_path, files=["plan.md", "new.md"],
                 index="# b\n\n- [plan.md](plan.md)\n")

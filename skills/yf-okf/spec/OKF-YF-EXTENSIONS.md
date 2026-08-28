@@ -386,15 +386,17 @@ Deferred, not dropped — the difference is that a concrete, measurable precondi
 
 | measurement | value | consequence |
 | :-- | --: | :-- |
-| nested files carrying `description:` | **0 of 423** | every generated nested entry would be bare |
+| nested files carrying `description:` | **165 of 983** (re-measured 2026-08-28; was "0 of 423" at plan-046) | 83% of generated nested entries would still be bare |
 | subdirectories that would get a listing of no value | **74 of 142 (52%)** | over half the output is noise |
 | bundles whose **root** index already carries described subdirectory entries | **16 of 19** | the information is already available one level up |
 
 OKF v0.2 §8 states that index entries *"SHOULD include the description from the linked concept's
 frontmatter"* — so the upstream model **presumes** a `description:` that this corpus does not have.
-Generating nested indexes now would satisfy the letter of §8 while producing 423 entries that carry
-no description, which is the "asserting something nothing checks" failure this whole plan was written
-against.
+Generating nested indexes now would satisfy the letter of §8 while producing **818 of 983** entries
+that carry no description, which is the "asserting something nothing checks" failure this whole plan
+was written against. **The precondition has begun to be met, not been met** — the 165 that do carry
+one are concentrated in the twelve newest bundles, so the deferral stands on current coverage rather
+than on the absence the plan-046 figure asserted.
 
 **The precondition, and why the hard part dissolves.** Once producers stamp `description:`, nested
 indexes become worth generating **forward-only**: new bundles get real descriptions, old bundles keep
