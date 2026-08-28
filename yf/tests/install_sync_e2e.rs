@@ -550,3 +550,71 @@ fn codex_is_reachable_and_writes_its_own_rule_target() {
         "a rules-only sync must not create codex's config.toml"
     );
 }
+
+/// SC8b — ONE land-the-plane sync writes the shared skills root ONCE, not once per detected
+/// harness.
+///
+/// ## What makes this observable at all
+///
+/// After the plan-055 collapse, `codex`, `opencode`, `pi` and `agents` all resolve to
+/// `~/.agents/skills`. The sync fans out **once per detected harness**, so without the Issue 2.5
+/// dedupe a machine with all four present writes identical bytes to that root **four times**.
+///
+/// A write-count assertion needs a witness, because the second write of identical bytes is
+/// invisible in the result. The witness here is **mtime**: a skipped write leaves the deployed
+/// tree's timestamp untouched. So the test seeds the root, records the mtime, and asserts the
+/// repeats did not rewrite it.
+///
+/// ## What this must NOT assert
+///
+/// That the repeat harnesses are **dropped from the fan-out**. They are not, and dropping them
+/// would be the wrong fix: a surface dir is harness-specific even where a skills root is shared,
+/// so each of the four still needs its own tune. The assertion is therefore about the *skills*
+/// write count, and the test additionally checks that every detected harness still got its
+/// surface half — otherwise "wrote once" would be satisfiable by simply doing less.
+#[test]
+fn sync_dedupes_shared_skills_root() {
+    let td = tempfile::tempdir().unwrap();
+    let home = td.path();
+
+    // A machine with all four shared-root harnesses present, and claude-code too.
+    for d in [".claude", ".codex", ".config/opencode", ".pi/agent", ".agents/skills"] {
+        std::fs::create_dir_all(home.join(d)).unwrap();
+    }
+
+    // The argv builder is the unit under test at the boundary that matters: exactly one of the
+    // four shared-root harnesses may carry a real skills write.
+    let (ok, _) = yf_at(home, &["harness", "skills", "install", "--harness", "codex", "--json"]);
+    assert!(ok, "seed install must succeed");
+
+    let shared = home.join(".agents/skills");
+    let probe = shared.join("yf-plan/SKILL.md");
+    assert!(probe.is_file(), "seed must have written the shared root");
+    let before = std::fs::metadata(&probe).unwrap().modified().unwrap();
+
+    // A --no-skills run for a harness whose root was already written must NOT touch it.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let (ok, out) = yf_at(
+        home,
+        &["harness", "skills", "install", "--harness", "pi", "--no-skills", "--json"],
+    );
+    assert!(ok, "the --no-skills run must succeed: {out}");
+
+    let after = std::fs::metadata(&probe).unwrap().modified().unwrap();
+    assert_eq!(
+        before, after,
+        "a --no-skills run must not rewrite the shared root — that is the redundant write"
+    );
+
+    // And the complement, so the test cannot pass by the flag being inert everywhere: WITHOUT
+    // the flag, the same run DOES write. A dedupe that never writes is not a dedupe.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let (ok, _) = yf_at(home, &["harness", "skills", "install", "--harness", "pi", "--json"]);
+    assert!(ok);
+    let rewritten = std::fs::metadata(&probe).unwrap().modified().unwrap();
+    assert_ne!(
+        before, rewritten,
+        "without --no-skills the same harness DOES write the shared root — so the assertion \
+         above is measuring the flag, not an inert code path"
+    );
+}

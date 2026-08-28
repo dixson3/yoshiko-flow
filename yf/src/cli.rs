@@ -316,6 +316,70 @@ pub enum SkillsCommand {
     Remove(SkillsArgs),
     /// Report install / up-to-date / completeness status per skill.
     Status(SkillsArgs),
+    /// Marker-gated removal of now-unread PRIVATE skills trees (`REQ-YF-MARK-006`).
+    ///
+    /// Walks each private skills root DIRECTORY BY DIRECTORY — including members absent from
+    /// the embedded skill set, which `status` is structurally blind to — and classifies each
+    /// into one of four outcomes. **Dry-run is the default**; `--apply` is the only path that
+    /// mutates, and it MOVES to a timestamped quarantine rather than unlinking.
+    ///
+    /// This is deliberately NOT `skills remove`, which is a name-keyed `remove_dir_all` with no
+    /// ownership check at all.
+    PrunePrivate(PrunePrivateArgs),
+}
+
+/// `yf harness skills prune-private` (REQ-YF-MARK-006).
+#[derive(Debug, PartialEq, Eq, clap::Args)]
+pub struct PrunePrivateArgs {
+    /// Scope whose private roots are walked.
+    #[arg(long, value_enum, default_value_t = Scope::User)]
+    pub scope: Scope,
+
+    /// Explicit root(s) to walk (repeatable). When omitted, the private (non-shared) skills
+    /// roots for this scope are derived from the descriptor table.
+    #[arg(long, value_name = "PATH")]
+    pub root: Vec<std::path::PathBuf>,
+
+    /// The shared skills root a kept directory is checked against for D-2f's divergence flag.
+    #[arg(long, value_name = "PATH")]
+    pub shared_root: Option<std::path::PathBuf>,
+
+    /// MUTATE. Without it this command writes nothing at all — that is the default, not a mode.
+    #[arg(long)]
+    pub apply: bool,
+
+    /// Pin the timestamped quarantine directory instead of deriving one.
+    ///
+    /// Exists so two SEPARATE operator-authorized operations can share ONE quarantine, and
+    /// therefore one restore. Without it, an explicit named-path move and a subsequent `--apply`
+    /// would land in two different timestamped directories and the operator would need two
+    /// undos for one migration.
+    #[arg(long, value_name = "PATH")]
+    pub quarantine_dir: Option<std::path::PathBuf>,
+
+    /// Quarantine an EXPLICIT, OPERATOR-NAMED path, bypassing classification (repeatable).
+    ///
+    /// **This is an escape hatch with a deliberately narrow shape, and the narrowness is the
+    /// safety property.** It moves exactly the path named on the command line — no glob, no
+    /// walk, no inference — into the quarantine, reversibly, like every other removal.
+    ///
+    /// It exists because `undetermined` is, by construction, the set the classifier **cannot
+    /// judge**. A symlink is the clearest case: the walk must not follow it (following it hashes
+    /// a tree yf does not own), so no amount of classifier work can promote it into the delete
+    /// set. The only sound resolution is a human looking at that one path and deciding — which
+    /// is exactly what the migration-apply gate's `undetermined` hard-fail exists to force.
+    ///
+    /// **It does NOT weaken that gate.** The gate still fails on any non-empty `undetermined`
+    /// set. Handling a path here removes it from the root, so the NEXT dry-run reports
+    /// `undetermined: 0` **because the condition is genuinely gone**, not because an exception
+    /// was carved. A flag that made the gate pass over a still-present unjudgeable directory
+    /// would be the defect; this one makes the directory not be there.
+    #[arg(long, value_name = "PATH")]
+    pub also_quarantine: Vec<std::path::PathBuf>,
+
+    /// Emit the machine-readable verdict (REQ-YF-CLI-003).
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Install surface (REQ-YF-CLI-002).
@@ -397,6 +461,20 @@ pub struct SkillsArgs {
     /// hand-added skill *directory* survives.
     #[arg(long)]
     pub prune: bool,
+
+    /// Run ONLY the `--tune` bridge; deploy no skill bodies (plan-055 Issue 2.5).
+    ///
+    /// The complement of `--rules-only`, and it exists for exactly one caller: the
+    /// `REQ-YF-SELF-005` install-time sync, which fans out **once per detected harness**.
+    /// After the plan-055 collapse four of the five harnesses share one skills root, so an
+    /// undeduped fan-out writes that root **four times** — identical bytes, three times over.
+    ///
+    /// Deduping by dropping the repeat harnesses outright would be WRONG: each still needs its
+    /// own tune, because the *surface* dir is harness-specific even where the skills root is
+    /// shared. So the repeat runs keep their surface half and drop only the redundant skills
+    /// write.
+    #[arg(long)]
+    pub no_skills: bool,
 
     /// After a successful install, run `yf harness tune` to align the harness
     /// settings to the yf skill contracts (install only). Off by default — without

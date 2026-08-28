@@ -144,5 +144,6 @@ fn cmd_skills(command: &SkillsCommand) -> Result<std::process::ExitCode> {
             cmd::status::remove(a).map(|()| std::process::ExitCode::SUCCESS)
         }
         SkillsCommand::Status(a) => cmd::status::status(a),
+        SkillsCommand::PrunePrivate(a) => cmd::harness::prune_private::run(a),
     }
 }

@@ -488,11 +488,15 @@ fn rule_file_has_yf_content(p: &Path) -> bool {
 // (no cross-harness bleed in the resolved dest).
 #[test]
 fn skills_install_dest_resolution_per_harness() {
+    // COLLAPSED (plan-055 Issue 2.2, #257): four of the five rows share `.agents/skills`;
+    // claude-code alone keeps a private root, because `.agents/` occurs zero times in its
+    // binary and its auto-load root set is hardcoded (EXP-001).
     let cases = [
         ("claude-code", ".claude/skills"),
-        ("codex", ".agents/skills"), // codex + agents share .agents/skills
-        ("opencode", ".config/opencode/skills"),
-        ("pi", ".pi/agent/skills"),
+        ("codex", ".agents/skills"),
+        ("opencode", ".agents/skills"),
+        ("pi", ".agents/skills"),
+        ("agents", ".agents/skills"),
     ];
     let home = tempfile::tempdir().unwrap();
     let home = home.path();
@@ -648,7 +652,9 @@ fn skill_dir_in(home: &Path, skill: &str) -> (i32, String) {
 fn skill_dir_resolves_under_a_pi_only_home() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
-    let want = seed_skill(home, ".pi/agent/skills", "yf-plan");
+    // pi reads the SHARED root (EXP-002 measured it loading `~/.agents/skills` in both
+    // scopes), so a "pi-only" home is one with the shared root and no `.claude/skills`.
+    let want = seed_skill(home, ".agents/skills", "yf-plan");
     assert!(
         !home.join(".claude/skills").exists(),
         "sandbox must be pi-ONLY"
@@ -663,18 +669,26 @@ fn skill_dir_resolves_under_a_pi_only_home() {
     );
 }
 
-// REQ-YF-CLI-005: the same for an opencode-only HOME. Asserted separately rather than folded
-// into the pi arm, because the two roots differ (`.config/opencode/skills` vs
-// `.pi/agent/skills`) and pi additionally applies a NameTransform — a single arm covering both
-// would pass while one of them was broken.
+// REQ-YF-CLI-005: the same for an opencode-only HOME.
+//
+// AFTER THE COLLAPSE THE TWO ARMS RESOLVE THE SAME ROOT, and the arms are kept separate anyway
+// — deliberately. They used to differ because the roots differed (`.config/opencode/skills` vs
+// `.pi/agent/skills`) and pi applied a NameTransform. Both of those reasons are now gone, so
+// what the pair asserts has CHANGED rather than become redundant: that neither harness kept a
+// private root behind. Folding them into one arm would lose the ability to say which harness
+// regressed.
 #[test]
 fn skill_dir_resolves_under_an_opencode_only_home() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
-    let want = seed_skill(home, ".config/opencode/skills", "yf-plan");
+    let want = seed_skill(home, ".agents/skills", "yf-plan");
     assert!(
         !home.join(".claude/skills").exists(),
         "sandbox must be opencode-ONLY"
+    );
+    assert!(
+        !home.join(".config/opencode/skills").exists(),
+        "the private opencode root must NOT be recreated — that is the shadowing hazard"
     );
 
     let (code, path) = skill_dir_in(home, "yf-plan");
@@ -698,7 +712,7 @@ fn skill_dir_resolves_under_an_opencode_only_home() {
 fn bash_fallback_resolves_the_same_dir_with_yf_absent_from_path() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
-    let want = seed_skill(home, ".pi/agent/skills", "yf-plan");
+    let want = seed_skill(home, ".agents/skills", "yf-plan");
 
     let (code, via_yf) = skill_dir_in(home, "yf-plan");
     assert_eq!(code, 0);
@@ -903,14 +917,15 @@ fn revert_through_symlink_preserves_link_and_clears_block() {
 // is exactly how the resolver defect shipped. These assert the per-harness axes by name.
 // ---------------------------------------------------------------------------
 
-/// pi's `NameTransform` (lowercase-hyphen, max64) must survive a REAL install round-trip.
+/// A pi install must land in the SHARED root and be found there again by the resolver.
 ///
-/// Asserted through `install` rather than against the descriptor row, because the row already
-/// has a unit test; what was never covered is that the transform is actually APPLIED on the way
-/// to disk, and then found again by the resolver. A transform applied on write but not on read
-/// (or vice versa) is invisible to a table test and fatal in practice.
+/// RE-POINTED, NOT DELETED (plan-055 Issue 2.2/2.3). This test used to assert that pi's
+/// `NameTransform` survived a real install round-trip. The transform is gone, but the property
+/// worth testing was never the transform — it was that `install` writes where `skill-dir` reads.
+/// A directory-name rule applied on write but not on read (or vice versa) is invisible to a
+/// table test and fatal in practice, and that hazard is unchanged by which rule is in force.
 #[test]
-fn pi_name_transform_round_trips_through_install() {
+fn pi_install_round_trips_through_the_shared_root() {
     let tmp = tempfile::tempdir().unwrap();
     let home = tmp.path();
 
@@ -930,17 +945,25 @@ fn pi_name_transform_round_trips_through_install() {
         .expect("spawn install");
     assert!(out.status.success(), "pi install must succeed");
 
-    let installed = home.join(".pi/agent/skills/yf-plan");
+    let installed = home.join(".agents/skills/yf-plan");
     assert!(
         installed.is_dir(),
-        "pi's transform must land the skill at {}; tree was: {:?}",
+        "a pi install must land in the SHARED root at {}; tree was: {:?}",
         installed.display(),
-        std::fs::read_dir(home.join(".pi/agent/skills"))
+        std::fs::read_dir(home.join(".agents/skills"))
             .map(|d| d
                 .filter_map(|e| e.ok())
                 .map(|e| e.file_name())
                 .collect::<Vec<_>>())
             .unwrap_or_default()
+    );
+
+    // The private root must NOT be created as a side effect. This is the half that makes the
+    // migration meaningful rather than additive: leaving a private copy behind is precisely
+    // the divergent duplicate the collapse exists to make unrepresentable.
+    assert!(
+        !home.join(".pi/agent/skills").exists(),
+        "a pi install must NOT create the private root"
     );
 
     // ROUND TRIP: the resolver must find what the installer wrote.
@@ -1110,5 +1133,138 @@ fn repeat_tune_is_idempotent_and_revert_works_for_all_five() {
                 p.display()
             );
         }
+    }
+}
+
+/// SC3 — `pi` and `opencode` resolve their SKILLS ROOT to `.agents/skills` at BOTH scopes,
+/// while `claude-code` still resolves to `.claude/skills`.
+///
+/// Driven through the binary under a sandboxed HOME, not against the descriptor table: the
+/// table already has a unit test, and what this asserts is that the *resolution path* — the
+/// thing an operator's install actually walks — agrees with it.
+///
+/// The claude-code arm is not a control, it is a REQUIREMENT (D-4). EXP-001 measured
+/// claude-code 2.1.247 reading only `.claude/skills`: a headless probe with a skill in
+/// `.agents/skills` and a control in `.claude/skills` returned only the control, twice. Moving
+/// it would silently break every claude-code install.
+#[test]
+fn pi_opencode_resolve_shared_root_both_scopes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+
+    for (scope, anchor_flag) in [("user", "--scope"), ("project", "--scope")] {
+        for harness in ["pi", "opencode"] {
+            let j = yf_json_in(
+                home,
+                &[
+                    "harness", "skills", "install", "--harness", harness, anchor_flag, scope,
+                    "--dry-run", "--json",
+                ],
+            );
+            let dir = PathBuf::from(j["skills_dir"].as_str().unwrap());
+            assert!(
+                dir.ends_with(".agents/skills"),
+                "{harness} at {scope} scope must resolve to the shared root, got {}",
+                dir.display()
+            );
+        }
+
+        // claude-code keeps its private root at the same scope, in the same run.
+        let j = yf_json_in(
+            home,
+            &[
+                "harness", "skills", "install", "--harness", "claude-code", anchor_flag, scope,
+                "--dry-run", "--json",
+            ],
+        );
+        let dir = PathBuf::from(j["skills_dir"].as_str().unwrap());
+        assert!(
+            dir.ends_with(".claude/skills"),
+            "claude-code at {scope} scope must KEEP `.claude/skills`, got {}",
+            dir.display()
+        );
+    }
+}
+
+/// SC4 — all five descriptor rows resolve to exactly TWO distinct skills roots per scope, and
+/// the four non-claude rows resolve to exactly ONE.
+///
+/// Both counts are stated because either alone is satisfiable by a wrong table: "four rows → one
+/// root" holds if claude-code were wrongly collapsed too, and "two roots" holds if any two rows
+/// were wrongly split. The descriptor has FIVE rows (`claude-code, codex, opencode, pi,
+/// agents`), so a "four rows → two roots" framing would be false under either reading.
+///
+/// It additionally asserts that every row merged onto a shared root AGREES on `name_transform`.
+/// **That is a regression guard against a FUTURE transform, not evidence about this change:**
+/// once Issue 2.3 landed, every non-claude row is `None` and it holds trivially. It is worth
+/// keeping for the next harness added — `resolved_dests` keeps the FIRST matching row and
+/// `deploy_skill` derives the on-disk name from that one row, so a disagreement would make the
+/// shared root's directory names order-dependent on descriptor row order — and worth not
+/// mistaking for a check on the collapse.
+#[test]
+fn distinct_skills_roots_per_scope() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path();
+
+    for scope in ["user", "project"] {
+        let mut all = std::collections::BTreeSet::new();
+        let mut non_claude = std::collections::BTreeSet::new();
+        for harness in ALL_DESCRIPTORS {
+            let j = yf_json_in(
+                home,
+                &[
+                    "harness", "skills", "install", "--harness", harness, "--scope", scope,
+                    "--dry-run", "--json",
+                ],
+            );
+            let dir = PathBuf::from(j["skills_dir"].as_str().unwrap());
+            all.insert(dir.clone());
+            if harness != "claude-code" {
+                non_claude.insert(dir);
+            }
+        }
+        assert_eq!(
+            all.len(),
+            2,
+            "{scope}: all five rows must resolve to exactly TWO roots, got {all:?}"
+        );
+        assert_eq!(
+            non_claude.len(),
+            1,
+            "{scope}: the four non-claude rows must resolve to exactly ONE root, got {non_claude:?}"
+        );
+    }
+
+    // TRANSFORM AGREEMENT, asserted through its OBSERVABLE CONSEQUENCE rather than by reading
+    // the table (an integration test cannot import the binary crate's descriptor). Two rows
+    // sharing a root and disagreeing on `name_transform` would write the same skill under two
+    // different directory names — or, worse, under whichever name the first-matching row
+    // dictated, making the result order-dependent. So: install the same skill via two rows that
+    // share the root, and assert exactly ONE directory exists.
+    let listing = |harness: &str| -> std::collections::BTreeSet<String> {
+        let h = tempfile::tempdir().unwrap();
+        let out = Command::new(YF)
+            .args(["harness", "skills", "install", "yf-plan", "--harness", harness, "--json"])
+            .env("HOME", h.path())
+            .current_dir(h.path())
+            .output()
+            .expect("spawn install");
+        assert!(out.status.success(), "{harness} install must succeed");
+        std::fs::read_dir(h.path().join(".agents/skills"))
+            .expect("the shared root must exist")
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect()
+    };
+
+    let via_codex = listing("codex");
+    assert!(via_codex.contains("yf-plan"), "sanity: the install wrote something");
+    for harness in ["pi", "opencode", "agents"] {
+        assert_eq!(
+            listing(harness),
+            via_codex,
+            "{harness} shares codex's root, so it must write the SAME directory names — a \
+             disagreement on `name_transform` would make them differ"
+        );
     }
 }

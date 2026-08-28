@@ -226,17 +226,30 @@ mod tests {
     // this the resolver looks for the GIVEN name under pi's root and misses a skill that is
     // really there — a not-found that is purely an artifact of the lookup.
     #[test]
-    fn pi_name_transform_is_applied() {
+    fn skill_dir_names_are_untransformed_on_every_harness() {
+        // plan-055 Issue 2.3 dropped pi's transform — the only one any row ever carried. This
+        // test used to assert `YF_Plan` landed on disk as `yf-plan`; it now asserts the
+        // INVERSE, because with no row transforming, a directory's on-disk name is its name.
+        //
+        // The inversion is the point: pi's name validation is warn-only (EXP-002 measured pi
+        // 0.84.3 loading `Zz_Probe_Name`), and a truncating rename on a now-SHARED root could
+        // collide two skills onto one directory.
         let tmp = tempfile::tempdir().unwrap();
         let home = tmp.path().join("home");
-        // pi lowercases and hyphenates, so `YF_Plan` lands on disk as `yf-plan`.
-        let want = seed(&home, ".pi/agent/skills", "yf-plan");
+        // pi's skills now live in the SHARED root (Issue 2.2), so that is where the probe goes.
+        let want = seed(&home, ".agents/skills", "YF_Plan");
         let anchors = vec![(Scope::User, home.clone())];
         let c = candidates("YF_Plan", &anchors);
         assert!(
             c.iter().any(|c| c.path == want),
-            "pi's transform must be applied; candidates were {:?}",
+            "the name must be searched VERBATIM; candidates were {:?}",
             c.iter().map(|c| &c.path).collect::<Vec<_>>()
+        );
+        // And the transformed spelling is NOT searched — there is nothing doing the transform.
+        let transformed = home.join(".agents/skills").join("yf-plan");
+        assert!(
+            !c.iter().any(|c| c.path == transformed),
+            "no row transforms names, so the lowercased spelling must not be searched"
         );
     }
 
