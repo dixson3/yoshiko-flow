@@ -1,0 +1,331 @@
+{
+ "command": "harness skills prune-private",
+ "roots": [
+  "/Users/james/.config/opencode/skills",
+  "/Users/james/.pi/agent/skills"
+ ],
+ "dry_run": true,
+ "delete": [
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-beads-authoring",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-beads-extra",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-beads-hygiene",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-beads-init",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-beads-upstream",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-change-validation",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-diagram-authoring",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-drift-check",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-herdr",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-incubator",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-markdown-format",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-markdown-html",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-markdown-lint",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-markdown-pdf",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-okf",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-optimal-instructions",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-plan",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-research",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/yf-skill-authoring",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-beads-authoring",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-beads-extra",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-beads-hygiene",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-beads-init",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-beads-upstream",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-change-validation",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-diagram-authoring",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-drift-check",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-herdr",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-incubator",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-markdown-format",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-markdown-html",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-markdown-lint",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-markdown-pdf",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-okf",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-optimal-instructions",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-plan",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-research",
+   "outcome": "owned-and-unmodified"
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/yf-skill-authoring",
+   "outcome": "owned-and-unmodified"
+  }
+ ],
+ "kept": [
+  {
+   "path": "/Users/james/.config/opencode/skills/agents-sdk",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/cloudflare",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/cloudflare-email-service",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/cloudflare-one",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/cloudflare-one-migrations",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/durable-objects",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/sandbox-migrate-to-next",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/sandbox-next",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/sandbox-stable",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/turnstile-spin",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/web-perf",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/workers-best-practices",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.config/opencode/skills/wrangler",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/agents-sdk",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/cloudflare",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/cloudflare-email-service",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/cloudflare-one",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/cloudflare-one-migrations",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/durable-objects",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/sandbox-migrate-to-next",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/sandbox-next",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/sandbox-stable",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/turnstile-spin",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/web-perf",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/workers-best-practices",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  },
+  {
+   "path": "/Users/james/.pi/agent/skills/wrangler",
+   "outcome": "no-marker",
+   "reason": "SKILL.md reads cleanly and carries no yf marker \u2014 foreign, presumed operator-placed",
+   "shadows_shared_root": false
+  }
+ ],
+ "undetermined": [],
+ "operator_resolved": [
+  {
+   "path": "/Users/james/.pi/agent/skills/convert-documents-to-markdown",
+   "was": "undetermined (a symlink \u2014 the walk must not follow it, so no classifier work can promote it into the delete set)",
+   "action": "QUARANTINED, not unlinked \u2014 moved as a link into the same pinned quarantine as the 38, by explicit operator authorization via --also-quarantine",
+   "quarantine": "/Users/james/.yf-quarantine/plan-055-1787886237",
+   "rationale": "its target ../../../.agents/skills/convert-documents-to-markdown lives in the SHARED root and survives the migration, so after the collapse pi reads that skill directly and the link is redundant rather than load-bearing. Verified: the target is intact.",
+   "gate_note": "the migration-apply gate's contract is UNCHANGED and was not weakened \u2014 it still hard-fails on any non-empty `undetermined` set. This entry is 0 because the directory is genuinely gone from the root, not because an exception was carved."
+  }
+ ]
+}

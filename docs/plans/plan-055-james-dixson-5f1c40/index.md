@@ -15,3 +15,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/](findings/) - Seven investigation write-ups (EXP-001 … EXP-007), each measured against installed binaries with versions pinned and a Confidence section separating **measured** from **inferred**. The evidence behind every scoping decision in plan.md.
 - [references/](references/) - One file per triaged upstream issue, carrying the full untruncated body, URL, labels and state. Regenerated on every re-triage; do not hand-edit.
 - [reviews/](reviews/) - One `pass-N.md` per red-team cycle, each with its verdict, concerns and a Resolutions table. Written at presentation, updated in place, then frozen.
+- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
