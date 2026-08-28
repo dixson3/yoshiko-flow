@@ -44,6 +44,14 @@ pub fn resolve_skills_dir(scope: Scope, harness: &str, target: Option<&Path>) ->
     if let Some(t) = target {
         return t.to_path_buf();
     }
+    // Issue 3.2: honour a declared skills-root override (claude-code alone, post-collapse).
+    // Project scope is deliberately NOT overridden — the anchor there is the git root, and a
+    // user-level config-dir var says nothing about where a repository lives.
+    if scope == Scope::User {
+        return skills_dir_for_anchor_env(&anchor_for(scope), harness, scope, |k| {
+            std::env::var_os(k)
+        });
+    }
     skills_dir_for_anchor(&anchor_for(scope), harness, scope)
 }
 
@@ -60,8 +68,67 @@ pub fn resolve_rules_dir(scope: Scope, harness: &str, target: Option<&Path>) -> 
 }
 
 /// `<anchor>/<harness.skills_subpath>` — pure path join (testable without env).
+///
+/// Deliberately env-free: [`skills_dir_for_anchor_env`] is the env-aware wrapper, so the pure
+/// join stays unit-testable without a sandboxed process environment.
 pub fn skills_dir_for_anchor(anchor: &Path, harness: &str, scope: Scope) -> PathBuf {
     anchor.join(harness_desc::skills_subpath(harness, scope))
+}
+
+/// Skills-root resolution that **follows a declared skills-root env override** (Issue 3.2,
+/// `REQ-YF-INSTALL-007`).
+///
+/// ## Exactly one harness is affected, and that is a MEASURED result
+///
+/// After the plan-055 collapse, `claude-code` is the **only** row with a non-empty `skills_env`.
+/// `.agents/skills` was measured **env-immune** on the other three (EXP-003): `CODEX_HOME` does
+/// not move codex's `~/.agents/skills`, pi's survives `PI_CODING_AGENT_DIR`, and opencode loaded
+/// it under all four override combinations. So the collapse did not merely make this cheap to
+/// implement — it **deleted three quarters of the problem**, and the narrow scope is the finding
+/// rather than a shortcut.
+///
+/// ## Only `replace` precedence is honoured here, and it cannot be otherwise
+///
+/// An `additive` override adds a root the harness *also* reads; it does not move the one `yf`
+/// writes. There is exactly one skills directory to return, so "additive" has no meaning on this
+/// path — treating it as a replace would send the write somewhere the harness merely *also*
+/// looks, and every one of the shipped `additive` entries is on the SURFACE column anyway.
+///
+/// `env(var)` is injected rather than read from the ambient process environment, matching the
+/// `REQ-YF-INSTALL-009` detection convention, so tests drive it hermetically.
+pub fn skills_dir_for_anchor_env(
+    anchor: &Path,
+    harness: &str,
+    scope: Scope,
+    env: impl Fn(&str) -> Option<std::ffi::OsString>,
+) -> PathBuf {
+    if let Some(d) = harness_desc::lookup(harness) {
+        for ov in d.skills_env {
+            if ov.precedence != harness_desc::OverridePrecedence::Replace {
+                continue;
+            }
+            if let Some(v) = env(ov.var) {
+                let root = PathBuf::from(v);
+                if !root.as_os_str().is_empty() {
+                    // The override names the harness's CONFIG ROOT, so the skills subpath is
+                    // re-anchored onto it: `CLAUDE_CONFIG_DIR=/x` → `/x/skills`, not
+                    // `/x/.claude/skills`. The `.claude` segment IS the config root.
+                    return root.join(skills_leaf(d.skills_subpath(scope)));
+                }
+            }
+        }
+    }
+    skills_dir_for_anchor(anchor, harness, scope)
+}
+
+/// The portion of a skills subpath BELOW the harness's config root — i.e. the subpath with its
+/// leading surface segment(s) dropped. `.claude/skills` → `skills`.
+fn skills_leaf(subpath: &str) -> PathBuf {
+    let p = Path::new(subpath);
+    match p.file_name() {
+        Some(leaf) => PathBuf::from(leaf),
+        None => PathBuf::from(subpath),
+    }
 }
 
 /// `<anchor>/<harness.surface_dir>/rules` — pure path join, derived from the descriptor's
@@ -242,6 +309,121 @@ mod tests {
         assert_eq!(
             skills_dir_for_anchor(anchor, "frobnicator", Scope::User),
             PathBuf::from("/home/jd/.frobnicator/skills")
+        );
+    }
+
+    /// SC9 — env-override precedence is THREE-VALUED, and the opencode ADDITIVE case is
+    /// asserted **distinctly** from the three replace cases.
+    ///
+    /// The distinctness is the point. A boolean model ("is the var set?") would get opencode
+    /// exactly backwards: `OPENCODE_CONFIG_DIR` was measured to ADD a root while the default is
+    /// retained (7 roots vs 8, EXP-003), so treating it as a replace would under-install for
+    /// opencode and over-install for the other three. An assertion that merely counted overrides
+    /// would pass under that wrong model.
+    #[test]
+    fn env_precedence_additive_and_replace() {
+        use crate::harness_desc::{lookup, OverridePrecedence};
+
+        // The three REPLACE vars, one per harness.
+        for (h, var) in [
+            ("claude-code", "CLAUDE_CONFIG_DIR"),
+            ("codex", "CODEX_HOME"),
+            ("pi", "PI_CODING_AGENT_DIR"),
+        ] {
+            let d = lookup(h).unwrap();
+            let ov = d
+                .surface_env
+                .iter()
+                .find(|o| o.var == var)
+                .unwrap_or_else(|| panic!("{h} must declare {var}"));
+            assert_eq!(
+                ov.precedence,
+                OverridePrecedence::Replace,
+                "{var} REPLACES the default root"
+            );
+        }
+
+        // opencode carries TWO vars, and they differ in precedence. Asserted as a pair, because
+        // the defect a single-var assertion misses is precisely the two being conflated.
+        let oc = lookup("opencode").unwrap();
+        let xdg = oc.surface_env.iter().find(|o| o.var == "XDG_CONFIG_HOME").unwrap();
+        let ocd = oc
+            .surface_env
+            .iter()
+            .find(|o| o.var == "OPENCODE_CONFIG_DIR")
+            .unwrap();
+        assert_eq!(xdg.precedence, OverridePrecedence::Replace);
+        assert_eq!(
+            ocd.precedence,
+            OverridePrecedence::Additive,
+            "OPENCODE_CONFIG_DIR ADDS a root; the default is retained (EXP-003)"
+        );
+        assert_ne!(
+            xdg.precedence, ocd.precedence,
+            "opencode's two vars are ORTHOGONAL, not competing — a boolean model collapses them"
+        );
+
+        // XDG_CONFIG_HOME is honoured by OPENCODE ONLY. codex's occurrences are vendored gix
+        // git-config code and claude-code's are git discovery / completions / an env-scrubbing
+        // deny-list; pi references it nowhere.
+        for h in ["claude-code", "codex", "pi", "agents"] {
+            let d = lookup(h).unwrap();
+            assert!(
+                !d.surface_env.iter().any(|o| o.var == "XDG_CONFIG_HOME"),
+                "{h} must NOT declare XDG_CONFIG_HOME"
+            );
+        }
+    }
+
+    /// SC10 — `CLAUDE_CONFIG_DIR` relocates claude-code's SKILLS root, and no other harness's
+    /// skills root responds to any env var.
+    ///
+    /// The negative half is the substantive one: after the collapse, `.agents/skills` was
+    /// measured env-immune on codex, pi and opencode, and this asserts yf does not reintroduce a
+    /// sensitivity the harnesses do not have.
+    #[test]
+    fn skills_root_env_override_claude_only() {
+        let anchor = Path::new("/home/jd");
+        let overridden = std::ffi::OsString::from("/elsewhere/cc");
+        let env = |k: &str| (k == "CLAUDE_CONFIG_DIR").then(|| overridden.clone());
+
+        // claude-code FOLLOWS it — and re-anchors onto the override rather than re-appending
+        // `.claude`, because the override names the config root itself.
+        assert_eq!(
+            skills_dir_for_anchor_env(anchor, "claude-code", Scope::User, env),
+            PathBuf::from("/elsewhere/cc/skills")
+        );
+
+        // Nothing else does, with the SAME var set.
+        for h in ["codex", "opencode", "pi", "agents"] {
+            assert_eq!(
+                skills_dir_for_anchor_env(anchor, h, Scope::User, env),
+                PathBuf::from("/home/jd/.agents/skills"),
+                "{h}'s skills root must be env-immune"
+            );
+        }
+
+        // And the other harnesses' OWN vars move nothing on the skills column either.
+        for (h, var) in [
+            ("codex", "CODEX_HOME"),
+            ("pi", "PI_CODING_AGENT_DIR"),
+            ("opencode", "XDG_CONFIG_HOME"),
+            ("opencode", "OPENCODE_CONFIG_DIR"),
+        ] {
+            let v = std::ffi::OsString::from("/elsewhere/other");
+            let e = |k: &str| (k == var).then(|| v.clone());
+            assert_eq!(
+                skills_dir_for_anchor_env(anchor, h, Scope::User, e),
+                PathBuf::from("/home/jd/.agents/skills"),
+                "{var} must not move {h}'s skills root"
+            );
+        }
+
+        // Unset (or empty) falls through to the default — an empty var is not an override.
+        let empty = |k: &str| (k == "CLAUDE_CONFIG_DIR").then(std::ffi::OsString::new);
+        assert_eq!(
+            skills_dir_for_anchor_env(anchor, "claude-code", Scope::User, empty),
+            PathBuf::from("/home/jd/.claude/skills")
         );
     }
 

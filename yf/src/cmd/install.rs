@@ -24,6 +24,85 @@ pub(crate) const SKILLS_ONLY_WARNING: &str =
 /// The success-output notice stating rules were not deployed (REQ-YF-INSTALL-008).
 pub(crate) const RULES_NOT_DEPLOYED_NOTICE: &str = "Rules were NOT deployed (skills-only).";
 
+/// Warnings for the two **silent** failure modes `REQ-YF-INSTALL-011` governs.
+///
+/// ## 1. The replace-semantics override mismatch
+///
+/// Measured (plan-055 EXP-003): with `CODEX_HOME` / `PI_CODING_AGENT_DIR` / `CLAUDE_CONFIG_DIR`
+/// exported, yf's `$HOME`-relative write lands where the harness **no longer reads**. What makes
+/// it worth a requirement is that it is *silent*: the default directory still exists and still
+/// looks correct on disk, so nothing about the result says anything is wrong.
+///
+/// yf **warns rather than resolving** the surface column (D-13) — the skills column is resolved
+/// for claude-code alone. A warning naming the directory the harness will actually read is the
+/// whole remedy, at a fraction of the cost of a full env resolver.
+///
+/// ## 2. Project-scope `.agents/skills` creation
+///
+/// Creating `<repo>/.agents/skills` makes the repository **trust-requiring for pi**, and pi's
+/// project-scope gate then drops those skills with **no diagnostic whatsoever** — measured: no
+/// stderr, no event, exit 0 under `-p` / `--mode json`. The warning fires at the moment yf
+/// creates the directory, which is the only moment at which anyone is looking.
+///
+/// Both return `Vec<String>` rather than printing, so they are unit-testable without capturing
+/// stderr — the check is on the *message*, and a message asserted through a pipe is a test of
+/// the pipe.
+pub(crate) fn override_mismatch_warnings(
+    scope: crate::cli::Scope,
+    harnesses: &[String],
+    home: &std::path::Path,
+    env: impl Fn(&str) -> Option<std::ffi::OsString>,
+) -> Vec<String> {
+    use crate::harness_desc::{self, OverridePrecedence};
+    let mut out = Vec::new();
+    for h in harnesses {
+        let Some(d) = harness_desc::lookup(h) else { continue };
+        for ov in d.surface_env {
+            // ADDITIVE overrides are NOT a mismatch and must never warn. An additive var adds a
+            // root the harness reads *in addition to* the default, so the default is still read
+            // and yf's write still lands somewhere the harness looks. Warning on it would train
+            // an operator to ignore the warning that matters.
+            if ov.precedence != OverridePrecedence::Replace {
+                continue;
+            }
+            let Some(v) = env(ov.var) else { continue };
+            if v.is_empty() {
+                continue;
+            }
+            let overridden = std::path::PathBuf::from(&v);
+            let default = home.join(d.surface_dir(scope));
+            if overridden != default {
+                out.push(format!(
+                    "warning: {} is set to {} but yf writes {}'s surface to {} — {} will \
+                     actually read {}. yf does not follow this override; move the files or \
+                     unset the variable.",
+                    ov.var,
+                    overridden.display(),
+                    d.id,
+                    default.display(),
+                    d.id,
+                    overridden.display(),
+                ));
+            }
+        }
+    }
+    out
+}
+
+/// `REQ-YF-INSTALL-011` (2): warn when yf CREATES a project-scope `.agents/skills`.
+///
+/// Keyed on **creation**, not on presence: a directory that already existed was already making
+/// the repo trust-requiring, and yf did not do it. Warning on presence would fire on every
+/// subsequent install forever, which is how a real warning becomes noise.
+pub(crate) fn project_scope_trust_warning(created: &std::path::Path) -> String {
+    format!(
+        "warning: created {} — this makes the repository TRUST-REQUIRING for pi. Until a pi \
+         trust decision covers this repo, headless pi (`-p` / `--mode json`) DROPS these skills \
+         SILENTLY: no stderr, no event, exit 0. Run `yf doctor` for the trust axis.",
+        created.display()
+    )
+}
+
 /// Run `yf harness skills install`.
 pub fn run(args: &SkillsArgs) -> Result<()> {
     let skills = frontmatter::load_skills();
@@ -104,6 +183,21 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     // The no-`--harness --tune` multi-harness auto path is bounded-blast-radius
     // gated (F6) — see `compute_tune_bridge`.
     let project = matches!(args.scope, crate::cli::Scope::Project);
+
+    // REQ-YF-INSTALL-011 (2): keyed on CREATION, so the predicate must be sampled BEFORE the
+    // deploy. A directory that already existed was already making the repo trust-requiring and
+    // yf did not do it; warning on mere presence would fire on every install forever, which is
+    // how a real warning becomes noise.
+    let newly_created_shared_roots: Vec<std::path::PathBuf> = if project {
+        dests
+            .iter()
+            .map(|d| d.skills_dir.clone())
+            .filter(|p| p.ends_with(".agents/skills") && !p.exists())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     let tune_result: Option<serde_json::Value> = compute_tune_bridge(args, project)?;
 
     // F5 (REQ-YF-INSTALL-008): a bare install without `--tune` is skills-only.
@@ -111,6 +205,20 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
     let skills_only = !args.tune;
     if skills_only {
         eprintln!("{SKILLS_ONLY_WARNING}");
+    }
+
+    // REQ-YF-INSTALL-011 (1): a replace-semantics override that disagrees with the
+    // `$HOME`-derived default yf writes to. Silent otherwise — the default dir still exists and
+    // looks correct — so the warning IS the remedy (D-13).
+    {
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_default();
+        let harnesses: Vec<String> = dests.iter().map(|d| d.harness.clone()).collect();
+        for w in override_mismatch_warnings(args.scope, &harnesses, &home, |k| std::env::var_os(k))
+        {
+            eprintln!("{w}");
+        }
     }
 
     if args.json {
@@ -213,6 +321,13 @@ pub fn run(args: &SkillsArgs) -> Result<()> {
             );
         }
     }
+    // REQ-YF-INSTALL-011 (2): fires only for a root this run actually created.
+    for created in &newly_created_shared_roots {
+        if created.exists() {
+            eprintln!("{}", project_scope_trust_warning(created));
+        }
+    }
+
     println!();
     println!(
         "Installed {} skill(s) into {} destination(s).",
@@ -663,5 +778,93 @@ mod tests {
         let mut human = args_for(&skills_dir);
         human.json = false;
         assert!(run(&human).is_ok());
+    }
+
+    /// SC11 — an install run with a replace-semantics override set, disagreeing with the
+    /// default, EMITS A WARNING naming the directory the harness will actually read.
+    ///
+    /// Asserted over the message rather than through a captured stderr pipe: the requirement is
+    /// about *what is said*, and a test that pipes stderr mostly tests the pipe.
+    #[test]
+    fn install_warns_on_override_mismatch() {
+        use crate::cli::Scope;
+        let home = std::path::Path::new("/home/jd");
+        let elsewhere = std::ffi::OsString::from("/elsewhere/codex-home");
+
+        // (a) A REPLACE var disagreeing with the default → exactly one warning, and it names
+        //     BOTH directories: where yf writes and where the harness will actually read.
+        let w = override_mismatch_warnings(
+            Scope::User,
+            &["codex".to_string()],
+            home,
+            |k| (k == "CODEX_HOME").then(|| elsewhere.clone()),
+        );
+        assert_eq!(w.len(), 1, "one mismatch, one warning: {w:?}");
+        assert!(w[0].contains("CODEX_HOME"), "the warning must name the VAR: {}", w[0]);
+        assert!(
+            w[0].contains("/elsewhere/codex-home"),
+            "it must name where the harness will ACTUALLY read — the whole remedy: {}",
+            w[0]
+        );
+        assert!(
+            w[0].contains("/home/jd/.agents"),
+            "and where yf writes, or the operator cannot act on it: {}",
+            w[0]
+        );
+
+        // (b) The var AGREEING with the default is not a mismatch. This is the arm that keeps
+        //     the warning from firing on every correctly-configured machine.
+        let agreeing = std::ffi::OsString::from("/home/jd/.agents");
+        assert!(
+            override_mismatch_warnings(Scope::User, &["codex".to_string()], home, |k| (k
+                == "CODEX_HOME")
+                .then(|| agreeing.clone()))
+            .is_empty(),
+            "an override pointing at the default is not a mismatch"
+        );
+
+        // (c) An ADDITIVE var NEVER warns, however far it points from the default. The default
+        //     root is still read, so yf's write still lands where opencode looks — warning here
+        //     would train an operator to ignore the warning in (a).
+        let far = std::ffi::OsString::from("/somewhere/entirely/else");
+        assert!(
+            override_mismatch_warnings(Scope::User, &["opencode".to_string()], home, |k| (k
+                == "OPENCODE_CONFIG_DIR")
+                .then(|| far.clone()))
+            .is_empty(),
+            "an ADDITIVE override is not a mismatch"
+        );
+        // ...while opencode's OTHER var, which replaces, does warn — same harness, same run
+        // shape, opposite verdict. That pair is what proves the precedence is being read.
+        assert_eq!(
+            override_mismatch_warnings(Scope::User, &["opencode".to_string()], home, |k| (k
+                == "XDG_CONFIG_HOME")
+                .then(|| far.clone()))
+            .len(),
+            1,
+            "XDG_CONFIG_HOME REPLACES opencode's config root, so a mismatch must warn"
+        );
+
+        // (d) No var set → silence.
+        assert!(
+            override_mismatch_warnings(Scope::User, &["codex".to_string()], home, |_| None)
+                .is_empty()
+        );
+    }
+
+    /// SC16b — creating `<repo>/.agents/skills` emits a warning naming pi's trust consequence.
+    #[test]
+    fn warns_project_scope_makes_repo_trust_requiring() {
+        let msg = project_scope_trust_warning(std::path::Path::new("/repo/.agents/skills"));
+        assert!(msg.contains("/repo/.agents/skills"), "names the directory: {msg}");
+        assert!(msg.to_lowercase().contains("trust"), "names the consequence: {msg}");
+        assert!(msg.contains("pi"), "names the harness: {msg}");
+        // The SILENCE is the substance of the warning — a reader who does not learn that pi
+        // drops the skills without any diagnostic has not been warned about anything actionable.
+        assert!(
+            msg.contains("SILENTLY") || msg.to_lowercase().contains("silent"),
+            "must state that the failure is SILENT: {msg}"
+        );
+        assert!(msg.contains("exit 0"), "must state the measured symptom: {msg}");
     }
 }
