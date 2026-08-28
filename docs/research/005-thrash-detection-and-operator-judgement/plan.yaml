@@ -1,0 +1,103 @@
+topic: "Detecting agentic thrash: signals that a plan needs operator judgement, and the clarifying-question taxonomy that breaks the loop (design basis for yf-judgement)"
+mode: deep
+priority: 1
+research_dir: "docs/research/005-thrash-detection-and-operator-judgement"
+
+questions:
+  primary:
+    - "What OBSERVABLE signals precede an agentic thrash episode — repeated review passes re-raising the same concern, re-litigated decisions, oscillating fixes — and which of them are detectable EARLY enough to be worth acting on?"
+    - "Is the hypothesis true: does thrashing correlate with an under-specified objective (over-general goal / assumed 'figure it out') rather than with task difficulty, tooling failure, or model limitation? What would REFUTE it?"
+    - "When an episode DID break, what broke it? Specifically: what class of operator-supplied information (constraint, priority, exclusion, intent, authority) ended it, and can that class be elicited by a question asked BEFORE the burn?"
+  secondary:
+    - "What question taxonomies does prior art use (grill-me, socrates-skill), and which of their moves map onto a plan/execution context vs. assume a conversational one?"
+    - "What are the FALSE-POSITIVE costs? Legitimate iteration and productive deepening look like repetition. What discriminates thrash from convergence?"
+    - "At which yf surfaces could a detector actually fire (review-pass loop, coordinator loop, bead reopen, plan revision), and what does each surface see?"
+
+corpus:
+  measured_on: "2026-08-28"
+  repos:
+    - {path: "~/workspace/dixson3/yoshiko-flow", plans: 56, research: 4, reviews: 170}
+    - {path: "~/workspace/dixson3/d3-pxe",       plans: 23, reviews: 146}
+    - {path: "~/workspace/evri/evri_py",         plans: 18, reviews: 26}
+    - {path: "~/workspace/dixson3/writing",      plans: 11, reviews: 18}
+    - {path: "~/workspace/evri/pybridge",        plans: 11, reviews: 20}
+    - {path: "~/_dotfiles/emacs.d",              plans: 4,  reviews: 4}
+    - {path: "~/_dotfiles/rc-files",             plans: 4,  reviews: 7}
+  totals: {plans: 127, review_passes: 391}
+
+# CORPUS CORRECTION (recorded 2026-08-28, tooling phase; see artifacts/tooling-notes.md).
+# The `corpus:` table above was measured with a scan that double-counted `.worktrees/<branch>/`
+# mirrors of docs/plans in yoshiko-flow, d3-pxe and evri_py (86 of the 391 counted review files
+# were worktree duplicates). corpus_scan.py excludes `.worktrees` and measures the CORRECTED
+# baseline: 114 plan bundles / 301 review passes. All downstream phases cite corpus_scan.py
+# output, NOT the `corpus:` block above.
+corpus_corrected:
+  measured_by: "scripts/corpus_scan.py"
+  bundles: 114
+  review_passes: 301
+  # FILE-SET DEFINITION (reconciled 2026-08-28 against an independent operator recount of 305).
+  # A "review pass" is: any *.md file directly inside a `reviews/` directory of a REAL plan
+  # bundle. Triangulate and every downstream phase inherit THIS definition.
+  file_set_definition:
+    glob: "<bundle>/reviews/*.md"
+    includes:
+      # Both scripts glob `pass-*.md` and derive the pass number with re.search(r"pass-(\d+)"),
+      # so `pass-0-conformance.md` matches and is parsed as pass 0. Conformance passes are NOT
+      # dropped. compute_recurrence() re-sorts numerically by pass_number (finding_recurrence.py
+      # L406), so the lexical glob order does not corrupt pass-10..13 in plan-050 (the 13-pass
+      # bundle, the corpus maximum).
+      - "pass-N.md (299 files)"
+      - "pass-N-conformance.md (2 files: d3-pxe Incubator/ansible plan-013, plan-014)"
+    excludes:
+      - path: ".worktrees/<branch>/**"
+        count: 86
+        why: "checked-out-branch mirrors of docs/plans; duplicates of files already counted"
+      - path: "docs/plans/plan-029-james-dixson-75fd34/findings/okf-migration-samples/plan-bundle/{before,after}/reviews/pass-{1,2}.md"
+        count: 4
+        why: "SYNTHETIC OKF-migration sample fixtures authored AS plan-029's research data, not
+               real review passes of a real plan. Their parent dirs are named before/after, not
+               plan-*. Including them would treat a plan's own test fixture as evidence."
+    reconciliation: "305 files under any reviews/ dir (worktrees excluded) - 4 plan-029 fixtures = 301."
+
+source_clusters:
+  - name: review-pass-recurrence
+    targets: ["391 reviews/pass-N.md across 7 repos"]
+    method: direct
+    expected_artifacts: 14
+  - name: herdr-repo-interrogation
+    targets: ["d3-pxe", "evri_py", "pybridge", "writing", "emacs.d", "rc-files"]
+    method: direct
+    expected_artifacts: 12
+  - name: execution-telemetry
+    targets: ["bd reopened/blocked beads", "discovered-from chains", "phase-log churn"]
+    method: direct
+    expected_artifacts: 10
+  - name: git-churn-signatures
+    targets: ["revert/redo/'actually'/'take 2' sequences", "files re-touched for one purpose"]
+    method: direct
+    expected_artifacts: 10
+  - name: operator-breakthrough-turns
+    targets: ["context.md", "log.md", "review resolutions", "plan.md revision diffs"]
+    method: direct
+    expected_artifacts: 10
+  - name: prior-art
+    targets: ["mattpocock/skills grill-me", "bevibing/socrates-skill", "clarifying-question / ambiguity-detection / interactive-agent literature"]
+    method: exa
+    expected_artifacts: 8
+
+tooling_needed:
+  - description: "Thrash-episode extractor: parse reviews/pass-N.md sequences per bundle, fingerprint each finding, detect the SAME concern recurring across passes; join to git history and bead graphs; emit candidate episodes with evidence"
+    shared: false
+
+method_notes:
+  - "004 is the direct predecessor and its boundary is the starting constraint: it found that plan bundles record ARTIFACTS, not live session behavior — thrashing happens in a session and leaves only indirect residue. 005 must reason from residue (recurring findings, bead reopens, revision oscillation) and say so, not pretend to observe the loop directly."
+  - "The hypothesis is the operator's own and is therefore the thing most at risk of being confirmed rather than tested. Assign the red-team pass explicitly to the RIVAL explanations: task difficulty, missing tool/permission, context exhaustion, genuine underdetermination in the domain. A signal that cannot distinguish these is not a signal."
+  - "Survivorship: episodes that ended without an operator turn (the agent just got there) are the control group and must be sampled, or every finding reduces to 'operator input helps'."
+  - "yoshiko-flow is self-referential (the skill fixing itself). A pattern also present in writing/ or emacs.d — non-software, low-ceremony domains — is materially stronger."
+  - "Prior art to study: https://github.com/mattpocock/skills/tree/main/skills/productivity (grill-me) and https://github.com/bevibing/socrates-skill."
+
+execution:
+  estimated_beads: 13
+  estimated_budget_usd: 22.00
+  session_mode: new
+epic: yf-mol-49u

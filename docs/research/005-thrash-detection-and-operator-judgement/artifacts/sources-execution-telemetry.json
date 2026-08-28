@@ -1,0 +1,222 @@
+[
+  {
+    "id": "301",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "all 7",
+    "locator": "bd status --json (run in each of the 7 corpus repos)",
+    "title": "All 7 repos have a healthy, non-wedged bd config",
+    "quote": "{\"schema_version\":1,\"summary\":{...,\"blocked_issues\":6,\"closed_issues\":1917,...,\"open_issues\":39,...,\"total_issues\":1962}} -- clean JSON, no 'error' key, in yoshiko-flow, d3-pxe, evri_py, writing, pybridge, emacs.d, rc-files",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "302",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "yoshiko-flow",
+    "locator": "python3 field-union scan over ~/workspace/dixson3/yoshiko-flow/.beads/issues.jsonl and .beads/interactions.jsonl",
+    "title": "issues.jsonl and interactions.jsonl field vocabularies, measured directly",
+    "quote": "issues.jsonl keys: ['_type','assignee','await_type','close_reason','closed_at','comment_count','created_at','created_by','defer_until','dependencies','dependency_count','dependent_count','description','external_ref','id','issue_type','labels','metadata','mol_type','notes','owner','priority','started_at','status','title','updated_at']; interactions.jsonl keys: ['actor','created_at','extra','id','issue_id','kind'], every kind == 'field_change', every extra.field == 'status'",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "303",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "yoshiko-flow",
+    "locator": "bd history yf-mol-bh8.2.11 (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "bd history returns 745 mostly-duplicate Dolt-commit entries for one bead",
+    "quote": "745 entries; status-token counts across all entries: 641 [P2 - closed], 103 [P2 - open], 1 [P2 - in_progress]; e.g. 'ki5ebma3 2026-08-28 14:50:05 ... [P2 - closed]' immediately followed by 'nb0dueaf 2026-08-28 14:50:09 ... [P2 - closed]' for a bead last semantically touched 2026-08-26",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "304",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "yoshiko-flow",
+    "locator": "bd show yf-ek9a --json (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "yf-ek9a: coordinator batch-closes beads, making 84% of observed interval overlap an artifact",
+    "quote": "The coordinator closes beads in batches rather than when each unit of work finishes. That collapses distinct work intervals onto a single timestamp, so 84% of all observed interval overlap is an artifact of when the closes were flushed -- not of when work actually ran concurrently.",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "305",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "yoshiko-flow",
+    "locator": "grep 'yf-mol-bh8.2.11' .beads/interactions.jsonl (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "The one non-trivial reopen in the corpus is a bead-id mis-mapping bookkeeping fix, not rework",
+    "quote": "2026-08-26T01:32:36Z closed -> open (reason: null); 2026-08-26T01:32:36Z in_progress -> closed (reason: '...NOTE: this reason was first recorded against yf-mol-bh8.2.11 (Issue 1.6b) by a bead-id mis-mapping; 2.11 has been reopened and carries its own control, ctl-208-edge-scope.')",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "306",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "all 7",
+    "locator": "python3 scan of extra.field=='status' events in .beads/interactions.jsonl across all 7 repos (script: /tmp/005scratch/analyze_interactions.py, ephemeral)",
+    "title": "Corpus-wide reopen rate: 3 of 2969 recorded status changes (0.1%), all in yoshiko-flow",
+    "quote": "yoshiko-flow: 1687 status field_changes, 3 reopens (closed->open/in_progress); d3-pxe: 599 changes, 0 reopens; evri_py: 51 changes, 0; writing: 293 changes, 0; pybridge: 183 changes, 0; emacs.d: 53 changes, 0; rc-files: 103 changes, 0",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "307",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "all 7",
+    "locator": "python3 min/max created_at scan of .beads/interactions.jsonl vs .beads/issues.jsonl per repo (script: /tmp/005scratch/check_coverage.py, ephemeral)",
+    "title": "interactions.jsonl date range starts within a day of each repo's earliest issue creation -- near-full-lifetime coverage",
+    "quote": "yoshiko-flow interactions range 2026-04-05T22:14:24Z..2026-08-28T14:50:05Z vs issues created range 2026-04-05T22:12:48Z..2026-08-17T18:46:15Z",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "308",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "yoshiko-flow",
+    "locator": "grep 'yf-mol-84r.4.1' .beads/interactions.jsonl (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "Reopen example 2: a mechanical probe close/reopen cycle, not rework",
+    "quote": "2026-08-16T23:57:40Z in_progress -> closed | probe: unset var; 2026-08-16T23:57:50Z closed -> in_progress | None; 2026-08-16T23:58:27Z in_progress -> closed | Epic-3 SPEC amendments landed BEFORE any Epic-3 code...",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "309",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "yoshiko-flow",
+    "locator": "grep 'yf-mol-bh8.3.2' .beads/interactions.jsonl (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "Reopen example 3: another probe close/reopen cycle, not rework",
+    "quote": "2026-08-26T02:14:59Z in_progress -> closed | probe; 2026-08-26T02:16:03Z closed -> open | None; 2026-08-26T02:16:03Z open -> closed | Issue 2.2: indented fenced continuations collected VERBATIM...",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "310",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "all 7",
+    "locator": "python3 discovered-from edge/fanout/depth scan over .beads/issues.jsonl dependencies (script: /tmp/005scratch/discovered_from.py, ephemeral)",
+    "title": "discovered-from chains: 1-7% of issues, max fan-out 3, max depth 3, mode depth 2",
+    "quote": "yoshiko-flow: 26 edges/1245 issues, 23 roots, max depth 2; pybridge: 15 edges/229 issues, 11 roots, max depth 3 ({2: 10, 3: 1}); emacs.d: 0 discovered-from edges at all",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "311",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "yoshiko-flow",
+    "locator": "bd blocked --json (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "bd blocked live-computed list agrees exactly with bd status blocked_issues count (6/6)",
+    "quote": "total blocked: 6; yf-mol-49u.5 in_progress blocked_by_count=3 ['yf-mol-49u.4','yf-mol-49u.1','yf-mol-49u.3']; yf-mol-eci open blocked_by_count=6 [...]",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "312",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "writing",
+    "locator": "bd blocked --json (run in ~/workspace/dixson3/writing)",
+    "title": "writing repo: 29/29 blocked beads agree between bd status summary and bd blocked enumeration, all real dependency waits",
+    "quote": "total blocked: 29; blog-mol-zzm.6.3 open blocked_by_count=6 [...]; blog-p1q open blocked_by_count=1 ['blog-qfs'] | Integrate transcript augmentations...",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "313",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "yoshiko-flow / writing",
+    "locator": "bd list --status blocked --json (run in each repo)",
+    "title": "'blocked' is a live-computed state, not a stored status literal -- bd list --status blocked returns empty",
+    "quote": "yoshiko-flow: 0 results; writing: 0 results -- both when bd status --json reported nonzero blocked_issues in the same repo at the same time",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "314",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "all 7",
+    "locator": "python3 dangling-dependency scan over all 'blocks'-type edges in .beads/issues.jsonl per repo (script: /tmp/005scratch/dangling_deps.py, ephemeral)",
+    "title": "Essentially no dangling blocking edges corpus-wide (1 stray non-id string out of thousands of edges)",
+    "quote": "yoshiko-flow: 1 dangling 'blocks' target, sample [('yf-67e2d9e7','--metadata')] (a stray CLI flag string, not an issue id); all other 6 repos: 0 dangling targets",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "315",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "evri_py / writing",
+    "locator": "same dangling_deps.py script, 'non-closed issue depends on a closed blocker' branch",
+    "title": "Small counts of open issues depending on already-closed blockers -- normal readiness state, not corruption",
+    "quote": "evri_py: 17 such edges, sample [('evri_py-mol-e3d.3.4','evri_py-mol-e3d.3.3','open'), ...]; writing: 2 such edges; all other 5 repos: 0",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "316",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "all 7",
+    "locator": "python3 has_log_md tally over corpus_scan.py --json output (run from RD)",
+    "title": "log.md exists in only 37.7% of plan bundles corpus-wide",
+    "quote": "43/114 bundles have log.md (37.7%)",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "317",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "all 5 software repos",
+    "locator": "find <5 repos>/docs/plans -name log.md | xargs grep -c '^## ' | sort/uniq -c",
+    "title": "No log.md in the corpus has more than 2 top-level entries",
+    "quote": "3 files: 0 entries; 16 files: 1 entry; 18 files: 2 entries (37 log.md files total)",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "318",
+    "cluster": "execution-telemetry",
+    "type": "file",
+    "repo": "yoshiko-flow",
+    "locator": "cat docs/plans/plan-054-james-dixson-535968/log.md",
+    "title": "A 2-entry log.md's populated section is a single retrospective recap of 5 review passes, not 5 incremental writes",
+    "quote": "review-pass: red-team pass 5 (fifth independent, via Agent): REVISE -- 9 of 9 pass-4 resolutions reproduced; C1 landed as prose with neither the edge to run it nor the verb to prove it; LOOP BOUND REACHED, escalates to operator [... pass 4, 3, 2, 1 similarly listed under one heading]",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "319",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "yoshiko-flow",
+    "locator": "bd show yf-zrtx --json (run in ~/workspace/dixson3/yoshiko-flow)",
+    "title": "yf-zrtx: started_at written for only 86/225 plan beads, not exposed by bd list --json",
+    "quote": "Beads carrying both started_at and closed_at: 86 of 225 (plan-048 alone: 0 of 39). Separately, bd list --json does not expose started_at at all.",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "320",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "all 7",
+    "locator": "python3 plan_id substring join of corpus_scan.py bundle list against each repo's .beads/issues.jsonl title+description+close_reason+metadata text (script: /tmp/005scratch/join_plan.py, ephemeral)",
+    "title": "69.3% of plan bundles (79/114) have at least one bead referencing their plan_id string",
+    "quote": "yoshiko-flow: 41/56 (73%); d3-pxe: 12/19 (63%); evri_py: 4/9 (44%); writing: 8/11 (73%); pybridge: 10/11 (91%); emacs.d: 1/4 (25%); rc-files: 3/4 (75%); TOTAL: 79/114 = 69.3%",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "321",
+    "cluster": "execution-telemetry",
+    "type": "computed",
+    "repo": "yoshiko-flow",
+    "locator": "corpus_scan.py --json bundle records for plan-002-james-dixson-b8b610 and plan-044-james-dixson-f6fdbd, cross-checked against the join_plan.py unjoined list",
+    "title": "Unjoined bundles are not simply pre-beads-adoption artifacts -- plan-044 (Aug 2026) is unjoined despite falling well inside the repo's beads-active period (since April 2026)",
+    "quote": "plan-002-james-dixson-b8b610: git_first_commit_date 2026-05-31T21:16:27-07:00; plan-044-james-dixson-f6fdbd: git_first_commit_date 2026-08-17T20:51:54-07:00 -- both unjoined despite yoshiko-flow beads activity starting 2026-04-05",
+    "retrieved": "2026-08-28"
+  },
+  {
+    "id": "322",
+    "cluster": "execution-telemetry",
+    "type": "bead",
+    "repo": "yoshiko-flow",
+    "locator": "bd blocked --json (run in ~/workspace/dixson3/yoshiko-flow), record for yf-mol-49u.5",
+    "title": "Live example of blocked-state reflecting ordinary DAG phase-gating, not rework -- this research molecule's own retrieve step",
+    "quote": "yf-mol-49u.5 'Retrieve: operator-breakthrough-turns' status in_progress, blocked_by_count=3, blocked_by=['yf-mol-49u.4','yf-mol-49u.1','yf-mol-49u.3']",
+    "retrieved": "2026-08-28"
+  }
+]

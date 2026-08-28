@@ -1,0 +1,962 @@
+[
+ {
+  "id": "100",
+  "cluster": "review-pass-recurrence",
+  "type": "research-plan",
+  "repo": "yoshiko-flow",
+  "locator": "docs/research/005-thrash-detection-and-operator-judgement/plan.yaml:method_notes",
+  "title": "004's residue boundary, the rival-explanation mandate, and the cross-domain strength rule",
+  "quote": "004 is the direct predecessor and its boundary is the starting constraint: it found that plan bundles record ARTIFACTS, not live session behavior — thrashing happens in a session and leaves only indirect residue. 005 must reason from residue (recurring findings, bead reopens, revision oscillation) and say so, not pretend to observe the loop directly. ... Assign the red-team pass explicitly to the RIVAL explanations: task difficulty, missing tool/permission, context exhaustion, genuine underdetermination in the domain. A signal that cannot distinguish these is not a signal. ... yoshiko-flow is self-referential (the skill fixing itself). A pattern also present in writing/ or emacs.d — non-software, low-ceremony domains — is materially stronger.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "101",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.20 --id-floor 0.15 --json | aggregate: multipass bundles and recurrence-firing bundles per repo",
+  "title": "Repo distribution of the 79 multi-pass bundles and the 40 recurrence matches",
+  "quote": "repo -> multipass bundles, bundles-with-recurrence, total matches\n  yoshiko-flow   42 11 26\n  d3-pxe         18 5 11\n  pybridge       7 0 0\n  writing        5 2 2\n  evri_py        4 1 1\n  rc-files       3 0 0",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "102",
+  "cluster": "review-pass-recurrence",
+  "type": "research-artifact",
+  "repo": "yoshiko-flow",
+  "locator": "docs/research/005-thrash-detection-and-operator-judgement/artifacts/tooling-notes.md",
+  "title": "Measured review-pass format variance, the worktree double-count correction, the ~700-row validation defect, the letter-paragraph parse gap, and the self-reported-signal claim",
+  "quote": "An early fixed-position implementation mistook the Severity column for the finding text on ~700 rows before this was caught ... `yoshiko-flow`, `d3-pxe`, and `evri_py` each keep a `.worktrees/<branch>/` directory ... that MIRRORS the entire `docs/plans/` ... | bundles | 127 | **114** | | review passes | 391 | **301** | ... This shape is a KNOWN, DOCUMENTED GAP in `finding_recurrence.py` as shipped ... **51 self-reported cross-pass signals** ... This is the highest-confidence recurrence signal in the corpus because a human reviewer already did the cross-pass comparison; it should be weighted above the text-similarity matches in any downstream synthesis.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "103",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/corpus_scan.py --json",
+  "title": "Corrected corpus census: 114 bundles / 301 review passes, and the per-bundle pass-count distribution",
+  "quote": "{\"repo_count\": 7, \"repo_count_ok\": 7, \"repos_missing_or_broken\": [], \"total_bundles\": 114, \"total_review_passes\": 301}\n\npass-count -> bundles:  0:5  1:30  2:37  3:15  4:8  5:9  6:3  7:4  8:2  13:1\nrepo | bundles | passes: yoshiko-flow 56/166 | d3-pxe 19/73 | evri_py 9/13 | writing 11/18 | pybridge 11/20 | emacs.d 4/4 | rc-files 4/7",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "104",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.20 --json | aggregate: severity and verdict tallies over all 1509 extracted findings",
+  "title": "Severity-field availability and verdict vocabulary across the parsed corpus",
+  "quote": "severity availability: total findings 1509\n  low 450 / medium 379 / high 265 / NONE 185 / med 147 / — 14 / medium-low 11 / low-medium 5 / medium-high 5 / low-med 3 / high, blocki 3 / gap 3 / low (new) 3 / med-low 3 / missing 2\nverdicts: {'REVISE': 186, 'APPROVE': 83, None: 2}",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "105",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "for t in 0.20 0.25 0.30 0.35 0.45 0.55 0.70; do uv run scripts/finding_recurrence.py --census census.json --threshold $t --id-floor 0.15 --json; done",
+  "title": "Threshold sweep: recurrence matches fall 40 -> 3 with no plateau; weak-id-reuse and self-reported counts are threshold-invariant",
+  "quote": "0.20 {\"bundles_processed\": 79, \"total_findings_extracted\": 1509, \"total_parse_warnings\": 85, \"total_recurrence_matches\": 40, \"total_weak_id_reuse_matches\": 252, \"total_self_reported_signals\": 51}\n0.25 ... 23 ... 252 ... 51\n0.30 ... 12 ... 252 ... 51\n0.35 ... 8 ... 252 ... 51\n0.45 ... 4 ... 252 ... 51\n0.55 ... 4 ... 252 ... 51\n0.70 ... 3 ... 252 ... 51",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "106",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-029-james-dixson-75fd34/reviews/pass-4.md:30-36",
+  "title": "E01 later side — the pass-4 concern is explicitly cosmetic and non-blocking",
+  "quote": "None blocking. One low-severity cosmetic note:\n\n1. **Composition gate Test cites `yf-okf check` on a fixture bundle; Instructions run the Issue 1.3\n   test suite.** severity: low\n   **Recommendation:** at execution, ensure the `yf-okf check` fixture bundle and the Issue 1.3\n   synthetic fixture are the same artifact so gate and unit test prove against one fixture. Cosmetic;\n   does not block approval.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "107",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-029-james-dixson-75fd34/reviews/pass-3.md:37-41",
+  "title": "E01 earlier side — the pass-3 concern is medium severity",
+  "quote": "2. **Resolver/composition only proven end-to-end at Issue 5.2 (last issue); no unit test/gate before\n   Epics 2-4 build on it.** severity: medium\n   Issue 1.3's tests are \"against REQ-OKF-*\" but no real `OKF-EXTENSION.md` exists at 1.3.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "108",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-034-james-dixson-ac6633/reviews/pass-2.md:10-19",
+  "title": "E02/E03 later side — the matched text is a RESOLUTION-CONFIRMATION block, not a concern",
+  "quote": "## Verdict: APPROVE\n\nRe-review after the pass-1 REVISE concerns (C1–C5) were addressed. All five confirmed resolved and grounded in shipped code.\n\n## C1–C5 resolution confirmation\n- **C1 (single-file scope) — RESOLVED.** Budget check scoped to global `~/.codex/AGENTS.md`; single-file limitation documented in REQ-YF-TUNE-027 + warning text.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "109",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-039-james-dixson-150f79/reviews/pass-2.md:217",
+  "title": "E04 earlier side",
+  "quote": "| H1 | `\\brelease` matches inside `ci-release`; SC6 falsified | high | Confirmed independently. The operator-chosen term-of-art guard was **measured and did not work**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "110",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-039-james-dixson-150f79/reviews/pass-3.md:138",
+  "title": "E04 later side — explicit 'again'",
+  "quote": "| C1 | SC6 falsified again; 3.4b's `5→1` is `5→3` | high |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "111",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-039-james-dixson-150f79/reviews/pass-2.md:223",
+  "title": "E05/E06 earlier side",
+  "quote": "| M3 | EXP-001 figures drifted; plan-039 was not in the measured corpus | medium |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "112",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-039-james-dixson-150f79/reviews/pass-3.md:140",
+  "title": "E05/E07 middle of the chain",
+  "quote": "| C3 | `exp-001` still carries superseded figures | medium |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "113",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-039-james-dixson-150f79/reviews/pass-4.md:121",
+  "title": "E06/E07 later side — same object, third pass",
+  "quote": "| P3 | `exp-001` Implications still stale | low |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "114",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-040-james-dixson-1cabe4/reviews/pass-1.md:153",
+  "title": "E08 earlier side",
+  "quote": "| C1 | Wrong guardrail (GR-BUP-002 vs 001) | high | Verified at source: `SPEC.md:269` GR-BUP-001 = never-bare-sync (REQ-BUP-030) ... | resolved |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "115",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-040-james-dixson-1cabe4/reviews/pass-2.md:112",
+  "title": "E08 later side — partial landing",
+  "quote": "| D1 | Issue 2.3 still names GR-BUP-002 | high | Corrected to **GR-BUP-001 / REQ-BUP-030**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "116",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-047-james-dixson-dec9ff/reviews/pass-1.md:56",
+  "title": "E09 earlier side",
+  "quote": "| L3 | low | `SKILL.md:395-412` is the wrong slice; the block runs 365–420 and D-7's argument turns on the excluded header region | Correct the citation |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "117",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-047-james-dixson-dec9ff/reviews/pass-4.md:58",
+  "title": "E09 later side — same citation still wrong three passes later",
+  "quote": "| P5 | low | `plan.md:26` cited `SKILL.md:395-412` while D-7/Issue 0.1 cite `365-420` for the same artifact; the fenced block is 365–421 | resolved |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "118",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-047-james-dixson-dec9ff/reviews/pass-2.md:43",
+  "title": "E10 earlier side",
+  "quote": "| N9 | medium | **SC20's verification depends on artifacts no issue produces.** No issue creates the seeded bad instances, so an executor satisfies it by assertion. Count wrong three ways: says 10, lists 8, Epic 6 has 11 |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "119",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-047-james-dixson-dec9ff/reviews/pass-3.md:38",
+  "title": "E10 later / E12 earlier — explicit 'again'",
+  "quote": "| M4 | med | **SC20's count wrong three ways again**: text said 10, `Discharged-by` listed 9, Epic 6 has 11, schema-bearing types are 8 | resolved — \"8 schema-bearing types (6.1–6.8)\" |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "120",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-047-james-dixson-dec9ff/reviews/pass-4.md:54",
+  "title": "E11 later side — the fix-induced-defect class, named by the reviewer",
+  "quote": "| P1 | med | **\"six new ids\" vs \"seven\"**, seven lines apart inside Issue 0.9. An executor obeying the second greps six of seven, leaving one unverified — inside the sweep installed to prevent the `REQ-DATA-020`–`023` collision. **Fourth consecutive cycle of a stale count surviving inside its own fix** | resolved",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "121",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-047-james-dixson-dec9ff/reviews/pass-4.md:55",
+  "title": "E12 later side",
+  "quote": "| P2 | med | **SC20 still said \"10 Epic-6 issues\"** — wrong three ways again | resolved — \"8 schema-bearing types (Issues 6.1–6.8)\" |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "122",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-1.md:26",
+  "title": "E13 earlier side",
+  "quote": "| C1 | high | Two capability gates are formal cycles: \"relational checks can fail\" blocks 3.5 but its evidence *is* 3.5; \"intake binding does not wedge\" blocks 5.3 but its condition presumes 5.3's binding |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "123",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-2.md:47",
+  "title": "E13 later side — the one instance where the fix made it strictly worse",
+  "quote": "| N1 | high | `relational checks can fail` **still a cycle, made explicit** — `Blocks: 3.2, 3.3` while its condition draws evidence \"from the rules from 3.2/3.3\". Pass-1 moved it *onto* the producers of its own evidence — strictly worse |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "124",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-1.md:32",
+  "title": "E14 earlier side — shared premise, different defect",
+  "quote": "| C7 | high | Nothing orders 0.6 before the gates whose scripts it authors. `plan_manager.py` has **no auto-gate runner**, so a missing script yields bash 127 read by an agent as a red gate |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "125",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-2.md:48",
+  "title": "E14 later side — the shared premise restated under a different claim",
+  "quote": "| N2 | high | **SC10d asserts an outcome no artifact can produce** — a deleted script returns 127 *from bash*; nothing maps 127→2, and `plan_manager.py` has no gate runner. Also SC10c uses bare `scripts/` which collides with the real top-level `scripts/` |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "126",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-2.md:54",
+  "title": "E15 earlier side",
+  "quote": "| N7 | med | **\"declared target\" has no producer** — gate-grammar, 1.5, SC1 and SC20 all consume it; 1.4b never declares one. The executor sets the bar after seeing the measurement |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "127",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-3.md:32",
+  "title": "E15 later side — unresolved",
+  "quote": "| H2 | high | **The declared target is still declared after the measurement.** 1.4b `depends-on: 1.3`, and **no number appears anywhere in plan.md**. SC20 still cannot fail |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "128",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-4.md:52",
+  "title": "E16 earlier side",
+  "quote": "| L4 | low | SC1's `git diff --stat docs/plans` empty will be dirtied by plan-048's own bookkeeping |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "129",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-6.md:35",
+  "title": "E16 later side — a NEW defect at the same site, created by the repair",
+  "quote": "| M5 | med | **SC1's verification exits 128** — `git diff --stat docs/plans -- ':!…'` parses the path as a revision. Correct form puts everything after `--` |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "130",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-6.md:33",
+  "title": "E17 earlier side — two defects named in one finding",
+  "quote": "| M3 | med | `744` landed in plan.md but not in `findings/exp-002` (still `~700`) — the citation was corrected and the source was not, which is backwards under D-5. The plan.md cell is also malformed nested emphasis |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "131",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-048-james-dixson-ed68a5/reviews/pass-7.md:57",
+  "title": "E17 later side — only one of the two was fixed",
+  "quote": "| C4 | low | plan.md's 744 cell still has overlapping emphasis (the linter has no rule for it) |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "132",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-049-james-dixson-725bc0/reviews/pass-2.md:44",
+  "title": "E18 later side — self-reported false resolution",
+  "quote": "| D8 | low | **C15's claimed resolution did not land** — no mention of the `index.md`/`log.md` `files_checked: 0` vacuity anywhere in plan.md |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "133",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-050-james-dixson-d0414b/reviews/pass-3.md:46",
+  "title": "E19 earlier side",
+  "quote": "| C18 | low | The Objective cites **\"0 of 53\"** as a bare local measurement, contra D-5, R4 and EXP-004's own warning; the local figure is **26**. Separately the title and Objective still say \"**six** … #177–#182\" after D-6 dropped #177, while `index.md` says \"five … #178-#182\" |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "134",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-050-james-dixson-d0414b/reviews/pass-4.md:48",
+  "title": "E19 later side — the only genuine oscillation found (six -> five -> six)",
+  "quote": "| C30 | medium | **Six defects are fixed; the title, Objective and index say five.** C18 changed them to \"five … #178-#182\", then #184 was added as a sixth `include` with its own issues. D-1 still says \"the **six** … (#177–#182)\" — a set that includes the dropped #177 and excludes #184 |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "135",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-050-james-dixson-d0414b/reviews/pass-4.md:47",
+  "title": "E20 earlier side — a site-scoped FINDING",
+  "quote": "| C29 | medium | **#184 is in plan.md and `references/` but has no `upstream-triage.md` entry**, while **#183 is triaged with a blank disposition and appears in no plan.md row**. `index.md` calls triage \"the record behind plan.md's Upstream Issues table\" |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "136",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-050-james-dixson-d0414b/reviews/pass-5.md:88",
+  "title": "E20 later side — the reviewer names the prior pass's narrowness",
+  "quote": "| C49 | medium | PRE-EXISTING | **`upstream-triage.md` is 47/49 blank.** Every one of the twelve rows the plan acts on has an empty `**Disposition:**`, while `index.md` calls the file \"the triage record behind plan.md's Upstream Issues table\". Pass 4's C29 flagged #183's blank and missed that the whole document is blank — a spotli[ght]",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "137",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-1.md:37",
+  "title": "E21 earlier side",
+  "quote": "| C5 | **high** | **D-8's live-site argument is REFUTED, and Issue 0.2 is scoped to one file.** Measured: roots = **12 live sites in 5 files**; stamp = **5 in 4**.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "138",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-4.md:48",
+  "title": "E21 later side — a genuinely new defect in the same area",
+  "quote": "| C49 | medium | **Two of 0.2's six files carry BOTH meanings of `REQ-PLAN-073`** — `SPEC.md` (roots at :239/:919, stamp at :349) and `plan_manager.py` (roots ×3, stamp at :1461). A file-scoped rename corrupts the stamp citations.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "139",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-3.md:53",
+  "title": "E22 earlier side — names TWO surfaces",
+  "quote": "| C40 | low | D-13 and R7 cite \"0 of **41**\"; measured now **0 of 46** — a moving-fact literal, the shape SC12b was rewritten to avoid |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "140",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-4.md:49",
+  "title": "E22 later side — canonical partial landing",
+  "quote": "| C50 | low | R7 still carries \"0-of-41\"; measured 0 of 46. C40 named D-13 *and* R7; only D-13 was fixed |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "141",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-054-james-dixson-535968/reviews/pass-1.md:32",
+  "title": "E23 earlier side",
+  "quote": "| C4 | high | **`verify-reconcile` will fail deterministically.** `partial` requires end-state OPEN, `include` requires CLOSED-with-attribution. #119 is `partial` while 6.2 is titled \"Close #119\". #154 is absent from the table entirely despite EXP-006 directing a rescope.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "142",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-054-james-dixson-535968/reviews/pass-2.md:40",
+  "title": "E23 later side — same defect, now executed rather than predicted",
+  "quote": "| C27 | high | **SC19 is unsatisfiable, measured by running it** — `verify-reconcile` → `fail`, 15 of 23 rows. Three are structural: **#154 typed `deferred` while CLOSED upstream** (deferred demands OPEN — no execution can fix it); **#119 table says `include` but Issue 6.2 declares `partial`**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "143",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-054-james-dixson-535968/reviews/pass-5.md:42",
+  "title": "E24 earlier side",
+  "quote": "| N2 | high | **The `check-*.sh` baseline has no verifying verb and no criterion.** `verify-red-all` iterates `controls.txt`, whose set is derived with the `ctl-` pattern; a `check-*.sh` **can never match**, and 0.6 explicitly keeps `assets/checks/` outside it.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "144",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-054-james-dixson-535968/reviews/pass-6.md:42",
+  "title": "E24 later side — the reviewer explicitly types it as the same class one layer down",
+  "quote": "| P1 | med | **The 28 `check-*.sh` red baseline has a verifier but no RECORDER.** Measured at source: `cmd_record_red` gates on `_in_manifest`, a `grep -qxF` against `controls.txt`, whose set is derived with the `ctl-` pattern — so `record-red` on a `check-*.sh` **hard-fails and writes nothing**. N2's class one [layer down]",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "145",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-055-james-dixson-5f1c40/reviews/pass-7.md:25",
+  "title": "E25 later side — the match is a VERIFICATION HEADING, not a concern",
+  "quote": "### C1 recomputed independently — own parser, own regex, own closure",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "146",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-055-james-dixson-5f1c40/reviews/pass-7.md:63",
+  "title": "E26 later side — explicit false resolution",
+  "quote": "| P2 | low | **C3 was recorded resolved and is not fixed.** 0.4 still ends `\"…governed by nothing: a per-row surface-dir override var and a three-valued precedence…\"` — the clause after the colon is verbatim the pre-edit surface-column description, grafted where it does not parse.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "147",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-016-james-dixson-533fa8/reviews/pass-1.md:46",
+  "title": "E27 earlier side — Issue 5.1",
+  "quote": "| C9  | MEDIUM   | Issue 5.1 has no `depends-on`, breaking the negative test                                  |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "148",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-016-james-dixson-533fa8/reviews/pass-2.md:59",
+  "title": "E27 later / E28 earlier — a DIFFERENT issue (2.3), same defect class",
+  "quote": "| D13 | LOW      | Issue 2.3 has no `depends-on` and no ordering relative to the first restic run               |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "149",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-016-james-dixson-533fa8/reviews/pass-3.md:59",
+  "title": "E28 later — a third different issue (6.1)",
+  "quote": "| E15 | LOW      | Issue 6.1 has no `depends-on`; no ordering vs. the work whose limitations it records                  |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "150",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-016-james-dixson-533fa8/reviews/pass-3.md:54",
+  "title": "E29 earlier side",
+  "quote": "| E10 | MEDIUM   | Issue 4.2/SC1 reverse exp-001 on `--monitor-snapshots` without revisiting its config                  |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "151",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-016-james-dixson-533fa8/reviews/pass-4.md:49",
+  "title": "E29 later side — same SC1 and subcommand, a different claim",
+  "quote": "| F6  | MEDIUM   | SC1 pins an unmeasured output shape for `sanoid --monitor-snapshots`                       |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "152",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-018-james-dixson-0b2d16/reviews/pass-3.md:140",
+  "title": "E30 earlier side — a RESOLVED row, id C1",
+  "quote": "| C1  | 0.5 blocks with no gate    | **RESOLVED** | New conditional gate; blocks 1.1 only; acyclic; Epic 0 completes.                                                                    |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "153",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-018-james-dixson-0b2d16/reviews/pass-5.md:127",
+  "title": "E30/E31 later side — id C1 reused for an unrelated concern, also RESOLVED",
+  "quote": "| C1  | Env precondition on the gate  | **RESOLVED** | Preamble verified clause-by-clause. Ungated-template / gated-assert claim exactly right. 6.11 files it.                   |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "154",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-018-james-dixson-0b2d16/reviews/pass-3.md:142",
+  "title": "E31 earlier side — a three-word headline sharing only the token 'gate'",
+  "quote": "| C3  | Reload gate Test           | **RESOLVED** | Retitled `Human Gate`; conformant and consistent with the Start Gate.                                                                |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "155",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "docs/plans/plan-018-james-dixson-0b2d16/reviews/pass-5.md:65-66",
+  "title": "E32 later side — canonical partial landing, self-reported",
+  "quote": "### D1 (medium)\nPass-4 C6 named **two** surfaces — Issue 0.5 **and the gate**. Only 0.5 was re-pointed. `plan.md:437`, the gate's Condition, still read `§363-364`, which is **PVE-STO-005 restic-repository-password prose**.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "156",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/ansible/plans/plan-002-james-dixson-06dce8/reviews/pass-1.md:31",
+  "title": "E33 earlier side",
+  "quote": "| C7  | low         | Citation/state nits: `pve_lxc` cites PVE-GPU-003 (that's the host boot-order unit, owned by `pve_host`); guest block is GPU-005/006. Issue 4.3 should pin `apt state=present` not `latest`.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "157",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/ansible/plans/plan-002-james-dixson-06dce8/reviews/pass-2.md:24",
+  "title": "E33 later side — the reviewer types it 'Residual'",
+  "quote": "| N2  | low      | Residual C7: the Approach `pve_lxc` bullet still cites `PVE-GPU-003/005/006` (GPU-003 is the host boot-order unit, owned by `pve_host`). Issue 3.3 + Success Criteria already dropped it.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "158",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/litellm/plans/plan-010-james-dixson-49050b/reviews/pass-2.md:73",
+  "title": "E34 earlier side",
+  "quote": "| **N7**  | low      | **The traces auto-gate had no executable test** — prose where every other gate gives a command.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "159",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/litellm/plans/plan-010-james-dixson-49050b/reviews/pass-3.md:57",
+  "title": "E34 later side — the supplied command is itself wrong; prose->command is progress",
+  "quote": "| **L2**  | low  | Traces-gate prose said loopback, command used the LAN — shipping root Basic-auth creds across the network.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "160",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/litellm/plans/plan-010-james-dixson-49050b/reviews/pass-2.md:74",
+  "title": "E35 earlier side",
+  "quote": "| **N8**  | low      | **`index.md` still advertised the skills gateway and a dedicated CT 107**, both reversed by S9 and D1; `log.md` had no pass-1 `review:` line.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "161",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/litellm/plans/plan-010-james-dixson-49050b/reviews/pass-3.md:56",
+  "title": "E35 later side — near-verbatim, unresolved between passes",
+  "quote": "| **L1**  | low  | `index.md` still advertised the dropped skills gateway and CT 107.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "162",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/postgres/plans/plan-015-james-dixson-87ecab/reviews/pass-2.md:65",
+  "title": "E36 earlier side",
+  "quote": "### N2 (HIGH) — the snapshot does not capture what R1b blames",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "163",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/postgres/plans/plan-015-james-dixson-87ecab/reviews/pass-3.md:78",
+  "title": "E36 later side — same R1b failure mode, restated at HIGH after a fix attempt",
+  "quote": "### H3 (HIGH) — the config copy cannot roll anything back",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "164",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/postgres/plans/plan-015-james-dixson-87ecab/reviews/pass-2.md:79",
+  "title": "E37 earlier side — the 'finding' is a stub section header, a parse artifact",
+  "quote": "### N3–N12",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "165",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "evri_py",
+  "locator": "docs/plans/plan-008-james-dixson-d1f1e4/reviews/pass-3.md:28",
+  "title": "E38 later side — the fix cut one edge but the blocking path survives",
+  "quote": "| NC5 | medium | The Reconcile Gate is `auto (all execution beads closed)` and blocks `4.2, 4.3`. \"All execution beads\" includes `3.2` (Windows clean-load), which the App Control gate can block indefinitely. So even though NC2 cut the `4.2→3.2` edge, `4.2` still can't fire until the reconcile gate opens",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "166",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "writing",
+  "locator": "docs/plans/plan-002-james-dixson-62a38d/reviews/pass-1.md:91",
+  "title": "E39 earlier side — a three-word headline",
+  "quote": "| C4 | Multipart undecomposed | medium | Multipart Pelican publishing scoped OUT of v1 (generation stays multipart-aware); noted in plan | resolved |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "167",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "writing",
+  "locator": "docs/plans/plan-002-james-dixson-62a38d/reviews/pass-2.md:93",
+  "title": "E39 later side — different subject, one shared word",
+  "quote": "| M6 | cover/hero mechanism undecomposed | — | 4.2 decomposes cover as a distinct draft attribute vs inline stream | resolved |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "168",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "writing",
+  "locator": "docs/plans/plan-010-james-dixson-e049e3/reviews/pass-1.md:79",
+  "title": "E40 earlier side — medium, operator decision surfaced",
+  "quote": "| C4 | No READY gate on `[needs-source]` | medium | **Operator decision surfaced** (block vs advisory); plan v2 adds the symmetric READY precondition per the operator's choice. | resolved (pending operator choice) |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "169",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "writing",
+  "locator": "docs/plans/plan-010-james-dixson-e049e3/reviews/pass-2.md:64",
+  "title": "E40 later side — the corpus's HIGHEST similarity match (0.600) and it is convergence: medium -> low, resolved",
+  "quote": "| C11 | `[needs-source]` gate recall | low | Issue 3.3 gains the coverage note: guarantee is \"no flagged unresolved claim,\" and READY also requires ≥1 web-enabled footnoter pass to have run (no vacuous pass). | resolved |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "170",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.35 --id-floor 0.15 --json",
+  "title": "The 8 episodes at the tool's documented operating point: 3 are id_reuse-basis (all FALSE on hand-audit), 1 is productive deepening",
+  "quote": "plan-034-james-dixson-ac6633     p1->p2 sim=0.163 id_reuse\nplan-047-james-dixson-dec9ff     p3->p4 sim=0.353 text_similarity\nplan-050-james-dixson-d0414b     p4->p5 sim=0.359 text_similarity\nplan-055-james-dixson-5f1c40     p6->p7 sim=0.156 id_reuse\nplan-018-james-dixson-0b2d16     p3->p5 sim=0.250 id_reuse\nplan-002-james-dixson-06dce8     p1->p2 sim=0.419 text_similarity\nplan-010-james-dixson-49050b     p2->p3 sim=0.438 text_similarity\nplan-010-james-dixson-e049e3     p1->p2 sim=0.600 text_similarity",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "171",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.20 --json | enumerate all 51 self_reported_signals",
+  "title": "All 51 self-reported cross-pass signals; 47 are clean all-resolved statements, 4 carry an actual failure rate (all plan-053)",
+  "quote": "S01 plan-012 ... \"All eight concerns resolved in `plan.\"\nS03 plan-026 pass-5 ... \"All five pass-4 concerns are genuinely resolved and verified.\"\nS04 plan-028 pass-2 ... \"All four pass-1 concerns verified genuinely and correctly resolved against the real repo.\"\nS17 plan-053 pass-2 ... \"## Reproduction of pass-1's 14 resolutions\"\nS18 plan-053 pass-3 ... \"## Reproduction of pass-2's 15 resolutions\"\nS19 plan-053 pass-4 ... \"## Reproduction of pass-3's 14 resolutions — 7 of 14 (50%)\"\nS20 plan-053 pass-5 ... \"## Reproduction of pass-4's 10 resolutions — 9 of 10 (90%)\"\nS50 rc-files plan-004 pass-1 ... \"**Status: all 16 concerns resolved.\"\nTOTAL 51",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "172",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-012-james-dixson-a99822/reviews/pass-2.md:37",
+  "title": "A clean all-resolved self-report — a CONVERGENCE signal, counted by the tool as a recurrence signal",
+  "quote": "All eight concerns resolved in `plan.md`; ready for operator approval → INTAKE.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "173",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-028-james-dixson-a9738b/reviews/pass-2.md:9",
+  "title": "A clean all-resolved self-report",
+  "quote": "All four pass-1 concerns verified genuinely and correctly resolved against the real repo.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "174",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "rc-files",
+  "locator": "docs/plans/plan-004-james-dixson-f0bcc5/reviews/pass-1.md:9",
+  "title": "A clean all-resolved self-report in a NON-SOFTWARE repo",
+  "quote": "**Status: all 16 concerns resolved.** C5 was routed to the operator (it reversed a scoping",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "175",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "pybridge",
+  "locator": "docs/plans/plan-002-james-dixson-f111ab/reviews/pass-2.md:8",
+  "title": "A clean all-resolved self-report with quoted evidence",
+  "quote": "All 10 pass-1 concerns verified addressed in revised plan with quoted text.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "176",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-2.md:14-24",
+  "title": "D2 at pass 2 — the reproduction rate, and the partial-landing class named (RE-002)",
+  "quote": "## Reproduction of pass-1's 14 resolutions\n\n| Class | Count | Concerns |\n| :-- | --: | :-- |\n| **(a) landed and correct** | **9** | C2, C6, C7, C8, C9, C11, C12, C13, C14 |\n| **(b) recorded but absent** | **1** | C10 |\n| **(c) landed at one site, defect survives elsewhere** | **4** | C1, C3, C4, C5 |\n\n**9 of 14.** All four (c)-class failures are **RE-002's shape** — a global property repaired at\nthe one site the reviewer named.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "177",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-3.md:12-24",
+  "title": "D2 at pass 3 — the rate falls, and the reviewer says so",
+  "quote": "## Reproduction of pass-2's 15 resolutions\n\n| (a) landed and correct | **9** | C16, C19, C20, C22, C24, C25, C26, C28, C29 |\n| (b) recorded but absent | 0 | — |\n| (c) landed at one site, defect survives elsewhere | **5** | C15, C17, C18, C21, C27 |\n| (d) itself a new defect | **1** | C23 |\n\n**9 of 15 (60%), against pass 2's 9 of 14 (64%) — this round did slightly WORSE.** And the\nshape is unchanged: every (c)-class failure is RE-002. **Three of the five were re-broken by\npass-2's own remedies**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "178",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-4.md:15-27",
+  "title": "D2 at pass 4 — three-point falling trend and the named mechanism",
+  "quote": "## Reproduction of pass-3's 14 resolutions — 7 of 14 (50%)\n\n| (a) landed and correct | **7** | C30, C34, C35, C37, C39, C41, C43 |\n| (c) landed at one site, defect survives | **4** | C31, C32, C33, C40 |\n| (d) itself a new defect | **3** | C36, C38, C42 |\n\n**64% → 60% → 50%. The rate did not improve; it fell by the largest margin yet.**\n\n> **The reason is measurable, and it is the finding of the pass: pass-3's structural remedy was\n> ITSELF applied site-by-site.**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "179",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-053-james-dixson-4015d3/reviews/pass-5.md:23-31",
+  "title": "D2 at pass 5 — the rate recovers when the METHOD changes",
+  "quote": "## Reproduction of pass-4's 10 resolutions — 9 of 10 (90%)\n\n| (a) landed and correct | **9** | C44, C45, C46, C47, C48, C49, C50, C52, C53 |\n| (c) landed at one site, defect survives | **1** | C51 |\n\n**64% → 60% → 50% → 90%. The method change is real and it worked.**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "180",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.20 --json | cross-tab discriminators over the 37 bundles with >=3 passes and >=1 parsed finding",
+  "title": "Discriminator cross-tab and per-bundle findings/HIGH/verdict trajectories",
+  "quote": "bundle                        rec np   findings/pass            HIGH/pass              verdicts\nplan-048-james-dixson-ed68a5   5   7    12,12,14,10,8,9,8        7,6,4,1,2,0,0          REV*6,APP\nplan-054-james-dixson-535968   2   6    22,14,8,9,8,6            8,6,4,2,2,0            REV*5,APP\nplan-055-james-dixson-5f1c40   2   7    12,17,12,13,5,3,6        5,8,2,1,1,1,0          REV*6,APP\nplan-017-james-dixson-feb918   0   4    19,19,11,10              4,2,1,0                REV,REV,REV,APP\nplan-042-james-dixson-98631b   0   3    12,12,4                  4,2,0                  REV,REV,APP\nplan-041-james-dixson-a9d837   0   3    14,9,4                   3,0,0                  REV,REV,APP\nplan-043-james-dixson-a8afe8   0   4    15,6,4,0                 4,1,0,0                REV,REV,REV,APP\nplan-004-james-dixson-f0bcc5   0   3    16,16,11                 4,6,0                  REV,REV,APP\nplan-050-james-dixson-d0414b   2   13   5,4,11,17,14,0,0,0,0,0,0,0,0 ...\n\nHIGH at pass>=3          recurrence: 10/17 (59%)   control: 3/20 (15%)\nHIGH at pass>=2          recurrence: 12/17 (71%)   control: 8/20 (40%)\nfindings nonincreasing   recurrence:  5/17 (29%)   control: 12/20 (60%)\np2 >= p1 findings        recurrence:  6/17 (35%)   control:  8/20 (40%)",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "181",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.20 --json | per-pass finding digests for 12 control bundles",
+  "title": "Control-group pass digests — plan-026's re-scoping oscillation with entirely different concerns each round",
+  "quote": "plan-026-james-dixson-6e0e2f  (7 passes, 0 recurrence matches)\n PASS 1 verdict=REVISE findings=6\n    [C1|medium] Epic 4 premise factually wrong for md2pdf: it **already** has `check_deps()`\n PASS 2 verdict=APPROVE findings=2\n PASS 3 verdict=APPROVE findings=3\n PASS 4 verdict=REVISE findings=5\n    [C1|medium] #85 reverses GR-MDLINT-001; Issue 1.1 doesn't amend it\n PASS 5 verdict=APPROVE findings=1\n PASS 6 verdict=REVISE findings=5\n PASS 7 verdict=APPROVE findings=1",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "182",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "uv run scripts/finding_recurrence.py --census census.json --threshold 0.20 --json | verdict-reversal and finding-monotonicity over all 79 multi-pass bundles",
+  "title": "Approve-then-revise reversal and non-increasing finding counts, recurrence-fired vs control",
+  "quote": "recurrence-fired  n=19 meanpasses=5.26 approve-reversal=4(21%) noninc-findings=7(37%)\nno-recurrence     n=60 meanpasses=2.85 approve-reversal=4(7%)  noninc-findings=50(83%)",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "183",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "python: for each multipass bundle, flag findings in pass N whose text names a finding id first introduced in an earlier pass AND matches /still|again|not land|did not|residual|unresolved|survives|not fixed|nothing changed|re-brok|recur|NOT LANDED|missed|incomplete/i",
+  "title": "D1 — the explicit cross-pass back-reference signal: 54 instances, 16 bundles, 39% at pass 2, present in 5 of 7 repos",
+  "quote": "back-reference-with-failure-word signals: 54 across 16 bundles (of 79 multipass)\nby pass in which the back-ref appears: {2: 21, 3: 12, 4: 11, 5: 5, 6: 2, 7: 2, 8: 1}\nbundles: backref&tool=9  backref-only=7  tool-only=10\n\nplan-041 3 | plan-042 5 | plan-043 1 | plan-049 4 | plan-050 6 | plan-053 9 | plan-054 4 | plan-055 6\nplan-016(d3-pxe) 3 | plan-017(d3-pxe) 5 | plan-019(d3-pxe) 1 | plan-002(ansible) 1 | plan-010(litellm) 1\nplan-008(evri_py) 1 | plan-010(pybridge) 1 | plan-004(rc-files) 3",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "184",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-041-james-dixson-a9d837/reviews/pass-2.md:50",
+  "title": "D1 instance at pass 2 — a resolution row asserting something the plan does not contain",
+  "quote": "| C18 | **M3's resolution did not land.** pass-1 marks it `resolved — falsifier recorded in the E2 block`, but `grep -rn \"falsif\"` across the bundle hits **only `reviews/pass-1.md`**. A resolution row asserting something the plan does not contain is the failure mode this cycle exists to catch. | low |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "185",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-042-james-dixson-98631b/reviews/pass-2.md:45",
+  "title": "D1 instance at pass 2 — canonical partial landing",
+  "quote": "| H1 | **C4 landed in the Decisions table only.** Issues 3.1 and 3.6, the gate Condition, Scope, and `context.md` all still specified the superseded `permissions.*` predicate. D-C1 carried no superseded marker. | **high** |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "186",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-043-james-dixson-a8afe8/reviews/pass-3.md:57",
+  "title": "D1 instance — the fix landed at one site and the criterion checked at close still carries the defect",
+  "quote": "| C23 | **C18's fix did not propagate to SC2 or D10.** Issue 0.3 required enumerating every invocation, but SC2 — *the criterion checked at close* — still specified the superseded capture-only key. An implementer building capture-only enumeration would **satisfy SC2 and D10 while violating Issue 0.3**, leaving R8 unmitigated by the exact mechanism C18 identified. | medium |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "187",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "rc-files",
+  "locator": "docs/plans/plan-004-james-dixson-f0bcc5/reviews/pass-2.md:38",
+  "title": "D1 instance in a NON-SOFTWARE repo at pass 2 — partial landing, plus a false attribution",
+  "quote": "| N2 | **C5 was applied to plan.md and to nothing else. EXP-001 was not amended at all** — it still carries the Linux curl installer, `INSTALL_DIR=\"$HOME/cliproxyapi\"`, `systemctl --user`, `55-vendor-tools.sh`, and a per-platform summary table. plan.md attributes to EXP-001 a conclusion **EXP-001 does not state**. | high |",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "188",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "python: regex /Reproduction of pass-\\d+|resolution verification|verified genuinely resolved/i over all 301 pass files from corpus_scan.py",
+  "title": "Only 6 of 114 bundles contain any cross-pass reproduction/verification section — D2 is an instrument to install, not residue to mine",
+  "quote": "pattern                                       files bundles\nfalse-resolution (recorded resolved, not fixed)     6      6\nNth consecutive cycle/round                      23     16\ndefect inside its own fix                        14      9\nexplicit \"again\"                                 31     17\nexplicit \"still\"                                169     62\nreproduction/verification section                17      6",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "189",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "python: Spearman rank correlation of review_pass_count vs len(plan.md) over the 109 bundles with >=1 pass and a readable plan.md, from corpus_scan.py --json",
+  "title": "The task-difficulty rival: plan size explains most of the variance in review-pass count",
+  "quote": "np   n    med plan.md bytes med commits %recurrence\n1    30   16398      2        0%\n2    37   19790      3        5%\n3-4  23   35758      5        22%\n5+   19   62461      6        63%\n\nSpearman rho(review passes, plan.md size) = 0.739  (n=109)",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "190",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "python: recurrence-firing rate bucketed by total findings extracted per bundle, over the 79 multi-pass bundles",
+  "title": "D7's firing rate is very nearly a monotone function of review-text volume",
+  "quote": "total-findings bucket -> bundles, %with recurrence\n 0      n=8    0 (0%)\n 1-20   n=48   6 (12%)\n 21-50  n=16   7 (44%)\n 51+    n=7    6 (86%)\n\npass count -> bundles, %with recurrence\n 2   n=37  2 (5%)\n 3   n=15  3 (20%)\n 4   n=8   2 (25%)\n 5+  n=19  12 (63%)",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "191",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "d3-pxe",
+  "locator": "Incubator/litellm/plans/plan-010-james-dixson-49050b/reviews/pass-3.md:51",
+  "title": "The missing-tool rival appears as an ordinary re-raised finding, indistinguishable from a partial landing",
+  "quote": "| **H1**  | high | **The `plan-011 complete` gate still could not execute.** `op` is not installed on the pve host and `pct` exists nowhere else, but the one-liner needed both in one shell — so `$(op read …)` expanded to empty. N2 in a new venue.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "192",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-055-james-dixson-5f1c40/reviews/pass-7.md:64",
+  "title": "A defect missed by six prior passes — a REVIEWER miss, not evidence of agent context loss",
+  "quote": "| P3 | low | **A second stranded fragment of C3's exact class, in 0.8**, missed by all six prior passes: `\"…leaves behind. editing a completed plan's bundle…\"` — lowercase start, no subject, the residue of a deleted lead-in. A grep for `\\. [a-z]` returns exactly this one hit, so the class is **enumerated rather than sampled**",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "193",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "yoshiko-flow",
+  "locator": "docs/plans/plan-039-james-dixson-150f79/reviews/pass-3.md:138",
+  "title": "The domain-underdetermination rival, positively instanced — and indistinguishable in the residue from a partial landing",
+  "quote": "**SC6 rewritten to assert stable properties** — `evidence: prose-only`, `confidence: low`, and every residual enumerated as genuine subject-matter prose in `references/sc6-residuals.md` — with the reason recorded that a count was asserted twice and falsified twice, because the measured document is the document being edited.",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "194",
+  "cluster": "review-pass-recurrence",
+  "type": "tool-output",
+  "repo": "(analysis)",
+  "locator": "python: regex /inside (its own|the) fix|introduced (by|inside) (the|this) .{0,30}fix|created by (this|the) .{0,25}(edit|fix|round)|re-?brok/i over all 301 pass files",
+  "title": "The 'defect inside its own fix' sub-signal is effectively a single-repo artifact: 11 of 14 files are yoshiko-flow, the rest one d3-pxe plan",
+  "quote": "--- defect inside own fix files (14 files / 9 bundles) ---\n   yoshiko-flow/plan-041/pass-2.md, plan-042/pass-2.md, plan-047/pass-2.md, plan-047/pass-3.md,\n   plan-047/pass-4.md, plan-048/pass-6.md, plan-050/pass-4.md, plan-052/pass-4.md,\n   plan-052/pass-5.md, plan-053/pass-3.md, plan-054/pass-3.md\n   d3-pxe/plan-016/pass-2.md, plan-016/pass-3.md, plan-016/pass-4.md",
+  "retrieved": "2026-08-28"
+ },
+ {
+  "id": "195",
+  "cluster": "review-pass-recurrence",
+  "type": "review-pass",
+  "repo": "pybridge",
+  "locator": "docs/plans/plan-010-james-dixson-06eefa/reviews/pass-2.md:18",
+  "title": "A D1 false-positive shape — a POSITIVE verification written with a negation-adjacent word ('residual')",
+  "quote": "- C1 resolved (residual N3: MATLAB `.zip` staple claim repeats the container error).",
+  "retrieved": "2026-08-28"
+ }
+]
