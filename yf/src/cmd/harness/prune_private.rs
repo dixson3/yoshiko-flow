@@ -281,6 +281,24 @@ pub fn verdict(members: &[Member], roots: &[PathBuf], applied: Option<&Path>) ->
     v
 }
 
+/// Add the explicit operator-named moves to a verdict, under their OWN key.
+///
+/// Kept out of `delete` deliberately. `delete` means "the classifier proved this removable"; an
+/// operator-named path was moved on a human's authority instead. Merging them would let a future
+/// reader — or the migration gate — mistake a human decision for a mechanical one.
+pub fn record_named_moves(v: &mut Value, paths: &[PathBuf]) {
+    if paths.is_empty() {
+        return;
+    }
+    v["operator_quarantined"] = json!(paths
+        .iter()
+        .map(|p| json!({
+            "path": p.to_string_lossy(),
+            "basis": "explicitly named by the operator; NOT classified — see --also-quarantine",
+        }))
+        .collect::<Vec<_>>());
+}
+
 /// The documented one-line restore for a quarantine directory. Emitted **with** the verdict, so
 /// the undo is in the operator's hands at the moment the removal happens rather than in a
 /// document they would have to go find.
@@ -323,6 +341,34 @@ pub fn quarantine_removable(members: &[Member], quarantine: &Path) -> io::Result
         moved.push(dest);
     }
     Ok(moved)
+}
+
+/// Move ONE explicitly named path into `quarantine`, reversibly, without classifying it.
+///
+/// Uses `symlink_metadata` and `fs::rename`, so a **symlink is moved as a link** — its target is
+/// never read, never followed, and never touched. That is the whole reason this path exists
+/// separately from [`quarantine_removable`]: the classifier's refusal to follow a link is
+/// correct, and this preserves it rather than working around it.
+///
+/// Errors when the path does not exist, rather than succeeding silently: an operator who names a
+/// path that is not there has made a mistake, and a no-op "success" would hide it.
+pub fn quarantine_named_path(path: &Path, quarantine: &Path) -> io::Result<PathBuf> {
+    let md = fs::symlink_metadata(path)?; // errors if absent — deliberately not tolerated
+    let _ = md;
+    let origin = path
+        .parent()
+        .ok_or_else(|| io::Error::other(format!("{} has no parent", path.display())))?;
+    let name = path
+        .file_name()
+        .ok_or_else(|| io::Error::other(format!("{} has no file name", path.display())))?;
+    let bucket = quarantine.join(sanitize(&origin.to_string_lossy()));
+    fs::create_dir_all(&bucket)?;
+    fs::write(bucket.join(".origin"), origin.to_string_lossy().as_bytes())?;
+    let dest = bucket.join(name);
+    match fs::rename(path, &dest) {
+        Ok(()) => Ok(dest),
+        Err(e) => Err(e),
+    }
 }
 
 fn sanitize(s: &str) -> String {
@@ -373,21 +419,34 @@ pub fn run(args: &crate::cli::PrunePrivateArgs) -> anyhow::Result<std::process::
     // The apply anchors the quarantine beside the FIRST root, so the moved tree stays on the
     // same filesystem as its origin in the common case (a `rename`, not a copy).
     let applied = if args.apply {
-        let stamp = timestamp();
-        let anchor = roots
-            .first()
-            .and_then(|r| r.parent())
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| PathBuf::from("."));
-        let q = quarantine_dir(&anchor, &stamp);
+        let q = match &args.quarantine_dir {
+            Some(d) => d.clone(),
+            None => {
+                let anchor = roots
+                    .first()
+                    .and_then(|r| r.parent())
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| PathBuf::from("."));
+                quarantine_dir(&anchor, &timestamp())
+            }
+        };
         fs::create_dir_all(&q)?;
         quarantine_removable(&members, &q)?;
+        // Explicit operator-named paths, moved with the same reversible mechanism. Recorded
+        // separately in the verdict so the artifact never conflates "the classifier decided
+        // this" with "a human named this".
+        for p in &args.also_quarantine {
+            quarantine_named_path(p, &q)?;
+        }
         Some(q)
     } else {
         None
     };
 
-    let v = verdict(&members, &roots, applied.as_deref());
+    let mut v = verdict(&members, &roots, applied.as_deref());
+    if args.apply {
+        record_named_moves(&mut v, &args.also_quarantine);
+    }
     if args.json {
         println!("{}", serde_json::to_string_pretty(&v)?);
     } else {
@@ -743,6 +802,44 @@ mod tests {
         // The origin is recorded, so the restore is mechanical rather than reconstructed.
         let origin = fs::read_to_string(moved[0].parent().unwrap().join(".origin")).unwrap();
         assert_eq!(PathBuf::from(origin), f.root);
+    }
+
+    // REQ-YF-MARK-006 — an explicitly named path is MOVED, not unlinked, and a SYMLINK is moved
+    // AS A LINK: its target is never read, never followed, never touched.
+    //
+    // That last property is the whole reason the escape hatch is separate from the classifier
+    // rather than a relaxation of it. The classifier refuses to follow links because following
+    // one hashes a tree yf does not own; this path preserves that refusal while still letting a
+    // human resolve the one directory the classifier is structurally unable to judge.
+    #[test]
+    fn named_path_quarantine_moves_a_symlink_as_a_link() {
+        let f = Fixture::new("named");
+        let target = f.skill("real-target", "# target\n", MarkerKind::None);
+        let target_body = fs::read_to_string(target.join("SKILL.md")).unwrap();
+        let link = f.root.join("a-link");
+        symlink(&target, &link).unwrap();
+
+        let q = f.root.join(".q");
+        let dest = quarantine_named_path(&link, &q).unwrap();
+
+        assert!(!link.exists() && fs::symlink_metadata(&link).is_err(), "the link is gone");
+        assert!(
+            fs::symlink_metadata(&dest).unwrap().file_type().is_symlink(),
+            "it was moved AS A LINK, not dereferenced into a copy"
+        );
+        assert!(target.is_dir(), "the TARGET is untouched — never followed");
+        assert_eq!(
+            fs::read_to_string(target.join("SKILL.md")).unwrap(),
+            target_body,
+            "the target's contents are untouched"
+        );
+        // Reversible by the same mechanism as everything else.
+        let origin = fs::read_to_string(dest.parent().unwrap().join(".origin")).unwrap();
+        assert_eq!(PathBuf::from(origin), f.root);
+
+        // Naming a path that does not exist is an ERROR, not a silent success — an operator who
+        // mistypes a path must find out.
+        assert!(quarantine_named_path(&f.root.join("nope"), &q).is_err());
     }
 
     // REQ-YF-MARK-006 / Issue 5.1 REGRESSION GUARD — the legacy private roots are NON-EMPTY.

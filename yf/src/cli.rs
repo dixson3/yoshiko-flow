@@ -348,6 +348,35 @@ pub struct PrunePrivateArgs {
     #[arg(long)]
     pub apply: bool,
 
+    /// Pin the timestamped quarantine directory instead of deriving one.
+    ///
+    /// Exists so two SEPARATE operator-authorized operations can share ONE quarantine, and
+    /// therefore one restore. Without it, an explicit named-path move and a subsequent `--apply`
+    /// would land in two different timestamped directories and the operator would need two
+    /// undos for one migration.
+    #[arg(long, value_name = "PATH")]
+    pub quarantine_dir: Option<std::path::PathBuf>,
+
+    /// Quarantine an EXPLICIT, OPERATOR-NAMED path, bypassing classification (repeatable).
+    ///
+    /// **This is an escape hatch with a deliberately narrow shape, and the narrowness is the
+    /// safety property.** It moves exactly the path named on the command line — no glob, no
+    /// walk, no inference — into the quarantine, reversibly, like every other removal.
+    ///
+    /// It exists because `undetermined` is, by construction, the set the classifier **cannot
+    /// judge**. A symlink is the clearest case: the walk must not follow it (following it hashes
+    /// a tree yf does not own), so no amount of classifier work can promote it into the delete
+    /// set. The only sound resolution is a human looking at that one path and deciding — which
+    /// is exactly what the migration-apply gate's `undetermined` hard-fail exists to force.
+    ///
+    /// **It does NOT weaken that gate.** The gate still fails on any non-empty `undetermined`
+    /// set. Handling a path here removes it from the root, so the NEXT dry-run reports
+    /// `undetermined: 0` **because the condition is genuinely gone**, not because an exception
+    /// was carved. A flag that made the gate pass over a still-present unjudgeable directory
+    /// would be the defect; this one makes the directory not be there.
+    #[arg(long, value_name = "PATH")]
+    pub also_quarantine: Vec<std::path::PathBuf>,
+
     /// Emit the machine-readable verdict (REQ-YF-CLI-003).
     #[arg(long)]
     pub json: bool,
