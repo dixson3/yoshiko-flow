@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-059-james-dixson-55137e
 author: james-dixson
 created: '2026-08-28'
-status: executing
+status: reconciling
 deliverable_class: standard
 fingerprint: 2dcf24615fab68d963a9acf8041189b658fa6a9fe0c3e7ada9b39dbc31c2e7fa
 epic: yf-mol-vltm
@@ -14,7 +14,7 @@ epic: yf-mol-vltm
 **ID:** plan-059-james-dixson-55137e
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** executing
+**Status:** reconciling
 **Deliverable-class:** standard
 **Epic:** yf-mol-vltm
 **Fingerprint:** 2dcf24615fab68d963a9acf8041189b658fa6a9fe0c3e7ada9b39dbc31c2e7fa

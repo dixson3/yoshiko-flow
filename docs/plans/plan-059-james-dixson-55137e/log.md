@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-29
+- reconciling: post-execution reconciliation — all 36 issues closed, 4 gates resolved
 - executing: Epic 1 complete — severity vocabulary pinned (REQ-DATA-076), cell-vocabulary check shipped at R, fixture + tagged test green
 - executing: start gate resolved
 - intake: epic yf-mol-vltm poured

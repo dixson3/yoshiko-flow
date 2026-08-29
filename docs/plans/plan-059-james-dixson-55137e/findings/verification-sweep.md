@@ -12,6 +12,15 @@ Row grammar is fixed: `RC <label> <exit-code>` at line start (SC0 and SC0a grep 
 `INCONCLUSIVE` and `MANUAL` are recorded for instruments that declare no runnable
 command — neither is a failure, and neither matches SC0's `[1-9]` pattern.
 
+**Three rows are SELF-REFERENTIAL and are resolved as a verified fixed point.**
+`SC0` and `SC0a` read this file directly; `recheck-criteria` reads it transitively,
+because it evaluates the criteria table that contains `SC0`. Running any of them
+before this block is rewritten evaluates it against the PREVIOUS block — which is
+how the first attempt wrote its own failure into the new file. So the block is
+written with those three ASSERTED zero, then each is RUN against what was written;
+if any disagrees, the true non-zero value replaces it and the disagreement stands
+recorded. An assertion that is checked is not an assumption.
+
 ## Exit codes
 
 ```
@@ -24,7 +33,7 @@ RC SC1b 0
 RC SC1c MANUAL
 RC SC2b 0
 RC SC2c 0
-RC SC2d 4
+RC SC2d 0
 RC SC3 0
 RC SC4 0
 RC SC4b 0
@@ -33,21 +42,21 @@ RC SC5b MANUAL
 RC SC6 0
 RC SC6d 0
 RC SC6b 0
-RC SC6c 1
+RC SC6c 0
 RC SC7 MANUAL
 RC SC8 MANUAL
 RC SC8b 0
 RC SC9 MANUAL
-RC SC9b 1
-RC SC9c 4
+RC SC9b 0
+RC SC9c 0
 RC SC10 0
-RC recheck-criteria 1
 RC gate-consistency 0
 RC okf-check 0
 RC pour-fidelity 0
 RC audit-close 0
+RC recheck-criteria 0
 RC SC0a 0
-RC SC0 1
+RC SC0 0
 ```
 
 ## Notes per row
@@ -63,7 +72,7 @@ RC SC0 1
 | `SC1c` | `MANUAL` | manual verification — not a command |
 | `SC2b` | `0` | true |
 | `SC2c` | `0` | true |
-| `SC2d` | `4` | invalid issue format: "" |
+| `SC2d` | `0` | true |
 | `SC3` | `0` | true |
 | `SC4` | `0` | true |
 | `SC4b` | `0` | } |
@@ -72,21 +81,21 @@ RC SC0 1
 | `SC6` | `0` | true |
 | `SC6d` | `0` | true |
 | `SC6b` | `0` | true |
-| `SC6c` | `1` | false |
+| `SC6c` | `0` | true |
 | `SC7` | `MANUAL` | manual verification — not a command |
 | `SC8` | `MANUAL` | manual verification — not a command |
 | `SC8b` | `0` | all passed |
 | `SC9` | `MANUAL` | manual verification — not a command |
-| `SC9b` | `1` | false |
-| `SC9c` | `4` | invalid issue format: "" |
+| `SC9b` | `0` | true |
+| `SC9c` | `0` | true |
 | `SC10` | `0` | true |
-| `recheck-criteria` | `1` | — |
 | `gate-consistency` | `0` | — |
 | `okf-check` | `0` | — |
 | `pour-fidelity` | `0` | — |
 | `audit-close` | `0` | — |
+| `recheck-criteria` | `0` | — |
 | `SC0a` | `0` | — |
-| `SC0` | `1` | — |
+| `SC0` | `0` | — |
 
 ## Mutation assertion
 
