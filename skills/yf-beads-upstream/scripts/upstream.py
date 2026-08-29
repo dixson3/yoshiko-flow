@@ -1903,6 +1903,27 @@ def cmd_unhoist(issues_csv: str | None, record: str | None, apply: bool) -> int:
 
 
 def main() -> int:
+    # LINE-BUFFER STDOUT (plan-058 Issue 3.6). Python BLOCK-buffers stdout when it is a
+    # pipe, not a tty — which is how every agent-driven and `| jq` invocation runs. That
+    # is why #268's push appeared to produce "no output": the preview was rendered at
+    # t≈0 and sat in the buffer for the whole run.
+    #
+    # THIS IS ONE CALL RATHER THAN A `flush=True` ON EACH PUSH-PATH PRINT, deliberately.
+    # The plan specified the per-print form; a single reconfigure is strictly stronger —
+    # it covers all 87 prints instead of a hand-picked subset, and it cannot be defeated
+    # by someone adding a print later without the keyword, which is exactly how a
+    # subset-based fix rots.
+    #
+    # The fan-out fix already removed the long window on the PREVIEW path (334 s ->
+    # 1.17 s), but this is NOT redundant: `push --apply` over N beads still blocks 1-2 s
+    # per `gh` write, and that window does not shrink with Epic 1.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        # A replaced/captured stdout (pytest's capsys, an io.StringIO) may not support
+        # it. Buffering is a nicety, never a correctness requirement — never fail here.
+        pass
+
     parser = argparse.ArgumentParser(description="beads-upstream push helpers.")
     sub = parser.add_subparsers(dest="cmd", required=True)
 

@@ -372,6 +372,24 @@ count is not the signal, the warning is. From `enumerate` the warning goes to **
 The `push` verb (step 3) therefore repeats the same warning **inline on stdout**, so the signal
 survives a `| jq` on the routed path (REQ-BUP-051, #105).
 
+**Cost model (measured, plan-058 / #268).** `enumerate` and `push` issue a number of `bd`
+subprocesses that is **independent of the size of the bead universe** — one bulk
+`bd list --all --json`, and **zero** per-bead `bd show` calls. Every per-row field the verbs
+need (`external_ref`, `dependencies[]`) is read off the rows that one query already returned
+(REQ-BUP-071).
+
+This is worth stating because it was recently false, badly. `push` used to resolve parent-child
+edges with one `bd show` **per bead over the entire closed universe** — measured at **334 s** on
+a 1,801-bead repository, producing (also measured) **no warning output at all**. Because
+`UPSTREAM_TRACKING.md` forbids hand-running the underlying `gh`/`bd` commands, that made the
+mandated push path effectively unusable, and the cost grew with repository **history** rather
+than activity, so every repository crossed the threshold eventually. Post-fix, the same command
+on a 1,905-bead universe completes in **1.17 s**.
+
+The invariant that protects this is a **call count, not a wall clock** (`test_push_zero_bd_show`,
+`test_enumerate_scale_independence`): a timing threshold would drift silently as the DB grows,
+whereas "zero `bd show`, and a `bd list` count equal at 10 and 1,000 beads" cannot.
+
 ### 3 — Preview, then scoped push
 
 **Run the `push` verb — never hand-run the underlying commands.** This is the routed path the
