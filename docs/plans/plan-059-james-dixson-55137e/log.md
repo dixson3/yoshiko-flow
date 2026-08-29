@@ -1,6 +1,14 @@
 # Log
 
 ## 2026-08-29
+- complete: plan complete — 36/36 issues, 4 gates resolved, pour fidelity exact (42/42 edges), full battery green
+- reconciling: SC5 amended to '.raised >= 2 and .pushes < .raised' (operator-authorized, ESC-006); fingerprint re-written 2dcf2461 -> e05f4534; full battery green
+- reconciling: reconcile: #264/#273/#145 comments posted and read back (all remain OPEN); verify-reconcile 5/5 checkable rows pass; Issue 0.2 'create' -> 'adopt #269' substitution recorded as a retrospective deviation; filed-issues.env stale NOT-YET-FILED comments corrected to #291/#292
+- reconciling: post-execution reconciliation — all 36 issues closed, 4 gates resolved
+- executing: Epic 1 complete — severity vocabulary pinned (REQ-DATA-076), cell-vocabulary check shipped at R, fixture + tagged test green
+- executing: start gate resolved
+- intake: epic yf-mol-vltm poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: intake: coarse tracker reconciled to EXISTING #269 per AGENTS.md one-tracker rule; no competitor filed. Issue 0.2's 'create' wording is superseded by 'update #269 + record TRACKER_ISSUE=269' — surfaced to the operator, NOT executed: the upstream-writes gate blocks 0.2 and is unresolved by plan approval.
 
 - approved: operator approved; severity vocabulary = option (b): high|medium|low plus the medium-high/low-medium family. Option (c) DECLINED — a qualifier suffix such as 'medium (blocking)' is NOT legal, being the exact token that fired the detector on plan-026.

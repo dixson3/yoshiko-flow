@@ -1,0 +1,42 @@
+## Reconciled by plan-059-james-dixson-55137e (`yf-judgement`)
+
+**This issue stays OPEN** — the law itself is still live and still worth testing. What plan-059
+did was **correct its arithmetic** and then **apply it**.
+
+### The correction (Issue 6.4), already applied to the body above
+
+The original compared a **per-plan** rate (`5 / 6`) against a **per-EVENT** rate (`2 / 12`) over
+two *different* populations, and then divided them. Two incommensurable denominators do not form
+a ratio, so the reported **"factor of five" was an artifact of the unit change, not a measured
+effect** — and it is **withdrawn outright** rather than recomputed.
+
+Both rows are now stated at **one unit (per plan) over ONE population** — the five post-plan-045
+plans that exceeded the review-cycle bound — giving **`4 / 5`** for the command form and
+**`2 / 5`** for the obligation form. The `15 / 15` script row moved out of the comparison table
+into *Limits*, because a script that cannot forget measures **the absence of a failure mode**, not
+compliance, and putting it in the same table invited exactly the arithmetic being removed.
+
+**With n = 5 the honest claim is a direction, not a multiplier.** The withdrawn framing is
+preserved verbatim inside the correction note so earlier replies stay intelligible.
+
+### The law, applied to a real design
+
+plan-059 used it as a design test and let it **reject one of its own options**:
+
+- A `/yf-judgement` slash command is an **obligation** on a fresh invocation path — predicted rate
+  0. **Rejected**, and no `skills/yf-judgement/` directory was created.
+- Extending `review-loop-check` is a **command** on an existing path. **Adopted and shipped**: the
+  verb now emits an escalation payload on both the fired and not-fired paths.
+- "Record the escalation in `escalations.md`" is an **obligation**. So the artifact is written
+  **by the same verb that detects**, never by a later instruction.
+- "Notice your trigger never fired" is an obligation **with no event to attach to**. So the
+  trigger **writes its own echo** to `log.md` on both paths, and `judgement-echo-check` observes
+  that echo by diffing the log around a subprocess invocation — an external observation, not a
+  self-report.
+
+### What remains
+
+The law is derived from **the one event instrumented well enough to see it**, which is itself an
+instance of the law. Causation is not established. Both limits stand unchanged.
+
+- Bundle: `docs/plans/plan-059-james-dixson-55137e/`

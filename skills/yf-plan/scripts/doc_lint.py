@@ -556,6 +556,113 @@ def _parse_upstream_rows_view(pm: Path) -> dict[str, str] | None:
         return None
 
 
+_SEVERITY_DELIMS = "*_`~ \t"
+
+
+def _norm_severity_cell(cell: str) -> str:
+    """Normalise a severity cell to the token REQ-DATA-076 compares.
+
+    Strips the markdown emphasis and code delimiters the corpus wraps severities in, then
+    lowercases. Deliberately does NOT strip a trailing parenthetical or any other qualifier:
+    `medium (blocking)` must survive as a distinct, ILLEGAL token, because it is the exact
+    string research 005's detector fired on. Normalising it away would erase the signal the
+    ratification declined to legalise.
+    """
+    return cell.strip().strip(_SEVERITY_DELIMS).strip().lower()
+
+
+def _resolve_vocabulary(chk: dict) -> set[str] | None:
+    """Read the ratified token set from its SPEC marker line, or None if unreadable.
+
+    The marker is resolved relative to THIS MODULE, because `doc_lint.py` ships in two places
+    (`_shared/` canonical and `skills/yf-plan/scripts/` vendored) that `sync.py` keeps
+    byte-identical — so one hard-coded relative path is wrong in one of them by construction.
+    Both candidate roots are tried, and an explicit `value` list in the schema wins over the
+    marker for a fixture or a test that must not depend on the live SPEC.
+    """
+    if chk.get("value"):
+        return {str(v).strip().lower() for v in chk["value"]}
+    marker = chk.get("vocabulary_marker")
+    rel = chk.get("vocabulary_file")
+    if not marker or not rel:
+        return None
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here.parent / rel,                        # skills/yf-plan/scripts/ -> skills/yf-plan/
+        here.parent / "skills" / "yf-plan" / rel,  # _shared/ -> repo root
+    ]
+    for cand in candidates:
+        try:
+            spec_text = cand.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = re.search(r"^" + re.escape(marker) + r"(.*)$", spec_text, re.M)
+        if m:
+            return {t.strip().lower() for t in m.group(1).split("|") if t.strip()}
+    return None
+
+
+_ENTRY_HEAD = re.compile(r"^#{2,3} +([A-Z]+-[0-9]+)\s*$")
+
+
+def entry_sections(text: str, id_prefix: str) -> list[tuple[str, dict[str, str]]]:
+    """Parse `## <PREFIX>-NNN` sections into (id, {key: value}) from their two-column table.
+
+    Shared by `escalations.md` and any future append-only entry log. The key cell is
+    normalised — surrounding backticks and emphasis stripped, lowercased — because the corpus
+    writes keys as `` `question` `` while a schema names them bare, and a parser that compared
+    the raw cells would report every conforming entry as missing every field.
+
+    Fenced blocks are skipped, so a fenced example table inside an entry (REQ-PORT-052 requires
+    verbatim quotes to be fenced) is never mistaken for the entry's own field table.
+    """
+    out: list[tuple[str, dict[str, str]]] = []
+    cur_id: str | None = None
+    cur_rows: list[list[str]] = []
+    fenced = False
+
+    def flush() -> None:
+        if cur_id is None:
+            return
+        fields = {}
+        for r in cur_rows:
+            if len(r) < 2:
+                continue
+            k = r[0].strip().strip("`*_ ").lower()
+            if k and k not in ("field", "key"):
+                fields[k] = r[1].strip()
+        out.append((cur_id, fields))
+
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        m = _ENTRY_HEAD.match(line)
+        if m:
+            flush()
+            cur_id = m.group(1) if m.group(1).startswith(id_prefix + "-") else None
+            cur_rows = []
+            continue
+        st = line.strip()
+        if cur_id and st.startswith("|") and st.endswith("|"):
+            cur_rows.append(_split_row(st[1:-1]))
+    flush()
+    return out
+
+
+def _split_alternatives(cell: str) -> list[str]:
+    """Split an `alternatives` cell into its options.
+
+    `;` is the separator, NOT `,` — an alternative is a phrase and phrases contain commas.
+    Measured on this repository's own dogfooded escalations: every recorded alternative
+    contains at least one comma, so a comma-split would shatter each option into fragments and
+    make `recommended-in-alternatives` fail on every conforming entry.
+    """
+    return [a.strip().strip("`*_ ") for a in cell.split(";") if a.strip().strip("`*_ ")]
+
+
 # --- checks ------------------------------------------------------------------------
 
 
@@ -697,6 +804,105 @@ def run_check(chk: dict, text: str, schema: dict, path: Path | None = None) -> l
                 cell = _norm_cell(r[i]) if i < len(r) else ""
                 if not cell:
                     out.append(f"row {rid!r}: required cell {c!r} is empty")
+        return out
+    if kind == "entry-fields":
+        # plan-059 Issue 2.2 (REQ-PORT-054). An append-only entry log whose entries may omit a
+        # required field is a log that looks complete and asserts nothing — plan-047's
+        # "90-finding exploit" one document type over.
+        prefix = chk.get("id_prefix", "ESC")
+        entries = entry_sections(text, prefix)
+        if not entries:
+            # A file with no entry section is `entry-ids`' finding, not this one.
+            return []
+        required = chk.get("required") or []
+        domains = chk.get("domains") or {}
+        out = []
+        for eid, fields in entries:
+            for key in required:
+                if not fields.get(key, "").strip():
+                    out.append(f"{eid}: required field {key!r} is missing or empty")
+            for key, allowed in domains.items():
+                val = fields.get(key, "").strip().strip("`*_ ").lower()
+                if val and val not in [str(a).lower() for a in allowed]:
+                    out.append(
+                        f"{eid}: {key} is {val!r}, outside its closed domain "
+                        f"({' | '.join(str(a) for a in allowed)})"
+                    )
+        return out
+    if kind == "recommended-in-alternatives":
+        # plan-059 Issue 2.2 (REQ-PORT-054). THE type's load-bearing rule: a schema whose
+        # `recommended` need not name one of its `alternatives` is not a schema. This is the
+        # positive control plan-059's escalation-schema capability gate asserts BY CHECK NAME
+        # rather than by `errors >= 1` — the latter is satisfied by any error finding at all,
+        # and would test "the linter emits errors" instead of the rule under test.
+        prefix = chk.get("id_prefix", "ESC")
+        out = []
+        for eid, fields in entry_sections(text, prefix):
+            alts = _split_alternatives(fields.get("alternatives", ""))
+            rec = fields.get("recommended", "").strip().strip("`*_ ")
+            if not rec or not alts:
+                # Emptiness is `entry-fields`' finding. Reporting it here too would
+                # double-count one defect as two.
+                continue
+            if rec.lower() not in [a.lower() for a in alts]:
+                out.append(
+                    f"{eid}: recommended {rec[:50]!r} is not one of alternatives "
+                    f"({' ; '.join(a[:30] for a in alts)})"
+                )
+        return out
+    if kind == "cell-vocabulary":
+        # plan-059 Issue 1.3 (REQ-DATA-076). A severity cell is the input to every
+        # findings-based predicate anyone might later build over review tables, and the corpus
+        # census measured **45 distinct tokens** in a column that has exactly five legal values.
+        # An undeclared set is not a set: research 005's severity-decay parser read this same
+        # column and was measured to DELETE `high` severities, which is what an unpinned
+        # vocabulary costs downstream.
+        #
+        # THE COLUMN IS LOCATED BY HEADER NAME, NEVER BY POSITION. The corpus writes review
+        # `## Concerns` tables with three, four and five columns and the severity column sits at
+        # a different index in each. A positional check would silently read the wrong column and
+        # report findings about prose — which is worse than not checking, because it looks like
+        # a check.
+        #
+        # THE VOCABULARY IS READ FROM THE SPEC MARKER, NOT HARD-CODED HERE. REQ-DATA-076 makes
+        # the ratified token list a line in `spec/data.md` precisely so a checker implements the
+        # ratification instead of re-deciding it. A hard-coded list here would drift from the
+        # marker on the first amendment, and nothing would report the divergence.
+        body = section_body(text, chk["section"])
+        if body is None:
+            return [f"section not found: {chk['section']}"]
+        tbl = first_table(body)
+        if tbl is None:
+            # A section written as a LIST is `table-columns`' business, not this check's.
+            return []
+        header, data = tbl
+        col = chk.get("column", "Severity")
+        if col not in header:
+            # An absent column is `table-columns`' finding; double-counting one defect as two
+            # swamps the signal this check carries.
+            return []
+        vocab = _resolve_vocabulary(chk)
+        if vocab is None:
+            # Honest rather than silently green: the instrument could not read its own declared
+            # set, which is a statement about the harness and not about this document.
+            return [
+                f"vocabulary marker {chk.get('vocabulary_marker')!r} not found in any candidate "
+                f"{chk.get('vocabulary_file')!r} — the ratified set could not be read, so no cell "
+                f"was judged"
+            ]
+        i = header.index(col)
+        out = []
+        for r in data:
+            rid = (r[0].strip() if r else "") or "?"
+            cell = (r[i] if i < len(r) else "").strip()
+            if not _norm_cell(cell):
+                continue  # emptiness is `cell-non-empty`'s finding, not this one
+            token = _norm_severity_cell(cell)
+            if token not in vocab:
+                out.append(
+                    f"row {rid!r}: {col} cell {cell[:40]!r} is off-vocabulary — "
+                    f"expected one of {' | '.join(sorted(vocab))}"
+                )
         return out
     if kind == "verification-clause":
         # plan-052 Issue 1.2 (REQ-DATA-070). A `Verification` cell written as PROSE cannot be

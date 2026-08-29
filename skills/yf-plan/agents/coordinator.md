@@ -207,6 +207,34 @@ target the worktree, never the primary checkout:
 In **fallback (in-place) mode** there is no worktree: all edits land in the primary checkout
 as before.
 
+## Second-party results (the `Agent`-returns-findings boundary)
+
+When a delegated agent returns a finding whose consequence **exceeds this session's
+authority** — it refutes a scoping decision the plan rests on, it names an outward-facing
+write, or it makes a plan issue unexecutable as written — **raise it as an artifact instead
+of deciding it silently**:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py escalation-raise "${plan_dir}" \
+  --question "…" --alternative "…" --alternative "…" --recommended "…" \
+  --on-no-answer "…" --detected-by self-report --evidence "…" --json
+```
+
+Then notify once per boundary — escalations **batch**, they do not stream:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py escalation-push "${plan_dir}" --json
+```
+
+**This is not a stop.** Record the question, notify, take the `on_no_answer` default, and
+**continue**; record the taken default with `escalation-resolve --default-taken`. The five
+stop classes are unchanged and this is not a sixth.
+
+**Why this boundary and not "notice you are stuck".** Measured on plan-059's own drafting
+session: three of four escalation-worthy moments came from a second party returning a result,
+and **none** from the session observing its own difficulty. Self-observation is the trigger
+everyone reaches for and the one the evidence does not support.
+
 ## Blocked gates
 
 Drain all unblocked work before reporting blocked gates (beads-authoring REQ-ORCH-012). A

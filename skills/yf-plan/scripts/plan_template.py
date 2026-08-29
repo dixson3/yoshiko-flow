@@ -69,6 +69,15 @@ CONTEXT_REQUIRED_SECTIONS = [
 #: DERIVE its sections from the producer, never restate them.
 RETROSPECTIVE_SECTIONS = ["Plan retrospective"]
 
+#: Sections `escalation-raise` writes into `escalations.md` (plan-059 Issue 2.2, REQ-PORT-053).
+#: The producer is CODE, so the type is `code-generated` and MUST declare a `derive_from`
+#: (doc_lint refuses a code-generated type without one). The document's only H1 is
+#: `# Escalations`, and `doc_lint.sections()` never returns an H1 — so this constant is the
+#: producer record, NOT a heading list any check consumes. A `headings-*` check against it
+#: would report the title missing on every file, forever, which is the exact trap
+#: `plan-retrospective.toml` records having fallen into.
+ESCALATION_SECTIONS = ["Escalations"]
+
 #: Sections `_write_upstream_reference` writes into `references/upstream-<N>.md`.
 #: The producer is CODE, so this type is `code-generated` and MUST derive from a producer
 #: constant rather than restate one (doc_lint refuses a code-generated type with no

@@ -1,0 +1,41 @@
+## Reconciled by plan-059-james-dixson-55137e (`yf-judgement`)
+
+**This issue stays OPEN.** plan-059 did not implement `yf-retrospective`; it **mined this issue
+for synergies and audited them against landed code** (EXP-003), and took a hard constraint from it.
+
+### Two of the six claimed synergies DO NOT HOLD
+
+Audited against what is actually in the tree, not against the proposal. The finding is recorded in
+`findings/exp-003-145-synergy-audit.md`, together with six *missed* synergies and five
+*anti*-synergies the proposal does not mention.
+
+### Finding 4 was this plan's hardest constraint
+
+> *"a manually-invoked skill will not be invoked"*
+
+plan-059 treated this as binding rather than advisory, and it is why **no `skills/yf-judgement/`
+directory exists**. `yf-judgement` ships as a **capability** inside `yf-plan` and `yf-herdr`, bound
+to an existing command, not as a new invocation surface — because adding one would have adopted
+the exact defect this issue measured.
+
+### `plan-retrospective.md` was REJECTED as the escalation surface
+
+Recorded here because the two artifacts look interchangeable and are not. A retrospective entry is
+a **closed adjudication** written after the fact, and `append_retrospective` is append-only
+**deliberately**; an escalation is an **open question** whose entire lifecycle is a state change.
+Sharing one non-updatable stream would have given `retrospective-report` an unanswered question to
+count as a recorded event.
+
+So `escalations.md` is a **sibling file with its own mutable `state`** (`REQ-PORT-053` /
+`REQ-PORT-054`), not a new retrospective entry kind. **The retrospective consumer half stays with
+this issue.**
+
+### This issue's announced mitigation did not exist — now filed as #291
+
+This issue announces a `yf-drift-check` edge over the escape/stop **taxonomy** as its mitigation
+for that taxonomy fragmenting. **No such edge exists**; `DRIFT-CHECK.md` declares no node for it.
+plan-059 makes it worse by one — `escalations.md` is a **fourth** home — so it filed **#291**
+rather than adding to the fragmentation silently. #291 also records that two existing homes
+already carry **the same class under two different names** with nothing detecting it.
+
+- Bundle: `docs/plans/plan-059-james-dixson-55137e/`

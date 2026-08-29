@@ -1019,3 +1019,62 @@ citations are a larger, separate class and are explicitly out of scope (D-13).
 Verification: `ctl-209-provenance` asserts a poured issue bead's metadata carries all three keys
 and that its description's first line matches `^Plan: \S+ \| Bundle: \S+` with a blank line before
 the detail — non-zero pre-fix, zero post-fix.
+
+REQ-DATA-076: **The severity vocabulary is CLOSED, and its ratified token list is written into
+this SPEC under a literal marker.** Every severity cell a yf artifact writes — the `Severity`
+column of a `plan.md` `## Risks & Mitigations` table and of a `reviews/pass-N.md` `## Concerns`
+table — shall carry exactly one token from the ratified set below, and nothing else.
+
+Ratified severity vocabulary: high | medium | low | medium-high | low-medium
+
+The marker line above is the **machine-readable residue of a human decision**. It is greppable at
+line start (`^Ratified severity vocabulary: `) precisely so a downstream check has a *declared*
+set to read rather than a set an implementer chose. A checker that hard-codes the tokens instead
+of reading this line is not implementing this requirement — it is re-deciding it.
+
+**The marker is a MARKER, not a `REQ-*` id.** Nothing shall assert the vocabulary by naming this
+requirement's number: every id in this file is numeric and sequential, so an assertion naming one
+is an assertion about an allocation order, which is not the fact being checked.
+
+**Cell grammar.** A conforming cell is one ratified token, compared **case-insensitively**, after
+stripping surrounding whitespace and the markdown emphasis and code delimiters (`*`, `_`, `` ` ``)
+that the corpus wraps severities in. Nothing else in the cell is legal:
+
+- **A qualifier suffix is NOT legal** — `medium (blocking)`, `high (see C3)`, `low — cosmetic`.
+- **Free text is not legal** — `n/a`, `TBD`, `informational`, `critical`, `blocker`.
+- **A compound is not legal** except the two hyphenated forms in the ratified set, which are single
+  tokens rather than compounds: `medium-high` and `low-medium`.
+- An **empty** cell is `cell-non-empty`'s finding, not this one; this check shall stay silent on it
+  so one defect is not counted twice.
+
+**Membership was decided by the operator, not derived.** The three options put to the Start Gate of
+plan-059 were (a) `high|medium|low` only — which rejects 42 of the 45 observed tokens; (b) (a) plus
+the `medium-high`/`low-medium` family — which the corpus uses deliberately; (c) (b) plus a legal
+qualifier suffix. **The operator ratified (b) and explicitly declined (c)**, on the ground that
+`medium (blocking)` is the exact token that fired the severity-decay detector on `plan-026` — so
+admitting the suffix would legalise the signal the pin exists to preserve.
+
+**The check ships at `R` (REPORT), not `E` or `W`, and that is not timidity.** The census behind
+this requirement measured 45 distinct severity tokens across the live corpus; an `E` would fail
+essentially every historical review bundle, and a `W` is an `E` at `review`/`ready-for-approval`
+(`STATUS_SEVERITY`) — which is exactly when a review report is being authored. The rule
+`review.toml` already states applies unchanged here: *a document type whose files are authored
+during the plan phase at which the linter binds cannot carry a promotable severity for content
+shape.* `R` makes the vocabulary **visible** without making it a gate nothing can pass.
+
+**This requirement pins the SEVERITY vocabulary. It does not pin the escape/stop TAXONOMY**, which
+is a different object with its own (four) homes. Conflating them was a live drafting error in
+plan-059 and is recorded here so the next reader does not repeat it.
+
+Rationale: plan-059 Issues 1.1/1.2, #269-partial. Research 005's severity-decay detector rests on
+reading severities out of review tables; its own parser was measured to **delete** `high`
+severities and to be biased toward them, and no downstream predicate can be built until the set
+being read is declared. The pin is independently valuable and ships even though plan-059
+**declined** to ship the detector — the vocabulary is the prerequisite, not the deliverable.
+Verification: `doc_lint.py` carries a `cell-vocabulary` check kind that locates its column **by
+header name, never by position**, reads the ratified set from this file's marker line, and reports
+one finding per off-vocabulary cell. `skills/yf-plan/fixtures/severity-vocabulary/off-vocabulary-med.md`
+is a schema-clean fixture whose only defect is one off-vocabulary cell, so a `cell-vocabulary`
+finding there is attributable; and the check reports on a real historical bundle
+(`docs/plans/plan-027-james-dixson-a59656/reviews/pass-1.md`) **without failing it**, which is what
+shipping at `R` means.

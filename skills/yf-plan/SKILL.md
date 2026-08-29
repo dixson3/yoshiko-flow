@@ -1391,6 +1391,52 @@ worktree's own environment instead of an inherited `VIRTUAL_ENV` from the primar
 Do **NOT** follow uv's `--active` suggestion inside a worktree — `--active` targets the
 active (primary) venv, the wrong address space.
 
+### 5.3b — The second-party-result trigger (`Agent` returns findings)
+
+**This trigger is not in #269 or #264 — it was added on plan-059's own measured evidence.**
+Three of the four escalation-worthy moments in that plan's drafting session came from **a
+second party returning a result whose consequence exceeded the session's authority**: the
+operator once, and two sub-agents. **Not one arose from the session noticing it was stuck.**
+Self-observation is the trigger everyone reaches for and the one the evidence does not
+support — the escalation-worthy events are largely **not self-observable at all**.
+
+So the `Agent`-returns-findings boundary is a first-class trigger point. **When a delegated
+agent returns a finding whose consequence exceeds this session's authority** — it refutes a
+scoping decision, it names an outward-facing write, or it makes a plan issue unexecutable as
+written — raise it as an artifact rather than deciding it silently:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py escalation-raise "${plan_dir}" \
+  --question "<the question, answerable without reading the plan>" \
+  --alternative "<option A>" --alternative "<option B>" \
+  --recommended "<one of the alternatives, verbatim>" \
+  --on-no-answer "<what happens if nothing comes back — REQUIRED>" \
+  --detected-by self-report \
+  --evidence "<the command + output, or the agent's returned text>" --json
+```
+
+**Write-then-notify, never ask-and-await.** The escalation IS the artifact; the push is a
+notification about it. There is no answer-return primitive in the transport, which is why
+`--on-no-answer` is required rather than encouraged — an escalation without its own default
+pretends to a round-trip that cannot be delivered.
+
+**Both triggers are BOUNDARIES, so escalations batch.** This one and `review-loop-check`
+both fire at a boundary, so a boundary's escalations go out in one notification riding the
+push classes the `yf-herdr` SPEC already defines — the propagation budget is a property of
+the existing trigger set, not new machinery:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py escalation-push "${plan_dir}" --json
+```
+
+`escalation-push` verifies delivery **structurally** and stamps a paired token; it never
+reads `$?`, because `herdr agent prompt` returns `agent_not_found` **at exit 0**.
+
+**Raising an escalation is NOT a stop.** Under the autonomous default the session records the
+question, notifies, takes the `on_no_answer` default, and **continues** — recording the taken
+default with `escalation-resolve --default-taken`. Halting here would convert a mechanism for
+*asking* into a sixth stop class, which is the opposite of what it is for.
+
 ### 5.4 — Blocked gates
 
 Drain all unblocked work first, and **route around** a blocked gate rather than stopping at it —
@@ -1589,6 +1635,28 @@ echo "$RETRO"
 # plan-retrospective.md is a legitimate state, not a finding. Do NOT add a `FAIL-LOUD:`
 # banner here — that vocabulary is reserved for halting steps.
 ```
+
+**Close-time yf-judgement never-fired report (ADVISORY, plan-059 Issue 5.2) — an OBSERVING
+step, so it sits in the same read-before-write band as the two above.**
+
+```bash
+JUDGEMENT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py judgement-never-fired-report "${plan_dir}" --json)
+echo "$JUDGEMENT"
+# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. It answers "did the
+# trigger RUN", not "did it find anything" — a trigger that never fires and a trigger that is
+# not installed produce the same silence, and this repository has four recorded instances of
+# exactly that. Do NOT add a `FAIL-LOUD:` banner here — that vocabulary is reserved for
+# halting steps.
+```
+
+**Read the limits, which the verb states about itself.** This report is **defence in depth,
+not the primary remedy**. The load-bearing mechanism is the trigger writing its own
+`judgement:` echo to `log.md` on both the fired and not-fired paths — nothing has to remember
+for that to happen. Fronting the report as a `plan_manager.py` verb buys exactly one thing:
+`test_close_contract.py` enumerates this block from `SKILL.md`, so a step **added** without
+the envelope is detected. It does **not** detect a step **removed**, and it never establishes
+that §6.4 was run at all.
+
 
 ```bash
 CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
