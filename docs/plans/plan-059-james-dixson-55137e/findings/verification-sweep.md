@@ -37,7 +37,7 @@ RC SC2d 0
 RC SC3 0
 RC SC4 0
 RC SC4b 0
-RC SC5 0
+RC SC5 1
 RC SC5b MANUAL
 RC SC6 0
 RC SC6d 0
@@ -54,9 +54,9 @@ RC gate-consistency 0
 RC okf-check 0
 RC pour-fidelity 0
 RC audit-close 0
-RC recheck-criteria 0
+RC recheck-criteria 1
 RC SC0a 0
-RC SC0 0
+RC SC0 1
 ```
 
 ## Notes per row
@@ -76,7 +76,7 @@ RC SC0 0
 | `SC3` | `0` | true |
 | `SC4` | `0` | true |
 | `SC4b` | `0` | } |
-| `SC5` | `0` | true |
+| `SC5` | `1` | false |
 | `SC5b` | `MANUAL` | manual verification — not a command |
 | `SC6` | `0` | true |
 | `SC6d` | `0` | true |
@@ -93,9 +93,9 @@ RC SC0 0
 | `okf-check` | `0` | — |
 | `pour-fidelity` | `0` | — |
 | `audit-close` | `0` | — |
-| `recheck-criteria` | `0` | — |
+| `recheck-criteria` | `1` | self-referential row: measured non-zero against the written block |
 | `SC0a` | `0` | — |
-| `SC0` | `0` | — |
+| `SC0` | `1` | self-referential row: measured non-zero against the written block |
 
 ## Mutation assertion
 
