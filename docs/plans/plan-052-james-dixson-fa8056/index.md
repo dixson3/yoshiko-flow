@@ -17,3 +17,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - One `upstream-<N>.md` per triaged issue, carrying the full untruncated body, URL, labels and state. Regenerated on re-triage.
 - [assets/](assets/) - Executable and recorded artifacts: the driven-red control harness (`gate-run.sh`), the enumerated control set (`controls.txt`), pinned fixtures, recorded baselines with their pathspecs, and the upstream authorization round-trip.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [scripts/](scripts/) - `gen_handoff.py` — generates AND `--check`s the handoff to plan-053 from this plan's own tables, so the provenance claim has an exit code rather than being asserted.

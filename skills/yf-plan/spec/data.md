@@ -153,6 +153,21 @@ Verification: `install.sh` rule-copy step (`install_rules`); plan_manager.py `_s
 
 ## Document Conformance (`document_types/` schemas, linter, normalizer, extractor)
 
+> **The other structural validation layer.** `doc_lint.py` is **one of two** structural
+> validation engines over these artifacts, and it is the **content** half. The **container** half
+> is `okf.py` (the `yf-okf` engine), which judges whether a bundle carries its reserved files, whether
+> every `.md` declares a `type`, and whether the root listing agrees with what is on disk.
+> `doc_lint` never asks a folder-membership question; `okf.py` never opens a document to check its
+> sections.
+>
+> The distinction is load-bearing in one specific direction: `doc_lint` is **status-aware** and
+> demotes to `R` at every terminal status, so past the intake gate only **2 of 55** checks can
+> produce an error — `okf.py` is **status-blind** and is therefore the layer that can still fail a
+> completed bundle. A check that must fire after intake belongs there, not here.
+>
+> **The boundary, its three axes, the measurements, and the resolution of the one real overlap (both
+> layers can report on frontmatter): [`../../../docs/validation-layers.md`](../../../docs/validation-layers.md).**
+
 REQ-DATA-024: Every in-scope yf artifact document type shall be described by a **declarative
 schema** at `document_types/<type>.toml`, read by a single linter engine. A schema comes in one
 of two flavours, split by **producer class**:
@@ -539,9 +554,16 @@ entries carry a verdict (`"[critique] Red-team: the DAG has zero backward cross-
 restatement of the filename. A description reading `"A finding"` satisfies the letter of this
 requirement and defeats its purpose.
 
-**This is enforced at the PRODUCER, and only advisorily at the linter.** The paired check — a
-`description` rule declared on the nested document types (`finding`, `review`, `reference`) by this
-same requirement — ships at **`W`** with a
+**This is enforced at the PRODUCER, and only advisorily at the linter.** The paired check is
+declared on **exactly the types that HAVE a producer or a declared authoring contract** —
+`upstream-reference` (written by `_write_upstream_reference`), and `finding` / `review` (agent-
+written against an output contract that now names `description`). It is **NOT** declared on
+`reference`, `reference-comment`, `reference-authored` or `reference-tracker`, and the exclusion
+is principled rather than convenient: `reference` selects **vendored third-party content**
+(`references/user-scope/**`) which no yf producer writes and which `doc_lint`'s own carve-out
+already declares must yield zero findings, while the other three are hand-drafted one-offs with no
+template to derive from. **A producer contract cannot bind a type with no producer** — asserting it
+there would be a permanent warning about someone else's file. The check ships at **`W`** with a
 `regex-present` pattern `^description:\s*\S`, so an empty string cannot satisfy it. `research-*`
 types are scoped **out** of that check: their `bundle_status` is `None`, so `STATUS_SEVERITY`
 returns `{}` and a `W` there is permanent and never demoted (REQ-DATA-045) — a permanent warning is

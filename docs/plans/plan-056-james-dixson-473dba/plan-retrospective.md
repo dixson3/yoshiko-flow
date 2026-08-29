@@ -32,3 +32,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-002
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-28 |
+| `stop_class` |  |
+| `asked` | The FULL tier went red at Issue 3.2 on test_config_tiers.py::test_no_config_yields_defaults. |
+| `answered` | The cause was THIS SESSION's own gitignored .yf/plan/config.local.json (an execute.worktree opt-out), not the plan's changes. Mechanism: _load_pm_in() chdirs into a temp repo FOR THE IMPORT and restores cwd in its finally block, but the test then calls pm._bootstrap_config() — a CWD-RELATIVE reader — after the restore, so it reads the developer's real config. The file's own line 68 warns about exactly this hazard for a different helper. The test therefore passes only when the developer happens to have no local config. Removed the opt-out (in-place mode needs no config — it is maintained by not invoking 'worktree ensure') and filed the latent defect as a follow-on for Issue 4.2. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | uv run skills/yf-change-validation/scripts/change_validation.py run --tier full --json -> first_failure test_config_tiers.py, 'AssertionError: assert {execute.worktree: False} == {}' |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

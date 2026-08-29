@@ -27,13 +27,30 @@ CK_RC=0
 
 run_driver() { (cd "${TREE}" && uv run "${DRIVER}" "$@" >/dev/null 2>&1); echo $?; }
 
-# --- ARM 1: the corpus as it stands -------------------------------------------------
-RC_CORPUS="$(run_driver --min-roots 1)"
+# --- ARM 1: a SYNTHESISED CLEAN corpus ----------------------------------------------
+# NOT the live corpus. SC3's claim is about the DRIVER's contract — "a nonexistent root is
+# distinguishable from a CLEAN corpus" — and the live corpus is legitimately drifting for
+# most of this plan's execution, which would make the two arms both exit 1 and the criterion
+# false for a reason that has nothing to do with the driver. Corpus cleanliness is SC10's
+# claim; conflating the two is the same two-properties-one-signal defect this plan is about.
+FIX="$(mktemp -d)"
+trap 'rm -rf "${FIX}"' EXIT
+mkdir -p "${FIX}/corpus/bundle-a"
+printf -- '---\ntype: Plan\nokf_spec: OKF-PLAN\n---\n# p\n' > "${FIX}/corpus/bundle-a/plan.md"
+printf '# Log\n\n## 2026-08-28\n\n- scoping: f\n' > "${FIX}/corpus/bundle-a/log.md"
+printf -- '---\nokf_version: 0.2\n---\n\n# bundle-a\n\n- [plan.md](plan.md) - The plan.\n' \
+  > "${FIX}/corpus/bundle-a/index.md"
+( cd "${FIX}" && git init -q . 2>/dev/null )
+
+RC_CORPUS="$( (cd "${FIX}" && uv run "${DRIVER}" --root 'corpus/*' --min-roots 1 >/dev/null 2>&1); echo $? )"
+if [ "${RC_CORPUS}" != "0" ]; then
+  ck_fail "the driver reports a SYNTHESISED CLEAN corpus as ${RC_CORPUS}, not 0 — arm 2 below cannot be interpreted"
+fi
 
 # --- ARM 2: a root that does not exist ----------------------------------------------
 # HARD ERROR, not a skip. The driver must refuse to demote a path it was explicitly told to
 # enumerate and could not find.
-RC_BADROOT="$(run_driver --root 'definitely/not/a/real/root/*' --min-roots 0)"
+RC_BADROOT="$( (cd "${FIX}" && uv run "${DRIVER}" --root 'definitely/not/a/real/root/*' --min-roots 0 >/dev/null 2>&1); echo $? )"
 
 if [ "${RC_CORPUS}" = "${RC_BADROOT}" ]; then
   ck_fail "a nonexistent enumerated root and the real corpus BOTH exit ${RC_CORPUS} — a mistyped root is indistinguishable from a clean sweep"
@@ -44,9 +61,9 @@ fi
 
 # --- ARM 3: the empty-inspection floor (REQ-CLI-029(b)) -----------------------------
 # A floor no run can trip is not a floor. Setting it above the corpus size must fail.
-RC_FLOOR="$(run_driver --min-roots 100000)"
+RC_FLOOR="$( (cd "${FIX}" && uv run "${DRIVER}" --root 'corpus/*' --min-roots 100000 >/dev/null 2>&1); echo $? )"
 if [ "${RC_FLOOR}" = "0" ]; then
   ck_fail "--min-roots 100000 exited 0 — the floor does not bite, so 'clean' and 'not read' are the same observation"
 fi
 
-ck_done "corpus=${RC_CORPUS}, nonexistent-root=${RC_BADROOT}, impossible-floor=${RC_FLOOR} — the three are distinguishable"
+ck_done "synthetic-clean-corpus=${RC_CORPUS}, nonexistent-root=${RC_BADROOT}, impossible-floor=${RC_FLOOR} — the three are distinguishable"
