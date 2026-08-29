@@ -1460,7 +1460,21 @@ def test_audit_review_count_equality_from_log_md(tmp_path):
 # ---------------------------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_LEGACY_PLAN_SRC = _REPO_ROOT / "docs" / "plans" / "plan-001-james-dixson-c88e7a"
+# THE FIXTURE IS THE FROZEN BEFORE-MIGRATION SAMPLE, NOT THE LIVE BUNDLE (plan-057 Issue 2.9).
+#
+# This pointed at the LIVE `docs/plans/plan-001-james-dixson-c88e7a` until plan-057 backfilled
+# it — at which point both tests below failed, not because the behaviour they pin changed, but
+# because their FIXTURE stopped being legacy. A test that copies a live corpus bundle is
+# coupled to the corpus, and the whole point of a legacy-migration test is that it will
+# eventually be run in a repo whose legacy bundles have been migrated.
+#
+# `okf-migration-samples/plan-bundle/before/` is the durable twin: a DELIBERATELY frozen
+# before-migration corpus, excluded from every OKF walk site by the `§3b` carve-out
+# (`findings/okf-migration-samples/**`) so no sweep, audit or backfill can ever reach it.
+# Verified at the swap: its `plan.md` and `README.md` are BYTE-IDENTICAL to pre-backfill
+# plan-001, so these tests assert over exactly the same content they always did.
+_LEGACY_PLAN_SRC = (_REPO_ROOT / "docs" / "plans" / "plan-029-james-dixson-75fd34"
+                    / "findings" / "okf-migration-samples" / "plan-bundle" / "before")
 
 # A portable, pre-activation context.md (legacy form, no frontmatter) — replaces
 # plan-001's genuinely-unfilled placeholder sections so the ONLY variables under test
@@ -1495,7 +1509,7 @@ Assumes uv and python3 are on PATH; no network side effects at plan time.
 
 
 def _legacy_plan_copy(tmp_path):
-    """Copy the REAL plan-001 legacy folder and sanitize the COPY into a genuine
+    """Copy the FROZEN plan-001-shaped legacy sample and sanitize the COPY into a genuine
     *pre-activation, portable* legacy plan: backdate the first `scoping:` date to
     strictly before the activation date (so it is date-grandfathered — plan-001's
     real scoping date lands exactly ON activation), and fill the placeholder context
