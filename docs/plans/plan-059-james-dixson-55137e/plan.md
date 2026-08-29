@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-059-james-dixson-55137e
 author: james-dixson
 created: '2026-08-28'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 2dcf24615fab68d963a9acf8041189b658fa6a9fe0c3e7ada9b39dbc31c2e7fa
+epic: yf-mol-vltm
 ---
 # Plan: Design yf-judgement: an automatically-triggered escalation path that raises a structured question to the nearest upstream controller when a plan stops converging, with the severity-vocabulary pin as its prerequisite deliverable and the severity-decay detector as an optional, second-order add-on
 
 **ID:** plan-059-james-dixson-55137e
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-vltm
 **Fingerprint:** 2dcf24615fab68d963a9acf8041189b658fa6a9fe0c3e7ada9b39dbc31c2e7fa
 
 ## Objective

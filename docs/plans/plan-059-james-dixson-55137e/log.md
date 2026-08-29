@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-29
+- executing: start gate resolved
+- intake: epic yf-mol-vltm poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: intake: coarse tracker reconciled to EXISTING #269 per AGENTS.md one-tracker rule; no competitor filed. Issue 0.2's 'create' wording is superseded by 'update #269 + record TRACKER_ISSUE=269' — surfaced to the operator, NOT executed: the upstream-writes gate blocks 0.2 and is unresolved by plan approval.
 
 - approved: operator approved; severity vocabulary = option (b): high|medium|low plus the medium-high/low-medium family. Option (c) DECLINED — a qualifier suffix such as 'medium (blocking)' is NOT legal, being the exact token that fired the detector on plan-026.
