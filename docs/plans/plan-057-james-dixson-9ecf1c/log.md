@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-29
+- reconciling: Epics 0-3 landed; 28/28 issue beads closed; pour fidelity clean (28 issues, 30 edges, 0 dropped/invented, 6 gates, 4 epics). 28 of 30 criteria PASS. SC19 and SC24 undischarged BY OPERATOR DECISION, not by defect: SC19 needs the 8 fail-closed backfill halts resolved, SC24 needs an upstream-write grant.
 - executing: start gate resolved
 - intake: epic yf-mol-4jb2 poured
 - approved: operator RE-APPROVED at fingerprint 2cb4560a after red-team pass 6 (4 defects: D1/D2/D3 repaired, D4 refuted)
