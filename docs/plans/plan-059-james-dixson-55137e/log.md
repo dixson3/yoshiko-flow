@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-29
+- reconciling: reconcile: #264/#273/#145 comments posted and read back (all remain OPEN); verify-reconcile 5/5 checkable rows pass; Issue 0.2 'create' -> 'adopt #269' substitution recorded as a retrospective deviation; filed-issues.env stale NOT-YET-FILED comments corrected to #291/#292
 - reconciling: post-execution reconciliation — all 36 issues closed, 4 gates resolved
 - executing: Epic 1 complete — severity vocabulary pinned (REQ-DATA-076), cell-vocabulary check shipped at R, fixture + tagged test green
 - executing: start gate resolved

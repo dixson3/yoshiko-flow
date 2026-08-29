@@ -925,6 +925,25 @@ def raise_escalation(plan_dir: Path, *, question: str, alternatives: list[str],
         )
     if not recommended.strip():
         raise ValueError("--recommended is required — it is the dominant operator input")
+    # THE SEPARATOR MAY NOT APPEAR INSIDE A VALUE, and this check exists because its absence
+    # produced a live defect rather than a hypothetical one.
+    #
+    # `alternatives` serialises as a `; `-joined cell. An alternative containing `;` therefore
+    # SPLITS on re-read, so `recommended` — which matched perfectly against the in-memory list
+    # at write time — matches nothing at read time. The entry passed validate-on-write and then
+    # FAILED ITS OWN SCHEMA on the next lint, which turned the portability audit red.
+    #
+    # Validating the in-memory list was checking the wrong artifact. The document is what the
+    # schema judges, so the write path must validate what will be WRITTEN — that is the whole
+    # point of validate-on-write, and it was being half-honoured.
+    _bad_sep = [a for a in alts + [recommended] if ";" in a]
+    if _bad_sep:
+        raise ValueError(
+            "`;` is the alternatives separator and may not appear inside an alternative or "
+            f"in --recommended (offending: {_bad_sep[0][:80]!r}). Rephrase with a comma or an "
+            "em dash: a value containing the separator splits on re-read, so `recommended` "
+            "would match nothing and the entry would fail its own schema after being written."
+        )
     if recommended.strip().lower() not in [a.lower() for a in alts]:
         raise ValueError(
             f"--recommended {recommended!r} is not one of --alternative "

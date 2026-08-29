@@ -85,6 +85,20 @@ with tempfile.TemporaryDirectory() as td:
           "fire-and-forget is the actual semantics; an entry with no default pretends "
           "to a round-trip the transport cannot deliver")
 
+    # THE REGRESSION ARM. This defect shipped and was caught by the portability audit, not by
+    # this test — an alternative containing the `;` SEPARATOR passed validate-on-write (which
+    # checked the in-memory list) and then FAILED ITS OWN SCHEMA on re-read, because the value
+    # split. Validating the in-memory list was checking the wrong artifact: the document is
+    # what the schema judges.
+    rc, res = pm_json("escalation-raise", *base,
+                      "--alternative", "an option; with a semicolon inside it",
+                      "--alternative", "b",
+                      "--recommended", "an option; with a semicolon inside it")
+    check("ctl-269-esc-domain-rules: an alternative containing the `;` SEPARATOR is refused",
+          rc != 0 and res.get("verdict") == "refused",
+          f"rc={rc} res={res} — it would split on re-read, so `recommended` would match "
+          f"nothing and the written entry would fail its own schema")
+
     check("ctl-269-esc-domain-rules: no refusal wrote a file",
           not (b / "escalations.md").exists(),
           "validate-on-write means a malformed escalation never reaches the artifact")

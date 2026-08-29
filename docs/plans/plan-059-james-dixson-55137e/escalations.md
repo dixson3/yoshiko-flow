@@ -100,16 +100,16 @@ warning, which would train a reader to ignore it.
 | Field | Value |
 | :-- | :-- |
 | `question` | verify-reconcile (a HALTING §6.4 step) requires reconcile comments on #264, #273 and #145. None is in the granted upstream-writes gate's Blocks set, which covered 0.2/2.7/6.3/6.4 only. Authorize the three additional comments, or complete the plan without them? |
-| `alternatives` | Authorize the three reconcile comments — bodies are drafted and reviewable at assets/upstream-drafts/reconcile-{264,273,145}.body.txt; each records what plan-059 did and leaves the issue OPEN, which is what a 'partial' disposition means; Do not authorize — completion HALTS at verify-reconcile, and the plan sits at status reconciling with everything else green; Do not authorize and amend the plan's Upstream Issues dispositions so the rows no longer require a comment |
-| `recommended` | Authorize the three reconcile comments — bodies are drafted and reviewable at assets/upstream-drafts/reconcile-{264,273,145}.body.txt; each records what plan-059 did and leaves the issue OPEN, which is what a 'partial' disposition means |
+| `alternatives` | Authorize the three reconcile comments — bodies are drafted and reviewable at assets/upstream-drafts/reconcile-{264,273,145}.body.txt — each records what plan-059 did and leaves the issue OPEN, which is what a 'partial' disposition means; Do not authorize — completion HALTS at verify-reconcile, and the plan sits at status reconciling with everything else green; Do not authorize and amend the plan's Upstream Issues dispositions so the rows no longer require a comment |
+| `recommended` | Authorize the three reconcile comments — bodies are drafted and reviewable at assets/upstream-drafts/reconcile-{264,273,145}.body.txt — each records what plan-059 did and leaves the issue OPEN, which is what a 'partial' disposition means |
 | `on_no_answer` | HALT at verify-reconcile and do not set complete. An outward-facing write outside the granted scope is a stop class the plan itself declares, and the third option would amend an approved plan's dispositions to route around a check rather than satisfy it. |
 | `detected_by` | mechanical-check |
 | `evidence` | plan_manager.py verify-reconcile <bundle> --json -> verdict fail, '3 of 6 upstream row(s) did not reach the end state their disposition requires': #264, #273, #145, each disposition 'partial'. The other 3 rows pass. #273's body was edited by Issue 6.4 but verify-reconcile checks COMMENTS, which is a different artifact. |
 | `asked_of` | operator (YF_PARENT_PANE) |
-| `state` | raised |
-| `answer` |  |
+| `state` | resolved |
+| `answer` | AUTHORIZED by the operator, who was shown the question, the three alternatives and all three drafted bodies before choosing. Posted 2026-08-29 as issue comments on #264, #273 and #145; each read back byte-identical to its reviewed draft (GitHub appends one trailing newline) and each issue remains OPEN, as 'partial' requires. verify-reconcile then returned all five checkable rows PASS. Not the no-answer default: the default was to HALT. |
 | `raised_when` | 2026-08-29 |
-| `resolved_when` |  |
+| `resolved_when` | 2026-08-29 |
 | `no_answer_taken` | no |
 | `push_batch` | 20260829T140657-1 |
 
