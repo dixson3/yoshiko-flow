@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-29
+- approved: operator RE-APPROVED at fingerprint 2cb4560a after red-team pass 6 (4 defects: D1/D2/D3 repaired, D4 refuted)
 - review: red-team pass 6 (post-approval, cross-plan concurrency audit): 4 defects + 1 incidental; D1/D2/D3 reproduced and repaired, D4 REFUTED by live-DB measurement (`bd list --all` excludes gate-typed beads; 179 exist, 42 carry `test_class`). R12 rewritten + D-13 sequencing decision (plan-059 first); #290's `reindex_write` crash brought in scope under Issue 1.4 with new SC6b; rule D's `<=10` test pinned to the recursive reading and SC2 restated to the per-directory K=10 invariant. Verdict APPROVE, 0 blockers remaining
 - approved: operator approved after 5 red-team passes; tracker #289 filed for the instrument-output diff (RE-001)
 - ready-for-approval: red-team cycle complete: 5 passes, APPROVE at pass 5, ready-check green
