@@ -12,6 +12,7 @@ network — every bd interaction is faked.
 """
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -458,7 +459,7 @@ def test_push_without_apply_writes_nothing(monkeypatch, capsys):
     def boom(cmd):
         raise AssertionError(f"push executed {cmd!r} without --apply")
     monkeypatch.setattr(up, "run", boom)
-    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda *a: [])
     assert up.cmd_push("a", apply=False) == 0
     out = capsys.readouterr().out
     assert "Preview only" in out
@@ -489,13 +490,19 @@ def test_push_leaves_beads_open_no_close_stage(monkeypatch, capsys):
     monkeypatch.setattr(up, "load_universe_rows", lambda: [
         {"id": "a", "title": "T", "description": "B"}])
     monkeypatch.setattr(up, "existing_labels", lambda: set())
-    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda *a: [])
     monkeypatch.setattr(up, "run", lambda cmd: "")
     up.cmd_push("a", apply=False)
     assert "bd close" not in capsys.readouterr().out
 
 
 def test_push_short_circuits_cleanly_when_tracking_disabled(monkeypatch, capsys):
+    # `cmd_push` reads the THREE-VALUED `upstream_state` (REQ-BUP-072 clause 3), so a
+    # genuine opt-out must be stubbed there. `upstream_enabled` is stubbed too: it is
+    # still the seam every OTHER caller uses, and pinning both keeps this test honest
+    # about which state it is asserting. The assertions below are UNCHANGED — a
+    # disabled repo still exits 0 and still says "disabled".
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "disabled")
     monkeypatch.setattr(up, "upstream_enabled", lambda: False)
     def boom(*a, **k):
         raise AssertionError("queried bd while upstream tracking is disabled")
@@ -511,7 +518,7 @@ def test_push_surfaces_owner_claimed_warning_inline_on_stdout(monkeypatch, capsy
         {"id": "a", "title": "T", "description": "B"}])
     monkeypatch.setattr(up, "existing_labels", lambda: set())
     monkeypatch.setattr(up, "owner_claim_warning_lines",
-                        lambda: ["WARNING: 36 open bead(s) excluded as owner-claimed"])
+                        lambda *a: ["WARNING: 36 open bead(s) excluded as owner-claimed"])
     monkeypatch.setattr(up, "run", lambda cmd: "")
     up.cmd_push("a", apply=False)
     assert "owner-claimed" in capsys.readouterr().out
@@ -913,15 +920,26 @@ def make_enumerate_universe():
       epic_parked  open epic, parent of t_open   -> dropped as a container type anyway
     """
     beads = {
-        "t_open": {"id": "t_open", "status": "open", "issue_type": "task"},
+        # `dependencies[]` mirrors the `bd list --all --json` row shape (REQ-BUP-071):
+        # `depends_on_id` for the target, `type` for the edge kind. The two beads with a
+        # parent carry it; the rest OMIT the key entirely, which is what bd actually
+        # emits (omitempty) and means "no dependencies", not "truncated".
+        "t_open": {"id": "t_open", "status": "open", "issue_type": "task",
+                   "parent": "epic_parked",
+                   "dependencies": [{"depends_on_id": "epic_parked", "type": "parent-child"}]},
         "t_blocked": {"id": "t_blocked", "status": "blocked", "issue_type": "task"},
         "t_deferred": {"id": "t_deferred", "status": "deferred", "issue_type": "task"},
         "t_claimed": {"id": "t_claimed", "status": "open", "owner": "alice", "issue_type": "task"},
-        "t_ip": {"id": "t_ip", "status": "in_progress", "issue_type": "task"},
+        "t_ip": {"id": "t_ip", "status": "in_progress", "issue_type": "task",
+                 "parent": "epic_anc",
+                 "dependencies": [{"depends_on_id": "epic_anc", "type": "parent-child"}]},
         "t_closed": {"id": "t_closed", "status": "closed", "issue_type": "task"},
         "epic_anc": {"id": "epic_anc", "status": "open", "issue_type": "epic"},
         "epic_parked": {"id": "epic_parked", "status": "open", "issue_type": "epic"},
     }
+    # The hand-built Edges below are KEPT DELIBERATELY. The pure `classify_active` tests
+    # assert edge-consumption behaviour and must stay independent of how edges are
+    # derived; `collect_parent_edges` gets its own direct tests instead (Issue 1.4).
     edges = [
         up.Edge(blocked="t_ip", blocker="epic_anc", dep_type="parent-child", target=beads["epic_anc"]),
         up.Edge(blocked="t_open", blocker="epic_parked", dep_type="parent-child", target=beads["epic_parked"]),
@@ -1386,3 +1404,454 @@ def test_render_text_marks_tombstones_and_thin_evidence():
     out = m.render_text(rows)
     assert "[HOIST TOMBSTONE]" in out
     assert "THIN" in out.upper(), "a row with no resolvable criteria must say so"
+
+
+# --- REQ-BUP-056 amendment (plan-058 Issue 2.5): a FAILED read is not an ABSENT label ---
+
+
+def test_existing_labels_read_failure_is_not_reported_as_missing(monkeypatch):
+    """SC5b. A failed `gh label list` must never render as "does not exist upstream".
+
+    Before this fix `existing_labels()` returned an EMPTY SET on failure, which is a
+    different claim entirely: an empty set says the repo has no labels, and the preview
+    then told the operator each label "does not exist upstream" — untrue, because
+    nothing had been established about it either way.
+    """
+    def boom(cmd):
+        raise SystemExit("command failed (1): gh label list")
+    monkeypatch.setattr(up, "run", boom)
+
+    # 1. The read failure is REPORTED AS UNKNOWN (None), not as an empty set.
+    assert up.existing_labels() is None, "a failed label read must not look like 'no labels exist'"
+
+    bead = {"id": "b1", "title": "T", "description": "D",
+            "issue_type": "task", "priority": 2}
+
+    # 2. On UNKNOWN, the preview withholds the label but makes NO absence claim.
+    unknown_plan = up.plan_write(bead, None)
+    assert unknown_plan["labels_unknown"] is True
+    assert unknown_plan["dropped_labels"], "labels are still withheld — gh rejects unknown labels atomically"
+    rendered = up.render_plan([unknown_plan])
+    assert "does not exist upstream" not in rendered, (
+        "a failed read must never be reported as an absence")
+    assert "UNKNOWN" in rendered and "NOT asserting it is absent" in rendered
+
+    # 3. CONTROL: a genuine empty-but-SUCCESSFUL read still reports absence, so the
+    #    fix narrows the claim rather than suppressing the GR-BUP-008 revisit signal.
+    known_plan = up.plan_write(bead, set())
+    assert known_plan["labels_unknown"] is False
+    known_rendered = up.render_plan([known_plan])
+    assert "does not exist upstream" in known_rendered, (
+        "GR-BUP-008's revisit trigger must survive — the drop line is its only producer")
+
+
+# --- REQ-BUP-072 (plan-058 Epic 2): every subprocess is bounded -----------------------
+
+
+def test_timeout_for_classifies_network_and_local_commands():
+    """`gh` crosses the network; `bd` and `bash` do not."""
+    assert up.timeout_for(["gh", "issue", "create"]) == up.NETWORK_TIMEOUT_S
+    assert up.timeout_for(["bd", "list", "--all", "--json"]) == up.LOCAL_TIMEOUT_S
+    # `bash -c` is LOCAL because all four sites in the module wrap `bd close`/`bd update`.
+    # The classifier cannot see inside the shell string — this asserts the documented
+    # decision, not a general claim about shells.
+    assert up.timeout_for(["bash", "-c", "bd close x"]) == up.LOCAL_TIMEOUT_S
+    assert up.timeout_for([]) == up.LOCAL_TIMEOUT_S
+
+
+def test_run_timeout_raises_naming_the_bound_and_the_command():
+    """A timeout must be DIAGNOSABLE: it names the bound AND the argv.
+
+    A bare TimeoutExpired traceback names neither, and "which command, and how long did
+    it wait" is always the operator's next question.
+    """
+    with pytest.raises(SystemExit) as exc:
+        up.run(["bash", "-c", "sleep 5"], timeout=1)
+    msg = str(exc.value)
+    assert "TIMED OUT" in msg
+    assert "1s" in msg, f"the bound must appear in the message: {msg!r}"
+    assert "sleep 5" in msg, f"the argv must appear in the message: {msg!r}"
+
+
+def test_run_unchecked_timeout_yields_upstream_query_error_not_a_traceback():
+    """TimeoutExpired is NOT an OSError, so it must be wrapped explicitly.
+
+    Unwrapped, it would sail past `resolve_upstream_states`' OSError handler and emit a
+    traceback INSTEAD of REQ-BUP-064's INCONCLUSIVE verdict.
+    """
+    assert not issubclass(subprocess.TimeoutExpired, OSError), (
+        "the premise of this test: if TimeoutExpired were an OSError the wrap would be "
+        "redundant. It is not.")
+    with pytest.raises(up.UpstreamQueryError) as exc:
+        up.run_unchecked(["bash", "-c", "sleep 5"], timeout=1)
+    assert "TIMED OUT" in str(exc.value)
+
+
+def test_resolve_upstream_states_reports_inconclusive_on_timeout(monkeypatch):
+    """The wrapped timeout reaches REQ-BUP-064's INCONCLUSIVE verdict."""
+    def slow(cmd, **kw):
+        raise up.UpstreamQueryError("command TIMED OUT after 1s: gh issue list")
+    monkeypatch.setattr(up, "run_unchecked", slow)
+    result = up.resolve_upstream_states(["#1"])
+    assert result.inconclusive is True
+
+
+_real_upstream_state = None  # bound below, before monkeypatching can shadow it
+
+
+def test_config_timeout_is_undetermined(monkeypatch):
+    """SC4c. A config-read timeout is NEVER reported as "upstream tracking disabled"."""
+    # Patch the CONFIG READ, not `upstream_state` — this test's whole point is that the
+    # real `upstream_state` derives UNDETERMINED from a timed-out read, so stubbing it
+    # would assert nothing. `upstream_state`'s default argument binds `_config_get` at
+    # def-time, so it is passed explicitly here.
+    global _real_upstream_state
+    _real_upstream_state = up.upstream_state
+    timed_out = lambda key: up.CONFIG_UNDETERMINED
+    monkeypatch.setattr(up, "_config_get", timed_out)
+    monkeypatch.setattr(up, "upstream_state",
+                        lambda *a, **k: _real_upstream_state(timed_out))
+
+    # The state is UNDETERMINED — a third state, not a way of being disabled.
+    assert _real_upstream_state(timed_out) == "undetermined"
+
+    def boom(*a, **k):
+        raise AssertionError("queried bd while the upstream state was undetermined")
+    monkeypatch.setattr(up, "load_universe_rows", boom)
+
+    rc = up.cmd_push("a", apply=False)
+    assert rc != 0, "an undetermined state must NOT exit 0 — that is a success-shaped no-op"
+
+
+def test_config_timeout_message_does_not_claim_disabled(monkeypatch, capsys):
+    """The distinction has to reach the OPERATOR, not just the exit code."""
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "undetermined")
+    monkeypatch.setattr(up, "load_universe_rows",
+                        lambda: (_ for _ in ()).throw(AssertionError("queried bd")))
+    up.cmd_push("a", apply=False)
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "UNDETERMINED" in combined
+    assert "nothing to push" not in combined, (
+        "the disabled message must not be reused for an undetermined state")
+
+
+def test_genuine_disable_still_exits_zero(monkeypatch, capsys):
+    """CONTROL: the new third state must not disturb the real opt-out path."""
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "disabled")
+    monkeypatch.setattr(up, "load_universe_rows",
+                        lambda: (_ for _ in ()).throw(AssertionError("queried bd")))
+    assert up.cmd_push("a", apply=False) == 0
+    assert "disabled" in capsys.readouterr().out
+
+
+def test_hoist_timeout_closes_no_bead(monkeypatch, capsys):
+    """SC5 / REQ-BUP-050 regression guard: a timeout on a WRITE closes NO bead.
+
+    The tombstone stage (`bd close -r`) is the destructive stage REQ-BUP-050 guards. A
+    timed-out `gh issue create` is exactly the UNVERIFIED case — the issue may or may
+    not exist — so the hoist must halt BEFORE it. The EXP-003 spike observed this held;
+    this asserts it, because a property nothing checks is a property that can regress.
+    """
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "b1", "title": "T", "description": "D", "issue_type": "task"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "granularity", lambda *a, **k: "coarse")
+
+    def timing_out_run(cmd, **kw):
+        # ASSERT-TRAP: reaching the destructive stage at all is the failure.
+        if cmd and cmd[0] == "bash":
+            raise AssertionError(
+                "REGRESSION: the destructive `bash -c 'bd close -r ...'` stage ran "
+                "behind an UNVERIFIED (timed-out) write")
+        if cmd and cmd[0] == "bd" and "close" in cmd:
+            raise AssertionError("REGRESSION: `bd close` ran behind an unverified write")
+        raise SystemExit("command TIMED OUT after 120s: " + " ".join(cmd))
+
+    monkeypatch.setattr(up, "run", timing_out_run)
+
+    rc = up.cmd_hoist("b1", dest="owner/repo", apply=True)
+
+    assert rc == 1, "a timed-out write must return non-zero"
+    err = capsys.readouterr().err
+    assert "FAIL-CLOSED" in err
+    assert "No bead was closed" in err, (
+        "the operator must be told explicitly that nothing was closed")
+    assert "TIMED OUT" in err, "the halt must name the timeout as the cause"
+
+
+# --- REQ-BUP-071 (plan-058 Issue 1.4): collect_parent_edges, directly ------------------
+#
+# This function had NO direct test before plan-058 — the three tests that touched it all
+# monkeypatched it away. That is precisely why the #268 fan-out could live inside it
+# unremarked, and why a rewrite of it needed a permanent regression guard.
+
+
+def test_collect_parent_edges_reads_dependencies_from_rows():
+    """The happy path: edges come off the row, with zero subprocesses."""
+    beads, _ = make_enumerate_universe()
+    edges = up.collect_parent_edges(beads)
+    got = {(e.blocked, e.blocker, e.dep_type) for e in edges}
+    assert got == {
+        ("t_open", "epic_parked", up.PARENT_CHILD),
+        ("t_ip", "epic_anc", up.PARENT_CHILD),
+    }
+    # The target bead is RESOLVED, not just named — classify_active walks it.
+    by_blocked = {e.blocked: e for e in edges}
+    assert by_blocked["t_ip"].target is beads["epic_anc"]
+
+
+def test_collect_parent_edges_issues_no_subprocess(monkeypatch):
+    """The load-bearing invariant: ZERO `bd` calls, whatever the universe size.
+
+    Asserted by trapping the spawn primitives rather than by timing, so it cannot
+    silently regress as the DB grows (REQ-BUP-071's scale-independence clause).
+    """
+    def trap(cmd, **kw):
+        raise AssertionError(f"collect_parent_edges spawned a subprocess: {cmd}")
+    monkeypatch.setattr(up, "run", trap)
+    monkeypatch.setattr(up, "run_unchecked", trap)
+
+    big = {}
+    for i in range(1000):
+        big[f"b{i}"] = {"id": f"b{i}", "status": "open", "issue_type": "task",
+                        "parent": "root",
+                        "dependencies": [{"depends_on_id": "root", "type": "parent-child"}]}
+    big["root"] = {"id": "root", "status": "open", "issue_type": "epic"}
+
+    edges = up.collect_parent_edges(big)
+    assert len(edges) == 1000
+
+
+def test_collect_parent_edges_absent_dependencies_key_means_none():
+    """An ABSENT key means no dependencies — not truncation (REQ-BUP-055 amendment).
+
+    bd emits `dependencies` omitempty; measured, it is missing from 138 of 1,905 rows on
+    this repository. A `row["dependencies"]` read would raise on every one of them.
+    """
+    beads = {"a": {"id": "a", "status": "open"}}          # key absent entirely
+    assert up.collect_parent_edges(beads) == []
+    beads = {"a": {"id": "a", "status": "open", "dependencies": None}}   # present, null
+    assert up.collect_parent_edges(beads) == []
+    beads = {"a": {"id": "a", "status": "open", "dependencies": []}}     # present, empty
+    assert up.collect_parent_edges(beads) == []
+
+
+def test_collect_parent_edges_ignores_non_parent_child_types():
+    """classify_active consumes ONLY parent-child; other edge types must not leak in."""
+    beads = {
+        "a": {"id": "a", "status": "open", "dependencies": [
+            {"depends_on_id": "b", "type": "blocks"},
+            {"depends_on_id": "c", "type": "related"},
+            {"depends_on_id": "d", "type": "parent-child"},
+        ]},
+        "b": {"id": "b", "status": "open"},
+        "c": {"id": "c", "status": "open"},
+        "d": {"id": "d", "status": "open"},
+    }
+    edges = up.collect_parent_edges(beads)
+    assert [(e.blocked, e.blocker) for e in edges] == [("a", "d")]
+
+
+def test_collect_parent_edges_handles_both_target_field_names():
+    """SOURCE-AGNOSTIC. `bd list` says `depends_on_id`; `bd show` says `id`.
+
+    The `depends_on_id or id or target` chain is preserved verbatim from the pre-fix
+    code for exactly this reason. A comparison harness written against `depends_on_id`
+    alone reads a false 100% divergence against `bd show` output — the trap the plan
+    recorded and this test pins.
+    """
+    list_shape = {"a": {"id": "a", "dependencies": [
+        {"depends_on_id": "p", "type": "parent-child"}]}, "p": {"id": "p"}}
+    show_shape = {"a": {"id": "a", "dependencies": [
+        {"id": "p", "dependency_type": "parent-child"}]}, "p": {"id": "p"}}
+
+    assert [(e.blocked, e.blocker) for e in up.collect_parent_edges(list_shape)] == [("a", "p")]
+    assert [(e.blocked, e.blocker) for e in up.collect_parent_edges(show_shape)] == [("a", "p")]
+
+
+def test_collect_parent_edges_skips_edges_with_no_resolvable_target():
+    """A dependency naming no target is skipped, not emitted as a null-blocker edge."""
+    beads = {"a": {"id": "a", "dependencies": [{"type": "parent-child"}]}}
+    assert up.collect_parent_edges(beads) == []
+
+
+# --- REQ-BUP-071 scale-independence on the PUSH path (plan-058 Issues 1.6 / 3.3) -------
+#
+# Modelled on `test_closable_issues_one_bd_list_and_zero_bd_show` (the REQ-BUP-052
+# precedent). The tests are NAMED EXPLICITLY rather than relying on a broad `-k`
+# selector: measured, a bare `-k zero_bd_show` is already satisfied by that pre-existing
+# `closable` test, so a criterion keyed on it could pass without this work existing.
+
+
+def _push_counting_run(calls, universe_size=10):
+    """A `run` stand-in for the PUSH path: counts argv, serves a rows-shaped universe."""
+    def _run(cmd, **kw):
+        calls.append(list(cmd))
+        if cmd[:2] == ["bd", "list"]:
+            rows = [{"id": "a", "status": "open", "issue_type": "task",
+                     "title": "T", "description": "B"}]
+            rows += [{"id": f"f{i}", "status": "closed", "issue_type": "task",
+                      "parent": "root",
+                      "dependencies": [{"depends_on_id": "root", "type": "parent-child"}]}
+                     for i in range(universe_size)]
+            rows.append({"id": "root", "status": "open", "issue_type": "epic"})
+            return json.dumps(rows)
+        if cmd[:1] == ["gh"]:
+            return ""
+        raise AssertionError(f"unexpected call on the push path: {cmd!r}")
+    return _run
+
+
+def _counts(calls):
+    return {
+        "bd list": sum(1 for c in calls if c[:2] == ["bd", "list"]),
+        "bd show": sum(1 for c in calls if c[:2] == ["bd", "show"]),
+        "bd dep list": sum(1 for c in calls if c[:3] == ["bd", "dep", "list"]),
+    }
+
+
+def test_push_reads_universe_once(monkeypatch):
+    """SC1b. The push path issues EXACTLY ONE `bd list --all`, not two.
+
+    Measured post-Epic-1, `push` issued TWO full universe reads of ~3 MB each for a
+    single command: one in `create_or_update`, one in `owner_claim_warning_lines`.
+    """
+    calls = []
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+    monkeypatch.setattr(up, "run", _push_counting_run(calls))
+
+    up.cmd_push("a", apply=False)
+
+    n = _counts(calls)
+    assert n["bd list"] == 1, f"expected exactly one universe read, got {n['bd list']}: {calls}"
+
+
+def test_push_zero_bd_show(monkeypatch):
+    """SC1. The push path spawns ZERO per-bead `bd show` subprocesses."""
+    calls = []
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+    monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=200))
+
+    up.cmd_push("a", apply=False)
+    assert _counts(calls)["bd show"] == 0
+
+
+def test_enumerate_zero_bd_show(monkeypatch):
+    """SC1. `cmd_enumerate` spawns ZERO per-bead `bd show` subprocesses.
+
+    This is the SECOND N+1 (Issue 1.3) — `external_for(bid)` per candidate.
+    """
+    calls = []
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+    monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=200))
+
+    up.cmd_enumerate(as_json=True)
+    assert _counts(calls)["bd show"] == 0
+
+
+def test_enumerate_scale_independence(monkeypatch):
+    """SC3. The `bd` call count does not grow with the universe — equal at 10 and 1,000.
+
+    The zero-`bd show` half is the load-bearing invariant. The `bd list` count is pinned
+    to whatever Issue 1.6 left it at rather than asserted as "one" a priori — the claim
+    is INDEPENDENCE OF SIZE, which is what cannot silently regress as the DB grows. A
+    wall-clock threshold would.
+    """
+    def run_at(size):
+        calls = []
+        monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+        monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+        monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=size))
+        up.cmd_enumerate(as_json=True)
+        return _counts(calls)
+
+    small, large = run_at(10), run_at(1000)
+    assert small == large, f"call counts grew with universe size: {small} -> {large}"
+    assert small["bd show"] == 0
+
+
+def test_push_scale_independence(monkeypatch):
+    """SC3, push half. Same claim, on the path UPSTREAM_TRACKING.md mandates."""
+    def run_at(size):
+        calls = []
+        monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+        monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+        monkeypatch.setattr(up, "existing_labels", lambda: set())
+        monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+        monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=size))
+        up.cmd_push("a", apply=False)
+        return _counts(calls)
+
+    small, large = run_at(10), run_at(1000)
+    assert small == large, f"call counts grew with universe size: {small} -> {large}"
+    assert small["bd show"] == 0
+
+
+def test_parent_without_edges_warns(capsys):
+    """SC2b / R10. Rows carrying `parent` with zero derived edges warn ON STDOUT.
+
+    This simulates a future `bd` that stopped emitting `dependencies[]`: the rows still
+    carry `parent`, but no edge can be built from them.
+    """
+    beads = {
+        "child1": {"id": "child1", "status": "open", "parent": "root"},
+        "child2": {"id": "child2", "status": "open", "parent": "root"},
+        "root": {"id": "root", "status": "open", "issue_type": "epic"},
+    }
+    assert up.collect_parent_edges(beads) == []
+    out = capsys.readouterr()
+    assert "WARNING" in out.out, "the warning must be on STDOUT — stderr is the channel #105 measured is never seen"
+    assert "ZERO parent-child" in out.out
+    assert "child1" in out.out and "child2" in out.out
+    assert out.err == "", "nothing should go to stderr"
+
+
+def test_no_warning_when_edges_are_derived(capsys):
+    """CONTROL: healthy data must be SILENT, or the warning is noise."""
+    beads = {
+        "child1": {"id": "child1", "status": "open", "parent": "root",
+                   "dependencies": [{"depends_on_id": "root", "type": "parent-child"}]},
+        "root": {"id": "root", "status": "open", "issue_type": "epic"},
+    }
+    assert len(up.collect_parent_edges(beads)) == 1
+    assert "WARNING" not in capsys.readouterr().out
+
+
+def test_no_warning_when_no_bead_has_a_parent(capsys):
+    """CONTROL: a genuinely flat universe has no parents AND no edges — not a defect."""
+    beads = {"a": {"id": "a", "status": "open"}, "b": {"id": "b", "status": "open"}}
+    assert up.collect_parent_edges(beads) == []
+    assert "WARNING" not in capsys.readouterr().out
+
+
+def test_warning_predicate_is_not_count_equality(capsys):
+    """The predicate must NOT false-alarm on a multi-parent bead.
+
+    Measured on bd 1.2.2: `bd dep add` accepts two parent-child edges on one bead, so a
+    count-equality check (edges == rows-with-parent) would fire on healthy data. Here 3
+    edges are derived from 2 rows carrying `parent` — unequal, and correctly silent.
+    """
+    beads = {
+        "multi": {"id": "multi", "status": "open", "parent": "p1", "dependencies": [
+            {"depends_on_id": "p1", "type": "parent-child"},
+            {"depends_on_id": "p2", "type": "parent-child"},
+        ]},
+        "solo": {"id": "solo", "status": "open", "parent": "p1", "dependencies": [
+            {"depends_on_id": "p1", "type": "parent-child"}]},
+        "p1": {"id": "p1", "status": "open"},
+        "p2": {"id": "p2", "status": "open"},
+    }
+    edges = up.collect_parent_edges(beads)
+    rows_with_parent = [b for b, r in beads.items() if r.get("parent")]
+    assert len(edges) == 3 and len(rows_with_parent) == 2, "the premise: counts DIVERGE here"
+    assert "WARNING" not in capsys.readouterr().out

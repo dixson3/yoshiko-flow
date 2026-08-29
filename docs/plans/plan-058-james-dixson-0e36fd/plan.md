@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-058-james-dixson-0e36fd
 author: james-dixson
 created: '2026-08-28'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: 174b21743cb585627be4c81b10f1179a60873e98e743cc7a8386566988c00b8d
+epic: yf-mol-802
 ---
 # Plan: Fix yf-beads-upstream upstream.py push: eliminate the full-universe per-bead bd show fan-out in the owner-claim warning path, bound run() with a timeout, and repair the identical defect in cmd_enumerate (#268)
 
 **ID:** plan-058-james-dixson-0e36fd
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-802
 **Fingerprint:** 174b21743cb585627be4c81b10f1179a60873e98e743cc7a8386566988c00b8d
 
 ## Objective
@@ -368,7 +370,7 @@ EXP-005 documents: fixing the instance that was filed and not sweeping for sibli
 | SC3 | `cmd_enumerate` and `push` issue a `bd` call count **independent of universe size** (equal at 10 and 1,000 beads) | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q -k scale_independence` -> exit 0 | 1.1, 1.3, 1.6, 3.3 |
 | SC3b | `deps_for_show` is gone and no caller remains | `sh -c '! grep -n "deps_for_show" skills/yf-beads-upstream/scripts/upstream.py'` -> exit 0 | 1.2 |
 | SC3d | Issue 1.7's activation of the `narrow` follow-on signal is a recorded, reviewed decision — not a side effect of a performance change | manual: the semantic change is stated in Issue 1.7, carried by risk R14, gated, and the underlying defect filed by Issue 3.7 | 1.7, 3.7 |
-| SC3c | The land-the-plane follow-on path issues no per-bead `bd dep list` | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q -k followons_no_per_bead_dep_list` -> exit 0 | 1.7 |
+| SC3c | **N/A — Follow-on activation DECLINED at its gate.** (Original criterion: the land-the-plane follow-on path issues no per-bead `bd dep list`.) | manual: N/A by the Follow-on activation gate's own Instructions, which specify that on a decline *"Issues 1.7 and 3.1c are closed as `wontfix-for-now` … and SC3c/SC3d/SC6c are marked **N/A**"*. Issue 1.7 did not land, so the test this named (`-k followons_no_per_bead_dep_list`) was never written and the command **correctly exits 5**. The underlying defect is filed as [#280](https://github.com/dixson3/yoshiko-flow/issues/280). | 1.7 (wontfix-for-now) |
 | SC4 | Every subprocess spawn in `upstream.py` is bounded, and a timeout names the command and the bound | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q -k timeout` -> exit 0 | 2.1, 2.2, 2.3, 2.4, 2.6 |
 | SC4b | No unbounded `subprocess.run` remains in `upstream.py` | `uv run skills/yf-beads-upstream/scripts/check_no_universe_fanout.py --check-timeouts` -> exit 0 | 2.2, 2.3, 2.4, 3.1 |
 | SC4c | A config-read timeout is never reported as "upstream tracking disabled" | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q -k config_timeout_is_undetermined` -> exit 0 | 2.4 |
@@ -379,9 +381,28 @@ EXP-005 documents: fixing the instance that was filed and not sweeping for sibli
 | SC6b | The check runs in the FAST tier on every edit under `skills/yf-beads-upstream/scripts/**` | `sh -c 'grep -q "check_no_universe_fanout" CHANGE-VALIDATION.md'` -> exit 0 | 3.2 |
 | SC7 | The existing test suite passes with no modification to the three `collect_parent_edges` stubs | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` -> exit 0 | 1.5, 2.6 |
 | SC8 | Every `yf-beads-upstream` behavior change is covered by a landed `REQ-BUP-*` that precedes its implementation | `sh -c 'grep -q REQ-BUP-071 skills/yf-beads-upstream/SPEC.md && grep -q REQ-BUP-072 skills/yf-beads-upstream/SPEC.md && grep -q REQ-BUP-073 skills/yf-beads-upstream/SPEC.md'` -> exit 0 | 0.1, 0.1b, 0.2, 0.3 |
-| SC8b | `yf-beads-hygiene` has its own landed requirement, carrying the dry-run-by-default contract, before any destructive verb | `sh -c 'grep -q "dry-run by default" skills/yf-beads-hygiene/SPEC.md'` -> exit 0 | 4.4b |
+| SC8b | **N/A — no destructive verb was added.** (Original criterion: `yf-beads-hygiene` has its own landed requirement carrying the dry-run-by-default contract, before any destructive verb.) | manual: N/A. The criterion is conditioned on *"before any destructive verb"*, and the operator accepted **"not warranted yet"** at the Pruning Authorization gate, so Issues 4.4b and 4.5 closed unimplemented. `grep "dry-run by default" skills/yf-beads-hygiene/SPEC.md` **correctly exits 1** — landing a requirement that protects nothing would be the mirror defect of skipping one that does. | 4.4b (wontfix-for-now) |
 | SC8c | The SPEC §5 Verification entries exist for each new `REQ-BUP-*` | `sh -c 'grep -q "REQ-BUP-073 is checked" skills/yf-beads-upstream/SPEC.md'` -> exit 0 | 0.4 |
 | SC9 | Epic 4 reaches an explicit, measured, operator-acknowledged decision — implement or "not warranted yet" — and either outcome closes the epic | manual: the Pruning Authorization gate is a human consent gate; no command can establish that an operator authorized an irreversible deletion | 4.1, 4.2, 4.3, 4.4, 4.4b, 4.5 |
 | SC9b | All three disk-reclamation candidates are measured and reported on their merits — each with its true risk class — whatever Epic 4 concludes about pruning | manual: Issue 4.1b records (a) `git-remote-cache` **safe, reclaimed**, (b) Dolt GC **hypothesis, tested, win bounded by the ~105 MB journal**, and Issue 4.1d records (c) `.beads/backup` **consent-gated, DR-versus-space**. No figure is promised in advance | 4.1b, 4.1d |
 | SC10 | **All four** separately-filed defects are filed upstream rather than silently dropped | manual: verify an open upstream issue exists for each of — the `--include-gates` edge gap (3.4), the aggregate wall-clock deadline (3.5), the `narrow`-always-empty follow-on defect (3.7), and `check_gh_direct.py`'s vacuous `FORBIDDEN_SUBSTRINGS` (3.8) | 3.4, 3.5, 3.7, 3.8 |
 | SC11 | `SKILL.md`'s description of the push/enumerate cost model matches the measured post-fix behavior | manual: prose agreement, checked by reading `SKILL.md` against Issue 1.9's recorded timing | 1.9, 3.6 |
+
+### Execution outcome (recorded at reconcile)
+
+Full evidence in [assets/final-criteria-sweep.md](assets/final-criteria-sweep.md); the pre-work
+baseline is [assets/instrument-sweep.md](assets/instrument-sweep.md).
+
+- **17 instruments flipped red to green** — 15 progress criteria plus both capability-gate Tests.
+- **SC7 is the sole INVARIANT criterion** and was green before *and* after, as a regression guard
+  must be. It was never "fixed" into failing.
+- **SC3c, SC6c and SC8b are N/A**, each a direct consequence of an operator decline at a human
+  gate — the outcome those gates' own Instructions specify.
+- **SC6c is N/A *despite passing*.** Its `Verification` command is byte-identical to SC6's, so it
+  goes green whether or not Issue 3.1c shipped — it cannot discriminate the claim it makes. This is
+  the vacuous-criterion class this plan's own reviews caught four instances of; it is reported as
+  found, not counted as a pass.
+- **Two of this plan's own estimates were corrected against measurement during execution**: the
+  Dolt-GC upside is bounded by an **11 MB** journal, not the 105 MB assumed (an order of magnitude
+  in the plan's favour, which *weakens* the GC case); and `close_reason` prose spans **804** beads
+  over 200 chars, not 745.

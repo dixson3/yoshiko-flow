@@ -53,6 +53,8 @@ approved: yes
 | `uv-with` | `uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q` |  |  |
 | `bup-prescriptive-push` | `uv run skills/yf-beads-upstream/scripts/check_prescriptive_push.py` |  |  |
 | `bup-gh-direct` | `uv run skills/yf-beads-upstream/scripts/check_gh_direct.py` |  |  |
+| `bup-no-universe-fanout` | `uv run skills/yf-beads-upstream/scripts/check_no_universe_fanout.py --check-timeouts` |  |  |
+| `bup-fanout-controls` | `uv run skills/yf-beads-upstream/scripts/test_check_no_universe_fanout.py` |  |  |
 | `uv-skills` | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 | `uv-pytest` | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 | `uv-yf` | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
@@ -203,7 +205,7 @@ approved: yes
 | `skills/yf-research/scripts/okf.py` | `uv-okf`, `uv-_shared` |
 | `skills/yf-beads-hygiene/scripts/**` | `uv-run` |
 | `skills/yf-beads-hygiene/scripts/test_beads_hygiene.py` | `uv-run` |
-| `skills/yf-beads-upstream/scripts/**` | `uv-with`, `bup-prescriptive-push`, `bup-gh-direct` |
+| `skills/yf-beads-upstream/scripts/**` | `uv-with`, `bup-prescriptive-push`, `bup-gh-direct`, `bup-no-universe-fanout`, `bup-fanout-controls` |
 | `skills/yf-beads-upstream/scripts/test_upstream.py` | `uv-with` |
 | `skills/yf-beads-upstream/SKILL.md` | `bup-prescriptive-push`, `uv-with`, `bup-gh-direct` |
 | `skills/yf-change-validation/scripts/**` | `uv-skills` |
