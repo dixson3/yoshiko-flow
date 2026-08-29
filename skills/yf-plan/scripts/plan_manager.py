@@ -6346,6 +6346,120 @@ def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
     }))
 
 
+#: The statuses at which an unanswered escalation is a FINDING rather than ordinary
+#: in-flight state. Before `reconciling` an open question is simply an open question — the
+#: plan is still running and the default has not yet been irreversibly taken.
+_ESCALATION_OPEN_STATUSES = ("reconciling", "complete")
+
+
+def _open_escalation_findings(plan_dir: Path) -> list[dict]:
+    """One `warn` finding, item `escalation-open`, when a question outlives the plan.
+
+    **`W`, never `E`.** An open escalation is a fact about the plan's *conversation*, not a
+    defect in its bundle, and this whole step is advisory — a halting severity here would
+    block completion on an unanswered question, which is precisely the coercion that would
+    make the mechanism something to route around rather than use.
+
+    **Exactly ONE finding, however many escalations are open.** The signal is "this plan is
+    finishing with unanswered questions", which is one fact; emitting one per entry would let
+    a plan with six open escalations look six times worse than a plan with one, when what a
+    reader needs is the list, which the detail carries.
+
+    Returns `[]` outside `_ESCALATION_OPEN_STATUSES`, and `[]` when there is no
+    `escalations.md` at all — the presence-optional contract holds here too.
+    """
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.exists():
+        return []
+    status = _read_plan_status(plan_md.read_text(encoding="utf-8"))
+    if status not in _ESCALATION_OPEN_STATUSES:
+        return []
+    path = plan_dir / ESCALATION_FILE
+    if not path.exists():
+        return []
+    entries = _escalation_entries(path.read_text(encoding="utf-8"))
+    open_ids = [e for e in sorted(entries) if entries[e].get("state", "").strip() == "raised"]
+    if not open_ids:
+        return []
+    return [_audit_finding(
+        "escalation-open", "warn",
+        f"{len(open_ids)} escalation(s) still `state: raised` at `{status}`: "
+        f"{', '.join(open_ids)}. The plan is finishing with a question nobody answered. "
+        f"Either record the answer with `escalation-resolve <id> --answer ...`, or — if the "
+        f"recommended default was taken without an answer arriving — record THAT with "
+        f"`escalation-resolve <id> --answer '<the default>' --default-taken`, which is the "
+        f"ordinary fire-and-forget outcome and not a failure. Advisory: completion is NOT "
+        f"blocked."
+    )]
+
+
+@cli.command("judgement-never-fired-report")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def judgement_never_fired_report(plan_dir: str, as_json: bool):
+    """Close-time report on whether yf-judgement's trigger ever ran — ADVISORY (Issue 5.2).
+
+    **The question this answers is "did the detector run", NOT "did it find anything".** A
+    trigger that never fires and a trigger that is not installed produce the same silence, and
+    plan-059 records four instances of that exact failure in this repository — `closable`,
+    `plan_manager.py audit`, `retrospective_fields.py`, and #270's never-poured formula. Every
+    one was found by hand, late, by someone who happened to go looking.
+
+    **This is DEFENCE IN DEPTH, not the primary remedy, and the difference is stated rather
+    than implied.** The load-bearing mechanism is the trigger writing its own `judgement:`
+    echo to `log.md` on both paths (Issue 5.1) — nothing has to remember for that to happen.
+    This verb only *reads* those echoes. Fronting it as a `plan_manager.py` verb buys one
+    specific thing: `test_close_contract.py` enumerates the §6.4 chain from `SKILL.md`, so a
+    step **added** without the envelope is detected. It does **not** detect a step **removed**,
+    and it never establishes that §6.4 was run at all. Both limits are real and neither is
+    closed here.
+
+    Advisory: exits 0 unconditionally and never gates `set complete`.
+    """
+    pdir = Path(plan_dir)
+    log = pdir / "log.md"
+    lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+    echoes = [ln for ln in lines if "judgement: " in ln]
+    fired = [ln for ln in echoes if JUDGEMENT_FIRED in ln]
+    not_fired = [ln for ln in echoes if JUDGEMENT_NOT_FIRED in ln]
+    esc = _escalation_report(pdir)
+
+    if not echoes:
+        verdict = "fail"
+        reason = ("the yf-judgement trigger left NO echo in log.md — it either never ran or "
+                  "no longer writes its echo. These are indistinguishable from here, which "
+                  "is the whole point: a trigger whose non-firing looks like a quiet period "
+                  "is not observable.")
+        remediation = (
+            "Run `plan_manager.py judgement-echo-check <plan_dir> --json` — it invokes the "
+            "trigger and reports `lines_added` by diffing log.md, so it distinguishes the "
+            "two cases. If `lines_added` is 0, restore the `_judgement_echo` call in "
+            "`review-loop-check`. Advisory: completion is NOT blocked."
+        )
+    else:
+        verdict = "pass"
+        reason = (f"the trigger ran {len(echoes)} time(s) — {len(fired)} fired, "
+                  f"{len(not_fired)} not-fired. Non-firing is RECORDED, not merely absent.")
+        remediation = None
+
+    click.echo(json.dumps({
+        "verdict": verdict,
+        "passed": verdict == "pass",
+        "advisory": True,
+        "echoes": len(echoes),
+        "fired": len(fired),
+        "not_fired": len(not_fired),
+        "last_echo": echoes[0] if echoes else None,
+        "escalations_raised": esc["raised"],
+        "escalations_open": esc["open"],
+        "pushes": esc["pushes"],
+        "reason": reason,
+        "remediation": remediation,
+    }, indent=2))
+    # ADVISORY: always 0. Not conditional, and with no flag to make it conditional.
+    raise SystemExit(0)
+
+
 @cli.command("audit-close")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "as_json", is_flag=True,
@@ -6381,7 +6495,21 @@ def audit_close(plan_dir: str, as_json: bool):
     """
     pdir = Path(plan_dir)
     result = _audit_plan(pdir)
-    findings = result.get("findings", []) or []
+    findings = list(result.get("findings", []) or [])
+    # plan-059 Issue 5.4 — the OPEN-ESCALATION signal, added HERE and deliberately not in
+    # `_audit_plan`.
+    #
+    # The placement is the requirement, not a convenience. REQ-PORT-ACT-ESCALATION puts
+    # `escalations.md` on NO audit presence list, so `audit` must stay silent about
+    # escalations in both directions — a bundle with none and a bundle with one audit
+    # identically. This close-time verb is a different question: not "is the bundle
+    # conformant" but "is the plan finishing with a question it never got an answer to".
+    #
+    # It is the plan's own thesis applied to its own artifact. An escalation raised, never
+    # answered, and never noticed is exactly the silent-idle failure the whole mechanism
+    # exists to make impossible — and without this the artifact would record the question
+    # while nothing ever read it back.
+    findings.extend(_open_escalation_findings(pdir))
     fails = [f for f in findings if f.get("status") == "fail"]
     warns = [f for f in findings if f.get("status") == "warn"]
 

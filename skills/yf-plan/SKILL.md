@@ -1636,6 +1636,28 @@ echo "$RETRO"
 # banner here — that vocabulary is reserved for halting steps.
 ```
 
+**Close-time yf-judgement never-fired report (ADVISORY, plan-059 Issue 5.2) — an OBSERVING
+step, so it sits in the same read-before-write band as the two above.**
+
+```bash
+JUDGEMENT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py judgement-never-fired-report "${plan_dir}" --json)
+echo "$JUDGEMENT"
+# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. It answers "did the
+# trigger RUN", not "did it find anything" — a trigger that never fires and a trigger that is
+# not installed produce the same silence, and this repository has four recorded instances of
+# exactly that. Do NOT add a `FAIL-LOUD:` banner here — that vocabulary is reserved for
+# halting steps.
+```
+
+**Read the limits, which the verb states about itself.** This report is **defence in depth,
+not the primary remedy**. The load-bearing mechanism is the trigger writing its own
+`judgement:` echo to `log.md` on both the fired and not-fired paths — nothing has to remember
+for that to happen. Fronting the report as a `plan_manager.py` verb buys exactly one thing:
+`test_close_contract.py` enumerates this block from `SKILL.md`, so a step **added** without
+the envelope is detected. It does **not** detect a step **removed**, and it never establishes
+that §6.4 was run at all.
+
+
 ```bash
 CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \

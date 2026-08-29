@@ -169,5 +169,41 @@ with tempfile.TemporaryDirectory() as td:
           f"it detects is removed is not a detector")
     broken.unlink(missing_ok=True)
 
+# ---- ctl-269-callsite: the trigger's INVOCATION SITE is asserted, not assumed -----------
+# Issue 5.3's "a tagged test that fails if the trigger is removed from its invocation site".
+# `ctl-269-echo-removal` above proves the ECHO's removal is detected; this proves the
+# TRIGGER's call site is, which is a different removal with the same silent signature.
+CLOSE = SCRIPTS / "test_close_contract.py"
+
+
+def assert_invocation(verb: str) -> tuple[int, dict]:
+    r = subprocess.run(["uv", "run", str(CLOSE), "--assert-invocation", verb],
+                       capture_output=True, text=True, cwd=REPO)
+    try:
+        return r.returncode, json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return r.returncode, {"_stdout": r.stdout[:300]}
+
+
+for verb in ("escalation-raise", "escalation-push", "judgement-never-fired-report"):
+    rc_v, res_v = assert_invocation(verb)
+    check(f"ctl-269-callsite: `{verb}` is invoked at a real site",
+          rc_v == 0 and res_v.get("sites"),
+          f"rc={rc_v} res={res_v} — a verb registered but invoked nowhere is the "
+          f"'ships unable to fire' defect (#145 finding 4)")
+
+rc_v, res_v = assert_invocation("no-such-verb")
+check("ctl-269-callsite: an UNRECOGNISED verb exits non-zero rather than being swallowed",
+      rc_v != 0 and res_v.get("registered") is False,
+      f"rc={rc_v} res={res_v} — before this the flag was silently ignored and the bare "
+      f"suite passed, so the criterion was green before the work")
+
+_steps = subprocess.run(["uv", "run", str(CLOSE), "--list-steps", "--json"],
+                        capture_output=True, text=True, cwd=REPO)
+check("ctl-269-callsite: --list-steps emits JSON as the SOLE stdout",
+      _steps.returncode == 0 and _steps.stdout.lstrip().startswith("{"),
+      f"stdout starts {_steps.stdout[:80]!r} — pytest's session banner corrupts the stream "
+      f"unless the flag short-circuits BEFORE pytest (measured: jq parse error, rc=5)")
+
 print(f"\n{len(failures)} failure(s)" if failures else "\nall passed")
 sys.exit(1 if failures else 0)
