@@ -413,6 +413,39 @@ companion rule.
   `row["external_ref"]` and never a key-presence test — on this repo the key is missing from the
   first row and from 998 of 1019 rows.
 
+  - **Amendment (plan-058, #268) — the floor extends to `dependencies[]`.** REQ-BUP-071 makes
+    `collect_parent_edges` and `detect_followons` read dependency edges from the rows
+    `bd list --all --json` already returns, so the floor now covers a **third** capability:
+    `bd list --all --json` (and `bd list --parent <pid> --all --json`) carrying a
+    **`dependencies[]`** array whose elements expose **`depends_on_id`** and **`type`**.
+
+    **Recorded as an assertion, not a measurement, exactly as the parent requirement is.** The
+    version actually verified is **bd 1.2.2** (`bd version` → `bd version 1.2.2 (Homebrew)`), on
+    which `bd list --all --json` returned rows whose `dependencies[]` elements carry the keys
+    `created_at, created_by, depends_on_id, issue_id, metadata, type`. No older binary was
+    available to bisect against, so 1.2.2 is **the version verified, not the version below which
+    it breaks**.
+
+    **Reconciliation with the 1.1.2 floor above.** The two do not conflict and the floor is not
+    raised to 1.2.2 for the whole skill: 1.1.2 remains the floor for the `external_ref`
+    capabilities, and 1.2.2 is the version at which the `dependencies[]` capability was verified.
+    A consumer on a bd between the two may well have both; nothing here establishes that it does
+    not. Stating one floor per capability is what keeps each claim as strong as its evidence.
+
+    **The same `omitempty` caveat applies, and it means the OPPOSITE of truncation.** The
+    `dependencies` key is *absent* from rows with no dependency edges — measured, missing from
+    **138 of 1,905** rows on this repository (the plan recorded 122 of 1,801 when it was drafted;
+    the universe grew, the proportion did not move). An absent key means **no dependencies**, not
+    a truncated or partial response. A bulk reader shall therefore use a defaulting read
+    (`row.get("dependencies") or []`), never `row["dependencies"]` and never a key-presence test
+    treated as an error signal.
+
+    **The target-id field name differs BY SOURCE, and both must keep being handled.** `bd show`
+    embeds the full target bead and carries the id as **`id`**; `bd list`'s `dependencies[]` uses
+    **`depends_on_id`**. The `depends_on_id or id or target` chain in `collect_parent_edges` is
+    what makes the function source-agnostic and shall not be narrowed to whichever field the
+    current source happens to emit.
+
 - **REQ-BUP-056** *(testable, #133)* the missing-label policy shall be **restrict-and-drop**: on a
   write, the skill shall emit only labels that **already exist** in the target repo, and shall
   **skip** any label that does not. It shall **never create a label**.
@@ -448,6 +481,25 @@ companion rule.
   **Failure shape.** Because `gh` rejects an unknown label *before* creating the issue
   (REQ-BUP-054 provenance), a drop that was wrongly skipped would surface as a hard create
   failure, never as a half-created issue. There is no compensating-delete path to specify.
+
+  - **Amendment (plan-058, #268) — a FAILED READ is not an ABSENT LABEL.** The drop report above
+    is only as true as the label list it is computed against. `existing_labels()` currently
+    renders a **failed read** of the repo's label set identically to a successful read that
+    returned nothing — so every label is reported as
+    `dropping label 'X' (does not exist upstream)`, which is **untrue**: nothing was established
+    about whether `X` exists.
+
+    The requirement is amended so the reporting distinguishes the two. On a failed label read the
+    skill shall report the read failure as such and shall **not** assert that any label is absent
+    upstream. The three states — *label absent* / *label present* / *label set UNKNOWN* — are
+    distinct, and collapsing the third into the first is the same silent-absence class REQ-BUP-063
+    rejects for an unparseable `external_ref` and REQ-BUP-064 rejects for an unresolvable one.
+
+    **Pre-existing, but in scope here because REQ-BUP-072 adds a new route into it**: a bounded
+    `run` makes a *timeout* a second way for that read to fail, so the false report becomes
+    reachable by a path this plan creates. It also matters to **GR-BUP-008** directly — the
+    guardrail's revisit trigger *is* that report line, so a line that fires on a read failure
+    inflates the very number the guardrail watches.
 
 - **GR-BUP-008** *Drift:* the uncovered-label set grows past the three beads that justified
   restrict-and-drop, and nobody notices because the drops are silent. *Rule:* every dropped label
@@ -550,6 +602,142 @@ companion rule.
   only, leaving authoring-time severity unchanged. Each is driven against a **pinned fixture
   snapshot**, never live `bd` state, and each RED is a **real negative (exit 1)** — never an
   argparse exit 2 from the not-yet-existing flag.
+
+
+### 2.9 The no-per-bead-subprocess invariant (plan-058, #268)
+
+> **Living amendment log — plan-058 (#268).** Four SPEC changes landed ahead of implementation,
+> in plan order:
+>
+> | Change | Requirement | What it records |
+> | :-- | :-- | :-- |
+> | 0.1 | **REQ-BUP-071** *(new)* | generalizes REQ-BUP-052 amendment 1 from `closable` to every verb; names the three live call sites |
+> | 0.1b | **REQ-BUP-055** *(amended)* | extends the bd version floor to `bd list`'s `dependencies[]`; records bd 1.2.2 as the version *verified*, one floor per capability |
+> | 0.2 | **REQ-BUP-072** *(new)* | every subprocess bounded, inside the primitive; four timeout sub-clauses; states it does **not** close #268 |
+> | 0.3 | **REQ-BUP-073** *(new)* | mechanical enforcement with paired controls, because the prose prohibition already failed here |
+>
+> A fifth change amends **REQ-BUP-056** (below) for the `existing_labels()` false report that
+> Epic 2 adds a new route into.
+
+- **REQ-BUP-071** *(testable, #268)* **no verb shall resolve a per-row field with a per-bead
+  subprocess when the bulk query already carries it.** Where a `bd list` already returns a field
+  on every row, the skill shall read it from that row; it shall **not** spawn a `bd show`, a
+  second `bd list`, or a `bd dep list` per bead to obtain the same value.
+
+  This **generalizes REQ-BUP-052's amendment 1** rather than inventing an unrelated requirement.
+  That amendment stated the invariant for exactly one verb (`closable`), and the generalization is
+  not speculative: the identical defect was already live at **three** other call sites in the same
+  file when this requirement was written —
+
+  | Call site | Per-bead subprocess | Bulk source that already carries the field |
+  | :-- | :-- | :-- |
+  | parent-edge collection (`collect_parent_edges` → `deps_for_show`) | `bd show <id> --json` per bead | `bd list --all --json` rows carry `dependencies[]` |
+  | `cmd_enumerate`'s `external_ref` loop | `external_for(bid)` → `bd show <id> --json` per bead | the same rows carry `external_ref` (`external_from_row`) |
+  | `detect_followons`' dependency loop (`cmd_followons`, `cmd_land`) | `bd dep list <id> --json` per subtree bead | `bd list --parent <pid> --all --json` rows carry `dependencies[]` |
+
+  The first of these walked the **entire closed universe** — 1,801 beads on this repository, a
+  measured **334 s** for a command whose useful output was an empty list — on the path
+  `UPSTREAM_TRACKING.md` **mandates** for every upstream write. That is the correctness claim, not
+  a performance note: a verb nobody can run within an operator's patience performs no writes, and
+  the rule forbids the hand-run alternative.
+
+  **The invariant is scale-independent, never a wall-clock threshold** (REQ-BUP-052 amendment 1's
+  own formulation): the count of `bd` subprocesses a verb issues shall not grow with the size of
+  the bead universe. A wall-clock bound would silently regress as the DB grows; a call-count
+  bound cannot.
+
+  **The claim is bounded to `bd list` / `bd show` / `bd dep list` specifically**, and deliberately
+  **not** to total `bd` invocations. `upstream_enabled()` shells `bd config get`, which this
+  requirement does not remove and does not forbid.
+
+  **What this requirement does NOT assert.** It does not claim the three sites above are the
+  complete set. REQ-BUP-073 exists precisely because a prose prohibition of this shape has already
+  failed once here: `external_for`'s docstring carries the explicit words *"NEVER call this in a
+  loop over the whole universe"*, and `cmd_enumerate` called it in a loop over the whole universe
+  anyway.
+
+
+- **REQ-BUP-072** *(testable, #268)* **every subprocess spawn shall be bounded.** No call into
+  `subprocess.run` shall be made without a timeout, and the bound shall be resolved **inside the
+  spawning primitive** — not passed at each call site.
+
+  **Resolving it inside the primitive is a measured constraint, not a style preference.** Passing
+  `timeout=` at call sites fails three existing tests whose `run` stubs take a single positional
+  argument, and `apply_write`'s broad exception handler then masks the resulting `TypeError` as a
+  `gh` failure — converting a wiring error into a false report about the upstream service.
+  Bounding inside the primitive passes the suite unchanged.
+
+  Four sub-clauses, each of which is a distinct failure mode:
+
+  1. **A timeout shall raise a DIAGNOSABLE error naming the command and the bound.** A bare
+     `TimeoutExpired` traceback names neither, and the operator's next question is always which
+     command and how long it waited.
+
+  2. **A timeout on a WRITE path shall be treated as UNVERIFIED and shall halt before any
+     destructive stage.** This is REQ-BUP-050's fail-closed contract reached by a new route: a
+     timed-out `gh issue create` may or may not have created the issue, so it is exactly the
+     unverified-write case, and the `bd close -r` tombstone stage must not run behind it.
+
+  3. **A timeout on a CONFIG READ shall never be reported as "upstream tracking disabled."** The
+     default-deny short-circuit (REQ-BUP-010) makes an empty config read indistinguishable from a
+     deliberate opt-out, so a transient `bd` hiccup would silently convert a **mandated** upstream
+     write into a success-shaped no-op. The verb shall exit **non-zero** reporting the state as
+     **UNDETERMINED**, naming the config read as the cause. The operator has no compliant
+     fallback here — `UPSTREAM_TRACKING.md` forbids hand-running the underlying commands — so a
+     silent no-op leaves them with no route at all.
+
+  4. **A timeout shall not bypass an existing INCONCLUSIVE verdict.** `TimeoutExpired` is **not**
+     an `OSError`, so a handler catching `OSError` to produce REQ-BUP-064's INCONCLUSIVE verdict
+     does not catch it and emits a traceback instead. Bounded calls on that path shall wrap the
+     timeout into the error type that path already handles.
+
+  **This requirement does NOT close #268, and the SPEC states so rather than letting a reader
+  infer it.** The #268 hang was 1,801 individually-*fast* subprocesses (0.186 s each); no
+  defensible per-call bound trips on any of them. REQ-BUP-072 buys **diagnosability for the next
+  unbounded call**. What closes #268 is REQ-BUP-071. An **aggregate** wall-clock deadline is a
+  different mechanism from a per-call bound and is deliberately out of scope here.
+
+
+- **REQ-BUP-073** *(testable, #268)* the REQ-BUP-071 invariant shall be enforced by a **mechanical
+  check with a negative control**, not by prose.
+
+  **The prose route has already been tried here and it failed.** `external_for`'s docstring
+  carries the explicit prohibition *"NEVER call this in a loop over the whole universe"*, and
+  `cmd_enumerate` called it in a loop over the whole universe anyway — in the same file, below
+  the docstring stating the rule. REQ-BUP-052's amendment 1 likewise fixed the instance it was
+  filed against (`closable`) without sweeping for siblings, leaving three. A requirement whose
+  only enforcement is a sentence a future author must read is not enforced.
+
+  The check shall satisfy four properties:
+
+  1. **It shall match CONSTRUCTS, not text.** A token- or substring-scanner fails in **both**
+     directions on this codebase, measured: the established `check_gh_direct.py` idiom blanks
+     every `STRING` token before matching, so `run(["bd", "dep", "list", ...])` becomes
+     `run([ , , , ])` and the needle can never fire (**under-match**); while a raw-source scan
+     matches `edge_type()`'s **docstring**, making the check red on correctly-fixed code and
+     leaving an executor no escape but deleting documentation the idiom's own design forbids
+     erasing (**over-match**). An AST check is blind to comments and prose and sees the call.
+
+  2. **It shall cover the HELPER-MEDIATED form.** Measured: neither `bd show` argv site is
+     lexically inside a loop — both sit inside a helper that a loop calls. A rule matching only a
+     literal argv inside a `for` would not have fired on the #268 defect, would not fire on its
+     reintroduction, and would ship green over an unenforced invariant.
+
+  3. **Every rule shall carry BOTH a negative and a positive control.** A **negative** control (a
+     fixture containing the banned construct, asserted to exit non-zero) catches a rule that
+     **cannot fire**. Only a **positive** control (the rule asserted green against the intended
+     post-fix source) catches a rule that **fires on correct code** — the failure mode that makes
+     a gate permanently unpassable. Two review cycles of this plan produced one failure of each
+     kind, which is why neither control alone discharges this requirement.
+
+  4. **No rule shall presuppose work sitting behind a human consent gate.** A rule that is red
+     until a gated issue lands becomes permanently red if the operator legitimately **declines**,
+     rendering that gate unpassable and the plan unclosable on a legal answer. Rules with such a
+     precondition ship separately, downstream of the gated work.
+
+  **Scope, stated rather than implied (R9).** The check matches a **fixed set of AST constructs**,
+  not every possible N+1. It is not a completeness claim. It is strictly better than the prose
+  prohibition that already failed, and that is the whole of what it asserts.
 
 
 ## 3. Interfaces
@@ -671,6 +859,34 @@ companion rule.
   **annotated with the tombstone reason** rather than an absent row; `closable --help` lists
   `--fixture`; an absent fixture exits 1 and a malformed one exits 2; and every emitted proposal
   carries non-empty `close_reasons` and `discharges` arrays. No `gh issue close` is executed.
+
+- **REQ-BUP-071 is checked** by call-count tests over a `_counting_run` fixture, never by a
+  wall clock: `cmd_enumerate` and `push` issue **zero** `bd show` subprocesses, and the number of
+  `bd list` calls each issues is **equal at 10 beads and at 1,000** — scale-independence asserted
+  directly, in the idiom `test_closable_issues_one_bd_list_and_zero_bd_show` already established.
+  The tests are **named explicitly** (`test_push_zero_bd_show`, `test_enumerate_zero_bd_show`,
+  `test_enumerate_scale_independence`) because a bare `-k zero_bd_show` selector is already
+  satisfied by the pre-existing `closable` test and would pass without the new work existing.
+  `collect_parent_edges` additionally carries direct unit tests over rows-shaped fixtures —
+  `dependencies` present, absent, and carrying a non-parent-child type — and a runtime cross-check
+  asserts that rows carrying a non-empty `parent` with **zero** derived parent-child edges produce
+  a loud warning **on stdout**, which is the failure shape a future `bd` dropping `dependencies[]`
+  would otherwise take silently.
+- **REQ-BUP-072 is checked** by tests that a bounded `run` on a deliberately-slow command raises
+  an error **naming both the argv and the bound**; that `run_unchecked` yields
+  `UpstreamQueryError` so `resolve_upstream_states` reports INCONCLUSIVE rather than a traceback;
+  that a timed-out `_config_get` makes `cmd_push` exit **non-zero as UNDETERMINED** and never
+  "disabled"; that `timeout_for` classifies `gh` as network and `bd`/`bash` as local; and — the
+  fail-closed assertion — that `hoist --apply` with a timing-out create returns 1, prints that no
+  bead was closed, and **never invokes `bd close` or `bash`**, asserted by trapping those stubs
+  rather than by reading output.
+- **REQ-BUP-073 is checked** by `test_check_no_universe_fanout.py`, which exercises **both**
+  controls **rule for rule**: a **negative** control per rule (a fixture containing that rule's
+  banned construct, asserted to exit non-zero) proving the rule can fire, and a **positive**
+  control per rule (that rule asserted green against the intended post-fix source) proving it does
+  not fire on correct code. Negative-only would admit a rule that is red on clean code; the check
+  is additionally wired into the repo's FAST validation tier so it runs on every edit under
+  `skills/yf-beads-upstream/scripts/`.
 
 ## 6. References
 
