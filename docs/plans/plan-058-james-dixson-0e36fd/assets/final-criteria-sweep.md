@@ -1,3 +1,11 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+id: ASSET-final-criteria-sweep
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Final criteria sweep — the same instruments, re-run against the finished tree
 
 Every gate `Test:` and every non-manual Success Criterion `Verification`, re-run as written after

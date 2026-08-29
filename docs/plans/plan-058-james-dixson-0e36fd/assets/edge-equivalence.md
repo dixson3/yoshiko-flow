@@ -1,3 +1,11 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+id: ASSET-edge-equivalence
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Edge-set equivalence, re-proven post-rewrite (Issue 1.1, risk R1)
 
 EXP-002 proved equivalence *before* the rewrite, against a 1,801-bead universe. This is the

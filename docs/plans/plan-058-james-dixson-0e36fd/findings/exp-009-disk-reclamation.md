@@ -1,10 +1,27 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+id: EXP-009
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Issue 4.1b — the 785 MB measured properly, and what was actually reclaimed
 
 The plan required this issue's **first act be a real breakdown** rather than `du -sh`, because an
 earlier draft asserted two reclamation wins without inspecting the directory and both were wrong or
 overstated. Here is the breakdown, then what was done.
 
-## The measured breakdown (before)
+## Approach Tested
+
+**measured:** produced a real per-subtree breakdown of `.beads` before touching anything (the plan
+required this issue's first act be a breakdown rather than `du -sh`), verified four independent
+safety preconditions, then reclaimed the one candidate the operator authorized using a
+quarantine-verify-delete sequence rather than a direct `rm -rf`.
+
+## Result
+
+### The measured breakdown (before)
 
 | Path | Size | What it is |
 | :-- | --: | :-- |
@@ -16,7 +33,7 @@ overstated. Here is the breakdown, then what was done.
 | `.beads/issues.jsonl` | 1.4 MB | JSONL export |
 | `.beads/interactions.jsonl` | 948 KB | transition history (Issue 4.4) |
 
-## Candidate (a) — `git-remote-cache`: RECLAIMED, 118 MB
+### Candidate (a) — `git-remote-cache`: RECLAIMED, 118 MB
 
 **Operator-authorized 2026-08-28.** Four independent checks established it was safe *before*
 anything was touched:
@@ -43,7 +60,7 @@ then was the quarantined copy removed. Had anything failed it was one `mv` from 
 **118 MB reclaimed — 15% of the directory — with no bead content deleted and DR coverage
 unchanged.**
 
-## Candidate (b) — Dolt GC: NOT RUN, and the hypothesis is weaker than the plan assumed
+### Candidate (b) — Dolt GC: NOT RUN, and the hypothesis is weaker than the plan assumed
 
 The plan framed GC as "a hypothesis, not a remedy" and bounded any win "at roughly the 105 MB
 journal". **That bound was wrong by an order of magnitude in the plan's own favour.** Measured, the
@@ -57,7 +74,7 @@ this half, and the measurement supports the decision**: the cost/benefit is not 
 Recorded as a *tested hypothesis with a measured bound*, which is what the issue asked for — not as
 an untried idea.
 
-## Candidate (c) — `.beads/backup`: CONSENT-GATED, not reclaimed
+### Candidate (c) — `.beads/backup`: CONSENT-GATED, not reclaimed
 
 308 MB, 118 manifest-referenced `.darc` archives, registered in `repo_state.json` as the backup
 destination `backup_export`, with `dolt.local-only = true`. **It is the repository's sole local Dolt
@@ -65,9 +82,27 @@ replica.** Nothing in it is individually rotatable; the only available operation
 whole DR copy. That is Issue 4.1d, behind the Pruning Authorization gate — and the operator accepted
 **"not warranted yet"**, so it stands.
 
-## Why this issue was correctly placed OUTSIDE the consent gate
+## Implications for Plan
+
+### Why this issue was correctly placed OUTSIDE the consent gate
 
 It carries the evidence that gate's Condition depends on, and **a gate cannot block its own
 evidence**. Because `Blocks` operates on whole beads, a prose carve-out inside a single issue would
 have been unenforceable at bead granularity — which is why the destructive half is a separate issue
 (4.1d) rather than a paragraph in this one.
+
+## Recommendations
+
+1. **Keep `.beads/backup`.** It is the sole local Dolt replica; deleting it trades all local DR
+   coverage for 39% of the directory.
+2. **Do not pursue Dolt GC** on the current evidence — the upside is ~11 MB, an order of magnitude
+   below the plan's own estimate, against stopping a live `sql-server`.
+3. **`git-remote-cache` is worth re-checking periodically** — it regrew to 118 MB unattended and
+   nothing references it from the manifest.
+
+## Evidence
+
+**measured:** `du -sh` per subtree before and after; `bd status --json` inspected for an `error`
+KEY (not an exit code); `bd list --all --json` row count and `bd ready` re-run with the cache
+absent; `repo_state.json` read for `remotes` and `backups`; `grep` over the Dolt manifest for
+`git-remote-cache` (0 hits); `.beads/backup` archive count before and after (118 both times).

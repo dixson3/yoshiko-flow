@@ -1,3 +1,11 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+id: ASSET-post-fix-timing
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Post-fix end-to-end timing (Issue 1.9) — the EXP-001 reproduction, re-run
 
 The command EXP-001 ran to completion pre-fix, re-run on the fixed tree. Same command, same

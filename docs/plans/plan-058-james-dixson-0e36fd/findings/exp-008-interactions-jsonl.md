@@ -1,9 +1,25 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+id: EXP-008
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Issue 4.4 — `interactions.jsonl`, the narrower and better-supported target
 
 The plan named this the "narrower, better-supported target" than pruning bead rows. Measured, it
 is better-supported and **also not worth doing** — for a reason the plan did not anticipate.
 
-## What it is
+## Approach Tested
+
+**measured:** inspected `.beads/interactions.jsonl` directly — size, record count, field set, and
+gitignore status — and separately measured the `close_reason` population the plan requires be
+preserved unconditionally, to test whether the two are comparable in size.
+
+## Result
+
+### What it is
 
 | Property | Value |
 | :-- | :-- |
@@ -17,7 +33,7 @@ is better-supported and **also not worth doing** — for a reason the plan did n
 Every premise the plan asserted about it holds: clone-local, gitignored, and analytically
 worthless.
 
-## Why deleting it is still not worth doing
+### Why deleting it is still not worth doing
 
 **929 KB is 0.12% of the 782 MB.** The file is safe to delete and reclaims **nothing that
 matters**. It is the smallest of the three reclamation candidates by roughly two orders of
@@ -33,7 +49,9 @@ So the honest recommendation is: **leave it.** Deleting it trades a non-zero (if
 losing a future diagnostic for 0.12% of the directory. That is not a good trade, and "it is safe
 to delete" is not the same claim as "it is worth deleting".
 
-## `close_reason` — preserve UNCONDITIONALLY, and the number is larger than the plan said
+## Implications for Plan
+
+### `close_reason` — preserve UNCONDITIONALLY, and the number is larger than the plan said
 
 The plan required `close_reason` prose be preserved unconditionally, citing 745 closed beads with
 more than 200 characters of it. Re-measured:
@@ -54,3 +72,17 @@ reasons (**the most valuable content in the DB**, 513 KB) are almost the same si
 predicate that reasons about volume rather than content would treat them identically. That is a
 concrete argument for Issue 4.2's predicate being content-aware, and it is why "preserve
 `close_reason` unconditionally" must be a hard constraint rather than a default.
+
+## Recommendations
+
+1. **Leave `interactions.jsonl` in place.** It is safe to delete and worth 0.12% of the directory;
+   "safe to delete" is not "worth deleting".
+2. **Make "preserve `close_reason` unconditionally" a HARD CONSTRAINT** of any future purge design
+   (Issue 4.2), not a default — a volume-based predicate cannot distinguish it from the worthless
+   transition history, because the two are nearly the same size.
+
+## Evidence
+
+**measured:** `ls -la` and `wc -l` on `.beads/interactions.jsonl`; its first record parsed for the
+field set; `git check-ignore -v` confirming it is excluded via `.git/info/exclude`; and
+`bd list --all --json` parsed for `close_reason` length distribution across all closed beads.

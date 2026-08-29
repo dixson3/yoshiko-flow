@@ -1,3 +1,11 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+id: EXP-007
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Issue 4.1 — the pruning justification, re-measured on its own grounds
 
 EXP-006 refuted the row-count-drives-size premise before execution. This re-tests the
@@ -6,7 +14,16 @@ authorized to return **"not warranted yet"** as a complete outcome.
 
 Measured in the execution tree against the live store.
 
-## The four grounds, one at a time
+## Approach Tested
+
+**measured:** re-ran the four justifications Issue 4.1 names — DB size, query latency post-Epic-1,
+cognitive load, backup cost — against the live store in the execution tree, with #268's cost already
+removed by Epic 1. EXP-006 had already refuted the row-count-drives-size premise before execution;
+this tests the rest.
+
+## Result
+
+### The four grounds, one at a time
 
 ### 1. DB size — the premise is REAL, the proposed remedy still is not
 
@@ -76,7 +93,9 @@ plan-scale effort — so sub-beads never receive an `external_ref` *by design*. 
 2.8% of the universe, and those 53 rows are **exactly the rows `closable` reads** (REQ-BUP-052),
 so purging them breaks that verb by construction. Issue 4.3 owns that conflict.
 
-## Verdict: NOT WARRANTED YET
+## Implications for Plan
+
+### Verdict: NOT WARRANTED YET
 
 Of the four grounds, **one fails outright** (latency), **one is real but has no row-deletion
 remedy** (size), **one is real and confirms the instinct without supporting the mechanism**
@@ -89,3 +108,19 @@ outcome per Issue 4.1's own authorization — not as a deferral.
 **What IS warranted, and is non-destructive to bead content:** the 118 MB `git-remote-cache`
 reclamation (Issue 4.1b), and the `interactions.jsonl` question (Issue 4.4), which is 948 KB of
 clone-local, gitignored transition history whose analytical value research-005 measured at zero.
+
+## Recommendations
+
+1. **Close Epic 4 with "not warranted yet"** — the gate's Instructions name this an acceptable
+   resolution that closes the epic with no code change.
+2. **Proceed with Issue 4.1b's `git-remote-cache` reclamation**, which is non-destructive to bead
+   content and sits outside the consent gate by design.
+3. **Do not implement a purge predicate** until the `closable` conflict (Issue 4.3) is resolved —
+   the naive predicate's selection set *is* `closable`'s input set.
+
+## Evidence
+
+**measured:** `du -sh` over `.beads` and its subtrees; three timed `bd list --all --json` runs and
+one `bd ready`; `bd list --all --json` parsed for status distribution and `external_ref` population;
+`repo_state.json` read directly; `bd config get dolt.local-only`. All in the execution tree on
+2026-08-28.

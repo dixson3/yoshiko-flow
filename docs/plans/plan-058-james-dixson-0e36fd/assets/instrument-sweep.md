@@ -1,3 +1,11 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+id: ASSET-instrument-sweep
+plan: plan-058-james-dixson-0e36fd
+author: james-dixson
+created: 2026-08-28
+---
 # Instrument sweep — baseline (Issue 0.1)
 
 Every gate `Test:` and every non-manual Success Criterion `Verification`, run **once, as written**, in
