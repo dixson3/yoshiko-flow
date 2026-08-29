@@ -1,0 +1,78 @@
+# Evidence architecture of yf-research 005.
+# Six retrieval clusters; only three mine a bundle-nominating SURFACE;
+# two of those three are near-blind, so convergence was unobservable by design.
+# Numbers: Summary.md 4.1 / 4.2, artifacts/triangulation.md 6.6.
+
+direction: right
+
+corpus: "CORPUS\n114 plan bundles / 301 review passes\n7 repos (yoshiko-flow, d3-pxe, evri_py,\nwriting, pybridge, emacs.d, rc-files)\nscripts/corpus_scan.py" {
+  style.fill: "#eef2f7"
+  style.stroke: "#334155"
+}
+
+clusters: "SIX RETRIEVAL CLUSTERS" {
+  style.fill: "#ffffff"
+  style.stroke: "#94a3b8"
+
+  c1: "review-pass-recurrence" {style.fill: "#dbeafe"}
+  c2: "git-churn-signatures" {style.fill: "#dbeafe"}
+  c3: "execution-telemetry" {style.fill: "#dbeafe"}
+  c4: "operator-breakthrough-turns\n(119 hand-coded events -> T0-T9 taxonomy)" {style.fill: "#f1f5f9"}
+  c5: "herdr-repo-interrogation\n(external validity across 6 non-yf repos)" {style.fill: "#f1f5f9"}
+  c6: "prior-art\n(grill-me, socrates-skill, RE + HCI literature)" {style.fill: "#f1f5f9"}
+}
+
+surfaces: "THREE BUNDLE-NOMINATING SURFACES\n(only the blue clusters produce nominations)" {
+  style.fill: "#ffffff"
+  style.stroke: "#94a3b8"
+
+  s1: "review-pass PROSE\nnominates 19 (thr 0.20) / 8 (shipped 0.35)\nhand-audit TRUE: 14\nTHE ONLY SURFACE WITH VERIFIED POSITIVES" {
+    style.fill: "#bbf7d0"
+    style.stroke: "#15803d"
+  }
+  s2: "GIT CHURN\nnominates 5 of 114\n0 literal reverts in 2044 commits\nNEAR-BLIND - confirmation-only, strictly late" {
+    style.fill: "#fed7aa"
+    style.stroke: "#c2410c"
+  }
+  s3: "bd EXECUTION TELEMETRY\nnominates 0\n3 reopens in 2969 status changes, all tooling noise\nBLIND - a health-check surface, not a thrash surface" {
+    style.fill: "#fecaca"
+    style.stroke: "#b91c1c"
+  }
+}
+
+overlap: "CROSS-SURFACE CONVERGENCE\nJaccard(prose, git) = 0.091  (ceiling 0.263; overlap coeff 0.40)\nchance-expected overlap 0.83 vs observed 2\nthree-way intersection = 0  (necessarily: telemetry nominated nothing)\nDUAL-NOMINATED AND HAND-CONFIRMED: yoshiko-flow/plan-054  -- n = 1" {
+  style.fill: "#fef9c3"
+  style.stroke: "#a16207"
+  style.stroke-width: 2
+}
+
+verdict: "READING\nTwo of three surfaces have near-zero sensitivity,\nso this design COULD NOT have produced convergent evidence.\nThat is a statement about the instrument -\nnot a finding that convergence is absent." {
+  style.fill: "#ffffff"
+  style.stroke: "#334155"
+  style.stroke-dash: 3
+}
+
+design: "DESIGN INPUT for yf-judgement\n(taxonomy + transfer + external validity;\nno bundle nominations)" {
+  style.fill: "#e9d5ff"
+  style.stroke: "#7e22ce"
+}
+
+corpus -> clusters.c1
+corpus -> clusters.c2
+corpus -> clusters.c3
+corpus -> clusters.c4
+corpus -> clusters.c5
+
+clusters.c1 -> surfaces.s1: "mines"
+clusters.c2 -> surfaces.s2: "mines"
+clusters.c3 -> surfaces.s3: "mines"
+
+clusters.c4 -> design
+clusters.c5 -> design
+clusters.c6 -> design
+
+surfaces.s1 -> overlap
+surfaces.s2 -> overlap
+surfaces.s3 -> overlap: "contributes nothing"
+
+overlap -> verdict
