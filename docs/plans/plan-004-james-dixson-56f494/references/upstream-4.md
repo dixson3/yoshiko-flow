@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #4: bdplan: capture review report to reviews/pass-N.md immediately when review is presented
 
 - **Number:** 4

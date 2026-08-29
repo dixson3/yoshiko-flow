@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Finding: rename blast radius (mechanical sweep, not an experiment)
 
 Gathered inline during scoping via `grep` over `skills/`. No worktree experiment was

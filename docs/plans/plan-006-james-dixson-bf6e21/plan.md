@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-006-james-dixson-bf6e21
+author: james-dixson
+created: '2026-06-03'
+status: complete
+epic: yf-576712a7
+---
 # Plan: Split skills into install groups via per-skill frontmatter contract and a dependency-aware install.py
 
 **ID:** plan-006-james-dixson-bf6e21
@@ -5,15 +14,6 @@
 **Created:** 2026-06-03
 **Status:** complete
 **Epic:** yf-576712a7
-**Phase log:**
-- 2026-06-03 scoping: initial scope captured
-- 2026-06-03 investigating: 2 unknowns resolved by direct inspection (no worktree experiments)
-- 2026-06-03 drafting: plan v1 presented
-- 2026-06-03 review: plan v1 presented
-- 2026-06-03 approved: operator approved
-- 2026-06-03 intake: epic yf-576712a7 poured
-- 2026-06-03 executing: start gate resolved
-- 2026-06-04 complete: plan complete
 
 ## Objective
 

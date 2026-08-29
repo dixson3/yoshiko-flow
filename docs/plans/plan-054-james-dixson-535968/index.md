@@ -18,3 +18,15 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
 
 - [assets/](assets/) - The driven-red harness and its records: `checks/` (the criterion instruments this repo later promoted to `scripts/checks/`), the allowlist with per-entry reasons, `controls.txt`, the harness smoke transcript, the deferred-defect list, and `fixtures/`.
+- [findings/exp-001-yf-skill-dir-design.md](findings/exp-001-yf-skill-dir-design.md) - EXP-001 — design probe for a top-level `yf skill-dir <name>` lookup
+- [findings/exp-002-live-harness-walk.md](findings/exp-002-live-harness-walk.md) - EXP-002 — do yf skills actually load and run inside real pi and opencode sessions?
+- [findings/exp-003-opencode-config-precedence.md](findings/exp-003-opencode-config-precedence.md) - EXP-003 — does opencode read the opencode.json yf writes, or the operator's opencode.jsonc?
+- [findings/exp-004-changelog-reconstruction.md](findings/exp-004-changelog-reconstruction.md) - EXP-004 — can the v0.5.0 CHANGELOG be reconstructed mechanically from the plan bundles?
+- [findings/exp-005-stale-issue-verification.md](findings/exp-005-stale-issue-verification.md) - EXP-005 — do the six apparently-delivered issues' deliverables actually satisfy their asks?
+- [findings/exp-006-symlink-revert-spike.md](findings/exp-006-symlink-revert-spike.md) - EXP-006 — does `yf harness tune --revert` behave correctly through symlinks into a git-tracked dotfiles repo?
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1 (first independent, dispatched via Agent) — plan-054
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2 (second independent, via Agent) — plan-054
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3 (third independent, via Agent) — plan-054
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 (fourth independent, via Agent) — plan-054
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 (fifth independent, via Agent) — plan-054; loop bound reached
+- [reviews/pass-6.md](reviews/pass-6.md) - Red-team pass 6 (sixth independent, via Agent) — plan-054; APPROVE

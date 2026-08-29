@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: 2026-06-14 · **Method:** clean /tmp experiment, bd 1.0.5 + dolt 2.1.6
+---
 # Finding INV-2: beads (bd / dolt) behavior across git worktrees
 
 **Date:** 2026-06-14 · **Method:** clean /tmp experiment, bd 1.0.5 + dolt 2.1.6

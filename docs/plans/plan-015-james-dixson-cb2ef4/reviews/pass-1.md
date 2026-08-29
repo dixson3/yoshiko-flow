@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+plan: plan-015-james-dixson-cb2ef4
+date: '2026-06-24'
+verdict: REVISE
+---
 # Red-Team Review — pass 1
 
 **Plan:** plan-015-james-dixson-cb2ef4

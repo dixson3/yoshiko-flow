@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #68: Confirm/certify yf beads skills against bd 1.1.x (currently pinned to 1.0.5)
 
 - **Number:** 68

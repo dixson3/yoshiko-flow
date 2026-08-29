@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-011-james-dixson-dd21e3
+author: james-dixson
+created: '2026-06-19'
+status: complete
+epic: yf-9e73640b
+---
 # Plan: Consolidate per-skill protocol rule install into a single aggregated YOSHIKO_FLOW.md rule file with per-protocol hash-bearing HTML-comment fences for selective version update/removal
 
 **ID:** plan-011-james-dixson-dd21e3
@@ -5,16 +14,6 @@
 **Created:** 2026-06-19
 **Status:** complete
 **Epic:** yf-9e73640b
-**Phase log:**
-- 2026-06-19 scoping: initial scope captured
-- 2026-06-19 investigating: scope ratified; blast-radius scan of test/parity/doctor surface
-- 2026-06-19 drafting: blast radius known; synthesizing epics/gates
-- 2026-06-19 review: plan v1 presented
-- 2026-06-20 approved: operator approved (red-team concerns resolved, audit pass)
-- 2026-06-20 intake: epic yf-9e73640b poured
-- 2026-06-20 executing: start gate resolved
-- 2026-06-20 reconciling: post-execution reconciliation
-- 2026-06-20 complete: plan complete; merged + validated green
 
 ## Objective
 Consolidate per-skill protocol rule install into a single aggregated YOSHIKO_FLOW.md rule file with per-protocol hash-bearing HTML-comment fences for selective version update/removal

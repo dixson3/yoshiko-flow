@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: Which code, tests, specs, and docs change when per-skill standalone
+---
 # EXP-001 — Blast radius: what the YOSHIKO_FLOW.md consolidation touches
 
 **Question:** Which code, tests, specs, and docs change when per-skill standalone

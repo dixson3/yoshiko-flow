@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #34: yf-markdown-pdf: near-parity with the markdown-xwidget render (d2, csv, glyph coverage)
 
 - **Number:** 34

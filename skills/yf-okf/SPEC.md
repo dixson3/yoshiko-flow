@@ -10,7 +10,8 @@
 `yf-okf` is a repo-agnostic engine that **constructs, manages, and conformance-checks** the artifact
 folders ("bundles") that the yf artifact-producing skills emit (`yf-plan`, `yf-research`,
 `yf-incubator`, and future consumers). It makes those bundles **compatible with** the Open Knowledge
-Format (OKF v0.2, `GoogleCloudPlatform/knowledge-catalog`): an opinionated framework that adopts the
+Format (OKF v0.2, `GoogleCloudPlatform/open-knowledge-format` — pinned by CONTENT HASH, not by the
+mutable `0.2` label; see `spec/OKF-BASELINE.md` §0 and REQ-OKF-033): an opinionated framework that adopts the
 OKF baseline (reserved `index.md`, reserved `log.md`, YAML frontmatter with a non-empty `type` on
 every non-reserved `.md`) and layers the yoshiko-flow extensions on top (a dual **frontmatter +
 `**Field:**`** field model, an `okf_spec:` member key, per-skill extension specs). `yf-okf` is also
@@ -54,9 +55,18 @@ are per-skill (the three current models genuinely differ) and are specified in e
 > | `REQ-OKF-CHK-003` | member-declared path exclusion, applied at every walk site | §2.8 (plan-056 Issue 0.3) |
 > | `REQ-OKF-CHK-004` | the corpus index-drift driver + its `CHANGE-VALIDATION` binding | §2.8 (plan-056 Issue 0.9) |
 > | `REQ-OKF-FAM-005` | the OKF **v0.2** baseline pin | §2.5 (below) |
+> | `REQ-OKF-012` | root-index depth — rule D, flat format, fallback chain, inverse drift | §2.10 (plan-057 Issue 0.1) |
+> | `REQ-OKF-033` | the **content-hash** baseline pin + its read-only drift detector | §2.5 (plan-057 Issue 0.3) |
+> | `REQ-OKF-034` | OKF v0.2's silence on bundle-root identification + the yf resolution | §2.1 (plan-057 Issue 0.4) |
 >
 > **Unallocated but reserved by the same measurement** — still free for a later plan:
 > `REQ-OKF-022`, `REQ-OKF-051`, `REQ-OKF-061`, `REQ-OKF-MIG-006`.
+>
+> **plan-057's three ids were each re-measured collision-free against this file at allocation time**
+> (2026-08-29): `REQ-OKF-012` and `REQ-OKF-033` had zero occurrences repo-wide; `REQ-OKF-034` had
+> exactly one — the dangling cross-reference plan-046 Issue 1.1 documented as *never defined at any
+> revision*, which is why the id was free to allocate rather than in use. See the note at its
+> definition in §2.1.
 
 ### 2.1 Bundle model (see `spec/OKF-BASELINE.md`, `spec/OKF-YF-EXTENSIONS.md`)
 
@@ -92,6 +102,47 @@ are per-skill (the three current models genuinely differ) and are specified in e
   A bundle-root `index.md`'s `okf_version` key MAY be used to *classify an existing index* after the
   root is known; it shall never be used to *locate* the root, which would be circular for a bundle
   that has no index at all.
+
+- **REQ-OKF-034** *(decision of record)* *(added plan-057 / #170-partial)* **OKF v0.2 specifies NO
+  bundle-root identification procedure, and the yf layer's resolution is REQ-OKF-004.**
+
+  This requirement records a measured **upstream silence** and the yf-layer decision that fills it.
+  It is stated as a requirement rather than left as prose because a consumer that roots elsewhere
+  produces findings against this corpus that look like yf defects and are not, and nothing in this
+  SPEC previously said so.
+
+  **The silence is measured, and it is CIRCULAR.** OKF v0.2 defines a bundle as its "unit of
+  distribution" but gives a consumer no in-band way to *identify* one. The only in-band marker
+  available is the bundle-root `index.md`'s `okf_version` key (REQ-OKF-032) — and that is precisely
+  the key a **wrongly-rooted** consumer rejects, because at the wrong root the key is either absent
+  or is a nested-index baseline violation. A marker readable only by a consumer that has already
+  solved the problem does not solve the problem.
+
+  **The yf resolution: root-ness is a property of the INVOCATION** (REQ-OKF-004). A yf artifact
+  folder — a plan, research or incubator bundle — **is** a bundle root, and the directory a caller
+  names is the root. A consumer that roots elsewhere reports **false violations**; that is an
+  **upstream gap**, not a yf defect, and the distinction is the whole point of recording it here.
+
+  **No bundle-root marker file shall be added.** Introducing one would be a unilateral extension to
+  a format whose stated selling point is "no required tooling", and no consumer anywhere would look
+  for it — a marker nothing reads is cost with no signal.
+
+  **Nothing is filed upstream.** The OKF project is tracked **read-only**; this requirement records
+  the silence as measured fact so a future reader inherits the evidence rather than the conclusion.
+  The *decision* it licenses lives in `spec/OKF-YF-EXTENSIONS.md` — the layer designed to absorb
+  upstream change — and not in `spec/OKF-BASELINE.md`, which records only what upstream says.
+
+  **Coverage caveat, carried deliberately.** The round-trip evidence behind this requirement
+  inspected only **~100 of 1383** concept documents. Nothing here may be read as evidence that the
+  corpus passes OKF's B1/B2 rules; what is discharged is the **root-framing characterisation**, not
+  corpus conformance.
+
+  *(Historical note, and it matters for id provenance: `REQ-OKF-034` appeared once in this SPEC as a
+  **dangling cross-reference** — introduced by plan-029's `aaf2b6c` and never defined at any
+  revision, resolved on semantic grounds to `REQ-OKF-031` by plan-046 Issue 1.1. The id was
+  therefore genuinely free, and plan-057 allocates it here as a first definition. The earlier
+  cross-reference at REQ-OKF-003 still resolves to REQ-OKF-031 and is unaffected by this
+  allocation.)*
 
 ### 2.2 Placement invariant — fingerprint safety (see `spec/OKF-YF-EXTENSIONS.md`)
 
@@ -158,6 +209,37 @@ are per-skill (the three current models genuinely differ) and are specified in e
   both declared breaking changes is **exactly zero** (it emits `timestamp` 0 times and `# Citations`
   0 times), so the pin is a documentation edit plus a constant — **not** a corpus migration, which
   is explicitly out of scope (plan-046 D-2).
+
+- **REQ-OKF-033** *(testable)* *(added plan-057)* **the baseline is pinned by CONTENT HASH, not by
+  version label**, and its drift detector is **read-only**.
+
+  `spec/OKF-BASELINE.md` shall carry an **`okf_baseline_sha256:`** key recording the SHA-256 of the
+  upstream `SPEC.md` body the baseline was transcribed from, alongside the upstream **location** it
+  was fetched from. The version label `0.2` shall be recorded as what it is — a **mutable label**,
+  not a pin.
+
+  **Why a label is not a pin, measured.** Upstream OKF relocated to
+  `GoogleCloudPlatform/open-knowledge-format`, announced the old snapshot frozen, and then **changed
+  v0.2 in place with no version bump** — the document now mandates ISO 8601 offsets and is still
+  labelled `Version 0.2`. So `okf_spec: 0.2` no longer identifies a fixed document, which defeats the
+  plan-029 R3 isolation strategy outright: that strategy assumed a version string *is* a pin. A
+  label-only pin would have detected **nothing**; a content hash fires on the actual event.
+
+  **The detector shall be read-only and shall report, never fail a land.** It fetches the live
+  upstream `SPEC.md`, hashes it, and compares against `okf_baseline_sha256:`. It shall run as a
+  **FULL-tier** validation row — the cost is paid once per land, not per edit — and it shall
+  **file nothing upstream** (the OKF project is tracked read-only). On a mismatch it reports the
+  divergence and proposes a human diff; it does not rewrite the baseline, because deciding what an
+  upstream change *means* for the yf layer is a judgement, not a transform.
+
+  **A network failure is INCONCLUSIVE (`2`), never drift (`1`)** (REQ-CLI-029(a)). An unreachable
+  upstream is a statement about the instrument, not about the baseline, and an offline land must not
+  be blocked by it — the INCONCLUSIVE path is the ordinary offline case, not an exception.
+
+  **Residual, stated rather than closed:** the hash covers the upstream document body only, so it
+  fires on cosmetic upstream edits as readily as on normative ones. That is accepted deliberately —
+  a hash that tried to be normative-only would need to parse upstream's intent, and the reporting-only
+  disposition is what keeps a noisy signal from becoming a blocking one.
 
 ### 2.6 Single-file-bundle exemption & non-`.md` exclusion
 
@@ -417,10 +499,82 @@ are per-skill (the three current models genuinely differ) and are specified in e
   is the reason the backfill is safe to run at all, and it sits under **foreign-corpus survival**
   (§2.7) because preserving content the engine did not author is exactly that concern.
 
-  **Never invent a description.** An existing description is preserved; a new entry is emitted as a
-  bare `- [title](path)`. Emitting a placeholder (`*description pending*`) would write an assertion
+  **Never invent a description.** An existing description is preserved. A NEW entry's description
+  **resolves through REQ-OKF-012(c)'s chain** — caller-supplied, then the linked file's own
+  frontmatter `description:`, then its `H1` — and falls through to a bare `- [title](path)` when the
+  chain yields nothing. Emitting a placeholder (`*description pending*`) would write an assertion
   that a description exists when none does — 818 times over, on the 983-nested-file corpus measured
   2026-08-28.
+
+  *(Amended plan-057 Issue 1.4. The pre-amendment wording said a new entry is emitted bare, FULL
+  STOP, which was written before a chain existed to resolve one. Reading a document's OWN
+  `description:` or `H1` is **sourcing, not synthesis** — the prohibition is on inventing text no
+  document contains, and it is unchanged. The amendment is load-bearing rather than cosmetic:
+  measured over REQ-OKF-012's frozen 25-bundle set, appending bare leaves the boilerplate ratio at
+  **0.6848 — exactly unmoved** — so the root-index deepening would add ~260 entries and improve
+  nothing, while resolving through the chain gives 446 described / 299 distinct / 147 repeated =
+  **0.3296**.)*
+
+- **REQ-OKF-012** *(testable)* *(added plan-057 / #140-partial, #171-partial)* **root-index depth.**
+  The root `index.md` listing shall reach **below the bundle root**, and it shall do so by deepening
+  the **root** index rather than by generating nested `index.md` files. Four sub-requirements, each
+  independently testable.
+
+  **(a) The selection rule (rule D), and `<= K` counts RECURSIVELY.** For each immediate
+  subdirectory of the bundle root, the engine shall count the files reachable **recursively** beneath
+  it. If that count is `<= K`, the subdirectory's files are enumerated individually; otherwise a
+  single bare directory bullet is emitted for the subdirectory. **`K` is the constant `10`, not a
+  configuration key** — a per-repo knob would make two corpora's indexes incomparable and would
+  re-open the boilerplate question this requirement exists to close.
+
+  **The recursive reading is normative and the choice is load-bearing.** Simulated 2026-08-29 over
+  all 64 enumerated bundles: recursive gives total 867, median 12, max **30**; direct-children gives
+  total 897, median 12, max **33**. Only the recursive reading collapses `references/` (391 files)
+  and `reviews/` (108 files) to bare stubs, which is the behaviour the deepening was calibrated
+  against. A `<= 10` test that did not say which reading it meant would leave the corpus bound a coin
+  flip on the implementer.
+
+  **The durable bound is PER-DIRECTORY, not per-bundle.** No single subdirectory shall contribute
+  more than `K` entries — measured at exactly 10 (`plan-049/references`), and true under **both**
+  readings. The corpus maximum of 30 entries per bundle is an *empirical* observation with zero
+  margin (four bundles sit at exactly 30) and rule D bounds a bundle's top-level file count not at
+  all, so a per-bundle assertion is one added file away from red for reasons unrelated to the rule.
+  Requirements state the structural invariant; they do not pin a corpus census.
+
+  **(b) The flat entry format.** Entries shall be emitted as the flat shape OKF v0.2 §8 gives
+  verbatim — `- [<title>](<relative-path>) - <description>`, one entry per line, with **no grouping
+  headings** interleaved in the listing run. The flat shape is what the research bundles already use,
+  it cannot be corrupted by the splice defect, and it cannot trip the audit's `^- \[` entry regex.
+
+  **Every writer of a listing bullet shall emit this one format.** The requirement binds the format
+  to the *emitted line*, not to a single function, because the corpus has more than one bullet
+  writer: a second, independent writer that never routes through the shared entry-adder produces two
+  formats inside one `index.md` and turns the live index-drift gate red on the next bundle that grows
+  a member.
+
+  **(c) The description fallback chain, in this order, terminating in nothing.** An entry's
+  description resolves as **caller-supplied `desc` → the linked file's frontmatter `description:` →
+  the linked file's `H1` → bare (no description at all)**.
+
+  **The caller-supplied link is FIRST and is not optional.** Callers pass an authored description
+  deliberately — a member table, an operator's explicit `--description` flag, a sidecar description,
+  a `[phase]`-prefixed research entry. Measured 2026-08-29: **150** corpus entries carry an authored
+  member-table string and **32 of 44** research entries carry the `[phase]` prefix, while only
+  **7.8%** (16/204) of indexed `.md` members carry a `description:` key at all — so a chain that
+  began at frontmatter would silently discard every authored string in the corpus and would delete an
+  operator's explicit flag as a side effect. Reducing authored boilerplate is a legitimate goal and a
+  **separate decision**; it shall not be smuggled into a fallback chain.
+
+  **The chain never synthesizes.** Falling off the end of the chain emits a bare entry, never a
+  generated summary and never a placeholder — the same prohibition REQ-OKF-072 states for
+  regeneration, applied at authoring time.
+
+  **(d) The inverse drift signal.** `reindex --check` shall report a **`missing`** finding for a
+  **nested** file that rule D selects but the index omits, on the same footing as the root-tier
+  `missing` REQ-OKF-011 already defines. Without it the drift signal is one-directional: a listed
+  file that vanishes is caught (`ghost`) while an unlisted file that appears is invisible, so a
+  bundle can grow indefinitely without ever being out of agreement with its own index. A gate that
+  can only fire in one direction certifies the other.
 
 ## 3. Interfaces
 
@@ -451,7 +605,7 @@ are per-skill (the three current models genuinely differ) and are specified in e
 > `emit_conformant_copy` now appears in neither the code nor this SPEC — the only two outcomes
 > plan-046 SC10 permits.
 
-- **Operator surface:** `/yf-okf init | migrate | check | assess | reindex` (SKILL.md). `reindex`
+- **Operator surface:** `/yf-okf init | migrate | check | reindex` (SKILL.md). `assess` was REMOVED by plan-057 Issue 3.4 — it was advertised and dispatched by no engine verb; the capability now lives in `yf-okf-hygiene` (`audit`, with `assess` as a declared alias there).  `reindex`
   exits `0` clean / `1` drift / `2` `no-index` / `3` `no-such-path` / `4` `inconclusive`
   (REQ-OKF-011) — the one verb whose exit code is a multi-way verdict rather than a pass/fail.
   `126`/`127` stay reserved to the shell (REQ-CLI-029).

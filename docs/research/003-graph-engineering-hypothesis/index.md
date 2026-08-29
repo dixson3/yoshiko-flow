@@ -15,3 +15,8 @@ okf_version: '0.1'
 - [diagrams/yf-construct-vs-execute.png](diagrams/yf-construct-vs-execute.png) - [package] Figure 1: the three layers (construction / artifact / execution) with the 6 ranked refactoring opportunities attached to their evidencing layer; d2 source beside it
 - [plan.yaml](plan.yaml)
 - [sources.json](sources.json)
+- [artifacts/sources-comparative-execution.json](artifacts/sources-comparative-execution.json)
+- [artifacts/sources-framework-evidence.json](artifacts/sources-framework-evidence.json)
+- [artifacts/sources-practitioner-trend.json](artifacts/sources-practitioner-trend.json)
+- [artifacts/sources-yf-codebase.json](artifacts/sources-yf-codebase.json)
+- [diagrams/yf-construct-vs-execute.d2](diagrams/yf-construct-vs-execute.d2)

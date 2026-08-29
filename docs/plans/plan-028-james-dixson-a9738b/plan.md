@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-028-james-dixson-a9738b
+author: james-dixson
+created: '2026-07-15'
+status: complete
+epic: yf-mol-181
+fingerprint: 832dd5b34e3a87acc96ef3180df330ccdbdb6310d49e6e8da05e557addad68a5
+---
 # Plan: Fix credibility_scorer tz-naive crash + dev-tooling domain tiers (#87) and add parked-plan visibility to yf-plan intake/status (#86)
 
 **ID:** plan-028-james-dixson-a9738b
@@ -6,17 +16,6 @@
 **Status:** complete
 **Epic:** yf-mol-181
 **Fingerprint:** 832dd5b34e3a87acc96ef3180df330ccdbdb6310d49e6e8da05e557addad68a5
-**Phase log:**
-- 2026-07-15 scoping: initial scope captured
-- 2026-07-15 drafting: synthesizing plan — 2 epics, no investigation needed (concrete fixes)
-- 2026-07-15 review: plan v1 presented — red-team REVISE (pass-1), 4 concerns resolved
-- 2026-07-15 review: plan v2 presented — red-team APPROVE (pass-2), 2 residual items folded in
-- 2026-07-15 ready-for-approval: ready-check green — red-team APPROVE (pass-2) + audit pass
-- 2026-07-15 approved: operator approved
-- 2026-07-15 intake: epic yf-mol-181 poured
-- 2026-07-15 executing: start gate resolved
-- 2026-07-15 reconciling: post-execution reconciliation
-- 2026-07-15 complete: plan complete — #87 and #86 resolved, merged + pushed
 
 ## Objective
 

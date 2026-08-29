@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: 2026-06-14 · **Method:** read bdplan gate/RECONCILE model + WebSearch on merge-queue
+  prior art
+---
 # Finding INV-4: concurrent-merge regression / acceptance model
 
 **Date:** 2026-06-14 · **Method:** read bdplan gate/RECONCILE model + WebSearch on merge-queue prior art

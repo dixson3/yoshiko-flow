@@ -1,3 +1,9 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial, 2nd cycle) · **Date:** 2026-06-30 · **Plan status
+  at review:** review
+---
 # Review pass-2 — plan-018
 
 **Reviewer:** red-team (adversarial, 2nd cycle) · **Date:** 2026-06-30 · **Plan status at review:** review

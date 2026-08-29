@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #3: bdplan: make plan folders self-contained / portable before intake
 
 - **Number:** 3

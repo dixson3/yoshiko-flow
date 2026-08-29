@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-025-james-dixson-0183e8
+author: james-dixson
+created: '2026-07-09'
+status: complete
+epic: yf-mol-2l1
+fingerprint: 4b0015dd80d529a9240fa1dfc569ad5c016686410544df1638d6c518f524726a
+---
 # Plan: Add a 'Claude Code Optimization' README section (efficiency framing) and expand docs/recommended-settings.md with the permissions block, tool-disables, and notification/upload keys
 
 **ID:** plan-025-james-dixson-0183e8
@@ -6,15 +16,6 @@
 **Status:** complete
 **Epic:** yf-mol-2l1
 **Fingerprint:** 4b0015dd80d529a9240fa1dfc569ad5c016686410544df1638d6c518f524726a
-**Phase log:**
-- 2026-07-09 scoping: initial scope captured
-- 2026-07-09 drafting: plan v1 presented (docs-only; no investigation phase — content is fully known)
-- 2026-07-09 review: plan v1 presented (docs-only)
-- 2026-07-09 approved: operator approved
-- 2026-07-09 intake: epic yf-mol-2l1 poured
-- 2026-07-09 executing: start gate resolved
-- 2026-07-09 reconciling: post-execution reconciliation
-- 2026-07-09 complete: plan complete
 
 ## Objective
 

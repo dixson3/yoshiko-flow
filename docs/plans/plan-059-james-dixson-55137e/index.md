@@ -34,5 +34,21 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/research-005-extract.md](references/research-005-extract.md) - Verbatim §7, §8 and §9 of the `yf-research` 005 report — the empirical basis this plan reasons from. Vendored because the report is NOT on this branch or on `main`.
 - [escalations.md](escalations.md) - Open questions raised to the upstream controller during execution (`## ESC-NNN` entries), each with its alternatives, its recommended default, and what happens if no answer arrives. PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding of any severity (REQ-PORT-ACT-ESCALATION).
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [assets/upstream-drafts/issue-2.7-drift-check-edge.body.txt](assets/upstream-drafts/issue-2.7-drift-check-edge.body.txt)
+- [assets/upstream-drafts/issue-273-corrected-body.body.txt](assets/upstream-drafts/issue-273-corrected-body.body.txt)
+- [assets/upstream-drafts/issue-6.3-detector-remeasurement.body.txt](assets/upstream-drafts/issue-6.3-detector-remeasurement.body.txt)
+- [assets/upstream-drafts/reconcile-145.body.txt](assets/upstream-drafts/reconcile-145.body.txt)
+- [assets/upstream-drafts/reconcile-264.body.txt](assets/upstream-drafts/reconcile-264.body.txt)
+- [assets/upstream-drafts/reconcile-273.body.txt](assets/upstream-drafts/reconcile-273.body.txt)
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1 — plan-059-james-dixson-55137e
+- [reviews/pass-10.md](reviews/pass-10.md) - Red-team pass 10 — plan-059-james-dixson-55137e
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2 — plan-059-james-dixson-55137e
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3 — plan-059-james-dixson-55137e
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 — plan-059-james-dixson-55137e
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 — plan-059-james-dixson-55137e
+- [reviews/pass-6.md](reviews/pass-6.md) - Red-team pass 6 — plan-059-james-dixson-55137e
+- [reviews/pass-7.md](reviews/pass-7.md) - Red-team pass 7 — plan-059-james-dixson-55137e
+- [reviews/pass-8.md](reviews/pass-8.md) - Red-team pass 8 — plan-059-james-dixson-55137e
+- [reviews/pass-9.md](reviews/pass-9.md) - Red-team pass 9 — plan-059-james-dixson-55137e
 
 **External dependency, and read this before chasing a path.** The empirical basis for this plan is `yf-research` 005. Its bundle is **not present in this repository on this branch or on `main`** — it lives on the unmerged branch `research/005-thrash-detection`, PR **#267**, at `docs/research/005-thrash-detection-and-operator-judgement/`. The full report is 1,249 lines with 228 cited sources. The three sections this plan's reasoning depends on (§7 recommendation, §8 escalation assessment, §9 absence findings) are **vendored verbatim** into `references/research-005-extract.md`, so a cold reader needs nothing outside this folder.

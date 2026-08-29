@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #37: bdresearch: optional record-epic helper for idempotent plan.yaml epic: pointer
 
 - **Number:** 37

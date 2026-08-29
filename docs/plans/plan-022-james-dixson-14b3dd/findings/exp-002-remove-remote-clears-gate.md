@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # EXP-002: Does remove-remote-alone clear the bd 1.1.0 remote-migrate gate?
 
 Plan: plan-022, Issue 4.2 (#61). Load-bearing for Epic 4 reframe (canonicalization

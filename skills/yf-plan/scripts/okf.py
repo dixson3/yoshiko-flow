@@ -368,6 +368,77 @@ def _read_index(bundle: Path, *, root: bool = True) -> tuple[dict, str]:
     return ({"okf_version": okf_version} if root else {}), f"\n# {bundle.name}\n\n"
 
 
+def _index_bullet(title: str, target: str, desc: str = "") -> str:
+    """THE ONE PLACE A LISTING BULLET IS SPELLED (REQ-OKF-012(b)).
+
+    The flat shape OKF v0.2 §8 gives verbatim: ``- [<title>](<target>) - <description>``, one
+    entry per line, with NO grouping headings interleaved in the listing run. The requirement
+    binds the format to the EMITTED LINE rather than to a single function, because this
+    repository has more than one bullet writer — `plan_manager.py`'s `_ensure_index_lists_member`
+    builds its own and never routes through `add_index_entry`. Two formats inside one
+    `index.md` turn the live index-drift gate red on the next bundle that grows a member, so
+    every writer spells it the same way.
+    """
+    return f"- [{title}]({target})" + (f" - {desc}" if desc else "") + "\n"
+
+
+def _one_line(s: str) -> str:
+    """Collapse a description to ONE line.
+
+    A listing entry is a single line by construction (`_INDEX_ENTRY_RE` is anchored with
+    `re.MULTILINE`), so a multi-line YAML `description:` — a folded or literal block scalar —
+    would otherwise be spliced into the index and every line after the first would be parsed
+    as prose, silently truncating the entry it belongs to. Collapsing here is the only place
+    that can prevent it, because the chain is the only path by which authored multi-line text
+    reaches a bullet.
+    """
+    return " ".join(s.split())
+
+
+def _first_h1(text: str) -> str:
+    """The document's first ``# `` heading, or ``""``."""
+    for ln in text.splitlines():
+        if ln.startswith("# "):
+            return ln[2:].strip()
+    return ""
+
+
+def resolve_description(bundle: Union[str, Path], path: str, desc: str = "") -> str:
+    """REQ-OKF-012(c) — the description fallback chain, terminating in NOTHING.
+
+    ``caller-supplied desc`` -> the linked file's frontmatter ``description:`` -> its ``H1``
+    -> bare (the empty string).
+
+    THE CALLER-SUPPLIED LINK IS FIRST, AND IT IS NOT OPTIONAL. Callers pass an authored
+    description deliberately — a member table, an operator's explicit ``--description`` flag,
+    a sidecar description, a ``[phase]``-prefixed research entry. Measured 2026-08-29: **150**
+    corpus entries carry an authored member-table string and **32 of 44** research entries
+    carry the ``[phase]`` prefix, while only **7.8%** (16/204) of indexed ``.md`` members
+    carry a ``description:`` key at all. A chain that began at frontmatter would therefore
+    silently replace every authored string in the corpus and would delete an operator's
+    explicit flag as a side effect. Reducing authored boilerplate is a real goal and a
+    SEPARATE decision; it does not belong in a fallback chain.
+
+    THE CHAIN NEVER SYNTHESIZES. Falling off the end returns ``""`` and the caller emits a
+    bare ``- [title](path)``. Emitting a placeholder would write an assertion that a
+    description exists when none does — the same prohibition REQ-OKF-072 states for
+    regeneration, applied at authoring time.
+    """
+    if desc:
+        return desc
+    target = Path(bundle) / path
+    if not target.is_file() or target.suffix.lower() != ".md":
+        return ""
+    try:
+        fm, body = read_frontmatter(target)
+    except Exception:
+        return ""
+    fm_desc = (fm or {}).get("description")
+    if isinstance(fm_desc, str) and fm_desc.strip():
+        return _one_line(fm_desc)
+    return _one_line(_first_h1(body))
+
+
 def render_index(bundle: Union[str, Path], *, root: bool = True) -> str:
     """Return the reserved ``index.md`` text for ``bundle`` (progressive-disclosure
     listing: ``#`` heading + ``- [child](path) - description`` bullets). If no
@@ -384,13 +455,12 @@ def render_index(bundle: Union[str, Path], *, root: bool = True) -> str:
     lines = ([_dump_frontmatter({"okf_version": okf_version})] if root else [])
     lines.append(f"\n# {b.name}\n\n")
     if b.is_dir():
-        for child in sorted(b.iterdir()):
-            if child.name in RESERVED_FILES or child.name.startswith("."):
-                continue
-            if child.is_dir():
-                lines.append(f"- [{child.name}/]({child.name}/index.md)\n")
-            elif child.is_file():
-                lines.append(f"- [{child.name}]({child.name})\n")
+        # Rule D (REQ-OKF-012(a)) and the fallback chain (REQ-OKF-012(c)). This function used
+        # to walk `iterdir()` itself and never read a `description:` key at all, so deepening
+        # needed two changes rather than one: the member set AND the description source.
+        for member in _listing_members(b, deep=root):
+            desc = resolve_description(b, member)
+            lines.append(_index_bullet(member, member, desc))
     return "".join(lines)
 
 
@@ -407,7 +477,10 @@ def add_index_entry(
     same ``path``. Returns the new ``index.md`` text."""
     b = Path(bundle)
     fm, body = _read_index(b, root=root)
-    bullet = f"- [{path}]({path})" + (f" - {desc}" if desc else "")
+    # REQ-OKF-012(c): `desc` is the FIRST link of the chain, never the only source and never
+    # discarded. An empty `desc` falls through to the linked file's `description:`, then its
+    # H1, then bare.
+    bullet = _index_bullet(path, path, resolve_description(b, path, desc)).rstrip("\n")
     if bullet.split(" - ")[0] not in body:
         if not body.endswith("\n"):
             body += "\n"
@@ -1395,18 +1468,88 @@ def check_markers(text: str) -> None:
                 f"{text.count(end)}x {end!r} — refusing to regenerate, prose would be lost")
 
 
-def _listing_members(bundle: Path, exclude_globs: Optional[Sequence[str]] = None) -> list[str]:
-    """Direct children that belong in a root listing: files and non-empty subdirs.
+#: Rule D's per-directory bound (REQ-OKF-012(a)). A CONSTANT, not a configuration key: a
+#: per-repo knob would make two corpora's indexes incomparable and would re-open the very
+#: boilerplate question the deepening exists to close.
+LISTING_DEPTH_K = 10
 
-    Reserved files and dot-prefixed entries are excluded (REQ-OKF-001/031).
 
-    WALK SITE 3 of 3 (REQ-OKF-CHK-003): a member-declared §3b glob additionally removes
-    a child from the listing. This site matters even though it enumerates only DIRECT
-    children — an excluded top-level directory (`assets/fixtures/**` under a bundle whose
-    `assets/` holds nothing else) would otherwise be reported `missing` by `reindex_check`
-    and appended by `reindex_write`, so the two would disagree with `check` about the same
-    path. `None` means "resolve the member's own globs"; an explicit `[]` disables them
-    (the `--no-exclude` control).
+def _recursive_file_count(d: Path, exclude_globs: Sequence[str], prefix: str) -> int:
+    """Files reachable RECURSIVELY beneath ``d``, honouring the member's exclusions.
+
+    RECURSIVE IS NORMATIVE, and the reading is load-bearing (REQ-OKF-012(a)). Simulated over
+    all 64 enumerated bundles: recursive gives total 867 / median 12 / max 30; direct-children
+    gives 897 / 12 / **33**. Only the recursive reading collapses `references/` (391 files) and
+    `reviews/` (108 files) to bare stubs, which is the behaviour rule D was calibrated against.
+    A `<= K` test that did not say which reading it meant would leave the corpus bound a coin
+    flip on the implementer — measured as UNDERDETERMINED, which is worse than stale.
+    """
+    n = 0
+    try:
+        for child in sorted(d.iterdir()):
+            if child.name in RESERVED_FILES or child.name.startswith("."):
+                continue
+            rel = f"{prefix}{child.name}"
+            if child.is_dir():
+                if is_excluded(rel + "/", exclude_globs) or is_excluded(rel, exclude_globs):
+                    continue
+                n += _recursive_file_count(child, exclude_globs, rel + "/")
+            elif child.is_file():
+                if is_excluded(rel, exclude_globs):
+                    continue
+                n += 1
+    except OSError:
+        return n
+    return n
+
+
+def _nested_files(d: Path, exclude_globs: Sequence[str], prefix: str) -> list[str]:
+    """Every file beneath ``d``, as bundle-relative paths, in sorted order."""
+    out: list[str] = []
+    try:
+        for child in sorted(d.iterdir()):
+            if child.name in RESERVED_FILES or child.name.startswith("."):
+                continue
+            rel = f"{prefix}{child.name}"
+            if child.is_dir():
+                if is_excluded(rel + "/", exclude_globs) or is_excluded(rel, exclude_globs):
+                    continue
+                out.extend(_nested_files(child, exclude_globs, rel + "/"))
+            elif child.is_file():
+                if is_excluded(rel, exclude_globs):
+                    continue
+                out.append(rel)
+    except OSError:
+        return out
+    return out
+
+
+def _listing_members(bundle: Path, exclude_globs: Optional[Sequence[str]] = None,
+                     *, deep: bool = True, k: int = LISTING_DEPTH_K) -> list[str]:
+    """Members that belong in a ROOT listing, under rule D (REQ-OKF-012(a)).
+
+    Top-level files are always enumerated. For each non-empty subdirectory, the files
+    reachable RECURSIVELY beneath it are counted: at ``<= k`` they are enumerated
+    INDIVIDUALLY as bundle-relative paths; above ``k`` a single bare ``sub/`` bullet is
+    emitted instead.
+
+    THE DURABLE BOUND IS PER-DIRECTORY, and it is structural rather than empirical: because a
+    subdirectory is enumerated only when it holds at most ``k`` files, no single subdirectory
+    can ever contribute more than ``k`` entries. Measured at exactly 10
+    (``plan-049/references``). The alternative — asserting the corpus MAXIMUM of ~30 entries
+    per bundle — is one added file away from red for a reason unrelated to the rule: rule D
+    bounds a bundle's top-level file count not at all, and the corpus maximum has already
+    moved (39 on ``plan-059`` as of 2026-08-29) since the bound was first written down.
+
+    ``deep=False`` restores the pre-REQ-OKF-012 direct-children behaviour. It exists so the
+    two readings remain independently testable, not as a configuration surface.
+
+    Reserved files and dot-prefixed entries are excluded at EVERY level (REQ-OKF-001/031).
+
+    WALK SITE 3 of 3 (REQ-OKF-CHK-003): a member-declared §3b glob additionally removes a
+    child from the listing, and under ``deep`` it is matched against the BUNDLE-RELATIVE path,
+    so a recursive `**` exclusion reaches the nested entries it names. `None` means "resolve
+    the member's own globs"; an explicit `[]` disables them (the `--no-exclude` control).
     """
     if exclude_globs is None:
         try:
@@ -1431,6 +1574,15 @@ def _listing_members(bundle: Path, exclude_globs: Optional[Sequence[str]] = None
                     continue
             except OSError:
                 continue
+            if deep:
+                count = _recursive_file_count(child, exclude_globs, child.name + "/")
+                if count == 0:
+                    # Non-empty on disk but every file excluded (or only empty subdirs):
+                    # nothing to enumerate and nothing worth a stub.
+                    continue
+                if count <= k:
+                    out.extend(_nested_files(child, exclude_globs, child.name + "/"))
+                    continue
             out.append(child.name + "/")
         elif child.is_file():
             # ALL direct file children, not only `.md`. OKF v0.2 §8: an index
@@ -1643,6 +1795,24 @@ def reindex_write(bundle: Union[str, Path], *, root: bool = True,
     listed_norm: set[str] = set()
     for ln in bullets:
         m = _INDEX_ENTRY_RE.match(ln)
+        # PROSE INTERLEAVED WITHIN THE LISTING RUN (upstream #290, plan-057 Issue 1.4).
+        #
+        # `_split_listing` returns the CONTIGUOUS RUN from the first bullet to the last, so a
+        # blank line or a `## Subheading` sitting between two bullets is handed to this loop —
+        # where `m` is None and `m.group(...)` raised `AttributeError`. Measured 2026-08-29
+        # over the 33 index-bearing bundles: `reindex_check` clean on 33 of 33 while
+        # `reindex_write` CRASHED on 4 (plan-054: 1 offending line, plan-057: 6 — 4 blank and
+        # 2 `##` — plan-058: 14, plan-059: 1). The corpus gate was green while the paired
+        # REPAIR verb could not run at all on the plan that commissions it.
+        #
+        # Carried through IN PLACE, never dropped and never reordered. This COMPLETES
+        # `_split_listing`'s own docstring promise that prose is "carried through verbatim"
+        # rather than altering REQ-OKF-072's preserve-and-append contract — the promise was
+        # already made for prose OUTSIDE the run, and prose INSIDE it was simply unhandled.
+        # No new REQ: a bug fix to shipped REQ-OKF-072.
+        if m is None:
+            kept.append(ln)
+            continue
         target = m.group("target").strip()
         clean = target.split("#", 1)[0].split("?", 1)[0]
         if "://" in target or target.startswith("#") or not clean:
@@ -1666,7 +1836,17 @@ def reindex_write(bundle: Union[str, Path], *, root: bool = True,
             continue
         if _covered_by_listed_children(member, raw_listed):
             continue                     # children already listed with descriptions
-        kept.append(f"- [{member}]({member})\n")
+        # REQ-OKF-012(c): the description RESOLVES through the chain — here the caller
+        # supplies none, so it is the member's own frontmatter `description:`, then its H1,
+        # then bare. THIS IS SOURCING, NOT SYNTHESIS: the text is the document's own, and the
+        # chain terminates in a bare bullet rather than in a placeholder, which is exactly
+        # what REQ-OKF-072's "never invent a description" prohibits.
+        #
+        # Measured over SC3's 25-bundle frozen set: appending BARE leaves the boilerplate
+        # ratio at 0.6848 — unmoved, so the deepening would buy nothing it is meant to buy —
+        # while resolving through the chain gives 446 described / 299 distinct / 147 repeated
+        # = 0.3296.
+        kept.append(_index_bullet(member, member, resolve_description(b, member)))
         out["changes"].append({"op": "add-missing", "target": member})
 
     new_body = head + "".join(kept) + tail

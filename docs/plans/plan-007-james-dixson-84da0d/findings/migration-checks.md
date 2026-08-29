@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+bead: '`beads-skills-mol-s3x.3.3` (plan issue 3.3). Two parts: (1) run the repo''s
+  own checks'
+---
 # Migration acceptance — drift-check over new skill + migrated files
 
 **Bead:** `beads-skills-mol-s3x.3.3` (plan issue 3.3). Two parts: (1) run the repo's own checks

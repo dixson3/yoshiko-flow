@@ -140,7 +140,29 @@ def main() -> int:
             if a.root is not None or not str(g).startswith("Incubator/"):
                 bad_roots.append(g)
                 continue
-        matched = [p for p in sorted((root).glob(g)) if p.is_dir()]
+        # AN ABSOLUTE ROOT IS ORDINARY, NOT EXCEPTIONAL (REQ-CLI-029(d), plan-057 Issue 1.4).
+        # Measured 2026-08-29: `--root "$PWD/docs/plans/*"` raised an unhandled
+        # `NotImplementedError("Non-relative patterns are unsupported")` from `pathlib` and
+        # exited **1** — which under THIS SCRIPT'S OWN documented contract means *drift*. A
+        # harness fault reported as a corpus finding is worse than a traceback: the code is
+        # wrong but in-contract, so no reader can tell. An absolute glob is now anchored at
+        # its own filesystem root and matched relative to it; an unusable pattern is `2`.
+        try:
+            gp = Path(g)
+            if gp.is_absolute():
+                anchor = Path(gp.anchor)
+                matched = [p for p in sorted(anchor.glob(str(gp.relative_to(anchor))))
+                           if p.is_dir()]
+            else:
+                matched = [p for p in sorted(root.glob(g)) if p.is_dir()]
+        except (NotImplementedError, ValueError, OSError) as exc:
+            print(json.dumps({
+                "check": CHECK, "verdict": "inconclusive", "exit": 2,
+                "bundles_checked": 0, "bad_roots": [str(g)],
+                "reason": (f"root pattern {g!r} could not be expanded: {exc} — this is a "
+                           "statement about the INSTRUMENT, not about the corpus"),
+            }, indent=1))
+            return 2
         bundles.extend(matched)
 
     if bad_roots:

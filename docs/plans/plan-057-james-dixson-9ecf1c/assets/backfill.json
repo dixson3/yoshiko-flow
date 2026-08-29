@@ -1,0 +1,441 @@
+{
+ "bundles": [
+  {
+   "bundle": "docs/plans/plan-001-james-dixson-c88e7a",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "fail"
+   },
+   "after": {
+    "verdict": "fail"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-002-james-dixson-b8b610",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-003-james-dixson-adacc7",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-004-james-dixson-56f494",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-005-james-dixson-44b200",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "fail"
+   },
+   "after": {
+    "verdict": "fail"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-006-james-dixson-bf6e21",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-007-james-dixson-84da0d",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "fail"
+   },
+   "after": {
+    "verdict": "fail"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-008-james-dixson-382e8a",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-009-james-dixson-996e44",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-011-james-dixson-dd21e3",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-015-james-dixson-cb2ef4",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-016-james-dixson-041b2f",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-017-james-dixson-9ac898",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-018-james-dixson-1d39eb",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-019-james-dixson-eea8e7",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-020-james-dixson-81785d",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "fail"
+   },
+   "after": {
+    "verdict": "fail"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-022-james-dixson-14b3dd",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-024-james-dixson-76cee9",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-025-james-dixson-0183e8",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-027-james-dixson-a59656",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-028-james-dixson-a9738b",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-029-james-dixson-75fd34",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "after": {
+    "verdict": "warn"
+   },
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/research/001-okf-compliance-delta",
+   "class": "legacy-underscore-index",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [
+     "_index.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-research",
+   "before": {
+    "verdict": "fail"
+   },
+   "after": {
+    "verdict": "fail"
+   },
+   "action": "backfilled"
+  }
+ ]
+}

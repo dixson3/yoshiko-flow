@@ -258,7 +258,13 @@ def _skill_dir_consumers() -> "list[tuple[Path, str]]":
     """
     root = REPO_ROOT / "skills"
     caller_supplied = {
-        root / "yf-okf" / "agents" / "assessor.md",
+        # `yf-okf/agents/assessor.md` was DELETED by plan-057 Issue 3.4 along with the
+        # `assess` verb it served. Its capability — discover bundles under a root, report
+        # per-bundle impact, mutate nothing — is now `okf_hygiene.py audit`, which does the
+        # same fan-out DETERMINISTICALLY and returns an exit code. Moving the agent to the new
+        # skill was rejected on that ground: dispatching a sub-agent for work a script does
+        # exactly is strictly worse, and it would have re-created the advertised-but-not-quite
+        # surface this issue exists to delete.
         root / "yf-plan" / "agents" / "coordinator.md",
         root / "yf-beads-authoring" / "agents" / "reviewer.md",
     }
@@ -384,6 +390,19 @@ WHOLE_FILE_ASSETS = [
             _skill("yf-research", "scripts", "okf.py"),
             _skill("yf-incubator", "scripts", "okf.py"),
             _skill("yf-okf", "scripts", "okf.py"),
+            # FIFTH CONSUMER (plan-057 Issue 1.6, option (a)). `yf-okf-hygiene` calls the
+            # per-bundle engine verbs (`check`, `migrate`, `reindex`) at corpus scale, so it
+            # needs the engine; and skills DEPLOY STANDALONE, so a `sys.path` hack to
+            # `_shared/` is not available to it.
+            #
+            # REGISTERING IT IS THE WHOLE POINT. This consumer list is HAND-WRITTEN — unlike
+            # `document_types/`, which is enumerated from disk two blocks below precisely
+            # because a hand-written list silently omits the next entry. A vendored copy that
+            # is absent from this list is invisible to `--check`, so `sync.py --check` stays
+            # exit 0 while that copy drifts SILENTLY AND FOREVER. That is the failure mode
+            # this file's own comment describes, and it is why the registration is a
+            # deliverable rather than a follow-up.
+            _skill("yf-okf-hygiene", "scripts", "okf.py"),
         ],
     ),
 ]

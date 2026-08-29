@@ -1,19 +1,17 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-001-james-dixson-c88e7a
+author: james-dixson
+created: '2026-04-05'
+status: complete
+---
 # Plan: Make bdplan plan folders self-contained and portable before intake (upstream #3)
 
 **ID:** plan-001-james-dixson-c88e7a
 **Author:** james-dixson
 **Created:** 2026-04-05
 **Status:** complete
-**Phase log:**
-- 2026-04-05 scoping: initial scope captured
-- 2026-04-05 drafting: no blocking unknowns, synthesizing plan v1
-- 2026-04-05 review: plan v1 presented — REVISE
-- 2026-04-05 drafting: plan v2 addresses all reviewer concerns (H1, M1–M4, L1–L4, missing items)
-- 2026-04-05 review: plan v2 presented
-- 2026-04-05 approved: operator approved plan v2
-- 2026-04-05 executing: start gate resolved
-- 2026-04-05 reconciling: all execution beads closed
-- 2026-04-05 complete: plan complete
 
 ## Objective
 

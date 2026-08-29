@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-024-james-dixson-76cee9
+author: james-dixson
+created: '2026-07-07'
+status: complete
+epic: yf-mol-133
+fingerprint: f9952a051d11f51c8036056130913e50a98b0644262c2d269399050256f20507
+---
 # Plan: yf-plan lifecycle-integrity hardening: ready-for-approval gate (#69) + cascade-close containers on plan completion (#73)
 
 **ID:** plan-024-james-dixson-76cee9
@@ -6,17 +16,6 @@
 **Status:** complete
 **Epic:** yf-mol-133
 **Fingerprint:** f9952a051d11f51c8036056130913e50a98b0644262c2d269399050256f20507
-**Phase log:**
-- 2026-07-07 scoping: initial scope captured
-- 2026-07-07 scoping: operator decisions locked (new status value; script-gated ready-check; reusable close-cascade helper)
-- 2026-07-07 drafting: plan v1 presented
-- 2026-07-07 review: plan v1 presented
-- 2026-07-07 review: red-team pass 2 — APPROVE
-- 2026-07-07 approved: operator approved
-- 2026-07-07 intake: epic yf-mol-133 poured
-- 2026-07-07 executing: start gate resolved
-- 2026-07-07 reconciling: execution complete — post-execution reconciliation
-- 2026-07-07 complete: plan complete — cascade-close clean (epics + molecule), upstream reconciled
 
 ## Objective
 

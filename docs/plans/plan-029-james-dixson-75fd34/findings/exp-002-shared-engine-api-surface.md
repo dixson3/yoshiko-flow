@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+experiment: Define the shared-engine API a `yf-okf` skill must expose so yf-research
+  /
+---
 # Finding: yf-okf shared-engine API surface + where it lives
 
 **Experiment:** Define the shared-engine API a `yf-okf` skill must expose so yf-research /

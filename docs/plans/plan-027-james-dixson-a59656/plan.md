@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-027-james-dixson-a59656
+author: james-dixson
+created: '2026-07-11'
+status: complete
+epic: yf-mol-k4k
+fingerprint: 1c9df273f24047364fcd34ced1a886cfe98ecb6aecce42802c6e5f0052cbe6c1
+---
 # Plan: Harden beads-backed skills against formula-staging bugs and add a preflight/doctor formula-resolvability check that validates both user-scope and project-scope skills per-repo
 
 **ID:** plan-027-james-dixson-a59656
@@ -6,19 +16,6 @@
 **Status:** complete
 **Epic:** yf-mol-k4k
 **Fingerprint:** 1c9df273f24047364fcd34ced1a886cfe98ecb6aecce42802c6e5f0052cbe6c1
-**Phase log:**
-- 2026-07-11 scoping: initial scope captured
-- 2026-07-11 scoping: routing confirmed — new plan (keeps plan-026 fingerprint intact)
-- 2026-07-11 investigating: 2 experiments: yf preflight/doctor architecture + check form
-- 2026-07-11 drafting: plan v1 synthesized: 5 epics (own-staging + FormulaCheck + cleanup)
-- 2026-07-11 review: pass-1 red-team REVISE (2 high, 4 med, 1 low) — see reviews/pass-1.md
-- 2026-07-11 review: pass-2 red-team APPROVE (2 med folded, non-blocking) — see reviews/pass-2.md
-- 2026-07-11 ready-for-approval: ready-check green — pass-2 APPROVE + audit pass
-- 2026-07-11 approved: operator approved
-- 2026-07-11 intake: epic yf-mol-k4k poured
-- 2026-07-11 executing: start gate resolved
-- 2026-07-12 reconciling: post-execution reconciliation; DAG drained
-- 2026-07-12 complete: plan complete — merged to main + full-tier validation green; cascade-close clean
 
 ## Objective
 Harden beads-backed skills against formula-staging bugs and add a preflight/doctor formula-resolvability check that validates both user-scope and project-scope skills per-repo

@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial, cycle 2 — post-revision verification)
+date: '2026-07-05'
+verdict: APPROVE
+---
 # Review pass 2 — plan-022
 
 **Reviewer:** red-team (adversarial, cycle 2 — post-revision verification)

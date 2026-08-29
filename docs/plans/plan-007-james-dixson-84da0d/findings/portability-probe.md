@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+bead: '`beads-skills-mol-s3x.1.3` (plan issue 1.7). Validates that the 7-section manifest'
+---
 # Portability probe — schema/vocabulary against a non-skills artifact graph
 
 **Bead:** `beads-skills-mol-s3x.1.3` (plan issue 1.7). Validates that the 7-section manifest

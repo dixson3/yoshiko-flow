@@ -1,3 +1,7 @@
+---
+type: Research Artifact
+okf_spec: OKF-RESEARCH
+---
 # Red-team critique — 001-okf-compliance-delta
 
 Reviewer: red-team agent. Scope: `Summary.md` on its own merits, against `sources.json` /

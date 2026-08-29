@@ -20,3 +20,15 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [findings/](findings/) - Investigation experiment results (if any).
+- [findings/exp-001-self-install-paths.md](findings/exp-001-self-install-paths.md) - E1 — What `yf self install` actually does today
+- [findings/exp-002-force-reembed.md](findings/exp-002-force-reembed.md) - E2 — Cheapest reliable way to force a `skills/` re-embed
+- [findings/exp-003-debug-release-parity.md](findings/exp-003-debug-release-parity.md) - E3 — Debug/release embed parity, and the actual mechanism of #137
+- [findings/exp-004-harness-tune-safety.md](findings/exp-004-harness-tune-safety.md) - E4 — Is `yf harness tune` safe to auto-invoke?
+- [findings/exp-005-profiles-addition-probe.md](findings/exp-005-profiles-addition-probe.md) - E5 — Does `yf/profiles/` share the `skills/` addition blind spot?
+- [findings/exp-006-spike-15-watch-form.md](findings/exp-006-spike-15-watch-form.md) - E6 — Issue 1.5 spike: per-file vs directory `rerun-if-changed`
+- [findings/exp-007-spike-12a-test-mechanism.md](findings/exp-007-spike-12a-test-mechanism.md) - E7 — Issue 1.2a spike: the addition-propagation test mechanism
+- [references/upstream-137-correction.md](references/upstream-137-correction.md)
+- [references/upstream-137.md](references/upstream-137.md) - Upstream #137: yf self install --from-build can promote a binary with a STALE embedded skills tree (release profile, incremental rebuild)
+- [reviews/pass-1.md](reviews/pass-1.md) - Review pass 1 — adversarial (red-team)
+- [reviews/pass-2.md](reviews/pass-2.md) - Review pass 2 — adversarial (red-team), post-split
+- [reviews/pass-3.md](reviews/pass-3.md) - Review pass 3 — adversarial (red-team)

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #6: bdplan: opportunistically generate mermaid architecture diagrams in plan.md
 
 - **Number:** 6

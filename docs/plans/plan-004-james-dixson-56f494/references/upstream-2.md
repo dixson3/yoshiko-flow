@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #2: bdplan: cross-session crash recovery and orphan cleanup for executor
 
 - **Number:** 2

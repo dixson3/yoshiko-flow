@@ -3,9 +3,13 @@ type: Research Report
 okf_spec: OKF-RESEARCH
 id: 001-okf-compliance-delta
 idx: '001'
-topic: OKF (Open Knowledge Format) compliance-delta for yf-plan / yf-research / yf-incubator artifacts
+topic: OKF (Open Knowledge Format) compliance-delta for yf-plan / yf-research / yf-incubator
+  artifacts
 created: '2026-07-17'
-superseded_by: plan-046-james-dixson-aabefa — OKF-BASELINE.md reconciled from the OKF v0.1 facts this project distilled to upstream OKF v0.2, quoted directly from the vendored spec
+superseded_by: plan-046-james-dixson-aabefa — OKF-BASELINE.md reconciled from the
+  OKF v0.1 facts this project distilled to upstream OKF v0.2, quoted directly from
+  the vendored spec
+research_project: 001-okf-compliance-delta · **Phase:** synthesize · **Date:** 2026-07-17
 ---
 
 # OKF Compliance-Delta for yf-plan / yf-research / yf-incubator

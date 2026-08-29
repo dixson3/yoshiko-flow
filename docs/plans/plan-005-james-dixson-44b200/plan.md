@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-005-james-dixson-44b200
+author: james-dixson
+created: '2026-06-02'
+status: complete
+epic: yf-4128b0a0
+---
 # Plan: Canonicalize agent naming and factoring across beads-skills
 
 **ID:** plan-005-james-dixson-44b200
@@ -5,15 +14,6 @@
 **Created:** 2026-06-02
 **Status:** complete
 **Epic:** yf-4128b0a0
-**Phase log:**
-- 2026-06-02 scoping: initial scope captured
-- 2026-06-02 drafting: scope captured; no investigation needed; synthesizing plan
-- 2026-06-02 review: plan v1 presented
-- 2026-06-02 review: pass-2 re-review; N1/N2/N3 resolved in-place
-- 2026-06-02 approved: operator approved after pass-2 re-review
-- 2026-06-02 intake: epic yf-4128b0a0 poured
-- 2026-06-02 executing: start gate resolved
-- 2026-06-03 complete: plan complete — all 5 epics executed, repo-wide consistency sweep passed
 
 ## Objective
 Canonicalize agent naming and factoring across beads-skills

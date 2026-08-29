@@ -1,3 +1,8 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+presented: 2026-06-14 · **Conformance:** PASS (mechanical, run inline)
+---
 # Plan Red-Team: plan-009-james-dixson-996e44 — Pass 1
 
 **Presented:** 2026-06-14 · **Conformance:** PASS (mechanical, run inline)

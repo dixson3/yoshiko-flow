@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Finding: overlap between optimal-instructions and skill-authoring
 
 ## Question

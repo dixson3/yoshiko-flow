@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: How does d2 produce PNGs? Does the default produce a light-mode,
+---
 # EXP-001 — d2 PNG export mechanics & white-background guarantee
 
 **Question:** How does d2 produce PNGs? Does the default produce a light-mode,

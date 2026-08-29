@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #87: credibility_scorer.py: tz-naive date crash + domain allowlist misses dev-tooling primaries
 
 - **Number:** 87

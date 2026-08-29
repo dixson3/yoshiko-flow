@@ -14,9 +14,50 @@
 
 ## 0. Provenance and draft status
 
+### The pin is a CONTENT HASH, not a version label (REQ-OKF-033, plan-057 Issue 3.1)
+
+okf_baseline_sha256: 26aa5da029278939f914e578107242d9607d4f2dc5fe153272b82f9ed1030101
+okf_baseline_url: https://raw.githubusercontent.com/GoogleCloudPlatform/open-knowledge-format/main/SPEC.md
+okf_baseline_retrieved: 2026-08-29
+
+**`0.2` is a MUTABLE LABEL and is no longer a pin.** Upstream OKF relocated from
+`GoogleCloudPlatform/knowledge-catalog` to **`GoogleCloudPlatform/open-knowledge-format`**, marked
+the old `okf/` snapshot frozen with a notice to stop building against it, and then **changed v0.2 in
+place with no version bump**.
+
+**Measured 2026-08-29, by fetching both and diffing them** — not inherited:
+
+| | vendored v0.2 snapshot (2026-08-18) | live upstream (2026-08-29) |
+| :-- | :-- | :-- |
+| declared version | `Version 0.2` | `Version 0.2` — *unchanged* |
+| sha256 | `a642e3e497804943bcc9b6d1c20ab5f2c0667011fcd2e7adf553068632bc62b8` | `26aa5da029278939f914e578107242d9607d4f2dc5fe153272b82f9ed1030101` |
+| bytes | 37 992 | 37 748 |
+| ISO-8601 clauses | 3 | **4** |
+
+The added clause is normative and is the whole point: *"Every timestamp-valued key in OKF is an ISO
+8601 datetime with an explicit UTC offset"* (live line 284) appears in **no** revision labelled
+differently. So `okf_spec: 0.2` no longer identifies a fixed document, which defeats the plan-029 R3
+isolation strategy outright — that strategy assumed a version string **is** a pin. **A label-only
+pin would have detected nothing here; the content hash fires on the actual event.**
+
+Corpus impact of the added clause is **zero** (yoshiko-flow emits no timestamp-valued OKF key), so
+this is a pin and a record, **not** a migration.
+
+The drift detector is `scripts/baseline-pin-drift.sh`, wired as a **FULL-tier** row
+(`baseline-pin-drift`). It is **read-only**: it reports and proposes a human diff, and never
+rewrites this file — deciding what an upstream change *means* for the yf layer is a judgement, not
+a transform. A network failure is **INCONCLUSIVE (2), never drift (1)**: an unreachable upstream is
+a statement about the instrument, and an offline land must not be blocked by it.
+
+**Nothing is filed upstream** (D-9). The OKF project is tracked read-only.
+
 **Primary source (v0.2).** Every "OKF says X" claim about v0.2 is quoted from the verbatim upstream
-copy vendored at [`okf-spec-v0.2.md`](../../../docs/plans/plan-046-james-dixson-aabefa/references/okf-spec-v0.2.md) — `GoogleCloudPlatform/knowledge-catalog` `okf/SPEC.md`
-@ `main`, retrieved 2026-08-18. The superseded v0.1 is vendored beside it at
+copy vendored at [`okf-spec-v0.2.md`](../../../docs/plans/plan-046-james-dixson-aabefa/references/okf-spec-v0.2.md) — retrieved from
+`GoogleCloudPlatform/knowledge-catalog` `okf/SPEC.md` @ `main` on 2026-08-18, **which is the
+now-frozen former home**; the live document is at `GoogleCloudPlatform/open-knowledge-format` and is
+pinned by the hash above. The old repository name is retained in this sentence and in ~150 other
+citations throughout this corpus as **immutable provenance** — it records where a snapshot actually
+came from, and rewriting it would falsify the record. The superseded v0.1 is vendored beside it at
 [`okf-spec-v0.1.md`](../../../docs/plans/plan-046-james-dixson-aabefa/references/okf-spec-v0.1.md) (@ `ee67a5ca`, 2026-06-12), so every v0.1→v0.2 claim in this document is
 diffable offline.
 
@@ -351,6 +392,38 @@ Each is a yf decision, not an OKF mandate. The distinction matters for drift: on
 **And the boundary is not one-way.** The v0.1→v0.2 reconciliation moved `log.md` ordering *out* of
 this list and into the baseline — an upstream revision can **claim** a silence the yf layer had
 decided. That is the case this list must be re-read for on every future bump, not just the reverse.
+
+## 7b. What OKF does not say: locating a bundle root
+
+**OKF v0.2 specifies NO procedure for identifying a bundle root.** It defines a bundle as the
+"unit of distribution" and specifies what a bundle CONTAINS, but gives a consumer no in-band way
+to decide, standing in an arbitrary directory, whether it is standing in one. Recorded here as
+**measured upstream fact** — this section adds no yoshiko-flow opinion; the yf-layer decision that
+fills the gap lives in `OKF-YF-EXTENSIONS.md` §9b.
+
+**The gap is CIRCULAR, which is why it cannot be closed by reading harder.** The only in-band
+marker v0.2 offers is the bundle-root `index.md`'s `okf_version` key (§8) — and that is precisely
+the key a **wrongly-rooted** consumer rejects: at the wrong root the key is either absent, or
+present on what that consumer has decided is a *nested* index, which §8 makes a baseline
+violation. A marker legible only to a consumer that has already solved the problem does not solve
+the problem.
+
+**The measured consequence.** Running a third-party OKF linter over this corpus produced 1 563
+findings, of which only **32** are a genuine disagreement about the format — and **all 32 flip on
+root framing alone**. That is the entire substantive delta between an OKF-conformant reading of
+this corpus and a non-conformant one: not content, not frontmatter, not reserved files. Where the
+consumer roots.
+
+> **COVERAGE CAVEAT — read this before citing the paragraph above.** That round-trip inspected
+> only **~100 of 1383** concept documents. Nothing here may be read as evidence that this corpus
+> passes OKF's B1/B2 rules, and nothing here is a corpus-conformance claim. What is discharged is
+> the **root-framing characterisation** — that the disagreements which exist are *about roots* —
+> not corpus conformance. The other 1 283 documents were never inspected, and an absence of
+> findings over documents nobody read is not a finding of absence.
+
+Also unexercised, and stated for the same reason: the **WRITE half** of that round trip could not
+be exercised at all — the linter's `--fix` hard-delegates to generators internal to another
+project and crashes on a yf tree. So the round-trip evidence is READ-side only.
 
 ## 8. The v0.1→v0.2 section map
 

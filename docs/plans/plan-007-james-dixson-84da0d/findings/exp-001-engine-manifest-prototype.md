@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: Can the engine of `AGENTS/CONSISTENCY.md` + `AGENTS/DOCUMENTATION.md` be
+verdict: Viable. The mechanism is cleanly engine-resident (no repo vocabulary); the
+---
 # Finding: exp-001 — Engine/manifest prototype + regression parity
 
 **Question:** Can the engine of `AGENTS/CONSISTENCY.md` + `AGENTS/DOCUMENTATION.md` be

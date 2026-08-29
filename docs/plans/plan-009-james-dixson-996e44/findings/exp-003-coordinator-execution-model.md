@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: 2026-06-14 · **Method:** read bdplan SKILL.md, coordinator.md, agent docs, formula,
+  harness tool schemas
+---
 # Finding INV-3: coordinator & sub-agent execution model relative to the worktree
 
 **Date:** 2026-06-14 · **Method:** read bdplan SKILL.md, coordinator.md, agent docs, formula, harness tool schemas

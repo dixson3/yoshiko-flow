@@ -99,3 +99,8 @@ All three take `--help` and were re-run by the triangulator, reproducing their o
 - [artifacts/](artifacts/) - The per-phase working documents: tooling notes, the six retrieval clusters, triangulation, and the critique that forced the "refuted" framing to be withdrawn.
 - [diagrams/](diagrams/) - The evidence-architecture diagram: `.d2` source beside its rendered `.png`. Shows why §4's convergence result is a statement about the instrument rather than the phenomenon.
 - [scripts/](scripts/) - The three re-runnable measuring instruments (`corpus_scan.py`, `finding_recurrence.py`, `churn_signature.py`). `corpus_scan.py` is the authority for the 114/301 corrected baseline.
+- [diagrams/evidence-architecture.d2](diagrams/evidence-architecture.d2)
+- [diagrams/evidence-architecture.png](diagrams/evidence-architecture.png)
+- [scripts/churn_signature.py](scripts/churn_signature.py)
+- [scripts/corpus_scan.py](scripts/corpus_scan.py)
+- [scripts/finding_recurrence.py](scripts/finding_recurrence.py)

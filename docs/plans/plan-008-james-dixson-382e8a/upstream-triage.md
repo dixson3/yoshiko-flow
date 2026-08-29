@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: Create a d2-based diagram-authoring skill and add soft dependencies on it from bdplan and bdresearch
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

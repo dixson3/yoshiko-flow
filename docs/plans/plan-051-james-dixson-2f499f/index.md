@@ -18,3 +18,14 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
 - [assets/](assets/) - The driven-red harness and its records: `gate-run.sh`, the control manifest `controls.txt`, the pre-fix baseline, the #182 edit-set, the closable sweep, and the fixture corpus the controls run against.
 - [scripts/](scripts/) - `gen_handoff.py` — generates AND `--check`s the handoff to plan-052 from this plan's own tables, so 'generated, not hand-listed' carries an exit code.
+- [findings/exp-001-dispatch-verification.md](findings/exp-001-dispatch-verification.md) - For
+- [findings/exp-002-182-blast-radius.md](findings/exp-002-182-blast-radius.md) - What is the COMPLETE edit set for
+- [findings/exp-003-executable-verification.md](findings/exp-003-executable-verification.md) - Does any SPEC `Verification:` line in this corpus actually EXECUTE today, and by what mechanism?
+- [findings/exp-004-redcheck-reuse.md](findings/exp-004-redcheck-reuse.md) - Can plan-050's driven-red control harness be reused, and can a control exist for each of this plan's three subjects?
+- [findings/exp-005-review-wisp.md](findings/exp-005-review-wisp.md) - Is a parallel-lens plan-review wisp buildable without `waits-for`, and is parallelism evidenced?
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5
+- [scripts/gen_handoff.py](scripts/gen_handoff.py)

@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: What is yf-drift-check's machinery concretely, and is there reusable *code*
+---
 # Exp 001 — yf-drift-check machinery shape (drives the sharing decision)
 
 **Question:** What is yf-drift-check's machinery concretely, and is there reusable *code*

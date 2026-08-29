@@ -1,0 +1,57 @@
+# */assets/**.md — THE EXPLICIT DECISION on `assets/**` (plan-057 Issue 1.5, REQ-OKF-012).
+#
+# WHY THIS TYPE EXISTS AT ALL. Before it, `assets/**` was selected by NO schema — 77 `.md`
+# files carrying 52 authored `description:` keys, inspected by nothing. That is not a neutral
+# gap: `check_okf_index_drift.py`'s exclusions are `assets/fixtures/**` and
+# `findings/okf-migration-samples/**` only, so `assets/*` IS enumerated by the LIVE index-drift
+# gate — and this exact class turned `main` red on 2026-08-29 when a bundle carried an
+# `assets/` directory present-but-unindexed and the FULL tier failed on it. The decision had a
+# mechanical consequence on a running gate and was recorded nowhere.
+#
+# WHY A TYPE RATHER THAN AN EXCLUSION. The alternative — a blanket `assets/**` glob in
+# OKF-EXTENSION §3b — was rejected on a measured contradiction, not a preference: an exclusion
+# removes the tree from the root listing entirely, which would DELETE the `assets/` entries the
+# corpus already carries and would make Issue 2.4's `assets/backfill.json` index entry
+# impossible to add. An exclusion says "this is not the kind of thing this ruleset judges";
+# assets plainly are, since the corpus already describes them.
+#
+# THE `type` VOCABULARY IS OPEN AND IS RATIFIED FROM THE CORPUS, not invented here. Measured
+# 2026-08-29 over the 77 non-fixture asset `.md` files: 63 `Reference`, 6 `Asset`, 4 `Note`,
+# 4 with no frontmatter at all. This schema therefore requires the KEY and constrains no value
+# — narrowing the vocabulary would retroactively invalidate 63 conforming files to enforce a
+# convention nobody agreed to.
+type = "asset"
+producer_class = "agent-written"
+description = "A yf bundle asset: a measurement record, an upstream draft, or another artifact a criterion reads directly."
+
+paths = [
+    "docs/plans/*/assets/**/*.md",
+    "Incubator/*/plans/*/assets/**/*.md",
+    "docs/research/*/assets/**/*.md",
+]
+exclude = [
+    # The markup-sensitive ground-truth corpora. Their exact bytes ARE the test, so linting
+    # them would not merely produce a spurious finding — it would misreport the fixture.
+    # This mirrors OKF-EXTENSION §3b's `assets/fixtures/**` carve-out on the other axis.
+    "docs/plans/*/assets/fixtures/**",
+    "Incubator/*/plans/*/assets/fixtures/**",
+    "skills/**/fixtures/**",
+]
+
+# SEVERITY IS `W`, AND THE CHOICE IS MEASURED IN BOTH DIRECTIONS.
+#
+# NOT `E`: 4 of 77 files carry no frontmatter at all, so an `E` would fail the corpus on
+# arrival. NOT `R` EITHER: `finding.toml` records the governing rule — "a type whose every
+# check is `R` CANNOT FAIL, which is R4's own defect class" — and a type shipped unable to
+# fail is precisely what this plan exists to stop shipping.
+#
+# `W` is the one severity that is both true today and capable of firing. `STATUS_SEVERITY`
+# demotes `W` to `R` at a terminal status, so the 4 non-conforming files (all in plan-052,
+# `complete`) report without failing anything; and it PROMOTES `W` to `E` at
+# `review`/`ready-for-approval`, so an asset authored into a live plan must carry its `type`.
+# The check polices the producer going forward rather than the history behind it.
+[[checks]]
+id = "asset-type-declared"
+severity = "W"
+kind = "frontmatter-keys"
+value = ["type"]

@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: how is `_shared/` consumed today, so a new `_shared/renderable_fences.py`
+---
 # Exp 002 — `_shared/` consumption mechanism (for the renderable-fence registry)
 
 **Question:** how is `_shared/` consumed today, so a new `_shared/renderable_fences.py`

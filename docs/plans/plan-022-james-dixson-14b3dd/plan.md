@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-022-james-dixson-14b3dd
+author: james-dixson
+created: '2026-07-05'
+status: complete
+epic: yf-mol-pvb
+fingerprint: 9f13529df9762b1c6b37bcc21442336b0cc12424661ff37303f4ed9b98d024be
+---
 # Plan: Certify yf beads skills against bd 1.1.x and harden local-only remote hygiene (#68, #61)
 
 **ID:** plan-022-james-dixson-14b3dd
@@ -6,18 +16,6 @@
 **Status:** complete
 **Epic:** yf-mol-pvb
 **Fingerprint:** 9f13529df9762b1c6b37bcc21442336b0cc12424661ff37303f4ed9b98d024be
-**Phase log:**
-- 2026-07-05 scoping: initial scope captured
-- 2026-07-05 investigating: 1 experiment identified (EXP-001 embedded wedged-commit)
-- 2026-07-05 investigating: EXP-001 concluded — VERDICT A (escape hatch replaceable with `bd dolt commit`)
-- 2026-07-05 drafting: plan v1 synthesized (EXP-001 concluded)
-- 2026-07-05 review: plan v1 presented for review
-- 2026-07-05 review: pass-2 red-team APPROVE (all pass-1 concerns verified resolved; 2 minor revision-introduced items fixed)
-- 2026-07-05 approved: operator approved (pass-2 red-team APPROVE; portability audit pass)
-- 2026-07-05 intake: epic yf-mol-pvb poured
-- 2026-07-05 executing: start gate resolved; DAG poured (5 epics, 14 issues + reconcile)
-- 2026-07-05 reconciling: execution complete (5 epics, 14 issues); entering Phase 6 merge-back
-- 2026-07-05 complete: plan complete — merged c74dd65, pushed, #68/#61/#70 closed
 
 ## Objective
 

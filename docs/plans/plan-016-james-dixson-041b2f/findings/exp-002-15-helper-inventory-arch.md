@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Exp 002 — #15 duplicated-helper inventory + yf-owned-asset architecture
 
 ## Part A — the sweep is a TWO-helper job (not the broad framing in #15)

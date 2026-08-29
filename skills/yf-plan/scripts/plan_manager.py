@@ -1092,8 +1092,19 @@ def _ensure_index_lists_member(plan_dir: Path, member: str) -> bool:
     text = index.read_text(encoding="utf-8")
     if f"]({member})" in text:
         return False
+    # ONE FORMAT, ONE EMITTER (REQ-OKF-012(b), plan-057 Issue 1.3). This function is a
+    # SECOND, INDEPENDENT bullet writer — it never calls `okf.add_index_entry` — and it used
+    # to spell the bullet itself. Two writers that merely AGREE today are one edit away from
+    # producing two formats inside a single `index.md`, which turns the live `okf-index-drift`
+    # gate red on the next bundle that grows a member. Routing both through
+    # `okf._index_bullet` makes the agreement structural instead of coincidental.
+    #
+    # The `_INDEX_MEMBERS` string is the CALLER-SUPPLIED first link of the description chain
+    # (REQ-OKF-012(c)), so an authored member description still wins; a member with no
+    # authored string falls through to the file's own `description:`, then its H1, then bare.
     desc = next((d for m, d in _INDEX_MEMBERS if m == member), "")
-    bullet = f"- [{member}]({member})" + (f" - {desc}" if desc else "") + "\n"
+    bullet = okf._index_bullet(member, member,
+                               okf.resolve_description(plan_dir, member, desc))
     lines = text.splitlines(keepends=True)
     # THE LAST BULLET OF *ANY* INDENTATION (plan-056 Issue 2.4). `ln.startswith("- [")`
     # matched only COLUMN-0 bullets, so on a GROUPED index — a top-level member followed by

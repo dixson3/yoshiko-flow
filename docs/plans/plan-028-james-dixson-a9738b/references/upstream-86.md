@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #86: yf-plan: approved-but-unexecuted plans masquerade as completed (intake commit subject + tracking-issue title); add parked-plan visibility
 
 - **Number:** 86

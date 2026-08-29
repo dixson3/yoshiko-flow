@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-018-james-dixson-1d39eb
+author: james-dixson
+created: '2026-06-30'
+status: complete
+epic: yf-mol-uiw
+---
 # Plan: Move yf off Homebrew to a self-contained vendor-install model with upgrade detection and self-update (#55)
 
 **ID:** plan-018-james-dixson-1d39eb
@@ -5,18 +14,6 @@
 **Created:** 2026-06-30
 **Status:** complete
 **Epic:** yf-mol-uiw
-**Phase log:**
-- 2026-06-30 scoping: initial scope captured
-- 2026-06-30 scoping: 4 scope decisions captured (delivery, homebrew, location, platforms)
-- 2026-06-30 investigating: 3 experiments identified (CLI/CI surface, release matrix, self-update mechanism)
-- 2026-06-30 drafting: plan v1 synthesized (6 epics, dist-toolchain gate)
-- 2026-06-30 review: plan v1 presented for review
-- 2026-06-30 review: pass-2 red-team presented; v3 revisions applied (unix-archive→.tar.gz, 3.7 re-exec+surfaces, 3.3 canonicalize)
-- 2026-06-30 approved: operator approved (after 2 red-team passes + portability audit)
-- 2026-06-30 intake: epic yf-mol-uiw poured
-- 2026-06-30 executing: start gate resolved
-- 2026-06-30 reconciling: post-execution reconciliation
-- 2026-06-30 complete: plan complete — merged, validated, pushed, upstream reconciled
 
 ## Objective
 Move yf off Homebrew to a self-contained vendor-install model with upgrade detection and self-update (#55)

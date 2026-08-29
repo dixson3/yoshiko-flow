@@ -35,4 +35,19 @@ Six experiments. Each carries **Approach Tested / Result / Implications for Plan
 ## Reviews
 
 - [reviews/](reviews/) - One `pass-N.md` per red-team cycle, written at presentation and updated in place as concerns resolve.
+- [assets/edge-equivalence.md](assets/edge-equivalence.md) - Edge-set equivalence, re-proven post-rewrite (Issue 1.1, risk R1)
+- [assets/exp001-equivalence-harness.output.txt](assets/exp001-equivalence-harness.output.txt)
+- [assets/exp001-equivalence-harness.py](assets/exp001-equivalence-harness.py)
+- [assets/exp001b-repro-334s.output.txt](assets/exp001b-repro-334s.output.txt)
+- [assets/final-criteria-sweep.md](assets/final-criteria-sweep.md) - Final criteria sweep — the same instruments, re-run against the finished tree
+- [assets/instrument-sweep.md](assets/instrument-sweep.md) - Instrument sweep — baseline (Issue 0.1)
+- [assets/post-fix-timing.md](assets/post-fix-timing.md) - Post-fix end-to-end timing (Issue 1.9) — the EXP-001 reproduction, re-run
+- [findings/exp-007-pruning-rejustification.md](findings/exp-007-pruning-rejustification.md) - Issue 4.1 — the pruning justification, re-measured on its own grounds
+- [findings/exp-008-interactions-jsonl.md](findings/exp-008-interactions-jsonl.md) - Issue 4.4 — `interactions.jsonl`, the narrower and better-supported target
+- [findings/exp-009-disk-reclamation.md](findings/exp-009-disk-reclamation.md) - Issue 4.1b — the 785 MB measured properly, and what was actually reclaimed
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1 — plan-058-james-dixson-0e36fd
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2 — plan-058-james-dixson-0e36fd
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3 — plan-058-james-dixson-0e36fd
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 — plan-058-james-dixson-0e36fd
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 — plan-058-james-dixson-0e36fd
 

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: executor crash recovery resume orphan review report capture retro portability
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

@@ -1,3 +1,7 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+---
 # Plan Red-Team: plan-024-james-dixson-76cee9 — pass 2
 
 ## Verdict: APPROVE

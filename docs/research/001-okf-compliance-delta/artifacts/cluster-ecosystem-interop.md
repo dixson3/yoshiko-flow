@@ -1,3 +1,7 @@
+---
+type: Research Artifact
+okf_spec: OKF-RESEARCH
+---
 # Cluster: ecosystem-interop — OKF ecosystem & interoperability landscape
 
 Method: exa web search. Retrieved 2026-07-17. OKF = Open Knowledge Format v0.1,

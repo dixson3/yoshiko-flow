@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial)
+date: '2026-06-24'
+verdict: REVISE
+---
 # Review pass 1 — plan-017
 
 **Reviewer:** red-team (adversarial)

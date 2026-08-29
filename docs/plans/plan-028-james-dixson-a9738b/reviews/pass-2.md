@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+plan: plan-028-james-dixson-a9738b
+date: '2026-07-15'
+reviewer: red-team (adversarial, independent sub-agent) — re-run after pass-1 REVISE
+---
 # Red-Team Review — pass 2
 
 **Plan:** plan-028-james-dixson-a9738b

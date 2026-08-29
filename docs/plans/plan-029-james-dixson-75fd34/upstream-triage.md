@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: Create yf-okf skill and adopt in yf-plan/research/incubator
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

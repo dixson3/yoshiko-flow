@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #61: yf-beads-upstream/hygiene: authorize --remove-remote cleanup + trigger on 'push/sync upstream' phrasing
 
 - **Number:** 61

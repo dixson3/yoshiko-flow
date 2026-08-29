@@ -2,7 +2,11 @@
 type: Concept
 okf_spec: OKF-RESEARCH
 id: 001-okf-compliance-delta
-superseded_by: plan-046-james-dixson-aabefa — OKF-BASELINE.md reconciled from the OKF v0.1 facts this project distilled to upstream OKF v0.2, quoted directly from the vendored spec
+superseded_by: plan-046-james-dixson-aabefa — OKF-BASELINE.md reconciled from the
+  OKF v0.1 facts this project distilled to upstream OKF v0.2, quoted directly from
+  the vendored spec
+date: 2026-07-19 · **Status:** Decided (document-only / deferred) · **Research:**
+  [001-okf-compliance-delta](Summary.md) · **Tracking:** gh-91 (closed)
 ---
 
 # Decision: OKF integration for yf-plan / yf-research / yf-incubator — defer

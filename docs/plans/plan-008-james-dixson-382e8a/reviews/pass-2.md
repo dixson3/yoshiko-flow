@@ -1,3 +1,12 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+presented: '2026-06-06'
+scope: v3 (location-agnostic skill; Epic 2 expanded to skill-authoring; new Epic 3
+  drift-check verification)
+conformance_(pre-pass): PASS (after Capability-Gate `Approvers:` fix)
+status: RESOLVED (frozen) — all concerns + missing items addressed in plan v4.
+---
 # Plan Red-Team: plan-008-james-dixson-382e8a — Pass 2
 
 **Presented:** 2026-06-06

@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: For the embedded-storage wedged-migration repair, which escape-hatch mechanism
+method: throwaway `git init && bd init` repo under `mktemp -d`; `bd 1.0.5` (Homebrew),
+---
 # Experiment 001 — embedded-mode wedge escape hatch
 
 **Question:** For the embedded-storage wedged-migration repair, which escape-hatch mechanism

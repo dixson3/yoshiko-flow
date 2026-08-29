@@ -1,3 +1,12 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+plan: plan-019-james-dixson-eea8e7
+date: '2026-07-02'
+reviewer: Red-Team (adversarial, read-only)
+scope: the post-approval dirty-build bypass scope-add (Issue 3.5, REQ-YF-PRE-009 amend,
+status: frozen (all concerns resolved in plan v4)
+---
 # Red-Team Review — pass 2
 
 **Plan:** plan-019-james-dixson-eea8e7

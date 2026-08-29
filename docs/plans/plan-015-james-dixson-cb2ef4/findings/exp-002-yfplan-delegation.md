@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: How does `validate-merged` read `validate-cmd` today (layer b), and what
+  is the
+---
 # Exp 002 — yf-plan §6.1.5 delegation surface
 
 **Question:** How does `validate-merged` read `validate-cmd` today (layer b), and what is the

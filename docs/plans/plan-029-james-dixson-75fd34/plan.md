@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-029-james-dixson-75fd34
+author: james-dixson
+created: '2026-07-17'
+status: complete
+epic: yf-mol-w21
+fingerprint: 6088f15ad7bc49c1cba3a165e3e128788dadfc157f75fd28e85f828e0a8d5fc6
+---
 # Plan: Create a yf-okf skill and adopt it in yf-plan, yf-research, and yf-incubator as the standard way to construct and manage their artifact folders
 
 **ID:** plan-029-james-dixson-75fd34
@@ -6,26 +16,6 @@
 **Status:** complete
 **Epic:** yf-mol-w21
 **Fingerprint:** 6088f15ad7bc49c1cba3a165e3e128788dadfc157f75fd28e85f828e0a8d5fc6
-**Phase log:**
-- 2026-07-17 scoping: initial scope captured
-- 2026-07-17 investigating: 3 experiments identified: plan_manager coupling, shared-engine API surface, OKF type/frontmatter schema
-- 2026-07-17 drafting: synthesizing plan from 2 investigations
-- 2026-07-17 review: plan v1 presented
-- 2026-07-17 review: red-team cycle 2: APPROVE
-- 2026-07-17 ready-for-approval: ready-check green — last red-team APPROVE + audit pass
-- 2026-07-17 drafting: reframe: OKF-* spec family (BASELINE + YF-EXTENSIONS + per-skill OKF-EXTENSION.md); dual-mode field accessor
-- 2026-07-17 review: plan v2 presented (framework reframe)
-- 2026-07-17 review: red-team cycle 4: APPROVE
-- 2026-07-17 ready-for-approval: ready-check green — cycle-4 APPROVE + audit pass (framework reframe)
-- 2026-07-18 drafting: add OKF-* impact-assessment epic + ratification human gate (this repo + Obsidian Primary corpus)
-- 2026-07-18 review: plan v3 presented (impact-assessment epic + ratification gate)
-- 2026-07-18 review: red-team cycle 6: APPROVE
-- 2026-07-18 ready-for-approval: ready-check green — cycle-6 APPROVE + audit pass (assessment epic)
-- 2026-07-18 approved: operator approved
-- 2026-07-18 intake: epic yf-mol-w21 poured
-- 2026-07-18 executing: start gate resolved
-- 2026-07-19 reconciling: bead DAG drained; entering land-the-plane
-- 2026-07-19 complete: plan complete — OKF-* framework landed at 709a646, #83 closed
 
 ## Objective
 Create a yf-okf skill and adopt it in yf-plan, yf-research, and yf-incubator as the standard way to construct and manage their artifact folders

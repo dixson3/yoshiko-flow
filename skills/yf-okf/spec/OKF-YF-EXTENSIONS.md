@@ -411,6 +411,36 @@ invisible because `okf.py check` did no link resolution at all. plan-046 measure
 and 23 unlisted members across 19 root indexes**, and fixed both the corpus and the two producers
 that had been generating the breakage.
 
+## 9b. Bundle-root identification — the yf decision (SPEC REQ-OKF-034)
+
+**Upstream is silent, and the silence is circular** (`OKF-BASELINE.md` §7b records the measured
+fact). This section records what the yf layer DOES about it. The split is deliberate and is the
+whole reason these are two documents: the BASELINE records only what OKF says, and this layer is
+the one designed to absorb upstream change — so a decision recorded here can be revised when
+upstream fills the gap, without ever having put words in upstream's mouth.
+
+**DECISION: a yf artifact folder IS a bundle root, and root-ness is a property of the
+INVOCATION** (SPEC `REQ-OKF-004`). The directory a caller names *is* the root; every directory
+below it is non-root. A plan bundle, a research bundle and an incubator bundle are each a root.
+
+**A consumer that roots elsewhere reports FALSE VIOLATIONS, and that is an UPSTREAM GAP rather
+than a yf defect.** Stating the direction matters: without it, the 32 root-framing findings read
+as 32 things wrong with this corpus. They are not. They are one thing unspecified upstream,
+counted 32 times.
+
+**NO BUNDLE-ROOT MARKER FILE IS ADDED** (D-12). Rejected on two grounds, both about cost rather
+than taste:
+
+- it would be a **unilateral extension** to a format whose stated selling point is "no required
+  tooling" — a marker only yf writes is a dialect, not a standard; and
+- **no consumer anywhere would look for it.** A marker nothing reads is cost with no signal, and
+  it would still not help the wrongly-rooted consumer, which by construction is not looking in
+  the directory where the marker sits.
+
+**Nothing is filed upstream** (D-9). The OKF project is tracked read-only, so this gap is recorded
+for the next reader rather than reported to its owner. That is a deliberate scope limit, not an
+oversight — and it is why the evidence is written down here in full rather than summarised.
+
 ## 10. References
 
 - `skills/yf-okf/spec/OKF-BASELINE.md` — the upstream OKF v0.2 baseline this layer sits on.

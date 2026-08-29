@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+presented: '2026-06-06'
+scope: v4 — confirming pass verifying the pass-2 resolutions are sound.
+conformance_(pre-pass): PASS
+status: FROZEN — APPROVE; no blocking concerns.
+---
 # Plan Red-Team: plan-008-james-dixson-382e8a — Pass 3 (confirming)
 
 **Presented:** 2026-06-06
