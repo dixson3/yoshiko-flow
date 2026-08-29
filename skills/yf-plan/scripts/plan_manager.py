@@ -2827,10 +2827,20 @@ def gate_consistency_cmd(plan_dir: str, json_output: bool):
               help="Emit the structured verdict (default is also JSON).")
 @click.option("--timeout", default=300, show_default=True,
               help="Per-criterion command timeout, in seconds.")
-def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
+@click.option("--advisory", is_flag=True,
+              help="Report an unjudged class-A criterion without halting (REQ-PLAN-080).")
+@click.option("--require-evaluated", "require_evaluated", default=None, type=float,
+              help="Minimum evaluated/class-A fraction. Default 1.0 at the completion binding.")
+def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
+                     advisory: bool, require_evaluated: float | None):
     """Re-evaluate every clause-form Success Criterion at completion (REQ-PLAN-080).
 
-    Exit: 0 every evaluated criterion holds · 1 at least one is FALSE · 2 INCONCLUSIVE.
+    Exit: 0 every evaluated criterion holds · 1 at least one is FALSE, **or a class-A
+    criterion went UNJUDGED at the completion binding** · 2 INCONCLUSIVE.
+
+    The middle case is `HARNESS_INCOMPLETE` (plan-056 Issue 1.10, #265) — see the verdict
+    block at the end of this function for why it is a THIRD verdict rather than a reuse of
+    either neighbour.
     """
     depth = 0
     try:
@@ -2930,8 +2940,42 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
         results.append(rec)
 
     total = len(rows)
+
+    # THE UNJUDGED POPULATION (REQ-PLAN-080 as amended, #265). A class-A row that produced
+    # neither `holds` nor `FALSE` was counted in NEITHER `failed` NOR `evaluated`, so it
+    # simply vanished from the arithmetic below: one green criterion alongside any number of
+    # unjudged ones yielded PASS, exit 0, and the reason string "all 1 evaluated
+    # criterion/criteria hold" — true as written, profoundly misleading as read.
+    #
+    # `skipped-self-reference` is EXCLUDED from `unjudged`: it is a deliberate design
+    # decision of this verb (a criterion invoking `recheck-criteria` cannot be run from
+    # inside `recheck-criteria`), not a harness failure. Counting it would make the
+    # completion binding permanently unreachable for any plan that writes such a criterion.
+    unjudged = [r["id"] for r in results
+                if r.get("kind") == "clause"
+                and r.get("status") not in ("holds", "FALSE", "skipped-self-reference")]
+    self_ref = [r["id"] for r in results if r.get("status") == "skipped-self-reference"]
+    judgeable = class_a - len(self_ref)
+
+    # THE COMPLETION BINDING is depth 0 — the same load-bearing guard REQ-PLAN-080 already
+    # declares. A NESTED run (depth >= 1) is a criterion's own command routed through the
+    # plan's harness; it reports and never halts, because halting there would make every
+    # fixture-driven control fail under the close chain while passing standalone.
+    at_completion = (depth == 0) and not advisory
+    threshold = require_evaluated if require_evaluated is not None else 1.0
+    met = (evaluated >= threshold * judgeable) if judgeable else True
+
     out = {
         **base,
+        # EMITTED ON EVERY PATH, INCLUDING `PASS` (REQ-PLAN-080). A field emitted only on
+        # the failing path cannot be used to detect the condition BEFORE it becomes one,
+        # which is exactly how `evaluated_fraction` came to be consumed by nothing.
+        "harness_incomplete": bool(unjudged),
+        "unjudged": unjudged,
+        "skipped_self_reference": self_ref,
+        "judgeable": judgeable,
+        "at_completion_binding": at_completion,
+        "require_evaluated": threshold,
         # TWO DISTINCT FIELDS, never one conflated "coverage". They answer different
         # questions: how much of the plan is machine-readable AT ALL, versus how much this
         # run actually managed to evaluate. A single number lets a plan whose criteria are
@@ -2953,6 +2997,34 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
         click.echo(json.dumps(out, indent=1))
         sys.exit(1)
 
+    # HARNESS_INCOMPLETE — a THIRD verdict, and the distinction is the whole point:
+    #
+    #   FAIL                a criterion was judged and is FALSE          exit 1
+    #   HARNESS_INCOMPLETE  a criterion the plan DECLARES judgeable      exit 1
+    #                       was NOT judged
+    #   INCONCLUSIVE        NOTHING was judgeable                        exit 2
+    #
+    # Collapsing the middle into either neighbour is the same two-facts-one-signal
+    # conflation as `doc_lint`'s `not-selected` vs `no-such-path` (#181), `resume-scan`'s
+    # `found` (#207) and `reindex`'s `no-index` vs `no-such-path` (REQ-OKF-011).
+    #
+    # It is checked BEFORE the `evaluated == 0` arm below, and the order is forced: with
+    # `evaluated == 0` and `judgeable > 0` the plan carries class-A criteria NONE of which
+    # ran, which is a harness failure, not "the plan has no machine-readable criteria".
+    if at_completion and unjudged and not met:
+        out.update({"verdict": "HARNESS_INCOMPLETE", "severity": "error",
+                    "reason": (f"{len(unjudged)} class-A criterion/criteria went UNJUDGED at "
+                               f"the completion binding ({evaluated} of {judgeable} judged, "
+                               f"threshold {threshold}): {', '.join(unjudged)}"),
+                    "remediation": ("Each criterion above is declared machine-readable and was "
+                                    "not judged this run — the harness could not run it, not "
+                                    "that it holds. Repair the instrument (see each row's "
+                                    "`detail`), or, if the criterion is genuinely not "
+                                    "machine-checkable, rewrite its Verification cell so it is "
+                                    "not class-A. Re-run §6.4.")})
+        click.echo(json.dumps(out, indent=1))
+        sys.exit(1)
+
     if evaluated == 0:
         # INCONCLUSIVE MAPS TO `warn` AND NEVER HARD-FAILS COMPLETION (REQ-DATA-057
         # precedent). Measured over `docs/plans/plan-*/plan.md`: 6 of 52 bundles carry the
@@ -2964,8 +3036,16 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
         click.echo(json.dumps(out, indent=1))
         sys.exit(2)
 
-    out.update({"verdict": "PASS", "severity": "ok",
-                "reason": f"all {evaluated} evaluated criterion/criteria hold"})
+    reason = f"all {evaluated} evaluated criterion/criteria hold"
+    if unjudged:
+        # The PASS path says so OUT LOUD. A green that silently hides unjudged rows is the
+        # shape #265 filed; even where the threshold permits it, the reader must be told.
+        reason += (f" — but {len(unjudged)} class-A criterion/criteria went UNJUDGED "
+                   f"({', '.join(unjudged)}); "
+                   + ("advisory run, not halting" if advisory or depth
+                      else f"permitted by --require-evaluated {threshold}"))
+    out.update({"verdict": "PASS", "severity": "warn" if unjudged else "ok",
+                "reason": reason})
     click.echo(json.dumps(out, indent=1))
     sys.exit(0)
 
@@ -5232,6 +5312,24 @@ def _audit_plan(plan_dir: Path) -> dict:
     #    audit finding; warning-level — type-vocab / required-key backfill — never a
     #    hard fail, matching the ratified error/warning split). Downgraded to `warn`
     #    for an OKF-legacy plan (grandfathered or un-migrated), `fail` for OKF-native.
+    # WALK SITES 4 and 5 of 5 (REQ-OKF-CHK-003, plan-056 Issue 1.3). The member's §3b
+    # exclusions must reach the AUDIT too, not only the engine — #233 is precisely the case
+    # where they did not: `okf.check_conformance` is one walk, and `_audit_plan` performs two
+    # MORE of its own (the `okf_spec`-value scan below, and the dangling-refs scan at step 6).
+    # An exclusion honoured by the engine and not by the audit is worse than none, because the
+    # operator cannot silence the finding at its declared source.
+    _ext_excludes: list[str] = []
+    try:
+        _ext_excludes = list(okf.resolve_extension(SKILL_NAME).exclude_globs)
+    except Exception:
+        _ext_excludes = []
+
+    def _okf_excluded(rel_path) -> bool:
+        try:
+            return okf.is_excluded(Path(rel_path).as_posix(), _ext_excludes)
+        except Exception:
+            return False
+
     try:
         conf = okf.check_conformance(plan_dir, skill=SKILL_NAME)
         for cf in conf.findings:
@@ -5255,6 +5353,8 @@ def _audit_plan(plan_dir: Path) -> dict:
     # by the conformance pass above.
     for md in sorted(plan_dir.rglob("*.md")):
         if md.name in okf.RESERVED_FILES:
+            continue
+        if _okf_excluded(md.relative_to(plan_dir)):
             continue
         try:
             fm, _ = okf.read_frontmatter(md.read_text())
@@ -5329,6 +5429,10 @@ def _audit_plan(plan_dir: Path) -> dict:
         if not path.is_file():
             continue
         if path.suffix not in (".md", ".txt", ""):
+            continue
+        # A fixture corpus legitimately contains absolute paths and `../` traversals — they
+        # are the RECORDED INPUT of a past run, not references this bundle makes.
+        if _okf_excluded(path.relative_to(plan_dir)):
             continue
         try:
             text = path.read_text()

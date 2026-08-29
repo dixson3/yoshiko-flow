@@ -104,6 +104,33 @@ per-artifact-type reserved subdirectories (per `OKF-YF-EXTENSIONS.md` §4):
 
 Reserved `index.md` / `log.md` carry **no `type` and no `okf_spec`** (SPEC REQ-OKF-031).
 
+## 3b. Excluded paths (SPEC REQ-OKF-CHK-003)
+
+Bundle-relative globs that **every OKF walk site skips** — conformance `check`, `migrate`, the
+root-listing member set, and `plan_manager.py`'s bundle walk and `dangling-refs` scan. Matched with
+`fnmatch`, so `**` is genuinely recursive.
+
+| Excluded glob | Why |
+|:--|:--|
+| `assets/fixtures/**` | Markup-sensitive ground-truth corpora (e.g. `test_classify_deliverable.py`'s). Their exact bytes are the test; stamping frontmatter on them would not merely produce a spurious finding, it would **destroy the fixture**. |
+| `findings/okf-migration-samples/**` | A deliberate before/after migration-diff corpus — 45 nested `.md` files whose whole purpose is to be **non-conformant**. Reported as 34 real findings on an unrelated plan's close (#233). |
+
+**These are the fixture carve-outs, and NOTHING ELSE.** An exclusion is a statement that a path is
+**not the kind of thing this ruleset judges** — never that a real artifact is inconvenient to fix.
+Adding a row to silence a finding on a live bundle member converts the conformance check into a
+record of what someone did not want to look at.
+
+**Independently declared from `doc_lint`'s `exclude` lists, by design** (plan-056 D-14). The two
+layers share a *mechanism*, not a *source*: `doc_lint`'s lists are **repo-relative** and per-schema,
+these are **bundle-relative** and per-member. Deriving one from the other would miss
+`assets/fixtures/**` entirely — `doc_lint` is silent there by **non-selection**, not by exclusion,
+and those are different facts. The relationship is pinned by the overlap-invariant test, which also
+asserts **both lists are non-empty**: without that half the invariant holds trivially when either
+side is empty, which is the state this section was introduced from.
+
+The positive control is `okf.py check --no-exclude` (and `doc_lint --no-exclude`): removing this
+section, or passing the flag, restores the suppressed findings.
+
 ## 4. The dual field set (SPEC REQ-OKF-020 / REQ-OKF-021)
 
 On `plan.md`, these `**Field:**` header lines dual-write with these frontmatter keys — one writer,

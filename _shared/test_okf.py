@@ -1128,3 +1128,125 @@ def test_write_frontmatter_delete_honours_dry_run(tmp_path):
     before = p.read_text()
     text = okf.write_frontmatter(p, {}, delete=["epic"], dry_run=True)
     assert "epic" not in text and p.read_text() == before
+
+
+# --- plan-056: REQ-OKF-011 amended exit contract ----------------------------
+
+def test_reindex_no_such_path_differs_from_no_index(tmp_path):
+    """REQ-OKF-011 (plan-056 Issue 1.1): a MISTYPED path is not an index-less bundle.
+
+    Both states used to reach the same `if not idx.exists()` line, so any driver that
+    tolerates `no-index` — as a corpus sweep over a mixed corpus must — read a typo as a
+    benign skip and certified a corpus it never inspected.
+    """
+    real = _bundle(tmp_path, "b")                      # exists, carries no index.md
+    missing = tmp_path / "definitely-not-here"
+
+    r_missing = okf.reindex_check(missing)
+    r_noindex = okf.reindex_check(real)
+
+    assert r_missing["verdict"] == "no-such-path" and r_missing["exit"] == 3
+    assert r_noindex["verdict"] == "no-index" and r_noindex["exit"] == 2
+    # THE PAIR, not either alone: a check asserting only "non-zero" is satisfied by the
+    # engine being absent.
+    assert r_missing["exit"] != r_noindex["exit"]
+
+
+def test_marker_imbalance_check_mode(tmp_path):
+    """SC4 / REQ-OKF-011: `--check` no longer reports a marker-imbalanced index as clean.
+
+    Until plan-056 `reindex_check` never called `check_markers` at all, so the one
+    condition REQ-OKF-072 calls *unrecoverable* returned `clean`, exit 0 — the only path
+    by which a green `--check` precedes the `--write` that would discard prose.
+
+    INCONCLUSIVE rather than `drift`: with the generated-region boundary undefined the
+    drift question cannot be answered in either direction.
+    """
+    b = _bundle(tmp_path, "b", files=["x.md"],
+                index="# b\n\n<!-- intro:start -->\n- [x.md](x.md)\n")
+    r = okf.reindex_check(b)
+    assert r["verdict"] == "inconclusive" and r["exit"] == 4
+    assert any(f["kind"] == "marker-imbalance" for f in r["findings"])
+
+    # The BALANCED control — same bundle, markers closed — is clean. Without this arm the
+    # test passes on an engine that returns `inconclusive` unconditionally.
+    (b / "index.md").write_text("# b\n\n<!-- intro:start -->\n<!-- intro:end -->\n- [x.md](x.md)\n")
+    ok = okf.reindex_check(b)
+    assert ok["verdict"] == "clean" and ok["exit"] == 0
+
+
+# --- plan-056: REQ-OKF-CHK-003 path exclusion -------------------------------
+
+def _ext_with_3b(tmp_path, globs) -> Path:
+    """A synthetic skills/<skill>/OKF-EXTENSION.md carrying a §3b table."""
+    skill = tmp_path / "skills" / "yf-synthetic"
+    skill.mkdir(parents=True)
+    rows = "\n".join(f"| `{g}` | because |" for g in globs)
+    (skill / "OKF-EXTENSION.md").write_text(
+        "# OKF-SYNTHETIC\n\n"
+        "## 0. Member identity\n\n| Key | Value |\n|:--|:--|\n| `okf_spec` | `OKF-SYNTHETIC` |\n\n"
+        "## 3. Reserved subdirs / files\n\n| Reserved path | Holds |\n|:--|:--|\n"
+        "| `findings/` | Finding docs |\n\n"
+        "## 3b. Excluded paths\n\n| Excluded glob | Why |\n|:--|:--|\n" + rows + "\n")
+    return skill
+
+
+def test_exclude_globs_declared(tmp_path, monkeypatch):
+    """SC7 / REQ-OKF-CHK-003: the exclusion is MEMBER-DECLARED and non-empty.
+
+    Two arms, and the second is the point: REMOVING §3b restores the findings. An
+    exclusion nothing can turn off is indistinguishable from a check that never fired.
+    """
+    skill = _ext_with_3b(tmp_path, ["fixtures/**"])
+    monkeypatch.setattr(okf, "_self_location",
+                        lambda: {"mode": "canonical", "skill": None,
+                                 "skills_root": tmp_path / "skills"})
+
+    rs = okf.resolve_extension("yf-synthetic")
+    assert rs.found and rs.exclude_globs == ["fixtures/**"]
+
+    # RECURSIVE, which `_glob_match` (PurePosixPath.match) cannot express — the reason the
+    # matcher is `fnmatch`. Without this the exclusion would cover one level and silently
+    # inspect the rest.
+    assert okf.is_excluded("fixtures/a.md", rs.exclude_globs)
+    assert okf.is_excluded("fixtures/deep/deeper/a.md", rs.exclude_globs)
+    assert not okf.is_excluded("findings/a.md", rs.exclude_globs)
+
+    # ARM 2 — §3b removed: the concept is gone and nothing is excluded.
+    (skill / "OKF-EXTENSION.md").write_text(
+        (skill / "OKF-EXTENSION.md").read_text().split("## 3b.")[0])
+    okf.resolve_extension.cache_clear() if hasattr(okf.resolve_extension, "cache_clear") else None
+    rs2 = okf.resolve_extension("yf-synthetic")
+    assert rs2.exclude_globs == []
+    assert not okf.is_excluded("fixtures/a.md", rs2.exclude_globs)
+
+
+def test_overlap_invariant(tmp_path):
+    """SC8 / D-14: the two exclusion lists agree, AND NEITHER IS EMPTY.
+
+    The non-vacuity half is what makes this an invariant rather than a tautology: with
+    either list empty the agreement holds trivially — and empty is exactly the state the
+    concept was introduced from, so a test without this half would ship green and stay
+    green through its own regression.
+    """
+    import tomllib
+
+    repo = Path(__file__).resolve().parent.parent
+    member = okf.resolve_extension("yf-plan").exclude_globs
+    schema = tomllib.loads((repo / "_shared" / "document_types" / "finding.toml").read_text())
+    lint_side = schema.get("exclude", [])
+
+    # NON-VACUITY, both sides.
+    assert len(member) >= 2, f"OKF-PLAN §3b must declare >= 2 globs, got {member}"
+    assert len(lint_side) >= 2, f"finding.toml exclude must declare >= 2 globs, got {lint_side}"
+
+    # The declared relationship. The two are INDEPENDENTLY DECLARED in different coordinate
+    # systems — `doc_lint`'s are REPO-relative and per-schema, §3b's are BUNDLE-relative and
+    # per-member — so this is a containment claim about the fixture corpora both must cover,
+    # not a set equality. Set equality would be false by construction and would push an
+    # author toward deriving one from the other, which D-14 measured as wrong:
+    # `assets/fixtures/**` is absent from doc_lint's list because doc_lint is silent there
+    # by NON-SELECTION, which is a different fact from exclusion.
+    assert "findings/okf-migration-samples/**" in member
+    assert any("okf-migration-samples" in g for g in lint_side)
+    assert any("assets/fixtures" in g or "fixtures" in g for g in member)
