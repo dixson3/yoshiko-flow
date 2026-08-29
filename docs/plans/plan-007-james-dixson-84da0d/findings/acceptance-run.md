@@ -1,3 +1,14 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+bead: '`beads-skills-mol-s3x.2.2` (plan issue 2.2). The acceptance signal: run the'
+run: '`drift-verifier` (isolated, read-only) over four scoped edges. **Result: all
+  four PASS.**'
+acceptance_criterion_met: the engine reproduces E1–E3 from the markdown manifest alone,
+  and
+non-failing_observation_(discovered_work): '`optimal-instructions/README.md` omits
+  `uv` from'
+---
 # Acceptance run — drift-check engine vs this repo's manifest
 
 **Bead:** `beads-skills-mol-s3x.2.2` (plan issue 2.2). The acceptance signal: run the

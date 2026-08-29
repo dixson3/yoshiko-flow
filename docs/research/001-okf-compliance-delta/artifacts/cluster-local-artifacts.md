@@ -1,3 +1,7 @@
+---
+type: Research Artifact
+okf_spec: OKF-RESEARCH
+---
 # Cluster: local-artifacts
 
 How yf-plan / yf-research / yf-incubator structure their output bundles, drawn

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: Make bdplan plan folders self-contained and portable before intake (upstream #3)
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

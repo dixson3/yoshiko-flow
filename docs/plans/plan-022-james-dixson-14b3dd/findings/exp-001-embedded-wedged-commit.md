@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # EXP-001: Do `bd vc commit` / `bd dolt commit` bypass migration guards on a wedged EMBEDDED Dolt DB (bd 1.1.0)?
 
 ## Verdict

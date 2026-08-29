@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question_(issue_3.1_spike,_gates_3.2): Can a README→diagram image reference be checked
+  by
+---
 # EXP-003 — Does drift-check's verifier resolve `![](path)` image refs without an engine change?
 
 **Question (Issue 3.1 spike, gates 3.2):** Can a README→diagram image reference be checked by

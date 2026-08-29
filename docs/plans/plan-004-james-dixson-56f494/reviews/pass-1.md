@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+date: '2026-06-01'
+reviewer: bdplan reviewer agent (read-only red-team)
+verdict: REVISE → resolved; plan revised in place, ready for approval
+---
 # Review Pass 1 — plan-004-james-dixson-56f494
 
 **Date:** 2026-06-01

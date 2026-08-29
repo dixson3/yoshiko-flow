@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #55 — Upgrade detection and self-update (vendor install model)
 
 - **URL:** https://github.com/dixson3/yoshiko-flow/issues/55

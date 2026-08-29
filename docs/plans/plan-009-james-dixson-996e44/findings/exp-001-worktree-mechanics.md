@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: 2026-06-14 · **Method:** real git commands in throwaway /tmp repos (git 2.54.0,
+  macOS)
+---
 # Finding INV-1: git worktree mechanics & path safety
 
 **Date:** 2026-06-14 · **Method:** real git commands in throwaway /tmp repos (git 2.54.0, macOS)

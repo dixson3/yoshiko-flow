@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: renderable fence d2 csv record-epic
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

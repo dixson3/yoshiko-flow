@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-020-james-dixson-81785d
+author: james-dixson
+created: '2026-07-02'
+status: complete
+epic: yf-mol-gee
+---
 # Plan: Fix yf-beads-init embedded-mode wedged-migration repair: data-preserving dirty-working-set commit
 
 **ID:** plan-020-james-dixson-81785d
@@ -5,17 +14,6 @@
 **Created:** 2026-07-02
 **Status:** complete
 **Epic:** yf-mol-gee
-**Phase log:**
-- 2026-07-02 scoping: initial scope captured
-- 2026-07-02 investigating: scope + pre-probes captured; E1-E4 dispatched
-- 2026-07-02 drafting: approach + epics synthesized from exp-001
-- 2026-07-02 review: pass-1 conformance PASS; red-team REVISE → 5 concerns + 2 notes resolved in-place
-- 2026-07-02 review: pass-1 resolved; audit pass; awaiting operator approval
-- 2026-07-02 approved: operator approved
-- 2026-07-02 intake: epic yf-mol-gee poured
-- 2026-07-02 executing: start gate resolved
-- 2026-07-02 reconciling: post-execution reconciliation
-- 2026-07-02 complete: plan complete
 
 ## Objective
 Fix yf-beads-init embedded-mode wedged-migration repair: data-preserving dirty-working-set commit

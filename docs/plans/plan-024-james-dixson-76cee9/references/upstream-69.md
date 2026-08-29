@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #69: yf-plan: enforce a 'ready-for-approval' gate — re-run red-team after major revisions + complete portability audit before offering for approval
 
 - **Number:** 69

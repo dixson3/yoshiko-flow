@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Finalized per-skill frontmatter dependency table
 
 Derived (Issue 1.2) by reading each `skills/<skill>/SKILL.md`, its `scripts/` (presence of

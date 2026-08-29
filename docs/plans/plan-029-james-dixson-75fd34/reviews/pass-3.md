@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial), cycle 3 (post framework-reframe) · **Presented:**
+  2026-07-17 ·
+conformance: PASS (after fixing a stale `1.4`→`1.5` cross-ref)
+---
 # Review pass 3 — plan-029-james-dixson-75fd34
 
 **Reviewer:** red-team (adversarial), cycle 3 (post framework-reframe) · **Presented:** 2026-07-17 ·

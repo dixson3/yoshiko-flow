@@ -1,3 +1,12 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: '2026-06-30'
+tool: '`dist` (cargo-dist) 0.32.0'
+command: '`dist plan --output-format=json` (run from the plan worktree)'
+resolves: EXP-002 open questions (computed runners, aarch64-linux cross method, glibc
+  floor, install layout)
+---
 # Finding: `dist plan` matrix / runners / glibc floor (Issue 1.1)
 
 **Date:** 2026-06-30

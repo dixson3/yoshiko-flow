@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+environment_(confirmed): d2 0.7.1 (`/opt/homebrew/bin/d2`), pandoc 3.10
+---
 # EXP-001 — Rendering ```d2 / ```csv fences and monochrome glyph fallback in pandoc+xelatex PDF
 
 De-risking experiment for plan-017. Throwaway validation in a worktree; no skill modified.

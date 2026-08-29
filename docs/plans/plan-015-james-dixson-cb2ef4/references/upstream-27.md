@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #27: yf-change-validation: per-repo change-set validation skill (supersede static validate-cmd)
 
 - **Number:** 27

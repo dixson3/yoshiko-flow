@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-009-james-dixson-996e44
+author: james-dixson
+created: '2026-06-14'
+status: complete
+epic: yf-e3e04a51
+---
 # Plan: Make bdplan execute run plans in a git worktree by default, with merge-back/re-validate/push land-the-plane flow
 
 **ID:** plan-009-james-dixson-996e44
@@ -5,16 +14,6 @@
 **Created:** 2026-06-14
 **Status:** complete
 **Epic:** yf-e3e04a51
-**Phase log:**
-- 2026-06-14 scoping: initial scope captured
-- 2026-06-14 investigating: 5 experiments identified
-- 2026-06-14 drafting: synthesizing plan from 5 findings
-- 2026-06-14 review: plan v1 presented
-- 2026-06-14 approved: operator approved; D4 conservative ratified
-- 2026-06-14 intake: epic yf-e3e04a51 poured
-- 2026-06-14 executing: start gate resolved
-- 2026-06-14 reconciling: execution complete; entering land-the-plane
-- 2026-06-14 complete: plan complete; upstream #23 filed; committed locally (push deferred per operator)
 
 ## Objective
 Make `bdplan execute` run a plan inside a dedicated git worktree by default. On

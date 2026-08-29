@@ -1,20 +1,17 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-003-james-dixson-adacc7
+author: james-dixson
+created: '2026-06-01'
+status: complete
+---
 # Plan: Adopt bd remember (M2 clone-local memory) and build a beads-upstream skill (GitHub-first), with plugin-bridge refactors to beads-extra/beads-authoring
 
 **ID:** plan-003-james-dixson-adacc7
 **Author:** james-dixson
 **Created:** 2026-06-01
 **Status:** complete
-**Phase log:**
-- 2026-06-01 scoping: initial scope captured
-- 2026-06-01 scoping: operator decisions locked (M2 per-project memory; GitHub-first; D3 folded in)
-- 2026-06-01 drafting: plan v1 presented
-- 2026-06-01 review: plan v1 presented
-- 2026-06-01 drafting: review pass-1 concerns resolved (revised in place); awaiting operator approval
-- 2026-06-01 drafting: 2.2/2.7 revised: ship minimal companion rule (protocols/UPSTREAM_TRACKING.md + manifest), lean on description-triggering for intent entry points
-- 2026-06-01 approved: operator approved; portability audit pass
-- 2026-06-01 approved: amended: backend 'none' (fully-disabled) is a first-class config option
-- 2026-06-01 executing: start gate resolved
-- 2026-06-01 complete: plan complete: 3 epics closed, beads-upstream shipped, plugin-bridge corrected, memory M2 adopted
 
 ## Objective
 

@@ -1,3 +1,9 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial) · **Presented:** 2026-07-17 · **Conformance pre-pass:**
+  PASS
+---
 # Review pass 1 — plan-029-james-dixson-75fd34
 
 **Reviewer:** red-team (adversarial) · **Presented:** 2026-07-17 · **Conformance pre-pass:** PASS

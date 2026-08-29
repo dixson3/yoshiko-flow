@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+experiment: Map how deeply `yf-plan`'s `plan_manager.py` is coupled to the `README.md`
+---
 # Finding: plan_manager.py coupling to README.md + in-plan.md phase log
 
 **Experiment:** Map how deeply `yf-plan`'s `plan_manager.py` is coupled to the `README.md`

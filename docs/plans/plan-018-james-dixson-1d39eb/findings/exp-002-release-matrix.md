@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+status: complete · **Date:** 2026-06-30
+---
 # Finding EXP-002: Cross-platform prebuilt release matrix
 
 **Status:** complete · **Date:** 2026-06-30

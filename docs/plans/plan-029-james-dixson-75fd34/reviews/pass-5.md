@@ -1,3 +1,9 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial), cycle 5 (post impact-assessment-epic addition) ·
+  **Presented:**
+---
 # Review pass 5 — plan-029-james-dixson-75fd34
 
 **Reviewer:** red-team (adversarial), cycle 5 (post impact-assessment-epic addition) · **Presented:**

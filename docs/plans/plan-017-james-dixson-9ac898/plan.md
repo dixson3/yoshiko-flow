@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-017-james-dixson-9ac898
+author: james-dixson
+created: '2026-06-24'
+status: complete
+epic: yf-34321543
+---
 # Plan: Renderable fenced blocks: d2/csv embed convention across yf-diagram-authoring/yf-markdown-pdf/yf-markdown-lint (#33, #34) + bdresearch record-epic helper (#37)
 
 **ID:** plan-017-james-dixson-9ac898
@@ -5,17 +14,6 @@
 **Created:** 2026-06-24
 **Status:** complete
 **Epic:** yf-34321543
-**Phase log:**
-- 2026-06-24 scoping: initial scope captured
-- 2026-06-24 investigating: scope decisions locked; 2 experiments identified
-- 2026-06-24 drafting: synthesizing plan
-- 2026-06-24 review: plan v1 presented
-- 2026-06-24 revised: red-team pass-1 concerns resolved (plan v2)
-- 2026-06-24 approved: operator approved
-- 2026-06-24 intake: epic yf-34321543 poured
-- 2026-06-24 executing: start gate resolved
-- 2026-06-24 reconciling: all execution beads closed; entering Phase 6
-- 2026-06-24 complete: plan complete — merged, validated, pushed, upstream reconciled
 
 ## Objective
 Renderable fenced blocks: d2/csv embed convention across yf-diagram-authoring/yf-markdown-pdf/yf-markdown-lint (#33, #34) + bdresearch record-epic helper (#37)

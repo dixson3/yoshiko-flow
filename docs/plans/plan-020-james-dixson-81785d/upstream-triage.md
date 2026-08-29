@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: Fix yf-beads-init embedded-mode wedged-migration repair
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

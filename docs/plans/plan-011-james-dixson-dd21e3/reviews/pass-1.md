@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+plan: plan-011-james-dixson-dd21e3
+date: '2026-06-19'
+conformance_pass: PASS (mechanical, prior)
+---
 # Plan Red-Team — pass-1
 
 **Plan:** plan-011-james-dixson-dd21e3

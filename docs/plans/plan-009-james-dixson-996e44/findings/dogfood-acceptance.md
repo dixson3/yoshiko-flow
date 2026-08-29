@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Dogfood acceptance — bdplan worktree execution (Issue 2.5)
 
 **Result: 23 / 23 PASS** on a fresh `bd init` repo (2026-06-14). This is the named

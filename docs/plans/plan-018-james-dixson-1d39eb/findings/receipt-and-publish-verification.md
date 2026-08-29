@@ -1,3 +1,12 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: '2026-06-30'
+tool: '`dist` 0.32.0 — `dist build --artifacts=global` (generated `yf-installer.sh`,
+  `yf.rb`)'
+verifies: the 1.2 retarget (`install-path=~/.local/bin`, `unix-archive=.tar.gz`) did
+  not break
+---
 # Finding: Homebrew publish + receipt emission intact after retarget (Issue 1.3)
 
 **Date:** 2026-06-30

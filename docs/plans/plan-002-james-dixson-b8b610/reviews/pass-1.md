@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer_verdict: REVISE
+date: '2026-05-31'
+final_status_after_resolution: approved (pending operator)
+---
 # Review Pass 1 — plan-002-james-dixson-b8b610
 
 **Reviewer verdict:** REVISE

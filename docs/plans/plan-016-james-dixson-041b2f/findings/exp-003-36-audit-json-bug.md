@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Exp 003 — #36 audit invalid-JSON-on-control-chars: bug repro + fix site
 
 ## Verdict: bug NOT present in current repo source

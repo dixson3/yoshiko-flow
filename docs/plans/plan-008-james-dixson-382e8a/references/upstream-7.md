@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #7: bdplan: generate Obsidian-friendly self-consistent links in plan documents
 
 - **Number:** 7

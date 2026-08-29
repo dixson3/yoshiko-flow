@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #15: Consolidate duplicated Python helpers across skills (PEP 723 shared package route)
 
 - **Number:** 15

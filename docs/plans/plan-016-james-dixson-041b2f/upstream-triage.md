@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: shared helpers audit json canonicalize
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

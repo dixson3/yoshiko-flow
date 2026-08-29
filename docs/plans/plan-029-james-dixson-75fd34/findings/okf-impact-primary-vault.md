@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # OKF-* Impact Assessment — Primary Obsidian Vault
 
 Issue 2.2 of plan-029. A **read-only** impact assessment of the OKF-* conversion

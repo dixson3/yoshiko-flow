@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-007-james-dixson-84da0d
+author: james-dixson
+created: '2026-06-04'
+status: complete
+epic: yf-9c09122b
+---
 # Plan: Generalize CONSISTENCY/DOCUMENTATION into a portable source-of-truth drift-detection utility skill
 
 **ID:** plan-007-james-dixson-84da0d
@@ -5,20 +14,6 @@
 **Created:** 2026-06-04
 **Status:** complete
 **Epic:** yf-9c09122b
-**Phase log:**
-- 2026-06-04 scoping: initial scope captured
-- 2026-06-04 investigating: 1 prototype experiment identified
-- 2026-06-04 drafting: prototype confirmed viability; plan v1 synthesized
-- 2026-06-04 review: plan v1 presented
-- 2026-06-04 approved: operator approved
-- 2026-06-04 intake: epic yf-9c09122b poured
-- 2026-06-04 executing: start gate resolved
-- 2026-06-04 complete: plan complete — all epics closed, migration acceptance PASS
-- 2026-06-04 refinement (beads-skills-djy): superseded the §3.1 "thin pointers" approach — the
-  historical pointers `AGENTS/CONSISTENCY.md` + `AGENTS/DOCUMENTATION.md` were deleted (no
-  functional value), and the firing surface `DRIFT-CHECK-TRIGGER.md` is installed to the
-  rules surface by `install.sh` (always-loaded, like its sibling companion rules) instead of
-  `@`-included from `CLAUDE.md`. CLAUDE.md Rules section thinned for token efficiency.
 
 ## Objective
 

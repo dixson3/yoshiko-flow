@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-004-james-dixson-56f494
+author: james-dixson
+created: '2026-06-01'
+status: complete
+epic: yf-5e06c253
+---
 # Plan: bdplan executor crash-recovery (#2), immediate review-report capture (#4), and retrospective capture --retro (#3 §4)
 
 **ID:** plan-004-james-dixson-56f494
@@ -5,16 +14,6 @@
 **Created:** 2026-06-01
 **Status:** complete
 **Epic:** yf-5e06c253
-**Phase log:**
-- 2026-06-01 scoping: initial scope captured
-- 2026-06-01 drafting: synthesizing plan; 3 design decisions locked (review-file lifecycle, epic-id persistence, --retro session-mining)
-- 2026-06-01 review: plan v1 presented
-- 2026-06-01 drafting: review pass-1: all 8 concerns resolved in place (orphan-sweep -> reset+report; #4 phase-log line at presentation; epic plan_dir metadata; spec reconciliation); awaiting approval
-- 2026-06-01 approved: operator approved; portability audit pass
-- 2026-06-01 executing: start gate resolved
-- 2026-06-01 intake: epic yf-5e06c253 poured
-- 2026-06-01 reconciling: all 3 epics closed; execution complete
-- 2026-06-01 complete: plan complete; #2/#4/#3 closed; pushed 3ac2bff
 
 ## Objective
 

@@ -373,6 +373,29 @@ def test_crash_recovery_all_states(tmp_path):
     assert results["S1"]["action"] != results["S4"]["action"]
 
 
+def test_backfill_leaves_no_residue(tmp_path):
+    """REQ-OKFH-008 — a completed transform leaves NO scaffolding behind, INCLUDING the empty
+    parent directories.
+
+    This is not tidiness. The staging parent lives at `<root>/.okf-hygiene-staging`, i.e.
+    inside the very directory the corpus drift driver enumerates with `docs/plans/*` — so two
+    leftover empty directories were counted as two extra bundles on the live corpus
+    (64 -> 66 enumerated, both reported `no-index`). A tool that inflates the census it exists
+    to clean is reporting on itself, and the earlier version of this suite asserted only that
+    the staging CHILD was gone, which is why it passed while the parent accumulated.
+    """
+    b = make_legacy(tmp_path)
+    rec = hyg.backfill_one(tmp_path, b, apply=True, skill="yf-plan")
+    assert rec["action"] == "backfilled", rec
+
+    residue = [p for p in tmp_path.iterdir()
+               if p.name in (hyg.STAGING_DIR, hyg.JOURNAL_DIR)
+               or p.name.endswith(".okf-stash")]
+    assert residue == [], f"scaffolding residue survived the transform: {residue}"
+    # ...and nothing dot-prefixed at all, which is the shape the drift driver's glob catches.
+    assert [p.name for p in tmp_path.iterdir() if p.name.startswith(".okf-")] == []
+
+
 def test_journal_is_fsynced_and_inside_the_tree(tmp_path):
     """REQ-OKFH-008 — staging lives INSIDE the repo tree, never a system temp dir.
 

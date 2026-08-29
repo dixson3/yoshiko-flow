@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: Certify bd 1.1.x + local-only remote hygiene
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

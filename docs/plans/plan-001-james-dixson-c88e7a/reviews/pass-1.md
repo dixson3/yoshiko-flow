@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+date: '2026-04-05'
+plan_version_reviewed: v1
+phase-log_anchor: '`- 2026-04-05 review: plan v1 presented — REVISE`'
+---
 # Review Pass 1 — plan-001-james-dixson-c88e7a
 
 **Date:** 2026-04-05

@@ -1,3 +1,12 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-008-james-dixson-382e8a
+author: james-dixson
+created: '2026-06-06'
+status: complete
+epic: yf-af5bbf86
+---
 # Plan: Create a d2-based diagram-authoring skill and add soft dependencies on it from bdplan and bdresearch
 
 **ID:** plan-008-james-dixson-382e8a
@@ -5,20 +14,6 @@
 **Created:** 2026-06-06
 **Status:** complete
 **Epic:** yf-af5bbf86
-**Phase log:**
-- 2026-06-06 scoping: initial scope captured
-- 2026-06-06 investigating: 2 experiments (d2 PNG mechanics, repo skill conventions)
-- 2026-06-06 drafting: plan v1 presented
-- 2026-06-06 review: plan v1 presented
-- 2026-06-06 drafting: v2 (Chromium warm-up split to dotfiles + pass-1 resolutions); v3 (scope expanded to skill-authoring + drift-check, location-agnostic skill)
-- 2026-06-06 review: plan v3 red-team pass-2 presented
-- 2026-06-06 drafting: v4 (pass-2 resolutions — schema-valid drift-check PNG node, §6 trigger rows, Epic 3 spike split, check-dir freshness, e-readme-layout coupling)
-- 2026-06-06 review: plan v4 red-team pass-3 presented — APPROVE
-- 2026-06-06 approved: operator approved
-- 2026-06-06 intake: epic yf-af5bbf86 poured
-- 2026-06-06 executing: start gate resolved
-- 2026-06-06 reconciling: all 13 execution beads closed; paused at reconcile boundary for commit/push + upstream #6 authorization
-- 2026-06-06 complete: plan complete; upstream reconciled (#6 superseded, #18 tracking)
 
 ## Objective
 Create a standalone `diagram-authoring` skill in this repo that standardizes

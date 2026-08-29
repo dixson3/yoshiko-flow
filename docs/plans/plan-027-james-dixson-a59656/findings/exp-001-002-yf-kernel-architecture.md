@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+questions: How is `yf` preflight/doctor built, what is its user-scope vs project-scope
+  model,
+---
 # exp-001/002: yf preflight/doctor architecture, scope model, seam, SPEC surface
 
 **Questions:** How is `yf` preflight/doctor built, what is its user-scope vs project-scope model,

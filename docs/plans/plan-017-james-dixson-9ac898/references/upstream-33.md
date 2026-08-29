@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #33: Embed d2 source as a markdown fenced block (yf-diagram-authoring / yf-markdown-pdf / yf-markdown-lint)
 
 - **Number:** 33

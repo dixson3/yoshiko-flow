@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Installer verification (Issue 2.3)
 
 All checks run against `install.py` via `uv run` (and the `install.sh` wrapper).

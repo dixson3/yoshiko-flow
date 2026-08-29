@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #54 — Level up getting-started documentation
 
 - **URL:** https://github.com/dixson3/yoshiko-flow/issues/54

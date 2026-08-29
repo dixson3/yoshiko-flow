@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+status: complete · **Date:** 2026-06-30
+---
 # Finding EXP-001: Current yf CLI surface, version plumbing, and release CI
 
 **Status:** complete · **Date:** 2026-06-30

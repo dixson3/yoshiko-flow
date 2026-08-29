@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+status: complete · **Date:** 2026-06-30
+---
 # Finding EXP-003: Self-update mechanism, install-source detection, installer design
 
 **Status:** complete · **Date:** 2026-06-30

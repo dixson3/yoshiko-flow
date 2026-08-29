@@ -1,3 +1,9 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewers: conformance (PASS), red-team (REVISE)
+date: '2026-06-03'
+---
 # Review Pass 1 — plan-006-james-dixson-bf6e21
 
 **Reviewers:** conformance (PASS), red-team (REVISE)

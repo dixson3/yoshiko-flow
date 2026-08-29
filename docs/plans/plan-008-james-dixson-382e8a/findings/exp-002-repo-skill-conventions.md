@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: What conventions must a new `diagram-authoring` skill follow to conform
+  to
+---
 # EXP-002 — repo conventions for a new standalone utility skill
 
 **Question:** What conventions must a new `diagram-authoring` skill follow to conform to

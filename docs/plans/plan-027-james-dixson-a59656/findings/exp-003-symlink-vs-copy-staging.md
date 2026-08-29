@@ -1,3 +1,10 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: Can we symlink user-scope skill formulas into project-scope `.beads/formulas/`
+verdict: Symlink resolution **works**, but symlink-as-artifact is a portability trap
+  and is
+---
 # exp-003: Symlink vs copy staging for bd formula protos
 
 **Question:** Can we symlink user-scope skill formulas into project-scope `.beads/formulas/`

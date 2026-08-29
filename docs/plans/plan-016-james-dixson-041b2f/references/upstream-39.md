@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #39: beads: auto-canonicalize yf projects on preflight/init (strip stray hooks, untrack runtime jsonl) — upstream sink is the only knob
 
 - **Number:** 39

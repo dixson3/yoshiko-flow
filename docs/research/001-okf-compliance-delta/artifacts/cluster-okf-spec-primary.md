@@ -1,3 +1,9 @@
+---
+type: Research Artifact
+okf_spec: OKF-RESEARCH
+cluster: okf-spec-primary · **Method:** direct (primary-source retrieval) · **Retrieved:**
+  2026-07-17
+---
 # Cluster artifact: okf-spec-primary
 
 **Cluster:** okf-spec-primary · **Method:** direct (primary-source retrieval) · **Retrieved:** 2026-07-17

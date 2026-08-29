@@ -1,3 +1,7 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+---
 # Review Pass 1 — plan-007-james-dixson-84da0d
 
 Two passes run in order: conformance (mechanical), then adversarial red-team. The red-team

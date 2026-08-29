@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream Issue Triage: credibility_scorer + parked plan visibility
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+conformance: 'PASS (two non-blocking nits: broken `upstream-56` relative link; stale
+  "Resolved'
+red-team_verdict: REVISE → all concerns resolved in-place; plan ready to re-present
+  for approval.
+---
 # Review Pass 1 — plan-020-james-dixson-81785d
 
 **Conformance:** PASS (two non-blocking nits: broken `upstream-56` relative link; stale "Resolved

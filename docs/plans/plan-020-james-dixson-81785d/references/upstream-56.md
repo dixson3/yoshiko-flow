@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #56: yf-beads-init repair: embedded-mode wedged-migration fix can't clear a dirty Dolt working set
 
 - **Number:** 56

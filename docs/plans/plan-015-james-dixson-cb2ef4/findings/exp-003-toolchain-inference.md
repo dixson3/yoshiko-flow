@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: What signals should the inference engine read, how do they map to a *layered*
+---
 # Exp 003 — toolchain inference signals + worked two-layer recipe
 
 **Question:** What signals should the inference engine read, how do they map to a *layered*

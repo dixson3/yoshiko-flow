@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #73: yf-plan: cascade-close epic/child beads on plan completion
 
 - **Number:** 73

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #36: bdplan audit --json-output emits invalid JSON on control chars in findings
 
 - **Number:** 36

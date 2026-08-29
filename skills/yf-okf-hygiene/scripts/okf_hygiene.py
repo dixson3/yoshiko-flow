@@ -59,7 +59,22 @@ CLASSES = ("conformant", "legacy-readme", "legacy-underscore-index",
 #: A bundle is a bundle because it carries one of these. Membership is what makes a directory
 #: a UNIT OF DISTRIBUTION; OKF v0.2 itself specifies no bundle-root marker (REQ-OKF-034), so
 #: the yf layer supplies the predicate.
-MEMBER_MARKERS = ("plan.md", "Summary.md", "research.md", "topic.md")
+#:
+#: THE MARKER ALSO NAMES THE MEMBER, and that mapping is load-bearing rather than incidental.
+#: `okf.migrate` is MEMBER-DRIVEN: the member's `index_source` is what tells it which legacy
+#: file to rename to `index.md` (OKF-PLAN says `README.md`, OKF-RESEARCH says `_index.md`).
+#: Migrating a research bundle under the OKF-PLAN member therefore finds no `README.md`,
+#: SCAFFOLDS a fresh `index.md`, and leaves `_index.md` in place — manufacturing the exact
+#: `hybrid-partial` state this tool refuses to create. Measured: that is precisely what a
+#: global `--skill yf-plan` did to `docs/research/001-okf-compliance-delta` on the first
+#: apply run. The member is DETECTED PER BUNDLE; `--skill` is an OVERRIDE, never the default.
+MEMBER_FOR_MARKER = {
+    "plan.md": "yf-plan",
+    "Summary.md": "yf-research",
+    "research.md": "yf-research",
+    "topic.md": "yf-incubator",
+}
+MEMBER_MARKERS = tuple(MEMBER_FOR_MARKER)
 
 #: Hard exclusions (REQ-OKFH-005). SELF-CONTAINED: this set names no consumer-private file,
 #: because the 40 foreign repositories the skill must be able to run in carry none.
@@ -294,10 +309,26 @@ class Journal:
             return None
 
     def clear(self) -> None:
+        """Unlink the journal AND remove the now-empty scaffolding directories.
+
+        LEAVING THE EMPTY PARENTS IS RESIDUE, AND RESIDUE IS NOT COSMETIC HERE. The staging
+        parent lives at `<root>/.okf-hygiene-staging`, i.e. INSIDE the very directory the
+        corpus drift driver enumerates with `docs/plans/*` — so two leftover empty directories
+        were counted as two extra bundles (64 -> 66 enumerated, both reported `no-index`). A
+        tool that inflates the corpus census it is meant to clean is reporting on itself.
+
+        `rmdir` rather than `rmtree`: it removes the directory ONLY if it is empty, so a
+        concurrent bundle still staging is never destroyed.
+        """
         try:
             self.path.unlink()
         except FileNotFoundError:
             pass
+        for d in (self.staging.parent, self.path.parent):
+            try:
+                d.rmdir()
+            except OSError:
+                pass          # not empty, or already gone — both fine
 
 
 def recover(tree: Path, bundle: Path) -> dict:
@@ -485,6 +516,10 @@ def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) ->
         rec["halts"] = h
         return rec
 
+    # PER-BUNDLE MEMBER RESOLUTION (see MEMBER_FOR_MARKER). An explicit `--skill` overrides,
+    # but nothing is assumed from the caller's default.
+    member_skill = skill or MEMBER_FOR_MARKER.get(detail.get("member") or "", "yf-plan")
+    rec["member_skill"] = member_skill
     rec["before"] = {"verdict": audit_verdict(bundle)}
     legacy_name = detail["legacy_index"][0]
     objective = _legacy_objective(bundle / legacy_name) or _objective(bundle / "plan.md")
@@ -508,7 +543,7 @@ def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) ->
 
     # STEP 1 — migrate (renames the legacy index to index.md, stamps frontmatter,
     #                   extracts the phase log into log.md).
-    okf.migrate(j.staging, skill=skill)
+    okf.migrate(j.staging, skill=member_skill)
     # STEP 2 — DELETE the renamed legacy index. It is legacy PROSE, not a listing, and
     #          `reindex --write` would append a generated listing BENEATH it, producing one
     #          file with two contradictory listings.
@@ -545,6 +580,18 @@ def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) ->
     shutil.rmtree(j.stash, ignore_errors=True)
     j.write("S4")
     j.clear()
+
+    # POST-CONDITION: the transform must not have MANUFACTURED a hybrid. A leftover legacy
+    # index beside a new `index.md` is precisely the state `hybrid-partial` exists to refuse,
+    # and creating it would be strictly worse than not running — so it is asserted on the way
+    # out, not merely avoided on the way in.
+    leftover = [n_ for n_ in LEGACY_INDEX_NAMES if (bundle / n_).exists()]
+    if leftover and (bundle / "index.md").exists():
+        rec["action"] = "halt"
+        rec["halts"] = [{"kind": "manufactured-hybrid",
+                         "detail": f"the transform left {leftover} beside a new index.md — "
+                                   f"member {member_skill!r} was wrong for this bundle"}]
+        return rec
 
     rec["after"] = {"verdict": audit_verdict(bundle)}
     rec["action"] = "backfilled"
@@ -694,7 +741,8 @@ def main() -> int:
     p.add_argument("--maxdepth", type=int, default=2)
     p.add_argument("--apply", action="store_true", help="perform the transform")
     p.add_argument("--record", default=None, help="write the per-bundle audit record here")
-    p.add_argument("--skill", default="yf-plan")
+    p.add_argument("--skill", default=None,
+                   help="OVERRIDE the per-bundle member detection (rarely correct)")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_backfill)
 

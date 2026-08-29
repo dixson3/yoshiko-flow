@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+verdict: REVISE
+reviewer_stance: red-team (adversarial), read-only
+date: '2026-06-02'
+---
 # Review Pass 1 — plan-005-james-dixson-44b200
 
 **Verdict:** REVISE

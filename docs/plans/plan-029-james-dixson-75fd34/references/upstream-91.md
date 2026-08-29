@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #91: research 001: OKF compliance-delta for yf-plan / yf-research / yf-incubator artifacts
 
 - **Number:** 91

@@ -1,3 +1,8 @@
+---
+type: Research Artifact
+okf_spec: OKF-RESEARCH
+phase: triangulate · **Method:** cross-cluster cross-reference (27 sources, 3
+---
 # Triangulation: OKF compliance-delta for yf-plan / yf-research / yf-incubator
 
 **Phase:** triangulate · **Method:** cross-cluster cross-reference (27 sources, 3

@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+date: 2026-06-14 · **Method:** precedent survey (plan-008, plan-006, install.py, diagram-authoring)
+  + synthesis over INV-1..4
+---
 # Finding INV-5: embed vs distinct `worktree` skill (resolves D1)
 
 **Date:** 2026-06-14 · **Method:** precedent survey (plan-008, plan-006, install.py, diagram-authoring) + synthesis over INV-1..4

@@ -1,3 +1,7 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+---
 # Upstream #83: Investigate OKF (Open Knowledge Format) compliance + integration for yf-plan / yf-research folders
 
 - **Number:** 83

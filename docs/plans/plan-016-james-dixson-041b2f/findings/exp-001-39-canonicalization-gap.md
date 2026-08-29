@@ -1,3 +1,7 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+---
 # Exp 001 — #39 canonicalization gap (auto-vs-propose)
 
 ## Verdict
