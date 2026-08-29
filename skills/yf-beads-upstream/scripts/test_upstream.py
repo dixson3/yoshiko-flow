@@ -459,7 +459,7 @@ def test_push_without_apply_writes_nothing(monkeypatch, capsys):
     def boom(cmd):
         raise AssertionError(f"push executed {cmd!r} without --apply")
     monkeypatch.setattr(up, "run", boom)
-    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda *a: [])
     assert up.cmd_push("a", apply=False) == 0
     out = capsys.readouterr().out
     assert "Preview only" in out
@@ -490,7 +490,7 @@ def test_push_leaves_beads_open_no_close_stage(monkeypatch, capsys):
     monkeypatch.setattr(up, "load_universe_rows", lambda: [
         {"id": "a", "title": "T", "description": "B"}])
     monkeypatch.setattr(up, "existing_labels", lambda: set())
-    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda: [])
+    monkeypatch.setattr(up, "owner_claim_warning_lines", lambda *a: [])
     monkeypatch.setattr(up, "run", lambda cmd: "")
     up.cmd_push("a", apply=False)
     assert "bd close" not in capsys.readouterr().out
@@ -518,7 +518,7 @@ def test_push_surfaces_owner_claimed_warning_inline_on_stdout(monkeypatch, capsy
         {"id": "a", "title": "T", "description": "B"}])
     monkeypatch.setattr(up, "existing_labels", lambda: set())
     monkeypatch.setattr(up, "owner_claim_warning_lines",
-                        lambda: ["WARNING: 36 open bead(s) excluded as owner-claimed"])
+                        lambda *a: ["WARNING: 36 open bead(s) excluded as owner-claimed"])
     monkeypatch.setattr(up, "run", lambda cmd: "")
     up.cmd_push("a", apply=False)
     assert "owner-claimed" in capsys.readouterr().out
@@ -920,15 +920,26 @@ def make_enumerate_universe():
       epic_parked  open epic, parent of t_open   -> dropped as a container type anyway
     """
     beads = {
-        "t_open": {"id": "t_open", "status": "open", "issue_type": "task"},
+        # `dependencies[]` mirrors the `bd list --all --json` row shape (REQ-BUP-071):
+        # `depends_on_id` for the target, `type` for the edge kind. The two beads with a
+        # parent carry it; the rest OMIT the key entirely, which is what bd actually
+        # emits (omitempty) and means "no dependencies", not "truncated".
+        "t_open": {"id": "t_open", "status": "open", "issue_type": "task",
+                   "parent": "epic_parked",
+                   "dependencies": [{"depends_on_id": "epic_parked", "type": "parent-child"}]},
         "t_blocked": {"id": "t_blocked", "status": "blocked", "issue_type": "task"},
         "t_deferred": {"id": "t_deferred", "status": "deferred", "issue_type": "task"},
         "t_claimed": {"id": "t_claimed", "status": "open", "owner": "alice", "issue_type": "task"},
-        "t_ip": {"id": "t_ip", "status": "in_progress", "issue_type": "task"},
+        "t_ip": {"id": "t_ip", "status": "in_progress", "issue_type": "task",
+                 "parent": "epic_anc",
+                 "dependencies": [{"depends_on_id": "epic_anc", "type": "parent-child"}]},
         "t_closed": {"id": "t_closed", "status": "closed", "issue_type": "task"},
         "epic_anc": {"id": "epic_anc", "status": "open", "issue_type": "epic"},
         "epic_parked": {"id": "epic_parked", "status": "open", "issue_type": "epic"},
     }
+    # The hand-built Edges below are KEPT DELIBERATELY. The pure `classify_active` tests
+    # assert edge-consumption behaviour and must stay independent of how edges are
+    # derived; `collect_parent_edges` gets its own direct tests instead (Issue 1.4).
     edges = [
         up.Edge(blocked="t_ip", blocker="epic_anc", dep_type="parent-child", target=beads["epic_anc"]),
         up.Edge(blocked="t_open", blocker="epic_parked", dep_type="parent-child", target=beads["epic_parked"]),
@@ -1569,3 +1580,278 @@ def test_hoist_timeout_closes_no_bead(monkeypatch, capsys):
     assert "No bead was closed" in err, (
         "the operator must be told explicitly that nothing was closed")
     assert "TIMED OUT" in err, "the halt must name the timeout as the cause"
+
+
+# --- REQ-BUP-071 (plan-058 Issue 1.4): collect_parent_edges, directly ------------------
+#
+# This function had NO direct test before plan-058 — the three tests that touched it all
+# monkeypatched it away. That is precisely why the #268 fan-out could live inside it
+# unremarked, and why a rewrite of it needed a permanent regression guard.
+
+
+def test_collect_parent_edges_reads_dependencies_from_rows():
+    """The happy path: edges come off the row, with zero subprocesses."""
+    beads, _ = make_enumerate_universe()
+    edges = up.collect_parent_edges(beads)
+    got = {(e.blocked, e.blocker, e.dep_type) for e in edges}
+    assert got == {
+        ("t_open", "epic_parked", up.PARENT_CHILD),
+        ("t_ip", "epic_anc", up.PARENT_CHILD),
+    }
+    # The target bead is RESOLVED, not just named — classify_active walks it.
+    by_blocked = {e.blocked: e for e in edges}
+    assert by_blocked["t_ip"].target is beads["epic_anc"]
+
+
+def test_collect_parent_edges_issues_no_subprocess(monkeypatch):
+    """The load-bearing invariant: ZERO `bd` calls, whatever the universe size.
+
+    Asserted by trapping the spawn primitives rather than by timing, so it cannot
+    silently regress as the DB grows (REQ-BUP-071's scale-independence clause).
+    """
+    def trap(cmd, **kw):
+        raise AssertionError(f"collect_parent_edges spawned a subprocess: {cmd}")
+    monkeypatch.setattr(up, "run", trap)
+    monkeypatch.setattr(up, "run_unchecked", trap)
+
+    big = {}
+    for i in range(1000):
+        big[f"b{i}"] = {"id": f"b{i}", "status": "open", "issue_type": "task",
+                        "parent": "root",
+                        "dependencies": [{"depends_on_id": "root", "type": "parent-child"}]}
+    big["root"] = {"id": "root", "status": "open", "issue_type": "epic"}
+
+    edges = up.collect_parent_edges(big)
+    assert len(edges) == 1000
+
+
+def test_collect_parent_edges_absent_dependencies_key_means_none():
+    """An ABSENT key means no dependencies — not truncation (REQ-BUP-055 amendment).
+
+    bd emits `dependencies` omitempty; measured, it is missing from 138 of 1,905 rows on
+    this repository. A `row["dependencies"]` read would raise on every one of them.
+    """
+    beads = {"a": {"id": "a", "status": "open"}}          # key absent entirely
+    assert up.collect_parent_edges(beads) == []
+    beads = {"a": {"id": "a", "status": "open", "dependencies": None}}   # present, null
+    assert up.collect_parent_edges(beads) == []
+    beads = {"a": {"id": "a", "status": "open", "dependencies": []}}     # present, empty
+    assert up.collect_parent_edges(beads) == []
+
+
+def test_collect_parent_edges_ignores_non_parent_child_types():
+    """classify_active consumes ONLY parent-child; other edge types must not leak in."""
+    beads = {
+        "a": {"id": "a", "status": "open", "dependencies": [
+            {"depends_on_id": "b", "type": "blocks"},
+            {"depends_on_id": "c", "type": "related"},
+            {"depends_on_id": "d", "type": "parent-child"},
+        ]},
+        "b": {"id": "b", "status": "open"},
+        "c": {"id": "c", "status": "open"},
+        "d": {"id": "d", "status": "open"},
+    }
+    edges = up.collect_parent_edges(beads)
+    assert [(e.blocked, e.blocker) for e in edges] == [("a", "d")]
+
+
+def test_collect_parent_edges_handles_both_target_field_names():
+    """SOURCE-AGNOSTIC. `bd list` says `depends_on_id`; `bd show` says `id`.
+
+    The `depends_on_id or id or target` chain is preserved verbatim from the pre-fix
+    code for exactly this reason. A comparison harness written against `depends_on_id`
+    alone reads a false 100% divergence against `bd show` output — the trap the plan
+    recorded and this test pins.
+    """
+    list_shape = {"a": {"id": "a", "dependencies": [
+        {"depends_on_id": "p", "type": "parent-child"}]}, "p": {"id": "p"}}
+    show_shape = {"a": {"id": "a", "dependencies": [
+        {"id": "p", "dependency_type": "parent-child"}]}, "p": {"id": "p"}}
+
+    assert [(e.blocked, e.blocker) for e in up.collect_parent_edges(list_shape)] == [("a", "p")]
+    assert [(e.blocked, e.blocker) for e in up.collect_parent_edges(show_shape)] == [("a", "p")]
+
+
+def test_collect_parent_edges_skips_edges_with_no_resolvable_target():
+    """A dependency naming no target is skipped, not emitted as a null-blocker edge."""
+    beads = {"a": {"id": "a", "dependencies": [{"type": "parent-child"}]}}
+    assert up.collect_parent_edges(beads) == []
+
+
+# --- REQ-BUP-071 scale-independence on the PUSH path (plan-058 Issues 1.6 / 3.3) -------
+#
+# Modelled on `test_closable_issues_one_bd_list_and_zero_bd_show` (the REQ-BUP-052
+# precedent). The tests are NAMED EXPLICITLY rather than relying on a broad `-k`
+# selector: measured, a bare `-k zero_bd_show` is already satisfied by that pre-existing
+# `closable` test, so a criterion keyed on it could pass without this work existing.
+
+
+def _push_counting_run(calls, universe_size=10):
+    """A `run` stand-in for the PUSH path: counts argv, serves a rows-shaped universe."""
+    def _run(cmd, **kw):
+        calls.append(list(cmd))
+        if cmd[:2] == ["bd", "list"]:
+            rows = [{"id": "a", "status": "open", "issue_type": "task",
+                     "title": "T", "description": "B"}]
+            rows += [{"id": f"f{i}", "status": "closed", "issue_type": "task",
+                      "parent": "root",
+                      "dependencies": [{"depends_on_id": "root", "type": "parent-child"}]}
+                     for i in range(universe_size)]
+            rows.append({"id": "root", "status": "open", "issue_type": "epic"})
+            return json.dumps(rows)
+        if cmd[:1] == ["gh"]:
+            return ""
+        raise AssertionError(f"unexpected call on the push path: {cmd!r}")
+    return _run
+
+
+def _counts(calls):
+    return {
+        "bd list": sum(1 for c in calls if c[:2] == ["bd", "list"]),
+        "bd show": sum(1 for c in calls if c[:2] == ["bd", "show"]),
+        "bd dep list": sum(1 for c in calls if c[:3] == ["bd", "dep", "list"]),
+    }
+
+
+def test_push_reads_universe_once(monkeypatch):
+    """SC1b. The push path issues EXACTLY ONE `bd list --all`, not two.
+
+    Measured post-Epic-1, `push` issued TWO full universe reads of ~3 MB each for a
+    single command: one in `create_or_update`, one in `owner_claim_warning_lines`.
+    """
+    calls = []
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+    monkeypatch.setattr(up, "run", _push_counting_run(calls))
+
+    up.cmd_push("a", apply=False)
+
+    n = _counts(calls)
+    assert n["bd list"] == 1, f"expected exactly one universe read, got {n['bd list']}: {calls}"
+
+
+def test_push_zero_bd_show(monkeypatch):
+    """SC1. The push path spawns ZERO per-bead `bd show` subprocesses."""
+    calls = []
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+    monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=200))
+
+    up.cmd_push("a", apply=False)
+    assert _counts(calls)["bd show"] == 0
+
+
+def test_enumerate_zero_bd_show(monkeypatch):
+    """SC1. `cmd_enumerate` spawns ZERO per-bead `bd show` subprocesses.
+
+    This is the SECOND N+1 (Issue 1.3) — `external_for(bid)` per candidate.
+    """
+    calls = []
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+    monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=200))
+
+    up.cmd_enumerate(as_json=True)
+    assert _counts(calls)["bd show"] == 0
+
+
+def test_enumerate_scale_independence(monkeypatch):
+    """SC3. The `bd` call count does not grow with the universe — equal at 10 and 1,000.
+
+    The zero-`bd show` half is the load-bearing invariant. The `bd list` count is pinned
+    to whatever Issue 1.6 left it at rather than asserted as "one" a priori — the claim
+    is INDEPENDENCE OF SIZE, which is what cannot silently regress as the DB grows. A
+    wall-clock threshold would.
+    """
+    def run_at(size):
+        calls = []
+        monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+        monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+        monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=size))
+        up.cmd_enumerate(as_json=True)
+        return _counts(calls)
+
+    small, large = run_at(10), run_at(1000)
+    assert small == large, f"call counts grew with universe size: {small} -> {large}"
+    assert small["bd show"] == 0
+
+
+def test_push_scale_independence(monkeypatch):
+    """SC3, push half. Same claim, on the path UPSTREAM_TRACKING.md mandates."""
+    def run_at(size):
+        calls = []
+        monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+        monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+        monkeypatch.setattr(up, "existing_labels", lambda: set())
+        monkeypatch.setattr(up, "owner_on_create", lambda *a, **k: False)
+        monkeypatch.setattr(up, "run", _push_counting_run(calls, universe_size=size))
+        up.cmd_push("a", apply=False)
+        return _counts(calls)
+
+    small, large = run_at(10), run_at(1000)
+    assert small == large, f"call counts grew with universe size: {small} -> {large}"
+    assert small["bd show"] == 0
+
+
+def test_parent_without_edges_warns(capsys):
+    """SC2b / R10. Rows carrying `parent` with zero derived edges warn ON STDOUT.
+
+    This simulates a future `bd` that stopped emitting `dependencies[]`: the rows still
+    carry `parent`, but no edge can be built from them.
+    """
+    beads = {
+        "child1": {"id": "child1", "status": "open", "parent": "root"},
+        "child2": {"id": "child2", "status": "open", "parent": "root"},
+        "root": {"id": "root", "status": "open", "issue_type": "epic"},
+    }
+    assert up.collect_parent_edges(beads) == []
+    out = capsys.readouterr()
+    assert "WARNING" in out.out, "the warning must be on STDOUT — stderr is the channel #105 measured is never seen"
+    assert "ZERO parent-child" in out.out
+    assert "child1" in out.out and "child2" in out.out
+    assert out.err == "", "nothing should go to stderr"
+
+
+def test_no_warning_when_edges_are_derived(capsys):
+    """CONTROL: healthy data must be SILENT, or the warning is noise."""
+    beads = {
+        "child1": {"id": "child1", "status": "open", "parent": "root",
+                   "dependencies": [{"depends_on_id": "root", "type": "parent-child"}]},
+        "root": {"id": "root", "status": "open", "issue_type": "epic"},
+    }
+    assert len(up.collect_parent_edges(beads)) == 1
+    assert "WARNING" not in capsys.readouterr().out
+
+
+def test_no_warning_when_no_bead_has_a_parent(capsys):
+    """CONTROL: a genuinely flat universe has no parents AND no edges — not a defect."""
+    beads = {"a": {"id": "a", "status": "open"}, "b": {"id": "b", "status": "open"}}
+    assert up.collect_parent_edges(beads) == []
+    assert "WARNING" not in capsys.readouterr().out
+
+
+def test_warning_predicate_is_not_count_equality(capsys):
+    """The predicate must NOT false-alarm on a multi-parent bead.
+
+    Measured on bd 1.2.2: `bd dep add` accepts two parent-child edges on one bead, so a
+    count-equality check (edges == rows-with-parent) would fire on healthy data. Here 3
+    edges are derived from 2 rows carrying `parent` — unequal, and correctly silent.
+    """
+    beads = {
+        "multi": {"id": "multi", "status": "open", "parent": "p1", "dependencies": [
+            {"depends_on_id": "p1", "type": "parent-child"},
+            {"depends_on_id": "p2", "type": "parent-child"},
+        ]},
+        "solo": {"id": "solo", "status": "open", "parent": "p1", "dependencies": [
+            {"depends_on_id": "p1", "type": "parent-child"}]},
+        "p1": {"id": "p1", "status": "open"},
+        "p2": {"id": "p2", "status": "open"},
+    }
+    edges = up.collect_parent_edges(beads)
+    rows_with_parent = [b for b, r in beads.items() if r.get("parent")]
+    assert len(edges) == 3 and len(rows_with_parent) == 2, "the premise: counts DIVERGE here"
+    assert "WARNING" not in capsys.readouterr().out

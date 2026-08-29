@@ -680,14 +680,53 @@ def collect_parent_edges(beads: dict[str, dict]) -> list[Edge]:
                     target=beads.get(target_id),
                 )
             )
+    _warn_if_edges_vanished(beads, edges)
     return edges
 
 
-def deps_for_show(bead_id: str) -> list[dict]:
-    """A bead's dependency edges via `bd show <id> --json` (exposes dependency_type)."""
-    rows = parse_json_array(run(["bd", "show", bead_id, "--json"]))
-    detail = rows[0] if rows else {}
-    return detail.get("dependencies") or []
+def _warn_if_edges_vanished(beads: dict[str, dict], edges: list[Edge]) -> None:
+    """Fail LOUD if the rows carry parents but no parent-child edge was derived (R10).
+
+    THE FAILURE THIS CATCHES IS SILENT AND FAILS THE WRONG WAY. If a future `bd` stops
+    emitting `dependencies[]`, `collect_parent_edges` returns `[]` without erroring.
+    That loses ancestor propagation in `classify_active`, so MORE beads read as
+    non-active and become push candidates — the skill would fail toward EXTRA UPSTREAM
+    WRITES, invisibly. Fixture tests cannot catch it: they supply the very field that
+    went missing.
+
+    THE PREDICATE IS DELIBERATELY NOT A COUNT-EQUALITY CHECK, and this is measured, not
+    stylistic. On bd 1.2.2 a bead can carry TWO `parent-child` edges — `bd dep add`
+    accepts it without complaint — yielding 3 edges against 2 rows-with-`parent`. So
+    EXP-002's 1,648 == 1,648 is a property of THIS corpus, not an invariant, and a
+    count-equality check would false-alarm on any multi-parent bead.
+
+    What makes the stated predicate sound is structural rather than numeric:
+    `bd dep add --type parent-child` SETS `parent` and `bd dep remove` CLEARS it, so
+    `parent` is DERIVED FROM the edge. Hence `parent set => at least one parent-child
+    edge` holds by construction. The two fields are therefore NOT independent
+    corroboration — one is computed from the other — which is exactly why "some parent,
+    zero edges" is impossible in healthy data and diagnostic when seen.
+
+    STDOUT, NOT STDERR. This codebase has already measured that stderr is the channel
+    the routed consumer never sees: `owner_claim_warning_lines`' docstring records the
+    #105 residual — the shipped warning was stderr-only, so an agent piping `--json` to
+    `jq` never saw it. Putting R10's only runtime layer on stderr would reintroduce the
+    very defect that finding closed.
+    """
+    if edges:
+        return
+    with_parent = [b for b, row in beads.items() if (row.get("parent") or "").strip()]
+    if not with_parent:
+        return
+    preview = ", ".join(sorted(with_parent)[:5]) + (" …" if len(with_parent) > 5 else "")
+    print(
+        f"WARNING: {len(with_parent)} bead(s) carry a `parent` but ZERO parent-child "
+        f"edges were derived. `bd list --json` is not emitting `dependencies[]` as this "
+        f"skill's version floor expects (REQ-BUP-055 amendment, verified on bd 1.2.2). "
+        f"Ancestor propagation is DISABLED, so more beads will read as push candidates "
+        f"than should — this fails toward EXTRA upstream writes. Check `bd version`."
+    )
+    print(f"         beads with a parent: {preview}")
 
 
 def enumerate_candidates(
@@ -748,7 +787,11 @@ def cmd_enumerate(as_json: bool) -> int:
         bid = r.get("id")
         if not bid:
             continue
-        ext = external_for(bid)
+        # REQ-BUP-071. This was `external_for(bid)` — one `bd show` PER CANDIDATE, the
+        # SECOND N+1 in this file, and a direct violation of `external_for`'s own
+        # docstring, which says in capitals never to call it in a loop over the whole
+        # universe. `r` is already a `bd list` row and already carries `external_ref`.
+        ext = external_from_row(r)
         out.append(
             {
                 "id": bid,
@@ -1085,7 +1128,15 @@ def create_or_update(bead_ids: list[str], *, apply: bool) -> dict:
     follow-on stage never reaches it on an unverified write.
     """
     if not bead_ids:
-        return {"plans": [], "written": [], "dropped": []}
+        return {"plans": [], "written": [], "dropped": [], "rows": {}}
+    # THE ONE universe read on the push path (Issue 1.6). It is returned in the result
+    # so `cmd_push` can hand it to `owner_claim_warning_lines` instead of paying for a
+    # second 3 MB `bd list --all --json`.
+    #
+    # This shape was chosen over lifting the load into `cmd_push` deliberately:
+    # `create_or_update` is called by BOTH `cmd_push` and `cmd_hoist`, so hoisting the
+    # read upward would change its signature and every call site, whereas returning it
+    # adds a key to a dict both callers already consume.
     rows = {r["id"]: r for r in load_universe_rows() if r.get("id")}
     missing = [b for b in bead_ids if b not in rows]
     if missing:
@@ -1095,10 +1146,10 @@ def create_or_update(bead_ids: list[str], *, apply: bool) -> dict:
     plans = [plan_write(rows[b], existing) for b in bead_ids]
     dropped = [(p["id"], lab) for p in plans for lab in p["dropped_labels"]]
     if not apply:
-        return {"plans": plans, "written": [], "dropped": dropped}
+        return {"plans": plans, "written": [], "dropped": dropped, "rows": rows}
     written = [{"id": p["id"], "action": p["action"], "url": apply_write(p)}
                for p in plans]
-    return {"plans": plans, "written": written, "dropped": dropped}
+    return {"plans": plans, "written": written, "dropped": dropped, "rows": rows}
 
 
 
@@ -1332,16 +1383,21 @@ def cmd_hoist(issues_csv: str, dest: str, apply: bool) -> int:
     return 0
 
 
-def owner_claim_warning_lines() -> list[str]:
+def owner_claim_warning_lines(beads: dict[str, dict] | None = None) -> list[str]:
     """The REQ-BUP-049 owner-claimed exclusion warning as text lines, or [].
 
     Factored out of `cmd_enumerate`'s stderr write so `push` can surface the same
     signal INLINE in its own stdout (REQ-BUP-051, #105 residual): the shipped
     warning is stderr-only, so an agent piping `--json` to `jq` never sees it, and
     `push` is now the routed path every operator and agent is sent through.
+
+    `beads` is OPTIONAL and defaults to reading the universe itself, so every existing
+    caller is unchanged. `cmd_push` passes the rows `create_or_update` already read
+    (Issue 1.6): measured post-Epic-1, `push` was issuing TWO full `bd list --all --json`
+    calls of ~3 MB each for one command. One is enough.
     """
-    rows = load_universe_rows()
-    beads = {r["id"]: r for r in rows if r.get("id")}
+    if beads is None:
+        beads = {r["id"]: r for r in load_universe_rows() if r.get("id")}
     edges = collect_parent_edges(beads)
     excluded = owner_claim_exclusions(beads, edges, owner_on_create())
     if not excluded:
@@ -1407,7 +1463,7 @@ def cmd_push(issues_csv: str, apply: bool) -> int:
     _render_write_phase(result, apply=apply, verb="write")
     # #105 residual: surface the owner-claimed exclusion warning INLINE on stdout,
     # so it survives a `| jq` on the routed path.
-    for line in owner_claim_warning_lines():
+    for line in owner_claim_warning_lines(result.get("rows")):
         print(line)
     if apply:
         for w in result["written"]:
