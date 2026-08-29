@@ -16,3 +16,4 @@ okf_version: '0.1'
 - [sources.md](sources.md) - [package] Consolidated source list with credibility scores
 - [plan.yaml](plan.yaml)
 - [sources.json](sources.json)
+- [diagrams/harness-rule-minimization.d2](diagrams/harness-rule-minimization.d2)

@@ -14,3 +14,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - Inlined upstream issue bodies (`upstream-<N>.md`), one per non-excluded Upstream Issues row. Snapshots, not live — the issues this plan addresses.
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [upstream-triage.md](upstream-triage.md)
+- [references/salvaged-docusaurus.md](references/salvaged-docusaurus.md) - Salvaged Docusaurus content (issue #28 / `website/docs/`)
+- [references/upstream-28.md](references/upstream-28.md) - Upstream #28: Epic 7: User-facing documentation site (Docusaurus)
+- [references/upstream-54.md](references/upstream-54.md) - Upstream #54: Level up getting-started documentation
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-Team Review — Pass 1

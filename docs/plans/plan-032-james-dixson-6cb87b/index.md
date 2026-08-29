@@ -12,3 +12,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
 - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-Team Review — Pass 1
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-Team Review — Pass 2

@@ -15,3 +15,8 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/](reviews/) - Reviewer verdicts (`pass-<N>.md`), one per review cycle. What reviewers flagged and how it was resolved.
 - [findings/](findings/) - Investigation experiment results (if any).
 - [upstream-triage.md](upstream-triage.md)
+- [findings/exp-01-prescriptive-vs-descriptive.md](findings/exp-01-prescriptive-vs-descriptive.md) - Experiment 1: Which `bd <backend>` mentions in SKILL.md are the bug?
+- [findings/exp-02-machinery-and-closable-limits.md](findings/exp-02-machinery-and-closable-limits.md) - Experiment 2: What machinery exists, and what `closable` can actually detect
+- [findings/exp-03-hoist-separator-defect.md](findings/exp-03-hoist-separator-defect.md) - Experiment 3: Does `hoist` already cover the plain-push case?
+- [reviews/pass-1.md](reviews/pass-1.md)
+- [reviews/pass-2.md](reviews/pass-2.md)

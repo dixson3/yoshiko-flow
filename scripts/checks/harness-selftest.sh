@@ -67,7 +67,12 @@ INSTRUMENTS=(
   "check-fixture-carveout.sh|__SELF_BREAK__ docs/plans/plan-053-james-dixson-4015d3|an OKF-EXTENSION.md with no §3b, so the carve-out is absent"
   "check-closeout-can-fail.sh|__SELF_BREAK__|a linter that cannot fail a completed bundle"
   "check-drift-driver-contract.sh|__SELF_BREAK__|a driver that folds no-such-path into clean"
-  "check_okf_index_drift.py|--root definitely/not/a/real/root/* --min-roots 0|a nonexistent enumerated root"
+  # REPLACED by plan-057 Issue 1.4. The old row was `--root definitely/not/a/real/root/*`,
+  # which proved only that the driver ERRORS ON A BAD PATH — it never exercised the driver's
+  # actual judgement, so the widened `missing` signal REQ-OKF-012(d) adds had no red
+  # observation at all. The row is now a fixture bundle carrying a genuinely UNLISTED NESTED
+  # FILE, so the driver must report a `missing` finding and go red on a CORPUS verdict.
+  "check_okf_index_drift.py|__SELF_BREAK__ --root docs/plans/* --min-roots 1|a bundle with a nested file the rule selects but the index omits"
   "check-req-coverage.py|${FIX}/uncovered-plan|a plan whose issues name no REQ and reach no Epic-0 source"
   "check-description-coverage.py|${FIX}/unstamped-bundle|a bundle whose nested artifacts carry no description"
   # --- plan-057 Issue 1.0: one named RED row per instrument this plan authors -------------
@@ -215,6 +220,23 @@ PY
       cp -R "${TREE}/docs/plans/plan-053-james-dixson-4015d3" "${sandbox}/docs/plans/" 2>/dev/null || true
       cp -R "${TREE}/_shared" "${sandbox}/_shared" 2>/dev/null || true
       ;;
+    check_okf_index_drift.py)
+      # Sabotage: a bundle whose `index.md` omits a nested file rule D selects. This reaches
+      # the driver's DRIFT verdict (1), not its bad-path branch — the distinction the old row
+      # could not make.
+      mkdir -p "${sandbox}/_shared" "${sandbox}/skills/yf-plan" \
+               "${sandbox}/docs/plans/fixture-drift/refs"
+      cp "${TREE}/_shared/okf.py" "${sandbox}/_shared/okf.py"
+      cp "${TREE}/skills/yf-plan/OKF-EXTENSION.md" "${sandbox}/skills/yf-plan/" 2>/dev/null || true
+      printf -- '---\ntype: Plan\nokf_spec: OKF-PLAN\n---\n# p\n' \
+        > "${sandbox}/docs/plans/fixture-drift/plan.md"
+      printf '# Log\n\n## 2026-08-28\n\n- scoping: f\n' \
+        > "${sandbox}/docs/plans/fixture-drift/log.md"
+      printf -- '# r1\n' > "${sandbox}/docs/plans/fixture-drift/refs/r1.md"
+      printf -- '# UNLISTED\n' > "${sandbox}/docs/plans/fixture-drift/refs/unlisted.md"
+      printf -- "---\nokf_version: '0.2'\n---\n\n# fixture-drift\n\n- [plan.md](plan.md) - p\n- [refs/r1.md](refs/r1.md) - r\n" \
+        > "${sandbox}/docs/plans/fixture-drift/index.md"
+      ;;
     check-assets-decided.py)
       # Sabotage: a document_types set with NO schema selecting `assets/`, and an
       # OKF-EXTENSION whose §3b excludes only a SUBDIRECTORY of assets. That is the exact
@@ -339,9 +361,27 @@ GFEOF
   esac
   # Argv is TREE-RELATIVE and is re-anchored on the sandbox, so a row can point the
   # instrument at a real bundle inside the sabotaged copy rather than at the live tree.
+  # Argv is TREE-RELATIVE and is re-anchored on the sandbox, so a row can point the
+  # instrument at a real bundle inside the sabotaged copy rather than at the live tree.
+  #
+  # TWO KINDS OF ARGUMENT ARE LEFT ALONE, and both were found by a row that needed them:
+  #   * a FLAG (`--root`, `--min-roots`) is not a path. Re-anchoring produced
+  #     `${sandbox}/--root`, which the instrument then rejected as an unknown argument —
+  #     an INCONCLUSIVE that this selftest correctly refuses to count as a red observation.
+  #   * a GLOB must stay RELATIVE, because the run below `cd`s into the sandbox and because
+  #     `pathlib` refuses a non-relative pattern outright. Re-anchoring one turned a corpus
+  #     verdict into a harness fault — which is pass-6 I1's defect, reproduced by the harness
+  #     rather than by the instrument.
   local args=() a
   for a in "$@"; do
-    case "${a}" in /*) args+=("${a}") ;; *) args+=("${sandbox}/${a}") ;; esac
+    case "${a}" in
+      -*)            args+=("${a}") ;;   # a FLAG is not a path
+      *[*?[]*)       args+=("${a}") ;;   # a GLOB must stay relative (pathlib refuses
+                                         # non-relative patterns — pass-6 I1)
+      /*)            args+=("${a}") ;;   # already absolute
+      */*)           args+=("${sandbox}/${a}") ;;   # tree-relative path -> re-anchor
+      *)             args+=("${a}") ;;   # a bare token (a flag's VALUE) is not a path
+    esac
   done
   # `${args[@]+...}` — NOT a bare `${args[@]}`. Under `set -u` (which `_common.sh` sets) an
   # EMPTY array expansion is an unbound-variable error, so the three no-arg rows were exiting
@@ -376,8 +416,22 @@ for row in "${INSTRUMENTS[@]}"; do
     continue
   fi
   if [ "${argv%% *}" = "__SELF_BREAK__" ]; then
+    # WORD-SPLIT WITHOUT GLOBBING. `set -f` is load-bearing, not defensive: a row carrying a
+    # root pattern (`--root docs/plans/*`) is split HERE, in the live tree, so an unquoted
+    # expansion let the shell match the pattern against the REAL corpus and hand the
+    # instrument 60 absolute bundle paths instead of the one relative pattern the row wrote.
+    # The instrument then reported a harness condition, and the selftest read that as the row
+    # failing to reach its FAIL branch — a defect entirely upstream of the instrument.
+    # SPLIT UNDER `set -f`, THEN RESTORE, THEN CALL. The noglob window must cover ONLY the
+    # word-split: `self_break_rc` builds its sandboxes WITH globs of its own
+    # (`"${TREE}"/skills/yf-plan/scripts/*.py`), so leaving noglob on across the call left
+    # those unexpanded and silently produced a malformed fixture — turning a working row's
+    # verdict into an INCONCLUSIVE for a reason that had nothing to do with its instrument.
+    set -f
     # shellcheck disable=SC2086 - the remaining argv is a deliberate word-split list
-    rc="$(self_break_rc "${name}" ${argv#__SELF_BREAK__})"
+    sb_args=( ${argv#__SELF_BREAK__} )
+    set +f
+    rc="$(self_break_rc "${name}" ${sb_args[@]+"${sb_args[@]}"})"
   else
     case "${name}" in
       *.py) ( cd "${TREE}" && eval uv run "${path}" ${argv} >/dev/null 2>&1 ) ;;

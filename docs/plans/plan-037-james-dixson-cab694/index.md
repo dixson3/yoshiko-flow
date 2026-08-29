@@ -18,3 +18,12 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [decisions/](decisions/)
 - [scripts/](scripts/)
 - [upstream-triage.md](upstream-triage.md)
+- [decisions/config-tier.md](decisions/config-tier.md) - Decision: `plans-root` / `incubator-root` are a shared, committed decision
+- [findings/5.2-superset-verification.md](findings/5.2-superset-verification.md) - Issue 5.2 — the repo is a superset of user scope
+- [findings/exp-01-divergence-classification.md](findings/exp-01-divergence-classification.md) - Experiment 1: Classify every user-scope ↔ repo divergence
+- [findings/exp-02-plan-manager-config-reality.md](findings/exp-02-plan-manager-config-reality.md) - Experiment 2: The `plan_manager.py` local patch and the canonical-config reality
+- [findings/exp-03-herdr-import-surface.md](findings/exp-03-herdr-import-surface.md) - Experiment 3: What importing `yf-herdr` into the repo actually touches
+- [reviews/pass-1.md](reviews/pass-1.md)
+- [reviews/pass-2.md](reviews/pass-2.md)
+- [reviews/pass-3.md](reviews/pass-3.md)
+- [scripts/superset_check.py](scripts/superset_check.py)

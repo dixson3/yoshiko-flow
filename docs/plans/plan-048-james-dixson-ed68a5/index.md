@@ -24,3 +24,21 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
 - [assets/](assets/) - The measurement record: the drift-edge audit, the free-REQ-id survey that allocated this plan's ids, the pre/post gate measurements, and the residue analysis with its mutant.
 - [scripts/](scripts/) - The plan's executable gates — `gate-grammar.sh` and `gate-relations.sh` over `_common.sh`, driven by `gate-run.sh`.
+- [assets/edge-audit.md](assets/edge-audit.md) - Hand audit of the 39 recovered edges (Issue 1.4b / SC1b)
+- [assets/free-req-ids.md](assets/free-req-ids.md) - Free REQ-* id list, derived by grepping the live set (Issue 0.1)
+- [assets/gate-red-prework.md](assets/gate-red-prework.md) - Capability-gate RED pre-work evidence (Issues 0.6 / 0.6a)
+- [assets/post-work-measurements.md](assets/post-work-measurements.md) - Post-work measurements against the approval-fixed targets (Issue 4.3)
+- [assets/residue-analysis.md](assets/residue-analysis.md) - Why the residue is 81, itemized (Issue 1.5)
+- [assets/residue-mutant.md](assets/residue-mutant.md) - The residue bar is falsifiable (SC1)
+- [assets/upstream-authorization.txt](assets/upstream-authorization.txt)
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1 — plan-048-james-dixson-ed68a5
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2 — plan-048-james-dixson-ed68a5
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3 — plan-048-james-dixson-ed68a5
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 — plan-048-james-dixson-ed68a5
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 — plan-048-james-dixson-ed68a5
+- [reviews/pass-6.md](reviews/pass-6.md) - Red-team pass 6 — plan-048-james-dixson-ed68a5
+- [reviews/pass-7.md](reviews/pass-7.md) - Red-team pass 7 — plan-048-james-dixson-ed68a5
+- [scripts/_common.sh](scripts/_common.sh)
+- [scripts/gate-grammar.sh](scripts/gate-grammar.sh)
+- [scripts/gate-relations.sh](scripts/gate-relations.sh)
+- [scripts/gate-run.sh](scripts/gate-run.sh)

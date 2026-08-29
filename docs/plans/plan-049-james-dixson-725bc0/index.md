@@ -28,3 +28,17 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
   - [gate-cellcheck.sh](scripts/gate-cellcheck.sh) - Capability gate: the empty-cell and gate-completeness checks fire on three mutants and on neither control, including the canonical Start Gate template.
 - [assets/](assets/) - Measured artifacts produced during execution: the free REQ-id list, the two gate/drift evidence records, the edge audit, the proposed write diff, and the two operator authorization records.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [references/upstream-102.md](references/upstream-102.md) - Upstream #102: .markdown-lint-on-edit -> .yf/markdown-lint-on-edit: gitignore semantics + migrate.rs rename
+- [references/upstream-113.md](references/upstream-113.md) - Upstream #113: yf-plan: add an execution-rehearsal review pass (topological DAG walk against running state)
+- [references/upstream-135.md](references/upstream-135.md) - Upstream #135: yf-plan: a measured literal in plan.md goes stale when the plan is inside its own measured corpus
+- [references/upstream-140.md](references/upstream-140.md) - Upstream #140: yf-okf: enforce OKF structure below the bundle root (nested index.md/log.md), and adopt an index drift/regeneration model
+- [references/upstream-145.md](references/upstream-145.md) - Upstream #145: New skill: yf-retrospective — measure escape rate (intra-plan + post-release) and enforce a fix+prevention contract
+- [references/upstream-149.md](references/upstream-149.md) - Upstream #149: M5/M9: process rules that nothing executes, and remediation edges that exist only in prose
+- [references/upstream-171.md](references/upstream-171.md) - Upstream #171: yf-okf: nested index.md generation, deferred behind a `description:` producer change (plan-046 D-9)
+- [references/upstream-174.md](references/upstream-174.md) - Upstream #174: yf-plan: a review-phase validation pass — falsify every criterion, and cross-check every claim against the code that scores it
+- [references/upstream-183.md](references/upstream-183.md) - Upstream #183: plan-049-james-dixson-725bc0 execution tracking
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1 — plan-049-james-dixson-725bc0
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2 — plan-049-james-dixson-725bc0
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3 — plan-049-james-dixson-725bc0
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 — plan-049-james-dixson-725bc0
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 — plan-049-james-dixson-725bc0
