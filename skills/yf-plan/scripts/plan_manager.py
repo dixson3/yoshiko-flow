@@ -672,6 +672,12 @@ _INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
     # bundle — untouched. That cause is REQ-PLAN-081(b)'s three `reindex_write` call sites.
     ("scripts/", "Executable checks and helpers this plan ships for its own criteria."),
     ("plan-retrospective.md", "Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE)."),
+    # EXECUTION-TIME MEMBER (plan-059 Issue 2.4, REQ-PORT-053). Same presence-optional
+    # contract as the retrospective, and listed here for the same reason: a bundle member
+    # absent from the reserved listing violates the cold-reader contract the listing exists
+    # to carry. `escalation-raise` calls `_ensure_index_lists_member` on every write, so an
+    # escalation raised long after `seed_index` ran is still listed.
+    ("escalations.md", "Open questions raised to the upstream controller during execution (`## ESC-NNN` entries), each with its alternatives, its recommended default, and what happens if no answer arrives. PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding of any severity (REQ-PORT-ACT-ESCALATION)."),
 )
 
 
@@ -778,6 +784,249 @@ def append_retrospective(plan_dir: Path, entry: dict, *, dry_run: bool = False) 
         index_updated = _ensure_index_lists_retrospective(plan_dir)
     return {"file": str(path), "id": rid, "appended": True,
             "created": created, "index_updated": index_updated}
+
+
+# --- escalations.md (plan-059 Epic 2, REQ-PORT-053 / REQ-PORT-054) ---------------------
+
+ESCALATION_FILE = "escalations.md"
+
+#: REQ-PORT-054's field set, in emission order.
+#:
+#: The first nine are the requirement's own list. The last four are INSTRUMENTATION, and they
+#: exist because research 005 §8.4 names the missing half of the escalation question: nobody
+#: has ever measured how often an escalation is answered versus how often its default is
+#: silently taken. `escalation-report` computes `raised`, `answered` and `no_answer_taken`
+#: from these, and `push_batch` is what makes BATCHING observable rather than asserted —
+#: escalations sharing a batch id were sent in one notification.
+ESCALATION_FIELDS: tuple[str, ...] = (
+    "question", "alternatives", "recommended", "on_no_answer", "detected_by",
+    "evidence", "asked_of", "state", "answer",
+    "raised_when", "resolved_when", "no_answer_taken", "push_batch",
+)
+ESCALATION_STATES = ("raised", "answered", "resolved", "withdrawn")
+ESCALATION_DETECTED_BY = ("self-report", "operator", "mechanical-check")
+
+_ESCALATION_HEADER = """---
+type: Escalation
+okf_spec: OKF-PLAN
+---
+# Escalations
+
+Questions this plan raised to its upstream controller, newest last. Each `## ESC-NNN` section
+is one entry; `ESC-NNN` ids are append-only and are never reused or renumbered.
+
+**The architecture is WRITE-THEN-NOTIFY, never ask-and-await.** The herdr channel has no
+answer-return primitive, so the escalation IS this artifact and any push is merely a
+notification about it. That is why `on_no_answer` is required on every entry: an escalation
+that omits its own default pretends to a round-trip the transport cannot deliver.
+
+`recommended` is stored SEPARATELY from `answer`, and the separation is the point. The
+dominant operator input across the corpus is a choice among stated alternatives, and a schema
+that records only the resolution destroys the default it was chosen against.
+
+An escalation whose recommended default was taken **without an answer arriving** is
+`resolved`, not `raised` — with `answer` recording the default that was taken. Leaving it
+`raised` would make every fire-and-forget escalation trip the close-time open-escalation
+warning, which would train a reader to ignore it.
+
+"""
+
+
+def _escalation_next_id(text: str) -> int:
+    """The next `ESC-NNN` number: max existing + 1. Append-only, never reused."""
+    nums = [int(m) for m in re.findall(r"^## ESC-(\d+)", text, re.M)]
+    return (max(nums) + 1) if nums else 1
+
+
+def _escalation_blocks(text: str) -> dict[str, str]:
+    """Split `escalations.md` into `{ESC-NNN: raw block text}` (preamble excluded)."""
+    out: dict[str, str] = {}
+    for block in re.split(r"(?=^## ESC-\d+)", text, flags=re.M):
+        m = re.match(r"^## (ESC-\d+)", block)
+        if m:
+            out[m.group(1)] = block
+    return out
+
+
+def _escalation_entries(text: str) -> dict[str, dict[str, str]]:
+    """Parse `escalations.md` into `{ESC-NNN: {field: value}}`."""
+    out: dict[str, dict[str, str]] = {}
+    for eid, block in _escalation_blocks(text).items():
+        fields: dict[str, str] = {}
+        for line in block.splitlines():
+            cell = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*$", line)
+            if cell:
+                fields[cell.group(1)] = cell.group(2)
+        out[eid] = fields
+    return out
+
+
+def _escalation_render(eid: str, row: dict[str, str]) -> str:
+    lines = [f"## {eid}", "", "| Field | Value |", "| :-- | :-- |"]
+    for k in ESCALATION_FIELDS:
+        lines.append(f"| `{k}` | {row.get(k, '')} |")
+    lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def _escalation_others_hash(text: str, skip: str) -> str:
+    """Hash every entry block EXCEPT ``skip``, in id order.
+
+    This is what `escalation-resolve` reports as `prior_entries_unchanged` — computed from
+    the bytes it did not touch, **never from its own assertion** (R9). A verb that reports
+    its own correctness has reported nothing.
+    """
+    blocks = _escalation_blocks(text)
+    payload = "".join(blocks[k] for k in sorted(blocks) if k != skip)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _escalation_write(path: Path, text: str) -> None:
+    """Write-temp-then-rename. NEVER an in-place truncation (R9).
+
+    `escalation-resolve` mutates a row inside a committed markdown artifact — a capability
+    class this repository did not previously have, since every other bundle write verb is
+    append-or-regenerate. A truncate-then-write that is interrupted leaves a bundle member
+    half-erased; a rename is atomic on every filesystem this runs on.
+    """
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def raise_escalation(plan_dir: Path, *, question: str, alternatives: list[str],
+                     recommended: str, on_no_answer: str, detected_by: str,
+                     evidence: str = "", asked_of: str = "",
+                     dry_run: bool = False) -> dict:
+    """Append one `## ESC-NNN` entry to the bundle's `escalations.md` (REQ-PORT-053).
+
+    Validates ON WRITE against the same domain rules `escalations.toml` checks, so a
+    malformed escalation never reaches the file. That layering is deliberate and is why the
+    escalation-schema capability gate writes its INVALID document directly rather than
+    routing it through this verb: a positive control that went through `raise_escalation`
+    would be rejected at step 1 by a CORRECT implementation, and the gate would be testing
+    the wrong thing.
+
+    Idempotent on entry identity: re-raising an escalation whose `question` and
+    `alternatives` match an existing entry returns that entry rather than appending a twin.
+    """
+    path = plan_dir / ESCALATION_FILE
+    created = not path.exists()
+    text = _ESCALATION_HEADER if created else path.read_text(encoding="utf-8")
+
+    alts = [a.strip() for a in alternatives if a and a.strip()]
+    if not question.strip():
+        raise ValueError("--question is required and may not be empty")
+    if len(alts) < 2:
+        raise ValueError(
+            f"at least two --alternative values are required (got {len(alts)}); an "
+            "escalation with one option is a notification, not a question"
+        )
+    if not recommended.strip():
+        raise ValueError("--recommended is required — it is the dominant operator input")
+    if recommended.strip().lower() not in [a.lower() for a in alts]:
+        raise ValueError(
+            f"--recommended {recommended!r} is not one of --alternative "
+            f"({' ; '.join(alts)}); a schema whose recommended need not name one of its "
+            "alternatives is not a schema"
+        )
+    if not on_no_answer.strip():
+        raise ValueError(
+            "--on-no-answer is required on every escalation: the transport has no "
+            "answer-return path, so an entry without a default pretends to a round-trip "
+            "that cannot be delivered"
+        )
+    if detected_by not in ESCALATION_DETECTED_BY:
+        raise ValueError(
+            f"--detected-by {detected_by!r} is outside its closed domain "
+            f"({' | '.join(ESCALATION_DETECTED_BY)})"
+        )
+
+    existing = _escalation_entries(text)
+    for eid, fields in sorted(existing.items()):
+        if (fields.get("question", "").strip() == question.strip()
+                and fields.get("alternatives", "").strip() == "; ".join(alts)):
+            return {"file": str(path), "id": eid, "appended": False,
+                    "created": False, "index_updated": False, "state": fields.get("state", "")}
+
+    eid = f"ESC-{_escalation_next_id(text):03d}"
+    row = {
+        "question": question.strip(),
+        "alternatives": "; ".join(alts),
+        "recommended": recommended.strip(),
+        "on_no_answer": on_no_answer.strip(),
+        "detected_by": detected_by,
+        # `unverified` rather than blank: an unsubstantiated escalation must be
+        # SELF-IDENTIFYING, or the R4 Goodhart incentive has no counterweight.
+        "evidence": evidence.strip() or "unverified",
+        "asked_of": asked_of.strip(),
+        "state": "raised",
+        "answer": "",
+        "raised_when": datetime.now().strftime("%Y-%m-%d"),
+        "resolved_when": "",
+        "no_answer_taken": "no",
+        "push_batch": "",
+    }
+    new_text = text.rstrip("\n") + "\n\n" + _escalation_render(eid, row)
+
+    index_updated = False
+    if not dry_run:
+        _escalation_write(path, new_text)
+        _stamp_okf_type(
+            plan_dir, path,
+            description=("Open questions raised to the upstream controller during "
+                         "execution, with alternatives, a recommended default, and what "
+                         "happens if no answer arrives."),
+        )
+        index_updated = _ensure_index_lists_member(plan_dir, ESCALATION_FILE)
+    return {"file": str(path), "id": eid, "appended": True, "created": created,
+            "index_updated": index_updated, "state": "raised"}
+
+
+def resolve_escalation(plan_dir: Path, eid: str, *, answer: str,
+                       default_taken: bool = False, by: str = "",
+                       state: str = "resolved") -> dict:
+    """Record an answer on an existing `## ESC-NNN` entry (REQ-PORT-054).
+
+    Reports `prior_entries_unchanged`, computed from a pre/post hash of the entry blocks it
+    did not touch — never from its own assertion.
+    """
+    path = plan_dir / ESCALATION_FILE
+    if not path.exists():
+        raise ValueError(f"no {ESCALATION_FILE} in {plan_dir}")
+    text = path.read_text(encoding="utf-8")
+    entries = _escalation_entries(text)
+    eid = eid.upper()
+    if eid not in entries:
+        raise ValueError(f"{eid} not found in {path} (have: {', '.join(sorted(entries))})")
+    if state not in ESCALATION_STATES:
+        raise ValueError(f"--state {state!r} outside {' | '.join(ESCALATION_STATES)}")
+
+    before = _escalation_others_hash(text, eid)
+    row = dict(entries[eid])
+    for k in ESCALATION_FIELDS:
+        row.setdefault(k, "")
+    row["answer"] = (answer.strip() + (f" (default taken by {by})" if default_taken and by else "")) \
+        if answer.strip() else row.get("answer", "")
+    row["state"] = state
+    row["resolved_when"] = datetime.now().strftime("%Y-%m-%d")
+    row["no_answer_taken"] = "yes" if default_taken else "no"
+
+    blocks = _escalation_blocks(text)
+    old_block = blocks[eid]
+    new_block = _escalation_render(eid, row)
+    # Preserve whatever trailing whitespace the old block carried, so the only bytes that
+    # change are this entry's own.
+    new_text = text.replace(old_block, new_block if old_block.endswith("\n") else new_block.rstrip("\n"), 1)
+    after = _escalation_others_hash(new_text, eid)
+
+    _escalation_write(path, new_text)
+    return {
+        "file": str(path), "id": eid, "state": row["state"],
+        "answer": row["answer"], "no_answer_taken": row["no_answer_taken"] == "yes",
+        "prior_entries_unchanged": before == after,
+        "prior_entries_hash_before": before, "prior_entries_hash_after": after,
+    }
 
 
 def _index_member_present(plan_dir: Path, member: str) -> bool:
@@ -5347,6 +5596,30 @@ def _audit_plan(plan_dir: Path) -> dict:
     plan (date-grandfathered OR un-migrated — no `plan.md` frontmatter) and `fail` for
     an OKF-native plan, mirroring how the date grandfather downgrades the original
     portability scaffolding (#2–#5).
+
+    **`escalations.md` and `plan-retrospective.md` appear in NONE of the eight checks
+    above, and that absence is a REQUIREMENT rather than an oversight**
+    (REQ-PORT-ACT-ESCALATION / REQ-PORT-ACT-RETROSPECTIVE, plan-059 Issue 2.6). The
+    presence list here is a closed, hand-written set, so a new bundle member is a
+    non-event unless someone adds it — and for these two it must never be added. Every
+    bundle that predates them would hard-fail its next audit for lacking a file that did
+    not exist when it was written.
+
+    For escalations the reason is stronger than grandfathering, and it survives the
+    corpus turning over: **the absence of escalations must never be made to look like a
+    defect.** A plan that never needed to ask its controller anything has nothing to
+    record. Reporting that as a gap creates exactly the Goodhart incentive plan-059's R4
+    names — an agent that can escalate instead of finishing, rewarded for reclassifying
+    difficulty as under-specification.
+
+    **Why `plan-retrospective.md` was REJECTED as the escalation surface** (plan-059 R2),
+    recorded here because the two files look interchangeable and are not: a retrospective
+    entry is a *closed adjudication* written after the fact, and `append_retrospective` is
+    append-only **deliberately**; an escalation is an *open question* whose entire
+    lifecycle is a state change. Sharing one non-updatable stream would have given
+    `retrospective-report` an unanswered question to count as a recorded event, and would
+    have forced either a second entry per answer (breaking the one-entry-per-incident
+    reading) or a mutable retrospective (breaking append-only for every other consumer).
     """
     findings: list[dict] = []
     plan_md = plan_dir / "plan.md"
@@ -6335,6 +6608,82 @@ def retrospective_report(plan_dir: str, as_json: bool):
         "advisory": True,
     }
     click.echo(json.dumps(result, indent=2))
+
+
+@cli.command("escalation-raise")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--question", required=True,
+              help="The question, stated so a controller can answer it without reading the plan.")
+@click.option("--alternative", "alternatives", multiple=True,
+              help="A stated option. REPEATABLE, and AT LEAST TWO are required.")
+@click.option("--recommended", required=True,
+              help="Which alternative this session recommends. MUST be one of --alternative.")
+@click.option("--on-no-answer", "on_no_answer", required=True,
+              help="What happens if no answer arrives. Required: the transport is fire-and-forget.")
+@click.option("--detected-by", "detected_by",
+              type=click.Choice(ESCALATION_DETECTED_BY), default="self-report",
+              help="WHO found it. A closed domain, because the recorder is usually the subject.")
+@click.option("--evidence", default="",
+              help="The command + output behind any state claim. Defaults to `unverified`.")
+@click.option("--asked-of", "asked_of", default="",
+              help="The controller this was asked of. A seam left open for a future N-hop form.")
+@click.option("--dry-run", is_flag=True, help="Report what would be written; write nothing.")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def escalation_raise(plan_dir: str, question: str, alternatives: tuple[str, ...],
+                     recommended: str, on_no_answer: str, detected_by: str,
+                     evidence: str, asked_of: str, dry_run: bool, as_json: bool):
+    """Append one `## ESC-NNN` entry to `escalations.md` (REQ-PORT-053).
+
+    Creates the file (with `type: Escalation` frontmatter) when absent and lists it in the
+    reserved `index.md`, so a bundle member never lands unindexed.
+    """
+    pd = Path(plan_dir)
+    try:
+        result = raise_escalation(
+            pd, question=question, alternatives=list(alternatives),
+            recommended=recommended, on_no_answer=on_no_answer,
+            detected_by=detected_by, evidence=evidence, asked_of=asked_of,
+            dry_run=dry_run,
+        )
+    except ValueError as exc:
+        # STILL JSON ON STDOUT, still a non-zero exit (REQ-CLI-016 shape): a caller parsing
+        # the stream must not have to distinguish a crash from a refusal.
+        payload = {"verdict": "refused", "error": str(exc)}
+        click.echo(json.dumps(payload, indent=2) if as_json else f"refused: {exc}")
+        raise SystemExit(1)
+    result["dry_run"] = dry_run
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"{result['id']}: {'appended' if result['appended'] else 'already present'} "
+                   f"in {result['file']}")
+
+
+@cli.command("escalation-resolve")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.argument("escalation_id")
+@click.option("--answer", required=True, help="What the controller answered, verbatim.")
+@click.option("--default-taken", "default_taken", is_flag=True,
+              help="No answer arrived and the recommended default was taken. The entry still "
+                   "becomes `resolved` — see REQ-PORT-054's lifecycle edge.")
+@click.option("--by", default="", help="Who took the default, when --default-taken is set.")
+@click.option("--state", type=click.Choice(ESCALATION_STATES), default="resolved")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def escalation_resolve(plan_dir: str, escalation_id: str, answer: str,
+                       default_taken: bool, by: str, state: str, as_json: bool):
+    """Record an answer on an existing escalation, reporting `prior_entries_unchanged`."""
+    try:
+        result = resolve_escalation(Path(plan_dir), escalation_id, answer=answer,
+                                    default_taken=default_taken, by=by, state=state)
+    except ValueError as exc:
+        payload = {"verdict": "refused", "error": str(exc)}
+        click.echo(json.dumps(payload, indent=2) if as_json else f"refused: {exc}")
+        raise SystemExit(1)
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"{result['id']} -> {result['state']} "
+                   f"(prior entries unchanged: {result['prior_entries_unchanged']})")
 
 
 @cli.command("retrospective-append")

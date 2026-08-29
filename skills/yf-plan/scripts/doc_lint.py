@@ -602,6 +602,67 @@ def _resolve_vocabulary(chk: dict) -> set[str] | None:
     return None
 
 
+_ENTRY_HEAD = re.compile(r"^#{2,3} +([A-Z]+-[0-9]+)\s*$")
+
+
+def entry_sections(text: str, id_prefix: str) -> list[tuple[str, dict[str, str]]]:
+    """Parse `## <PREFIX>-NNN` sections into (id, {key: value}) from their two-column table.
+
+    Shared by `escalations.md` and any future append-only entry log. The key cell is
+    normalised — surrounding backticks and emphasis stripped, lowercased — because the corpus
+    writes keys as `` `question` `` while a schema names them bare, and a parser that compared
+    the raw cells would report every conforming entry as missing every field.
+
+    Fenced blocks are skipped, so a fenced example table inside an entry (REQ-PORT-052 requires
+    verbatim quotes to be fenced) is never mistaken for the entry's own field table.
+    """
+    out: list[tuple[str, dict[str, str]]] = []
+    cur_id: str | None = None
+    cur_rows: list[list[str]] = []
+    fenced = False
+
+    def flush() -> None:
+        if cur_id is None:
+            return
+        fields = {}
+        for r in cur_rows:
+            if len(r) < 2:
+                continue
+            k = r[0].strip().strip("`*_ ").lower()
+            if k and k not in ("field", "key"):
+                fields[k] = r[1].strip()
+        out.append((cur_id, fields))
+
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        m = _ENTRY_HEAD.match(line)
+        if m:
+            flush()
+            cur_id = m.group(1) if m.group(1).startswith(id_prefix + "-") else None
+            cur_rows = []
+            continue
+        st = line.strip()
+        if cur_id and st.startswith("|") and st.endswith("|"):
+            cur_rows.append(_split_row(st[1:-1]))
+    flush()
+    return out
+
+
+def _split_alternatives(cell: str) -> list[str]:
+    """Split an `alternatives` cell into its options.
+
+    `;` is the separator, NOT `,` — an alternative is a phrase and phrases contain commas.
+    Measured on this repository's own dogfooded escalations: every recorded alternative
+    contains at least one comma, so a comma-split would shatter each option into fragments and
+    make `recommended-in-alternatives` fail on every conforming entry.
+    """
+    return [a.strip().strip("`*_ ") for a in cell.split(";") if a.strip().strip("`*_ ")]
+
+
 # --- checks ------------------------------------------------------------------------
 
 
@@ -743,6 +804,51 @@ def run_check(chk: dict, text: str, schema: dict, path: Path | None = None) -> l
                 cell = _norm_cell(r[i]) if i < len(r) else ""
                 if not cell:
                     out.append(f"row {rid!r}: required cell {c!r} is empty")
+        return out
+    if kind == "entry-fields":
+        # plan-059 Issue 2.2 (REQ-PORT-054). An append-only entry log whose entries may omit a
+        # required field is a log that looks complete and asserts nothing — plan-047's
+        # "90-finding exploit" one document type over.
+        prefix = chk.get("id_prefix", "ESC")
+        entries = entry_sections(text, prefix)
+        if not entries:
+            # A file with no entry section is `entry-ids`' finding, not this one.
+            return []
+        required = chk.get("required") or []
+        domains = chk.get("domains") or {}
+        out = []
+        for eid, fields in entries:
+            for key in required:
+                if not fields.get(key, "").strip():
+                    out.append(f"{eid}: required field {key!r} is missing or empty")
+            for key, allowed in domains.items():
+                val = fields.get(key, "").strip().strip("`*_ ").lower()
+                if val and val not in [str(a).lower() for a in allowed]:
+                    out.append(
+                        f"{eid}: {key} is {val!r}, outside its closed domain "
+                        f"({' | '.join(str(a) for a in allowed)})"
+                    )
+        return out
+    if kind == "recommended-in-alternatives":
+        # plan-059 Issue 2.2 (REQ-PORT-054). THE type's load-bearing rule: a schema whose
+        # `recommended` need not name one of its `alternatives` is not a schema. This is the
+        # positive control plan-059's escalation-schema capability gate asserts BY CHECK NAME
+        # rather than by `errors >= 1` — the latter is satisfied by any error finding at all,
+        # and would test "the linter emits errors" instead of the rule under test.
+        prefix = chk.get("id_prefix", "ESC")
+        out = []
+        for eid, fields in entry_sections(text, prefix):
+            alts = _split_alternatives(fields.get("alternatives", ""))
+            rec = fields.get("recommended", "").strip().strip("`*_ ")
+            if not rec or not alts:
+                # Emptiness is `entry-fields`' finding. Reporting it here too would
+                # double-count one defect as two.
+                continue
+            if rec.lower() not in [a.lower() for a in alts]:
+                out.append(
+                    f"{eid}: recommended {rec[:50]!r} is not one of alternatives "
+                    f"({' ; '.join(a[:30] for a in alts)})"
+                )
         return out
     if kind == "cell-vocabulary":
         # plan-059 Issue 1.3 (REQ-DATA-076). A severity cell is the input to every

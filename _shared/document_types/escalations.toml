@@ -1,0 +1,88 @@
+# escalations.md — the plan bundle's OPEN QUESTIONS to its upstream controller
+# (plan-059 Issue 2.2, REQ-PORT-053 / REQ-PORT-054).
+#
+# THE STEM IS PLURAL, and that is a hard constraint rather than a naming preference.
+# `doc_lint.py` rejects a schema whose `type` differs from its file stem, and an unknown
+# `--type` token returns INCONCLUSIVE rather than failing — so a singular `escalation.toml`
+# would leave plan-059's escalation-schema capability gate permanently UNRESOLVABLE rather
+# than merely red, which is the worse of the two failure modes. `escalations` also matches
+# the document base name, the convention all 17 pre-existing schemas follow.
+#
+# (`type: Escalation` in the document's own frontmatter is the OKF vocabulary — a separate
+# axis, singular and title-case per OKF-BASELINE §5, and unaffected by this stem.)
+type = "escalations"
+producer_class = "code-generated"
+derive_from = "plan_template.ESCALATION_SECTIONS"
+description = "A yf-plan bundle's escalations.md: append-only questions raised to the upstream controller, with a mutable state."
+
+paths = [
+    "docs/plans/*/escalations.md",
+    "Incubator/*/plans/*/escalations.md",
+]
+exclude = [
+    "skills/**/fixtures/**",
+    "tests/fixtures/**",
+]
+
+# `promote = false` (REQ-DATA-053), AND the checks below are `E`. BOTH halves are required,
+# and the reason is the opposite of the usual one.
+#
+# `escalations.md` is authored during EXECUTE, and `STATUS_SEVERITY` DEMOTES `E -> R` at
+# `executing` — which is the ONLY status this artifact ever lives at. So a bare `E` could
+# never fail in production: the `recommended`-names-an-alternative rule would be
+# unenforceable at precisely the moment it matters, and the type would ship unable to fail
+# (the "check that cannot fail" defect class). `promote = false` exempts the type from
+# status-driven severity rewriting altogether, which is the mechanism `plan.toml` already
+# uses and which no amount of severity-tuning could substitute for.
+promote = false
+
+# `regex-present`, NOT `headings-any-level` — `doc_lint.sections()` returns only `##`/`###`
+# headings and NEVER an H1, so a `headings-*` check against the title would report it missing
+# on every file forever. `plan-retrospective.toml` records having fallen into exactly this
+# trap; `derive_from` above is the producer record, not a heading list any check consumes.
+[[checks]]
+id = "escalations-heading"
+severity = "E"
+kind = "regex-present"
+pattern = '(?m)^# +Escalations'
+
+# `ESC-NNN` ids are append-only and never renumbered. A file with no entry id is either empty
+# or has lost its structure.
+[[checks]]
+id = "entry-ids"
+severity = "E"
+kind = "regex-present"
+pattern = '(?m)^#{2,3} +ESC-[0-9]+'
+
+# REQ-PORT-054's required fields and its two closed domains.
+#
+# `answer` and `asked_of` are DELIBERATELY ABSENT from `required`: an escalation in state
+# `raised` has no answer yet, and `asked_of` is one of the two seams left open for a future
+# N-hop generalisation. Requiring either would make the ordinary just-raised entry illegal.
+#
+# `evidence` IS required, because REQ-PORT-054 gives it the literal default `unverified` —
+# so an entry with no evidence is self-identifying rather than merely quiet, which is the R4
+# Goodhart mitigation. There is no state in which the field legitimately has no value.
+[[checks]]
+id = "entry-fields"
+severity = "E"
+kind = "entry-fields"
+id_prefix = "ESC"
+required = ["question", "alternatives", "recommended", "on_no_answer", "detected_by", "evidence", "state"]
+
+[checks.domains]
+detected_by = ["self-report", "operator", "mechanical-check"]
+state = ["raised", "answered", "resolved", "withdrawn"]
+
+# THE TYPE'S LOAD-BEARING RULE, and the one plan-059's escalation-schema capability gate
+# asserts BY THIS EXACT CHECK ID. A schema whose `recommended` need not name one of its
+# `alternatives` is not a schema — it is a shape.
+#
+# The gate asserts on the id rather than on `errors >= 1` deliberately: the latter is
+# satisfied by ANY error finding, so it would test "the linter emits errors" rather than the
+# rule the plan calls load-bearing.
+[[checks]]
+id = "recommended-in-alternatives"
+severity = "E"
+kind = "recommended-in-alternatives"
+id_prefix = "ESC"
