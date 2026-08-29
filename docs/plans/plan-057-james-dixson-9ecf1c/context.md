@@ -27,7 +27,8 @@ binary-embedded tree nor the skill the running session resolved at invocation. `
 loaded once at invocation; `plan_manager.py` is re-invoked per call. So a mid-execution
 `yf skills install` would run new scripts against old prose — deploy only at land-the-plane.
 
-**Vendoring.** `_shared/okf.py` is copied byte-identically into four `skills/*/scripts/` trees by
+**Vendoring.** `_shared/okf.py` is copied byte-identically into four `skills/*/scripts/` trees (as of
+authoring; Issue 1.6 option (a) makes it five by registering `yf-okf-hygiene`) by
 `_shared/sync.py`, which `CHANGE-VALIDATION.md` gates in the FAST tier. Editing one without syncing
 fails the on-edit gate. This plan touches `okf.py`, so a vendor-sync step is not optional bookkeeping — plan-056's Issue 1.7 is the precedent.
 
