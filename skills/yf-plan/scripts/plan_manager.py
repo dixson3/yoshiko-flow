@@ -16,6 +16,7 @@ import json
 import os
 import re
 import shutil
+from collections import Counter
 import socket
 import subprocess
 import sys
@@ -6750,6 +6751,380 @@ def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
         click.echo(f"{verb_txt} {result['id']} -> {result['file']}")
 
 
+# --- yf-judgement: the trigger, its echo, and its push (plan-059 Epics 3 and 5) --------
+
+#: Statuses at which a bundle's `log.md` is a CLOSED HISTORICAL RECORD and the judgement echo
+#: is skipped. This is the ONLY exemption, and it is deliberately not on the axis that
+#: matters: the echo is unconditional across FIRED vs NOT-FIRED, which is what R1 and SC6 are
+#: about. Writing into a finished plan's log would be a mutation of an unrelated artifact
+#: every time anyone ran the trigger against it — measured as a live hazard by plan-059's SC4,
+#: which points the trigger at `plan-050` precisely because that bundle has enough review
+#: passes to exercise the payload.
+_JUDGEMENT_TERMINAL_STATUSES = ("complete", "abandoned")
+
+JUDGEMENT_FIRED = "judgement: fired"
+JUDGEMENT_NOT_FIRED = "judgement: not-fired"
+
+
+def _judgement_echo(plan_dir: Path, fired: bool, detail: str) -> dict:
+    """Write the trigger's own echo to `log.md`, on BOTH the fired and not-fired paths.
+
+    THIS IS THE LOAD-BEARING HALF OF EPIC 5, and the reason is the command-vs-obligation
+    law the plan is built on: only a step the SCRIPT performs is a step that survives.
+    Every other observability remedy in this plan — enumerating the report by name in the
+    close contract, a tagged test at the call site — is defence in depth that a removal
+    can walk past. This one writes itself.
+    
+    Without it, a trigger that never fires is INDISTINGUISHABLE FROM A QUIET PERIOD, and
+    plan-059 records four separate instances of exactly that failure (`closable`,
+    `plan_manager.py audit`, `retrospective_fields.py`, and #270's never-poured formula) —
+    every one found by hand, late, by someone who went looking.
+
+    The echo bullet is INERT to the lifecycle: it matches neither the `review:` count regex
+    (REQ-PORT-006) nor the `scoping:` grandfather-date regex, so it can never perturb an
+    audit. Returns ``{"appended", "line", "skipped_reason"}``.
+    """
+    plan_md = plan_dir / "plan.md"
+    status = None
+    if plan_md.exists():
+        status = _read_plan_status(plan_md.read_text(encoding="utf-8"))
+    if status in _JUDGEMENT_TERMINAL_STATUSES:
+        return {"appended": False, "line": None,
+                "skipped_reason": f"bundle status is `{status}` — its log is a closed record"}
+    bullet = f"{JUDGEMENT_FIRED if fired else JUDGEMENT_NOT_FIRED} — {detail}"
+    try:
+        okf.append_log(plan_dir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
+    except Exception as exc:  # a broken log must not take the trigger down with it
+        return {"appended": False, "line": None, "skipped_reason": f"append_log failed: {exc}"}
+    return {"appended": True, "line": f"- {bullet}", "skipped_reason": None}
+
+
+def _review_loop_escalation(plan_dir: Path, escalates: bool, cycles: int, limit: int) -> dict:
+    """The escalation PAYLOAD `review-loop-check` carries (REQ-PORT-054 shape).
+
+    Emitted on BOTH paths. A payload present only when the trigger fires would make
+    "the key is absent" mean two different things — the trigger did not fire, or the
+    trigger is not installed — which is the two-facts-one-signal conflation this whole
+    plan is organised against.
+
+    `on_no_answer` is NEVER null, on either path. The transport has no answer-return
+    primitive, so an escalation without its own default pretends to a round-trip that
+    cannot be delivered.
+    """
+    return {
+        "fired": escalates,
+        "trigger": "review-loop-check",
+        "stop_class": 4 if escalates else None,
+        "question": (
+            f"The review loop has run {cycles} cycle(s) against a bound of {limit} and the "
+            f"plan is still not converging. Resolve the outstanding concerns by hand, or "
+            f"raise the bound for one invocation?"
+            if escalates else
+            f"No question: the review loop is at {cycles} of {limit} cycle(s) and is "
+            f"converging."
+        ),
+        "alternatives": [
+            "Resolve the outstanding concerns by hand and re-run the red-team",
+            "Raise the bound for this invocation with `--max-review-cycles <n>`",
+            "Abandon the plan and re-scope",
+        ],
+        "recommended": "Resolve the outstanding concerns by hand and re-run the red-team",
+        # NEVER null, on either path — see the docstring.
+        "on_no_answer": (
+            "The plan stays in `review` carrying its REVISE verdict. That is a LEGAL state, "
+            "not a wedge: REQ-PLAN-030 bars only `ready-for-approval`. Nothing is lost and "
+            "nothing proceeds."
+        ),
+        "detected_by": "mechanical-check",
+        "evidence": (
+            f"len(glob('reviews/pass-*.md')) == {cycles}; bound == {limit}; "
+            f"review-loop-check exits {3 if escalates else 0}"
+        ),
+        "asked_of": os.environ.get("YF_PARENT_PANE", ""),
+    }
+
+
+def _herdr_push(pane: str, message: str) -> tuple[bool, str]:
+    """Send one notification and verify delivery **STRUCTURALLY** (Issue 3.3c / REQ-HERDR-027).
+
+    `herdr agent prompt` returns ``agent_not_found`` **at exit 0**. Measured, and it is the
+    reason this function exists at all: a caller that branches on ``$?`` records a delivered
+    push for a pane that does not exist, and the escalation is then stamped as sent and never
+    retried. `$?` is not evidence here — the returned payload is.
+
+    Returns ``(delivered, detail)``. `delivered` is true only when the parsed payload carries
+    ``result.type == "agent_prompted"``; anything else — a non-JSON stream, a missing key, an
+    error object — is UNDELIVERED, because an unreadable answer is not a yes.
+
+    Never raises: a machine with no `herdr` on PATH is an ordinary state (a human is present),
+    not an error.
+    """
+    if not shutil.which("herdr"):
+        return False, "herdr is not on PATH — no controller channel exists on this machine"
+    try:
+        proc = subprocess.run(
+            ["herdr", "agent", "prompt", pane, message],
+            capture_output=True, text=True, timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, f"herdr invocation failed: {exc}"
+    raw = (proc.stdout or "").strip()
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        # NOT a fallback to the exit code. An unparseable response is undelivered.
+        return False, (f"herdr returned a non-JSON stream (exit {proc.returncode}); delivery "
+                       f"is UNVERIFIED, which is not the same as delivered: {raw[:200]!r}")
+    if isinstance(payload, list):
+        payload = payload[0] if payload else {}
+    result = payload.get("result") or {}
+    if result.get("type") == "agent_prompted":
+        return True, "result.type == agent_prompted"
+    return False, (f"herdr exited {proc.returncode} but the payload does not confirm delivery "
+                   f"(result.type={result.get('type')!r}, error={payload.get('error')!r}) — "
+                   f"this is the `agent_not_found`-at-exit-0 case")
+
+
+def _herdr_stamp_token(source: str, token: str) -> bool:
+    """Stamp a pane metadata token beside a push (Issue 3.3b). Idempotent, best-effort.
+
+    The stamp exists so the parent's poll is an INDEPENDENT backstop. A poll that only ever
+    sees what the push already reported is not a backstop — it is the same claim read twice,
+    and it would go green in exactly the case (`agent_not_found` at exit 0) the pairing is
+    meant to catch.
+    """
+    pane = os.environ.get("HERDR_PANE_ID", "")
+    if not pane or not shutil.which("herdr"):
+        return False
+    try:
+        proc = subprocess.run(
+            ["herdr", "pane", "report-metadata", pane, "--source", source, "--token", token],
+            capture_output=True, text=True, timeout=30,
+        )
+        return proc.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _escalation_report(plan_dir: Path) -> dict:
+    """The instrumentation research 005 §8.4 names as the missing half (Issue 3.5).
+
+    `raised` is the **CUMULATIVE** count of escalations ever raised — NOT the number
+    currently in `state: raised`. The two readings are not interchangeable and the plan's
+    own criteria only cohere under this one: SC5 needs `raised >= 2` (both entries) while
+    SC6c needs exactly one entry *currently* raised.
+    """
+    path = plan_dir / ESCALATION_FILE
+    if not path.exists():
+        return {"file": str(path), "exists": False, "raised": 0, "answered": 0,
+                "no_answer_taken": 0, "open": 0, "pushes": 0, "entries": []}
+    entries = _escalation_entries(path.read_text(encoding="utf-8"))
+    rows = []
+    for eid in sorted(entries):
+        f = entries[eid]
+        rows.append({
+            "id": eid,
+            "state": f.get("state", ""),
+            "raised_when": f.get("raised_when", ""),
+            "resolved_when": f.get("resolved_when", ""),
+            "answered": bool(f.get("answer", "").strip()),
+            "no_answer_taken": f.get("no_answer_taken", "no").strip().lower() == "yes",
+            "push_batch": f.get("push_batch", "").strip(),
+        })
+    batches = {r["push_batch"] for r in rows if r["push_batch"]}
+    return {
+        "file": str(path),
+        "exists": True,
+        # CUMULATIVE — every entry ever raised, whatever its state now.
+        "raised": len(rows),
+        "answered": sum(1 for r in rows if r["answered"] and not r["no_answer_taken"]),
+        "no_answer_taken": sum(1 for r in rows if r["no_answer_taken"]),
+        "open": sum(1 for r in rows if r["state"] == "raised"),
+        # BATCHING, made observable rather than asserted: entries sharing a batch id went
+        # out in ONE notification, so `pushes` is the count of notifications actually sent.
+        "pushes": len(batches),
+        "entries": rows,
+    }
+
+
+@cli.command("escalation-report")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def escalation_report(plan_dir: str, as_json: bool):
+    """Report the escalation instrumentation research 005 §8.4 names as missing (Issue 3.5).
+
+    Emits `raised`, `answered`, `no_answer_taken`, `open` and `pushes`, plus one row per
+    escalation recording when it was raised, whether it was answered, and whether its
+    `on_no_answer` default was taken instead.
+
+    **`raised` is CUMULATIVE** — every entry ever raised, whatever state it is in now — not
+    the number currently in `state: raised`, which is reported separately as `open`. The
+    distinction is load-bearing: the cost-ratio premise the whole escalation path rests on is
+    "how often does an answer arrive versus how often is the default silently taken", and a
+    count that shrinks as questions get answered cannot measure it.
+    """
+    result = _escalation_report(Path(plan_dir))
+    if as_json:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"raised={result['raised']} answered={result['answered']} "
+                   f"no_answer_taken={result['no_answer_taken']} open={result['open']} "
+                   f"pushes={result['pushes']}")
+
+
+@cli.command("escalation-push")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--pane", default=None,
+              help="Target pane. Defaults to $YF_PARENT_PANE; absent means no controller.")
+@click.option("--dry-run", is_flag=True, help="Report what would be sent; send nothing.")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def escalation_push(plan_dir: str, pane: str | None, dry_run: bool, as_json: bool):
+    """Notify the upstream controller about every un-pushed OPEN escalation, in ONE line.
+
+    **Write-then-notify, never ask-and-await** (Issue 3.3). The escalation IS the artifact;
+    this is a notification that it exists. There is no answer-return primitive in the
+    transport, so nothing here waits for anything.
+
+    **The push is BATCHED**: every open, un-pushed escalation goes out in a single message
+    naming the artifact, and each is stamped with the same `push_batch` id. That makes
+    batching *observable* — `escalation-report`'s `pushes` counts distinct batch ids — rather
+    than an asserted property. It rides the three push classes the yf-herdr SPEC already
+    defines (epic completion, blocker, plan completion) rather than adding a fourth.
+
+    **Delivery is verified STRUCTURALLY, never by exit code** (Issue 3.3c). `herdr agent
+    prompt` returns `agent_not_found` **at exit 0**, so `$?` is not evidence of anything: the
+    returned payload is parsed and a missing `type: agent_prompted` is reported as an
+    undelivered push. The escalations are stamped only when delivery is structurally
+    confirmed, so an undelivered batch is retried rather than silently marked sent.
+
+    **Every push is paired with an idempotent token stamp** (Issue 3.3b), so the parent's
+    poll is a genuine independent backstop rather than a restatement of the push it would be
+    checking.
+    """
+    pdir = Path(plan_dir)
+    path = pdir / ESCALATION_FILE
+    target = pane if pane is not None else os.environ.get("YF_PARENT_PANE", "")
+    result: dict = {"file": str(path), "pane": target or None, "dry_run": dry_run,
+                    "pushed_ids": [], "pushes": 0, "delivered": None, "batch": None}
+
+    if not path.exists():
+        result["verdict"] = "skipped"
+        result["reason"] = "no escalations.md — nothing to notify about"
+        click.echo(json.dumps(result, indent=2) if as_json else result["reason"])
+        return
+
+    entries = _escalation_entries(path.read_text(encoding="utf-8"))
+    pending = [e for e in sorted(entries)
+               if entries[e].get("state", "") == "raised"
+               and not entries[e].get("push_batch", "").strip()]
+    result["pushed_ids"] = pending
+    if not pending:
+        result["verdict"] = "skipped"
+        result["reason"] = "no open, un-pushed escalation"
+        click.echo(json.dumps(result, indent=2) if as_json else result["reason"])
+        return
+
+    if not target:
+        # THE HUMAN-PRESENT ARM (Issue 4.4). An unset `YF_PARENT_PANE` means no controller
+        # exists to notify — a human is present instead. Zero pushes is the CORRECT outcome
+        # here, not a degraded one, which is why SC5 asserts `pushes <= 1` rather than `== 1`.
+        result["verdict"] = "no-controller"
+        result["reason"] = ("YF_PARENT_PANE is unset — no upstream controller exists, so a "
+                            "human is present and the artifact is the whole delivery")
+        click.echo(json.dumps(result, indent=2) if as_json else result["reason"])
+        return
+
+    plan_id = pdir.name
+    batch = f"{datetime.now().strftime('%Y%m%dT%H%M%S')}-{len(pending)}"
+    line = (f"{plan_id}: {len(pending)} open escalation(s) {', '.join(pending)} — "
+            f"see {path} for the question, alternatives and recommended default. "
+            f"Write-then-notify: no reply is awaited; each entry states its on_no_answer.")
+    result["batch"] = batch
+    result["message"] = line
+
+    if dry_run:
+        result["verdict"] = "dry-run"
+        click.echo(json.dumps(result, indent=2) if as_json else line)
+        return
+
+    delivered, detail = _herdr_push(target, line)
+    result["delivered"] = delivered
+    result["delivery_detail"] = detail
+    if not delivered:
+        # FAIL-CLOSED: do NOT stamp. An unstamped escalation is retried on the next boundary;
+        # a stamped-but-undelivered one is lost forever and looks sent.
+        result["verdict"] = "undelivered"
+        click.echo(json.dumps(result, indent=2) if as_json else f"UNDELIVERED: {detail}")
+        raise SystemExit(1)
+
+    text = path.read_text(encoding="utf-8")
+    for eid in pending:
+        row = dict(_escalation_entries(text)[eid])
+        for k in ESCALATION_FIELDS:
+            row.setdefault(k, "")
+        row["push_batch"] = batch
+        blocks = _escalation_blocks(text)
+        text = text.replace(blocks[eid], _escalation_render(eid, row), 1)
+    _escalation_write(path, text)
+
+    # Issue 3.3b — the idempotent token stamp, paired with the push. Best-effort: a missing
+    # `herdr` must never fail a push that was structurally confirmed delivered.
+    result["token_stamped"] = _herdr_stamp_token(plan_id, f"escalations={len(pending)}")
+    result["pushes"] = 1
+    result["verdict"] = "pushed"
+    click.echo(json.dumps(result, indent=2) if as_json else f"pushed {len(pending)} in 1 message")
+
+
+@cli.command("judgement-echo-check")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def judgement_echo_check(plan_dir: str, as_json: bool):
+    """Prove the trigger echoes, by EXTERNAL OBSERVATION (Issue 5.1).
+
+    Reads `log.md`, invokes the trigger **as a subprocess**, reads `log.md` again, and
+    reports `lines_added` and `added_line` from the difference. Nothing here trusts anything
+    the trigger says about itself: a self-report from the component under test is exactly the
+    evidence standard `detected_by` exists to make visible.
+
+    The subprocess is deliberate rather than an in-process call. An in-process call would
+    still be green if `review-loop-check` stopped invoking the echo and this verb invoked it
+    directly — which is the removal Epic 5 exists to detect.
+    """
+    pdir = Path(plan_dir)
+    log = pdir / "log.md"
+    before = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+
+    proc = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve()), "review-loop-check",
+         str(pdir), "--json"],
+        capture_output=True, text=True,
+    )
+    after = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+
+    # A MULTISET difference, not a membership test. `ln not in before` silently reports ZERO
+    # lines added when the appended line is IDENTICAL to one already in the log — which is the
+    # ordinary case, since a second invocation on the same day writes the same bullet. The
+    # membership form made this verb report its own failure on every re-run.
+    added = list((Counter(after) - Counter(before)).elements())
+    judgement_lines = [ln for ln in added if "judgement: " in ln]
+    result = {
+        "plan_dir": str(pdir),
+        "trigger": "review-loop-check",
+        "trigger_exit": proc.returncode,
+        "lines_added": len(judgement_lines),
+        "added_line": judgement_lines[0] if judgement_lines else None,
+        "all_added_lines": added,
+        "verdict": "PASS" if len(judgement_lines) == 1 else "FAIL",
+        "remediation": None if len(judgement_lines) == 1 else (
+            "the trigger wrote no `judgement:` echo to log.md. A trigger whose non-firing is "
+            "indistinguishable from a quiet period is not shippable (plan-059 SC6). Restore "
+            "the `_judgement_echo` call in `review-loop-check`."
+        ),
+    }
+    click.echo(json.dumps(result, indent=2))
+    raise SystemExit(0 if result["verdict"] == "PASS" else 1)
+
+
 @cli.command("review-loop-check")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--max-review-cycles", "raise_to", type=int, default=None,
@@ -6794,6 +7169,23 @@ def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
         "autonomy": _resolve_autonomy(),
         "raised": raise_to,
     })
+    # plan-059 Issue 3.1 (REQ-PLAN-082). The escalation PAYLOAD, emitted on BOTH paths and
+    # under the top-level key `escalation`. Bound to THIS command rather than to a new
+    # `/yf-judgement` surface because EXP-001 measured this invocation path at 4/5 and the
+    # measured rate of a freshly-added manually-invoked surface at 0 — #145's finding 4.
+    #
+    # The exit-3 contract below is UNCHANGED. A payload that altered it would break every
+    # caller that already branches on the code.
+    result["escalation"] = _review_loop_escalation(pdir, escalates, cycles, limit)
+    # plan-059 Issue 5.1. The trigger writes its OWN echo, unconditionally, on both paths —
+    # so its non-firing is distinguishable from a quiet period without anyone remembering to
+    # look. This is the only remedy in Epic 5 that sits at the top of the
+    # command-vs-obligation table.
+    result["judgement_echo"] = _judgement_echo(
+        pdir, escalates,
+        f"review-loop-check: {cycles}/{limit} cycle(s), "
+        f"{'ESCALATING (stop class 4)' if escalates else 'converging'}",
+    )
     if escalates:
         result["remediation"] = (
             f"the review loop has run {cycles} cycle(s), at or above the bound of {limit}. "

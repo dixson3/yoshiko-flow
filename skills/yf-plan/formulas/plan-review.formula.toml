@@ -72,6 +72,27 @@ description = "Holds until the LAST RECORDED red-team verdict is APPROVE (REQ-PL
 type = "human"
 approvers = ["operator"]
 
+# --- THE #270 SEAM (plan-059 Issue 3.4, SC7) --------------------------------------------
+#
+# NAMED HERE so it is found by someone reading the formula, not only by someone reading the
+# plan that created it.
+#
+# `yf-judgement`'s trigger binds to `review-loop-check` — a COMMAND on an existing invocation
+# path measured at 4/5 — rather than to this wisp, because #270 records that
+# `plan-review.formula.toml` HAS NEVER BEEN POURED. Binding to a step that never runs would
+# have shipped a trigger that cannot fire, which is the exact defect Epic 5 exists to detect.
+#
+# THE SEAM: `review-loop-check --json` emits its escalation under the top-level key
+# `escalation`, and that object is **transport-neutral** — it carries only the REQ-PORT-054
+# payload fields plus `fired`/`trigger`/`stop_class`. It names no `review-loop-check`
+# internal (`cycles`, `limit` and `escalates` stay at top level, deliberately), so attaching
+# it to THIS gate step's metadata is a move, not a redesign.
+#
+# So when #270 is fixed and this formula pours, the upgrade is: emit the same object from the
+# gate step. Nothing in the payload, the schema, `escalation-raise` or `escalation-push`
+# changes. `skills/yf-plan/scripts/test_judgement_trigger.py` (ctl-270-seam) asserts the
+# neutrality property, so the seam cannot rot silently while #270 waits.
+
 # plan-052 Issue 5.1 (#197): attach the verify-artifact aspect.
 #
 # `[compose] aspects` is the key that WEAVES. A top-level `aspects = [...]` is silently

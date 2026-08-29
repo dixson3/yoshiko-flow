@@ -39,7 +39,7 @@ warning, which would train a reader to ignore it.
 | `raised_when` | 2026-08-29 |
 | `resolved_when` |  |
 | `no_answer_taken` | no |
-| `push_batch` |  |
+| `push_batch` | 20260829T133931-1 |
 
 ## ESC-002
 
