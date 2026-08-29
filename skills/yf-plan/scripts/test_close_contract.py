@@ -370,5 +370,89 @@ def test_close_cascade_failing_path_captures_on_stdout():
     assert rc == 0 and out.strip(), "close_cascade.py is not invokable"
 
 
+# --------------------------------------------------------------------------------------
+# plan-059 Issue 5.3 — the two INSPECTION flags.
+#
+# Both SHORT-CIRCUIT BEFORE PYTEST, and that is a correctness requirement rather than a
+# performance one. Measured: pytest writes a session banner to stdout, so `--list-steps
+# --json | jq` failed with a parse error and `rc=5`. A machine-readable flag whose output is
+# preceded by human prose is not machine-readable. `--list-steps --json` therefore emits JSON
+# as the SOLE contents of stdout.
+#
+# `--assert-invocation` EXITS NON-ZERO ON AN UNRECOGNISED VERB. Before this, an unknown flag
+# was silently swallowed and the bare suite passed — so any criterion asserting the flag's
+# behaviour was GREEN BEFORE THE WORK, which is the failure class Epic 0's sweep exists to
+# catch. A checker that cannot say "no" is not a checker.
+# --------------------------------------------------------------------------------------
+
+_VERB_RE = re.compile(r'^@cli\.command\("([a-z][\w-]*)"\)', re.M)
+
+#: Files searched for an invocation SITE. Prose counts: `SKILL.md` and `agents/*.md` are how
+#: this skill's steps are actually invoked — there is no dispatcher, per the module docstring.
+_SITE_GLOBS = ("SKILL.md", "agents/*.md", "scripts/*.py")
+
+
+def _registered_verbs() -> set[str]:
+    """Every verb `plan_manager.py` actually registers."""
+    return set(_VERB_RE.findall((_HERE / "plan_manager.py").read_text(encoding="utf-8")))
+
+
+def _invocation_sites(verb: str) -> list[str]:
+    """Files that invoke `plan_manager.py <verb>`, excluding this file (which names it)."""
+    pat = re.compile(r"plan_manager\.py[^\n]{0,80}?\b" + re.escape(verb) + r"\b")
+    hits = []
+    for glob in _SITE_GLOBS:
+        for f in sorted(_SKILL_DIR.glob(glob)):
+            if f.resolve() == Path(__file__).resolve():
+                continue
+            try:
+                if pat.search(f.read_text(encoding="utf-8")):
+                    hits.append(str(f.relative_to(_SKILL_DIR)))
+            except OSError:
+                continue
+    return hits
+
+
+def _list_steps() -> list[str]:
+    """The §6.4 chain's steps, as `<script> <verb>` strings, in source order."""
+    return [f"{i['script']} {i['verb']}" if i.get("verb") else i["script"]
+            for i in _invocations()]
+
+
+def _main(argv: list[str]) -> int:
+    if "--list-steps" in argv:
+        # SOLE STDOUT. Nothing else may be printed on this path.
+        print(json.dumps({"steps": _list_steps()}, indent=2))
+        return 0
+
+    if "--assert-invocation" in argv:
+        i = argv.index("--assert-invocation")
+        verb = argv[i + 1] if i + 1 < len(argv) else ""
+        registered = _registered_verbs()
+        if verb not in registered:
+            print(json.dumps({
+                "verdict": "fail", "verb": verb, "registered": False, "sites": [],
+                "reason": f"{verb!r} is not a registered plan_manager.py verb",
+                "remediation": "Check the spelling, or register the verb with "
+                               "`@cli.command(\"<verb>\")`.",
+            }, indent=2))
+            return 2
+        sites = _invocation_sites(verb)
+        ok = bool(sites)
+        print(json.dumps({
+            "verdict": "pass" if ok else "fail",
+            "verb": verb, "registered": True, "sites": sites,
+            "reason": (f"{verb!r} is invoked at {len(sites)} site(s)" if ok else
+                       f"{verb!r} is registered but INVOKED NOWHERE — a verb with no call "
+                       f"site is the 'ships unable to fire' defect this flag exists to "
+                       f"detect"),
+            "remediation": None if ok else
+                f"Add the invocation to SKILL.md or an agents/*.md prompt, or delete {verb!r}.",
+        }, indent=2))
+        return 0 if ok else 1
+
+    return pytest.main([__file__, "-v"])
+
+
 if __name__ == "__main__":
-    sys.exit(pytest.main([__file__, "-v"]))
+    sys.exit(_main(sys.argv[1:]))

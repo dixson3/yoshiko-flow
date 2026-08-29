@@ -698,6 +698,28 @@
 >   plan's SC1 asserts coverage *structure*, not specific numbers. Recorded as `RE-001` in
 >   `plan-retrospective.md`.
 >   Implementation lands in Epics 1–4; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-059 (2026-08-29, #269-partial):** SPEC-first Epic 1 amendment — added
+>   **`REQ-DATA-076`**, which CLOSES the severity vocabulary and writes the ratified token list
+>   into `skills/yf-plan/spec/data.md` under the literal, line-start-greppable marker
+>   `Ratified severity vocabulary: `. Membership was **ratified by the operator at plan-059's
+>   Start Gate**: `high | medium | low` plus the `medium-high` / `low-medium` family, with a
+>   qualifier suffix (`medium (blocking)`) **explicitly declined** — that token is precisely the
+>   one that fired research 005's severity-decay detector on `plan-026`, so legalising it would
+>   erase the signal the pin exists to preserve.
+>
+>   Two properties are load-bearing and are stated in the requirement rather than left to the
+>   implementation. The checker **reads the marker line** instead of hard-coding the tokens (a
+>   hard-coded set re-decides the ratification rather than implementing it), and it locates its
+>   column **by header name, never by position**. The check ships at **`R`**, not `E` or `W`: a
+>   `W` is an `E` at `review`/`ready-for-approval`, which is exactly when a review report is being
+>   authored, and the census measured **45 distinct severity tokens** across the live corpus.
+>
+>   Recorded because it is the opposite of the usual shape: plan-059 **declined** to ship the
+>   severity-decay detector this vocabulary was a prerequisite for — the detector's shippability
+>   condition failed and its measuring instrument was found broken — and shipped the prerequisite
+>   anyway, on the ground that the pin is independently valuable and the next reader should not
+>   have to re-derive the detector question to discover why the vocabulary is closed.
+>   Implementation lands in Epics 1–3 and 5; this entry records the SPEC-first Epic 1 amendment.
 
 ## 1. Purpose & scope
 

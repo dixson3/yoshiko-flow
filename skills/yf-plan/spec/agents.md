@@ -60,9 +60,20 @@ REQ-AGENT-040: The red-team produces a verdict of APPROVE, REVISE, or INVESTIGAT
 Rationale: Clear signal to the operator; ambiguous feedback stalls the workflow.
 Verification: red-team.md Output section.
 
-REQ-AGENT-041: Every concern in a red-team review includes a severity (high/medium/low) and a recommendation.
-Rationale: Concerns without actionable recommendations don't help the operator fix them.
-Verification: red-team.md Output template and Rules.
+REQ-AGENT-041: Every concern in a red-team review shall carry a severity and a recommendation,
+emitted in **one shape**: a `## Concerns` table whose `Severity` column holds exactly one token
+from the closed vocabulary REQ-DATA-076 ratifies — `high | medium | low | medium-high |
+low-medium` — with **no qualifier suffix**.
+Rationale: Concerns without actionable recommendations don't help the operator fix them. The
+*shape* half is newer and is the plan-059 amendment: the earlier text named `high/medium/low`
+while the template emitted a bulleted `— severity: …` line, so the vocabulary was neither closed
+nor mechanically readable. `doc_lint`'s `cell-vocabulary` check locates its column by header name
+in a table; a bulleted list has no column, so the pin bound only historical tables and never the
+pass being written. The suffix exclusion is not stylistic — `medium (blocking)` is the exact token
+that fired research 005's severity-decay detector on `plan-026`.
+Verification: red-team.md Output template and Rules carry the table form and the ratified tokens;
+`doc_lint --type review` reports a `cell-vocabulary` finding (at `R`) for any off-vocabulary cell,
+asserted by `skills/yf-plan/scripts/test_severity_vocabulary.py`.
 
 REQ-AGENT-042: High-severity concerns block approval.
 Rationale: Proceeding with known high-severity issues produces plans that fail during execution.

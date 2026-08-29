@@ -1,0 +1,49 @@
+## Reconciled by plan-059-james-dixson-55137e (`yf-judgement`)
+
+**This issue stays OPEN.** plan-059 took only the **durable half** its follow-up routed here; the
+rest is still real work.
+
+### Taken
+
+- **`REQ-HERDR-024` gains a THIRD ARM and a wider trigger.** It read as a two-way branch (answer
+  it / forward it) evaluated when a subordinate was observed `blocked`. Both halves were too
+  narrow. It now reads **look → answer → forward**, and it governs a **pushed** question rather
+  than only a `blocked` one — under write-then-notify there is no blocking step, so a predicate
+  keyed on `blocked` never fires on the ordinary case. The **look** arm exists because a push is a
+  *notification about an artifact*: the message is one line and the question is a file, so a
+  parent answering from the line alone is answering a summary.
+- **`REQ-HERDR-028` — autonomy is derived from PROVENANCE, not asked for.** `YF_PARENT_PANE` set
+  means a controller exists, so continue-or-ask and **never a silent idle**; unset means a human
+  is present, so **zero pushes is the correct outcome**, not a degraded one. This reads a signal
+  `REQ-HERDR-015(c)` already seeds rather than adding one.
+- **`REQ-HERDR-025a`** — this issue's proposed sibling: **`working` shall not be read as evidence
+  of phase advancement.** Where `idle`/`done` over-reports completion, `working` over-reports
+  progress; it is equally consistent with two epics advanced and one bead re-attempted for an
+  hour.
+- **`REQ-HERDR-027`** + `skills/yf-herdr/scripts/test_herdr_channel.py` — the channel facts, with
+  delivery verified **structurally** and never from `$?`.
+
+### Declined, explicitly
+
+**N-hop is out of scope and labelled a bet** (plan-059 R7). The measured topology is depth 1,
+fan-out 2, and a child knows one opaque pane id. Only the two free seams ship — a bundle-scoped
+`id` and `asked_of` — so a later generalisation is additive rather than a redesign. **No hop
+counter is seeded**: a counter built for a topology that does not exist is machinery, not
+readiness.
+
+### A caveat this plan owes this issue
+
+#273 (the command-vs-obligation law) predicts that **this issue's accepted wording fix will
+decay**, because a stronger obligation is still an obligation. plan-059 acted on that: its own
+trigger binds to a **command** on an existing invocation path, and it writes its own echo, rather
+than instructing anyone to remember. Anyone continuing #264 should read #273 first.
+
+### A measurement that did NOT reproduce
+
+plan-059's EXP-004 recorded `herdr agent prompt` returning `agent_not_found` **at exit 0**. The
+same probe re-run during execution — against both a name target and a pane-id target — returned
+`agent_not_found` **at exit 1**. `REQ-HERDR-027` records the **disagreement** rather than either
+literal, which strengthens it: a caller branching on `$?` is wrong under one of them and cannot
+tell which build it is on.
+
+- Bundle: `docs/plans/plan-059-james-dixson-55137e/`

@@ -43,8 +43,9 @@ Adversarial review of a plan before approval. No access to investigation worktre
 - <what's solid>
 
 ## Concerns
-- <issue> — severity: high|medium|low
-  Recommendation: <what to change>
+| # | Severity | Concern | Recommendation |
+| :-- | :-- | :-- | :-- |
+| C1 | high \| medium \| low \| medium-high \| low-medium | <issue> | <what to change> |
 
 ## Missing
 - <gaps>
@@ -52,6 +53,21 @@ Adversarial review of a plan before approval. No access to investigation worktre
 ## Gate Assessment
 ## Upstream Assessment
 ```
+
+**The `Severity` cell is a CLOSED vocabulary, and the table is why it is checkable
+(REQ-DATA-076 / REQ-AGENT-041).** Write exactly one of `high`, `medium`, `low`, `medium-high`,
+`low-medium` — nothing else, and **no qualifier suffix**: `medium (blocking)` is illegal, and it
+is illegal for a specific reason rather than a stylistic one. That exact token is what fired
+research 005's severity-decay detector on `plan-026`, so admitting it would erase the signal the
+ratified vocabulary exists to preserve. Put the blocking-ness in the `Concern` cell, where prose
+belongs.
+
+**The table replaced a bulleted `— severity: …` form, and the shape change is the point.**
+`doc_lint`'s `cell-vocabulary` check locates its column **by header name** in the first table
+under `## Concerns`; a bulleted list has no column, so the check returns nothing and the
+vocabulary pin binds only historical tables. One emission shape is what makes it bind the pass
+you are writing right now. The corpus already writes this shape — the four-column form here is
+the one measured most often.
 
 **The verdict line is a contract, not a style choice (REQ-PLAN-071).** `## Verdict: <V>` is the
 form `ready-check` parses. Emitting `### Verdict:` makes the review **silently unparseable** —

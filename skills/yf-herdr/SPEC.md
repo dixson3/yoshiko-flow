@@ -94,8 +94,67 @@ authorisation.
 - **REQ-HERDR-024** — The parent **shall** answer a subordinate's question itself **only** when the
   answer is settled by existing approved plan content. Anything that changes scope, risk, or a
   success criterion **shall** go to the operator.
+
+  **The predicate governs a PUSHED question, not only a `blocked` one, and it has THREE arms.**
+  As originally written it read as a two-way branch — answer it, or forward it — evaluated when a
+  subordinate was observed `blocked`. Both halves were too narrow, and each was measured:
+
+  1. **LOOK.** Before answering or forwarding, the parent **shall** read the artifact the push
+     names. A push under REQ-HERDR-026 is a *notification about an artifact*, not the question
+     itself; the message is one line and the question is a file. A parent that answers from the
+     line alone is answering a summary. (Measured: plan-059's own E-1 was mis-forwarded because
+     the predicate had no "look" arm and the one-line push was treated as the whole question.)
+  2. **ANSWER** — only when settled by existing approved plan content, unchanged from above.
+  3. **FORWARD** to the operator — anything touching scope, risk, or a success criterion.
+
+  **A pushed question is a first-class input.** Under REQ-HERDR-026 a subordinate raises questions
+  *without* going `blocked` — write-then-notify has no blocking step — so a predicate that fires
+  only on `blocked` never fires on the ordinary case. The subordinate **shall** continue on its
+  stated `on_no_answer` default while the question is outstanding: the transport has no
+  answer-return primitive, so waiting is not an available behaviour and pretending otherwise
+  converts an asking mechanism into a stall.
+
 - **REQ-HERDR-025** — `idle`/`done` **shall not** be reported as completion without checking
   remaining beads; both states also occur when a subordinate is merely waiting.
+- **REQ-HERDR-025a** — **`working` shall not be read as evidence of phase advancement.** The
+  sibling of REQ-HERDR-025, and it fails in the opposite direction: where `idle`/`done`
+  over-reports completion, `working` over-reports *progress*. `working` says a turn is in
+  flight — nothing more. It is equally consistent with a subordinate that has advanced two
+  epics and one that has been re-attempting a single bead for an hour, and the two are
+  indistinguishable from the status alone. Phase advancement **shall** be established from the
+  bead DAG or from a push, never inferred from `working`. Rationale: #264, where a parent read a
+  long `working` stretch as progress through a phase the subordinate had not entered.
+- **REQ-HERDR-027** — **`herdr agent prompt`'s exit code is NOT a delivery signal.** Delivery
+  **shall** be verified **structurally** — by parsing the returned payload and requiring
+  `result.type == "agent_prompted"` — and **shall not** be inferred from the exit code.
+
+  **The evidence is a DISAGREEMENT between two measurements, and the disagreement is the
+  requirement.** plan-059's EXP-004 measured `agent_not_found` returned **at exit `0`**; the
+  same probe re-run during that plan's execution, against both a name target and a pane-id
+  target, returned `agent_not_found` **at exit `1`**. Recorded as measured rather than
+  reconciled — the two are a fortiori the same finding, because a caller that branches on `$?`
+  is wrong under *one* of them and cannot tell which build it is running on. A signal that
+  changed once will change again; the payload has been stable across both.
+  A caller that branches on `$?` records a delivered push for a pane that does not exist. Three
+  further channel facts are recorded with it, because each is undocumented and each silently
+  degrades a push: a prompt delivered to a **`blocked`** agent is consumed by its open dialog and
+  lost (REQ-HERDR-022); `agent_prompted` acknowledges **injection, not submission**
+  (REQ-HERDR-026); and the metadata token channel is **display-only**, so a token is a
+  postcondition to read back, never a message. An unparseable or unconfirmed response is
+  **UNDELIVERED**, not delivered — an unreadable answer is not a yes — and a sender **shall**
+  fail closed, leaving the notification un-stamped so the next boundary retries it rather than
+  marking it sent. Rationale: plan-059 EXP-004 and R3. Verification:
+  `skills/yf-herdr/scripts/test_herdr_channel.py`.
+- **REQ-HERDR-028** — **Autonomy is derived from PROVENANCE, not asked for.** `YF_PARENT_PANE`
+  set means a controller exists that can be asked, so the subordinate **shall** continue-or-ask
+  and **shall not** go idle at a boundary; `YF_PARENT_PANE` unset means no controller exists and
+  a human is present instead, so the artifact is the whole delivery and **zero pushes is the
+  correct outcome**, not a degraded one. The variable is already seeded by REQ-HERDR-015(c), so
+  this requirement adds a *reading* of an existing signal rather than a new one. Its practical
+  consequence is that a push count of `0` under an unset `YF_PARENT_PANE` **shall not** be
+  treated as a delivery failure. Rationale: #264 — a subordinate went `idle` at a phase boundary
+  rather than asking, twice, under a contract that had already been tightened once; the operator
+  named the real defect as **a silent idle**, not stopping as such.
 - **REQ-HERDR-026** — Observation is **push-primary, polling-fallback**. The subordinate **shall**
   push to `YF_PARENT_PANE` at three trigger classes and no others: **epic completion**, a
   **blocker / failed gate / halt**, and **plan completion or abort**. It **shall not** push per

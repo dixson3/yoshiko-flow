@@ -113,3 +113,28 @@ id = "description"
 severity = "W"
 kind = "regex-present"
 pattern = '^description:\s*\S'
+
+# --- plan-059 Issue 1.4 / REQ-DATA-076: the severity vocabulary pin -----------------------
+#
+# `R`, and the severity is the whole design rather than a hedge. The census behind
+# REQ-DATA-076 measured **45 distinct severity tokens** across the live corpus, so an `E`
+# would fail essentially every historical review bundle. A `W` is no better: `STATUS_SEVERITY`
+# promotes `W -> E` at `review`/`ready-for-approval`, which is exactly the status at which a
+# review report is authored — this file's own rule, stated above and applied unchanged.
+#
+# `section = "Concerns"` and `column = "Severity"`, and the column is located BY HEADER NAME.
+# The corpus writes `## Concerns` with three, four and five columns and the severity column
+# sits at a different index in each; a positional read would report findings about prose.
+#
+# The token set is NOT written here. It is read from `spec/data.md`'s marker line, because
+# REQ-DATA-076 makes the ratified list a declared fact rather than an implementer's choice —
+# a set hard-coded in this file would drift from the ratification on its first amendment and
+# nothing would report the divergence.
+[[checks]]
+id = "cell-vocabulary"
+severity = "R"
+kind = "cell-vocabulary"
+section = "Concerns"
+column = "Severity"
+vocabulary_file = "spec/data.md"
+vocabulary_marker = "Ratified severity vocabulary: "

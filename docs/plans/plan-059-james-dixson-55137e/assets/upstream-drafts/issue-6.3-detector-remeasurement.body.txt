@@ -1,0 +1,61 @@
+> Filed by plan-059 Issue 6.3 (`yf-judgement`). plan-059 **declined to ship** the severity-decay
+> detector and files this so the decision is re-decidable rather than merely deferred. The full
+> specification is `docs/plans/plan-059-james-dixson-55137e/findings/detector-redecision.md`.
+
+## Why the detector was declined
+
+Its shippability condition **failed**, and the instrument every published operating characteristic
+rests on is **broken and biased** — research 005's own parser was measured to **delete `high`
+severities** while being biased toward them. Shipping would have shipped a detector whose measured
+properties are unknown.
+
+## The blocking preconditions, in order
+
+1. **The parser repair is a PREREQUISITE, and it is owned by the research bundle** —
+   `finding_recurrence.py` lives only on the unmerged branch `research/005-thrash-detection`
+   (PR #267), not in this repository on `main`. plan-059's escalation E-4 resolved that the repair
+   is scoped in **only if the detector epic survives**; it did not, so plan-059 wrote no code for
+   it. A re-measurement run against the unrepaired parser reproduces the bias it exists to remove.
+2. **The re-scope guard is FITTED.** It was derived from the four false positives it excludes, so
+   evaluating it on those four is circular. **No 2×2 may be quoted until the label is
+   re-established.**
+3. **The label must be established BLIND** — by a party who has not run the guard, before the guard
+   is run, with the labels sealed in between. Research 005 already names the defect this avoids:
+   *"the label and the discriminator were authored by the same agent with no held-out set."*
+
+## The blind labelling procedure, in one line
+
+Freeze the corpus, have someone who has **not** run the guard hand-read the nine bundles and
+record a blind label per bundle, **seal** those labels, and only then run the guard against
+them. The seal is what makes the comparison a test rather than a fit. Full procedure:
+`findings/detector-redecision.md` §2.
+
+## The held-out set (nine bundles, none ever hand-read)
+
+`d3-pxe/plan-015`, `d3-pxe/plan-016`, `d3-pxe/plan-018`, `d3-pxe/plan-019`, `pybridge/plan-006`,
+`yoshiko-flow/plan-046`, `yoshiko-flow/plan-051`, `yoshiko-flow/plan-052`, `yoshiko-flow/plan-056`.
+
+These fire under a parser-free reading and are silent under the study's instrument. Because none
+was hand-read, none is in the derivation set — so this is a genuine **held-out** sample of nine.
+
+## Two bounds that survive even a passing evaluation
+
+Stated so a green result is not over-read: the detector is **first computable at pass 3**, so a
+plan abandoned at pass 2 is outside its reach entirely; and **recall has never been measured for
+anything**, so nothing bounds the episodes it misses.
+
+## A hazard for whoever runs this
+
+**Assert a PROPERTY against a FROZEN fixture corpus — never a literal against a live one.** An
+earlier plan-059 draft asserted `fires == 22 and evaluable == 43`. `43` is a live denominator (the
+corpus grows, and plan-059 itself becomes a ≥3-pass bundle), and `22` came from a parser-free grep
+— a *different instrument*, not ground truth. Asserting the repaired parser lands there pre-judges
+the repair and creates a Goodhart incentive to tune to it.
+
+## Gated on
+
+PR #267 (the parser repair). Do not start before it lands.
+
+## Related
+
+- #269 · #273 · #267
