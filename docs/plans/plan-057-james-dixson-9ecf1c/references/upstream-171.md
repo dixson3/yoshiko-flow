@@ -1,6 +1,7 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: "Upstream issue #171 — yf-okf: nested index.md generation, deferred behind a `description:` producer change (plan-046 D-9) Full untruncated body, snapshotted at triage."
 ---
 # Upstream #171: yf-okf: nested index.md generation, deferred behind a `description:` producer change (plan-046 D-9)
 

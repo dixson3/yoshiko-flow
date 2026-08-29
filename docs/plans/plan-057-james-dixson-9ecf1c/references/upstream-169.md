@@ -1,6 +1,7 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: "Upstream issue #169 — OKF conformance gate for yf-research and yf-incubator — #92 carve-out 2 of 3 Full untruncated body, snapshotted at triage."
 ---
 # Upstream #169: OKF conformance gate for yf-research and yf-incubator — #92 carve-out 2 of 3
 

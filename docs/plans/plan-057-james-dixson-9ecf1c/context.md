@@ -57,16 +57,16 @@ fails the on-edit gate. This plan touches `okf.py`, so a vendor-sync step is not
 - Authority scope: full — may approve plans, authorize pushes to `main`, file and close upstream
   issues, and authorize destructive local operations. No second approver exists or is required.
 - **Delegated authority this plan does NOT carry:** nothing may be filed to
-  `GoogleCloudPlatform/open-knowledge-format` (D-6, read-only tracking), and no write of any kind may
-  be made to the 40 other repositories surveyed in EXP-005 (D-10).
+  `GoogleCloudPlatform/open-knowledge-format` (D-9, read-only tracking), and no write of any kind may
+  be made to the 40 other repositories surveyed in EXP-005 (D-7).
 
 ## Runtime assumptions
 
 - **OS/shell:** macOS (Darwin 25.5.0), `zsh`. Paths are case-insensitive; `sed` is BSD, **not GNU** —
   it does not support `\|` alternation, and a prior plan recorded it matching nothing while reporting
   success. Prefer Python for text surgery.
-- **Network:** required by exactly one issue (3.5, the baseline-pin detector) and by the upstream
-  reconcile (6.6). Everything else runs offline. The detector's INCONCLUSIVE path exists precisely so
+- **Network:** required by exactly one issue (3.1a, the baseline-pin detector), by the
+  "Upstream network reachable" capability gate, and by the upstream reconcile (3.5). Everything else runs offline. The detector's INCONCLUSIVE path exists precisely so
   an offline land is not blocked.
 - **Credentials:** `gh` is authenticated and owns its own credential store — **no token is ever
   written to config or passed inline**. `bd` is configured `dolt.local-only = true`, so
@@ -74,8 +74,13 @@ fails the on-edit gate. This plan touches `okf.py`, so a vendor-sync step is not
 - **Side-effect permissions.** This plan performs one genuinely destructive local operation: Issue
   2.9's `backfill --apply` rewrites 31 completed bundles in place. It is gated (human capability
   gate), reversible (`--record` plus `git checkout` for tracked paths and an unlink for created ones),
-  preconditioned on a clean tree scoped to the bundles being changed, and atomic per bundle by
-  staging-and-swap. Every other write is additive.
+  preconditioned on a clean tree scoped to the bundles being changed, and **crash-recoverable — but NOT
+  atomic**. An earlier draft claimed "atomic per bundle by staging-and-swap", which this plan's own
+  measurement refutes: `os.rename` onto a non-empty directory raises `OSError errno 66`, so the swap is
+  **two renames with a window in which the bundle is absent**. Recovery therefore keys on a durable
+  per-bundle journal fsynced before the first rename (Issue 2.4, R2), not on atomicity and not on
+  directory presence. This matters here because an operator reads this file before authorizing the
+  backfill gate. Every other write is additive.
 
   **Read the safety evidence precisely — the fingerprint is NOT the guarantee.**
   `_plan_content_fingerprint` covers `plan.md`'s content sections **only**. It excludes `README.md`,
@@ -93,7 +98,9 @@ fails the on-edit gate. This plan touches `okf.py`, so a vendor-sync step is not
   `description:` producer contract, the member-declared path-exclusion mechanism, and the layer boundary
   document. That is a capability gate with a real `Test:`, not an assumption.
 - **Bundle count assumptions will drift.** Every corpus figure in this plan was measured on
-  2026-08-28. Per D-5, re-measure before citing rather than inheriting.
+  2026-08-28. Re-measure before citing rather than inheriting. (An earlier draft attributed this to D-5, which is
+  the backfill halt classes; no decision carries the re-measure instruction — the Investigation Findings
+  preamble does.)
 
 ## Adjacent-concept glossary
 
@@ -107,7 +114,10 @@ fails the on-edit gate. This plan touches `okf.py`, so a vendor-sync step is not
 - **`doc_lint` mini-schemas** — 17 `document_types/*.toml` files declaring 48 checks over typed yf
   documents. Status-aware and repo-root-relative.
 - **`okf.check_conformance`** — the second, independent structural validator. Status-blind and
-  bundle-relative. The two have never referenced each other; Issue 6.4 fixes that.
+  bundle-relative. The two have never referenced each other; the layer boundary document
+  plan-056 shipped (`docs/validation-layers.md`) is what records the split, and this plan's Issue 3.4
+  writes the trigger boundary between the two OKF skills. (An earlier draft cited "Issue 6.4"; this
+  plan has four epics and no Issue 6.4.)
 - **`STATUS_SEVERITY`** — doc_lint's promotion/demotion table. At `complete` it demotes both `E` and
   `W` to `R`, which is why 46 of 48 checks cannot currently fail.
 - **Drift (index)** — an index that no longer matches its directory: a `ghost` entry names a file that

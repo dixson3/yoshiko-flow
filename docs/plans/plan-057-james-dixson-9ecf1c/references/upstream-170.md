@@ -1,6 +1,7 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: "Upstream issue #170 — OKF consumer round-trip fidelity is unverified — #92 carve-out 3 of 3 Full untruncated body, snapshotted at triage."
 ---
 # Upstream #170: OKF consumer round-trip fidelity is unverified — #92 carve-out 3 of 3
 
