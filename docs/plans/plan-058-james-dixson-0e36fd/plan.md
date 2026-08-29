@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-058-james-dixson-0e36fd
 author: james-dixson
 created: '2026-08-28'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 174b21743cb585627be4c81b10f1179a60873e98e743cc7a8386566988c00b8d
+epic: yf-mol-802
 ---
 # Plan: Fix yf-beads-upstream upstream.py push: eliminate the full-universe per-bead bd show fan-out in the owner-claim warning path, bound run() with a timeout, and repair the identical defect in cmd_enumerate (#268)
 
 **ID:** plan-058-james-dixson-0e36fd
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-802
 **Fingerprint:** 174b21743cb585627be4c81b10f1179a60873e98e743cc7a8386566988c00b8d
 
 ## Objective

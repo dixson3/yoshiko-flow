@@ -517,6 +517,12 @@ def load_universe_rows() -> list[dict]:
     returned. Corrected rather than narrowed, because `cmd_closable` depends on closed
     rows being present — an issue is closable precisely when its mapped beads are closed,
     so filtering them out here would make every issue read as not-closable (REQ-BUP-052).
+
+    These rows are the SOLE source for the parent-child edge set (REQ-BUP-071). They are
+    NOT the seed of a per-bead `bd show` walk — that walk was #268, a 334 s traversal of
+    the entire closed universe on the mandated push path, and it is gone. Each row carries
+    its own `dependencies[]`, so `collect_parent_edges` reads a payload this one call has
+    already paid for. Anything needing a per-row field belongs here, not in a loop.
     """
     return parse_json_array(run(["bd", "list", "--all", "--json"]))
 
