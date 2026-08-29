@@ -390,14 +390,15 @@ are per-skill (the three current models genuinely differ) and are specified in e
 
   **Root-only in v1, deliberately.** `reindex` is specified over the bundle root only. Nested
   `index.md` generation is **deferred** behind a producer change that stamps `description:`. **Measured
-  2026-08-28 (plan-056 Issue 0.8): 165 of 983 nested files carry one** — up from the plan-046-era
+  2026-08-28 (plan-056 Issue 0.8): 189 of 993 nested files carry one, a MOVING figure that rises as
+  the producer stamps it forward** — up from the plan-046-era
   "0 of 423", which is stale on both terms. Coverage is real but **partial and recent**, confined to
   the twelve newest bundles, so most generated nested entries would still carry no description, and
   **74 of 142 (52%)** of subdirectories would receive a listing of no value. The deferral is recorded
   in `spec/OKF-YF-EXTENSIONS.md` with its measurement and filed upstream, so a future reader inherits
   the evidence rather than the conclusion.
 
-  **No "stale metadata" check.** At the 165/983 coverage measured 2026-08-28 there is too little
+  **No "stale metadata" check.** At the minority coverage measured 2026-08-28 (189/993) there is too little
   nested metadata for a staleness check to be worth its own requirement, and the entries that do
   exist are the newest in the corpus — the population least likely to have gone stale. Revisit when
   the producer contract (REQ-DATA-075) has run long enough to make coverage the common case.

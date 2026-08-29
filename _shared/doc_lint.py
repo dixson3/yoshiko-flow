@@ -352,7 +352,7 @@ def _plan_extract():
 #
 # THE CLOSE-OUT BINDING (REQ-DATA-074) IS THE EXCEPTION, AND IT IS LOAD-BEARING.
 # `R1-closeout` and `R2a-closeout` are separate checks at severity `E`, scoped by
-# `statuses` to `reconciling`/`complete`. They are the **only 2 of 48** checks in the whole
+# `statuses` to `reconciling`/`complete`. They are the **only TWO** checks in the whole
 # `document_types/` set capable of producing an `E` at `bundle_status: complete` —
 # measured 2026-08-28: with the terminal-status demotion disabled the corpus yields 197
 # `E` findings; with it enabled, `errors: 0` over 1116 files. Those two escape *through*

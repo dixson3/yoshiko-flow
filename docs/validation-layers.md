@@ -60,7 +60,7 @@ in.
 
 **The measurement, and why the split is load-bearing.** With the terminal-status demotion
 disabled, the corpus yields **197 `E` findings** over 1116 files; with it enabled, **`errors: 0`**.
-Only **2 of 55** declared checks are structurally capable of producing an `E` at
+Only **two** declared checks are structurally capable of producing an `E` at
 `bundle_status: complete` — `R1-closeout` and `R2a-closeout`, which escape via the
 `promote = false` close-out binding (`REQ-DATA-074`). So `doc_lint` past the intake gate is very
 nearly a report, by deliberate design.

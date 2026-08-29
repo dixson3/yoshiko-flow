@@ -7,7 +7,7 @@
 # THE AUTHORING-TIME RULES ARE `W` — **not every rule** (corrected by plan-056 Issue 1.6, #246;
 # this line claimed "EVERY RULE IS `W`" and was false from plan-052, when the two `E` close-out
 # checks below landed). See the close-out block further down: `R1-closeout`/`R2a-closeout` are
-# `E`, scoped by `statuses`, and are the ONLY 2 of 48 checks that can produce an `E` at
+# `E`, scoped by `statuses`, and are the ONLY TWO checks that can produce an `E` at
 # `bundle_status: complete` (REQ-DATA-074).
 # `STATUS_SEVERITY` promotion is OFF for this kind — declared by
 # REQ-DATA-044 and IMPLEMENTED by the `promote = false` key below (REQ-DATA-053). If `W -> E` fired at `review`, every future plan

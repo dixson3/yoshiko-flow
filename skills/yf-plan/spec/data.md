@@ -161,7 +161,7 @@ Verification: `install.sh` rule-copy step (`install_rules`); plan_manager.py `_s
 > sections.
 >
 > The distinction is load-bearing in one specific direction: `doc_lint` is **status-aware** and
-> demotes to `R` at every terminal status, so past the intake gate only **2 of 55** checks can
+> demotes to `R` at every terminal status, so past the intake gate only **two** checks can
 > produce an error — `okf.py` is **status-blind** and is therefore the layer that can still fail a
 > completed bundle. A check that must fire after intake belongs there, not here.
 >
@@ -348,7 +348,7 @@ per-document schema check can do, since each of those reads one section in isola
   `reconciling`/`complete` and kept at `E` there by this kind's file-level `promote = false`.
   The word "uniformly" was **false from plan-052 onward**, when `R1-closeout` and `R2a-closeout`
   landed; #246 filed the resulting conformance defect. It resolves **toward the schema** (D-15) —
-  the two `E` checks are correct and are kept — because they are the **only 2 of 48** checks in the
+  the two `E` checks are correct and are kept — because they are the **only two** checks in the
   whole `document_types/` set capable of producing an `E` at `bundle_status: complete`. Deleting
   them to satisfy the old wording would make `doc_lint` **structurally incapable of failing a
   completed bundle**, which is the defect this plan exists to remove, not a conformance fix.
@@ -571,7 +571,7 @@ noise, not enforcement.
 
 Rationale: #171 asked for nested `index.md` generation. Measured, the leverage is not there — it is
 in **per-file entries in the ROOT index**, which require a `description:` the producers do not
-stamp. Re-measured 2026-08-28 (Issue 0.8): 165 of 983 nested files carry one, concentrated entirely
+stamp. Re-measured 2026-08-28 (Issue 0.8): 189 of 993 nested files carry one, concentrated entirely
 in the twelve newest bundles, so coverage is a **producer-version artifact** rather than an authoring
 gap. Fixing the producer makes coverage grow forward without touching a single frozen bundle, which
 is D-1's forward-only principle applied to metadata.

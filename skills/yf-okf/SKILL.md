@@ -278,7 +278,7 @@ asks whether the folder around it is well-formed.
 
 They also differ on two further axes that matter when deciding which one should carry a new check:
 `yf-okf` is **status-blind** (it fires on a `complete` bundle, where `doc_lint`'s terminal-status
-demotion means only 2 of 55 checks can), and it reasons in **bundle-relative** paths where
+demotion means only **two** checks can — 2 of 51 (snapshot 2026-08-28; the DENOMINATOR moves as schemas are added — the load-bearing claim is the numerator and which two they are)), and it reasons in **bundle-relative** paths where
 `doc_lint` reasons in **repo-relative** ones — which is why the two exclusion lists are
 independently declared rather than derived from each other.
 

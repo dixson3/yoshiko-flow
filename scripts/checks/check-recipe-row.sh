@@ -59,15 +59,42 @@ ENGINE="${TREE}/skills/yf-change-validation/scripts/change_validation.py"
 [ -f "${ENGINE}" ] || ENGINE="$(yf skill-dir yf-change-validation 2>/dev/null)/scripts/change_validation.py"
 [ -f "${ENGINE}" ] || ck_inconclusive "cannot resolve change_validation.py"
 
-# CACHED ACROSS INVOCATIONS. SC11 and SC11c call this script three times between them, and
-# the FULL tier is the multi-minute suite. `YF_FULL_TIER_JSON` lets a harness run it ONCE and
-# hand the same evidence to every caller; without it the criteria layer would cost 3x the
-# land-the-plane gate it is checking. Absent the variable each call runs its own.
-if [ -n "${YF_FULL_TIER_JSON:-}" ] && [ -s "${YF_FULL_TIER_JSON}" ]; then
-  FULL_JSON="$(cat "${YF_FULL_TIER_JSON}")"
-else
+# CACHED ACROSS INVOCATIONS, BY DEFAULT — not only when a caller sets YF_FULL_TIER_JSON.
+#
+# WHY THE DEFAULT IS NECESSARY, measured. SC11 and SC11c call this script three times between
+# them, and the FULL tier is the multi-minute suite. `recheck-criteria` runs each criterion in
+# a FRESH SUBPROCESS with a 300s timeout, and SC11c chains TWO invocations in one cell — so it
+# paid two full suites (~480s) and TIMED OUT, which the plan-056 engine correctly reported as
+# `HARNESS_INCOMPLETE` rather than as a pass. An opt-in cache could not help: a criterion's
+# `Verification` cell is a bare command string with NO WAY TO SET AN ENVIRONMENT VARIABLE, so
+# the lever existed and was unreachable from the one binding that needed it.
+#
+# THE CACHE IS KEYED ON THE TREE FINGERPRINT, and that is what makes it safe rather than merely
+# fast. A stale FULL-tier result would let this script report a row as WIRED when the tree no
+# longer wires it — the precise false-green this check exists to prevent. So the key is
+# HEAD + the hash of `git status --porcelain`: ANY change, staged, unstaged or untracked,
+# produces a different key and therefore a miss. A second guard caps age at 30 minutes, so a
+# fingerprint collision or a clock oddity still cannot serve an ancient result.
+_fingerprint() {
+  local head dirty
+  head="$(git -C "${TREE}" rev-parse HEAD 2>/dev/null || echo nohead)"
+  dirty="$(git -C "${TREE}" status --porcelain 2>/dev/null | shasum | cut -d' ' -f1)"
+  printf '%s-%s' "${head:0:12}" "${dirty:0:12}"
+}
+CACHE="${YF_FULL_TIER_JSON:-${TMPDIR:-/tmp}/yf-full-tier-$(_fingerprint).json}"
+
+FULL_JSON=""
+if [ -s "${CACHE}" ]; then
+  # `find -mmin -30` is the portable age test; an older file is simply not matched.
+  if [ -n "$(find "${CACHE}" -mmin -30 2>/dev/null)" ]; then
+    FULL_JSON="$(cat "${CACHE}")"
+    echo "${CHECK_NAME}: reusing a FULL-tier result for this exact tree state" >&2
+  fi
+fi
+if [ -z "${FULL_JSON}" ]; then
   FULL_JSON="$( (cd "${TREE}" && uv run "${ENGINE}" run --tier full --json 2>/dev/null) )"
-  [ -n "${YF_FULL_TIER_JSON:-}" ] && printf '%s' "${FULL_JSON}" > "${YF_FULL_TIER_JSON}"
+  # Write the cache only for a NON-EMPTY result, so a crashed run cannot poison the next call.
+  [ -n "${FULL_JSON}" ] && printf '%s' "${FULL_JSON}" > "${CACHE}" 2>/dev/null || true
 fi
 [ -n "${FULL_JSON}" ] || ck_inconclusive "the FULL-tier run produced no JSON"
 

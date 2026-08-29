@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-28 |
+| `stop_class` | 5 |
+| `asked` | §6.4 recheck-criteria on plan-056's own close. |
+| `answered` | HARNESS_INCOMPLETE, exit 1 — THE VERDICT THIS PLAN SHIPPED, FIRING ON THIS PLAN. 18 of 19 class-A criteria judged; SC11c unjudged because it chains TWO check-recipe-row.sh invocations in one Verification cell, each of which runs the multi-minute FULL tier, and recheck-criteria's per-criterion timeout is 300s. Pre-fix this would have been verdict PASS, exit 0, 'all 18 evaluated criterion/criteria hold' — SC11c silently absent from the arithmetic. That is exactly #265, caught on the plan that fixed it. Note the plan's own R11/R13 predicted the fix would be INERT here because §6.4 resolves SKILL_DIR to the INSTALLED skill; it fired only because this run deliberately invoked the working-tree plan_manager.py. Resolution: the instrument is sound (SC11c verified green by hand with the cache warm), so the defect is the BINDING — an opt-in YF_FULL_TIER_JSON cache is unreachable from a Verification cell, which is a bare command string. Fixed properly by giving check-recipe-row.sh a DEFAULT cache keyed on the tree fingerprint (HEAD + hash of git status --porcelain) with a 30-minute age cap, so any tree change misses and a stale result can never report a row as wired when it is not. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | /tmp/rc.json: verdict HARNESS_INCOMPLETE, class_a 19, evaluated 18, unjudged [SC11c], detail 'timed out after 300s' |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
