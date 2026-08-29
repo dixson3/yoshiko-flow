@@ -84,8 +84,61 @@ DEFAULT_GRANULARITY = "coarse"
 NOT_SET_SENTINEL = "(not set)"
 
 
-def run(cmd: list[str]) -> str:
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+# --- Subprocess bounds (REQ-BUP-072) -----------------------------------------------
+#
+# Every subprocess this module spawns is bounded. The bound is resolved INSIDE the
+# spawning primitive from `cmd[0]`, and is deliberately NOT passed at call sites:
+# measured, adding a `timeout=` argument at the call sites fails three tests whose
+# `run` stubs take a single positional argument, and `apply_write`'s broad exception
+# handler then masks the resulting TypeError as a `gh` failure — turning a wiring
+# error into a false report about the upstream service.
+#
+# These bounds buy DIAGNOSABILITY FOR THE NEXT unbounded call. They did not and could
+# not catch #268, which was 1,801 individually-FAST subprocesses (0.186 s each); no
+# defensible per-call bound trips on any of them. What fixes #268 is REQ-BUP-071.
+LOCAL_TIMEOUT_S = 60
+NETWORK_TIMEOUT_S = 120
+
+# Only `gh` crosses the network. `bd` is local (a Dolt store on disk), and so is
+# `bash`: all four `bash -c` sites in this module wrap `bd close` / `bd update`, which
+# is OPAQUE at this classifier — it sees the string "bash" and nothing about what the
+# shell will run. Classifying `bash` as LOCAL is therefore a statement about the sites
+# that exist, not a general claim about shell commands. A future `bash -c` wrapping a
+# network call would be mis-bounded at 60 s, which is why new `bash -c` sites belong in
+# this comment's audit rather than being added silently.
+NETWORK_COMMANDS = frozenset({"gh"})
+
+# The local bound has ~200x headroom over the slowest measured local call. Cold-start
+# `bd` latency against the Dolt store is measured by Issue 1.9 rather than assumed —
+# every timing in the plan's findings/ was warm.
+
+
+def timeout_for(cmd: list[str]) -> int:
+    """The bound for `cmd`, resolved from its executable name."""
+    if cmd and cmd[0] in NETWORK_COMMANDS:
+        return NETWORK_TIMEOUT_S
+    return LOCAL_TIMEOUT_S
+
+
+def run(cmd: list[str], *, timeout: int | None = None) -> str:
+    """Run `cmd`, fail-fast on non-zero, BOUNDED (REQ-BUP-072).
+
+    `timeout=None` resolves the bound from `cmd[0]` via `timeout_for`. The keyword is
+    present for tests that need a short bound; PRODUCTION CALL SITES MUST NOT PASS IT.
+    Measured: threading `timeout=` through the call sites fails three tests whose `run`
+    stubs take a single positional argument, and `apply_write`'s broad `except` then
+    masks the TypeError as a `gh` failure.
+    """
+    bound = timeout_for(cmd) if timeout is None else timeout
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=bound)
+    except subprocess.TimeoutExpired as e:
+        # DIAGNOSABLE: name the bound AND the argv. A bare TimeoutExpired traceback
+        # names neither, and "which command, and how long did it wait" is always the
+        # operator's next question.
+        raise SystemExit(
+            f"command TIMED OUT after {bound}s: {' '.join(cmd)}"
+        ) from e
     if proc.returncode != 0:
         sys.stderr.write(proc.stderr)
         raise SystemExit(f"command failed ({proc.returncode}): {' '.join(cmd)}")
@@ -96,7 +149,7 @@ class UpstreamQueryError(RuntimeError):
     """A network/`gh` read failed. Yields INCONCLUSIVE, never a clean proposal."""
 
 
-def run_unchecked(cmd: list[str]) -> str:
+def run_unchecked(cmd: list[str], *, timeout: int | None = None) -> str:
     """Run `cmd` WITHOUT the fail-fast `SystemExit` of [`run`].
 
     plan-044 Issue 3.2. `run()` raises `SystemExit` on any non-zero exit, which made
@@ -105,10 +158,20 @@ def run_unchecked(cmd: list[str]) -> str:
     bulk upstream-state resolver; every existing caller keeps `run()` and its fail-fast
     semantics untouched, so nothing else changes behavior.
     """
+    bound = timeout_for(cmd) if timeout is None else timeout
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=bound)
     except FileNotFoundError as e:
         raise UpstreamQueryError(f"{cmd[0]} not on PATH") from e
+    except subprocess.TimeoutExpired as e:
+        # REQUIRED, not defensive: TimeoutExpired is NOT an OSError, so the OSError
+        # handler at the resolve_upstream_states call site would not catch it and the
+        # process would emit a traceback INSTEAD of REQ-BUP-064's INCONCLUSIVE verdict.
+        # Wrapping it into the error type that path already handles is what keeps a
+        # timeout inside the verdict vocabulary (REQ-BUP-072 clause 4).
+        raise UpstreamQueryError(
+            f"command TIMED OUT after {bound}s: {' '.join(cmd)}"
+        ) from e
     if proc.returncode != 0:
         raise UpstreamQueryError(
             f"command failed ({proc.returncode}): {' '.join(cmd)}: {proc.stderr.strip()}"
@@ -176,13 +239,34 @@ def resolve_upstream_states(numbers, runner=None) -> UpstreamStates:
     )
 
 
+# Returned by `_config_get` when the read TIMED OUT. It is deliberately NOT `""`:
+# under default-deny an empty read is indistinguishable from a deliberate opt-out, and
+# collapsing "we could not find out" into "the operator turned it off" is what converts
+# a mandated upstream write into a success-shaped no-op (REQ-BUP-072 clause 3). The
+# value cannot collide with real `bd config get` output.
+CONFIG_UNDETERMINED = "\x00bd-config-read-timed-out\x00"
+
+
 def _config_get(key: str) -> str:
-    """Read a bd config value as raw stdout text (may be `(not set)`).
+    """Read a bd config value as raw stdout text (may be `(not set)`). BOUNDED.
 
     Tolerates a non-zero exit (treated as unset) — we never branch on the exit
     code for the unset decision; inspection of the text is authoritative.
+
+    On TIMEOUT returns `CONFIG_UNDETERMINED` rather than `""` (REQ-BUP-072 clause 3).
+    Consumers that only need a value still fall through to default-deny, because the
+    sentinel matches no recognised value; consumers that must not confuse "unknown"
+    with "disabled" test for it explicitly. See `upstream_state`.
     """
-    proc = subprocess.run(["bd", "config", "get", key], capture_output=True, text=True)
+    try:
+        proc = subprocess.run(
+            ["bd", "config", "get", key],
+            capture_output=True,
+            text=True,
+            timeout=LOCAL_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return CONFIG_UNDETERMINED
     return proc.stdout
 
 
@@ -223,13 +307,32 @@ def upstream_enabled(config_get=_config_get) -> bool:
     empty value) counts. Reads the config TEXT for the `(not set)` sentinel, never the
     exit code (the false-negative invariant). `config_get` is injectable.
     """
+    return upstream_state(config_get) == "enabled"
+
+
+def upstream_state(config_get=_config_get) -> str:
+    """Three-valued upstream state: `enabled` | `disabled` | `undetermined`.
+
+    REQ-BUP-072 clause 3. `upstream_enabled()` collapses this to a bool and keeps its
+    signature, so every existing caller is unchanged; the callers that must not report
+    a failed read as an operator opt-out (notably `cmd_push`) read this instead.
+
+    `undetermined` is NOT a third way of being disabled. A verb that cannot establish
+    the state must say so and exit non-zero: the operator has no compliant fallback
+    here, because UPSTREAM_TRACKING.md forbids hand-running the underlying commands,
+    so a silent "nothing to push" would leave them with no route at all.
+    """
     raw = config_get("custom.upstream.enabled")
+    if raw == CONFIG_UNDETERMINED:
+        return "undetermined"
     if raw is None or NOT_SET_SENTINEL in raw or raw.strip() != "true":
-        return False
+        return "disabled"
     backend = config_get("custom.upstream.backend")
+    if backend == CONFIG_UNDETERMINED:
+        return "undetermined"
     if backend is None or NOT_SET_SENTINEL in backend:
-        return True  # unset backend is not a disable signal (see docstring)
-    return backend.strip() not in ("", "none")
+        return "enabled"  # unset backend is not a disable signal (see docstring)
+    return "enabled" if backend.strip() not in ("", "none") else "disabled"
 
 
 def owner_on_create(config_get=_config_get) -> bool:
@@ -528,15 +631,42 @@ def load_universe_rows() -> list[dict]:
 
 
 def collect_parent_edges(beads: dict[str, dict]) -> list[Edge]:
-    """Resolve parent-child edges for the active-set ancestor walk.
+    """Resolve parent-child edges for the active-set ancestor walk — ZERO subprocesses.
 
     classify_active only consumes `dep_type == parent-child` edges, so we only need
-    those. We read each bead's dependency edges via `bd show` (which exposes
-    `dependency_type`) and normalize to the `dep_type` field classify_active expects.
+    those. They are read from the rows the caller already holds: `bd list --all --json`
+    emits a `dependencies[]` array per row (REQ-BUP-055 amendment), so the edge set is
+    derivable from a payload the process has already paid for.
+
+    REQ-BUP-071. This function used to issue one `bd show` PER BEAD over the entire
+    closed universe — 1,801 beads and 334 s on this repository (#268), on the path
+    UPSTREAM_TRACKING.md mandates for every upstream write, to produce (measured) an
+    empty warning list. Equivalence of the two edge sets was proven exhaustively before
+    the swap: 1,801/1,801 beads, 1,648 edges either way, zero divergence in either
+    direction, 321.9 s -> 0.0018 s.
+
+    Two things are deliberately preserved VERBATIM and must not be "tidied":
+
+    - `edge_type()` handles the type field-name divergence (`bd show` says
+      `dependency_type`, `bd list` says `type`) — it already accepted the `bd list`
+      name, which is why the source swap needs no change here;
+    - the `depends_on_id or id or target` chain handles the TARGET field-name
+      divergence (`bd show` embeds the target bead and carries its id as `id`;
+      `bd list` uses `depends_on_id`). Narrowing it to whichever field the current
+      source emits would re-couple this function to one query shape.
+
+    The `--include-gates` edge gap is PRESERVED, not fixed: `load_universe_rows()`
+    omits the flag, so ~165 gate parent-child edges are invisible to this walk both
+    before and after. Adding the flag would inject them into classify_active's ancestor
+    propagation and shrink the candidate set — a spec-visible behavior change, filed
+    separately rather than smuggled in on a performance fix.
     """
     edges: list[Edge] = []
     for bid in sorted(beads):
-        for dep in deps_for_show(bid):
+        # Defaulting read, never `row["dependencies"]`: the key is emitted omitempty and
+        # is ABSENT on rows with no edges (138 of 1,905 here). Absent means NO
+        # dependencies — not a truncated response (REQ-BUP-055 amendment).
+        for dep in beads[bid].get("dependencies") or []:
             if edge_type(dep) != "parent-child":
                 continue
             target_id = dep.get("depends_on_id") or dep.get("id") or dep.get("target")
@@ -798,22 +928,39 @@ def restrict_labels(labels: list[str], existing: set[str]) -> tuple[list[str], l
     return kept, dropped
 
 
-def existing_labels() -> set[str]:
-    """Label names that already exist upstream. Empty set on any failure.
+def existing_labels() -> set[str] | None:
+    """Label names that already exist upstream, or **None when the read FAILED**.
 
     ONE `gh label list` for the whole run — never one call per label (that would be the
     same N+1 shape REQ-BUP-052 exists to forbid).
+
+    REQ-BUP-056 amendment (plan-058). This used to return an EMPTY SET on failure,
+    which is a different claim: an empty set says "the repo has no labels", and the
+    caller then reported every label as
+    `dropping label 'X' (does not exist upstream)` — a statement that was simply UNTRUE.
+    Nothing had been established about `X`.
+
+    There are THREE states, not two — *label absent*, *label present*, *label set
+    UNKNOWN* — and collapsing the third into the first is the same silent-absence class
+    REQ-BUP-063 rejects for an unparseable `external_ref` and REQ-BUP-064 for an
+    unresolvable one. It also inflates the very count GR-BUP-008 watches, since that
+    guardrail's revisit trigger IS the drop line.
+
+    `None` is the UNKNOWN state. It is in scope for plan-058 because REQ-BUP-072 adds a
+    NEW route into this failure: a bounded `run` makes a *timeout* a second way for the
+    read to fail, so the false report became reachable by a path this plan created.
     """
     try:
         # NB: run() raises SystemExit (a BaseException) on a non-zero exit, so
-        # `except Exception` alone would NOT catch a failed `gh` call.
+        # `except Exception` alone would NOT catch a failed `gh` call. A TIMEOUT also
+        # arrives here as SystemExit (REQ-BUP-072), which is exactly the new route.
         out = run(["gh", "label", "list", "--limit", "500", "--json", "name"])
     except (Exception, SystemExit):
-        return set()
+        return None
     try:
         return {r["name"] for r in json.loads(out) if r.get("name")}
     except (json.JSONDecodeError, TypeError, KeyError):
-        return set()
+        return None
 
 
 ISSUE_URL_RE = re.compile(r"https://\S+/issues/\d+")
@@ -842,8 +989,15 @@ def plan_write(bead: dict, existing: set[str]) -> dict:
     round-trip — the old mechanism asked bd to ask GitHub what it *would* do.
     """
     ref = external_from_row(bead)
-    labels, dropped = restrict_labels(issue_labels_for(bead), existing)
+    # `existing is None` means the upstream label set could not be read (REQ-BUP-056
+    # amendment). Labels are still withheld — `gh issue create` rejects an unknown
+    # label ATOMICALLY, so emitting an unverified label would fail the whole write —
+    # but the REASON is carried through so the preview does not claim absence it never
+    # established.
+    labels_unknown = existing is None
+    labels, dropped = restrict_labels(issue_labels_for(bead), existing or set())
     return {
+        "labels_unknown": labels_unknown,
         "id": bead.get("id"),
         "action": "update" if ref else "create",
         "external": ref,
@@ -866,8 +1020,15 @@ def render_plan(plans: list[dict]) -> str:
         for lab in p["dropped_labels"]:
             # GR-BUP-008: the drop is REPORTED, never silent — this line is the
             # revisit trigger for restrict-and-drop.
-            lines.append(
-                f"             dropping label {lab!r} (does not exist upstream)")
+            if p.get("labels_unknown"):
+                # NOT an absence claim. The label set could not be read, so this says
+                # what actually happened and no more (REQ-BUP-056 amendment).
+                lines.append(
+                    f"             withholding label {lab!r} — upstream label set "
+                    f"UNKNOWN (read failed); NOT asserting it is absent")
+            else:
+                lines.append(
+                    f"             dropping label {lab!r} (does not exist upstream)")
     return "\n".join(lines)
 
 
@@ -1217,7 +1378,19 @@ def cmd_push(issues_csv: str, apply: bool) -> int:
     the preview is rendered LOCALLY: no network round-trip and no credentials needed
     to read it. Leaves each bead OPEN and mirrored — removing it locally is `hoist`.
     """
-    if not upstream_enabled():
+    state = upstream_state()
+    if state == "undetermined":
+        # REQ-BUP-072 clause 3. NEVER the "disabled" message and NEVER exit 0: a
+        # transient `bd` hiccup must not render as a successful no-op on the one path
+        # UPSTREAM_TRACKING.md mandates for every upstream write.
+        print(
+            "upstream state UNDETERMINED (config read timed out) — NOT pushing. "
+            "This is not the same as upstream tracking being disabled: nothing was "
+            "established either way. Re-run once `bd` is responsive.",
+            file=sys.stderr,
+        )
+        return 1
+    if state == "disabled":
         print("Upstream tracking is disabled (custom.upstream.enabled / backend none); nothing to push.")
         return 0
     ids = [s.strip() for s in issues_csv.split(",") if s.strip()]

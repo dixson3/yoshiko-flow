@@ -12,6 +12,7 @@ network — every bd interaction is faked.
 """
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -496,6 +497,12 @@ def test_push_leaves_beads_open_no_close_stage(monkeypatch, capsys):
 
 
 def test_push_short_circuits_cleanly_when_tracking_disabled(monkeypatch, capsys):
+    # `cmd_push` reads the THREE-VALUED `upstream_state` (REQ-BUP-072 clause 3), so a
+    # genuine opt-out must be stubbed there. `upstream_enabled` is stubbed too: it is
+    # still the seam every OTHER caller uses, and pinning both keeps this test honest
+    # about which state it is asserting. The assertions below are UNCHANGED — a
+    # disabled repo still exits 0 and still says "disabled".
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "disabled")
     monkeypatch.setattr(up, "upstream_enabled", lambda: False)
     def boom(*a, **k):
         raise AssertionError("queried bd while upstream tracking is disabled")
@@ -1386,3 +1393,179 @@ def test_render_text_marks_tombstones_and_thin_evidence():
     out = m.render_text(rows)
     assert "[HOIST TOMBSTONE]" in out
     assert "THIN" in out.upper(), "a row with no resolvable criteria must say so"
+
+
+# --- REQ-BUP-056 amendment (plan-058 Issue 2.5): a FAILED read is not an ABSENT label ---
+
+
+def test_existing_labels_read_failure_is_not_reported_as_missing(monkeypatch):
+    """SC5b. A failed `gh label list` must never render as "does not exist upstream".
+
+    Before this fix `existing_labels()` returned an EMPTY SET on failure, which is a
+    different claim entirely: an empty set says the repo has no labels, and the preview
+    then told the operator each label "does not exist upstream" — untrue, because
+    nothing had been established about it either way.
+    """
+    def boom(cmd):
+        raise SystemExit("command failed (1): gh label list")
+    monkeypatch.setattr(up, "run", boom)
+
+    # 1. The read failure is REPORTED AS UNKNOWN (None), not as an empty set.
+    assert up.existing_labels() is None, "a failed label read must not look like 'no labels exist'"
+
+    bead = {"id": "b1", "title": "T", "description": "D",
+            "issue_type": "task", "priority": 2}
+
+    # 2. On UNKNOWN, the preview withholds the label but makes NO absence claim.
+    unknown_plan = up.plan_write(bead, None)
+    assert unknown_plan["labels_unknown"] is True
+    assert unknown_plan["dropped_labels"], "labels are still withheld — gh rejects unknown labels atomically"
+    rendered = up.render_plan([unknown_plan])
+    assert "does not exist upstream" not in rendered, (
+        "a failed read must never be reported as an absence")
+    assert "UNKNOWN" in rendered and "NOT asserting it is absent" in rendered
+
+    # 3. CONTROL: a genuine empty-but-SUCCESSFUL read still reports absence, so the
+    #    fix narrows the claim rather than suppressing the GR-BUP-008 revisit signal.
+    known_plan = up.plan_write(bead, set())
+    assert known_plan["labels_unknown"] is False
+    known_rendered = up.render_plan([known_plan])
+    assert "does not exist upstream" in known_rendered, (
+        "GR-BUP-008's revisit trigger must survive — the drop line is its only producer")
+
+
+# --- REQ-BUP-072 (plan-058 Epic 2): every subprocess is bounded -----------------------
+
+
+def test_timeout_for_classifies_network_and_local_commands():
+    """`gh` crosses the network; `bd` and `bash` do not."""
+    assert up.timeout_for(["gh", "issue", "create"]) == up.NETWORK_TIMEOUT_S
+    assert up.timeout_for(["bd", "list", "--all", "--json"]) == up.LOCAL_TIMEOUT_S
+    # `bash -c` is LOCAL because all four sites in the module wrap `bd close`/`bd update`.
+    # The classifier cannot see inside the shell string — this asserts the documented
+    # decision, not a general claim about shells.
+    assert up.timeout_for(["bash", "-c", "bd close x"]) == up.LOCAL_TIMEOUT_S
+    assert up.timeout_for([]) == up.LOCAL_TIMEOUT_S
+
+
+def test_run_timeout_raises_naming_the_bound_and_the_command():
+    """A timeout must be DIAGNOSABLE: it names the bound AND the argv.
+
+    A bare TimeoutExpired traceback names neither, and "which command, and how long did
+    it wait" is always the operator's next question.
+    """
+    with pytest.raises(SystemExit) as exc:
+        up.run(["bash", "-c", "sleep 5"], timeout=1)
+    msg = str(exc.value)
+    assert "TIMED OUT" in msg
+    assert "1s" in msg, f"the bound must appear in the message: {msg!r}"
+    assert "sleep 5" in msg, f"the argv must appear in the message: {msg!r}"
+
+
+def test_run_unchecked_timeout_yields_upstream_query_error_not_a_traceback():
+    """TimeoutExpired is NOT an OSError, so it must be wrapped explicitly.
+
+    Unwrapped, it would sail past `resolve_upstream_states`' OSError handler and emit a
+    traceback INSTEAD of REQ-BUP-064's INCONCLUSIVE verdict.
+    """
+    assert not issubclass(subprocess.TimeoutExpired, OSError), (
+        "the premise of this test: if TimeoutExpired were an OSError the wrap would be "
+        "redundant. It is not.")
+    with pytest.raises(up.UpstreamQueryError) as exc:
+        up.run_unchecked(["bash", "-c", "sleep 5"], timeout=1)
+    assert "TIMED OUT" in str(exc.value)
+
+
+def test_resolve_upstream_states_reports_inconclusive_on_timeout(monkeypatch):
+    """The wrapped timeout reaches REQ-BUP-064's INCONCLUSIVE verdict."""
+    def slow(cmd, **kw):
+        raise up.UpstreamQueryError("command TIMED OUT after 1s: gh issue list")
+    monkeypatch.setattr(up, "run_unchecked", slow)
+    result = up.resolve_upstream_states(["#1"])
+    assert result.inconclusive is True
+
+
+_real_upstream_state = None  # bound below, before monkeypatching can shadow it
+
+
+def test_config_timeout_is_undetermined(monkeypatch):
+    """SC4c. A config-read timeout is NEVER reported as "upstream tracking disabled"."""
+    # Patch the CONFIG READ, not `upstream_state` — this test's whole point is that the
+    # real `upstream_state` derives UNDETERMINED from a timed-out read, so stubbing it
+    # would assert nothing. `upstream_state`'s default argument binds `_config_get` at
+    # def-time, so it is passed explicitly here.
+    global _real_upstream_state
+    _real_upstream_state = up.upstream_state
+    timed_out = lambda key: up.CONFIG_UNDETERMINED
+    monkeypatch.setattr(up, "_config_get", timed_out)
+    monkeypatch.setattr(up, "upstream_state",
+                        lambda *a, **k: _real_upstream_state(timed_out))
+
+    # The state is UNDETERMINED — a third state, not a way of being disabled.
+    assert _real_upstream_state(timed_out) == "undetermined"
+
+    def boom(*a, **k):
+        raise AssertionError("queried bd while the upstream state was undetermined")
+    monkeypatch.setattr(up, "load_universe_rows", boom)
+
+    rc = up.cmd_push("a", apply=False)
+    assert rc != 0, "an undetermined state must NOT exit 0 — that is a success-shaped no-op"
+
+
+def test_config_timeout_message_does_not_claim_disabled(monkeypatch, capsys):
+    """The distinction has to reach the OPERATOR, not just the exit code."""
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "undetermined")
+    monkeypatch.setattr(up, "load_universe_rows",
+                        lambda: (_ for _ in ()).throw(AssertionError("queried bd")))
+    up.cmd_push("a", apply=False)
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "UNDETERMINED" in combined
+    assert "nothing to push" not in combined, (
+        "the disabled message must not be reused for an undetermined state")
+
+
+def test_genuine_disable_still_exits_zero(monkeypatch, capsys):
+    """CONTROL: the new third state must not disturb the real opt-out path."""
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "disabled")
+    monkeypatch.setattr(up, "load_universe_rows",
+                        lambda: (_ for _ in ()).throw(AssertionError("queried bd")))
+    assert up.cmd_push("a", apply=False) == 0
+    assert "disabled" in capsys.readouterr().out
+
+
+def test_hoist_timeout_closes_no_bead(monkeypatch, capsys):
+    """SC5 / REQ-BUP-050 regression guard: a timeout on a WRITE closes NO bead.
+
+    The tombstone stage (`bd close -r`) is the destructive stage REQ-BUP-050 guards. A
+    timed-out `gh issue create` is exactly the UNVERIFIED case — the issue may or may
+    not exist — so the hoist must halt BEFORE it. The EXP-003 spike observed this held;
+    this asserts it, because a property nothing checks is a property that can regress.
+    """
+    monkeypatch.setattr(up, "upstream_enabled", lambda: True)
+    monkeypatch.setattr(up, "upstream_state", lambda *a, **k: "enabled")
+    monkeypatch.setattr(up, "load_universe_rows", lambda: [
+        {"id": "b1", "title": "T", "description": "D", "issue_type": "task"}])
+    monkeypatch.setattr(up, "existing_labels", lambda: set())
+    monkeypatch.setattr(up, "granularity", lambda *a, **k: "coarse")
+
+    def timing_out_run(cmd, **kw):
+        # ASSERT-TRAP: reaching the destructive stage at all is the failure.
+        if cmd and cmd[0] == "bash":
+            raise AssertionError(
+                "REGRESSION: the destructive `bash -c 'bd close -r ...'` stage ran "
+                "behind an UNVERIFIED (timed-out) write")
+        if cmd and cmd[0] == "bd" and "close" in cmd:
+            raise AssertionError("REGRESSION: `bd close` ran behind an unverified write")
+        raise SystemExit("command TIMED OUT after 120s: " + " ".join(cmd))
+
+    monkeypatch.setattr(up, "run", timing_out_run)
+
+    rc = up.cmd_hoist("b1", dest="owner/repo", apply=True)
+
+    assert rc == 1, "a timed-out write must return non-zero"
+    err = capsys.readouterr().err
+    assert "FAIL-CLOSED" in err
+    assert "No bead was closed" in err, (
+        "the operator must be told explicitly that nothing was closed")
+    assert "TIMED OUT" in err, "the halt must name the timeout as the cause"
