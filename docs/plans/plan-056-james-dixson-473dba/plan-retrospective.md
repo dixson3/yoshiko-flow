@@ -51,3 +51,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-28 |
+| `stop_class` |  |
+| `asked` | How long does the §6.4 recheck-criteria step cost on this plan? |
+| `answered` | MINUTES, because SC11 and SC11c route through check-recipe-row.sh, which runs the FULL tier to prove a row is WIRED rather than merely written — and recheck-criteria executes each criterion in a fresh subprocess, so the three invocations each pay their own full suite. check-recipe-row.sh DOES support a YF_FULL_TIER_JSON cache (added at Issue 1.9 for exactly this), but a criterion's Verification cell is a bare command string with no way to set an environment variable, so the cache is unreachable from the binding that needs it most. Recorded rather than fixed: the criteria are correct and the cost is real but bounded, and plumbing an env var through the Verification grammar is a plan_extract/REQ-DATA-070 change well outside this plan's scope. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | recheck-criteria on plan-056 ran >10 min; 'ps aux | grep recheck-criteria' showed it live across three successive FULL-tier suites |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
