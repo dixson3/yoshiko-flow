@@ -10,7 +10,8 @@
 `yf-okf` is a repo-agnostic engine that **constructs, manages, and conformance-checks** the artifact
 folders ("bundles") that the yf artifact-producing skills emit (`yf-plan`, `yf-research`,
 `yf-incubator`, and future consumers). It makes those bundles **compatible with** the Open Knowledge
-Format (OKF v0.2, `GoogleCloudPlatform/knowledge-catalog`): an opinionated framework that adopts the
+Format (OKF v0.2, `GoogleCloudPlatform/open-knowledge-format` — pinned by CONTENT HASH, not by the
+mutable `0.2` label; see `spec/OKF-BASELINE.md` §0 and REQ-OKF-033): an opinionated framework that adopts the
 OKF baseline (reserved `index.md`, reserved `log.md`, YAML frontmatter with a non-empty `type` on
 every non-reserved `.md`) and layers the yoshiko-flow extensions on top (a dual **frontmatter +
 `**Field:**`** field model, an `okf_spec:` member key, per-skill extension specs). `yf-okf` is also
@@ -604,7 +605,7 @@ are per-skill (the three current models genuinely differ) and are specified in e
 > `emit_conformant_copy` now appears in neither the code nor this SPEC — the only two outcomes
 > plan-046 SC10 permits.
 
-- **Operator surface:** `/yf-okf init | migrate | check | assess | reindex` (SKILL.md). `reindex`
+- **Operator surface:** `/yf-okf init | migrate | check | reindex` (SKILL.md). `assess` was REMOVED by plan-057 Issue 3.4 — it was advertised and dispatched by no engine verb; the capability now lives in `yf-okf-hygiene` (`audit`, with `assess` as a declared alias there).  `reindex`
   exits `0` clean / `1` drift / `2` `no-index` / `3` `no-such-path` / `4` `inconclusive`
   (REQ-OKF-011) — the one verb whose exit code is a multi-way verdict rather than a pass/fail.
   `126`/`127` stay reserved to the shell (REQ-CLI-029).

@@ -39,8 +39,6 @@ User-invocable (`/yf-okf`) with four subcommands:
 - `init` — consent-only setup (prereq check; the skill installs automatically).
 - `check [<dir>]` — composed-ruleset conformance self-check over a bundle; **report-only**.
 - `migrate <dir> [--dry-run]` — **opt-in, per-folder, in-place** migration to the OKF model.
-- `assess <corpus>` — Epic-2 impact assessment: discover bundles under a root, run `check` +
-  `migrate --dry-run` over each, produce an aggregate impact report (dispatches `agents/assessor.md`).
 
 Scope boundary: yf-okf owns the *shape* of yf artifact bundles. Running a repo's build/test/lint
 recipe is `yf-change-validation`; checking that already-written docs **agree** across declared
@@ -61,10 +59,11 @@ worktree and installed address spaces.
 /yf-okf check <dir>    ──▶ compose ruleset ──▶ report findings (report-only, crash-safe); exit 1 if not ok
 /yf-okf migrate <dir>  ──▶ --dry-run first (change plan) ──▶ opt-in in-place write (merge-and-preserve,
                             fingerprint-stable, first scoping date preserved)
-/yf-okf assess <root>  ──▶ discover bundles ──▶ per-bundle check + migrate --dry-run ──▶ impact report
 ```
 
-- **Report-only** `check` / `assess` never mutate the corpus; **crash-safe** on messy input.
+- **Report-only** `check` never mutates the corpus; **crash-safe** on messy input.
+- **Corpus-scale work lives in `yf-okf-hygiene`** — which bundles exist, classifying the
+  population, the legacy backfill and its reversal. This skill owns ONE bundle at a time.
 - **Merge-and-preserve** writes never drop a pre-existing frontmatter key.
 - **No auto-fix** — migration is the only write path, and it is opt-in and per-folder.
 
@@ -77,7 +76,6 @@ skills/yf-okf/
 ├── LICENSE                     # MIT
 ├── SPEC.md                     # requirement-numbered (REQ-OKF-*) per-skill spec
 ├── agents/
-│   └── assessor.md             # read-only corpus assessor (Epic-2 assess surface)
 ├── scripts/
 │   └── okf.py                  # vendored engine (Issue 1.6 registers the sync); canonical: _shared/okf.py
 └── spec/

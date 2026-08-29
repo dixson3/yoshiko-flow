@@ -150,6 +150,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
 | `okf-hygiene-tests` | `uv run skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` |  |  |
+| `baseline-pin-drift` | `bash scripts/baseline-pin-drift.sh` |  |  |
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
@@ -205,6 +206,8 @@ approved: yes
 | `skills/yf-okf-hygiene/scripts/**` | `okf-hygiene-tests`, `uv-okf`, `uv-_shared` |
 | `skills/yf-okf-hygiene/scripts/okf.py` | `uv-okf`, `uv-_shared` |
 | `skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` | `okf-hygiene-tests` |
+| `skills/yf-okf/spec/OKF-BASELINE.md` | `baseline-pin-drift` |
+| `scripts/baseline-pin-drift.sh` | `baseline-pin-drift` |
 | `skills/yf-incubator/scripts/**` | `uv-okf`, `uv-_shared` |
 | `skills/yf-plan/scripts/okf.py` | `uv-okf`, `uv-_shared` |
 | `skills/yf-research/scripts/okf.py` | `uv-okf`, `uv-_shared` |

@@ -4,10 +4,11 @@ description: "Constructs, manages, and conformance-checks the OKF-compatible art
   ('bundles') that yf artifact-producing skills emit (yf-plan, yf-research, yf-incubator), and
   owns the versioned OKF-* spec family (BASELINE + YF-EXTENSIONS + per-skill OKF-EXTENSION). The
   engine (okf.py) composes the effective ruleset and runs check (report-only conformance) and
-  migrate (opt-in, per-folder, in-place). TRIGGER when: /yf-okf invoked (init | check | migrate |
-  assess); checking whether an artifact folder conforms to the OKF model; migrating a legacy
-  plan/research/incubator folder to the reserved index.md + log.md + frontmatter+type model; or
-  running an impact assessment of a corpus before adopting OKF. SKIP for: authoring third-party
+  migrate (opt-in, per-folder, in-place). TRIGGER when: /yf-okf invoked (init | check | migrate);
+  checking whether an artifact folder conforms to the OKF model; migrating a legacy
+  plan/research/incubator folder to the reserved index.md + log.md + frontmatter+type model. SKIP for:
+  CORPUS-scale work — which bundles exist in a repo, classifying the whole population, the legacy
+  BACKFILL, or undoing one (that is yf-okf-hygiene; yf-okf owns ONE bundle at a time); authoring third-party
   OKF linters / validators / MCP servers (yf-okf is a producer/manager plus a conformance
   self-check, not a third-party validator); checking that already-written docs AGREE across
   declared edges (that is yf-drift-check, an orthogonal axis); running a repo's build/test/lint
@@ -166,9 +167,16 @@ into the target folder).
 | `init` | initialize yf-okf for a project (prereq check + install; § Init) |
 | `check [<dir>]` | run the composed-ruleset conformance self-check over a bundle; report-only |
 | `migrate <dir> [--dry-run]` | opt-in, per-folder, in-place migration to the OKF model |
-| `assess <corpus>` | Epic-2 impact assessment: discover bundles under a root, run `check` + `migrate --dry-run` over each, produce an impact report (§ Assess) |
 
-All engine-backed subcommands route to `scripts/okf.py` via `uv run`.
+Non-engine-backed subcommands: init
+
+All engine-backed subcommands route to `scripts/okf.py` via `uv run`. The marker line above
+is machine-read by `scripts/checks/check-assess-verb-gone.sh`, which asserts that every
+ADVERTISED ENGINE-BACKED subcommand is dispatchable by that script. `init` is advertised and
+undispatchable **legitimately** — it routes to the § Init prose, not to the engine — and
+declaring it here is what makes that distinguishable from an oversight. An *inferred*
+exemption is indistinguishable from a defect, which is the whole reason the verb below was
+removed rather than quietly tolerated.
 
 ## Dispatch / engine call
 
@@ -225,26 +233,33 @@ first `scoping:` date into `log.md` (REQ-OKF-MIG-002), so a migrated **approved*
 stale-approved and keeps its grandfather warn-downgrade. Writes are **merge-and-preserve**
 (REQ-OKF-070): only yf keys are added; no pre-existing frontmatter key is dropped or overwritten.
 
-## assess
+## The other OKF skill: `yf-okf-hygiene`
 
-The Epic-2 impact-assessment surface (issues 2.1/2.2 drive the implementation). Given a corpus
-root, discover the candidate bundles under it and run `check` + `migrate --dry-run` over each,
-producing an aggregate **impact report** — how many bundles conform, what each migration would
-change, and any bundles the engine cannot classify. It is **read-only** (`check` and
-`migrate --dry-run` never write) and **crash-safe**, so it is safe to run over a real foreign
-corpus (e.g. a copy of an Obsidian vault) before deciding whether to adopt OKF.
+**`assess` was REMOVED from this skill** (plan-057 Issue 3.4). It was advertised in four places —
+this file, `SPEC.md`, `README.md` and this skill's trigger `description` — and dispatched by
+`okf.py` in **none** of them. An artifact asserting a capability nothing provides is worse than a
+missing feature: it reads as evidence.
 
-Dispatch the assessor sub-agent (read-only; keeps the fan-out out of the main context):
+The capability it described — discover bundles under a root, report per-bundle impact, mutate
+nothing — now lives in **`yf-okf-hygiene`** as `audit`, with `assess` retained there as a declared
+alias. That is D-3's "absorb": the CAPABILITY moved, and the name follows it rather than being
+re-advertised here undispatched.
 
-```
-Read ${SKILL_DIR}/agents/assessor.md and follow it.
+### Trigger boundary
 
-CORPUS_ROOT: <root to scan>
-SKILL_DIR:   <resolved yf-okf skill dir>
-```
+The two skills have adjacent names, so the boundary is stated rather than inferred from
+descriptions. It is a **layer** boundary, not a feature split:
 
-The assessor returns the impact report only — it never migrates. Applying a migration is a
-separate, explicit `/yf-okf migrate <dir>` per folder.
+| Question | Skill |
+| :-- | :-- |
+| Is *this one bundle* conformant? What does `check` / `migrate` / `reindex` do to it? | **`yf-okf`** (this skill) |
+| Who owns the `OKF-*` spec family (BASELINE / YF-EXTENSIONS / per-skill EXTENSION)? | **`yf-okf`** (this skill) |
+| *Which* bundles exist in this repo, and what state is each in? | **`yf-okf-hygiene`** |
+| Move the whole legacy population forward, reversibly (`backfill` / `restore`) | **`yf-okf-hygiene`** |
+
+**One bundle → here. A population → there.** `yf-okf-hygiene` calls this skill's engine for every
+per-bundle verdict it reports and never re-decides a conformance rule, so if the two ever disagree
+about one bundle, this skill is right and that is a defect there.
 
 ## Init
 

@@ -16,6 +16,7 @@
     "yf-markdown-lint": "markdown",
     "yf-markdown-pdf": "markdown",
     "yf-okf": "utility",
+    "yf-okf-hygiene": "utility",
     "yf-optimal-instructions": "utility",
     "yf-plan": "workflows",
     "yf-research": "workflows",
@@ -47,6 +48,7 @@
       "yf-drift-check",
       "yf-herdr",
       "yf-okf",
+      "yf-okf-hygiene",
       "yf-optimal-instructions",
       "yf-skill-authoring"
     ],
@@ -76,6 +78,7 @@
       "yf-drift-check",
       "yf-herdr",
       "yf-okf",
+      "yf-okf-hygiene",
       "yf-optimal-instructions",
       "yf-skill-authoring"
     ],

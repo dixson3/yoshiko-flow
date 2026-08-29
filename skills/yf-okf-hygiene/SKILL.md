@@ -12,7 +12,7 @@ description: "Corpus-level OKF health for a repository of artifact bundles: read
   recipe (yf-change-validation). Never fires on an ordinary edit — it is operator-invoked, and
   `backfill --apply` is consent-gated because it rewrites bundles in place."
 user-invocable: true
-skill-group: beads
+skill-group: utility
 depends-on-tool: [uv, git]
 depends-on-skill: [yf-okf]
 ---

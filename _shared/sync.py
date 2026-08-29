@@ -258,7 +258,13 @@ def _skill_dir_consumers() -> "list[tuple[Path, str]]":
     """
     root = REPO_ROOT / "skills"
     caller_supplied = {
-        root / "yf-okf" / "agents" / "assessor.md",
+        # `yf-okf/agents/assessor.md` was DELETED by plan-057 Issue 3.4 along with the
+        # `assess` verb it served. Its capability — discover bundles under a root, report
+        # per-bundle impact, mutate nothing — is now `okf_hygiene.py audit`, which does the
+        # same fan-out DETERMINISTICALLY and returns an exit code. Moving the agent to the new
+        # skill was rejected on that ground: dispatching a sub-agent for work a script does
+        # exactly is strictly worse, and it would have re-created the advertised-but-not-quite
+        # surface this issue exists to delete.
         root / "yf-plan" / "agents" / "coordinator.md",
         root / "yf-beads-authoring" / "agents" / "reviewer.md",
     }
