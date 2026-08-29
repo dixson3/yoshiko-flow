@@ -720,6 +720,61 @@
 >   anyway, on the ground that the pin is independently valuable and the next reader should not
 >   have to re-derive the detector question to discover why the vocabulary is closed.
 >   Implementation lands in Epics 1–3 and 5; this entry records the SPEC-first Epic 1 amendment.
+> - **plan-057 (2026-08-29, #140-partial / #170-partial / #171-partial / #189-partial):** OKF part 2 —
+>   **deepen the root index, ship `yf-okf-hygiene` with the legacy backfill, and re-pin the baseline
+>   to the relocated upstream.** SPEC-first Epic 0, one bullet per id:
+>   - **`REQ-OKF-012`** (added) — **root-index depth.** The root index reaches below the bundle root;
+>     nested `index.md` files are **not** generated (6 of 28 bundles already deepen the root index by
+>     hand and produce the corpus's only irreducible entries, while #171's own measurement says 52% of
+>     subdirectories would receive a valueless listing). Four sub-requirements: rule D's selection
+>     bound with `<= K` counting **recursively** and `K` a constant `10`; the flat OKF v0.2 §8 entry
+>     format bound to the **emitted line** rather than to one function, because the corpus has a
+>     second, independent bullet writer; the description fallback chain
+>     `caller-supplied → frontmatter → H1 → bare`, which **never synthesizes**; and the **inverse
+>     drift signal** (`missing` for a nested file the rule selects but the index omits), without which
+>     drift is one-directional and a bundle can grow indefinitely without disagreeing with its index.
+>     The durable bound is stated **per-directory** (no subdirectory contributes more than `K`), not
+>     as the corpus maximum of 30 — that maximum is empirical with **zero margin**, four bundles sit
+>     exactly on it, and rule D bounds a bundle's top-level file count not at all.
+>   - **`REQ-OKF-033`** (added) — the baseline is pinned by **content hash**, not by version label,
+>     with a **read-only** FULL-tier drift detector whose network failure is INCONCLUSIVE (`2`) rather
+>     than drift. Upstream relocated to `GoogleCloudPlatform/open-knowledge-format`, announced the old
+>     snapshot frozen, and then **changed v0.2 in place with no version bump** — so `okf_spec: 0.2` no
+>     longer identifies a fixed document, which defeats plan-029 R3's isolation strategy outright. A
+>     label-only pin would have detected **nothing**.
+>   - **`REQ-OKF-034`** (added, decision of record) — OKF v0.2 specifies **no bundle-root
+>     identification procedure**, and the gap is **circular**: the only in-band marker is the
+>     `okf_version` key a wrongly-rooted consumer rejects. The yf resolution is REQ-OKF-004
+>     (root-ness is a property of the invocation); a consumer that roots elsewhere reports **false
+>     violations** — an upstream gap, not a yf defect. **No marker file** is added (a unilateral
+>     extension to a format selling "no required tooling", that no consumer would read), and
+>     **nothing is filed upstream**. The id was genuinely free: its single prior occurrence was the
+>     dangling cross-reference plan-046 Issue 1.1 documented as *never defined at any revision*.
+>   - **`REQ-OKFH-001`..`REQ-OKFH-010`** (added, new spec key **OKFH**) — the `yf-okf-hygiene`
+>     requirement family: the verb surface and the *every-engine-backed-advertised-verb-dispatches*
+>     property, the three-valued exit contract inheriting `REQ-CLI-029`, read-only `audit` and its
+>     five-way classification, self-contained root detection, the **three-step** backfill (`migrate`
+>     alone makes the audit strictly worse on **30 of 30**), the two halt classes, the durable
+>     **fsynced journal** with its five enumerated crash states `S0`..`S4` (the transform is
+>     **not atomic** — `os.rename` onto a non-empty directory raises `errno 66`, so the swap is two
+>     renames with a window in which the bundle is absent), the three fail-closed preconditions, and
+>     the `reindex` refusal + per-path `restore` kind.
+>   - **`REQ-CLI-029`** (extended) — the `scripts/checks/` harness contract is extended to this plan's
+>     seven additional instruments, plus three properties the original did not state: an instrument
+>     accepting a root shall accept an **absolute** one and report a harness fault as `2` (measured: a
+>     shipped driver reports its own `pathlib` crash as a corpus finding); `--require N` shall assert
+>     **equality**, because a minimum is the wrong comparator for a hand-maintained list already
+>     measured to have drifted by six; and the enumerated array is a **deliberately owned** set rather
+>     than everything on disk.
+>
+>   **Requirement-id note (execution deviation).** The plan's Issue 0.5 cites `REQ-CLI-018`. That id
+>   is `verify-reconcile` and is unrelated; the harness contract plan-056 actually landed is
+>   **`REQ-CLI-029`**, which was itself a reallocation away from `REQ-CLI-018` recorded in plan-056's
+>   entry above. The stale citation was inherited with the issue text. `plan.md` was deliberately
+>   **not** edited — its `## Epics` section is fingerprinted and SC1 pins a verbatim instrument
+>   output — following the precedent plan-056 set for the identical situation. Recorded as `RE-001`
+>   in `plan-retrospective.md`.
+>   Implementation lands in Epics 1–3; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 
@@ -1976,6 +2031,7 @@ The macro spec composes these. `REQ-<KEY>-*` ids live in each skill's `SPEC.md`.
 | yf-beads-init           | beads-init           | beads    | BINIT    | `skills/yf-beads-init/SPEC.md`           |
 | yf-beads-hygiene        | _(new, #29)_         | beads    | HYG      | `skills/yf-beads-hygiene/SPEC.md`        |
 | yf-beads-upstream       | beads-upstream       | beads    | BUP      | `skills/yf-beads-upstream/SPEC.md`       |
+| yf-okf-hygiene          | _(new, plan-057)_    | beads    | OKFH     | `skills/yf-okf-hygiene/SPEC.md`          |
 | yf-incubator            | incubator            | beads    | INCUB    | `skills/yf-incubator/SPEC.md`            |
 | yf-change-validation    | _(new)_              | utility  | CHGVAL   | `skills/yf-change-validation/SPEC.md`    |
 | yf-diagram-authoring    | diagram-authoring    | utility  | DIAG     | `skills/yf-diagram-authoring/SPEC.md`    |

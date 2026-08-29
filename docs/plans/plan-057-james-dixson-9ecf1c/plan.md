@@ -4,15 +4,17 @@ okf_spec: OKF-PLAN
 id: plan-057-james-dixson-9ecf1c
 author: james-dixson
 created: '2026-08-28'
-status: approved
+status: executing
 fingerprint: 2cb4560a8bad04d5ba93b178ac5a225e99dc654e62943330741ce67903dfe771
+epic: yf-mol-4jb2
 ---
 # Plan: OKF part 2: deepen the root index, ship yf-okf-hygiene with the legacy backfill, and realign OKF-BASELINE to the relocated upstream
 
 **ID:** plan-057-james-dixson-9ecf1c
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** approved
+**Status:** executing
+**Epic:** yf-mol-4jb2
 **Fingerprint:** 2cb4560a8bad04d5ba93b178ac5a225e99dc654e62943330741ce67903dfe771
 
 ## Objective

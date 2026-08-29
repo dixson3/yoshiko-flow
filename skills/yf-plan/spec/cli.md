@@ -345,3 +345,38 @@ before it is populated — otherwise the epic that enforces SPEC-first would its
 Verification: `scripts/checks/harness-selftest.sh --require 9` — every instrument returns non-zero
 on a deliberately broken input, and the selftest reports how many it checked, so a selftest covering
 2 of 10 is distinguishable from one covering 10.
+
+**Extension (plan-057 Issue 0.5): the contract binds EVERY instrument in the directory, including
+those a later plan adds.** plan-057 authors **seven** further instruments —
+`check-index-boilerplate-ratio.py`, `check-baseline-pin-contract.sh`, `check-skill-classified.sh`,
+`check-backfill-audit-delta.py`, `check-assets-decided.py`, `check-gates-poured-probe.sh`,
+`check-assess-verb-gone.sh` — and each shall satisfy (a), (b) and (c) above and carry a **named RED
+row** in `harness-selftest.sh`. The rationale is unchanged and is the reason this extension is a SPEC
+edit rather than a convention: a criterion adjudicated by an **unowned** script is a criterion whose
+instrument nobody is accountable for.
+
+Three properties this extension states that the original did not, each measured:
+
+**(d) An instrument that accepts a ROOT shall accept an ABSOLUTE one.** Measured 2026-08-29: a
+shipped driver handed `--root "$PWD/docs/plans/*"` raises an unhandled
+`NotImplementedError("Non-relative patterns are unsupported")` from `pathlib` and exits **1** — which
+under its own documented contract means *the criterion does not hold*. A **harness fault reported as
+a corpus finding** is worse than a bare traceback: the code is wrong but in-contract, so no reader
+can tell. Such a condition is `2`, per (a).
+
+**(e) `--require N` is a MINIMUM, and a minimum is the wrong comparator for a hand-maintained list.**
+The shipped comparison is `[ "${CHECKED}" -lt "${REQUIRE}" ]`, so a run that **skipped** an
+instrument still exits `0` whenever the remaining count clears the floor. Measured, the enumerated
+array has **already drifted by six** against instruments present on disk. A self-enumerating harness
+shall therefore assert **equality** (or expose an explicit `--exact`), because the list it enumerates
+is exactly the artifact known to drift.
+
+**(f) The enumerated array is a DELIBERATE, OWNED set — not everything on disk.** Six instruments
+present in `scripts/checks/` are unenumerated and **unowned**: they predate the plan that authored
+the current eight. Enumerating them opportunistically would either fail the gate outright (under
+equality) or re-open the vacuity (under the minimum: 22 enumerated, 16 required, and **all seven new
+instruments absent still exits 0**). Adding an instrument to the array is an act of taking ownership
+of it, and the count is the assertion.
+
+Verification of the extension: `scripts/checks/harness-selftest.sh --require 16` — 9 enumerated
+before this plan plus the 7 it authors, the selftest excluding itself from its own count.
