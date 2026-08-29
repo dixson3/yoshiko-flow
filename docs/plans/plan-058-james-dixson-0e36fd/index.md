@@ -27,6 +27,7 @@ Six experiments. Each carries **Approach Tested / Result / Implications for Plan
 
 ## Assets
 
+- [assets/](assets/) - The plan's measurement record, vendored so a cold reader can re-run the load-bearing claims rather than take them on trust: the EXP-002 equivalence/timing harness and its output, the end-to-end #268 reproduction transcript, the post-fix timings, the edge-equivalence derivation, and the instrument and final criteria sweeps.
 - `assets/exp001-equivalence-harness.py` - The timing + equivalence harness, vendored so the load-bearing claim in EXP-002 is **re-runnable by a cold reader** rather than taken on trust.
 - `assets/exp001-equivalence-harness.output.txt` - Its output: the full-universe equivalence result.
 - `assets/exp001b-repro-334s.output.txt` - The end-to-end #268 reproduction transcript.
