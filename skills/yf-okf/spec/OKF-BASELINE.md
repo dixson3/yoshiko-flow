@@ -146,8 +146,13 @@ Observed properties of a real bundle-root `index.md`
   does not use.
 - **Descriptions have a stated source.** §8: *"Entries SHOULD include the description from the linked
   concept's frontmatter."* This is the upstream basis for plan-046 D-9 — nested indexes are worth
-  generating once producers stamp `description:`, and are deferred until then (measured: `description`
-  at **0 of 423** nested files).
+  generating once producers stamp `description:`, and are deferred until then. **Re-measured
+  2026-08-28 (plan-056 Issue 0.8): `description` is present on 189 of 993 nested files** — a
+  MINORITY, concentrated in the newest bundles, and rising as `REQ-DATA-075`'s producer contract
+  stamps it forward. The
+  plan-046-era figure of "0 of 423" is stale on BOTH terms — the corpus has more than doubled and
+  the numerator is no longer zero — so the deferral now rests on partial coverage concentrated in
+  the twelve newest bundles, not on absence.
 
 > **Correction — a citation that was wrong against v0.1 too.** This table and §7 below cited `(§5)`
 > for the `okf_version` key. Measured: v0.1 mentions `okf_version` exactly once, at `okf/SPEC.md:393`,

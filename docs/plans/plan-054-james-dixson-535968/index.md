@@ -17,3 +17,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/](reviews/) - Red-team pass reports, one per review cycle, each frozen once its concerns are resolved. The verdict history behind the plan's readiness.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
 
+- [assets/](assets/) - The driven-red harness and its records: `checks/` (the criterion instruments this repo later promoted to `scripts/checks/`), the allowlist with per-entry reasons, `controls.txt`, the harness smoke transcript, the deferred-defect list, and `fixtures/`.

@@ -94,3 +94,32 @@ id = "has-heading"
 severity = "E"
 kind = "regex-present"
 pattern = '(?m)^#{1,2} +\S'
+
+# --- plan-056 Issue 3.3 / REQ-DATA-075: the `description:` PRODUCER CONTRACT --------------
+#
+# `W`, NOT `E`, and paired with a `regex-present` pattern rather than a bare key-presence
+# check. Both choices are load-bearing:
+#
+#   * `regex-present` `^description:\s*\S` — a `key-present` check is satisfied by
+#     `description:` with an EMPTY value, which is the producer stamping the key and no
+#     content. That is the "asserting something nothing checks" failure one level down, and
+#     it is the exact shape `REQ-OKF-011` refuses when it says a generated index entry must
+#     never invent a placeholder.
+#
+#   * `W` because REQ-DATA-075 is enforced AT THE PRODUCER. This check is a hit-rate lever
+#     over the residue an older producer left, not the enforcement point — and re-measured
+#     2026-08-28, that residue is the MAJORITY of nested files (804 of 993, and falling as
+#     the producer stamps them). An `E` would hard-fail every
+#     bundle authored before the producer fix, which is D-1's forward-only principle
+#     violated by the very requirement that states it.
+#
+# `research-*` TYPES ARE SCOPED OUT — declared here, and stated because omitting it silently
+# would be the same defect. Their `bundle_status` is `None`, so `STATUS_SEVERITY` returns `{}`
+# (REQ-DATA-045) and a `W` there is PERMANENT: never promoted at `review`, never demoted at
+# `complete`. A permanent warning is noise, not enforcement, and noise is what trains a reader
+# to stop looking at warnings.
+[[checks]]
+id = "description"
+severity = "W"
+kind = "regex-present"
+pattern = '^description:\s*\S'

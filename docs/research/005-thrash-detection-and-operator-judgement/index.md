@@ -83,6 +83,19 @@ All three take `--help` and were re-run by the triangulator, reproducing their o
 
 ## Directory members (OKF listing)
 
-- [artifacts/](artifacts/) — the per-phase working documents: tooling notes, the six retrieval clusters, triangulation, critique.
-- [diagrams/](diagrams/) — `.d2` source plus its rendered `.png`.
-- [scripts/](scripts/) — the three re-runnable measuring instruments.
+> The tables above are the reader-facing guide; this is the **mechanical listing** the OKF
+> checker reads (`- [title](target) - description`). It uses an ASCII ` - ` separator rather
+> than an em-dash because `okf.py`'s `_INDEX_ENTRY_RE` requires one — with `—` the whole line
+> fails to match and every member below reads as *missing*, which is exactly what
+> `check_okf_index_drift.py` reported on this bundle before this repair. The descriptions are
+> distilled from the tables above rather than generated: `reindex --write` would have appended
+> seven BARE bullets beside the richest index in this corpus, satisfying the gate while
+> degrading the artifact (plan-056 R4).
+
+- [Summary.md](Summary.md) - The report, and the only file needed to answer the research questions: 10 sections plus the red-team dispositions table. Headline is a NULL on objective LENGTH (r = -0.002), explicitly not a refutation of the under-specification construct.
+- [sources.md](sources.md) - The source register: 228 entries with verbatim quotes, locators and evidence-strength bands. Every `Summary.md` citation `[N]` anchors here at `#N`.
+- [sources.json](sources.json) - The same 228 records, machine-readable, with per-source scoring components.
+- [plan.yaml](plan.yaml) - The research DAG: topic, questions, the six retrieval clusters, and the `corpus_corrected` block that SUPERSEDES `corpus:` (the original scan double-counted 86 `.worktrees` mirrors).
+- [artifacts/](artifacts/) - The per-phase working documents: tooling notes, the six retrieval clusters, triangulation, and the critique that forced the "refuted" framing to be withdrawn.
+- [diagrams/](diagrams/) - The evidence-architecture diagram: `.d2` source beside its rendered `.png`. Shows why §4's convergence result is a statement about the instrument rather than the phenomenon.
+- [scripts/](scripts/) - The three re-runnable measuring instruments (`corpus_scan.py`, `finding_recurrence.py`, `churn_signature.py`). `corpus_scan.py` is the authority for the 114/301 corrected baseline.

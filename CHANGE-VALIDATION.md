@@ -94,6 +94,9 @@ approved: yes
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
 | `uv-yf-upstream-req` | `uv run skills/yf-plan/scripts/test_upstream_requirements.py` |  |  |
 | `uv-yf-gate-consistency` | `uv run skills/yf-plan/scripts/test_gate_consistency.py` |  |  |
+| `uv-recheck-criteria` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_recheck_criteria.py -q` |  |  |
+| `uv-index-members` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_index_members.py -q` |  |  |
+| `okf-index-drift` | `uv run scripts/checks/check_okf_index_drift.py --min-roots 30` |  |  |
 | `uv-yf-verify-beads` | `uv run skills/yf-plan/scripts/test_verify_beads.py` |  |  |
 | `uv-yf-retro-fields` | `uv run skills/yf-plan/scripts/test_retrospective_fields.py` |  |  |
 | `gate-plan052` | `bash docs/plans/plan-052-james-dixson-fa8056/assets/gate-run.sh verify-partition` |  |  |
@@ -113,6 +116,9 @@ approved: yes
 |  | `uv run skills/yf-beads-upstream/scripts/check_gh_direct.py` |  |  |
 |  | `uv run skills/yf-change-validation/scripts/test_change_validation.py` |  |  |
 | `check-smoke-tier` | `uv run scripts/checks/check_smoke_tier.py` |  |  |
+| `uv-recheck-criteria` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_recheck_criteria.py -q` |  |  |
+| `uv-index-members` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_index_members.py -q` |  |  |
+| `okf-index-drift` | `uv run scripts/checks/check_okf_index_drift.py --min-roots 30` |  |  |
 |  | `uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_worktree.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
@@ -181,6 +187,15 @@ approved: yes
 | `_shared/**` | `uv`, `uv-_shared` |
 | `_shared/test_sync.py` | `uv` |
 | `_shared/okf.py` | `uv-okf`, `uv-_shared` |
+| `docs/plans/**` | `okf-index-drift` |
+| `docs/research/**` | `okf-index-drift` |
+| `Incubator/*/plans/**` | `okf-index-drift` |
+| `Incubator/*/research/**` | `okf-index-drift` |
+| `scripts/checks/check_okf_index_drift.py` | `okf-index-drift` |
+| `skills/yf-plan/OKF-EXTENSION.md` | `okf-index-drift`, `uv-okf` |
+| `skills/yf-plan/scripts/test_recheck_criteria.py` | `uv-recheck-criteria` |
+| `skills/yf-plan/scripts/test_index_members.py` | `uv-index-members` |
+| `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum` |
 | `_shared/test_okf.py` | `uv-okf` |
 | `skills/yf-okf/scripts/**` | `uv-okf`, `uv-_shared` |
 | `skills/yf-incubator/scripts/**` | `uv-okf`, `uv-_shared` |

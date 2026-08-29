@@ -197,11 +197,57 @@ unresolved and asserts a non-zero exit — non-zero pre-fix (the ordering assert
 exist), zero post-fix (it fires); SKILL.md §6.4's invocation branches on the captured status.
 
 
-REQ-PLAN-080: **Completion-time re-check of `plan.md` Success Criteria.** `plan_manager.py`
+REQ-PLAN-080: *(amended plan-056 Issue 0.13 / #265)* **Completion-time re-check of `plan.md`
+Success Criteria.** `plan_manager.py`
 shall expose a **`recheck-criteria`** verb that re-evaluates every `## Success Criteria` row
 whose `Verification` cell is authored in the REQ-DATA-070 clause grammar, and shall report the
 result on the **0/1/2 contract**: **0** every evaluated criterion holds · **1** at least one
-evaluated criterion is FALSE · **2** INCONCLUSIVE, the re-check could not run.
+evaluated criterion is FALSE, **or a class-A criterion went UNJUDGED at the completion binding**
+(below) · **2** INCONCLUSIVE, the re-check could not run.
+
+**An UNJUDGED class-A criterion shall not be silently equivalent to one that holds** — this is the
+amendment, and it repairs a defect that reached every plan in the repository. As shipped, a row that
+evaluates to `inconclusive` is counted in **neither** `failed` **nor** `evaluated`, so it simply
+vanishes from the arithmetic: **one** green criterion alongside **any number** of unjudged ones
+yields `verdict: PASS`, exit `0`, and the reason string *"all 1 evaluated criterion/criteria hold"*
+— a sentence that is true as written and profoundly misleading as read. `evaluated_fraction` was
+emitted and consumed by nothing. That defeats this requirement's own rationale with a criterion
+nothing can run, which is strictly worse than a criterion that fails: a failure is visible.
+
+**The rule.** At the **completion binding**, `class_a > evaluated` — a criterion the plan declares
+machine-readable that this run did not judge — shall produce verdict **`HARNESS_INCOMPLETE`**,
+severity `error`, exit **1**, and shall **HALT** the §6.4 close chain. The verdict names the
+unjudged rows and, per row, why the harness could not judge it.
+
+**`HARNESS_INCOMPLETE` is a distinct verdict, not a reuse of `FAIL` or `INCONCLUSIVE`**, and the
+distinction is the whole point:
+
+| verdict | claim | exit |
+| :-- | :-- | --: |
+| `FAIL` | a criterion was judged and is **false** | 1 |
+| `HARNESS_INCOMPLETE` | a criterion the plan **declares judgeable** was **not judged** | 1 |
+| `INCONCLUSIVE` | **nothing** was judgeable — the plan carries no clause-form criterion | 2 |
+
+Collapsing the middle row into either neighbour is the same two-facts-one-signal conflation as
+`doc_lint`'s `not-selected` vs `no-such-path` (#181), `resume-scan`'s `found` (#207) and
+`reindex`'s `no-index` vs `no-such-path` (REQ-OKF-011). `INCONCLUSIVE` keeps its `warn` mapping
+and its exit `2` **unchanged**, because its claim genuinely differs: an unmigrated plan carrying
+no clause-form criterion has a harness with nothing to do, not a harness that failed.
+
+**MID-FLIGHT RUNS STAY ADVISORY, and the scope of the blocking rule is narrow by construction.**
+The blocking behaviour applies **only at the completion binding**, identified as `YF_RECHECK_DEPTH`
+= 0 — the same load-bearing guard this requirement already declares. A nested run (depth ≥ 1),
+which is what a criterion's own command produces when routed through the plan's harness, reports
+`harness_incomplete` in its envelope and **never halts**. Two explicit overrides exist:
+**`--advisory`** forces the reporting-only behaviour at any depth, and
+**`--require-evaluated <fraction>`** sets the threshold explicitly (default `1.0` at the completion
+binding), so a plan may declare a lower bar deliberately rather than reach one by accident.
+
+**The envelope shall carry `harness_incomplete` (boolean) and `unjudged` (the row ids) on EVERY
+path**, including `PASS`. A caller must be able to see the gap without re-deriving it from
+`class_a` and `evaluated`, and a field emitted only on the failing path cannot be used to detect
+the condition before it becomes one — which is how `evaluated_fraction` came to be consumed by
+nothing.
 
 It shall report **two distinct fields**, never one conflated number:
 
@@ -222,7 +268,9 @@ chain — a guard that refused at depth 1 would make every fixture-driven contro
 standalone and INCONCLUSIVE under the chain.
 
 **An INCONCLUSIVE re-check maps to `warn` and shall never hard-fail completion** (the
-REQ-DATA-057 precedent): the corpus is unmigrated — measured over pathspec
+REQ-DATA-057 precedent), and this is **unchanged** by the amendment above — `HARNESS_INCOMPLETE`
+is reachable only when at least one criterion *was* judged, so a wholly unmigrated plan can never
+reach it. The corpus is unmigrated — measured over pathspec
 `docs/plans/plan-*/plan.md` at authoring time, **6 of 52** bundles carry the four-column
 `Verification | Discharged-by` shape and exactly **1** (this plan) carries any clause-form
 criterion — so INCONCLUSIVE is the *expected* verdict almost everywhere, and a
@@ -236,10 +284,60 @@ was **false two epics later**: a file added downstream matched its pattern and n
 the check. The general form is *"a criterion is only as good as the last time something re-ran
 it"* — discharge-time measurement proves a criterion held once, which is not the claim a
 Success Criterion makes.
-Verification: `ctl-199b-fields` asserts `class_a_fraction` and `evaluated_fraction` are reported
+Verification: `scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_recheck_criteria.py
+unjudged_class_a_blocks` asserts the amendment — a fixture plan carrying one green and one unjudged
+class-A criterion exits **non-zero** at the completion binding and **zero** under `--advisory`, so
+the pair of exits differ and a missing engine cannot satisfy it. `ctl-199b-fields` asserts `class_a_fraction` and `evaluated_fraction` are reported
 as distinct numbers against a fixture plan; `ctl-199b-rot` reproduces plan-051's `SC4b` — a
 criterion true at discharge and FALSE at completion is caught; `ctl-199b-inconclusive` asserts
 exit 2 maps to `warn` and never hard-fails completion; `ctl-199b-recursion` asserts depth 0 and
 depth 1 evaluate while depth 2 returns exit 2 without executing; `ctl-199b-halt` asserts a
 failing re-check HALTS the close chain, observed on a fixture rather than grepped from prose.
 Each is non-zero pre-fix and zero post-fix.
+
+REQ-PLAN-081: *(added plan-056 Issue 0.10 / #140)* **The bundle index shall track a bundle that
+grows after scoping.** Three behaviours, none of which had a requirement before this one.
+
+**(a) The execution-time member set.** `_INDEX_MEMBERS` shall additionally list **`scripts/`**.
+The set as shipped enumerates only what a bundle carries at *scoping* time, so any member a plan
+creates *during execution* is invisible to the reserved listing — the bundle's own cold-reader
+contract broken by the files added to fulfil it.
+
+**`scripts/` ONLY, and `assets/` is deliberately NOT added here.** `assets/` has been in the member
+set since plan-029; it goes unlisted for an entirely different reason — `seed_index` emits a member
+only when `_index_member_present` holds **at seed time**, and an empty `assets/` is absent from every
+clone because git does not track empty directories. Adding it again would be a no-op that looks like
+a fix, and would leave the real cause — a one-shot seed over a growing bundle — untouched. That
+cause is (b).
+
+**(b) The lifecycle write sites.** `reindex_write` (SPEC REQ-OKF-011) shall be called at **three**
+points in the plan lifecycle: **intake**, **execute-start**, and **close**. `seed_index` runs once,
+at `init`; every member created afterwards is unlisted until something regenerates the listing, and
+measured at scoping **nothing ever did** — `reindex` appears in no `CHANGE-VALIDATION.md` row, no CI
+step, and no `plan_manager.py` call site. Three calls rather than one because the three moments
+bracket the phases that create members: triage and references land by intake, `scripts/` and
+`findings/` by execute-start, and `plan-retrospective.md` and `reviews/` by close.
+
+The call is `reindex_write`, **not** `seed_index`: regeneration must preserve author prose
+(REQ-OKF-072), and `seed_index` overwrites the file wholesale.
+
+**(c) The public `index-add` verb.** `plan_manager.py` shall expose
+**`index-add <plan-dir> <path> <description>`**, mirroring the engine's `add_index_entry`, plus
+CLI-reachable index regeneration. This is a **new public surface** and shall therefore be registered
+in the verb enumeration REQ-CLI-013 governs, and covered by
+`skills/yf-plan/scripts/test_cli_enumeration.py`'s set-equality test — a verb discoverable only via
+`--help` is not discoverable, since `--help` exits 0 for any parser.
+
+Measured: index regeneration is **unreachable from the CLI today**. `seed_index` is callable only
+from `init`, so an operator who notices index drift has no supported repair short of editing
+`index.md` by hand — which is how the nine drifting bundles came to drift.
+
+Rationale: #140 asked for OKF structure enforcement below the bundle root. The measured leverage is
+not nested indexes (see REQ-DATA-075) but a **root** index that stays true as the bundle grows. A
+gate on index drift (REQ-OKF-CHK-004) without these three behaviours would enforce a listing the
+producer cannot keep correct — the "gate lands ahead of its producer" hazard this plan's R1 records,
+and the reason the enforcement issues depend on the producer ones rather than the reverse.
+Verification: `scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_cli_enumeration.py
+index_add_verb` (the verb is registered, asserted by set-equality rather than by `--help`) and
+`uv run scripts/checks/check_okf_index_drift.py --min-roots 30` (the corpus is clean, having
+actually enumerated it).

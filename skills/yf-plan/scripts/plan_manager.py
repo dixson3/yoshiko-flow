@@ -533,12 +533,24 @@ def _okf_plan_extension():
     return _okf_plan_ext_cache
 
 
-def _stamp_okf_type(plan_dir: Path, md_path: Path) -> None:
+def _stamp_okf_type(plan_dir: Path, md_path: Path,
+                    description: str | None = None) -> None:
     """Stamp `type` (role-mapped) + `okf_spec: OKF-PLAN` frontmatter onto a
     non-reserved bundle `.md` (REQ-PORT-050). The `type` is assigned from the bundle-
     relative path via the OKF-EXTENSION §1a map (`plan.md`→Plan, `context.md`→
     Environment, `references/*`→Reference, …), falling back to the member default.
     Merge-and-preserves existing keys and sits above the first `## ` (REQ-OKF-010/070).
+
+    ``description`` implements the REQ-DATA-075 PRODUCER CONTRACT (plan-056 Issue 2.1).
+    It is stamped only when the CALLER SUPPLIES one — never derived here — because the
+    caller is the only party that holds the content a real description is made of, and a
+    description derived from the path would be the same string in every bundle. OKF v0.2
+    §8 wants "the description from the linked concept's frontmatter", which is only worth
+    having if it says something the filename does not.
+
+    An EMPTY or whitespace-only value is treated as ABSENT rather than written: the paired
+    linter check is ``^description:\\s*\\S``, so writing an empty string would satisfy the
+    key's presence and fail its content — the worst of both.
     """
     ext = _okf_plan_extension()
     rel = str(md_path.relative_to(plan_dir))
@@ -547,7 +559,10 @@ def _stamp_okf_type(plan_dir: Path, md_path: Path) -> None:
         member = ext.member or _OKF_MEMBER
     else:
         typ, member = "Concept", _OKF_MEMBER
-    okf.write_frontmatter(md_path, {"type": typ, "okf_spec": member})
+    meta: dict = {"type": typ, "okf_spec": member}
+    if description and description.strip():
+        meta["description"] = description.strip()
+    okf.write_frontmatter(md_path, meta)
 
 
 def seed_plan_md(plan_dir: Path, plan_id: str, objective: str, author: str) -> Path:
@@ -575,7 +590,10 @@ def seed_plan_md(plan_dir: Path, plan_id: str, objective: str, author: str) -> P
     okf.append_log(plan_dir, "scoping: initial scope captured", date=today)
     # Stamp OKF frontmatter (Issue 3.3): type: Plan + okf_spec, then dual-write the
     # identity `**Field:**` lines into their frontmatter mirror (REQ-OKF-020/050).
-    _stamp_okf_type(plan_dir, plan_md)
+    # REQ-DATA-075 (plan-056 Issue 2.2): plan.md's description IS the objective — the one
+    # sentence a reader wants when the bundle appears in a listing. It is the clearest case
+    # of "the answer, not the question": the objective already states what this plan is for.
+    _stamp_okf_type(plan_dir, plan_md, description=objective.strip())
     _write_plan_fields(plan_dir, {})
     return plan_md
 
@@ -642,6 +660,17 @@ _INDEX_MEMBERS: tuple[tuple[str, str], ...] = (
     ("findings/", "Investigation experiment results (if any)."),
     ("diagrams/", "d2 diagram sources beside their `.png` renders, per the `diagram-authoring` skill."),
     ("assets/", "Attachments and other generated artifacts (not diagrams — those live in `diagrams/`)."),
+    # EXECUTION-TIME MEMBER (REQ-PLAN-081(a), plan-056 Issue 2.3). A plan that ships its own
+    # instruments creates `scripts/` DURING EXECUTION — after `seed_index` has already run —
+    # so it was invisible to the reserved listing forever.
+    #
+    # `scripts/` ONLY. `assets/` is NOT added here, and the distinction is the point: it has
+    # been in this set since plan-029 and goes unlisted for a DIFFERENT reason —
+    # `_index_member_present` is evaluated at SEED TIME, and an empty `assets/` is absent from
+    # every clone because git does not track empty directories. Re-adding it would be a no-op
+    # that looks like a fix while leaving the real cause — a one-shot seed over a growing
+    # bundle — untouched. That cause is REQ-PLAN-081(b)'s three `reindex_write` call sites.
+    ("scripts/", "Executable checks and helpers this plan ships for its own criteria."),
     ("plan-retrospective.md", "Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE)."),
 )
 
@@ -797,7 +826,18 @@ def _ensure_index_lists_member(plan_dir: Path, member: str) -> bool:
     desc = next((d for m, d in _INDEX_MEMBERS if m == member), "")
     bullet = f"- [{member}]({member})" + (f" - {desc}" if desc else "") + "\n"
     lines = text.splitlines(keepends=True)
-    last = max((i for i, ln in enumerate(lines) if ln.startswith("- [")), default=None)
+    # THE LAST BULLET OF *ANY* INDENTATION (plan-056 Issue 2.4). `ln.startswith("- [")`
+    # matched only COLUMN-0 bullets, so on a GROUPED index — a top-level member followed by
+    # its indented children — the "last bullet" resolved to the last GROUP HEADING, and the
+    # new entry was inserted BETWEEN that heading and its own children. Every child of the
+    # final group was thereby REPARENTED under the newly added member.
+    #
+    # Red today for plan-048, plan-049 and plan-050, whose indexes all end in a group.
+    #
+    # NO NEW REQ: this restores the behaviour REQ-PLAN-010's index contract already implies,
+    # so it is a bug fix to a shipped requirement rather than a behaviour change.
+    last = max((i for i, ln in enumerate(lines)
+                if re.match(r"^[ \t]*[-*][ \t]+\[", ln)), default=None)
     if last is None:
         text = text.rstrip("\n") + "\n\n" + bullet
     else:
@@ -823,7 +863,18 @@ def _ensure_index_lists_retrospective(plan_dir: Path) -> bool:
     desc = next((d for m, d in _INDEX_MEMBERS if m == RETROSPECTIVE_FILE), "Execution retrospective.")
     bullet = f"- [{RETROSPECTIVE_FILE}]({RETROSPECTIVE_FILE}) - {desc}\n"
     lines = text.splitlines(keepends=True)
-    last = max((i for i, ln in enumerate(lines) if ln.startswith("- [")), default=None)
+    # THE LAST BULLET OF *ANY* INDENTATION (plan-056 Issue 2.4). `ln.startswith("- [")`
+    # matched only COLUMN-0 bullets, so on a GROUPED index — a top-level member followed by
+    # its indented children — the "last bullet" resolved to the last GROUP HEADING, and the
+    # new entry was inserted BETWEEN that heading and its own children. Every child of the
+    # final group was thereby REPARENTED under the newly added member.
+    #
+    # Red today for plan-048, plan-049 and plan-050, whose indexes all end in a group.
+    #
+    # NO NEW REQ: this restores the behaviour REQ-PLAN-010's index contract already implies,
+    # so it is a bug fix to a shipped requirement rather than a behaviour change.
+    last = max((i for i, ln in enumerate(lines)
+                if re.match(r"^[ \t]*[-*][ \t]+\[", ln)), default=None)
     if last is None:
         text = text.rstrip("\n") + "\n\n" + bullet
     else:
@@ -924,6 +975,10 @@ _Optional._ Terms, acronyms, or project-specific jargon the plan uses.
 
 _Optional._ Anything else a cold reader needs that does not fit above.
 """
+    # DELIBERATELY UNSTAMPED (REQ-DATA-075 exemption). `context.md` is one file per bundle
+    # with one shape, so any derived description here is the SAME STRING in every bundle —
+    # measured, 67 identical copies. A key whose value is constant across the corpus carries
+    # zero information and dilutes the ones that do not.
     path = plan_dir / "context.md"
     path.write_text(content)
     # OKF frontmatter (Issue 3.3): context.md is the Environment concept doc.
@@ -988,7 +1043,11 @@ def _write_upstream_reference(plan_dir: Path, issue: dict) -> Path:
 """
     path.write_text(content)
     # OKF frontmatter (Issue 3.3): each upstream reference is a Reference concept doc.
-    _stamp_okf_type(plan_dir, path)
+    # REQ-DATA-075 (plan-056 Issue 2.1): the description carries the ANSWER, not the
+    # question — the issue's own title, which is what a reader scanning the root index
+    # needs in order to decide whether to open the file.
+    _stamp_okf_type(plan_dir, path,
+                    description=f"Upstream issue #{number} - {issue.get('title', '')}".strip())
     return path
 
 
@@ -1032,6 +1091,10 @@ Anything else relevant?
 
 **Answer:**
 """
+    # DELIBERATELY UNSTAMPED (REQ-DATA-075 exemption), same ground as `context.md`: one file
+    # per bundle, one shape, so a derived description is a constant across the corpus. It is
+    # also a TRANSIENT authoring surface — the operator fills it in and the answers migrate
+    # into plan.md — so it is not a concept document a listing entry helps a reader find.
     path = plan_dir / "scope-answers.md"
     path.write_text(content)
     # OKF frontmatter (Issue 3.3): a non-reserved bundle .md — REQ-PORT-050.
@@ -1082,7 +1145,14 @@ def seed_upstream_triage(plan_dir: Path, objective: str,
     path = plan_dir / "upstream-triage.md"
     path.write_text("\n".join(lines))
     # OKF frontmatter (Issue 3.3): upstream-triage.md is typed Reference (§1a).
-    _stamp_okf_type(plan_dir, path)
+    _stamp_okf_type(
+        plan_dir, path,
+        # REQ-DATA-075: a FIXED statement of what the file records. Fixed rather than
+        # derived because the useful variable content — the dispositions themselves —
+        # is the file's body, and a description restating it would go stale on every
+        # re-triage while the body stayed correct.
+        description="Disposition of each candidate upstream issue, with the reasoning "
+                    "behind it — the triage record behind plan.md's Upstream Issues table.")
     # List it the moment it exists (REQ-PORT-001, plan-046 Issue 4.2a). The scaffold
     # emits only members present AT SCAFFOLD TIME, and triage runs later — measured
     # as `upstream-triage.md` unlisted in 8 of 19 root indexes, one systematic
@@ -1326,6 +1396,39 @@ def parked_cmd(as_json: bool):
         click.echo(f"  {p['id']:<35} {p['objective']}")
 
 
+#: The three lifecycle moments at which the reserved listing is regenerated
+#: (REQ-PLAN-081(b), plan-056 Issue 2.3). Three rather than one because the three bracket
+#: the phases that CREATE members: triage and `references/` land by intake; `scripts/` and
+#: `findings/` by execute-start; `plan-retrospective.md` and `reviews/` by close.
+_REINDEX_STATUSES: frozenset[str] = frozenset({"approved", "executing", "complete"})
+
+
+def _reindex_bundle_listing(plan_dir: Path) -> dict:
+    """Regenerate the bundle's reserved listing, preserving author prose.
+
+    REQ-PLAN-081(b). `reindex_write`, NEVER `seed_index`: regeneration must preserve prose
+    outside the listing run (REQ-OKF-072), and `seed_index` overwrites the file wholesale.
+
+    FAIL-SOFT BY CONSTRUCTION. This is bookkeeping attached to a status transition, and a
+    listing that could not be regenerated must never block the transition itself — the
+    status write is the operator's actual intent and is already complete by the time this
+    runs. A marker imbalance is reported, not raised: it is the one condition REQ-OKF-072
+    calls unrecoverable, so refusing to touch the file is the correct response.
+    """
+    try:
+        res = okf.reindex_write(plan_dir)
+        return {"verdict": res.get("verdict"), "changes": res.get("changes", []),
+                "warnings": res.get("warnings", [])}
+    except okf.MarkerImbalanceError as exc:
+        return {"verdict": "inconclusive", "reason": str(exc),
+                "remediation": ("Unbalanced generated-region marker in index.md — "
+                                "regenerating would discard prose unrecoverably. Balance "
+                                "the markers, then run `plan_manager.py index-add "
+                                "<plan-dir> . --regenerate`.")}
+    except Exception as exc:  # noqa: BLE001 - bookkeeping must never block a transition
+        return {"verdict": "inconclusive", "reason": f"reindex failed: {exc}"}
+
+
 @cli.command()
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.argument("status")
@@ -1456,9 +1559,18 @@ def update_status(plan_dir: str, status: str, message: str, override_ready_check
     if not already:
         okf.append_log(Path(plan_dir), entry, date=today)
 
+    # LIFECYCLE REGENERATION (REQ-PLAN-081(b)). `seed_index` runs ONCE, at `init`, so every
+    # member the bundle grows afterwards was unlisted forever — and measured at scoping,
+    # NOTHING ever regenerated it: `reindex` appeared in no CHANGE-VALIDATION row, no CI
+    # step, and no call site here.
+    reindex_result = None
+    if status in _REINDEX_STATUSES:
+        reindex_result = _reindex_bundle_listing(Path(plan_dir))
+
     click.echo(json.dumps({
         "status": status, "date": today, "log_entry": log_entry,
         "appended": not already, "deduped": already,
+        "reindex": reindex_result,
     }))
 
 
@@ -1660,6 +1772,72 @@ def record_epic(plan_dir: str, epic_id: str):
         "epic_field": "written",
         "intake_log_entry": None if intake_present else intake_entry,
     }))
+
+
+@cli.command("index-add")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.argument("path")
+@click.argument("description", required=False, default=None)
+@click.option("--regenerate", is_flag=True,
+              help="Instead of adding one entry, regenerate the whole listing (reindex --write).")
+@click.option("--check", is_flag=True,
+              help="With --regenerate: report drift without writing (reindex --check).")
+@click.option("--json", "as_json", is_flag=True, help="Emit a JSON verdict.")
+def index_add(plan_dir: str, path: str, description: str | None,
+              regenerate: bool, check: bool, as_json: bool):
+    """Add one entry to a bundle's reserved `index.md`, or regenerate the listing.
+
+    REQ-PLAN-081(c). This is a NEW PUBLIC SURFACE, and it exists because index
+    regeneration was measured **unreachable from the CLI**: `seed_index` is callable only
+    from `init`, so an operator who noticed index drift had no supported repair short of
+    editing `index.md` by hand — which is how the nine drifting bundles came to drift.
+
+    `--regenerate` routes to the engine's `reindex_write`, never to `seed_index`:
+    regeneration must PRESERVE AUTHOR PROSE (REQ-OKF-072), and `seed_index` overwrites the
+    file wholesale.
+    """
+    pdir = Path(plan_dir)
+    if regenerate:
+        try:
+            res = (okf.reindex_check(pdir) if check
+                   else okf.reindex_write(pdir))
+        except okf.MarkerImbalanceError as exc:
+            out = {"verdict": "inconclusive", "reason": str(exc),
+                   "remediation": ("An unbalanced generated-region marker leaves the region "
+                                   "unbounded; regenerating would discard prose "
+                                   "unrecoverably. Balance the markers, then re-run.")}
+            click.echo(json.dumps(out, indent=1))
+            sys.exit(okf.REINDEX_EXIT["inconclusive"])
+        click.echo(json.dumps(res, indent=1))
+        sys.exit(res.get("exit", 0))
+
+    index = pdir / "index.md"
+    if not index.exists():
+        click.echo(json.dumps({"verdict": "inconclusive", "plan_dir": plan_dir,
+                               "reason": f"no reserved index.md under {plan_dir}",
+                               "remediation": "Run `/yf-okf migrate` or re-seed the bundle."},
+                              indent=1))
+        sys.exit(2)
+    target = pdir / path.rstrip("/")
+    if not target.exists():
+        # A LISTING MEMBER MUST EXIST. Listing something absent asserts a fact that is false
+        # in every clone, and generates the `empty-dir`/`ghost` drift `reindex` reports.
+        click.echo(json.dumps({"verdict": "fail", "plan_dir": plan_dir, "path": path,
+                               "reason": f"{path} does not exist in the bundle",
+                               "remediation": "Create the member first; an index never "
+                                              "asserts a path that is not there."}, indent=1))
+        sys.exit(1)
+    before = index.read_text(encoding="utf-8")
+    if f"]({path})" in before:
+        click.echo(json.dumps({"verdict": "pass", "plan_dir": plan_dir, "path": path,
+                               "added": False, "reason": "already listed (idempotent)"},
+                              indent=1))
+        sys.exit(0)
+    okf.add_index_entry(pdir, path, description or "")
+    click.echo(json.dumps({"verdict": "pass", "plan_dir": plan_dir, "path": path,
+                           "added": True,
+                           "description": (description or None)}, indent=1))
+    sys.exit(0)
 
 
 @cli.command("clear-epic")
@@ -2827,10 +3005,20 @@ def gate_consistency_cmd(plan_dir: str, json_output: bool):
               help="Emit the structured verdict (default is also JSON).")
 @click.option("--timeout", default=300, show_default=True,
               help="Per-criterion command timeout, in seconds.")
-def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
+@click.option("--advisory", is_flag=True,
+              help="Report an unjudged class-A criterion without halting (REQ-PLAN-080).")
+@click.option("--require-evaluated", "require_evaluated", default=None, type=float,
+              help="Minimum evaluated/class-A fraction. Default 1.0 at the completion binding.")
+def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
+                     advisory: bool, require_evaluated: float | None):
     """Re-evaluate every clause-form Success Criterion at completion (REQ-PLAN-080).
 
-    Exit: 0 every evaluated criterion holds · 1 at least one is FALSE · 2 INCONCLUSIVE.
+    Exit: 0 every evaluated criterion holds · 1 at least one is FALSE, **or a class-A
+    criterion went UNJUDGED at the completion binding** · 2 INCONCLUSIVE.
+
+    The middle case is `HARNESS_INCOMPLETE` (plan-056 Issue 1.10, #265) — see the verdict
+    block at the end of this function for why it is a THIRD verdict rather than a reuse of
+    either neighbour.
     """
     depth = 0
     try:
@@ -2930,8 +3118,42 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
         results.append(rec)
 
     total = len(rows)
+
+    # THE UNJUDGED POPULATION (REQ-PLAN-080 as amended, #265). A class-A row that produced
+    # neither `holds` nor `FALSE` was counted in NEITHER `failed` NOR `evaluated`, so it
+    # simply vanished from the arithmetic below: one green criterion alongside any number of
+    # unjudged ones yielded PASS, exit 0, and the reason string "all 1 evaluated
+    # criterion/criteria hold" — true as written, profoundly misleading as read.
+    #
+    # `skipped-self-reference` is EXCLUDED from `unjudged`: it is a deliberate design
+    # decision of this verb (a criterion invoking `recheck-criteria` cannot be run from
+    # inside `recheck-criteria`), not a harness failure. Counting it would make the
+    # completion binding permanently unreachable for any plan that writes such a criterion.
+    unjudged = [r["id"] for r in results
+                if r.get("kind") == "clause"
+                and r.get("status") not in ("holds", "FALSE", "skipped-self-reference")]
+    self_ref = [r["id"] for r in results if r.get("status") == "skipped-self-reference"]
+    judgeable = class_a - len(self_ref)
+
+    # THE COMPLETION BINDING is depth 0 — the same load-bearing guard REQ-PLAN-080 already
+    # declares. A NESTED run (depth >= 1) is a criterion's own command routed through the
+    # plan's harness; it reports and never halts, because halting there would make every
+    # fixture-driven control fail under the close chain while passing standalone.
+    at_completion = (depth == 0) and not advisory
+    threshold = require_evaluated if require_evaluated is not None else 1.0
+    met = (evaluated >= threshold * judgeable) if judgeable else True
+
     out = {
         **base,
+        # EMITTED ON EVERY PATH, INCLUDING `PASS` (REQ-PLAN-080). A field emitted only on
+        # the failing path cannot be used to detect the condition BEFORE it becomes one,
+        # which is exactly how `evaluated_fraction` came to be consumed by nothing.
+        "harness_incomplete": bool(unjudged),
+        "unjudged": unjudged,
+        "skipped_self_reference": self_ref,
+        "judgeable": judgeable,
+        "at_completion_binding": at_completion,
+        "require_evaluated": threshold,
         # TWO DISTINCT FIELDS, never one conflated "coverage". They answer different
         # questions: how much of the plan is machine-readable AT ALL, versus how much this
         # run actually managed to evaluate. A single number lets a plan whose criteria are
@@ -2953,6 +3175,34 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
         click.echo(json.dumps(out, indent=1))
         sys.exit(1)
 
+    # HARNESS_INCOMPLETE — a THIRD verdict, and the distinction is the whole point:
+    #
+    #   FAIL                a criterion was judged and is FALSE          exit 1
+    #   HARNESS_INCOMPLETE  a criterion the plan DECLARES judgeable      exit 1
+    #                       was NOT judged
+    #   INCONCLUSIVE        NOTHING was judgeable                        exit 2
+    #
+    # Collapsing the middle into either neighbour is the same two-facts-one-signal
+    # conflation as `doc_lint`'s `not-selected` vs `no-such-path` (#181), `resume-scan`'s
+    # `found` (#207) and `reindex`'s `no-index` vs `no-such-path` (REQ-OKF-011).
+    #
+    # It is checked BEFORE the `evaluated == 0` arm below, and the order is forced: with
+    # `evaluated == 0` and `judgeable > 0` the plan carries class-A criteria NONE of which
+    # ran, which is a harness failure, not "the plan has no machine-readable criteria".
+    if at_completion and unjudged and not met:
+        out.update({"verdict": "HARNESS_INCOMPLETE", "severity": "error",
+                    "reason": (f"{len(unjudged)} class-A criterion/criteria went UNJUDGED at "
+                               f"the completion binding ({evaluated} of {judgeable} judged, "
+                               f"threshold {threshold}): {', '.join(unjudged)}"),
+                    "remediation": ("Each criterion above is declared machine-readable and was "
+                                    "not judged this run — the harness could not run it, not "
+                                    "that it holds. Repair the instrument (see each row's "
+                                    "`detail`), or, if the criterion is genuinely not "
+                                    "machine-checkable, rewrite its Verification cell so it is "
+                                    "not class-A. Re-run §6.4.")})
+        click.echo(json.dumps(out, indent=1))
+        sys.exit(1)
+
     if evaluated == 0:
         # INCONCLUSIVE MAPS TO `warn` AND NEVER HARD-FAILS COMPLETION (REQ-DATA-057
         # precedent). Measured over `docs/plans/plan-*/plan.md`: 6 of 52 bundles carry the
@@ -2964,8 +3214,16 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int):
         click.echo(json.dumps(out, indent=1))
         sys.exit(2)
 
-    out.update({"verdict": "PASS", "severity": "ok",
-                "reason": f"all {evaluated} evaluated criterion/criteria hold"})
+    reason = f"all {evaluated} evaluated criterion/criteria hold"
+    if unjudged:
+        # The PASS path says so OUT LOUD. A green that silently hides unjudged rows is the
+        # shape #265 filed; even where the threshold permits it, the reader must be told.
+        reason += (f" — but {len(unjudged)} class-A criterion/criteria went UNJUDGED "
+                   f"({', '.join(unjudged)}); "
+                   + ("advisory run, not halting" if advisory or depth
+                      else f"permitted by --require-evaluated {threshold}"))
+    out.update({"verdict": "PASS", "severity": "warn" if unjudged else "ok",
+                "reason": reason})
     click.echo(json.dumps(out, indent=1))
     sys.exit(0)
 
@@ -5232,6 +5490,24 @@ def _audit_plan(plan_dir: Path) -> dict:
     #    audit finding; warning-level — type-vocab / required-key backfill — never a
     #    hard fail, matching the ratified error/warning split). Downgraded to `warn`
     #    for an OKF-legacy plan (grandfathered or un-migrated), `fail` for OKF-native.
+    # WALK SITES 4 and 5 of 5 (REQ-OKF-CHK-003, plan-056 Issue 1.3). The member's §3b
+    # exclusions must reach the AUDIT too, not only the engine — #233 is precisely the case
+    # where they did not: `okf.check_conformance` is one walk, and `_audit_plan` performs two
+    # MORE of its own (the `okf_spec`-value scan below, and the dangling-refs scan at step 6).
+    # An exclusion honoured by the engine and not by the audit is worse than none, because the
+    # operator cannot silence the finding at its declared source.
+    _ext_excludes: list[str] = []
+    try:
+        _ext_excludes = list(okf.resolve_extension(SKILL_NAME).exclude_globs)
+    except Exception:
+        _ext_excludes = []
+
+    def _okf_excluded(rel_path) -> bool:
+        try:
+            return okf.is_excluded(Path(rel_path).as_posix(), _ext_excludes)
+        except Exception:
+            return False
+
     try:
         conf = okf.check_conformance(plan_dir, skill=SKILL_NAME)
         for cf in conf.findings:
@@ -5255,6 +5531,8 @@ def _audit_plan(plan_dir: Path) -> dict:
     # by the conformance pass above.
     for md in sorted(plan_dir.rglob("*.md")):
         if md.name in okf.RESERVED_FILES:
+            continue
+        if _okf_excluded(md.relative_to(plan_dir)):
             continue
         try:
             fm, _ = okf.read_frontmatter(md.read_text())
@@ -5329,6 +5607,10 @@ def _audit_plan(plan_dir: Path) -> dict:
         if not path.is_file():
             continue
         if path.suffix not in (".md", ".txt", ""):
+            continue
+        # A fixture corpus legitimately contains absolute paths and `../` traversals — they
+        # are the RECORDED INPUT of a past run, not references this bundle makes.
+        if _okf_excluded(path.relative_to(plan_dir)):
             continue
         try:
             text = path.read_text()

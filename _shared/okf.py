@@ -29,11 +29,12 @@ divergence).
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Optional, Union
@@ -512,6 +513,14 @@ class ExtensionRuleset:
     #: (e.g. ``**ID:**`` -> ``id``). The REQ-OKF-010 placement check flags only these
     #: known metadata labels below the first ``## `` — never arbitrary bold prose.
     field_labels: list[str] = field(default_factory=list)
+    #: Bundle-relative EXCLUSION globs declared in the member's **§3b Excluded paths**
+    #: table (REQ-OKF-CHK-003, plan-056 Issue 1.2). Applied at EVERY walk site — an
+    #: exclusion honoured by some walks and not others is worse than none, because the
+    #: operator cannot silence a finding at its declared source.
+    #:
+    #: An ABSENT §3b yields an EMPTY list. That is a legal and common state, never an
+    #: error: most members declare no exclusions.
+    exclude_globs: list[str] = field(default_factory=list)
 
 
 def _self_location() -> dict:
@@ -610,6 +619,23 @@ def parse_extension(text: str, skill: Optional[str], source: Optional[str]) -> E
         if m4 and m4.group(1).endswith("/"):
             rs.reserved_subdirs.append(m4.group(1))
 
+    # §3b EXCLUDED PATHS (REQ-OKF-CHK-003) — backticked bundle-relative globs.
+    #
+    # Matched with `fnmatch`, NOT `_glob_match`. `_glob_match` is `PurePosixPath.match`,
+    # which cannot express a recursive `**` — and every exclusion this concept exists to
+    # declare is recursive (`assets/fixtures/**`, `findings/okf-migration-samples/**`). A
+    # matcher that silently cannot express the patterns it is handed is a control that
+    # cannot fire, which is the defect class this requirement was written against.
+    #
+    # The section is matched on "Excluded" so it is found whether the member titles it
+    # "§3b Excluded paths" or "Excluded paths"; it must NOT collide with §3's
+    # "Reserved subdirs / files", which is why that lookup above uses "Reserved".
+    exc_sec = _section(text, "Excluded")
+    for row in _table_rows(exc_sec)[1:]:
+        me = _BACKTICK_RE.search(row[0])
+        if me and me.group(1).strip():
+            rs.exclude_globs.append(me.group(1).strip())
+
     # role -> type map (REQ-OKF-MIG-004) — the "Migration: role -> type map" table.
     # First column: a bundle-relative path glob; second column: the assigned type.
     # A ``*`` catch-all row seeds default_type (and never records a fallback finding).
@@ -671,6 +697,35 @@ def parse_extension(text: str, skill: Optional[str], source: Optional[str]) -> E
         rs.main_type = rs.type_vocab[0]
 
     return rs
+
+
+def is_excluded(rel: str, exclude_globs: Sequence[str]) -> bool:
+    """Is bundle-relative POSIX path ``rel`` excluded by any of ``exclude_globs``?
+
+    REQ-OKF-CHK-003. **`fnmatch`, deliberately, and never `_glob_match`.** `_glob_match`
+    is `PurePosixPath.match`, which has no recursive `**` — so `assets/fixtures/**` would
+    match `assets/fixtures/x.md` and NOT `assets/fixtures/deep/x.md`, silently excluding
+    one level and inspecting the rest. `fnmatch` treats `*` as "any characters including
+    `/`", which is the semantics a `**` glob is written to express here.
+
+    A trailing `/**` also matches the directory itself, so `findings/samples/**` excludes
+    `findings/samples` as well as everything under it — otherwise the directory would be
+    reported as a listing member while all its contents were excluded.
+
+    An empty ``exclude_globs`` excludes nothing (the common case).
+    """
+    if not exclude_globs:
+        return False
+    r = str(rel).strip().lstrip("./")
+    for g in exclude_globs:
+        g = str(g).strip()
+        if not g:
+            continue
+        if fnmatch.fnmatch(r, g):
+            return True
+        if g.endswith("/**") and (r == g[:-3] or fnmatch.fnmatch(r, g[:-3])):
+            return True
+    return False
 
 
 def _glob_match(rel: str, glob: str) -> bool:
@@ -799,6 +854,8 @@ def _is_single_file_bundle(target: Path) -> bool:
 def check_conformance(
     bundle: Union[str, Path],
     skill: Optional[str] = None,
+    *,
+    use_exclude: bool = True,
 ) -> Findings:
     """Verify the composed effective ruleset (REQ-OKF-FAM-001) over ``bundle``
     (REQ-OKF-CHK-001). Checks: reserved ``index.md``/``log.md`` structure
@@ -810,10 +867,17 @@ def check_conformance(
 
     **Report-only and crash-safe (REQ-OKF-071):** malformed YAML / unreadable /
     binary input records a finding and continues — this never raises.
+
+    ``use_exclude=False`` is the **positive control** (REQ-OKF-CHK-003, plan-056 Issue
+    1.4), mirroring ``doc_lint``'s ``--no-exclude``: it ignores the member's §3b so the
+    suppressed findings reappear. An exclusion nothing can turn off is indistinguishable
+    from a check that never fired.
     """
     target = Path(bundle)
     eff = compose_ruleset(skill)
     findings = Findings(ruleset=eff)
+    # WALK SITE 1 of 3 in this module (REQ-OKF-CHK-003).
+    excludes = list(eff.extension.exclude_globs) if use_exclude else []
 
     # Single-file-bundle exemption (REQ-OKF-050): a lone .md, no owning dir.
     if _is_single_file_bundle(target):
@@ -824,7 +888,8 @@ def check_conformance(
         findings.add(str(target), "REQ-OKF-CHK-001", "error", "bundle path is neither a dir nor a .md file")
         return findings
 
-    md_files = [p for p in sorted(target.rglob("*.md"))]
+    md_files = [p for p in sorted(target.rglob("*.md"))
+                if not is_excluded(p.relative_to(target).as_posix(), excludes)]
     non_reserved = [p for p in md_files if p.name not in eff.reserved_files]
 
     # dir-form bundle must carry reserved index.md / log.md at its root
@@ -1199,10 +1264,18 @@ def migrate(
                     plan.add("error", "log.md", message=str(exc))
 
     # 3. Add type/okf_spec (+ dual-field mirror) to non-reserved .md lacking it.
+    #
+    # WALK SITE 2 of 3 (REQ-OKF-CHK-003). Migration MUST honour the member's §3b for a
+    # stronger reason than `check` does: stamping frontmatter onto a deliberate
+    # non-conformant fixture does not merely produce a spurious finding, it DESTROYS the
+    # fixture — the file's non-conformance is the thing under test.
+    _mig_excludes = list(ext.exclude_globs)
     for md in sorted(d.rglob("*.md")):
         if md.name in RESERVED_FILES:
             continue
         rel = str(md.relative_to(d))
+        if is_excluded(PurePosixPath(rel).as_posix(), _mig_excludes):
+            continue
         if index_renamed and rel == index_renamed:
             continue  # becomes reserved index.md
         try:
@@ -1278,8 +1351,24 @@ INDEX_MARKERS: tuple[tuple[str, str], ...] = (
 _INDEX_ENTRY_RE = re.compile(r"^[ \t]*[-*][ \t]+\[(?P<title>[^\]]*)\]\((?P<target>[^)]+)\)"
                              r"(?:[ \t]+-[ \t]+(?P<desc>.*?))?[ \t]*$", re.MULTILINE)
 
-# reindex verdicts, mapped to the process exit code (REQ-OKF-011).
-REINDEX_EXIT = {"clean": 0, "drift": 1, "no-index": 2}
+# reindex verdicts, mapped to the process exit code (REQ-OKF-011, amended plan-056
+# Issue 0.1/1.1). FIVE-WAY, not three-way.
+#
+# `no-such-path` (3) IS SPLIT OUT OF `no-index` (2), and the split is the point. Both states
+# reached the same `if not idx.exists()` line, so a MISTYPED OR MOVED bundle path reported
+# `no-index` — indistinguishable from a real index-less bundle. Any driver that tolerates
+# `no-index` (as a corpus sweep over a mixed corpus must, since most bundles have none) then
+# read a typo as a benign skip and certified a corpus it never inspected. Same
+# two-facts-one-signal conflation as `doc_lint`'s `not-selected` vs `no-such-path` (#181) and
+# `resume-scan`'s `found` (#207).
+#
+# `inconclusive` (4) is a statement about the INSTRUMENT, never about the artifact: the index
+# is there and could not be judged. Callers must treat it as "repair the harness, then re-run"
+# — never as clean, never as drift.
+#
+# 126/127 stay reserved to the shell (REQ-CLI-029), so a non-executable or absent engine can
+# never be mistaken for a verdict.
+REINDEX_EXIT = {"clean": 0, "drift": 1, "no-index": 2, "no-such-path": 3, "inconclusive": 4}
 
 
 class MarkerImbalanceError(Exception):
@@ -1306,14 +1395,30 @@ def check_markers(text: str) -> None:
                 f"{text.count(end)}x {end!r} — refusing to regenerate, prose would be lost")
 
 
-def _listing_members(bundle: Path) -> list[str]:
+def _listing_members(bundle: Path, exclude_globs: Optional[Sequence[str]] = None) -> list[str]:
     """Direct children that belong in a root listing: files and non-empty subdirs.
 
     Reserved files and dot-prefixed entries are excluded (REQ-OKF-001/031).
+
+    WALK SITE 3 of 3 (REQ-OKF-CHK-003): a member-declared §3b glob additionally removes
+    a child from the listing. This site matters even though it enumerates only DIRECT
+    children — an excluded top-level directory (`assets/fixtures/**` under a bundle whose
+    `assets/` holds nothing else) would otherwise be reported `missing` by `reindex_check`
+    and appended by `reindex_write`, so the two would disagree with `check` about the same
+    path. `None` means "resolve the member's own globs"; an explicit `[]` disables them
+    (the `--no-exclude` control).
     """
+    if exclude_globs is None:
+        try:
+            exclude_globs = resolve_extension().exclude_globs
+        except Exception:
+            exclude_globs = []
     out: list[str] = []
     for child in sorted(bundle.iterdir()):
         if child.name in RESERVED_FILES or child.name.startswith("."):
+            continue
+        if is_excluded(child.name + ("/" if child.is_dir() else ""), exclude_globs) \
+                or is_excluded(child.name, exclude_globs):
             continue
         if child.is_dir():
             # An EMPTY directory is not a listing member. git does not track empty
@@ -1376,12 +1481,49 @@ def reindex_check(bundle: Union[str, Path]) -> dict:
     idx = b / "index.md"
     result: dict = {"command": "reindex", "mode": "check", "bundle": str(b),
                     "verdict": "clean", "findings": [], "counts": {}}
+
+    # `no-such-path` BEFORE `no-index` (REQ-OKF-011, plan-056 Issue 1.1). The path not
+    # existing at all is a CALLER BUG; the path existing without an `index.md` is an ordinary
+    # corpus state. These used to be the same branch, which is what let a typo read as a skip.
+    if not b.is_dir():
+        result["verdict"] = "no-such-path"
+        result["reason"] = (f"{b} does not exist or is not a directory — "
+                            "this is a caller error, not an index-less bundle")
+        result["exit"] = REINDEX_EXIT["no-such-path"]
+        return result
+
     if not idx.exists():
         result["verdict"] = "no-index"
         result["exit"] = REINDEX_EXIT["no-index"]
         return result
 
-    text = idx.read_text()
+    # INCONCLUSIVE arm (REQ-OKF-011, plan-056 Issue 1.1). Two ways the index can be present
+    # and unjudgeable, and neither may be reported as `clean`.
+    try:
+        text = idx.read_text()
+    except OSError as exc:
+        result["verdict"] = "inconclusive"
+        result["reason"] = f"index.md could not be read: {exc}"
+        result["exit"] = REINDEX_EXIT["inconclusive"]
+        return result
+
+    # `--check` NOW RUNS `check_markers`. Until plan-056 it did not call it AT ALL, so a
+    # marker-imbalanced index — the one condition REQ-OKF-072 calls *unrecoverable* — was
+    # reported `clean`, exit 0. Certifying it clean is worse than silence: it is the only path
+    # by which a green `--check` precedes the `--write` that then hard-errors and would have
+    # discarded prose. It is INCONCLUSIVE rather than `drift` because the generated-region
+    # boundaries are undefined, so the drift question cannot be answered either way.
+    try:
+        check_markers(text)
+    except MarkerImbalanceError as exc:
+        result["verdict"] = "inconclusive"
+        result["reason"] = str(exc)
+        result["findings"] = [{"kind": "marker-imbalance", "entry": "index.md",
+                               "target": "index.md", "detail": str(exc)}]
+        result["counts"] = {"ghost": 0, "missing": 0, "empty-dir": 0, "marker-imbalance": 1}
+        result["exit"] = REINDEX_EXIT["inconclusive"]
+        return result
+
     entries = _index_entries(text)
     findings: list[dict] = []
 
@@ -1478,6 +1620,15 @@ def reindex_write(bundle: Union[str, Path], *, root: bool = True,
     idx = b / "index.md"
     out: dict = {"command": "reindex", "mode": "write", "bundle": str(b),
                  "verdict": "clean", "changes": [], "warnings": [], "dry_run": dry_run}
+    # Same `no-such-path` / `no-index` split as `reindex_check` (REQ-OKF-011). The two modes
+    # must agree on the vocabulary, or a caller that checks then writes gets two different
+    # answers about the same path.
+    if not b.is_dir():
+        out["verdict"] = "no-such-path"
+        out["reason"] = (f"{b} does not exist or is not a directory — "
+                         "this is a caller error, not an index-less bundle")
+        out["exit"] = REINDEX_EXIT["no-such-path"]
+        return out
     if not idx.exists():
         out["verdict"] = "no-index"
         out["exit"] = REINDEX_EXIT["no-index"]
@@ -1537,9 +1688,16 @@ def reindex_write(bundle: Union[str, Path], *, root: bool = True,
 
 
 def _cmd_check(args) -> int:
-    findings = check_conformance(args.dir, skill=args.skill)
+    use_exclude = not getattr(args, "no_exclude", False)
+    findings = check_conformance(args.dir, skill=args.skill, use_exclude=use_exclude)
     if args.json:
-        out = {"command": "check", "dir": str(args.dir), **findings.as_dict()}
+        out = {"command": "check", "dir": str(args.dir),
+               # Reported on EVERY path, so a caller can tell an excluded-clean run from
+               # an unexcluded-clean one without re-deriving it (REQ-OKF-CHK-003).
+               "use_exclude": use_exclude,
+               "exclude_globs": list(findings.ruleset.extension.exclude_globs)
+                                if use_exclude else [],
+               **findings.as_dict()}
         print(json.dumps(out, indent=2))
     else:
         print(f"check {args.dir}: {'OK' if findings.ok else 'FAIL'} "
@@ -1562,15 +1720,22 @@ def _cmd_migrate(args) -> int:
 
 
 def _cmd_reindex(args) -> int:
-    """`reindex` exits 0 clean / 1 drift / 2 no-index (REQ-OKF-011)."""
+    """`reindex` exits 0 clean / 1 drift / 2 no-index / 3 no-such-path / 4 inconclusive.
+
+    Five-way since plan-056 Issue 1.1 (REQ-OKF-011). 126/127 stay reserved to the shell.
+    """
     try:
         res = reindex_write(args.dir, dry_run=args.dry_run) if args.write \
             else reindex_check(args.dir)
     except MarkerImbalanceError as exc:
-        res = {"command": "reindex", "bundle": str(args.dir), "verdict": "error",
-               "error": str(exc), "exit": 1}
+        # `--write` still HARD-ERRORS on an imbalance: regeneration would discard prose
+        # unrecoverably, so refusing is correct there. `--check` no longer reaches this
+        # handler — it returns `inconclusive` (4) instead, because a read-only check that
+        # cannot judge is a statement about the instrument, not a refusal to act.
+        res = {"command": "reindex", "bundle": str(args.dir), "verdict": "inconclusive",
+               "error": str(exc), "exit": REINDEX_EXIT["inconclusive"]}
         print(json.dumps(res, indent=2) if args.json else f"reindex {args.dir}: ERROR — {exc}")
-        return 1
+        return REINDEX_EXIT["inconclusive"]
     if args.json:
         print(json.dumps({k: v for k, v in res.items() if k != "text"}, indent=2))
     else:
@@ -1604,6 +1769,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     p_check = sub.add_parser("check", parents=[common], help="conformance self-check (report-only)")
     p_check.add_argument("dir", type=Path)
+    # THE POSITIVE CONTROL (REQ-OKF-CHK-003, plan-056 Issue 1.4). Mirrors `doc_lint`'s flag
+    # of the same name. Without it, "the exclusions are working" and "the check never ran"
+    # are the same observation.
+    p_check.add_argument("--no-exclude", action="store_true",
+                         help="ignore the member's §3b exclusions (positive control)")
     p_check.set_defaults(func=_cmd_check)
 
     p_mig = sub.add_parser("migrate", parents=[common], help="opt-in in-place migration")

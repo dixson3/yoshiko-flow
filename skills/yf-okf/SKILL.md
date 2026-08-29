@@ -267,3 +267,21 @@ does not drag consumers into an install group.
 - **No runtime cross-skill file read** to compose the ruleset (GR-OKF-003). BASELINE +
   YF-EXTENSIONS are baked into `okf.py`; only the per-skill member is resolved, `__file__`-relative.
 - `SPEC.md` / `spec/` are authoritative; if this file disagrees, they win.
+
+## The other structural validation layer
+
+`yf-okf` is **one of two** structural validation engines in this repository, and it is the
+**container** half. The **content** half is `doc_lint.py` (the yf artifact document linter,
+specified in `skills/yf-plan/spec/data.md`), which judges whether a document has the shape its
+declared `type` promises. `yf-okf` never opens a document to check its sections; `doc_lint` never
+asks whether the folder around it is well-formed.
+
+They also differ on two further axes that matter when deciding which one should carry a new check:
+`yf-okf` is **status-blind** (it fires on a `complete` bundle, where `doc_lint`'s terminal-status
+demotion means only **two** checks can — 2 of 51 (snapshot 2026-08-28; the DENOMINATOR moves as schemas are added — the load-bearing claim is the numerator and which two they are)), and it reasons in **bundle-relative** paths where
+`doc_lint` reasons in **repo-relative** ones — which is why the two exclusion lists are
+independently declared rather than derived from each other.
+
+**The boundary, the three axes, the measurements behind them, and the resolution of the one real
+overlap: [`docs/validation-layers.md`](../../docs/validation-layers.md).** Read it before adding a
+check to either layer.

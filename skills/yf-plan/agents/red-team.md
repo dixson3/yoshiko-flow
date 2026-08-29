@@ -106,3 +106,6 @@ code, and nothing in this skill claims to verify it.
 - Every concern includes a recommendation
 - Review against stated objective and scope, not what you think it should cover
 - High blocks approval. Medium prompts discussion. Low is nice-to-have.
+
+
+- **`description:` alongside `type`/`okf_spec` (REQ-DATA-075).** Every non-reserved bundle `.md` you draft also carries a non-empty `description:` in that same frontmatter block. **The description carries the ANSWER or the VERDICT, not the question** — borrowed from the convention that makes `docs/research/**` root indexes the best in this corpus: an entry reading `"[critique] Red-team: the DAG has zero backward cross-epic edges"` tells a reader whether to open the file; one reading `"A finding"` restates the filename and tells them nothing. This is a **hit-rate lever, not enforcement**: the paired linter check ships at `W`, and the producers stamp what they can derive (`plan.md`→its objective, `references/*`→`Upstream issue #N - <title>`). What you add is the part no producer can derive — the finding's actual finding, the review pass's actual verdict. `context.md` and `plan-retrospective.md` are **exempt**: one file per bundle with one shape, so a description there would be the same string in all 67 of them.

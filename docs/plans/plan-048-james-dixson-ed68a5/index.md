@@ -22,3 +22,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - One file per triaged upstream issue, with the full untruncated body, URL, labels and state — so the upstream context survives without network access.
 - [reviews/](reviews/) - Red-team and conformance review records, one file per cycle, with the verdict and per-concern resolutions.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [assets/](assets/) - The measurement record: the drift-edge audit, the free-REQ-id survey that allocated this plan's ids, the pre/post gate measurements, and the residue analysis with its mutant.
+- [scripts/](scripts/) - The plan's executable gates — `gate-grammar.sh` and `gate-relations.sh` over `_common.sh`, driven by `gate-run.sh`.

@@ -336,13 +336,33 @@ def _plan_extract():
 # and across tables of the same bundle — `## Epics`, `## Gates`, `## Success Criteria`,
 # `## Upstream Issues` — which no per-document check can do.
 #
-# EVERY RULE HERE IS SEVERITY `W`, and `STATUS_SEVERITY` promotion is OFF for this kind —
-# declared by REQ-DATA-044 and IMPLEMENTED by REQ-DATA-053's `promote = false` schema key,
-# which `lint()` reads. Before plan-049 Issue 0.2 this sentence described no code. That is deliberate and stated rather than inherited: if `W -> E`
-# fired at `review`, every future plan would hard-fail R1b unless every non-bookkeeping
-# issue were named by a criterion — a bar plan-048 itself does not clear (it carries four
-# such issues). A rule no in-flight plan can satisfy trains authors to write fake criteria,
-# which is the exact failure R1b exists to prevent.
+# THE AUTHORING-TIME RULES ARE SEVERITY `W`. **NOT every rule** — corrected by plan-056
+# Issue 1.6 (#246). This banner read "EVERY RULE HERE IS SEVERITY `W`" from plan-048 until
+# plan-056, and it was FALSE from plan-052 onward, when `R1-closeout` and `R2a-closeout`
+# landed at `E`. A banner three files repeated and the schema contradicted is the same
+# declaration-vs-code drift REQ-DATA-053 was written about, recurring one layer up.
+#
+# `STATUS_SEVERITY` promotion is OFF for this kind — declared by REQ-DATA-044 and
+# IMPLEMENTED by REQ-DATA-053's `promote = false` schema key, which `lint()` reads. Before
+# plan-049 Issue 0.2 this sentence described no code. The opt-out is deliberate and stated
+# rather than inherited: if `W -> E` fired at `review`, every future plan would hard-fail
+# R1b unless every non-bookkeeping issue were named by a criterion — a bar plan-048 itself
+# does not clear (it carries four such issues). A rule no in-flight plan can satisfy trains
+# authors to write fake criteria, which is the exact failure R1b exists to prevent.
+#
+# THE CLOSE-OUT BINDING (REQ-DATA-074) IS THE EXCEPTION, AND IT IS LOAD-BEARING.
+# `R1-closeout` and `R2a-closeout` are separate checks at severity `E`, scoped by
+# `statuses` to `reconciling`/`complete`. They are the **only TWO** checks in the whole
+# `document_types/` set capable of producing an `E` at `bundle_status: complete` —
+# measured 2026-08-28: with the terminal-status demotion disabled the corpus yields 197
+# `E` findings; with it enabled, `errors: 0` over 1116 files. Those two escape *through*
+# `promote = false`: without it, `STATUS_SEVERITY` would demote them at exactly the
+# statuses they are scoped to, disarming the binding at the only moment it can fire.
+#
+# So `promote = false` is doing TWO opposite jobs on this one schema — suppressing an
+# unwanted promotion at `review` and preserving a wanted severity at `complete` — which is
+# why the old one-line banner could not state it correctly and had to be replaced rather
+# than patched.
 
 #: Recognised `Disposition` literals (REQ-DATA-019 as amended by plan-048 D-7).
 DISPOSITIONS = {"include", "exclude", "partial", "supersede", "deferred", "tracker"}
@@ -880,7 +900,68 @@ def select(schema: dict, root: Path, use_exclude: bool = True,
             hits = {p for p in hits
                     if not fnmatch.fnmatch(str(p.relative_to(root)), g)
                     and not fnmatch.fnmatch(str(p.relative_to(root)), g.rstrip("/*") + "/*")}
+        # MEMBER-DECLARED §3b exclusions (REQ-OKF-CHK-003, plan-056 Issue 1.5). This is what
+        # makes D-14's shared mechanism genuinely TWO-SIDED rather than `okf.py`-only: the two
+        # layers still DECLARE independently (different coordinate systems, different
+        # granularities), but each can now READ the other's declaration, so the overlap
+        # invariant is checkable from either side instead of asserted from one.
+        #
+        # The §3b globs are BUNDLE-relative and this function works in REPO-relative paths, so
+        # each is anchored under every bundle root the schema's own `paths` globs reach. Doing
+        # it any other way would make `assets/fixtures/**` mean "any path anywhere containing
+        # that suffix", which is a much broader claim than the member made.
+        for bundle_glob, g in _member_exclusions(schema):
+            hits = {p for p in hits
+                    if not fnmatch.fnmatch(str(p.relative_to(root)), f"{bundle_glob}/{g}")}
     return sorted(hits)
+
+
+#: Cache: resolving a member's OKF-EXTENSION.md is filesystem work, and `select` is called
+#: once per schema per run.
+_MEMBER_EXCLUSION_CACHE: dict[str, list[str]] = {}
+
+
+def _member_exclusions(schema: dict) -> list[tuple[str, str]]:
+    """`(bundle-root-glob, bundle-relative-glob)` pairs from the member's §3b.
+
+    REQ-OKF-CHK-003, the `doc_lint` side of D-14's two-sided mechanism. Returns an empty
+    list when the member declares no §3b, when `okf` is unimportable, or on any parse
+    failure — this is an ADDITIVE suppression, so failing to resolve it must never widen
+    the selected set nor raise. A silent empty list is the safe direction: the schema's own
+    `exclude` list is unaffected.
+    """
+    member = schema.get("okf_member") or _OKF_MEMBER_BY_TYPE.get(schema.get("type", ""))
+    if not member:
+        return []
+    if member not in _MEMBER_EXCLUSION_CACHE:
+        globs: list[str] = []
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import okf as _okf  # noqa: PLC0415
+            globs = list(_okf.resolve_extension(member).exclude_globs)
+        except Exception:
+            globs = []
+        _MEMBER_EXCLUSION_CACHE[member] = globs
+    out: list[tuple[str, str]] = []
+    for bundle_glob in _BUNDLE_ROOTS:
+        for g in _MEMBER_EXCLUSION_CACHE[member]:
+            out.append((bundle_glob, g))
+    return out
+
+
+#: Bundle-root globs the §3b bundle-relative patterns are anchored under.
+_BUNDLE_ROOTS: tuple[str, ...] = (
+    "docs/plans/*", "Incubator/*/plans/*",
+    "docs/research/*", "Incubator/*/research/*",
+)
+
+#: Which skill's `OKF-EXTENSION.md` owns a given document type. A schema may override with
+#: an explicit `okf_member` key; this map is the default for the types that predate it.
+_OKF_MEMBER_BY_TYPE: dict[str, str] = {
+    "plan": "yf-plan", "plan-relations": "yf-plan", "finding": "yf-plan",
+    "review": "yf-plan", "reference": "yf-plan", "upstream-triage": "yf-plan",
+    "plan-retrospective": "yf-plan", "context": "yf-plan",
+}
 
 
 def lint(root: Path, only_type: str | None, only_paths: list[Path] | None,

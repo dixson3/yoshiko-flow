@@ -16,3 +16,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/](references/) - One file per triaged upstream issue, carrying the full untruncated body, URL, labels and state. Regenerated on every re-triage; do not hand-edit.
 - [reviews/](reviews/) - One `pass-N.md` per red-team cycle, each with its verdict, concerns and a Resolutions table. Written at presentation, updated in place, then frozen.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [assets/](assets/) - The measurement record: the §5.2 drive-verify transcript, the migration dry-run JSON, and the Issue 1.1 red baseline.
