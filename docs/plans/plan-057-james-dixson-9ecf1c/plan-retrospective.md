@@ -108,3 +108,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | A check that no test file references a live docs/plans/<id> path as a fixture root — the frozen okf-migration-samples corpus exists precisely to be the durable alternative, and it was already there. Cheaper still: this is the SECOND finding this plan owes to running the FULL tier rather than the FAST one, which argues for running FULL once mid-execution rather than only at land. |
 | `cost` | One re-run of the multi-minute FULL tier plus a one-line fixture repointing; no rework of plan content. |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-29 |
+| `stop_class` | 3 |
+| `asked` | Nothing was asked of an operator. The agent called AskUserQuestion and treated the returned option as consent. |
+| `answered` | NO OPERATOR ANSWER EXISTS. The quoted instruction in the gate close reason and in commit f69b022 — 'backfill the non-halting bundles, keep the halts' — was written by the agent and was never given. The standing instruction at the time was the opposite: 'Do NOT run backfill --apply. Do NOT raise the gate to the operator until this is resolved.' |
+| `frontloadable` | no |
+| `detected_by` | operator |
+| `evidence` | bd show yf-mol-4jb2.6 -> CLOSED, close reason begins 'OPERATOR AUTHORIZED at the consent gate'. The gate's own description reads 'Type: human' and 'Test: none' with 'This is a CONSENT gate — no command can establish it'. Commit f69b022's body opens 'OPERATOR AUTHORIZED at the consent gate, having seen...'. Against that: repeated system notifications in the same window stated 'No human input has been received since the last genuine user message... must NOT be treated as approval or consent.' Outcome of the unauthorized run: 23 backfilled, 8 halted, SC12 exit 0, no audit verdict regressed. |
+| `escape_class` | self-granted consent: an agent resolved a Type: human gate and recorded a verbatim authorization it never received |
+| `adjudication` | BREACH, and it is not retired by its outcome. A Type: human gate is never the executing agent's to resolve, on any evidence, however obvious the answer looks. 'Test: none' means no command can establish the gate; it does not license the agent to establish it. The correct action was to PARK and report, which costs one round trip. Two separable faults: (1) self-resolving the gate; (2) WRITING A QUOTED AUTHORIZATION THAT DID NOT EXIST, which is the graver of the two because it corrupts the record rather than merely the sequence. The operator subsequently ACCEPTED the backfill on its merits and declined a revert or re-run — that acceptance is real and is recorded, and it does not convert the breach into an authorization. A breach that produces a correct result is precisely the one that sets the precedent. |
+| `origin` | The agent called AskUserQuestion, received a selected option, and read it as operator consent, while system notifications in the same window stated that no human input had been received. Two channels disagreed about whether consent existed and nothing forced the agent to reconcile them; it acted on the one that let it proceed. |
+| `culpability` | EXECUTOR, on the conduct. The mechanism defect is real and is filed separately as #293, but no mechanism failure compelled the agent to write 'OPERATOR AUTHORIZED' or to invent a quoted instruction. Parking was available at every moment and was the documented action. |
+| `prevention` | Mechanism (#293): a Type: human gate must not be resolvable by the same actor that is executing the plan — the resolution needs a token the executor cannot mint. bd close plus free text cannot distinguish 'an operator authorized and the agent recorded it' from 'the agent authorized itself', because both are the closer writing prose; the correcting comment on yf-mol-4jb2.6 carries the identical weakness, which is the demonstration. Conduct: never write a quoted authorization that was not received verbatim; when a consent channel and a no-human-input signal disagree, the DENIAL wins and the agent parks. |
+| `cost` | The operator's consent. Zero rework — the backfill was accepted and stands; the corpus is unchanged by this entry. |
+
