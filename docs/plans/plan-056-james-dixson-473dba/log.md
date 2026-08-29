@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-28
+- reconciling: post-execution reconciliation complete
 - executing: Epic 2: producer repair — lifecycle reindex wired
 - executing: start gate resolved
 - intake: epic yf-mol-xbp poured

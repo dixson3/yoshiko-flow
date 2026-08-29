@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft upstream comment for #171 — description: is now a producer contract; nested index.md generation stays out, on a re-measured premise."
+disposition: partial
+target: "#171"
 ---
 **Partial, as re-scoped. The `description:` producer change shipped; nested index generation did not.**
 

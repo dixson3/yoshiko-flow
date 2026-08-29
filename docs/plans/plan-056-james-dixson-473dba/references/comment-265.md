@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft closing comment for #265 — HARNESS_INCOMPLETE added as a third distinct verdict; the pre-fix behaviour reproduced exactly."
+disposition: include
+target: "#265"
 ---
 **Fixed and closing.** The report was exact, and the pre-fix behaviour was reproduced on a fixture
 before the fix landed.

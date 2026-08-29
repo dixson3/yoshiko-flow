@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft upstream comment for #140 — the root-tier enforcement that shipped in plan-056, and why nested index.md stays out."
+disposition: partial
+target: "#140"
 ---
 **plan-056 shipped the root-tier half of this. The nested half stays out, on re-measured evidence.**
 

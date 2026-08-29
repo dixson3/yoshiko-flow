@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft upstream comment for #247 — the declared-listing-with-no-generator mechanism shipped; the rest of the drift findings stay open."
+disposition: partial
+target: "#247"
 ---
 **Partial. §1's mechanism shipped; the remaining findings stay open.**
 

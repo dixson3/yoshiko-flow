@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft closing comment for #233 — the OKF walk now has a member-declared path-exclusion concept, applied at all five walk sites."
+disposition: include
+target: "#233"
 ---
 **Fixed and closing.** The real defect was the one this issue names in its body: the OKF walk had
 **no path-exclusion concept at all**, which `doc_lint` had already solved twice with per-schema

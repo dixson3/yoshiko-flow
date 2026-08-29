@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft closing comment for #246 — resolved TOWARD the schema; the two E close-out checks are the only ones that can fail a completed bundle."
+disposition: include
+target: "#246"
 ---
 **Fixed and closing. Resolved toward the SCHEMA, not toward the prose.**
 

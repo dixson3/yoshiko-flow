@@ -2,6 +2,8 @@
 type: Reference
 okf_spec: OKF-PLAN
 description: "Draft upstream comment for #165 — plan-056's Verification lines are executable; the general class stays open, plus an adjacent id-collision defect found."
+disposition: partial
+target: "#165"
 ---
 **Partial. plan-056's own `Verification:` lines execute; the corpus-wide class stays open.**
 
