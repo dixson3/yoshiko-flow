@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-29
+- executing: Epic 1 complete — severity vocabulary pinned (REQ-DATA-076), cell-vocabulary check shipped at R, fixture + tagged test green
 - executing: start gate resolved
 - intake: epic yf-mol-vltm poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
