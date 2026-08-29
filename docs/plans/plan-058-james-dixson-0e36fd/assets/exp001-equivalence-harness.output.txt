@@ -1,0 +1,11 @@
+EXP001 universe rows=1801 load_universe_rows=0.80s
+EXP001 beads with id=1801
+EXP001 20 bd show calls=3.72s per-call=0.186s projected_full=335.4s
+EXP001 collect_parent_edges COMPLETED in 321.9s edges=1648
+EXP002 one-call edge derivation=0.0018s edges=1648
+EXP002 EQUIVALENT=True slow_only=0 fast_only=0
+EXP002 targets identical=True
+EXP001 owner_claim_warning_lines COMPLETED in 336.4s
+[]
+
+[exited with code 0]

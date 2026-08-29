@@ -1,0 +1,9 @@
+Push plan: 1 bead(s) -> GitHub (beads stay open and mirrored)
+  [create] yf-djfx  -> (new issue)
+             title: bd telemetry: .beads/interactions.jsonl is a cleaner transition source than 'bd history' (which is swamped by batch-flush noise)
+             labels: type::task, priority::low
+
+Preview only — nothing was written. Re-run with --apply to write.
+=== REPRO rc=0 elapsed=334s ===
+
+[exited with code 0]
