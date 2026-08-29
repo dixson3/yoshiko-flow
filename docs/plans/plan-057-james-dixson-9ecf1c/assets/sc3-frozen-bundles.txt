@@ -1,0 +1,30 @@
+# SC3 frozen denominator — the 25 bundles indexed as of 2026-08-29 that PREDATE plan-056.
+# Baseline measured over exactly this set: 184 described entries, 58 distinct, 126 repeated (0.6848).
+# Extraction rule: an ENTRY is a line matching ^- \[ in <bundle>/index.md; its DESCRIPTION is the
+# text after the first ') - '. Bundles created after the baseline are excluded BY CONSTRUCTION, so
+# the ratio cannot be moved by adding bundles.
+plan-031-james-dixson-62a375
+plan-032-james-dixson-6cb87b
+plan-033-james-dixson-46aca2
+plan-034-james-dixson-ac6633
+plan-035-james-dixson-74d7ae
+plan-036-james-dixson-461061
+plan-037-james-dixson-cab694
+plan-038-james-dixson-1ce25a
+plan-039-james-dixson-150f79
+plan-040-james-dixson-1cabe4
+plan-041-james-dixson-a9d837
+plan-042-james-dixson-98631b
+plan-043-james-dixson-a8afe8
+plan-044-james-dixson-f6fdbd
+plan-045-james-dixson-9899e1
+plan-046-james-dixson-aabefa
+plan-047-james-dixson-dec9ff
+plan-048-james-dixson-ed68a5
+plan-049-james-dixson-725bc0
+plan-050-james-dixson-d0414b
+plan-051-james-dixson-2f499f
+plan-052-james-dixson-fa8056
+plan-053-james-dixson-4015d3
+plan-054-james-dixson-535968
+plan-055-james-dixson-5f1c40

@@ -14,6 +14,10 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/](findings/) - The six EXP-001..006 reports inherited verbatim from plan-056, so this bundle reads cold without its predecessor.
 - [references/](references/) - Upstream issue bodies for the OKF cluster items this plan carries (#140, #168, #169, #170, #171, #192).
 
+## Assets
+
+- [assets/](assets/) - Measurement records this plan's criteria read directly: `sc3-frozen-bundles.txt`, the 25-bundle frozen denominator SC3's boilerplate ratio is computed over.
+
 ## Reviews
 
 - [reviews/](reviews/) - One `pass-N.md` per red-team cycle, written at presentation and updated in place as concerns resolve.
