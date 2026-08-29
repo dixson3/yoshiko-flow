@@ -89,3 +89,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | The four bodies are pre-written and doc_lint-clean, so discharging this is four gh issue comment N --body-file <path> calls after a grant. Nothing needs re-deriving. |
 | `cost` | One criterion (SC24) left undischarged at completion; zero rework. |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-29 |
+| `stop_class` |  |
+| `asked` |  |
+| `answered` |  |
+| `frontloadable` |  |
+| `detected_by` | mechanical-check |
+| `evidence` | CHANGE-VALIDATION FULL tier -> status fail, first_failure 'cargo test --workspace' then 'uv run skills/yf-plan/scripts/test_worktree.py': 2 failed, 98 passed. test_migrated_legacy_plan_audit_passes_grandfathered asserted pre['status']=='pass' and got 'fail' ([fail] okf:context.md: REQ-OKF-003: no YAML frontmatter block); test_migrated_legacy_index_verbatim_only_warns asserted README.md->index.md renames verbatim and found no README.md. After re-pointing _LEGACY_PLAN_SRC: 100 passed. |
+| `escape_class` | live-corpus coupling: a test uses a LIVE corpus bundle as its fixture, so a corpus-wide operation breaks the test without changing the behaviour it pins |
+| `adjudication` | NOT a behaviour regression. Both tests copy docs/plans/plan-001-james-dixson-c88e7a as their legacy fixture, and Issue 2.9 backfilled that bundle — so the fixture stopped being legacy. Re-pointed at docs/plans/plan-029-.../findings/okf-migration-samples/plan-bundle/before, a DELIBERATELY frozen before-migration corpus that the OKF-EXTENSION §3b carve-out excludes from every walk site. Verified at the swap that its plan.md and README.md are BYTE-IDENTICAL to pre-backfill plan-001, so the assertion is unchanged and only the coupling is removed. |
+| `origin` | The fixture predates any corpus-wide migration capability. A legacy-migration test is BY DEFINITION one that will eventually run in a repo whose legacy bundles have been migrated, so this fixture was always going to break; plan-057 is simply the plan that migrated them. |
+| `culpability` | Process, not executor. Nothing warned that a test read a live bundle: the FAST tier does not include test_worktree.py, so this was invisible until the once-per-land FULL tier ran. |
+| `prevention` | A check that no test file references a live docs/plans/<id> path as a fixture root — the frozen okf-migration-samples corpus exists precisely to be the durable alternative, and it was already there. Cheaper still: this is the SECOND finding this plan owes to running the FULL tier rather than the FAST one, which argues for running FULL once mid-execution rather than only at land. |
+| `cost` | One re-run of the multi-minute FULL tier plus a one-line fixture repointing; no rework of plan content. |
+
