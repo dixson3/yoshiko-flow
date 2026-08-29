@@ -5,8 +5,9 @@ description: "DRAFT closing comment for the coarse tracker #271 — what plan-05
 disposition: tracker
 target: "#271"
 ---
-**plan-056 is complete.** 35 issues across 5 epics; 18 of 18 executable success criteria pass; the
-FULL validation tier is green at 55 rows.
+**plan-056 is complete.** 35 issues across 5 epics; **17 of 17 runnable success criteria pass and
+19 of 19 class-A criteria were judged** (`recheck-criteria` verdict `PASS`); the FULL validation
+tier is green.
 
 ## The problem, restated
 
@@ -65,11 +66,21 @@ developer's real gitignored config; and the index-entry regex cannot see em-dash
 entries — which is why `docs/research/005`'s *drift* was a **separator artifact**, not missing
 content, and was repaired without appending bare bullets beside the richest index in the corpus.
 
-## One honest limitation
+## The fix fired on the plan that shipped it
 
-Issue 1.10's `recheck-criteria` fix is **inert for this plan's own close**: the §6.4 chain resolves
-`${SKILL_DIR}` to the *installed* skill, and installing mid-execution is forbidden. That window was
-covered instead by a capability gate whose `Test:` halts on an exit code outside the verdict
-arithmetic entirely. The successor plan inherits the fixed engine.
+`recheck-criteria` returned **`HARNESS_INCOMPLETE`** during this plan's own §6.4 close — the third
+verdict Issue 1.10 added for #265 — because SC11c went unjudged at a 300s timeout. Under the
+pre-fix engine that row would have been `inconclusive`, counted in neither `failed` nor
+`evaluated`, and the chain would have reported `PASS`. The halt was **not overridden**: the cause
+was fixed (`check-recipe-row.sh` now caches on a tree fingerprint, 1:58 cold → 0.065s warm) and the
+chain re-run to a real PASS with every class-A criterion judged.
+
+**It fired because the chain was run against the repository copy.** A by-the-book §6.4 resolves
+`${SKILL_DIR}` to the *installed* skill, which is still pre-fix — measured: `HARNESS_INCOMPLETE`
+appears 5 times in `skills/yf-plan/scripts/plan_manager.py` and **0 times** in
+`~/.claude/skills/yf-plan/scripts/plan_manager.py`, because installing mid-execution is forbidden.
+So the protection is real but **route-dependent**, and that window was covered independently by a
+capability gate whose `Test:` halts on an exit code outside the verdict arithmetic entirely. The
+successor plan inherits the fixed engine on both routes once the skills are deployed.
 
 Plan: `docs/plans/plan-056-james-dixson-473dba/` · Epic: `yf-mol-xbp` · PR #272

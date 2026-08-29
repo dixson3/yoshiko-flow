@@ -13,3 +13,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
 - [findings/](findings/) - The six EXP-001..006 reports inherited verbatim from plan-056, so this bundle reads cold without its predecessor.
 - [references/](references/) - Upstream issue bodies for the OKF cluster items this plan carries (#140, #168, #169, #170, #171, #192).
+
+## Reviews
+
+- [reviews/](reviews/) - One `pass-N.md` per red-team cycle, written at presentation and updated in place as concerns resolve.

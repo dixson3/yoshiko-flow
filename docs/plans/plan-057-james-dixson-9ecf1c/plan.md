@@ -4,14 +4,14 @@ okf_spec: OKF-PLAN
 id: plan-057-james-dixson-9ecf1c
 author: james-dixson
 created: '2026-08-28'
-status: drafting
+status: review
 ---
 # Plan: OKF part 2: deepen the root index, ship yf-okf-hygiene with the legacy backfill, and realign OKF-BASELINE to the relocated upstream
 
 **ID:** plan-057-james-dixson-9ecf1c
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** drafting
+**Status:** review
 
 ## Objective
 OKF part 2: deepen the root index, ship yf-okf-hygiene with the legacy backfill, and realign OKF-BASELINE to the relocated upstream
@@ -58,7 +58,7 @@ gap is circular: the only in-band marker is the one key a wrongly-rooted consume
 | #168 | yf-okf: projection delivery mode | exclude | Trigger not fired — no consumer anywhere on this machine. | |
 | #169 | OKF conformance gate for yf-research and yf-incubator | deferred | Parked. Measured counter-evidence: yf-research's UNGATED indexes are the corpus's best while yf-plan's GATED ones are 57% boilerplate. | |
 | #192 | Evaluate a structure-first plan DSL | deferred | If ever pursued, index generation becomes a by-product — a further reason D-1 deepens the root index rather than building nested ones. | |
-| #189 | Six shipped scripts have no tests at all | partial | Taken as a CONSTRAINT (D-8): `okf_hygiene.py` ships with `test_okf_hygiene.py` and a recipe row, so it does not become a seventh. | 2.8, 2.10 |
+| #189 | Six shipped scripts have no tests at all | partial | Taken as a CONSTRAINT (D-8): `okf_hygiene.py` ships with `test_okf_hygiene.py` and a recipe row, so it does not become a seventh. | 2.8, 2.10, 3.5 |
 
 ## Investigation Findings
 
@@ -109,16 +109,38 @@ rather than assumed.
 re-open nested `log.md` (D-2), does not execute the backfill outside this repository (D-7), does not add
 a bundle-root marker file (D-12), and files nothing upstream to the OKF project (D-9).
 
+### Which tree the gates and criteria execute against
+
+**Stated because plan-059's red-team pass 3 found every gate `Test:` and 14 of 22 criteria pointing at the
+wrong tree, and because this plan's R11 asserted the opposite of the measured fact until pass 1 corrected it.**
+
+`${SKILL_DIR}` resolves to the **installed** skill (`~/.claude/skills/yf-plan`). AGENTS.md is explicit that
+the repo's `skills/` directory "is unreachable by the resolver, not merely stale", and that **no
+`yf skills install` may run mid-execution**. Every artifact this plan produces lands in the repo tree.
+
+**Rule for this plan: every verification of code this plan writes invokes the REPO path** — `uv run
+skills/yf-okf-hygiene/scripts/…`, `uv run _shared/…`, `scripts/checks/…` from the repo root. `${SKILL_DIR}`
+appears only where the plan invokes an *unmodified* skill as a tool. Measured: the criteria table already
+honours this (0 occurrences of `SKILL_DIR`), so the rule is a guard against regression, not a repair.
+
+**The consequence that is NOT under this plan's control.** The `yf-plan` close chain itself resolves via
+`${SKILL_DIR}`, so `recheck-criteria` runs the INSTALLED engine. Measured 2026-08-29: that copy is
+`yf 0.5.0 (206b2f7)`, predating plan-056, and carries **0** occurrences of `HARNESS_INCOMPLETE` against the
+repo copy's 4. plan-056's Issue 1.10 fix therefore does **not** protect this plan's close unless the operator
+deploys **before** execution begins — which is permitted (it is the land-the-plane window between plans) but
+is an operator decision, not something this plan may assume or perform. Until then the capability gates,
+poured `test_class: probe`, are the load-bearing defence.
+
 ## Epics
 ### Epic 0: SPEC amendments (SPEC-first)
 - Issue 0.1 (`REQ-OKF-012`): Add a requirement for root-index depth — the selection rule, the flat entry format, the description fallback chain, and the inverse drift signal.
 - Issue 0.2 (`REQ-OKFH-001`..`REQ-OKFH-010`): Add the requirement family for the `yf-okf-hygiene` skill — verbs, exit contract, halt classes, the crash-recovery journal, and the record/restore round trip.
 - Issue 0.3 (`REQ-OKF-033`): Add a requirement for the content-hash baseline pin and its read-only drift detector.
-- Issue 0.5 (`REQ-CLI-018` extended): Extend the verification-harness requirement plan-056 establishes to this plan's four additional instruments, so no criterion is adjudicated by an unowned script.
 - Issue 0.4 (`REQ-OKF-034`): Add a requirement recording that OKF v0.2 specifies no bundle-root identification procedure, and declaring the yf layer's resolution.
+- Issue 0.5 (`REQ-CLI-018` extended): Extend the verification-harness requirement plan-056 establishes to this plan's five additional instruments, so no criterion is adjudicated by an unowned script.
 
 ### Epic 1: Root-index depth
-- Issue 1.0: Author this plan's **four additional harness scripts** — `check-index-boilerplate-ratio.py`, `check-baseline-pin-contract.sh`, `check-skill-classified.sh`, `check-backfill-audit-delta.py` — plus its `harness-selftest.sh` entry. plan-056 owns the shared six via its Issue 1.9; these four are new here and, at pass 4, had no creating issue in either plan. Each must be two-branch where it asserts a failure code, and must fail loudly when it inspected nothing. Derive the list mechanically from the Verification column rather than by hand — that hand-assembly is exactly what pass 2 caught in the predecessor.
+- Issue 1.0: Author this plan's **five additional harness scripts** — `check-index-boilerplate-ratio.py`, `check-baseline-pin-contract.sh`, `check-skill-classified.sh`, `check-backfill-audit-delta.py`, `check-assets-decided.py` — plus **one named `harness-selftest.sh` RED row for each of the five** (the earlier draft said "entry", singular, for a set of four). Also make `--require` assert EQUALITY (or add `--exact`): measured, the current `-lt` comparison is a minimum, and the enumerated array has ALREADY drifted by six against instruments on disk (`check_smoke_tier.py`, `check-cargo-test-ran.sh`, `check-harness-smoke.sh`, `check-migration-dryrun.sh`, `check-quarantine-restore.sh`, `check-transform-gone.sh` are all present and unenumerated) — so a minimum is the wrong comparator for a hand-maintained list that is known to drift. plan-056 owns the shared six via its Issue 1.9; these four are new here and, at pass 4, had no creating issue in either plan. Each must be two-branch where it asserts a failure code, and must fail loudly when it inspected nothing. Derive the list mechanically from the Verification column rather than by hand — that hand-assembly is exactly what pass 2 caught in the predecessor.
   - depends-on: 0.5
 - Issue 1.1: Give `_listing_members` a selection parameter implementing rule D — enumerate a subdirectory's files iff it holds <=10, else emit a bare directory bullet. K is a constant, not a config knob. Measured yield: 463 entries, median 14.5, **max 30 regardless of bundle size**.
   - depends-on: 0.1
@@ -130,6 +152,10 @@ a bundle-root marker file (D-12), and files nothing upstream to the OKF project 
   - depends-on: 1.3
 - Issue 1.5: Decide `assets/**` explicitly — add an `asset` document type or state it is out of contract scope. 45 authored descriptions live there, selected by no schema; leaving it uncovered silently is the class this work exists to close.
   - depends-on: 1.4
+- Issue 1.6: **Vendor-sync `okf.py` to all four `skills/*/scripts/` copies** via `_shared/sync.py`, and verify `--check` is clean. Issues 1.1–1.4 all edit `_shared/okf.py`, and `CHANGE-VALIDATION.md` binds that path to the `uv-_shared` row (`uv run _shared/sync.py --check`) — so editing it WITHOUT re-vendoring turns the FAST tier red on every subsequent edit in this plan. plan-056's Issue 1.7 is the precedent and this plan's own `context.md` already said the step was not optional; no issue performed it until now.
+  - depends-on: 1.5
+- Issue 1.7: **Make `_write_upstream_reference` stamp frontmatter**, including `description:`. Measured 2026-08-29: the writer at `plan_manager.py:1018` emits a bare `# Upstream #N:` heading and NO frontmatter at all, so all seven of this plan's `references/upstream-*.md` files failed the `description` check on a fresh triage. plan-056's producer sweep (EXP-002) fixed the agent-side and code-side producers it enumerated and MISSED this one — plan-056's own reference files carry descriptions only because they were added by hand, which the writer's own docstring says will be clobbered on re-triage. This plan consumes the `description:` key (Epic 1), so an unstamped producer is directly in scope. Note the collision surface: `plan_manager.py` is also edited by plan-059 (R12).
+  - depends-on: 1.6
 
 ### Epic 2: yf-okf-hygiene
 - Issue 2.1: Author `skills/yf-okf-hygiene/SKILL.md` and `SPEC.md`, absorbing the advertised-but-unimplemented `assess` verb.
@@ -179,6 +205,16 @@ a bundle-root marker file (D-12), and files nothing upstream to the OKF project 
 - Test: grep -q '^status: complete' docs/plans/plan-056-james-dixson-473dba/plan.md
 - Blocks: 1.1, 2.3
 - Instructions: The predecessor's outputs are load-bearing here — Epic 1 consumes the `description:` key its producers stamp, and Epic 2's root detection reuses its exclusion mechanism. If the predecessor is abandoned rather than completed, this plan must be re-scoped, not force-started.
+  **POUR THIS GATE WITH `test_class: probe` AND `cwd: worktree`.** Not optional, and the plan cannot
+  express it in the `## Gates` grammar: `plan_extract.py`'s `GATE_FIELD` matches only
+  `Type|Approvers|Condition|Test|Blocks|Instructions`, and `test_gates.py:243` defaults an absent
+  `test_class` to **`manual`**, which §5.2c never runs and which resolves INCONCLUSIVE — so a gate
+  poured without it is INERT, which is exactly the failure this gate exists to prevent. Carried from
+  plan-056, whose pass 5 (C41) found it and whose pass 6 (C48) then measured that
+  `plan_extract.py:683`'s continuation loop terminates on the first blank line — so this block must
+  stay flush against the `Instructions:` line with NO blank line before it, or it is silently
+  truncated with `"unparsed": []`. `cwd: worktree` matters because this plan's scripts land in the
+  execution worktree, and a gate poured `cwd: repo-root` can never pass and stalls into stop class 2.
 
 ### Capability Gate: Backfill authorization
 - Type: human
@@ -193,13 +229,33 @@ a bundle-root marker file (D-12), and files nothing upstream to the OKF project 
 - Test: curl -sfI https://raw.githubusercontent.com/GoogleCloudPlatform/open-knowledge-format/main/SPEC.md > /dev/null
 - Blocks: 3.1
 - Instructions: Requires network access to raw.githubusercontent.com. The gate's evidence is the `curl` in `Test:` alone — nothing it blocks produces it. The read-only drift detector is deliberately left unblocked, since it ships either way and an offline run exercises its INCONCLUSIVE path.
+  **POUR THIS GATE WITH `test_class: probe` AND `cwd: worktree`.** Not optional, and the plan cannot
+  express it in the `## Gates` grammar: `plan_extract.py`'s `GATE_FIELD` matches only
+  `Type|Approvers|Condition|Test|Blocks|Instructions`, and `test_gates.py:243` defaults an absent
+  `test_class` to **`manual`**, which §5.2c never runs and which resolves INCONCLUSIVE — so a gate
+  poured without it is INERT, which is exactly the failure this gate exists to prevent. Carried from
+  plan-056, whose pass 5 (C41) found it and whose pass 6 (C48) then measured that
+  `plan_extract.py:683`'s continuation loop terminates on the first blank line — so this block must
+  stay flush against the `Instructions:` line with NO blank line before it, or it is silently
+  truncated with `"unparsed": []`. `cwd: worktree` matters because this plan's scripts land in the
+  execution worktree, and a gate poured `cwd: repo-root` can never pass and stalls into stop class 2.
 
 ### Capability Gate: Verification harness ready
 - Type: auto
 - Condition: Every harness script exists, is syntactically runnable, and returns non-zero on its RED fixture.
-- Test: scripts/checks/harness-selftest.sh --require 12
-- Blocks: epic:2
+- Test: scripts/checks/harness-selftest.sh --require 14
+- Blocks: 1.1, 1.5, 3.1a, epic:2
 - Instructions: Carried from plan-056, where four consecutive red-team passes found the criteria layer vacuous in four different shapes. A gate halts on an exit code outside `recheck-criteria`'s verdict arithmetic, which is why it — not a criterion — is the load-bearing defence. Evidence is produced by Issue 1.0, which the gate does not block.
+  **POUR THIS GATE WITH `test_class: probe` AND `cwd: worktree`.** Not optional, and the plan cannot
+  express it in the `## Gates` grammar: `plan_extract.py`'s `GATE_FIELD` matches only
+  `Type|Approvers|Condition|Test|Blocks|Instructions`, and `test_gates.py:243` defaults an absent
+  `test_class` to **`manual`**, which §5.2c never runs and which resolves INCONCLUSIVE — so a gate
+  poured without it is INERT, which is exactly the failure this gate exists to prevent. Carried from
+  plan-056, whose pass 5 (C41) found it and whose pass 6 (C48) then measured that
+  `plan_extract.py:683`'s continuation loop terminates on the first blank line — so this block must
+  stay flush against the `Instructions:` line with NO blank line before it, or it is silently
+  truncated with `"unparsed": []`. `cwd: worktree` matters because this plan's scripts land in the
+  execution worktree, and a gate poured `cwd: repo-root` can never pass and stalls into stop class 2.
 
 ### Reconcile Gate
 - Type: auto (all execution beads closed)
@@ -218,7 +274,8 @@ a bundle-root marker file (D-12), and files nothing upstream to the OKF project 
 | R8 | **The content-hash pin fires on cosmetic upstream edits**, training the operator to ignore it. | low | The hash covers `SPEC.md`'s body only, not the repo; the detector reports and proposes a human diff rather than failing a land; the row is FULL-tier, paid once per land. |
 | R9 | **Recording the root-framing silence commits yf to a position upstream may later contradict.** | low | D-9 keeps us read-only, so nothing is filed. The BASELINE records the silence as measured fact; the *decision* lives in YF-EXTENSIONS, the layer designed to absorb upstream change. |
 | R10 | **This plan edits the skills it executes under.** | low | Per AGENTS.md, prose and scripts resolve to the installed copy, so there is no self-modification hazard mid-run. The one real constraint is no `yf skills install` mid-execution; deploy at land-the-plane. |
-| R11 | **Criteria vacuity — the defect that recurred three times in the predecessor's review.** | high | Three rules carried forward verbatim: no bare `-k` filter; no criterion may expect a non-zero exit from a script that does not exist; and a missing instrument must read FALSE, not `inconclusive`. SC0 enforces the third with shell builtins only. plan-056's Issue 1.10 fixes the engine, and the predecessor gate means it is already in place here. |
+| R12 | **plan-059 edits the same index generator.** It is `approved` with 10 review passes on branch `yf-judgement-design` and will likely execute after this plan. Measured: its Issue 2.4 edits `_INDEX_MEMBERS` and the index generator in `skills/yf-plan/scripts/plan_manager.py`, and its Issues 1.4/2.2 write `_shared/document_types/review.toml` and a new `escalations.toml`; this plan's Issue 1.2 rewrites `render_index`/`add_index_entry` in `_shared/okf.py` and Issue 1.5 may add a `document_types` schema. | med | Adjacent, not contested — different functions in different files. Measured non-collisions: plan-059 adds **no** `scripts/checks/` file, **no** `CHANGE-VALIDATION.md` row and **no** `harness-selftest.sh` entry, so this plan's instrument arithmetic is safe from it. Whichever lands second rebases; this plan's `document_types` addition must not be named `escalations`. |
+| R11 | **Criteria vacuity — the defect that recurred three times in the predecessor's review.** | high | Three rules carried forward verbatim: no bare `-k` filter; no criterion may expect a non-zero exit from a script that does not exist; and a missing instrument must read FALSE, not `inconclusive`. SC0 enforces the third with `test -x`. **The engine fix is NOT in force here, and an earlier draft claimed the opposite.** Measured 2026-08-29: `HARNESS_INCOMPLETE` appears 4 times in `./skills/yf-plan/scripts/plan_manager.py` and **0 times** in `~/.claude/skills/yf-plan/scripts/plan_manager.py`, the copy `${SKILL_DIR}` resolves to and the close chain actually runs; the installed tree is `yf 0.5.0 (206b2f7)`, which predates plan-056. The predecessor gate proves plan-056 is `status: complete` — it proves nothing about WHICH `plan_manager.py` executes. plan-056's own gate said this correctly and plan-057 dropped the sentence. **So the capability gates (now poured `probe`) and the two-branch criteria are the ONLY live defences**, unless the operator deploys before execution. |
 
 ## Success Criteria
 
@@ -232,16 +289,18 @@ a bundle-root marker file (D-12), and files nothing upstream to the OKF project 
 
 | # | Criterion | Verification | Discharged-by |
 | :-- | :-- | :-- | :-- |
-| SC0 | Every instrument this plan's criteria invoke — **including `check-skill-classified.sh`, which an earlier draft omitted** — exists and is syntactically runnable, not merely `+x`. Uses `bash -n` and builtins only. **SC0 is a floor, not a backstop**: once the files exist it always holds, guaranteeing `evaluated >= 1`, which is itself the arithmetic that converts INCONCLUSIVE into PASS. The harness gate is the real defence. | `bash -n scripts/checks/check-pytest-ran.sh && bash -n scripts/checks/check-recipe-row.sh && bash -n scripts/checks/check-baseline-pin-contract.sh && bash -n scripts/checks/check-skill-classified.sh && bash -n scripts/checks/harness-selftest.sh` → exit 0 | 1.0, 2.8 |
-| SC0b | Each harness script returns non-zero on a deliberately broken input, and the selftest reports how many it checked. | `scripts/checks/harness-selftest.sh --require 12` → exit 0 | 1.0 |
-| SC1 | Every Epic 1-3 issue names the `REQ-*` it implements or is explicitly marked a bug fix. | `uv run scripts/checks/check-req-coverage.py docs/plans/plan-057-james-dixson-9ecf1c` → exit 0 | 0.1, 0.2, 0.3, 0.4, 0.5 |
+| SC0 | Every instrument this plan's criteria invoke — **including `check-skill-classified.sh`, which an earlier draft omitted** — exists and is syntactically runnable, not merely `+x`. **Uses `test -x`, NOT `bash -n`** — measured, and this is the correction plan-056's pass 5 (C40) already made once: `bash -n` on a MISSING file exits **127**, which `plan_manager.py:3103` maps to `inconclusive`, counted in neither `evaluated` nor `failed` — so the criterion does not read FALSE, it DISAPPEARS. plan-056 reverted to `test -x` for exactly this reason and plan-057's draft re-adopted the reverted form. The list is also now **complete**: an earlier draft checked five `.sh` files and left `check-index-boilerplate-ratio.py` (SC3), `check-backfill-audit-delta.py` (SC12), `check-req-coverage.py` (SC1), `check_okf_index_drift.py` (SC7) and both hygiene scripts (SC9–SC19) unguarded — two of them among the four instruments this plan itself creates. **Three residuals, stated rather than closed:** a directory satisfies `-x`; `uv run` needs no x-bit, so Issues 1.0 and 2.1 owe a `chmod +x`; and a bad shebang surfaces only as a 126 at run time, which is `harness-selftest.sh`'s job (SC0b). **SC0 is a floor, not a backstop**: once the files exist it always holds, guaranteeing `evaluated >= 1`, which is itself the arithmetic that converts INCONCLUSIVE into PASS. The harness gate is the real defence. | `test -x scripts/checks/check-pytest-ran.sh -a -x scripts/checks/check-recipe-row.sh -a -x scripts/checks/check-baseline-pin-contract.sh -a -x scripts/checks/check-skill-classified.sh -a -x scripts/checks/harness-selftest.sh -a -x scripts/checks/check-index-boilerplate-ratio.py -a -x scripts/checks/check-backfill-audit-delta.py -a -x scripts/checks/check-req-coverage.py -a -x scripts/checks/check_okf_index_drift.py -a -x scripts/checks/check-assets-decided.py -a -x skills/yf-okf-hygiene/scripts/okf_hygiene.py -a -x skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` → exit 0 | 1.0, 2.8 |
+| SC0b | Each harness script returns non-zero on a deliberately broken input, and the selftest reports how many it checked. **The count is 13 and the arithmetic is stated because `--require N` is a MINIMUM, not an equality** (`if [ "${CHECKED}" -lt "${REQUIRE}" ]`): 9 instruments are enumerated today + 5 authored by Issue 1.0, the selftest excluding itself. At `--require 12` a run that SKIPPED one of the five new instruments still exits 0 — measured, and the exact off-by-one vacuity this plan inherits nine passes of review to avoid. | `scripts/checks/harness-selftest.sh --require 14` → exit 0 | 1.0 |
+| SC1 | Every Epic 1-3 issue reaches an Epic-0 requirement source **directly or transitively**, or is explicitly marked a bug fix. **Measured 2026-08-29: 0 direct / 22 transitive / 0 bug-fix** — the earlier wording said "names the `REQ-*`", which NO issue in this plan does, so it described a check the instrument does not perform and was green by construction. | `uv run scripts/checks/check-req-coverage.py docs/plans/plan-057-james-dixson-9ecf1c` → exit 0 | 0.1, 0.2, 0.3, 0.4, 0.5 |
 | SC2 | No bundle's index exceeds the selection rule's bound. | `scripts/checks/check-pytest-ran.sh _shared/test_okf.py selection_rule_bound` → exit 0 | 1.1 |
-| SC3 | Deepening the index lowers the share of byte-identical boilerplate entries, against a baseline measured 2026-08-28: 276 entries, 257 described, 127 distinct, **142 repeated**. | `uv run scripts/checks/check-index-boilerplate-ratio.py --baseline 142/257` → exit 0 | 1.2, 1.3 |
+| SC3 | Deepening the index lowers the share of byte-identical boilerplate entries **over a FROZEN bundle set**. **The extraction rule is stated here, not left to the instrument**: an ENTRY is a line matching `^- \[` in a `docs/plans/*/index.md`; its DESCRIPTION is the text after the first `) - `. Under that rule, re-measured 2026-08-29 over the **28 bundles indexed as of that date**: 210 described entries, 72 distinct, **138 repeated**, ratio **0.6571**. The plan's inherited 2026-08-28 figure (257 described / 127 distinct / 142 repeated) is **unreproducible** — three independent extraction rules yielded three different triples, because no rule was ever written down. **The denominator is frozen to those 28 named bundles, excluding any bundle this plan or plan-056 creates**: measured, merely ADDING plan-058's bundle moved the ratio with zero index-deepening work, so an open denominator made SC3 green by arithmetic. | `uv run scripts/checks/check-index-boilerplate-ratio.py --baseline 138/210 --frozen-set assets/sc3-frozen-bundles.txt` → exit 0 | 1.0, 1.2, 1.3 |
 | SC4 | The description fallback chain never synthesizes a value. | `scripts/checks/check-pytest-ran.sh _shared/test_okf.py description_fallback_never_synthesizes` → exit 0 | 1.2 |
 | SC5 | The 6 existing hand-nested bundles survive regeneration unchanged, as measured at 5-of-6 byte-identical today. | `scripts/checks/check-pytest-ran.sh _shared/test_okf.py preserve_and_append_contract` → exit 0 | 1.3 |
 | SC6 | An unlisted nested file the rule selects is reported, not silently tolerated. | `scripts/checks/check-pytest-ran.sh _shared/test_okf.py inverse_drift_signal` → exit 0 | 1.4 |
-| SC7 | The corpus is clean after the widening, having actually been enumerated. | `uv run scripts/checks/check_okf_index_drift.py --min-roots 30` → exit 0 | 1.4 |
-| SC8 | `assets/**` is covered by a document type or declared out of scope — not silently uncovered. | manual: an `asset` schema exists, or the boundary document states the exclusion and why | 1.5 |
+| SC7 | The corpus is clean after the widening, having actually been enumerated. **The floor is 60, not 30**: measured 2026-08-29, the driver enumerates **63** bundles and exits 0 TODAY, before any Epic-1 work — `--min-roots 30` left 33 bundles of slack and made the criterion green by construction. The widened signal is proved live by SC0b's selftest, whose RED row for this driver must report at least one `missing` finding. | `uv run scripts/checks/check_okf_index_drift.py --min-roots 60` → exit 0 | 1.4 |
+| SC5b | `okf.py`'s four vendored copies are byte-identical to `_shared/` **after** Epic 1 edits it. An invariant, not a progress marker: it holds on HEAD today and its job is to go FALSE if Issue 1.6 is skipped, which `recheck-criteria` cannot show in advance. | `uv run _shared/sync.py --check` → exit 0 | 1.6 |
+| SC5c | A freshly regenerated `references/upstream-<N>.md` carries `description:` — the producer stamps it, rather than an operator adding it by hand for the writer to clobber. | `scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_plan_manager.py upstream_reference_frontmatter` → exit 0 | 1.7 |
+| SC8 | `assets/**` is covered by a document type or declared out of scope — not silently uncovered. **Promoted from `manual:` to executable**, because this class turned `main` RED on 2026-08-29: plan-058's bundle carried `assets/` present-but-unindexed and the FULL tier failed on `okf-index-drift`. The driver's `exclude_globs` are `assets/fixtures/**` and `findings/okf-migration-samples/**` only, so `assets/*` IS enumerated — Issue 1.5's decision has a direct mechanical consequence on a live gate, and a prose criterion cannot hold it. The instrument asserts EITHER a `_shared/document_types/asset*.toml` selecting `assets/**`, OR an `assets/**` entry in `check_okf_index_drift.py`'s `exclude_globs` — failing when it finds neither, and failing loudly when it inspected nothing. | `uv run scripts/checks/check-assets-decided.py` → exit 0 | 1.5 |
 | SC9 | The backfill preserves `plan.md`'s fingerprinted content sections across all 31 bundles. | `scripts/checks/check-pytest-ran.sh skills/yf-okf-hygiene/scripts/test_okf_hygiene.py fingerprint_invariance` → exit 0 | 2.4, 2.9 |
 | SC10 | The backfill preserves every phase-log bullet and distinct date — the signal the fingerprint is blind to, and the one plan-030 was measured to lose. | `scripts/checks/check-pytest-ran.sh skills/yf-okf-hygiene/scripts/test_okf_hygiene.py plan030_hybrid_log_preserved` → exit 0 | 2.5, 2.9 |
 | SC11 | Recovery is deterministic from **all five** crash points, including "staged, crashed before the first rename", which a presence-keyed table misreads as done. | `scripts/checks/check-pytest-ran.sh skills/yf-okf-hygiene/scripts/test_okf_hygiene.py crash_recovery_all_states` → exit 0 | 2.4, 2.8 |
@@ -252,7 +311,7 @@ a bundle-root marker file (D-12), and files nothing upstream to the OKF project 
 | SC16 | Root detection finds the incubator-analog root the four known roots miss, skips worktrees, and skips the frozen fixture trees — using a self-contained default set that needs no yf-plan-private file. | `scripts/checks/check-pytest-ran.sh skills/yf-okf-hygiene/scripts/test_okf_hygiene.py root_detection_self_contained` → exit 0 | 2.3 |
 | SC17 | The whole hygiene suite passes, so the skill does not become a seventh untested script. | `uv run --with pytest python3 -m pytest skills/yf-okf-hygiene/scripts/test_okf_hygiene.py -q` → exit 0 | 2.8 |
 | SC18 | The hygiene suite runs on every land, not once — the row is present in the manifest and appears in a FULL-tier run. | `scripts/checks/check-recipe-row.sh okf-hygiene-tests` → exit 0 | 2.10 |
-| SC19 | This repo's legacy bundles are conformant after the backfill, and the audit enumerated all 31. | `uv run skills/yf-okf-hygiene/scripts/okf_hygiene.py audit --root docs/plans --maxdepth 2 --min-roots 30 --json` → exit 0 | 2.9 |
+| SC19 | This repo's legacy bundles are conformant after the backfill, and the audit enumerated them. **Two corrections:** the 31st bundle is `docs/research/001-okf-compliance-delta`, which `--root docs/plans` cannot see, so the audit spans both roots; and `--min-roots 30` was a floor WIDER than the thing it guards — `docs/plans` alone holds 58 bundles, so it was satisfied with zero legacy bundles enumerated. The load-bearing assertion is `--require-legacy 0` (no bundle remains legacy), not a root count. | `uv run skills/yf-okf-hygiene/scripts/okf_hygiene.py audit --root docs/plans --root docs/research --maxdepth 2 --require-legacy 0 --min-roots 59 --json` → exit 0 | 2.9 |
 | SC19b | The hygiene skill's `SKILL.md` is *selected* by the linter's classifier — asserting the `class` value, not the exit code, since `class: empty` also exits 0. | `scripts/checks/check-skill-classified.sh yf-okf-hygiene` → exit 0 | 2.1 |
 | SC20 | The baseline names the live upstream and pins by content hash, not by version label. | manual: `OKF-BASELINE.md` §0 carries `okf_baseline_sha256` and the relocated source URL | 3.1 |
 | SC21 | Upstream drift is detected read-only, and a simulated network failure yields a *different* exit from a clean check — so the detector's absence cannot satisfy the criterion. | `scripts/checks/check-baseline-pin-contract.sh` → exit 0 | 3.1a |

@@ -1,6 +1,7 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: "Upstream issue #192 — Evaluate a structure-first plan DSL with generated markdown — single source for plan.md, the bead pour, and cross-reference integrity Full untruncated body, snapshotted at triage."
 ---
 # Upstream #192: Evaluate a structure-first plan DSL with generated markdown — single source for plan.md, the bead pour, and cross-reference integrity
 
