@@ -384,6 +384,19 @@ WHOLE_FILE_ASSETS = [
             _skill("yf-research", "scripts", "okf.py"),
             _skill("yf-incubator", "scripts", "okf.py"),
             _skill("yf-okf", "scripts", "okf.py"),
+            # FIFTH CONSUMER (plan-057 Issue 1.6, option (a)). `yf-okf-hygiene` calls the
+            # per-bundle engine verbs (`check`, `migrate`, `reindex`) at corpus scale, so it
+            # needs the engine; and skills DEPLOY STANDALONE, so a `sys.path` hack to
+            # `_shared/` is not available to it.
+            #
+            # REGISTERING IT IS THE WHOLE POINT. This consumer list is HAND-WRITTEN — unlike
+            # `document_types/`, which is enumerated from disk two blocks below precisely
+            # because a hand-written list silently omits the next entry. A vendored copy that
+            # is absent from this list is invisible to `--check`, so `sync.py --check` stays
+            # exit 0 while that copy drifts SILENTLY AND FOREVER. That is the failure mode
+            # this file's own comment describes, and it is why the registration is a
+            # deliverable rather than a follow-up.
+            _skill("yf-okf-hygiene", "scripts", "okf.py"),
         ],
     ),
 ]
