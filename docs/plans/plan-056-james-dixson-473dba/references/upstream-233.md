@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #233 - yf-plan: audit-close''s OKF walk has no fixture
+  carve-out, so pinned negative fixtures fail it'
 ---
 # Upstream #233: yf-plan: audit-close's OKF walk has no fixture carve-out, so pinned negative fixtures fail it
 

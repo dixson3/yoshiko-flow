@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #246 - Drift CONFLICTs: REQ-DATA-044 says R* is uniformly
+  W but the schema ships two E close-out checks'
 ---
 # Upstream #246: Drift CONFLICTs: REQ-DATA-044 says R* is uniformly W but the schema ships two E close-out checks
 

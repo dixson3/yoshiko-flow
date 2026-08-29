@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #189 - Six shipped scripts have no tests at all — including
+  two CHANGE-VALIDATION checks and the beads repair engine'
 ---
 # Upstream #189: Six shipped scripts have no tests at all — including two CHANGE-VALIDATION checks and the beads repair engine
 

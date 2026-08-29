@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #140 - yf-okf: enforce OKF structure below the bundle
+  root (nested index.md/log.md), and adopt an index drift/regeneration model'
 ---
 # Upstream #140: yf-okf: enforce OKF structure below the bundle root (nested index.md/log.md), and adopt an index drift/regeneration model
 

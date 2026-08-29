@@ -248,3 +248,34 @@ def test_readme_file_layout_lists_every_shipped_area():
         names = sorted(f.name for f in d.iterdir() if f.is_file())
         missing = [n for n in names if n not in block]
         assert not missing, f"{sub}/ files missing from File Layout: {missing}"
+
+
+def test_index_add_verb():
+    """SC10b / REQ-PLAN-081(c) — `index-add` is a REGISTERED PUBLIC VERB.
+
+    Asserted by SET-EQUALITY over the verb list, not by `--help`. `--help` exits 0 for any
+    parser, including one that never registered the command — so a `--help`-based check
+    would be green on a verb that does not exist. That is the "a check that cannot fail"
+    class this whole plan is about, and it would be a poor way to verify a criterion whose
+    subject is discoverability.
+
+    The verb matters because index regeneration was measured UNREACHABLE from the CLI:
+    `seed_index` is callable only from `init`, so an operator who noticed index drift had no
+    supported repair short of hand-editing `index.md` — which is how the nine drifting
+    bundles came to drift.
+    """
+    source = _source_verbs()
+    spec = _spec_verbs()
+
+    assert "index-add" in source, (
+        "`index-add` is not registered in plan_manager.py's command set — REQ-PLAN-081(c) "
+        f"requires it. Registered verbs: {sorted(source)}")
+    assert "index-add" in spec, (
+        "`index-add` is registered in the source but absent from REQ-CLI-006's enumeration "
+        "in skills/yf-plan/spec/cli.md — the drift this file exists to catch.")
+
+    # NON-VACUITY: the two accessors really do return populated sets, so the membership
+    # assertions above are not both trivially true against an empty set.
+    assert len(source) >= 30 and len(spec) >= 30, (
+        f"verb sets look empty or truncated (source={len(source)}, spec={len(spec)}) — "
+        "the assertions above would certify vacuously")

@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #247 - Drift findings no edge covers: the manifest''s
+  own diagram is 22 edges stale, and install.sh/install.py do not exist'
 ---
 # Upstream #247: Drift findings no edge covers: the manifest's own diagram is 22 edges stale, and install.sh/install.py do not exist
 

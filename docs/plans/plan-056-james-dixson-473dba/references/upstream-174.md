@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #174 - yf-plan: a review-phase validation pass — falsify
+  every criterion, and cross-check every claim against the code that scores it'
 ---
 # Upstream #174: yf-plan: a review-phase validation pass — falsify every criterion, and cross-check every claim against the code that scores it
 

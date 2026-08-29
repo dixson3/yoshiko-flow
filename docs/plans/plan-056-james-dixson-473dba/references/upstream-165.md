@@ -1,6 +1,9 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #165 - SPEC `Verification:` lines are prose shaped like
+  commands — a FULL tier can be all-green while a spec''s own stated verification
+  is false'
 ---
 # Upstream #165: SPEC `Verification:` lines are prose shaped like commands — a FULL tier can be all-green while a spec's own stated verification is false
 

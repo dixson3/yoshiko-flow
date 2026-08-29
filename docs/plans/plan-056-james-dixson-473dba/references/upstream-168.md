@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #168 - yf-okf: projection delivery mode (on-demand OKF
+  export) — #92 carve-out 1 of 3'
 ---
 # Upstream #168: yf-okf: projection delivery mode (on-demand OKF export) — #92 carve-out 1 of 3
 

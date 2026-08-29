@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #173 - yf-plan: success criteria and upstream dispositions
+  are never checked against the engine that enforces them'
 ---
 # Upstream #173: yf-plan: success criteria and upstream dispositions are never checked against the engine that enforces them
 

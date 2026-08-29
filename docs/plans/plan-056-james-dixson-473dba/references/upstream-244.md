@@ -1,6 +1,8 @@
 ---
 type: Reference
 okf_spec: OKF-PLAN
+description: 'Upstream issue #244 - README-contract drift: e-readme-layout fails 16/19
+  skills, and the manifest contract is stronger than anything enforcing it'
 ---
 # Upstream #244: README-contract drift: e-readme-layout fails 16/19 skills, and the manifest contract is stronger than anything enforcing it
 
