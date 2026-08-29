@@ -122,3 +122,44 @@ cannot run until this gate is granted. Its rewritten `RC` block is what `SC0` re
 requires every recorded non-zero row to be zero. The four rows currently non-zero
 (`SC2d`, `SC9b`, `SC9c`, and `recheck-criteria`/`SC0` aggregating them) all trace to this gate
 and to nothing else.
+
+---
+
+## 5 — RECONCILE comments (§6.3): NOT COVERED BY THE FIRST GRANT
+
+**Added after the first grant was executed.** The operator's grant scoped four issue writes —
+`0.2`, `2.7`, `6.3`, `6.4`. `verify-reconcile` then required **three more**, and they are a
+different set: `#264`, `#273` and `#145`, none of which is in that grant's `Blocks` set. So this
+section is a **second ask**, presented the same way and not executed.
+
+`verify-reconcile` is a **HALTING** step in §6.4. Its verdict:
+
+```
+3 of 6 upstream row(s) did not reach the end state their disposition requires
+  #264 (partial) · #273 (partial) · #145 (partial)
+```
+
+Each is `partial`, which means the issue **stays OPEN** — the remaining half is real work — but
+what *this* plan did must be recorded upstream, or the deferred half becomes invisible. The other
+three rows already pass: `#269 partial` (the tracker comment), `#270 deferred` (which requires no
+mention by design), and `#269 tracker` (report-only — the tracker is closed by the land-the-plane
+sweep, not by reconciliation).
+
+**Note on `#273`:** Issue 6.4 **edited its body**; `verify-reconcile` checks **comments**. A body
+edit and a comment are different artifacts and it is right not to accept one for the other.
+
+```bash
+gh issue comment 264 --body-file - < docs/plans/plan-059-james-dixson-55137e/assets/upstream-drafts/reconcile-264.body.txt
+gh issue comment 273 --body-file - < docs/plans/plan-059-james-dixson-55137e/assets/upstream-drafts/reconcile-273.body.txt
+gh issue comment 145 --body-file - < docs/plans/plan-059-james-dixson-55137e/assets/upstream-drafts/reconcile-145.body.txt
+```
+
+Then verify by read-back and re-run the gate:
+
+```bash
+for n in 264 273 145; do gh issue view $n --comments --json comments | jq -r '.comments[-1].body' | head -3; done
+uv run skills/yf-plan/scripts/plan_manager.py verify-reconcile docs/plans/plan-059-james-dixson-55137e --json
+```
+
+**Until these three land, `set complete` is blocked** — and correctly so. `verify-reconcile` is
+halting by design, and everything else in §6.4 is already green.

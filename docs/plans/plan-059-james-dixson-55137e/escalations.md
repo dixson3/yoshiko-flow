@@ -95,3 +95,39 @@ warning, which would train a reader to ignore it.
 | `no_answer_taken` | yes |
 | `push_batch` |  |
 
+## ESC-005
+
+| Field | Value |
+| :-- | :-- |
+| `question` | verify-reconcile (a HALTING §6.4 step) requires reconcile comments on #264, #273 and #145. None is in the granted upstream-writes gate's Blocks set, which covered 0.2/2.7/6.3/6.4 only. Authorize the three additional comments, or complete the plan without them? |
+| `alternatives` | Authorize the three reconcile comments — bodies are drafted and reviewable at assets/upstream-drafts/reconcile-{264,273,145}.body.txt; each records what plan-059 did and leaves the issue OPEN, which is what a 'partial' disposition means; Do not authorize — completion HALTS at verify-reconcile, and the plan sits at status reconciling with everything else green; Do not authorize and amend the plan's Upstream Issues dispositions so the rows no longer require a comment |
+| `recommended` | Authorize the three reconcile comments — bodies are drafted and reviewable at assets/upstream-drafts/reconcile-{264,273,145}.body.txt; each records what plan-059 did and leaves the issue OPEN, which is what a 'partial' disposition means |
+| `on_no_answer` | HALT at verify-reconcile and do not set complete. An outward-facing write outside the granted scope is a stop class the plan itself declares, and the third option would amend an approved plan's dispositions to route around a check rather than satisfy it. |
+| `detected_by` | mechanical-check |
+| `evidence` | plan_manager.py verify-reconcile <bundle> --json -> verdict fail, '3 of 6 upstream row(s) did not reach the end state their disposition requires': #264, #273, #145, each disposition 'partial'. The other 3 rows pass. #273's body was edited by Issue 6.4 but verify-reconcile checks COMMENTS, which is a different artifact. |
+| `asked_of` | operator (YF_PARENT_PANE) |
+| `state` | raised |
+| `answer` |  |
+| `raised_when` | 2026-08-29 |
+| `resolved_when` |  |
+| `no_answer_taken` | no |
+| `push_batch` | 20260829T140657-1 |
+
+## ESC-006
+
+| Field | Value |
+| :-- | :-- |
+| `question` | SC5 asserts '.raised >= 2 and .pushes <= 1'. It is now FALSE (raised 5, pushes 2) because the escalation mechanism worked correctly at a SECOND boundary. 'pushes' is cumulative across the plan; batching is a per-boundary property. Amend the criterion, or leave it red? |
+| `alternatives` | Amend SC5 to a per-boundary form such as '.raised > .pushes' — which is what batching actually means and is topology-independent. NOTE: ## Success Criteria is INSIDE the fingerprinted range, so this makes the plan stale-approved and requires a fresh red-team + audit + re-approval cycle; Leave SC5 red — completion HALTS at recheck-criteria, and the plan stays at reconciling with the defect recorded honestly; Withdraw the second push (unstamp ESC-005's push_batch) so pushes returns to 1 |
+| `recommended` | Amend SC5 to a per-boundary form such as '.raised > .pushes' — which is what batching actually means and is topology-independent. NOTE: ## Success Criteria is INSIDE the fingerprinted range, so this makes the plan stale-approved and requires a fresh red-team + audit + re-approval cycle |
+| `on_no_answer` | Leave SC5 red and HALT. Editing ## Success Criteria is a fingerprinted-content change that would silently make the plan stale-approved, and unstamping a push that genuinely happened would falsify the very instrumentation SC10 exists to provide — recording a delivered notification as never sent is exactly the dishonesty the no_answer_taken field was defended against. |
+| `detected_by` | mechanical-check |
+| `evidence` | escalation-report -> {raised:5, pushes:2, batches: ESC-001@20260829T133931-1, ESC-005@20260829T140657-1}. recheck-criteria -> verdict FAIL, failed: ['SC5']. Both pushes were legitimate: one per boundary, each batching every open un-pushed escalation at that boundary. |
+| `asked_of` | operator (YF_PARENT_PANE) |
+| `state` | raised |
+| `answer` |  |
+| `raised_when` | 2026-08-29 |
+| `resolved_when` |  |
+| `no_answer_taken` | no |
+| `push_batch` | 20260829T140751-1 |
+
