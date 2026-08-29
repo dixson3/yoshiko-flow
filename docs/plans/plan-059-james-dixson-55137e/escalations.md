@@ -59,3 +59,39 @@ warning, which would train a reader to ignore it.
 | `no_answer_taken` | no |
 | `push_batch` |  |
 
+## ESC-003
+
+| Field | Value |
+| :-- | :-- |
+| `question` | OPERATOR ANSWER to ESC-001, recorded on a further entry per Issue 2.5. Should Epic 1 be split out and landed ahead of Epics 2-6? |
+| `alternatives` | Land the whole plan as one change-set; Split Epic 1 out and land it first |
+| `recommended` | Land the whole plan as one change-set |
+| `on_no_answer` | Land the whole plan as one change-set |
+| `detected_by` | operator |
+| `evidence` | Operator reply, verbatim: 'ANSWER: Land the whole plan as ONE CHANGE-SET. Do not split Epic 1 out. This is the recommended option and matches on_no_answer, so nothing you have built so far changes.' |
+| `asked_of` | operator (YF_PARENT_PANE) |
+| `state` | resolved |
+| `answer` | Land the whole plan as one change-set; do not split Epic 1 out. ANSWER ARRIVED FROM THE OPERATOR — this is NOT the no-answer default being taken, even though it coincides with the recommended option. no_answer_taken stays 'no', which is the distinction SC10's cost-ratio instrumentation exists to measure. |
+| `raised_when` | 2026-08-29 |
+| `resolved_when` | 2026-08-29 |
+| `no_answer_taken` | no |
+| `push_batch` |  |
+
+## ESC-004
+
+| Field | Value |
+| :-- | :-- |
+| `question` | EXP-004's premise does not reproduce: 'herdr agent prompt returns agent_not_found at exit 0' measured exit 1 on this build, for both a name target and a pane-id target. Should the SPEC assert exit 0 as EXP-004 recorded it, or record the disagreement? |
+| `alternatives` | Record the disagreement — REQ-HERDR-027 asserts that the exit code is not a delivery signal, citing both measurements, and the structural rule is unchanged; Assert exit 0 as EXP-004 recorded it and treat the exit-1 observation as an anomaly; Drop the requirement — a claim that does not reproduce should not be in the SPEC |
+| `recommended` | Record the disagreement — REQ-HERDR-027 asserts that the exit code is not a delivery signal, citing both measurements, and the structural rule is unchanged |
+| `on_no_answer` | Record the disagreement. Writing exit 0 into the SPEC as fact would put a claim there that the repository's own test contradicts on the machine it runs on, and the structural verification the requirement actually mandates is unaffected either way. |
+| `detected_by` | mechanical-check |
+| `evidence` | herdr agent prompt no-such-agent-xyz probe -> {"error":{"code":"agent_not_found"}} rc=1; herdr agent prompt wZ:p99 probe -> same, rc=1. plan-059 Issue 4.2 and R3 both state exit 0. |
+| `asked_of` | operator (YF_PARENT_PANE) |
+| `state` | resolved |
+| `answer` | Recorded the disagreement. REQ-HERDR-027 now reads 'the exit code is NOT a delivery signal' and cites both measurements; the structural predicate (result.type == agent_prompted) is unchanged, and ctl-264-exit0-not-found asserts it without ever reading $?. (default taken by executing session (plan-059)) |
+| `raised_when` | 2026-08-29 |
+| `resolved_when` | 2026-08-29 |
+| `no_answer_taken` | yes |
+| `push_batch` |  |
+
