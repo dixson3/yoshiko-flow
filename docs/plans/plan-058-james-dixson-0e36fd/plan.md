@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-058-james-dixson-0e36fd
 author: james-dixson
 created: '2026-08-28'
-status: executing
+status: reconciling
 deliverable_class: standard
 fingerprint: 174b21743cb585627be4c81b10f1179a60873e98e743cc7a8386566988c00b8d
 epic: yf-mol-802
@@ -14,7 +14,7 @@ epic: yf-mol-802
 **ID:** plan-058-james-dixson-0e36fd
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** executing
+**Status:** reconciling
 **Deliverable-class:** standard
 **Epic:** yf-mol-802
 **Fingerprint:** 174b21743cb585627be4c81b10f1179a60873e98e743cc7a8386566988c00b8d
@@ -387,3 +387,22 @@ EXP-005 documents: fixing the instance that was filed and not sweeping for sibli
 | SC9b | All three disk-reclamation candidates are measured and reported on their merits — each with its true risk class — whatever Epic 4 concludes about pruning | manual: Issue 4.1b records (a) `git-remote-cache` **safe, reclaimed**, (b) Dolt GC **hypothesis, tested, win bounded by the ~105 MB journal**, and Issue 4.1d records (c) `.beads/backup` **consent-gated, DR-versus-space**. No figure is promised in advance | 4.1b, 4.1d |
 | SC10 | **All four** separately-filed defects are filed upstream rather than silently dropped | manual: verify an open upstream issue exists for each of — the `--include-gates` edge gap (3.4), the aggregate wall-clock deadline (3.5), the `narrow`-always-empty follow-on defect (3.7), and `check_gh_direct.py`'s vacuous `FORBIDDEN_SUBSTRINGS` (3.8) | 3.4, 3.5, 3.7, 3.8 |
 | SC11 | `SKILL.md`'s description of the push/enumerate cost model matches the measured post-fix behavior | manual: prose agreement, checked by reading `SKILL.md` against Issue 1.9's recorded timing | 1.9, 3.6 |
+
+### Execution outcome (recorded at reconcile)
+
+Full evidence in [assets/final-criteria-sweep.md](assets/final-criteria-sweep.md); the pre-work
+baseline is [assets/instrument-sweep.md](assets/instrument-sweep.md).
+
+- **17 instruments flipped red to green** — 15 progress criteria plus both capability-gate Tests.
+- **SC7 is the sole INVARIANT criterion** and was green before *and* after, as a regression guard
+  must be. It was never "fixed" into failing.
+- **SC3c, SC6c and SC8b are N/A**, each a direct consequence of an operator decline at a human
+  gate — the outcome those gates' own Instructions specify.
+- **SC6c is N/A *despite passing*.** Its `Verification` command is byte-identical to SC6's, so it
+  goes green whether or not Issue 3.1c shipped — it cannot discriminate the claim it makes. This is
+  the vacuous-criterion class this plan's own reviews caught four instances of; it is reported as
+  found, not counted as a pass.
+- **Two of this plan's own estimates were corrected against measurement during execution**: the
+  Dolt-GC upside is bounded by an **11 MB** journal, not the 105 MB assumed (an order of magnitude
+  in the plan's favour, which *weakens* the GC case); and `close_reason` prose spans **804** beads
+  over 200 chars, not 745.
