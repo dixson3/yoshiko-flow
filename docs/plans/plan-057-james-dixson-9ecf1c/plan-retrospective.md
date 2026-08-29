@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | State RED-fixture requirements as the branch they must reach, with the construction as a worked example rather than a mandate. The selftest already enforces the real property: it refuses an exit 2 as a red observation, so a fixture that fails to reach the FAIL branch is caught mechanically no matter how it was built. |
 | `cost` | One substitution during Issue 1.0; no rework and no criterion affected. |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-29 |
+| `stop_class` | 1 |
+| `asked` | Issue 3.5 requires commenting on upstream #140, #170, #171 and #189 with what shipped and what remains. Authorize the four gh issue comment writes? |
+| `answered` | NOT ASKED — the invoking briefing pre-denied it: UPSTREAM WRITES ARE NOT AUTHORIZED. No gh issue create/comment/edit. Issue 3.5 reconcile comments need an operator grant — raise it and park, do not write. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | uv run skills/yf-plan/scripts/plan_manager.py verify-reconcile docs/plans/plan-057-james-dixson-9ecf1c --json = verdict fail; 4 of 7 rows fail with "#N is OPEN but no comment mentions plan-057-james-dixson-9ecf1c" (#140, #170, #171, #189); the three deferred rows (#169, #192, #289) pass. Draft bodies written to assets/upstream-drafts/{140,170,171,189}.md, doc_lint PASS on each. |
+| `escape_class` | outward-facing write withheld by standing policy — not a defect, a scope boundary |
+| `adjudication` | Issue 3.5 is COMPLETE except for its four outward-facing writes. The reconcile CONTENT is authored and committed as artifacts; only the posting is withheld. SC24 therefore stays exit 1 BY CONSTRUCTION and is reported as undischarged rather than worked around — the alternative would have been to relabel the dispositions so the instrument passed, which is the vacuity class this plan's nine review passes exist to prevent. |
+| `origin` | Standing operator policy for this execution: no gh writes, no push, no merge. The plan was approved before that constraint was stated, so Issue 3.5 assumed the writes were in scope. |
+| `culpability` | Neither. The constraint is deliberate and was stated up front; the issue predates it. |
+| `prevention` | The four bodies are pre-written and doc_lint-clean, so discharging this is four gh issue comment N --body-file <path> calls after a grant. Nothing needs re-deriving. |
+| `cost` | One criterion (SC24) left undischarged at completion; zero rework. |
+

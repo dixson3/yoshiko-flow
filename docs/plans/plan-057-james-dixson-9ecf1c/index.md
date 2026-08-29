@@ -44,3 +44,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 — APPROVE. Zero blockers. Both of pass 4's repairs verified by execution, including a spike proving one test file satisfies both invocation paths. Six non-blocking specification clauses, all fail-red.
 - [reviews/pass-6.md](reviews/pass-6.md) - Red-team pass 6 — APPROVE. A post-approval cross-plan concurrency audit raised four defects; three reproduced and are repaired, one (D4, 'gates are never poured as beads') is REFUTED by measurement — its root cause is that `bd list --all` structurally excludes gate-typed beads. R12 rewritten to the measured mechanism with a sequencing decision; #290's crash brought in scope; rule D's `<=10` test disambiguated.
 - [assets/backfill.json](assets/backfill.json)
+- [assets/upstream-drafts/140.md](assets/upstream-drafts/140.md) - Draft reconcile comment for upstream #140, PARKED — awaiting an operator grant to post.
+- [assets/upstream-drafts/170.md](assets/upstream-drafts/170.md) - Draft reconcile comment for upstream #170, PARKED — awaiting an operator grant to post.
+- [assets/upstream-drafts/171.md](assets/upstream-drafts/171.md) - Draft reconcile comment for upstream #171, PARKED — awaiting an operator grant to post.
+- [assets/upstream-drafts/189.md](assets/upstream-drafts/189.md) - Draft reconcile comment for upstream #189, PARKED — awaiting an operator grant to post.
