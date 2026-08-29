@@ -1,0 +1,30 @@
+# Log
+
+## 2026-08-29
+
+- approved: operator approved; severity vocabulary = option (b): high|medium|low plus the medium-high/low-medium family. Option (c) DECLINED — a qualifier suffix such as 'medium (blocking)' is NOT legal, being the exact token that fired the detector on plan-026.
+
+## 2026-08-28
+- ready-for-approval: ready-check green — pass-10 APPROVE + audit pass
+- review-pass: red-team pass-10 APPROVE — no blocking class defects; literal set closed
+- autonomy: max-review-cycles raised to 10 for this invocation (cycles=9) — escalation override
+- review-pass: red-team pass-9 REVISE — 1 blocking (one token), resolved
+- autonomy: max-review-cycles raised to 10 for this invocation (cycles=8) — escalation override
+- review-pass: red-team pass-8 REVISE — 2 blocking (one-line), all resolved
+- autonomy: max-review-cycles raised to 10 for this invocation (cycles=7) — escalation override
+- review-pass: red-team pass-7 REVISE — 2 blocking (live-bundle state), all resolved
+- review-pass: red-team pass-6 REVISE — 3 blocking (all pipefail-chain), all resolved
+- autonomy: max-review-cycles raised to 10 for this invocation (cycles=5) — escalation override
+- autonomy: max-review-cycles raised to 10 for this invocation (cycles=5) — escalation override
+- autonomy: max-review-cycles raised to 10 for this invocation (cycles=5) — escalation override
+- review-pass: red-team pass-5 REVISE — 14 concerns (4 blocking); max_review_cycles bound reached
+- review-pass: red-team pass-4 REVISE — 10 concerns (6 blocking)
+- review-pass: red-team pass-3 REVISE — 18 concerns (9 blocking)
+- review-pass: red-team pass-2 REVISE — 17 concerns (4 high)
+- review-pass: red-team pass-1 REVISE — 15 concerns (3 high)
+- review: plan v1 presented
+- drafting: 4 experiments returned; detector epic dies on evidence, escalation path ships
+- investigating: scope resolved: 4 operator constraints recorded, 4 experiments identified; trigger-point survey may terminate the plan
+
+- scoping: initial scope captured
+
