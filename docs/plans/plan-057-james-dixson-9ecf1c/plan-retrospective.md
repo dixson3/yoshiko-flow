@@ -51,3 +51,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | An instrument that resolves every REQ-* token cited in plan.md against the SPEC family that owns it, failing on an id that is undefined OR defined-and-unrelated. The second half is the hard one and is the case here: REQ-CLI-018 exists, so a mere existence check would be green. Same shape as RE-001's instrument-output diff — a hand-transcribed identifier nothing re-resolves. |
 | `cost` | One execution-time redirection; no rework, since the issue text named the requirement unambiguously and the wrong id appears in no criterion. |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-29 |
+| `stop_class` |  |
+| `asked` |  |
+| `answered` |  |
+| `frontloadable` |  |
+| `detected_by` | self-report |
+| `evidence` | The permission layer refused the command outright: 'Permission to use Bash with command ... bd init ... has been denied.' The operator briefing also states it directly: 'BEADS IS SHARED — verified, bd where resolves to the shared root .beads/dolt. Do NOT run bd init; it would fork a divergent DB.' Substitute verified by execution: the stubbed-bd RED fixture exits 1 reaching the FAIL branch ('Capability Gate: Fixture gate :: poured with test_class=manual, not probe'), and harness-selftest.sh reports 'check-gates-poured-probe.sh -> 1' rather than the 2 it refuses as a red observation. The green arm runs against the LIVE DB: '3 auto+executable gate(s) poured with test_class: probe (185 gate bead(s) visible via bd list -t gate --all)'. |
+| `escape_class` | fixture-construction blocked by an environment policy the plan could not see at authoring time |
+| `adjudication` | Issue 1.0 prescribes 'bd init inside the sandbox, then bd create -t gate --metadata {"test_class":"manual"}'. That construction is unavailable here and is forbidden by the briefing. A stubbed bd on PATH was substituted. It is strictly MORE hermetic — no database, no network, and structurally incapable of writing to the shared graph — and it proves the thing a RED row must prove, namely that the instrument's FAIL branch fires. The property the bd init fixture would have added, that test_class round-trips through beads, is already proven more strongly by this instrument's GREEN arm against the live 185-gate database, which is exactly the evidence pass 6's D4 refutation rested on. |
+| `origin` | Issue 1.0's fixture construction was specified at pass 3 (C12) from a sandbox spike that predates this execution environment's permission policy. Pass 6 then proved the pour against the live DB, which superseded the spike's purpose without the issue text being updated. |
+| `culpability` | Process. The plan specified a MECHANISM where the requirement is a PROPERTY (the FAIL branch fires). A fixture specified as a recipe rather than as an assertion cannot be satisfied by a better recipe. |
+| `prevention` | State RED-fixture requirements as the branch they must reach, with the construction as a worked example rather than a mandate. The selftest already enforces the real property: it refuses an exit 2 as a red observation, so a fixture that fails to reach the FAIL branch is caught mechanically no matter how it was built. |
+| `cost` | One substitution during Issue 1.0; no rework and no criterion affected. |
+

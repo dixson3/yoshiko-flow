@@ -498,10 +498,21 @@ are per-skill (the three current models genuinely differ) and are specified in e
   is the reason the backfill is safe to run at all, and it sits under **foreign-corpus survival**
   (§2.7) because preserving content the engine did not author is exactly that concern.
 
-  **Never invent a description.** An existing description is preserved; a new entry is emitted as a
-  bare `- [title](path)`. Emitting a placeholder (`*description pending*`) would write an assertion
+  **Never invent a description.** An existing description is preserved. A NEW entry's description
+  **resolves through REQ-OKF-012(c)'s chain** — caller-supplied, then the linked file's own
+  frontmatter `description:`, then its `H1` — and falls through to a bare `- [title](path)` when the
+  chain yields nothing. Emitting a placeholder (`*description pending*`) would write an assertion
   that a description exists when none does — 818 times over, on the 983-nested-file corpus measured
   2026-08-28.
+
+  *(Amended plan-057 Issue 1.4. The pre-amendment wording said a new entry is emitted bare, FULL
+  STOP, which was written before a chain existed to resolve one. Reading a document's OWN
+  `description:` or `H1` is **sourcing, not synthesis** — the prohibition is on inventing text no
+  document contains, and it is unchanged. The amendment is load-bearing rather than cosmetic:
+  measured over REQ-OKF-012's frozen 25-bundle set, appending bare leaves the boilerplate ratio at
+  **0.6848 — exactly unmoved** — so the root-index deepening would add ~260 entries and improve
+  nothing, while resolving through the chain gives 446 described / 299 distinct / 147 repeated =
+  **0.3296**.)*
 
 - **REQ-OKF-012** *(testable)* *(added plan-057 / #140-partial, #171-partial)* **root-index depth.**
   The root `index.md` listing shall reach **below the bundle root**, and it shall do so by deepening

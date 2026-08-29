@@ -760,7 +760,23 @@ def test_render_index_lists_subdirs_and_md_children(tmp_path):
     (b / "findings").mkdir(parents=True)
     (b / "plan.md").write_text("---\ntype: Plan\n---\n# P\n")
     out = _generated_index(b)
-    assert "- [findings/](findings/index.md)" in out
+    # AMENDED BY REQ-OKF-012 (plan-057 Issue 1.1/1.2), which is exactly the deliberate change
+    # this characterization test exists to anchor. TWO shifts, both toward agreement:
+    #
+    #  (a) `render_index` now routes through `_listing_members`, so it applies that function's
+    #      EMPTY-DIRECTORY predicate. An empty `findings/` is no longer listed at all — git
+    #      does not track empty directories, so listing one asserts something false on every
+    #      clone but the machine that made it. Producer and checker previously DISAGREED here:
+    #      `render_index` emitted the entry and `reindex_check` called it drift.
+    #  (b) a directory entry no longer points at a `<dir>/index.md` that does not exist — the
+    #      ghost-directory-link defect (25 live ML003 violations) this test's own docstring
+    #      names as the change it was anchoring for.
+    assert "- [findings/]" not in out, "an EMPTY subdir must not be listed"
+    (b / "findings" / "exp-001.md").write_text("---\ntype: Concept\n---\n# A finding\n")
+    out = _generated_index(b)
+    # Non-empty and at/below K, so rule D enumerates its files rather than emitting a stub.
+    assert "- [findings/exp-001.md](findings/exp-001.md) - A finding" in out
+    assert "index.md)" not in out, "no entry may point at a nonexistent nested index.md"
     assert "- [plan.md](plan.md)" in out
 
 
@@ -970,9 +986,16 @@ def test_reindex_write_never_invents_a_description(tmp_path):
     """
     b = _bundle(tmp_path, files=["plan.md", "new.md"],
                 index="# b\n\n- [plan.md](plan.md)\n")
+    # A file with NO frontmatter `description:` and NO H1 — so REQ-OKF-012(c)'s chain yields
+    # nothing and the entry must fall through to BARE.
+    (b / "new.md").write_text("body text with no heading and no frontmatter\n")
+    # ...and one that DOES carry an H1, to prove the bare result above is the chain
+    # terminating rather than the chain being dead.
+    (b / "titled.md").write_text("# A real title\n")
     okf.reindex_write(b)
     out = (b / "index.md").read_text()
     assert "- [new.md](new.md)\n" in out
+    assert "- [titled.md](titled.md) - A real title\n" in out
     assert "pending" not in out and "TODO" not in out
 
 
@@ -1059,7 +1082,13 @@ def test_reindex_suppresses_parent_dir_when_children_listed(tmp_path):
 def test_reindex_emits_parent_dir_when_children_not_listed(tmp_path):
     """The other half of the ruling: keep the dir entry when children are NOT listed."""
     b = _bundle(tmp_path, files=["plan.md"], dirs=["findings"])
-    (b / "findings" / "exp-001.md").write_text("---\ntype: Concept\n---\n# f\n")
+    # ABOVE rule D's K (REQ-OKF-012(a)), so the directory collapses to a single stub instead
+    # of being enumerated file-by-file — which is the only arm in which a `findings/` entry is
+    # still the thing that can be missing. AMENDED by plan-057 Issue 1.1: with one file the
+    # directory is now enumerated, so the old fixture asserted an outcome the rule no longer
+    # produces. The RULING is unchanged; the fixture had to move to the arm it rules on.
+    for i in range(okf.LISTING_DEPTH_K + 1):
+        (b / "findings" / f"exp-{i:03d}.md").write_text("---\ntype: Concept\n---\n# f\n")
     (b / "index.md").write_text("# b\n\n- [plan.md](plan.md)\n")
     assert any(f["target"] == "findings/" and f["kind"] == "missing"
                for f in okf.reindex_check(b)["findings"])
@@ -1250,3 +1279,243 @@ def test_overlap_invariant(tmp_path):
     assert "findings/okf-migration-samples/**" in member
     assert any("okf-migration-samples" in g for g in lint_side)
     assert any("assets/fixtures" in g or "fixtures" in g for g in member)
+
+
+# ===========================================================================
+# REQ-OKF-012 — root-index depth (plan-057 Epic 1)
+# ===========================================================================
+
+
+def _depth_bundle(tmp_path, name="b", files=(), dirs=None):
+    """A bundle root with `files` at top level and `dirs` = {subdir: [filenames]}."""
+    b = tmp_path / name
+    b.mkdir()
+    for f in files:
+        (b / f).write_text(f"# {f}\n")
+    for sub, names in (dirs or {}).items():
+        (b / sub).mkdir(parents=True, exist_ok=True)
+        for n in names:
+            (b / sub / n).write_text(f"# {n}\n")
+    return b
+
+
+def test_selection_rule_per_directory_bound(tmp_path):
+    """SC2 / REQ-OKF-012(a) — NO SINGLE SUBDIRECTORY CONTRIBUTES MORE THAN K ENTRIES.
+
+    This is the PER-DIRECTORY invariant, and it is asserted instead of the corpus maximum
+    deliberately. The inherited bound ("max 30 entries per bundle") is EMPIRICAL with zero
+    margin: four bundles sat exactly on it, rule D bounds a bundle's top-level file count not
+    at all, and the corpus maximum has ALREADY moved to 39 (plan-059, 2026-08-29) since that
+    number was written down. The per-directory bound cannot go stale, because it is a property
+    of the rule rather than a census of the corpus.
+    """
+    k = okf.LISTING_DEPTH_K
+    # A directory at exactly K is enumerated; one at K+1 collapses to a stub.
+    at_k = [f"f{i:02d}.md" for i in range(k)]
+    over_k = [f"g{i:02d}.md" for i in range(k + 1)]
+    b = _depth_bundle(tmp_path, files=["plan.md"], dirs={"small": at_k, "big": over_k})
+
+    members = okf._listing_members(b)
+
+    # NON-VACUITY: the fixture must actually exercise both arms.
+    assert any(m.startswith("small/") for m in members), "the <=K arm did not fire"
+    assert "big/" in members, "the >K arm did not fire"
+
+    per_dir: dict[str, int] = {}
+    for m in members:
+        if "/" in m:
+            per_dir[m.split("/", 1)[0]] = per_dir.get(m.split("/", 1)[0], 0) + 1
+    assert per_dir.get("small") == k
+    for d, n in per_dir.items():
+        assert n <= k, f"{d} contributed {n} entries, above the per-directory bound K={k}"
+
+    # `big/` contributes exactly ONE entry, not K+1 — which is the mechanism that makes the
+    # bound structural rather than lucky.
+    assert sum(1 for m in members if m == "big/" or m.startswith("big/")) == 1
+
+
+def test_selection_rule_counts_recursively_not_direct_children(tmp_path):
+    """REQ-OKF-012(a) — `<= K` counts RECURSIVELY, and the two readings DIFFER here.
+
+    The reading was UNDERDETERMINED in the plan text until it was measured both ways, which is
+    worse than stale: SC2's fate would have been a coin flip on the implementer. This fixture
+    is built so the two readings disagree — 2 direct children, 12 recursive files — so a
+    regression to the direct-children reading fails rather than passing quietly.
+    """
+    b = _depth_bundle(tmp_path, files=["plan.md"])
+    (b / "deep").mkdir()
+    (b / "deep" / "a.md").write_text("# a\n")
+    (b / "deep" / "nested").mkdir()
+    for i in range(11):
+        (b / "deep" / "nested" / f"n{i:02d}.md").write_text(f"# n{i}\n")
+
+    direct_children = len(list((b / "deep").iterdir()))
+    recursive = okf._recursive_file_count(b / "deep", [], "deep/")
+    assert direct_children == 2 and recursive == 12, "fixture must separate the two readings"
+    assert recursive > okf.LISTING_DEPTH_K >= direct_children
+
+    # RECURSIVE is normative: 12 > K, so `deep/` collapses to a stub.
+    members = okf._listing_members(b)
+    assert "deep/" in members
+    assert not any(m.startswith("deep/") and m != "deep/" for m in members), \
+        "the direct-children reading was used — it would have enumerated deep/"
+
+
+def test_description_fallback_never_synthesizes(tmp_path):
+    """SC4 / REQ-OKF-012(c) — the chain, in order, terminating in NOTHING."""
+    b = tmp_path / "b"
+    b.mkdir()
+    (b / "fm.md").write_text("---\ntype: X\ndescription: from frontmatter\n---\n# An H1\n")
+    (b / "h1.md").write_text("# Only an H1\n")
+    (b / "bare.md").write_text("no heading and no frontmatter\n")
+
+    # 1. caller-supplied WINS over everything, including a real frontmatter key. Four callers
+    #    in this repo pass one; dropping it would replace 150 authored corpus entries.
+    assert okf.resolve_description(b, "fm.md", "CALLER") == "CALLER"
+    # 2. frontmatter `description:` beats the H1.
+    assert okf.resolve_description(b, "fm.md") == "from frontmatter"
+    # 3. H1 when there is no key.
+    assert okf.resolve_description(b, "h1.md") == "Only an H1"
+    # 4. BARE — the empty string, never a placeholder.
+    assert okf.resolve_description(b, "bare.md") == ""
+    assert okf.resolve_description(b, "does-not-exist.md") == ""
+
+    # THE ANTI-SYNTHESIS ASSERTION. A rendered entry for a description-less file carries no
+    # description separator at all — not `*description pending*`, not the filename echoed as
+    # prose. Emitting a placeholder would assert that a description exists when none does.
+    text = okf.render_index(b)
+    assert "- [bare.md](bare.md)\n" in text
+    assert "pending" not in text.lower()
+    for ln in text.splitlines():
+        if ln.startswith("- [bare.md]"):
+            assert ") - " not in ln
+
+
+def test_preserve_and_append_contract(tmp_path):
+    """SC5 / REQ-OKF-072 — regeneration PRESERVES authored entries and prose verbatim.
+
+    This is what makes the existing hand-nested bundles migrate for free: an entry that still
+    resolves keeps BOTH its title and its authored description, so deepening adds entries
+    without rewriting any.
+    """
+    # `r3.md` is present on disk and ABSENT from the index below, so regeneration genuinely
+    # APPENDS — which is what makes the "preserve" half of this test non-vacuous.
+    b = _depth_bundle(tmp_path, files=["plan.md"], dirs={"refs": ["r1.md", "r2.md", "r3.md"]})
+    (b / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n\n# b\n\n"
+        "Author prose above the listing.\n\n"
+        "- [plan.md](plan.md) - AUTHORED, must survive\n"
+        "- [refs/r1.md](refs/r1.md) - [phase] an authored nested entry\n"
+        "\n"
+        "## A subheading INSIDE the run\n"
+        "\n"
+        "- [refs/r2.md](refs/r2.md) - a second authored nested entry\n"
+        "\nTrailing author prose.\n")
+    before = (b / "index.md").read_text()
+
+    out = okf.reindex_write(b, dry_run=True)
+    after = out["text"]
+
+    # Every authored description survives byte-for-byte.
+    for line in ("- [plan.md](plan.md) - AUTHORED, must survive",
+                 "- [refs/r1.md](refs/r1.md) - [phase] an authored nested entry",
+                 "- [refs/r2.md](refs/r2.md) - a second authored nested entry"):
+        assert line in after, f"authored entry was not preserved: {line}"
+    # Prose on both sides AND inside the run.
+    assert "Author prose above the listing." in after
+    assert "Trailing author prose." in after
+    assert "## A subheading INSIDE the run" in after
+    # The engine reports no prose loss.
+    assert out["warnings"] == [], out["warnings"]
+    # IDEMPOTENCE: a second pass over the regenerated text changes nothing.
+    (b / "index.md").write_text(after)
+    assert okf.reindex_write(b, dry_run=True)["text"] == after
+    # NON-VACUITY: the fixture really was rewritten the first time, and the rewrite APPENDED
+    # the previously unlisted nested member.
+    assert after != before
+    assert "- [refs/r3.md](refs/r3.md)" in after
+
+
+def test_inverse_drift_signal(tmp_path):
+    """SC6 / REQ-OKF-012(d) — an UNLISTED NESTED file the rule selects is reported `missing`.
+
+    Without this the signal is ONE-DIRECTIONAL: a listed file that vanishes is caught
+    (`ghost`) while an unlisted file that appears is invisible, so a bundle can grow
+    indefinitely without ever being out of agreement with its own index. A gate that can only
+    fire in one direction certifies the other.
+    """
+    b = _depth_bundle(tmp_path, files=["plan.md"], dirs={"refs": ["listed.md", "unlisted.md"]})
+    (b / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n\n# b\n\n"
+        "- [plan.md](plan.md) - p\n"
+        "- [refs/listed.md](refs/listed.md) - listed\n")
+
+    res = okf.reindex_check(b)
+    missing = {f["target"] for f in res["findings"] if f["kind"] == "missing"}
+    assert "refs/unlisted.md" in missing, res["findings"]
+    assert res["verdict"] == "drift"
+    assert res["exit"] == okf.REINDEX_EXIT["drift"]
+
+    # THE POSITIVE CONTROL. Listing it makes the bundle clean — so the finding above is the
+    # rule firing, not the checker being unable to reach `clean` at all.
+    (b / "index.md").write_text((b / "index.md").read_text()
+                                + "- [refs/unlisted.md](refs/unlisted.md) - now listed\n")
+    assert okf.reindex_check(b)["verdict"] == "clean"
+
+
+def test_reindex_write_tolerates_interleaved_prose(tmp_path):
+    """SC6b / upstream #290 — `reindex_write` survives prose INSIDE the listing run.
+
+    `_split_listing` returns the CONTIGUOUS RUN from the first bullet to the last, so a blank
+    line or a `## Subheading` between two bullets reached the entry loop, where the regex
+    match is None and `m.group(...)` raised `AttributeError`. Measured 2026-08-29 over the 33
+    index-bearing bundles: `reindex_check` was clean on 33 of 33 while `reindex_write` crashed
+    on 4 — including the very plan that commissioned the fix. A corpus gate that is green
+    while its paired REPAIR verb cannot run is the two-facts-one-signal defect this repository
+    keeps rediscovering.
+    """
+    b = _depth_bundle(tmp_path, files=["plan.md"], dirs={"refs": ["r1.md"]})
+    (b / "index.md").write_text(
+        "---\nokf_version: '0.2'\n---\n\n# b\n\n"
+        "- [plan.md](plan.md) - p\n"
+        "\n"                                   # blank line INSIDE the run
+        "## Grouping heading\n"                # subheading INSIDE the run
+        "\n"
+        "- [refs/r1.md](refs/r1.md) - r\n")
+
+    # NON-VACUITY: the fixture must really put non-bullet lines inside the run, or this test
+    # would pass against the unfixed engine.
+    _head, bullets, _tail = okf._split_listing((b / "index.md").read_text())
+    interleaved = [ln for ln in bullets if not okf._INDEX_ENTRY_RE.match(ln)]
+    assert len(interleaved) == 3, interleaved
+
+    out = okf.reindex_write(b, dry_run=True)      # raised AttributeError before the fix
+    assert out["verdict"] == "clean"
+
+    # PRESERVED VERBATIM AND IN PLACE — not dropped, not reordered.
+    lines = out["text"].splitlines()
+    i_plan = lines.index("- [plan.md](plan.md) - p")
+    i_head = lines.index("## Grouping heading")
+    i_r1 = lines.index("- [refs/r1.md](refs/r1.md) - r")
+    assert i_plan < i_head < i_r1, lines
+    assert out["warnings"] == [], out["warnings"]
+
+
+def test_index_bullet_is_the_single_flat_format(tmp_path):
+    """REQ-OKF-012(b) — one emitter, one flat shape, and NO grouping heading is generated.
+
+    The format is bound to the EMITTED LINE rather than to one function because this
+    repository has a second, independent bullet writer (`plan_manager._ensure_index_lists_member`).
+    Two formats inside one `index.md` turn the live index-drift gate red on the next bundle
+    that grows a member.
+    """
+    assert okf._index_bullet("t", "p", "d") == "- [t](p) - d\n"
+    assert okf._index_bullet("t", "p") == "- [t](p)\n"
+    assert okf._index_bullet("t", "p", "") == "- [t](p)\n"
+
+    # Every generated bullet parses as an entry under the engine's own regex — the property a
+    # grouped or indented format would break.
+    b = _depth_bundle(tmp_path, files=["a.md"], dirs={"refs": ["r.md"]})
+    for ln in okf.render_index(b).splitlines():
+        if ln.startswith("- ") or ln.startswith("* "):
+            assert okf._INDEX_ENTRY_RE.match(ln), ln
