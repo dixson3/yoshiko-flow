@@ -85,6 +85,7 @@ approved: yes
 | `uv-yf-cli-enum` | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
 | `uv-yf-review-agent` | `uv run skills/yf-plan/scripts/test_review_agent_contract.py` |  |  |
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
+| `okf-hygiene-tests` | `uv run skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` |  |  |
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
@@ -148,6 +149,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_retrospective.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_cli_enumeration.py` |  |  |
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
+| `okf-hygiene-tests` | `uv run skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` |  |  |
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
@@ -200,6 +202,9 @@ approved: yes
 | `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum` |
 | `_shared/test_okf.py` | `uv-okf` |
 | `skills/yf-okf/scripts/**` | `uv-okf`, `uv-_shared` |
+| `skills/yf-okf-hygiene/scripts/**` | `okf-hygiene-tests`, `uv-okf`, `uv-_shared` |
+| `skills/yf-okf-hygiene/scripts/okf.py` | `uv-okf`, `uv-_shared` |
+| `skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` | `okf-hygiene-tests` |
 | `skills/yf-incubator/scripts/**` | `uv-okf`, `uv-_shared` |
 | `skills/yf-plan/scripts/okf.py` | `uv-okf`, `uv-_shared` |
 | `skills/yf-research/scripts/okf.py` | `uv-okf`, `uv-_shared` |
