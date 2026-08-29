@@ -70,6 +70,14 @@ INSTRUMENTS=(
   "check_okf_index_drift.py|--root definitely/not/a/real/root/* --min-roots 0|a nonexistent enumerated root"
   "check-req-coverage.py|${FIX}/uncovered-plan|a plan whose issues name no REQ and reach no Epic-0 source"
   "check-description-coverage.py|${FIX}/unstamped-bundle|a bundle whose nested artifacts carry no description"
+  # --- plan-057 Issue 1.0: one named RED row per instrument this plan authors -------------
+  "check-index-boilerplate-ratio.py|--baseline 0/1 --frozen-set ${FIX}/sc3-frozen.txt --root ${FIX}|a ratio that is NOT strictly lower than its baseline"
+  "check-backfill-audit-delta.py|--record ${FIX}/regressed-backfill.json|a bundle whose audit verdict is WORSE after the backfill"
+  "check-skill-classified.sh|definitely-no-such-skill-xyz|a skill whose SKILL.md no schema selects (class no-such-path)"
+  "check-assets-decided.py|__SELF_BREAK__|a tree where no schema selects assets/ and no blanket assets/** exclusion exists"
+  "check-assess-verb-gone.sh|__SELF_BREAK__|a SKILL.md advertising an engine-backed verb its script cannot dispatch"
+  "check-baseline-pin-contract.sh|__SELF_BREAK__|a baseline with no okf_baseline_sha256 pin and no detector"
+  "check-gates-poured-probe.sh|__SELF_BREAK__ docs/plans/plan-901-fixture-dddddd|an auto+executable gate poured test_class: manual, not probe"
 )
 
 # Fixtures the rows above point at.
@@ -150,6 +158,18 @@ none
 | SC1 | c | manual: look | 1.1 |
 UPEOF
 
+# --- plan-057 fixtures ---------------------------------------------------------------------
+# A frozen "corpus" whose boilerplate ratio is 0.5 — measured against `--baseline 0/1` (0.0) it
+# is NOT strictly lower, which is the comparator's FAIL branch. A baseline of 0.0 is
+# unreachable by construction, so this row can never accidentally go green.
+mkdir -p "${FIX}/ratio-bundle"
+printf -- '- [a](a.md) - same text\n- [b](b.md) - same text\n' > "${FIX}/ratio-bundle/index.md"
+printf 'ratio-bundle\n' > "${FIX}/sc3-frozen.txt"
+
+# A backfill record in which a bundle went `warn -> fail`: the regression SC12 exists to catch.
+printf '%s\n' '{"bundles":[{"bundle":"fixture","before":{"verdict":"warn"},"after":{"verdict":"fail"}}]}' \
+  > "${FIX}/regressed-backfill.json"
+
 # `__SELF_BREAK__` instruments assert a property OF ANOTHER COMPONENT, so their RED fixture is
 # a broken copy of that component rather than an argument. Constructing one per instrument is
 # what makes this a real control instead of an argument-validation test.
@@ -195,6 +215,121 @@ PY
       cp -R "${TREE}/docs/plans/plan-053-james-dixson-4015d3" "${sandbox}/docs/plans/" 2>/dev/null || true
       cp -R "${TREE}/_shared" "${sandbox}/_shared" 2>/dev/null || true
       ;;
+    check-assets-decided.py)
+      # Sabotage: a document_types set with NO schema selecting `assets/`, and an
+      # OKF-EXTENSION whose §3b excludes only a SUBDIRECTORY of assets. That is the exact
+      # "silently uncovered" state — and it is the state the LIVE tree is in until Issue 1.5
+      # decides, which is why the RED fixture is a sandbox rather than the tree itself.
+      mkdir -p "${sandbox}/_shared/document_types" "${sandbox}/skills/yf-plan"
+      cp "${TREE}/_shared/okf.py" "${sandbox}/_shared/okf.py"
+      cp "${TREE}/_shared/document_types/finding.toml" "${sandbox}/_shared/document_types/"
+      sed '/^| `assets\/\*\*`/d' "${TREE}/skills/yf-plan/OKF-EXTENSION.md" \
+        > "${sandbox}/skills/yf-plan/OKF-EXTENSION.md"
+      ;;
+    check-assess-verb-gone.sh)
+      # Sabotage: a SKILL.md advertising a verb the engine cannot dispatch, with NO
+      # `Non-engine-backed subcommands:` declaration — so nothing is exempt and the check
+      # must go red. Both skills are present, so the row fails on the PROPERTY rather than
+      # on the two-skill floor.
+      for s in yf-okf yf-okf-hygiene; do
+        mkdir -p "${sandbox}/skills/${s}/scripts"
+      done
+      cp "${TREE}/_shared/okf.py" "${sandbox}/skills/yf-okf/scripts/okf.py"
+      cp "${TREE}/_shared/okf.py" "${sandbox}/skills/yf-okf-hygiene/scripts/okf_hygiene.py"
+      printf '# s\n## Invocation\n| Subcommand | Purpose |\n|:--|:--|\n| `%s` | p |\n\nNon-engine-backed subcommands: none\n' \
+        "definitely-not-dispatchable" > "${sandbox}/skills/yf-okf/SKILL.md"
+      printf '# s\n## Invocation\n| Subcommand | Purpose |\n|:--|:--|\n| `check` | p |\n\nNon-engine-backed subcommands: none\n' \
+        > "${sandbox}/skills/yf-okf-hygiene/SKILL.md"
+      ;;
+    check-baseline-pin-contract.sh)
+      # Sabotage: a baseline carrying NO `okf_baseline_sha256:` key and no detector script.
+      # This reaches the FAIL branch (1), never the INCONCLUSIVE one — the check treats a
+      # missing detector as FALSE by design (R11's third rule).
+      mkdir -p "${sandbox}/skills/yf-okf/spec"
+      printf '# OKF Baseline\n\nVersion 0.2, with no content pin at all.\n' \
+        > "${sandbox}/skills/yf-okf/spec/OKF-BASELINE.md"
+      ;;
+    check-gates-poured-probe.sh)
+      # Sabotage: a STUBBED `bd` on PATH returning a gate bead poured `test_class: manual`.
+      #
+      # THE STUB IS DELIBERATE AND IS BETTER THAN A REAL SANDBOX DB. A `bd init` fixture
+      # would prove that metadata round-trips through beads — which is already proven, against
+      # the LIVE database, by the green arm of this instrument. What the RED row must prove is
+      # that the check's FAIL BRANCH FIRES, and a stub does that hermetically, with no DB, no
+      # network, and no possibility of writing to the shared graph.
+      mkdir -p "${sandbox}/bin" "${sandbox}/_shared" "${sandbox}/docs/plans"
+      cp "${TREE}/_shared/plan_extract.py" "${sandbox}/_shared/" 2>/dev/null || true
+      cat > "${sandbox}/bin/bd" <<'BDSTUB'
+#!/usr/bin/env bash
+cat <<'JSON'
+[{"id":"fix.1","title":"Gate: Capability Gate: Fixture gate","issue_type":"gate","status":"open",
+  "metadata":{"gate_type":"auto","test":"true","test_class":"manual","cwd":"repo-root"}}]
+JSON
+BDSTUB
+      chmod +x "${sandbox}/bin/bd"
+      mkdir -p "${sandbox}/docs/plans/plan-901-fixture-dddddd"
+      printf '# Log\n\n## 2026-08-28\n\n- scoping: f\n' \
+        > "${sandbox}/docs/plans/plan-901-fixture-dddddd/log.md"
+      cat > "${sandbox}/docs/plans/plan-901-fixture-dddddd/plan.md" <<'GFEOF'
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-901-fixture-dddddd
+author: t
+created: '2026-08-28'
+status: approved
+---
+# Plan: gate fixture
+
+**ID:** plan-901-fixture-dddddd
+**Status:** approved
+
+## Objective
+fixture
+
+## Motivation
+fixture
+
+## Upstream Issues
+| Issue | Title | Disposition | Notes | Resolved By |
+|-------|-------|-------------|-------|-------------|
+
+## Investigation Findings
+none
+
+## Approach
+none
+
+## Epics
+### Epic 0: bookkeeping
+- Issue 0.1: correct a figure
+
+## Gates
+### Start Gate (mandatory)
+- Type: human
+- Approvers: operator
+
+### Capability Gate: Fixture gate
+- Type: auto
+- Condition: a condition
+- Test: true
+- Blocks: 0.1
+
+### Reconcile Gate
+- Type: auto (all execution beads closed)
+- Blocks: reconcile step
+
+## Risks & Mitigations
+| # | Risk | Severity | Mitigation |
+| :-- | :-- | :-- | :-- |
+| R1 | r | low | m |
+
+## Success Criteria
+| # | Criterion | Verification | Discharged-by |
+| :-- | :-- | :-- | :-- |
+| SC1 | c | manual: look | 0.1 |
+GFEOF
+      ;;
     check-drift-driver-contract.sh)
       # Sabotage: a driver that exits 0 on everything — the "gate that cannot fail" shape.
       printf '#!/usr/bin/env -S uv run --script\n# /// script\n# requires-python = ">=3.11"\n# dependencies = []\n# ///\nimport sys\nsys.exit(0)\n' \
@@ -213,8 +348,21 @@ PY
   # non-zero because of THIS SCRIPT rather than because the instrument judged anything. An
   # accidental red is the same defect as an accidental green: the exit code stops meaning what
   # the selftest reports it means.
-  ( cd "${sandbox}" && git init -q . 2>/dev/null; YF_TREE="${sandbox}" \
-      bash "${sandbox}/scripts/checks/${name}" ${args[@]+"${args[@]}"} >/dev/null 2>&1 )
+  # A sandbox MAY ship a `bin/` of stubbed external tools. Prepending it is what lets a RED
+  # fixture sabotage a tool the instrument shells out to (`bd`), rather than only a file it
+  # reads — with no DB, no network, and no possibility of touching shared state.
+  local sbpath="${PATH}"
+  [ -d "${sandbox}/bin" ] && sbpath="${sandbox}/bin:${PATH}"
+  # DISPATCH PER EXTENSION, exactly as the non-self-break path does (REQ-CLI-029). This
+  # branch used to hard-code `bash`, which was invisible while every `__SELF_BREAK__` row
+  # happened to be a `.sh`. The first `.py` self-break row exposed it: `bash file.py` reads
+  # the PEP-723 header as comments, hits Python syntax, and exits 2 — an INCONCLUSIVE that
+  # this selftest then correctly refused to accept as a red observation. The instrument was
+  # fine; the harness could not run it.
+  local runner=(bash)
+  case "${name}" in *.py) runner=(uv run) ;; esac
+  ( cd "${sandbox}" && git init -q . 2>/dev/null; YF_TREE="${sandbox}" PATH="${sbpath}" \
+      "${runner[@]}" "${sandbox}/scripts/checks/${name}" ${args[@]+"${args[@]}"} >/dev/null 2>&1 )
   echo $?
 }
 
@@ -257,11 +405,22 @@ for row in "${INSTRUMENTS[@]}"; do
   fi
 done
 
-# THE FLOOR (REQ-CLI-029(b)). A selftest that enumerated 2 of 10 must be distinguishable from
-# one that enumerated 10 — the `--min-roots` pattern this plan invented for Issue 3.1, applied
-# to itself.
-if [ "${CHECKED}" -lt "${REQUIRE}" ]; then
-  ck_fail "checked ${CHECKED} instrument(s), --require ${REQUIRE} (${SKIPPED} absent) — this selftest would certify vacuously"
+# THE COUNT (REQ-CLI-029(b) and (e)). A selftest that enumerated 2 of 16 must be
+# distinguishable from one that enumerated 16.
+#
+# EQUALITY, NOT A MINIMUM — amended by plan-057 Issue 0.5 / REQ-CLI-029(e). The shipped
+# comparison was `-lt`, i.e. a FLOOR, and a floor is the wrong comparator for a hand-maintained
+# list that is KNOWN to drift: measured, six instruments sit in this directory unenumerated. A
+# floor is satisfied by a run that SKIPPED an instrument as long as the remainder clears it, and
+# it is equally satisfied by an array that has grown past it without anyone noticing. Equality
+# makes the number an ASSERTION about the enumerated set rather than a lower bound on it, so
+# adding an instrument to the array is a deliberate act of taking ownership of it.
+if [ "${CHECKED}" -ne "${REQUIRE}" ]; then
+  if [ "${CHECKED}" -lt "${REQUIRE}" ]; then
+    ck_fail "checked ${CHECKED} instrument(s), --require ${REQUIRE} (${SKIPPED} absent) — this selftest would certify vacuously"
+  else
+    ck_fail "checked ${CHECKED} instrument(s), --require ${REQUIRE} — the enumerated array has GROWN past the required count; --require asserts EQUALITY, so raise it deliberately rather than letting the set drift"
+  fi
 fi
 
 ck_done "${CHECKED} instrument(s) each returned non-zero on a deliberately broken input (--require ${REQUIRE}; ${SKIPPED} absent; this selftest excludes itself)"
