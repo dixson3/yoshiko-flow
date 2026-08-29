@@ -124,10 +124,10 @@ warning, which would train a reader to ignore it.
 | `detected_by` | mechanical-check |
 | `evidence` | escalation-report -> {raised:5, pushes:2, batches: ESC-001@20260829T133931-1, ESC-005@20260829T140657-1}. recheck-criteria -> verdict FAIL, failed: ['SC5']. Both pushes were legitimate: one per boundary, each batching every open un-pushed escalation at that boundary. |
 | `asked_of` | operator (YF_PARENT_PANE) |
-| `state` | raised |
-| `answer` |  |
+| `state` | resolved |
+| `answer` | AMEND SC5, authorized by the operator. New predicate: '.raised >= 2 and .pushes < .raised'. The old form asserted .pushes <= 1 CUMULATIVELY while batching is PER-BOUNDARY, so it could only hold if the plan escalated at exactly one boundary in its lifetime; measured at amendment, raised 6 / pushes 3 across three push_batch ids is 2:1 batching working correctly and the criterion read it as failure. The cell's own text had recorded that '>= 1 and < .raised' was rejected by an earlier pass because Issue 2.5 raised exactly one escalation — CORRECT AT n=1 AND WRONG AT n=6, falsified by this plan's own execution. Fingerprint re-written: 2dcf2461 -> e05f4534. NOT the no-answer default: the default was to leave SC5 red and halt. |
 | `raised_when` | 2026-08-29 |
-| `resolved_when` |  |
+| `resolved_when` | 2026-08-29 |
 | `no_answer_taken` | no |
 | `push_batch` | 20260829T140751-1 |
 

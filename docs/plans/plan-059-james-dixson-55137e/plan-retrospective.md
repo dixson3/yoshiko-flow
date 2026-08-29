@@ -108,3 +108,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | A validate-on-write check must validate the ROUND-TRIP, not the in-memory value: serialise, re-parse, then assert. Any writer whose serialisation uses a delimiter must reject that delimiter inside a value, or escape it. |
 | `cost` | low — caught by the audit before completion; one repair and one regression arm |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-29 |
+| `stop_class` |  |
+| `asked` | SC5 was FALSE at completion: '.raised >= 2 and .pushes <= 1' with raised 6, pushes 3. |
+| `answered` | The criterion was AMENDED (operator-authorized) to '.raised >= 2 and .pushes < .raised'. SC5 asserted a CUMULATIVE bound on a PER-BOUNDARY property, so it could only hold if the plan escalated at exactly one boundary in its lifetime. The plan's own execution — escalating about its own escalations — falsified it. Amending Success Criteria is a fingerprinted-content change: fingerprint re-written 2dcf2461 -> e05f4534, and the full battery re-run green including ready-check. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | recheck-criteria -> verdict FAIL, '2 criterion/criteria are FALSE at completion: SC0, SC5' (SC0 is the aggregator). escalation-report -> {raised:6, pushes:3} across three push_batch ids. After the amendment: recheck-criteria PASS 20/20 evaluated, sweep 27/27 runnable rows zero. |
+| `escape_class` | criterion-assumed-a-population-size-the-run-exceeded |
+| `adjudication` | The criterion was wrong, not the behaviour. Three pushes for six escalations is 2:1 batching succeeding. |
+| `origin` | plan authoring: the cell explicitly rejected '.pushes < .raised' because 'Issue 2.5 raised exactly one escalation so pushes < 1 could never hold' — a rejection that was correct at n=1 and wrong at n=6 |
+| `culpability` | no-fault — the rejection was sound against the n the plan then expected; only executing the plan produced the n that refuted it |
+| `prevention` | A criterion over a COUNT that the plan's own execution can increase must be stated as a RELATION between counts, never as a literal bound. A literal bound encodes an assumed population size, and the plan is inside the population it measures. |
+| `cost` | medium — a fingerprinted-content amendment, so the plan became stale-approved and the fingerprint and full battery had to be re-established |
+
