@@ -4,14 +4,16 @@ okf_spec: OKF-PLAN
 id: plan-057-james-dixson-9ecf1c
 author: james-dixson
 created: '2026-08-28'
-status: ready-for-approval
+status: approved
+fingerprint: 0bb513f831a969c9ccae1f692784ff86aaf9f6d330cb30ba7ab24f57f96aaecd
 ---
 # Plan: OKF part 2: deepen the root index, ship yf-okf-hygiene with the legacy backfill, and realign OKF-BASELINE to the relocated upstream
 
 **ID:** plan-057-james-dixson-9ecf1c
 **Author:** james-dixson
 **Created:** 2026-08-28
-**Status:** ready-for-approval
+**Status:** approved
+**Fingerprint:** 0bb513f831a969c9ccae1f692784ff86aaf9f6d330cb30ba7ab24f57f96aaecd
 
 ## Objective
 OKF part 2: deepen the root index, ship yf-okf-hygiene with the legacy backfill, and realign OKF-BASELINE to the relocated upstream
@@ -58,6 +60,7 @@ gap is circular: the only in-band marker is the one key a wrongly-rooted consume
 | #168 | yf-okf: projection delivery mode | exclude | Trigger not fired — no consumer anywhere on this machine. | |
 | #169 | OKF conformance gate for yf-research and yf-incubator | deferred | Parked. Measured counter-evidence: yf-research's UNGATED indexes are the corpus's best while yf-plan's GATED ones are 57% boilerplate. | |
 | #192 | Evaluate a structure-first plan DSL | deferred | If ever pursued, index generation becomes a by-product — a further reason D-1 deepens the root index rather than building nested ones. | |
+| #289 | yf-plan: no instrument compares a plan's cited figures against its own commands' output | deferred | Filed 2026-08-29 from this plan's own review history — named under `## Missing` in passes 2, 3, 4 and 5 and never closed. Deliberately NOT fixed here: a sixth new instrument after an APPROVE would restart the cycle on unreviewed text. Recorded as RE-001. | |
 | #189 | Six shipped scripts have no tests at all | partial | Taken as a CONSTRAINT (D-8): `okf_hygiene.py` ships with `test_okf_hygiene.py` and a recipe row, so it does not become a seventh. | 2.8, 2.10, 3.5 |
 
 ## Investigation Findings
