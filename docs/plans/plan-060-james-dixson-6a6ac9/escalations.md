@@ -41,3 +41,21 @@ warning, which would train a reader to ignore it.
 | `no_answer_taken` | no |
 | `push_batch` | 20260829T185948-1 |
 
+## ESC-002
+
+| Field | Value |
+| :-- | :-- |
+| `question` | The operator-granted bound of 6 is exhausted (cycles 6 of 6, escalates true). Pass 6's six concerns are all resolved, but the convergence trend BROKE: concerns per pass ran 14, 11, 7, 5, 4, then 6 — pass 6 found MORE than pass 5, including a new high. Grant cycle 7, stop here, or override? |
+| `alternatives` | Grant cycle 7 and run a full pass 7 (recommended) — the enumeration prescription has now been wrong in five consecutive rounds, so my own judgement that this area is settled has a poor track record and should not be trusted to narrow the scope; Stop now — the plan stays in review carrying pass-6's REVISE, which is a legal state and fully resumable, with all work committed; Override with update-status --override-ready-check, accepting that no pass has reviewed the C1/C2 fix |
+| `recommended` | Grant cycle 7 and run a full pass 7 (recommended) — the enumeration prescription has now been wrong in five consecutive rounds, so my own judgement that this area is settled has a poor track record and should not be trusted to narrow the scope |
+| `on_no_answer` | No pass 7 runs. The plan stays in review with pass-6's REVISE and ready-check red. All work IS committed this time — 40 files across commits a5664e7, 99ea222, e06b746, e84dfc4 on plan-060-development, clean tree — so nothing is lost and the plan is resumable from the bundle alone. |
+| `detected_by` | mechanical-check |
+| `evidence` | review-loop-check --max-review-cycles 6 --json => {cycles: 6, limit: 6, escalates: true, stop_class: 4}. Concerns per pass measured from reviews/pass-N.md: 14/11/7/5/4/6; highs 3/2/0/1/1/1. |
+| `asked_of` |  |
+| `state` | raised |
+| `answer` |  |
+| `raised_when` | 2026-08-29 |
+| `resolved_when` |  |
+| `no_answer_taken` | no |
+| `push_batch` | 20260829T191613-1 |
+
