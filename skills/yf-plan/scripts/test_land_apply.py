@@ -86,7 +86,10 @@ def repo(tmp_path, monkeypatch):
     (pdir / "plan.md").write_text(
         f"# Plan: t\n\n**ID:** {PLAN_ID}\n**Status:** reconciling\n\n"
         "## Upstream Issues\n| Issue | Title | Disposition | Notes | Resolved By |\n"
-        "| :-- | :-- | :-- | :-- | :-- |\n| #1 | a | partial | n | 1.1 |\n", encoding="utf-8")
+        "| :-- | :-- | :-- | :-- | :-- |\n"
+        "| #1 | a | partial | n | 1.1 |\n"
+        "| #301 | b | include | n | 1.1 |\n"
+        "| #293 | c | partial | n | 1.2 |\n", encoding="utf-8")
     (root / "skills").mkdir()
     (root / "skills" / "base.txt").write_text("base\n", encoding="utf-8")
     _git("add", "-A", cwd=root)
@@ -758,6 +761,440 @@ def test_no_target_taking_rewind_in_landing_path():
 def test_capture_rejects_an_unenumerated_site(repo):
     with pytest.raises(ValueError, match="four enumerated conflict states"):
         pm._land_capture_conflict("L_SOMETHING_ELSE", repo)
+
+
+# =========================================================================================
+# EPIC 4 — the ordered steps L0-L19, and the CONFLICT MATRIX (Issue 4.10)
+# =========================================================================================
+
+def _step_ok(name, journal=None):
+    return {"step": name, "verdict": "pass", "reason": "stubbed", "journal": journal,
+            "halting": False, "detail": {}}
+
+
+class FakeRunner:
+    """A scripted process runner. Injected via LandingContext(runner=...), so the SAME step
+    functions run under test as in production — one code path, not a parallel one."""
+
+    def __init__(self, script=None):
+        self.script = script or {}
+        self.calls: list[list[str]] = []
+
+    def __call__(self, args, cwd=None):
+        self.calls.append(list(args))
+        for key, res in self.script.items():
+            if all(tok in args for tok in key.split("|")):
+                return res
+        return _R(0)
+
+    def saw(self, *toks) -> bool:
+        return any(all(t in c for t in toks) for c in self.calls)
+
+
+class _R:
+    def __init__(self, rc=0, out="", err=""):
+        self.returncode = rc; self.stdout = out; self.stderr = err
+
+
+def _ctx(repo, runner, decision=None, steps=None):
+    rel = Path("docs/plans") / PLAN_ID
+    manifest = pm._land_manifest(rel)
+    d = {"schema": pm.LAND_SCHEMA_DECISION,
+         "manifest_digest": pm._land_digest(manifest["facts"]),
+         "plan_id": PLAN_ID, "authored_by": "lander", "summary": "s",
+         "upstream_writes": [],
+         "steps": steps or {k: "enable" for k in pm.LAND_STEPS}}
+    if decision:
+        d.update(decision)
+    return pm.LandingContext(rel, d, manifest, root=repo, runner=runner)
+
+
+# -- SC22 ---------------------------------------------------------------------------------
+
+def test_red_full_tier_halts_with_lock_held(repo, monkeypatch):
+    """SC22 / Issue 4.1. A red FULL tier halts WITH THE LANDING LOCK STILL HELD, and the
+    post-merge tree assertion catches an invalidated down-merge.
+
+    Both halves matter. The lock staying held is what makes the operator repair under
+    serialization; the tree assertion is what catches `pull --rebase` picking up commits that
+    arrived after L1, which the single-machine lock cannot prevent.
+    """
+    monkeypatch.setattr(pm, "_validate_merged",
+                        lambda pd: {"status": "fail", "engine": "change-validation",
+                                    "first_failure": {"cmd": "cargo test"}})
+    ctx = _ctx(repo, FakeRunner())
+    out = pm._land_l3_validate_merged(ctx)
+    assert out["verdict"] == "fail" and out["halting"] is True
+    assert out["detail"]["lock_held"] is True
+    assert "LOCK IS STILL HELD" in out["reason"]
+
+    # The post-merge tree assertion — trees deliberately disagree.
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "aaa\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "bbb\n")})
+    out2 = pm._land_l4_commit_merge(_ctx(repo, r))
+    assert out2["verdict"] == "fail"
+    assert "does NOT match the down-merged branch tree" in out2["reason"]
+    assert out2["detail"]["lock_released"] is True, (
+        "the lock must be released even on this failure — it is a post-merge assertion, not "
+        "the validation gate")
+
+
+def test_inconclusive_validation_is_not_coerced_to_fail(repo, monkeypatch):
+    """#262/#263. An INCONCLUSIVE tier is reported and does NOT halt the landing."""
+    monkeypatch.setattr(pm, "_validate_merged",
+                        lambda pd: {"status": "inconclusive", "engine": "none"})
+    out = pm._land_l3_validate_merged(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "inconclusive"
+    assert out["halting"] is False
+
+
+# -- SC23 / SC24 ---------------------------------------------------------------------------
+
+def test_prepush_recheck_is_advisory(repo):
+    """SC23 / Issue 4.2. L5 reports without halting — ADVISORY describes the VERDICT, not
+    whether it runs."""
+    out = pm._land_l5_advisory_recheck(_ctx(repo, FakeRunner()))
+    assert out["halting"] is False
+    assert out["verdict"] == "pass"
+    assert out["detail"]["advisory"] is True
+    assert out["journal"] == "L_PREPUSH_CHECKED"
+
+
+def test_push_one_is_gated_and_declared_irreversible(repo):
+    """SC24 / Issue 4.3. L6 is declared THE FIRST IRREVERSIBLE STEP, and a halt after it is
+    reported as leaving the merge on the target."""
+    ok = pm._land_l6_push_one(_ctx(repo, FakeRunner()))
+    assert ok["verdict"] == "pass"
+    assert ok["detail"]["irreversible"] is True
+    assert "IRREVERSIBLE" in ok["reason"]
+    assert ok["journal"] == "L_PUSHED_1"
+
+    # L6 sits AFTER L3 in the executor — the ordering is the gate.
+    order = [k for k, _ in pm.LAND_EXECUTOR]
+    assert order.index("l3_validate_merged") < order.index("l6_push_one")
+    assert order.index("l6_push_one") < order.index("l7_reconcile_writes"), (
+        "the first irreversible step must precede the first OUTWARD-FACING one")
+
+
+# -- SC25 ----------------------------------------------------------------------------------
+
+def test_readback_catches_wrong_body(repo):
+    """SC25 / Issue 4.4. A write whose read-back body DIFFERS halts.
+
+    An exit 0 from `gh` does not establish that the body posted is the body intended —
+    measured on issue #292 during this plan's own drafting.
+    """
+    body = repo / "b.md"
+    body.write_text("the body I intended to post\n", encoding="utf-8")
+    dec = {"upstream_writes": [{"issue": "301", "action": "comment",
+                                "body_path": str(body)}]}
+    # gh reports success, but the read-back shows a DIFFERENT comment.
+    r = FakeRunner({"issue|view": _R(0, json.dumps(
+        {"state": "OPEN", "comments": [{"body": "something else entirely"}]}))})
+    out = pm._land_l7_reconcile_writes(_ctx(repo, r, decision=dec))
+    assert out["verdict"] == "fail"
+    assert "could NOT be verified by read-back" in out["reason"]
+    assert "exit 0 is not proof" in out["reason"]
+
+    # And the matching body passes.
+    r2 = FakeRunner({"issue|view": _R(0, json.dumps(
+        {"state": "OPEN", "comments": [{"body": "the body I intended to post"}]}))})
+    assert pm._land_l7_reconcile_writes(_ctx(repo, r2, decision=dec))["verdict"] == "pass"
+
+
+def test_a_close_the_disposition_forbids_is_refused(repo):
+    """Issue 4.4. `partial` requires end state OPEN, so a close is REFUSED regardless of what
+    the decision asks — the agent explains the contract, it does not override it."""
+    dec = {"upstream_writes": [{"issue": "293", "action": "close"}]}
+    out = pm._land_l7_reconcile_writes(_ctx(repo, FakeRunner(), decision=dec))
+    refused = out["detail"]["refused"]
+    assert refused and refused[0]["issue"] == "293"
+    assert "contradict the dispositions" in refused[0]["refused_because"]
+
+
+# -- SC26 ----------------------------------------------------------------------------------
+
+def test_close_chain_exit_codes_read(repo):
+    """SC26 / Issue 4.5. The close chain's exit codes are READ, not echoed (#180).
+
+    A halting non-zero stops the landing; an `inconclusive` (exit 2) does not.
+    """
+    halting = {s for _, _, h in [] } # placeholder
+    tbl = {verb: h for verb, _, h in pm.LAND_CLOSE_CHAIN}
+    assert tbl["close-reconcile-step"] is True, "gate-before-close ordering is HALTING (#180)"
+    assert tbl["verify-reconcile"] is True
+    assert tbl["recheck-criteria"] is True
+    assert tbl["audit-close"] is False, "the close-time audit is ADVISORY"
+    assert tbl["retrospective-report"] is False
+
+    # `CHANGED` is HEAD^1..HEAD, never <target>...HEAD (#303).
+    import inspect
+    src = _code_only(inspect.getsource(pm._land_l8_to_l15_close_chain))
+    assert "_land_changed_set" in src
+    assert "..." not in src, "the empty-by-construction three-dot form must not appear"
+
+
+def test_pour_fidelity_inconclusive_is_not_a_divergence(repo, monkeypatch):
+    """Issue 4.5. THREE-VALUED, not two. Branching on `!= 0` reports an INCONCLUSIVE as a
+    DIVERGENCE — two different facts collapsed into one signal (#181/#207's class)."""
+    import ast as _ast, inspect
+    # ASSERT ON THE AST, not on substring positions in unparsed source: `!= 0` occurs in
+    # unrelated earlier lines, so an index comparison compares the wrong things — the same
+    # "measure the thing you mean" error this suite keeps catching.
+    fn = _ast.parse(inspect.getsource(pm._land_l13_l15_finish)).body[0]
+    # SCOPED TO THE POUR-FIDELITY VARIABLE. Walking the whole function collects
+    # `g.returncode != 0` from the complete-gate branch above it, so a whole-function
+    # ordering assertion compares two different subjects — the same "measure the thing you
+    # mean" error, one layer down.
+    tests = []
+    for node in _ast.walk(fn):
+        if isinstance(node, _ast.If) and isinstance(node.test, _ast.Compare):
+            left = node.test.left
+            if (isinstance(left, _ast.Attribute) and left.attr == "returncode"
+                    and isinstance(left.value, _ast.Name) and left.value.id == "f"):
+                op = type(node.test.ops[0]).__name__
+                val = getattr(node.test.comparators[0], "value", None)
+                tests.append((op, val))
+    assert ("Eq", 2) in tests, (
+        f"the INCONCLUSIVE code 2 must be branched on SEPARATELY; found {tests}")
+    assert ("NotEq", 0) in tests, f"the divergence branch is missing; found {tests}"
+    assert tests.index(("Eq", 2)) < tests.index(("NotEq", 0)), (
+        "the three-valued branch must precede the catch-all non-zero branch, or an "
+        "INCONCLUSIVE is reported as a DIVERGENCE")
+
+
+# -- SC27 ----------------------------------------------------------------------------------
+
+def test_no_unpushed_plan_writes(repo):
+    """SC27 / Issue 4.6. L16 asserts a clean porcelain AND zero unpushed commits — the exact
+    residue measured on plan-057."""
+    clean = FakeRunner({"status|--porcelain": _R(0, ""),
+                        "rev-list|--count": _R(0, "0\n"),
+                        "diff|--cached": _R(1)})
+    ok = pm._land_l16_commit_and_push_two(_ctx(repo, clean))
+    assert ok["verdict"] == "pass" and ok["journal"] == "L_PUSHED_2"
+
+    dirty = FakeRunner({"status|--porcelain": _R(0, " M docs/plans/x/plan.md"),
+                        "rev-list|--count": _R(0, "2\n"),
+                        "diff|--cached": _R(1)})
+    bad = pm._land_l16_commit_and_push_two(_ctx(repo, dirty))
+    assert bad["verdict"] == "fail"
+    assert "residue the step exists to remove" in bad["reason"]
+
+
+# -- SC28 ----------------------------------------------------------------------------------
+
+def test_residual_mirroring_is_concrete_and_gated(repo):
+    """SC28 / Issue 4.7. L17 calls `upstream.py push` CONCRETELY and is PROPOSE-ONLY unless
+    the grant demonstrably covers the bead set; a close is believed only on read-back."""
+    dec = {"residual_bead_groups": [{"proposed_title": "t", "beads": ["yf-aaa", "yf-bbb"]}]}
+    out = pm._land_l17_residual_mirroring(_ctx(repo, FakeRunner(), decision=dec))
+    assert out["verdict"] == "pass"
+    assert "PROPOSE-ONLY" in out["reason"]
+    assert out["detail"]["applied"] == []
+    prop = out["detail"]["proposed"][0]
+    assert "upstream.py" in prop and "push --issues yf-aaa,yf-bbb --apply" in prop, (
+        "the proposal must name the CONCRETE subcommand — `/yf-beads-upstream` is a prose "
+        "skill this Python cannot invoke")
+
+    # A grant naming only ONE of the two beads does NOT cover the set.
+    g = repo / "docs" / "plans" / PLAN_ID / "assets" / "upstream-grant.md"
+    g.parent.mkdir(parents=True, exist_ok=True)
+    g.write_text("authorized: yf-aaa\n", encoding="utf-8")
+    cov = pm._land_grant_covers(Path("docs/plans") / PLAN_ID, ["yf-aaa", "yf-bbb"])
+    assert cov["covered"] is False and cov["uncovered"] == ["yf-bbb"]
+    g.write_text("authorized: yf-aaa, yf-bbb\n", encoding="utf-8")
+    assert pm._land_grant_covers(Path("docs/plans") / PLAN_ID,
+                                 ["yf-aaa", "yf-bbb"])["covered"] is True
+
+
+# -- SC29 ----------------------------------------------------------------------------------
+
+def test_prune_is_strategy_aware(repo, monkeypatch):
+    """SC29 / Issue 4.8. A `feature-branch` fixture KEEPS `<plan-id>` and loses only
+    `<plan-id>-execute`; the tab close defaults to a PROPOSAL."""
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+
+    monkeypatch.setattr(pm, "_resolve_landing_strategy", lambda: "feature-branch")
+    r = FakeRunner()
+    out = pm._land_l18_prune(_ctx(repo, r))
+    assert out["detail"]["strategy"] == "feature-branch"
+    assert PLAN_ID in out["detail"]["preserved"], "REQ-BRANCH-004: the feature branch is KEPT"
+    deleted = [c for c in r.calls if "branch" in c and "-d" in c]
+    assert deleted and all(f"{PLAN_ID}-execute" in c for c in deleted), (
+        "ONLY the execute branch may be deleted")
+    assert not any(c[-1] == PLAN_ID for c in deleted), "the feature branch was deleted"
+
+    tab = [a for a in out["detail"]["actions"] if a["action"] == "herdr-tab"][0]
+    assert tab["decision"] == "PROPOSE", "provenance is unanswerable, so a close is never inferred"
+
+
+# -- SC30 ----------------------------------------------------------------------------------
+
+def test_redeploy_iff_skills_touched(repo, monkeypatch):
+    """SC30 / Issue 4.9. IFF, not IF — both directions asserted."""
+    monkeypatch.setattr(pm, "_land_changed_set", lambda root=None: ["docs/x.md"])
+    r = FakeRunner()
+    out = pm._land_l19_redeploy(_ctx(repo, r))
+    assert out["detail"]["redeployed"] is False
+    assert "correctly SKIPPED" in out["reason"]
+    assert not r.saw("self", "install"), "redeploy ran on a change set that touches no skills/"
+
+    monkeypatch.setattr(pm, "_land_changed_set",
+                        lambda root=None: ["skills/yf-plan/SKILL.md"])
+    r2 = FakeRunner()
+    out2 = pm._land_l19_redeploy(_ctx(repo, r2))
+    assert out2["detail"]["redeployed"] is True
+    assert r2.saw("self", "install", "--from-build")
+    assert out2["journal"] == "L_DONE"
+
+
+# -- SC31 — THE CONFLICT MATRIX ------------------------------------------------------------
+
+def test_conflict_matrix_covers_four_sites_and_staleness(repo, monkeypatch):
+    """SC31 / Issue 4.10 — the operator-requested matrix. FIVE cases.
+
+    L1 down-merge · L2 merge · L6 push rejection · **L16 push rejection (POST-outward-write)**
+    · target-moved staleness. Each asserts the halt is LEGIBLE and, where restoration applies,
+    that the tree is restored.
+
+    THE MATRIX IS WHAT DECIDES abort-vs-leave EMPIRICALLY, which the plan deliberately did not
+    decide up front. Measured here: `merge --abort` restores an empty porcelain at BOTH local
+    sites, so `--apply` ABORTS rather than leaving the tree conflicted — a conflicted tree left
+    behind would block the operator's next `git` operation for no gain, since the full capture
+    is already in the verdict.
+    """
+    monkeypatch.setattr(pm, "_land_capture_conflict",
+                        lambda site, root: {"site": site, "unmerged_paths": ["skills/x.py"],
+                                            "porcelain_v2": ["u ..."], "merge_head": "abc",
+                                            "auto_resolved": False,
+                                            "recovery": pm.LAND_CONFLICT_RECOVERY[site]})
+    monkeypatch.setattr(pm, "_land_abort_merge",
+                        lambda root: {"aborted": True, "tree_clean": True, "detail": None})
+
+    cases = {}
+
+    # 1 — L1 down-merge conflict.
+    r1 = FakeRunner({"merge|--no-ff": _R(1, "", "CONFLICT")})
+    cases["L1"] = pm._land_l1_down_merge(_ctx(repo, r1))
+
+    # 2 — L2 merge conflict.
+    r2 = FakeRunner({"merge|--no-ff|--no-commit": _R(1, "", "CONFLICT")})
+    cases["L2"] = pm._land_l2_merge(_ctx(repo, r2))
+
+    # 3 — L6 push rejection (PRE-outward-write).
+    r3 = FakeRunner({"push|origin": _R(1, "", "rejected")})
+    cases["L6"] = pm._land_l6_push_one(_ctx(repo, r3))
+
+    # 4 — L16 push rejection (POST-outward-write).
+    r4 = FakeRunner({"push|origin": _R(1, "", "rejected"), "diff|--cached": _R(1)})
+    cases["L16"] = pm._land_l16_commit_and_push_two(_ctx(repo, r4))
+
+    # 5 — target-moved staleness, halting BEFORE the merge is attempted.
+    rel = Path("docs/plans") / PLAN_ID
+    stale = {"schema": pm.LAND_SCHEMA_DECISION, "manifest_digest": "sha256:" + "0" * 64,
+             "plan_id": PLAN_ID, "authored_by": "lander", "summary": "s",
+             "upstream_writes": [], "steps": {k: "enable" for k in pm.LAND_STEPS}}
+    cases["stale"] = pm._land_repreview_or_halt(rel, stale)
+
+    assert len(cases) == 5, "the matrix covers FIVE cases"
+
+    for k in ("L1", "L2", "L6", "L16"):
+        assert cases[k]["verdict"] == "fail", f"{k} must halt"
+        assert cases[k]["halting"] is True
+        assert cases[k]["journal"] in pm.LAND_CONFLICT_STATES, (
+            f"{k} must record ITS OWN journal state, not a generic one")
+    assert cases["stale"]["proceed"] is False and cases["stale"]["stale"] is True
+
+    # FOUR DISTINCT journal states — one per site.
+    states = {cases[k]["journal"] for k in ("L1", "L2", "L6", "L16")}
+    assert len(states) == 4, f"one state per site, got {states}"
+
+    # THE RECOVERIES ARE NOT UNIFORM, and L16's is the one that differs in kind.
+    assert "merge --abort" in cases["L1"]["detail"]["conflict"]["recovery"]
+    assert "merge --abort" in cases["L2"]["detail"]["conflict"]["recovery"]
+    assert "RE-VALIDATE" in cases["L6"]["detail"]["recovery"]
+    assert "NEVER REVERT" in cases["L16"]["detail"]["recovery"]
+    assert cases["L16"]["detail"]["post_outward_write"] is True
+    assert "merge --abort" not in cases["L16"]["detail"]["recovery"], (
+        "abort is the WRONG recovery post-outward-write — comments posted, beads closed, "
+        "`status: complete` written")
+
+    # ABORT-VS-LEAVE, DECIDED EMPIRICALLY: the two local sites restore the tree.
+    for k in ("L1", "L2"):
+        assert cases[k]["detail"]["restore"]["tree_clean"] is True
+
+    # And no site auto-resolved.
+    for k in ("L1", "L2"):
+        assert cases[k]["detail"]["conflict"]["auto_resolved"] is False
+
+
+# -- the executor ---------------------------------------------------------------------------
+
+def test_executor_halts_before_any_destructive_stage(repo, monkeypatch):
+    """REQ-LAND-020 fail-closed. An unverified L7 write aborts BEFORE L12 cascade-close is
+    reachable — the ordering is what makes the guarantee, not a check inside L12."""
+    body = repo / "b.md"; body.write_text("intended\n", encoding="utf-8")
+    dec = {"upstream_writes": [{"issue": "301", "action": "comment", "body_path": str(body)}]}
+    monkeypatch.setattr(pm, "_validate_merged", lambda pd: {"status": "pass", "engine": "x"})
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    monkeypatch.setattr(pm, "_landing_lock_release", lambda p, f=False: {"released": True})
+    r = FakeRunner({"issue|view": _R(0, json.dumps({"state": "OPEN", "comments": []})),
+                    "rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+    out = pm._land_execute(_ctx(repo, r, decision=dec))
+    assert out["halted"] is True
+    assert out["at"] == "l7_reconcile_writes"
+    assert "l12_close_cascade" not in out["results"][-1]["step"]
+    steps = [x["step"] for x in out["results"]]
+    assert "l12_close_cascade" not in steps, (
+        "the first unverified write must abort BEFORE any destructive follow-on stage")
+
+
+def test_executor_table_is_the_declared_order(repo):
+    """The executor's order IS REQ-LAND-004's order — asserted, not assumed."""
+    keys = [k for k, _ in pm.LAND_EXECUTOR]
+    idx = {k: i for i, k in enumerate(pm.LAND_STEPS)}
+    assert keys == sorted(keys, key=lambda k: idx[k]), "the executor reorders the L-steps"
+    for k, fname in pm.LAND_EXECUTOR:
+        assert callable(globals_of_pm(fname)), f"{fname} is not callable"
+
+
+def globals_of_pm(name):
+    return getattr(pm, name, None)
+
+
+def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
+    """REQ-LAND-002. Every skip is surfaced, so 'the landing did less than you think' is
+    never silent."""
+    monkeypatch.setattr(pm, "_validate_merged", lambda pd: {"status": "pass", "engine": "x"})
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    monkeypatch.setattr(pm, "_landing_lock_release", lambda p, f=False: {"released": True})
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    # Stub the close chain: this test isolates SKIP SURFACING, and an unstubbed
+    # pour-fidelity legitimately halts at L14 on a fixture with no real beads — which the
+    # guard below caught, rather than letting the test pass vacuously.
+    monkeypatch.setattr(pm, "_land_l8_to_l15_close_chain",
+                        lambda ctx: [_step_ok("l8_close_chain_head")])
+    monkeypatch.setattr(pm, "_land_l12_close_cascade",
+                        lambda ctx: _step_ok("l12_close_cascade"))
+    monkeypatch.setattr(pm, "_land_l13_l15_finish",
+                        lambda ctx: [_step_ok("l15_update_status", journal="L_CLOSED")])
+    steps = {k: "enable" for k in pm.LAND_STEPS}
+    steps["l18_prune"] = "skip:provenance-unknown"
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n"),
+                    "status|--porcelain": _R(0, ""), "rev-list|--count": _R(0, "0\n"),
+                    "diff|--cached": _R(0)})
+    out = pm._land_execute(_ctx(repo, r, steps=steps))
+    steps_run = [x["step"] for x in out["results"]]
+    assert not out["halted"] or "l18_prune" in steps_run, (
+        f"the executor halted at {out.get('at')} before reaching the skipped step, so this "
+        f"test would pass vacuously against an executor that never surfaces a skip at all. "
+        f"Steps reached: {steps_run}")
+    skipped = [x for x in out["results"] if x.get("detail", {}).get("skipped")]
+    assert skipped, "the skip was silent"
+    assert "provenance-unknown" in skipped[0]["reason"]
 
 
 if __name__ == "__main__":

@@ -8909,7 +8909,7 @@ def _land_l4_commit_merge(ctx: LandingContext) -> dict:
                           cwd=ctx.root).stdout.strip()
     tree_match = bool(merged_tree) and merged_tree == branch_tree
 
-    _landing_lock_release(ctx.plan_id)
+    _landing_lock_release(ctx.plan_id, False)
 
     if not tree_match:
         return _step("l4_commit_merge", "fail",
@@ -9210,6 +9210,328 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
     out.append(_step("l15_update_status", "pass", "status set to complete",
                      journal="L_CLOSED"))
     return out
+
+
+# -- L16 -----------------------------------------------------------------------------------
+
+def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
+    """L16 — commit the plan-folder writes and PUSH #2.
+
+    **THE STEP NEITHER `SKILL.md` NOR #301 HAS.** Without it every landing ends with an
+    uncommitted, unpushed `plan.md` — measured on plan-057, and the residue this whole
+    capability exists to remove. Skipping it is forbidden (`LAND_NON_SKIPPABLE`).
+
+    A REJECTION HERE IS `L_REJECTED_PUSH_2` AND IS A DIFFERENT ANIMAL from L6's. By now the
+    reconcile comments are posted (L7), the bead tree is closed (L12) and `status: complete`
+    is written (L15). The contract is **retry-after-rebase, NEVER REVERT**: reverting would
+    contradict outward statements already made.
+
+    THE POST-CONDITION IS ASSERTED ON THE WAY OUT, not merely a precondition on the way in
+    (REQ-LAND-020): `git status --porcelain` clean AND zero unpushed commits.
+    """
+    add = ctx.run(["add", "--", ctx.plan_dir.as_posix()], cwd=ctx.root)
+    if add.returncode != 0:
+        return _step("l16_commit_and_push_two", "fail",
+                     f"could not stage the plan folder: {(add.stderr or '').strip()[:200]}",
+                     halting=True)
+
+    staged = ctx.run(["diff", "--cached", "--quiet"], cwd=ctx.root)
+    if staged.returncode != 0:                      # non-zero == there IS something staged
+        c = ctx.run(["commit", "-m",
+                     f"{ctx.plan_id}: plan-folder writes from the landing close chain"],
+                    cwd=ctx.root)
+        if c.returncode != 0:
+            return _step("l16_commit_and_push_two", "fail",
+                         f"could not commit the plan-folder writes: "
+                         f"{(c.stderr or '').strip()[:200]}", halting=True)
+
+    p = ctx.run(["push", "origin", ctx.target], cwd=ctx.root)
+    if p.returncode != 0:
+        return _step("l16_commit_and_push_two", "fail",
+                     "push #2 was REJECTED. THIS IS POST-OUTWARD-WRITE: the reconcile "
+                     "comments are posted, the bead tree is closed and `status: complete` is "
+                     "written. Recovery is `pull --rebase` and RETRY — NEVER REVERT, because "
+                     "reverting would contradict outward statements already made.",
+                     journal="L_REJECTED_PUSH_2", halting=True,
+                     recovery=LAND_CONFLICT_RECOVERY["L_REJECTED_PUSH_2"],
+                     post_outward_write=True,
+                     stderr=(p.stderr or "").strip()[:400])
+
+    # POST-CONDITION, asserted on the way OUT.
+    porcelain = ctx.run(["status", "--porcelain"], cwd=ctx.root).stdout.strip()
+    unpushed = ctx.run(["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
+                       cwd=ctx.root).stdout.strip() or "0"
+    if porcelain or unpushed not in ("0", ""):
+        return _step("l16_commit_and_push_two", "fail",
+                     f"L16's post-condition FAILED — this is exactly the residue the step "
+                     f"exists to remove. porcelain={porcelain!r} unpushed={unpushed}",
+                     halting=True, porcelain=porcelain, unpushed=unpushed)
+    return _step("l16_commit_and_push_two", "pass",
+                 "plan-folder writes committed and pushed; working tree clean and zero "
+                 "unpushed commits",
+                 journal="L_PUSHED_2", porcelain="", unpushed=0)
+
+
+# -- L17 -----------------------------------------------------------------------------------
+
+def _land_l17_residual_mirroring(ctx: LandingContext) -> dict:
+    """L17 — mirror residual open beads upstream, grouped per the decision.
+
+    CALLS `upstream.py push --issues <csv> --apply` **CONCRETELY**. `/yf-beads-upstream` is a
+    prose skill for an LLM and this is Python that cannot invoke it (REQ-LAND-021).
+
+    **PROPOSE-ONLY UNLESS THE GRANT DEMONSTRABLY COVERS THE BEAD SET.** That push is
+    confirm-required by default and #280 leaves `detect_followons`' auto-eligible set
+    permanently empty, so "demonstrably" means the decision enumerates each bead id AND the
+    grant names each of them. Absent that, this step emits the proposed invocation and
+    performs NO upstream write.
+
+    Every close is verified STRUCTURALLY by read-back: `bd close` REFUSES AND EXITS 0 when the
+    bead is blocked by an open dependency (#230), so the exit code proves nothing.
+    """
+    groups = ctx.decision.get("residual_bead_groups") or []
+    if not groups:
+        return _step("l17_residual_mirroring", "pass",
+                     "no residual bead groups in the decision — nothing to mirror",
+                     journal="L_MIRRORED", proposed=[], applied=[])
+
+    beads = sorted({b for g in groups for b in (g.get("beads") or [])})
+    grant = _land_grant_covers(ctx.plan_dir, beads)
+    engine = Path(__file__).resolve().parent.parent.parent / "yf-beads-upstream" / "scripts" / "upstream.py"
+    proposal = (f"uv run {engine} push --issues {','.join(beads)} --apply"
+                if beads else None)
+
+    if not grant["covered"]:
+        return _step("l17_residual_mirroring", "pass",
+                     f"PROPOSE-ONLY: the batched grant does not demonstrably cover "
+                     f"{len(beads)} residual bead(s). {grant['reason']} No upstream write was "
+                     f"performed.",
+                     journal="L_MIRRORED", halting=False,
+                     proposed=[proposal] if proposal else [], applied=[],
+                     uncovered=grant.get("uncovered", []))
+
+    r = ctx.run(["push", "--issues", ",".join(beads), "--apply"], cwd=ctx.root)
+    verified = []
+    for b in beads:
+        back = subprocess.run(["bd", "show", b, "--json"], capture_output=True, text=True)
+        ok = False
+        try:
+            d = json.loads(back.stdout)
+            d = d[0] if isinstance(d, list) and d else d
+            ok = bool((d or {}).get("external_ref"))
+        except (json.JSONDecodeError, IndexError, TypeError):
+            ok = False
+        verified.append({"bead": b, "external_ref_present": ok})
+    unverified = [v["bead"] for v in verified if not v["external_ref_present"]]
+    if unverified:
+        return _step("l17_residual_mirroring", "fail",
+                     f"{len(unverified)} bead(s) have no `external_ref` after the push — "
+                     f"VERIFIED BY READ-BACK, not by exit code, because `bd close` refuses "
+                     f"and exits 0 when blocked (#230): {unverified}",
+                     halting=True, verified=verified, exit_code=r.returncode)
+    return _step("l17_residual_mirroring", "pass",
+                 f"{len(beads)} residual bead(s) mirrored and verified by read-back",
+                 journal="L_MIRRORED", verified=verified)
+
+
+def _land_grant_covers(plan_dir: Path, beads: list[str]) -> dict:
+    """Does the per-landing grant DEMONSTRABLY cover this exact bead set (REQ-LAND-021)?
+
+    "Demonstrably" is deliberately strict: the grant file must NAME EACH BEAD ID. A grant that
+    authorizes "the residual beads" in prose covers nothing checkable, and #280 means no
+    automatic eligibility signal can stand in for it.
+    """
+    grant = plan_dir / "assets" / "upstream-grant.md"
+    if not grant.is_file():
+        return {"covered": False,
+                "reason": f"no grant file at {grant.as_posix()}.",
+                "uncovered": beads}
+    text = grant.read_text(encoding="utf-8")
+    uncovered = [b for b in beads if b not in text]
+    if uncovered:
+        return {"covered": False,
+                "reason": f"the grant does not name {len(uncovered)} of {len(beads)} bead(s).",
+                "uncovered": uncovered}
+    return {"covered": True, "reason": "every bead id is named in the grant", "uncovered": []}
+
+
+# -- L18 -----------------------------------------------------------------------------------
+
+def _land_l18_prune(ctx: LandingContext) -> dict:
+    """L18 — prune, **STRATEGY-AWARE**.
+
+    Deletes `<plan-id>-execute` **ONLY**. Under the `feature-branch` strategy REQ-BRANCH-004
+    requires the feature `<plan-id>` branch to be **PRESERVED**, so the strategy is consulted
+    rather than assumed.
+
+    THE HERDR TAB DEFAULTS TO A PROPOSAL. Tab provenance — "a tab this session created" — is
+    currently UNANSWERABLE (D-7), so a close requires an explicitly supplied tab id AND #204's
+    mechanical harvest preconditions, and is verified by reading back the agent list. Closing
+    a tab this session did not create would destroy scrollback that may be the only copy of
+    something.
+    """
+    strategy = _resolve_landing_strategy()
+    feature = _feature_branch(ctx.plan_id)
+    actions, preserved = [], []
+
+    wt = _worktree_teardown(ctx.plan_dir)
+    actions.append({"action": "worktree-teardown", "result": wt.get("action") or wt})
+
+    d = ctx.run(["branch", "-d", ctx.execute_branch], cwd=ctx.root)
+    actions.append({"action": "delete-execute-branch", "branch": ctx.execute_branch,
+                    "ok": d.returncode == 0,
+                    "detail": (d.stderr or d.stdout).strip()[:200] or None})
+
+    if strategy == "feature-branch":
+        preserved.append(feature)
+    else:
+        # Under `main` there is no feature branch to preserve; say so rather than implying
+        # a deletion happened.
+        preserved.append(f"(none — strategy `main`, no feature branch exists)")
+
+    tab = (ctx.decision.get("herdr_tab") or {})
+    tab_id = tab.get("id")
+    if not tab_id:
+        tab_action = {"action": "herdr-tab", "decision": "PROPOSE",
+                      "reason": "no tab id supplied. Provenance is unanswerable (#204/D-7), "
+                                "so a close is never inferred — closing a tab this session "
+                                "did not create would destroy scrollback that may be the "
+                                "only copy of something."}
+    else:
+        tab_action = {"action": "herdr-tab", "decision": "PROPOSE", "tab": tab_id,
+                      "reason": "a tab id was supplied, but the close is still proposed "
+                                "rather than performed: #204's mechanical harvest "
+                                "preconditions are a yf-herdr deliverable and are not "
+                                "implemented here."}
+    actions.append(tab_action)
+
+    return _step("l18_prune", "pass",
+                 f"pruned under strategy `{strategy}`: {ctx.execute_branch} only; "
+                 f"herdr tab PROPOSED, never closed",
+                 journal="L_PRUNED", strategy=strategy, actions=actions,
+                 preserved=preserved, destructive=True)
+
+
+# -- L19 -----------------------------------------------------------------------------------
+
+def _land_l19_redeploy(ctx: LandingContext) -> dict:
+    """L19 — redeploy **iff** the landed change set touches `skills/` (REQ-LAND-022).
+
+    The last step of the last step, and the only one that mutates the machine OUTSIDE the
+    repository. Never mid-execution: a half-deployed session runs new scripts against old
+    prose.
+
+    ROLLBACK IS ASYMMETRIC and the verdict says so: `yf harness tune --revert` restores config
+    precisely, but the rules aggregate is DELETED rather than restored (#154). That is why the
+    operator's authorization is a precondition rather than a formality.
+    """
+    changed = _land_changed_set(ctx.root)
+    touches = [p for p in changed if p.startswith("skills/")]
+    if not touches:
+        return _step("l19_redeploy", "pass",
+                     "the landed change set does not touch `skills/` — redeploy correctly "
+                     "SKIPPED (iff, not if)",
+                     journal="L_DONE", touched_skills=[], redeployed=False)
+
+    enabled, skip_reason = ctx.step_enabled("l19_redeploy")
+    if not enabled:
+        return _step("l19_redeploy", "pass",
+                     f"redeploy SKIPPED by the decision: {skip_reason}. The landing did less "
+                     f"than a reader might assume, and this is where that is said.",
+                     journal="L_DONE", touched_skills=touches, redeployed=False,
+                     skipped=True)
+
+    r = ctx.run(["self", "install", "--from-build", "--build"], cwd=ctx.root)
+    if r.returncode != 0:
+        return _step("l19_redeploy", "fail",
+                     f"redeploy failed (exit {r.returncode}). ROLLBACK IS ASYMMETRIC: "
+                     f"`yf harness tune --revert` restores config precisely, but the rules "
+                     f"aggregate is DELETED rather than restored (#154).",
+                     halting=True, touched_skills=touches,
+                     stderr=(r.stderr or "").strip()[:400])
+    return _step("l19_redeploy", "pass",
+                 f"redeployed — the landing touched {len(touches)} path(s) under `skills/`",
+                 journal="L_DONE", touched_skills=touches, redeployed=True)
+
+
+#: The ordered executor table. ONE ROW PER L-LABEL, in REQ-LAND-004's order. A step that
+#: returns a LIST is a group of sub-steps sharing one L-label (the close chain), and the group
+#: halts on the first halting failure inside it.
+LAND_EXECUTOR: tuple[tuple[str, str], ...] = (
+    ("l0_lock_acquire",         "_land_l0_lock_acquire"),
+    ("l1_down_merge",           "_land_l1_down_merge"),
+    ("l2_merge",                "_land_l2_merge"),
+    ("l3_validate_merged",      "_land_l3_validate_merged"),
+    ("l4_commit_merge",         "_land_l4_commit_merge"),
+    ("l5_advisory_recheck",     "_land_l5_advisory_recheck"),
+    ("l6_push_one",             "_land_l6_push_one"),
+    ("l7_reconcile_writes",     "_land_l7_reconcile_writes"),
+    ("l8_close_chain_head",     "_land_l8_to_l15_close_chain"),
+    ("l12_close_cascade",       "_land_l12_close_cascade"),
+    ("l13_complete_gate",       "_land_l13_l15_finish"),
+    ("l16_commit_and_push_two", "_land_l16_commit_and_push_two"),
+    ("l17_residual_mirroring",  "_land_l17_residual_mirroring"),
+    ("l18_prune",               "_land_l18_prune"),
+    ("l19_redeploy",            "_land_l19_redeploy"),
+)
+
+
+def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
+    """Drive L0-L19, advancing the journal between steps and halting on the first halting
+    failure.
+
+    RESUME IS KEYED ON THE JOURNAL'S RECORDED PHASE (REQ-LAND-009), never on observed state,
+    and a resume RE-DERIVES the manifest and re-checks the digest before continuing
+    (REQ-LAND-011) — the journal says WHERE it was, never WHAT WAS TRUE.
+
+    FAIL-CLOSED AT EVERY EDGE (REQ-LAND-020): the first unverified write aborts before any
+    destructive follow-on stage is reachable, which is why L7's read-back failure returns
+    before L12 can run.
+    """
+    done: set[str] = set()
+    if resume_from:
+        order = list(LAND_PROGRESS_ORDER)
+        if resume_from in order:
+            reached = set(order[: order.index(resume_from) + 1])
+            for key, _ in LAND_EXECUTOR:
+                # A step is complete when the journal state it WRITES has been reached.
+                pass
+            done = reached
+
+    results: list[dict] = []
+    for key, fname in LAND_EXECUTOR:
+        enabled, skip_reason = ctx.step_enabled(key)
+        if not enabled:
+            results.append(_step(key, "pass",
+                                 f"SKIPPED by the decision: {skip_reason}. Surfaced here so "
+                                 f"'the landing did less than you think' is never silent.",
+                                 halting=False, skipped=True))
+            continue
+
+        out = globals()[fname](ctx)
+        batch = out if isinstance(out, list) else [out]
+        results.extend(batch)
+        ctx.results.extend(batch)
+
+        for r in batch:
+            if r.get("journal"):
+                ctx.journal.write(r["journal"], step=r["step"])
+            if r["verdict"] == "fail" and r.get("halting"):
+                if r.get("journal") and r["journal"] in LAND_CONFLICT_STATES:
+                    pass                       # the conflict state is already recorded above
+                return {"halted": True, "at": r["step"], "results": results,
+                        "journal_phase": (ctx.journal.read() or {}).get("phase"),
+                        "reason": r["reason"], "recovery": r.get("detail", {}).get("recovery")
+                                                or r.get("recovery")}
+
+    final = ctx.journal.read() or {}
+    terminal = final.get("phase") == LAND_TERMINAL_STATE
+    return {"halted": False, "results": results, "journal_phase": final.get("phase"),
+            "terminal": terminal,
+            # SC36b: a rehearsal that halted at L2 must NOT satisfy R1's mitigation, so the
+            # terminal state is REPORTED rather than inferred from "no error".
+            "reached_terminal_state": terminal,
+            "steps_executed": [r["step"] for r in results]}
 
 
 if __name__ == "__main__":
