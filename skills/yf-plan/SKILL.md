@@ -1457,6 +1457,17 @@ Auto-resolves when all execution beads close. Proceed to Phase 6.
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "reconciling" -m "post-execution reconciliation"
 ```
 
+> **THE DEFAULT ROUTE IS `land` (§6.0).** The whole of Phase 6 — merge-back, validation,
+> push, reconcile writes, the close chain, the plan-folder push, residual mirroring, pruning
+> and redeploy — is one operation with **one informed consent grant** (`REQ-PLAN-083`,
+> `spec/landing.md`). Start at §6.0.
+>
+> **§6.1–§6.4 below remain the authoritative description of what `land` automates**, and the
+> supported manual path when `land` is unavailable. They are not superseded prose: `land`'s
+> step order is specified against them, the §6.4 close chain is invoked verb-by-verb by L8–L15,
+> and `test_close_contract.py` still enumerates §6.4's block. **Do not delete them to reduce
+> duplication** — the duplication is the specification.
+
 **Phase 6 is reordered (plan-009 INV-4): merge-back FIRST, then validate the MERGED
 state, then push.** The old order validated pre-merge, which cannot catch class-(b)
 integration regressions (each change individually green, broken when integrated). All
@@ -1466,6 +1477,55 @@ worktrees at once — §5.3 address-space model).
 **In-place (fallback) mode skips the merge.** If §5.2a fell back to in-place, there is no
 execute branch to merge — changes are already on the base. Skip §6.1's merge; §6.1.5 still
 validates the working tree before the §6.2 handoff.
+
+### 6.0 — The landing route: `land --dry-run` → the `lander` → **STOP**
+
+**The whole of Phase 6 can be run as one operation** (`REQ-PLAN-083`, `spec/landing.md`). Landing
+plan-057 by hand took **eleven separate operator instructions**, each asked for one at a time,
+*after* the plan was already `complete` and verified green. The design premise of `land` is that
+**authorizing the merge IS the authorization**: everything downstream is mechanical consequence of
+a decision already taken, and re-soliciting consent per step buys nothing except the attrition
+under which an operator starts rubber-stamping.
+
+**Step 1 — compute the manifest.** A pure read; it mutates nothing (`REQ-LAND-026`).
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py land --dry-run "${plan_dir}" --json
+```
+
+**Step 2 — dispatch the `lander`** as a sub-agent, mirroring the Phase-2 INVESTIGATE dispatch
+form. Use `Agent` with `subagent_type="general-purpose"`.
+
+```
+Read ${SKILL_DIR}/agents/lander.md and follow its instructions.
+
+MANIFEST: <the land --dry-run JSON>
+PLAN: {plan_dir}/plan.md
+```
+
+The agent is **read-only with respect to the repository under review** and returns a **decision
+document — never a command** (`REQ-AGENT-065`). **The MAIN SESSION writes the decision file**,
+exactly as it writes `reviews/pass-N.md` for the red-team. Validate it before showing it to anyone:
+
+```bash
+uv run ${SKILL_DIR}/scripts/plan_manager.py land --validate-decision "${decision}" "${plan_dir}"
+```
+
+**Step 3 — PRINT THE COMMAND AND STOP.** This is a declared **stop-class-1** halt
+(`REQ-LAND-013`), and it is the only genuinely structural row of the consent model: **the session
+does not get the verb.** Print the manifest's `apply_command` verbatim, together with the decision's
+summary, every refusal and every skip, and hand it to the operator to run **in their own shell**.
+
+**Do NOT run `land --apply` yourself.** It additionally refuses without a controlling terminal, at
+**exit 3** (`REQ-LAND-014`) — but read what that gate is: **it is detection, not prevention.**
+`herdr pane run <pane> <cmd>` produces a genuine pty in one sanctioned call and is a **named known
+bypass**. Using it to self-authorize is not a clever loophole; it is an unmistakable act, and
+making it unmistakable is the entire thing the gate buys. `dixson3/yoshiko-flow#293` is an
+executing agent closing a consent gate by writing its own authorization — do not become its second
+instance.
+
+**If `land` is unavailable, fall back to the manual §6.1–§6.4 below**, which remain the
+authoritative description of what `land` automates.
 
 ### 6.1 — Merge-back (worktree mode)
 
@@ -1659,7 +1719,14 @@ that §6.4 was run at all.
 
 
 ```bash
-CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
+# `HEAD^1..HEAD`, NEVER the three-dot symmetric-difference form against the merge target
+# (REQ-LAND-025, #303) — spelled in prose here rather than literally, because SC34
+# asserts that literal's ABSENCE from this file and a comment naming it would defeat
+# the check while looking like documentation. The three-dot
+# form runs at a moment when `HEAD == MERGE_TARGET`, so it is EMPTY BY CONSTRUCTION and
+# `classify-deliverable`'s `path-backed` evidence is structurally unreachable through it.
+# `HEAD^1..HEAD` reads the merge's first-parent range — what actually landed.
+CHANGED=$(git diff --name-only HEAD^1..HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
   $(printf ' --changed %q' ${CHANGED}) --json
 # On operator override:

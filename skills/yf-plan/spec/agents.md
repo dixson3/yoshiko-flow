@@ -138,3 +138,46 @@ Verification: planner.md Rules: "Write only to `<plan_dir>` (the resolved root)"
 REQ-AGENT-051: The planner writes plan.md per the structure defined in SKILL.md Phase 3.
 Rationale: A single plan.md schema ensures all downstream consumers (coordinator, reconciler, operator) can parse it.
 Verification: planner.md Execute step 6 references "the Phase 3: PLAN section of SKILL.md".
+
+## Lander
+
+REQ-AGENT-065: *(added plan-060 Issue 0.4)* The `lander` agent is **read-only with respect to the
+repository under review** — it never writes files in that repository. A **sandbox spike is
+authorized**: it may build and run throwaway code in a scratch directory outside the repository
+(e.g. `$(mktemp -d)`) and shall leave no residue.
+
+It **emits a decision document and never a command.** Its output is a data structure — groupings,
+titles, rationales, body paths, and per-step `enable`/`skip` choices with reasons — carrying no
+shell invocation an executor could lift and run. `plan_manager.py land --apply` is the sole writing
+layer (REQ-LAND-001), and it trusts the decision for **judgements only**, re-deriving every fact
+and halting on a `manifest_digest` mismatch (REQ-LAND-002).
+
+**The main session writes the decision file**, exactly as it writes `reviews/pass-N.md` for the
+red-team (REQ-AGENT-043). The agent returns content; the session persists it.
+Rationale: an agent that both decided and acted would hold write authority over the default
+branch, the upstream tracker, the worktree set and the installed toolchain — the
+highest-privilege role in the system. `dixson3/yoshiko-flow#293` is an executing agent closing a
+consent gate by writing its own authorization into the close reason; a lander with write authority
+is that defect at larger scale. Because there is no field in the decision document in which a
+condition, an exit code or a consent can be asserted, the agent **cannot** fabricate an
+authorization — a structural property rather than a procedural rule.
+Verification: **executed** —
+`bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_lander_agent_contract.py test_lander_contract`,
+which asserts both verbatim sentences, the front-matter shape, the fenced `## Output` template, and
+that the file contains no liftable imperative shell command.
+
+> **What that verification does NOT establish, stated rather than left to be discovered.** The
+> textual half of this check — including the `grep -qF` form the sibling requirements REQ-AGENT-043
+> and REQ-AGENT-045 use — verifies that **the instruction was written**. It can never verify that
+> **the instruction was obeyed**. The two are different claims, and a green `grep` on the first has
+> repeatedly been read as evidence for the second.
+>
+> The behavioural half is therefore a **separate, paired check** (plan-060 Issue 2.6): assert
+> `git status --porcelain` is **empty across a lander dispatch**, so a lander that writes to the
+> repository is caught by observation rather than by trusting its own prompt. Neither half
+> substitutes for the other, and this requirement is satisfied only by both:
+>
+> `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_lander_agent_contract.py test_dispatch_leaves_tree_clean`
+>
+> This is the same honesty clause REQ-AGENT-049 carries for dispatch, applied to read-only-ness:
+> conduct has no exit code unless something observes the conduct.

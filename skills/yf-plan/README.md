@@ -125,6 +125,8 @@ spec/
   prerequisites.md           Required/optional tools, bootstrap flow, install URLs
   portability.md             Portability contract, audit semantics, activation date
   ci-release-completion.md   The ci-release completion criterion and its evidence contract
+  landing.md                 The landing capability (REQ-LAND-*): the L0-L19 order, the journal
+                             state set, the conflict contract, and the consent model
   worktree-execute-lifecycle.d2   d2 source for the worktree execution lifecycle diagram
   worktree-execute-lifecycle.png  Rendered lifecycle diagram (referenced from SKILL.md)
 agents/
@@ -135,6 +137,7 @@ agents/
   reviewer.md                Conformance/completeness plan check (PASS|INCOMPLETE), runs first
   red-team.md                Adversarial plan review before approval (drives the phase transition)
   captor.md                  Drafts missing portability-contract files for /yf-plan capture
+  lander.md                  Adjudicates a landing manifest into a decision document
 formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp

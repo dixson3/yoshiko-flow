@@ -775,6 +775,78 @@
 >   output — following the precedent plan-056 set for the identical situation. Recorded as `RE-001`
 >   in `plan-retrospective.md`.
 >   Implementation lands in Epics 1–3; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-060 (2026-08-29, #301 / #293-partial / #304-partial / #263-partial — the
+>   landing capability):** the close chain stops at `complete`
+>   (`dixson3/yoshiko-flow#301`): merge-back, pruning, reconcile writes, bead mirroring and
+>   redeploy are all manual. Measured — landing plan-057 took **eleven separate operator
+>   instructions**, each asked for explicitly, one at a time, after the plan was already `complete`
+>   and verified green. This amendment specifies a **landing capability** whose design premise is
+>   that **authorizing the merge IS the authorization**: everything downstream is mechanical
+>   consequence of a decision already taken, and the genuinely outward-facing subset is enumerated
+>   up front and batched into that one grant.
+>
+>   - **`REQ-LAND-001`..`REQ-LAND-026` (NEW FAMILY, `skills/yf-plan/spec/landing.md`)** — the
+>     landing specification: the three-layer split (facts / judgement / execution) in which the
+>     adjudicating agent has **no write authority**; the normative **twenty-step order L0-L19**,
+>     each step carrying the edge that forces its position; the **journal state set enumerated by
+>     name** — thirteen progress states `L_INIT`..`L_DONE` plus **four** conflict states, one per
+>     conflict site (`L_CONFLICT_DOWNMERGE`, `L_CONFLICT_MERGE`, `L_REJECTED_PUSH_1`,
+>     `L_REJECTED_PUSH_2`), extending `REQ-OKFH-008`'s five-state model; the `--apply` invocation
+>     contract; the conflict contract; and the runtime preconditions for the per-landing upstream
+>     grant and for redeploy. A new spec key, precedented by plan-057's `REQ-OKFH-001`..`010`.
+>     `REQ-OKFH-001` is **cited as that precedent, not amended by this plan**.
+>   - **`REQ-PLAN-083` (`skills/yf-plan/SPEC.md` §2.7)** — the landing capability and its consent
+>     model, stating **in the requirement text** that the controlling-terminal gate is **"not
+>     prevention"**, that `herdr pane run <pane> <cmd>` is a **known bypass** producing a genuine
+>     pty in one sanctioned call, and that the route record is **"detection, not prevention"**.
+>     Allocated **083**, never **082** — consumed at `plan_manager.py:7330` and defined nowhere, so
+>     reuse would collide with a live reference — and never the retired **078**.
+>   - **`REQ-CLI-030` (`spec/cli.md`)** — the `land` verb: **flat** `@cli.command` registration
+>     (a group would escape `test_cli_enumeration.py`'s set-equality check entirely, exactly as
+>     `fingerprint`/`worktree`/`landing-lock` already do), the three mutually exclusive modes
+>     `--dry-run` / `--validate-decision` / `--apply <decision.json>` of which only the last writes,
+>     the **`REQ-COMPLETE-003`** envelope extended with a `halt_class` field, and a four-valued exit
+>     vocabulary in which the tty refusal is **exit 3** — neither `1` (nothing was measured false)
+>     nor `2` (the verb ran and concluded), the `dixson3/yoshiko-flow#263` two-facts-one-signal
+>     class. `REQ-COMPLETE-003` is **cited as the envelope contract, not amended**.
+>   - **`REQ-CLI-006` (`spec/cli.md`) — AMENDED.** The single `The enumeration (currently N):` line
+>     goes 39 to 40 and gains `land`. The edit lands in the **same change-set** as the registration,
+>     because `uv-yf-cli-enum` fires on any `plan_manager.py` edit and asserts set equality.
+>   - **`REQ-AGENT-065` (`spec/agents.md`)** — the `lander` agent: read-only with respect to the
+>     repository under review, a sandbox spike authorized, emitting a **decision document and never
+>     a command**, with the main session as sole writer of the decision file. Its `Verification:` is
+>     an **executed** command, and it records explicitly that the textual `grep -qF` half verifies
+>     the **instruction** and never the **behaviour** — the paired behavioural check asserts
+>     `git status --porcelain` is empty across a dispatch.
+>   - **`REQ-COMPLETE-005` (`spec/phases.md`)** — the landing ordering constraints, stated as
+>     constraints rather than a step count, per **`REQ-COMPLETE-001`**'s form (**cited, not
+>     amended**). It **restates `#301`'s rule correctly**: it is `close_cascade.py` and
+>     `complete-gate` that must not precede a green `verify-reconcile`, **not** "any bead close" —
+>     `close-reconcile-step` *is* a bead close that `REQ-COMPLETE-001` constraint 2 already requires
+>     to run first, so #301's wording verbatim would make the chain unsatisfiable. The same
+>     requirement records the **stop-class-1 exception to `REQ-AGENT-064`**: class 1 halts on a
+>     **declaration**, not on an exit code, because "this next command pushes to a remote" produces
+>     no non-zero status. `SKILL.md`'s retrospective write-site table already states class 1 has no
+>     write site, "empty by construction, not by omission"; `REQ-AGENT-064`'s universal is
+>     **narrowed by this note, not repealed** — the other four classes remain exit-code-or-counter,
+>     and "scope ambiguity" is not re-admitted.
+>   - **`REQ-CLI-028` — cited, not amended.** The existing `check-pytest-ran.sh` guard is *adopted*
+>     by this plan after red-team pass 1 measured that **20 of 31** of its own success criteria were
+>     vacuous: the house shim `pytest.main([__file__, "-q"])` **discards `sys.argv`**, so
+>     `uv run <file>.py -k this_matches_nothing` ran all tests and exited **0**. The guard already
+>     existed for exactly this and the plan had not found it. Recorded rather than quietly fixed —
+>     a plan about checks that cannot fail has no business hiding one of its own.
+>
+>   **What this amendment deliberately does NOT claim.** It does not make a self-authorized landing
+>   impossible. Measured: **no purely local artifact is unmintable** — any token a local verifier
+>   can check, a local agent can produce — so `#301`'s claim that the three-layer split is
+>   *structural* does not hold in full, and `dixson3/yoshiko-flow#304` exists because that residue
+>   is real. The only genuinely off-machine lever, branch protection on the default branch, is
+>   absent, admin-removable and guards one branch; it is not built here and stays on #304.
+>   `dixson3/yoshiko-flow#293` receives a **structural answer for the landing case only** — the
+>   adjudicator never writes and `--apply` re-derives every fact — and stays open for the general
+>   unmintable-consent-token problem.
+>   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 

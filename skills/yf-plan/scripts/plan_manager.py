@@ -6490,6 +6490,174 @@ def judgement_never_fired_report(plan_dir: str, as_json: bool):
     raise SystemExit(0)
 
 
+def _land_epic_from_bd(plan_dir: Path) -> str | None:
+    """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
+
+    Mirrors `_resume_scan`'s `epic_source=bd_metadata` route: the pour stamps the epic with
+    `metadata.plan_dir` (SKILL.md §5.2a step (a)) exactly so the linkage is findable when
+    plan.md carries no `**Epic:**` field. Reused here so the route-record check answers the
+    same in both address spaces.
+    """
+    want = plan_dir.as_posix().rstrip("/")
+    want_leaf = plan_dir.name
+    proc = subprocess.run(["bd", "list", "--all", "--limit", "5000", "--json"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(data, dict):
+        data = data.get("issues") or []
+    for b in data if isinstance(data, list) else []:
+        meta = b.get("metadata") or {}
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except json.JSONDecodeError:
+                continue
+        pd = str(meta.get("plan_dir") or "").rstrip("/")
+        # Match on the full repo-relative path OR its leaf: the two address spaces agree on
+        # the leaf even where a caller passes an absolute or differently-rooted plan_dir.
+        if pd and (pd == want or Path(pd).name == want_leaf):
+            return str(b.get("id", "")).split(".")[0] or None
+    return None
+
+
+def _land_assert_primary_checkout() -> dict:
+    """REQ-LAND-010 ENFORCED, not assumed: `--apply` runs from the PRIMARY checkout.
+
+    Every `_land_*` helper reads `plan_dir` RELATIVE TO CWD, and the plan folder is
+    primary-side — so run from a linked worktree they read a STALE bundle. That is not a
+    hypothetical: measured on this plan, `plan.md`, `log.md`, `index.md` and
+    `plan-retrospective.md` all differ between the two address spaces mid-execution.
+
+    For `land --apply` the cwd is PINNED by contract, so cwd-relative reads are correct there
+    — but a contract nothing checks is the same silent divergence one layer up. This makes it
+    an exit code. L2 would fail anyway (a linked worktree cannot check out a branch another
+    worktree holds), but it would fail AFTER L0 took the lock and L1 mutated the branch;
+    refusing up front costs nothing and leaves nothing to unwind.
+    """
+    cwd = Path.cwd().resolve()
+    primary = _land_primary_checkout().resolve()
+    if cwd == primary:
+        return {"ok": True, "cwd": str(cwd), "primary": str(primary)}
+    return {
+        "ok": False, "cwd": str(cwd), "primary": str(primary),
+        "reason": (f"`land --apply` must run from the PRIMARY checkout ({primary}), not from "
+                   f"{cwd}. Every plan-folder read is cwd-relative and the plan folder is "
+                   f"primary-side, so from here the landing would read a STALE bundle — and "
+                   f"L2 cannot check out the merge target from a linked worktree anyway."),
+        "remediation": f"cd {primary} && re-run the `apply_command` from `land --dry-run`.",
+    }
+
+
+def _land_route_record_findings(plan_dir: Path) -> list[dict]:
+    """`Type: human` gates whose ROUTE RECORD says an agent resolved them (REQ-LAND-015).
+
+    THE SIGNAL IS ASYMMETRIC, and the asymmetry is what makes a strippable marker useful:
+
+      * a CLEAN record is WEAK evidence of a human — anyone can strip a marker;
+      * a DIRTY record is STRONG evidence of an agent — nothing adds `CLAUDECODE` and
+        removes the controlling terminal by accident.
+
+    So this reports the dirty direction only. It never certifies that a gate WAS
+    human-resolved, and nothing here should be read as doing so. DETECTION, NOT PREVENTION.
+    """
+    out: list[dict] = []
+
+    def _inconclusive(reason: str) -> list[dict]:
+        """A LOUD NO-OP. The check DID NOT RUN, and that is a different fact from `clean`.
+
+        Silence here was the third vacuity path in this control: `if not epic: return out`
+        returned an empty list, which every caller read as "checked and found nothing". A
+        control whose failure mode is indistinguishable from a clean result is the defect this
+        plan exists to remove (#263, #181).
+
+        `warn`, never `fail` — REQ-DATA-057's precedent: an INCONCLUSIVE is a statement about
+        the INSTRUMENT, not a verdict on the artifact, so it must not manufacture a failure.
+        """
+        return [{"item": "route-record check", "status": "warn", "class": "inconclusive",
+                 "detail": (f"ROUTE-RECORD CHECK DID NOT RUN: {reason}. This is NOT a clean "
+                            f"result — the REQ-LAND-015 detection control for #293 was not "
+                            f"evaluated. Distinguish it from a pass.")}]
+
+    # RESOLVE THE EPIC ID FROM A CWD-INDEPENDENT SOURCE FIRST.
+    #
+    # WHY: `plan_dir/plan.md` is read RELATIVE TO CWD, and the plan folder is PRIMARY-SIDE by
+    # the address-space model — so the worktree's copy predates every field the execution
+    # wrote. Measured on this very plan at 09c74f6: identical command, identical plan_dir,
+    # `fail` from the primary and `pass` from the worktree, because the `**Epic:**` field is
+    # present in one plan.md and absent in the other. TWO TRUTHS, and the wrong one was the
+    # silent pass.
+    #
+    # `bd` IS THE CWD-INDEPENDENT SOURCE and is the right one on the merits, not merely the
+    # convenient one: INV-2 makes the shared Dolt DB reachable identically from either address
+    # space, and the epic is STAMPED with `metadata.plan_dir` at pour time precisely so the
+    # linkage survives a plan.md that lacks the field — that is `_resume_scan`'s documented
+    # `epic_source=bd_metadata` fallback, reused here rather than reinvented.
+    #
+    # DELIBERATELY NOT CHOSEN: reading the PRIMARY's plan.md from a worktree invocation. It
+    # would work, and it is what this session reached for once already and was right to be
+    # corrected on — a check that silently reaches across the address-space boundary to find a
+    # more convenient answer is how the boundary stops meaning anything. `bd` is shared BY
+    # DESIGN; the other checkout is not.
+    if not shutil.which("bd"):
+        return _inconclusive("`bd` is not on PATH, so neither the epic id nor the gate list "
+                             "could be resolved")
+
+    epic = None
+    plan_md = plan_dir / "plan.md"
+    if plan_md.is_file():
+        epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
+    if not epic:
+        epic = _land_epic_from_bd(plan_dir)
+    if not epic:
+        return _inconclusive(
+            f"could not resolve the epic id — it is absent from {plan_md} (which is read "
+            f"relative to cwd, and the plan folder is primary-side) and no bead carries "
+            f"`metadata.plan_dir == {plan_dir.as_posix()}`")
+
+    proc = subprocess.run(
+        ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
+        capture_output=True, text=True)
+    if proc.returncode != 0:
+        return out
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return out
+    if isinstance(data, dict):
+        data = data.get("issues") or []
+    for g in data if isinstance(data, list) else []:
+        if not str(g.get("id", "")).startswith(epic):
+            continue
+        meta = g.get("metadata") or {}
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except json.JSONDecodeError:
+                meta = {}
+        if (meta.get("gate_type") or "human") != "human":
+            continue
+        rr = meta.get("route_record") or {}
+        if not rr:
+            continue
+        if _land_route_record_is_agent(rr):
+            out.append({
+                "item": f"gate {g.get('id')} route record",
+                "status": "fail",
+                "detail": (
+                    f"a `Type: human` gate carries a route record reading NO TTY with agent "
+                    f"marker(s) {rr.get('agent_markers')}. That is an executing agent "
+                    f"resolving a human consent gate — dixson3/yoshiko-flow#293. This is "
+                    f"DETECTION, not prevention: the record is strippable, so its absence "
+                    f"proves nothing, but its presence is strong evidence."),
+            })
+    return out
+
+
 @cli.command("audit-close")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "as_json", is_flag=True,
@@ -6540,6 +6708,13 @@ def audit_close(plan_dir: str, as_json: bool):
     # exists to make impossible — and without this the artifact would record the question
     # while nothing ever read it back.
     findings.extend(_open_escalation_findings(pdir))
+    # plan-060 Issue 3.4 / REQ-LAND-015 — the ROUTE-RECORD signal. A `Type: human`
+    # gate whose recorded route reads "no tty, CLAUDECODE set" was resolved by an
+    # agent asserting its own authorization, which is dixson3/yoshiko-flow#293
+    # exactly. DETECTION, NOT PREVENTION: the markers are strippable — but
+    # ASYMMETRICALLY, so a dirty record is strong evidence even though a clean one is
+    # weak. This would have surfaced #293 within seconds.
+    findings.extend(_land_route_record_findings(pdir))
     fails = [f for f in findings if f.get("status") == "fail"]
     warns = [f for f in findings if f.get("status") == "warn"]
 
@@ -7455,6 +7630,1982 @@ def ready_check(plan_dir: str, as_json: bool):
             for r in reasons:
                 click.echo(f"  - {r}")
     sys.exit(0 if ready else 3)
+
+
+# ==========================================================================================
+# LANDING — `land` (REQ-CLI-030, spec/landing.md `REQ-LAND-*`, plan-060)
+# ==========================================================================================
+#
+# THREE LAYERS, AND ONLY THE THIRD WRITES (REQ-LAND-001):
+#
+#   land --dry-run            -> the MANIFEST   (facts; reads only)
+#   the `lander` agent        -> the DECISION   (judgements; read-only against the repo)
+#   land --apply <decision>   -> the EXECUTION  (the only writer, invoked BY THE OPERATOR)
+#
+# `--apply` trusts the decision for JUDGEMENTS ONLY and for NO FACT WHATSOEVER: every fact is
+# re-derived at apply time and checked against the `manifest_digest` the decision carries
+# (REQ-LAND-002). A decision that disagrees with re-derived reality HALTS; it never overrides.
+#
+# NOT TO BE CONFUSED WITH `upstream.py land`, which is the close-time follow-on hoist. Two
+# different operations on two different objects (plan-060 R11).
+
+LAND_SCHEMA_MANIFEST = "yf-plan/landing-manifest@1"
+LAND_SCHEMA_DECISION = "yf-plan/landing-decision@1"
+
+#: The twenty ordered steps (REQ-LAND-004). The key set of a decision's `steps` object is
+#: EXACTLY this, one-to-one with the L-labels — never a coarse paraphrase, which cannot
+#: express a two-push order and would make `merge: skip` legal.
+LAND_STEPS: tuple[str, ...] = (
+    "l0_lock_acquire", "l1_down_merge", "l2_merge", "l3_validate_merged",
+    "l4_commit_merge", "l5_advisory_recheck", "l6_push_one", "l7_reconcile_writes",
+    "l8_close_chain_head", "l9_close_reconcile_step", "l10_verify_reconcile",
+    "l11_recheck_criteria", "l12_close_cascade", "l13_complete_gate",
+    "l14_pour_fidelity", "l15_update_status", "l16_commit_and_push_two",
+    "l17_residual_mirroring", "l18_prune", "l19_redeploy",
+)
+
+#: Steps a decision may NOT skip, each for a stated reason rather than by blanket rule.
+#: L0-L6 plus L16 — the last because skipping it reproduces D-2's measured residue exactly:
+#: the uncommitted, unpushed `status: complete` this whole capability exists to remove.
+LAND_NON_SKIPPABLE: frozenset[str] = frozenset({
+    "l0_lock_acquire", "l1_down_merge", "l2_merge", "l3_validate_merged",
+    "l4_commit_merge", "l5_advisory_recheck", "l6_push_one", "l16_commit_and_push_two",
+})
+
+#: The journal state set (REQ-LAND-006). CLOSED and NORMATIVE — `spec/landing.md` names the
+#: same seventeen, and `test_land_apply.py` asserts the two agree. They are enumerated in ONE
+#: place because `okf_hygiene`'s R2/SC11/test-suite all keyed on "a set of five" that no
+#: document listed, so a five-state test and a five-state journal could have been five
+#: DIFFERENT fives with every instrument green.
+LAND_JOURNAL_STATES: dict[str, str] = {
+    "L_INIT": "journal created; nothing acquired, nothing mutated",
+    "L_LOCKED": "landing lock held; no tree mutated",
+    "L_DOWNMERGED": "target down-merged into <plan-id>-execute",
+    "L_MERGED_UNCOMMITTED": "merge present on the target, uncommitted",
+    "L_VALIDATED": "FULL tier green; merge committed; lock released",
+    "L_PREPUSH_CHECKED": "advisory criteria run complete — the last fully reversible state",
+    "L_PUSHED_1": "push #1 done — the irreversible boundary has been crossed",
+    "L_RECONCILED": "every enumerated gh write posted and verified by read-back",
+    "L_CLOSED": "close chain L8-L15 complete; status: complete written",
+    "L_PUSHED_2": "plan-folder writes committed and pushed",
+    "L_MIRRORED": "residual open beads mirrored or proposed",
+    "L_PRUNED": "worktree, branch and (if authorized) tab pruned",
+    "L_DONE": "redeploy performed or correctly skipped — the terminal GREEN state",
+    # Conflict states — ONE PER SITE, and there are exactly four (REQ-LAND-006 §3.2).
+    # Their recoveries are NOT uniform, which is why they are four states and not one.
+    "L_CONFLICT_DOWNMERGE": "L1 down-merge conflicted — capture, then merge --abort",
+    "L_CONFLICT_MERGE": "L2 merge conflicted — capture, then merge --abort",
+    "L_REJECTED_PUSH_1": "L6 push #1 rejected — pull --rebase, RE-VALIDATE, retry",
+    "L_REJECTED_PUSH_2": "L16 push #2 rejected — pull --rebase and retry, NEVER revert",
+}
+
+#: The terminal GREEN state. A rehearsal that halted at L2 must not satisfy R1's mitigation,
+#: so this is named rather than inferred from "no error" (SC36b).
+LAND_TERMINAL_STATE = "L_DONE"
+
+#: Halt classes, so a session's stop is signalled MECHANICALLY rather than judged from the
+#: prose of a `reason` string (REQ-CLI-030). These are REQ-AGENT-064's five classes.
+LAND_HALT_OUTWARD = 1
+LAND_HALT_GATE = 2
+LAND_HALT_DESTRUCTIVE = 3
+LAND_HALT_COUNTER = 4
+LAND_HALT_MECHANICAL = 5
+
+
+def _land_envelope(verdict: str, reason: str, remediation: str | None = None,
+                   halt_class: int | None = None, **extra) -> dict:
+    """The REQ-COMPLETE-003 envelope, extended with `halt_class` (REQ-CLI-030).
+
+    `verdict` is THREE-VALUED and an `inconclusive` is NEVER coerced to `fail` — the defect
+    #262 records inside `_validate_merged`, the helper this verb calls, must not be
+    reproduced one call frame up.
+    """
+    if verdict not in ("pass", "fail", "inconclusive"):
+        raise ValueError(f"verdict must be three-valued, got {verdict!r}")
+    env = {
+        "verdict": verdict,
+        "passed": verdict == "pass",
+        "reason": reason,
+        "remediation": remediation,
+    }
+    if halt_class is not None:
+        env["halt_class"] = halt_class
+    env.update(extra)
+    return env
+
+
+def _land_exit_code(verdict: str) -> int:
+    """`pass` -> 0, `fail` -> 1, `inconclusive` -> 2. The tty refusal's 3 is returned by the
+    gate itself (REQ-LAND-014) and never routed through here, because it is a GATE SIGNAL
+    rather than a verdict: nothing about the landing was measured false (so not 1) and the
+    verb ran and reached a definite conclusion (so not 2)."""
+    return {"pass": 0, "fail": 1, "inconclusive": 2}[verdict]
+
+
+def _land_canonical(obj) -> str:
+    """Canonical JSON for digesting: sorted keys, no insignificant whitespace."""
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _land_digest(facts: dict) -> str:
+    """`sha256` over the `facts` object ALONE, excluding `generated_at` (REQ-LAND-018).
+
+    IT MUST COVER `predicted_tree` AND THE TARGET TIP. Measured (EXP-006): those are exactly
+    the fields that drift when another plan lands between dry-run and apply, so a digest
+    omitting them cannot detect the staleness it exists to detect. They live inside `facts`
+    and nothing filters them out — asserted by `test_digest_covers_merge_preview` rather
+    than trusted to this comment.
+    """
+    return "sha256:" + hashlib.sha256(_land_canonical(facts).encode("utf-8")).hexdigest()
+
+
+def _land_enumerate(directory: Path, checkout_root: Path | None = None) -> list[str]:
+    """Enumerate the files under `directory`, as repo-relative POSIX paths.
+
+    ISSUE 1.9. SETTLED EMPIRICALLY in `assets/enumeration-spike.md` — six fixture cases,
+    every candidate, both cwds, against known answers — AFTER THE PRESCRIPTION WAS WRONG IN
+    FIVE CONSECUTIVE PROSE-REASONED ROUNDS. Do not re-derive it from first principles; the
+    fixture exists because first principles produced five different wrong answers.
+
+    (a) WHICH QUESTION. *Tracked-ness* and *presence* are DIFFERENT FACTS. `git ls-files`
+        answers tracked-ness; `--others` is its exact COMPLEMENT, not a presence fact — so
+        NEITHER IS EVER CORRECT ALONE. Each returned 2 of 4 on the fixture. Only their union
+        answers "what git considers part of the tree".
+
+    (b) WHICH CHECKOUT. A linked worktree carries a `.git` MARKER FILE, so the primary
+        checkout's git reports it as ONE OPAQUE ENTRY and never descends: measured **0** from
+        the primary cwd for every git candidate — and STILL 0 with the worktree not
+        gitignored at all. That control identifies the cause: the boundary git cannot cross
+        is the CHECKOUT boundary, NOT the gitignore boundary. Git crosses a plain gitignored
+        directory correctly.
+
+    (c) THE PRESCRIPTION. Prefer `git -C <that checkout> ls-files --cached --others
+        --exclude-standard` — a correct, atomic union that handles symlinks as git does and
+        excludes ignored junk. Only where the process cannot run inside that checkout, fall
+        back to an explicit scoped listing written `find <dir> ! -type d` — NEVER `-type f`,
+        which DROPS SYMLINKS — and accept that it counts ignored junk (`.DS_Store` is
+        near-certain on macOS).
+
+    (d) NEVER: `ls-files` alone; `--others` alone; any git form from a DIFFERENT checkout; a
+        recursive content `grep` (the harness wrapper under-reports across gitignore, and
+        `/usr/bin/grep -r` across both roots DOUBLE-COUNTS — 6 logical paths measured twice);
+        or `status --porcelain=v2 --ignored`, the one git command returning non-zero from the
+        primary cwd (**1**) — and that 1 is the ignored DIRECTORY, not its files.
+        `--ignored=matching`, the documented fix for exactly that collapsing, ALSO returns 1.
+
+    (e) AN OMISSION FROM ENUMERATION IS SILENT. It is not a `skip`, so REQ-LAND-002's "every
+        skip is surfaced in the consent prompt" guarantee does NOT cover it (REQ-LAND-003).
+        The premise this helper originally rested on — that draft bodies are "untracked by
+        construction" — is RETIRED: `commit-plan` falsifies it by design.
+    """
+    directory = Path(directory)
+    if not directory.is_dir():
+        return []
+    root = Path(checkout_root) if checkout_root else _repo_root()
+
+    # (c) THE PREFERRED BRANCH: git plumbing, run INSIDE the checkout that owns `directory`.
+    # `--cached` and `--others` together are the union; `--exclude-standard` drops ignored
+    # junk. `-z` because a path may contain a newline and a line-split would then invent one.
+    r = _run_git(["-C", str(root), "ls-files", "--cached", "--others",
+                  "--exclude-standard", "-z", "--", str(directory)], cwd=root)
+    if r.returncode == 0:
+        names = [n for n in r.stdout.split("\0") if n]
+        if names:
+            return sorted(set(names))
+
+    # THE FALLBACK, for a process that cannot run inside that checkout. `! -type d`, NEVER
+    # `-type f`: the latter drops symlinks, and a symlinked draft is still a draft.
+    out: list[str] = []
+    for p in directory.rglob("*"):
+        if p.is_dir():
+            continue
+        try:
+            out.append(p.relative_to(root).as_posix())
+        except ValueError:
+            out.append(p.as_posix())
+    return sorted(set(out))
+
+
+def _land_merge_preview(target: str, execute_branch: str,
+                        root: Path | None = None) -> dict:
+    """Three-way merge probe via `git merge-tree --write-tree` (Issue 1.2).
+
+    Measured: it predicts conflicts at exit 1, emits the merged tree oid at exit 0, and
+    leaves `git status --porcelain` EMPTY.
+
+    RECORDED HONESTLY: it DOES create an unreferenced tree object in the object database.
+    It is garbage-collectable and observable to nothing, but "the dry run writes nothing at
+    all" would be FALSE — so neither this docstring, nor `REQ-LAND-026`, nor any criterion
+    claims it. The claim that IS made is that `git status --porcelain` is empty.
+    """
+    root = root or _repo_root()
+    r = _run_git(["merge-tree", "--write-tree", "--name-only", target, execute_branch],
+                 cwd=root)
+    lines = [ln for ln in r.stdout.splitlines()]
+    predicted_tree = lines[0].strip() if lines else None
+    conflicts: list[str] = []
+    if r.returncode != 0:
+        # Non-zero => conflicts. The oid is still the first line; the remainder names the
+        # conflicted paths. A blank separator line divides the two on some git versions.
+        conflicts = [ln.strip() for ln in lines[1:] if ln.strip()]
+        if r.returncode > 1 and not predicted_tree:
+            return {"available": False, "conflicts": [], "predicted_tree": None,
+                    "changed_paths": [], "touches_skills": False,
+                    "error": (r.stderr.strip() or f"merge-tree exited {r.returncode}")}
+
+    changed_paths: list[str] = []
+    if predicted_tree:
+        d = _run_git(["diff", "--name-only", f"{target}", f"{execute_branch}"], cwd=root)
+        if d.returncode == 0:
+            changed_paths = [ln for ln in d.stdout.splitlines() if ln]
+
+    return {
+        "available": True,
+        "conflicts": conflicts,
+        "predicted_tree": predicted_tree,
+        "changed_paths": changed_paths,
+        "touches_skills": any(p.startswith("skills/") for p in changed_paths),
+    }
+
+
+def _land_changed_set(root: Path | None = None) -> list[str]:
+    """The landed change set, computed as `HEAD^1..HEAD` — NEVER `<target>...HEAD`.
+
+    ISSUE 1.4 / `REQ-LAND-025` / dixson3/yoshiko-flow#303. The documented `<target>...HEAD`
+    expression runs at a moment when `HEAD == <target>`, so it is EMPTY BY CONSTRUCTION and
+    `classify-deliverable`'s `path-backed` evidence is structurally unreachable through it.
+    `HEAD^1..HEAD` reads the merge's second parent's contribution, which is the set that
+    actually landed.
+
+    On a non-merge `HEAD` (`HEAD^1` absent or HEAD having one parent) this returns the
+    single commit's own diff, so the helper is total rather than raising on a fast-forward.
+    """
+    root = root or _repo_root()
+    r = _run_git(["rev-list", "--parents", "-n", "1", "HEAD"], cwd=root)
+    if r.returncode != 0:
+        return []
+    parents = r.stdout.split()[1:]
+    if not parents:
+        return []
+    base = parents[0]
+    d = _run_git(["diff", "--name-only", f"{base}..HEAD"], cwd=root)
+    return [ln for ln in d.stdout.splitlines() if ln] if d.returncode == 0 else []
+
+
+def _land_number_collisions(plan_id: str, target: str,
+                            root: Path | None = None) -> list[str]:
+    """Other plan bundles on the merge target sharing this plan's `NNN` (Issue 1.3).
+
+    `REQ-LAND-024` / dixson3/yoshiko-flow#302-B3. Two bundles sharing an `NNN` and differing
+    only by hash suffix MERGE CLEANLY — measured, and commented on #302 — so merge-back is
+    the ONLY place the collision is detectable at all. Reported as a HALTING finding.
+
+    Scoped deliberately to the detection half: `get_next_index()`'s `max+1` and the
+    cross-worktree fixes (#302 B1/B2) are Phase-1 concerns and stay open.
+    """
+    root = root or _repo_root()
+    m = re.match(r"^plan-(\d+)-", plan_id)
+    if not m:
+        return []
+    number = m.group(1)
+    r = _run_git(["ls-tree", "-d", "--name-only", target, "docs/plans/"], cwd=root)
+    if r.returncode != 0:
+        return []
+    out = []
+    for line in r.stdout.splitlines():
+        leaf = line.rstrip("/").split("/")[-1]
+        if leaf == plan_id:
+            continue
+        if re.match(rf"^plan-{number}-", leaf):
+            out.append(leaf)
+    return out
+
+
+def _land_upstream_facts(plan_dir: Path, plan_id: str) -> dict:
+    """The Upstream Issues rows with their per-disposition contract and current state.
+
+    THE CONTRACT IS READ FROM `UPSTREAM_REQUIREMENTS`, NOT DISCOVERED (D-6). The `lander`
+    agent is trusted to EXPLAIN that a `partial` row stays open, never to work it out — which
+    makes what must be trusted materially narrower than #301 assumes.
+    """
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.is_file():
+        return {"rows": [], "tracker": None,
+                "inconclusive": f"no plan.md at {plan_md}"}
+    rows_in = parse_upstream_rows(plan_md.read_text(encoding="utf-8"))
+    drafts_dir = plan_dir / "assets" / "upstream-drafts"
+    present = set(_land_enumerate(drafts_dir)) if drafts_dir.is_dir() else set()
+
+    rows = []
+    tracker = None
+    for r in rows_in:
+        disp = (r.get("disposition") or "").strip().lower()
+        req = UPSTREAM_REQUIREMENTS.get(disp, {})
+        if disp == "tracker":
+            tracker = {"issue": r.get("issue")}
+        if disp == "exclude":
+            continue
+        draft_rel = f"{plan_dir.as_posix()}/assets/upstream-drafts/{r.get('issue')}.md"
+        rows.append({
+            "issue": r.get("issue"),
+            "disposition": disp,
+            "required_end_state": req.get("end_state"),
+            "state_reason": req.get("state_reason"),
+            "requires_mention": bool(req.get("requires_mention")),
+            "report_only": bool(req.get("report_only")),
+            "why": req.get("why"),
+            "resolved_by": r.get("resolved_by"),
+            "draft_body_path": draft_rel,
+            # ENUMERATED, never assumed. An omission here is SILENT (REQ-LAND-003) — it is
+            # not a `skip`, so the consent-prompt guarantee does not cover it.
+            "draft_present": draft_rel in present,
+        })
+    return {"rows": rows, "tracker": tracker}
+
+
+def _land_manifest(plan_dir: str | Path) -> dict:
+    """The `land --dry-run` MANIFEST — the `facts` object of `assets/decision-schema.md` §1.
+
+    A PURE READ (`REQ-LAND-026`): it changes no ref, no file and no working-tree state, and
+    performs no `git merge` into the working tree. The one exception is recorded rather than
+    hidden — see `_land_merge_preview` on the unreferenced ODB tree object.
+
+    THE FULL TIER IS NOT RUN HERE. It exceeds 300 s (D-8) and its result is only meaningful
+    against a real merge; the manifest reports that it WILL run at L3, never its outcome.
+    """
+    plan_dir = Path(plan_dir)
+    plan_id = _plan_id_from_dir(plan_dir)
+    root = _repo_root()
+    halts: list[dict] = []
+
+    scan = _resume_scan(plan_dir) if plan_dir.is_dir() else {}
+    strategy = _resolve_landing_strategy()
+    target = "main" if strategy == "main" else _feature_branch(plan_id)
+    execute_branch = _execute_branch(plan_id)
+    wt = _worktree_path(plan_dir)
+
+    if scan.get("stale_approved"):
+        halts.append({
+            "code": "stale-approved",
+            "detail": "the plan's content changed since approval — the stored fingerprint no "
+                      "longer matches. Re-approve through conformance -> red-team -> "
+                      "portability before landing.",
+            "resolvable_by_agent": False,
+        })
+
+    tip = _run_git(["rev-parse", target], cwd=root)
+    resolved_tip = tip.stdout.strip() if tip.returncode == 0 else None
+    if resolved_tip is None:
+        halts.append({"code": "target-unresolved",
+                      "detail": f"merge target {target!r} does not resolve",
+                      "resolvable_by_agent": False})
+
+    br = _run_git(["rev-parse", "--verify", execute_branch], cwd=root)
+    if br.returncode != 0:
+        halts.append({"code": "execute-branch-missing",
+                      "detail": f"{execute_branch} does not exist — nothing to land",
+                      "resolvable_by_agent": False})
+
+    preview = (_land_merge_preview(target, execute_branch, root)
+               if resolved_tip and br.returncode == 0
+               else {"available": False, "conflicts": [], "predicted_tree": None,
+                     "changed_paths": [], "touches_skills": False})
+    if preview.get("conflicts"):
+        halts.append({"code": "merge-conflicts-predicted",
+                      "detail": "the preview predicts conflicts in: "
+                                + ", ".join(preview["conflicts"]),
+                      "resolvable_by_agent": False})
+
+    collisions = _land_number_collisions(plan_id, target, root) if resolved_tip else []
+    if collisions:
+        halts.append({
+            "code": "plan-number-collision",
+            "detail": (f"the merge target already carries {', '.join(collisions)}, which "
+                       f"share this plan's number. Two such bundles MERGE CLEANLY, so this "
+                       f"is the only point the collision is detectable (#302-B3)."),
+            "resolvable_by_agent": False,
+        })
+
+    facts = {
+        "plan": {
+            "plan_id": plan_id,
+            "plan_dir": plan_dir.as_posix(),
+            "status": _land_plan_status(plan_dir) if plan_dir.is_dir() else None,
+            "fingerprint_fresh": not scan.get("stale_approved", False),
+            "epic": scan.get("epic_id"),
+            "epic_state": scan.get("epic_state"),
+        },
+        "git": {
+            "landing_strategy": strategy,
+            "merge_target": target,
+            "execute_branch": execute_branch,
+            "worktree_path": wt.as_posix(),
+            "worktree_dirty": bool(_worktree_dirty(wt)) if wt.is_dir() else False,
+            # DIGEST-COVERED, and deliberately so: measured, the predicted tree oid and the
+            # target tip are EXACTLY the fields that drift when another plan lands between
+            # dry-run and apply. A digest omitting them cannot detect the staleness it
+            # exists to detect (Issue 1.5 / REQ-LAND-018).
+            "resolved_target_tip": resolved_tip,
+            "merge_preview": preview,
+            "plan_number_collisions": collisions,
+        },
+        "upstream": _land_upstream_facts(plan_dir, plan_id),
+        "steps": {k: ("non-skippable" if k in LAND_NON_SKIPPABLE else "skippable")
+                  for k in LAND_STEPS},
+        "journal_states": sorted(LAND_JOURNAL_STATES),
+    }
+    return {"facts": facts, "halts": halts}
+
+
+def _land_plan_status(plan_dir: Path) -> str | None:
+    """The plan's `**Status:**` field, read from a plan DIRECTORY.
+
+    NAMED `_land_*`, and the prefix is load-bearing rather than cosmetic. An earlier draft
+    called this `_read_plan_status`, which SHADOWED an existing module-level function of that
+    name taking plan.md TEXT — Python simply rebinds, so the later definition silently won and
+    `_open_escalation_findings` started passing a `str` where a `Path` was now expected. The
+    house `_land_*` prefix on every helper this capability adds is what makes that collision
+    class impossible by construction; it was caught by `test_audit_close.py`, not by review.
+    """
+    p = plan_dir / "plan.md"
+    if not p.is_file():
+        return None
+    m = re.search(r"^\*\*Status:\*\*\s*(\S+)", p.read_text(encoding="utf-8"), re.M)
+    return m.group(1) if m else None
+
+
+def _land_apply_command(plan_dir: Path, decision_path: str = "<decision.json>") -> str:
+    """The FULLY-QUALIFIED `--apply` command the operator runs IN THEIR OWN SHELL.
+
+    ISSUE 1.7 / `REQ-LAND-010`/`REQ-LAND-013`. It names the checkout it must be run from,
+    because an ambiguous cwd is the difference between merging in the primary checkout and
+    attempting it in a worktree that CANNOT check out the target branch — L2 checks out the
+    merge target, and a linked worktree cannot hold a branch another worktree holds.
+    """
+    return (f"cd {_land_primary_checkout()} && "
+            f"uv run skills/yf-plan/scripts/plan_manager.py land "
+            f"--apply {decision_path} {plan_dir.as_posix()}")
+
+
+def _land_primary_checkout() -> Path:
+    """The PRIMARY checkout, even when called from inside a linked worktree.
+
+    `_repo_root()` answers "the top level of the checkout I am in", which inside
+    `.worktrees/<plan-id>` is the WORKTREE — and naming that in the `--apply` command would
+    be precisely Issue 1.7's failure: L2 checks out the merge target, and a linked worktree
+    CANNOT check out a branch another worktree holds, so the operator would be handed a
+    command that cannot work.
+
+    `--git-common-dir` is the discriminator: in the primary it is `<root>/.git`, and in a
+    linked worktree it STILL points at the primary's `.git`, because that is where the shared
+    object store and refs live. Its parent is therefore the primary checkout from either
+    address space. Measured live during Issue 1.7 — the first dry run emitted the worktree
+    path and this helper is the fix.
+    """
+    r = _run_git(["rev-parse", "--path-format=absolute", "--git-common-dir"])
+    if r.returncode == 0 and r.stdout.strip():
+        common = Path(r.stdout.strip())
+        if common.name == ".git":
+            return common.parent
+    return _repo_root()
+
+
+def _land_validate_decision(decision: dict, manifest: dict) -> dict:
+    """Report-only conformance of a decision document against a re-derived manifest.
+
+    ISSUE 2.3 / `REQ-LAND-002`. Checks, in order: schema tag, `manifest_digest` equality,
+    the `steps` key set, the non-skippable set, `body_sha256` per enumerated write, and the
+    NARROWING-ONLY rule. WRITES NOTHING.
+
+    A DECISION CAN ONLY EVER NARROW. An `enable` on a step the manifest halted is IGNORED
+    and REPORTED — never honoured — so "the landing did less than you think" is never
+    silent, and no field the agent controls can widen what happens.
+    """
+    problems: list[str] = []
+    ignored_enables: list[str] = []
+
+    if decision.get("schema") != LAND_SCHEMA_DECISION:
+        problems.append(f"schema is {decision.get('schema')!r}, "
+                        f"expected {LAND_SCHEMA_DECISION!r}")
+
+    want = _land_digest(manifest["facts"])
+    got = decision.get("manifest_digest")
+    digest_ok = (got == want)
+    if not digest_ok:
+        problems.append(
+            f"manifest_digest MISMATCH — decision carries {got!r}, re-derived reality is "
+            f"{want!r}. The world moved under this decision; re-run `land --dry-run` and "
+            f"re-adjudicate. This is a HALT, never an override.")
+
+    steps = decision.get("steps")
+    if not isinstance(steps, dict):
+        problems.append("`steps` is missing or not an object")
+        steps = {}
+    else:
+        missing = [k for k in LAND_STEPS if k not in steps]
+        extra = [k for k in steps if k not in LAND_STEPS]
+        if missing:
+            problems.append(f"`steps` omits {missing} — the key set is one-to-one with the "
+                            f"L0-L19 labels, never a coarse paraphrase")
+        if extra:
+            problems.append(f"`steps` carries unknown keys {extra}")
+
+    for k, v in steps.items():
+        if k in LAND_NON_SKIPPABLE and isinstance(v, str) and v.startswith("skip"):
+            problems.append(
+                f"{k} is NON-SKIPPABLE and the decision skips it. Skipping it is not "
+                f"narrowing the landing — it is a different operation.")
+        if isinstance(v, str) and v.startswith("skip") and ":" not in v:
+            problems.append(f"{k} is skipped without a reason; `skip` requires one")
+
+    # NARROWING-ONLY, over the halts the manifest reports. An `enable` here is not an error
+    # in the decision — it is simply not honoured, and saying so is the whole guarantee.
+    if manifest.get("halts"):
+        for k, v in steps.items():
+            if v == "enable":
+                ignored_enables.append(k)
+
+    body_problems: list[str] = []
+    for w in decision.get("upstream_writes", []) or []:
+        bp = w.get("body_path")
+        if not bp:
+            continue
+        f = Path(bp)
+        if not f.is_file():
+            body_problems.append(f"issue {w.get('issue')}: body_path {bp} does not exist")
+            continue
+        want_sha = w.get("body_sha256")
+        if want_sha:
+            got_sha = hashlib.sha256(f.read_bytes()).hexdigest()
+            if got_sha != want_sha:
+                body_problems.append(
+                    f"issue {w.get('issue')}: body_sha256 mismatch — the bytes changed "
+                    f"between consent and apply, which makes this a DIFFERENT write")
+    problems += body_problems
+
+    if problems:
+        return _land_envelope(
+            "fail",
+            f"decision is not conformant: {len(problems)} problem(s)",
+            remediation="Re-run `land --dry-run`, re-adjudicate with the `lander`, and "
+                        "re-validate. A non-conformant decision is never applied.",
+            halt_class=LAND_HALT_MECHANICAL,
+            problems=problems, digest_ok=digest_ok,
+            ignored_enables=ignored_enables)
+    return _land_envelope(
+        "pass", "decision is conformant and narrowing-only",
+        digest_ok=digest_ok, problems=[], ignored_enables=ignored_enables)
+
+
+@cli.command("land")
+@click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--dry-run", "dry_run", is_flag=True,
+              help="Emit the MANIFEST — facts only. Writes nothing.")
+@click.option("--apply", "apply_path", type=click.Path(), default=None,
+              help="Execute the landing per <decision.json>. THE ONLY WRITING MODE.")
+@click.option("--validate-decision", "validate_path", type=click.Path(), default=None,
+              help="Report-only conformance of <decision.json>. Writes nothing.")
+@click.option("--json-output", "--json", "json_output", is_flag=True, default=True,
+              help="Emit the structured verdict (default).")
+def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
+             validate_path: str | None, json_output: bool):
+    """Land an executed plan: merge, validate, push, reconcile, close, prune, redeploy.
+
+    REGISTERED FLAT, NOT AS A GROUP (REQ-CLI-030 / REQ-CLI-021), and the reason is
+    mechanical rather than stylistic: a group's subcommands are registered on the group, so
+    a `land` GROUP would escape `test_cli_enumeration.py`'s set-equality check entirely —
+    exactly as `fingerprint`, `worktree` and `landing-lock` already do. A verb that governs
+    merging and pushing is the last one that should be outside the check that notices it
+    exists.
+
+    THE THREE MODES ARE MUTUALLY EXCLUSIVE and only `--apply` writes.
+
+    NOT `upstream.py land`, which is the close-time follow-on hoist (plan-060 R11).
+    """
+    pdir = Path(plan_dir)
+    modes = [bool(dry_run), apply_path is not None, validate_path is not None]
+    if sum(modes) != 1:
+        click.echo(json.dumps(_land_envelope(
+            "inconclusive",
+            "exactly one of --dry-run / --apply / --validate-decision is required",
+            remediation="Re-invoke with exactly one mode.",
+        ), indent=2))
+        sys.exit(2)
+
+    manifest = _land_manifest(pdir)
+
+    if dry_run:
+        facts = manifest["facts"]
+        halts = manifest["halts"]
+        verdict = "fail" if halts else "pass"
+        env = _land_envelope(
+            verdict,
+            ("landing is blocked by " + ", ".join(h["code"] for h in halts)) if halts
+            else "manifest computed; no halting finding",
+            remediation=(halts[0]["detail"] if halts else None),
+            halt_class=LAND_HALT_MECHANICAL if halts else None,
+        )
+        env.update({
+            "schema": LAND_SCHEMA_MANIFEST,
+            "digest": _land_digest(facts),
+            "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "facts": facts,
+            "halts": halts,
+            # THE SESSION PRINTS THIS AND STOPS (REQ-LAND-013). It does not run it.
+            "apply_command": _land_apply_command(pdir),
+            "apply_note": (
+                "REQ-LAND-013: the session does NOT invoke --apply. Run the command above "
+                "yourself, from the checkout it names. `land --apply` additionally refuses "
+                "without a controlling terminal (REQ-LAND-014, exit 3) — which is a "
+                "DETECTION control, not prevention: `herdr pane run` is a known bypass."),
+        })
+        click.echo(json.dumps(env, indent=2))
+        sys.exit(_land_exit_code(verdict))
+
+    if validate_path is not None:
+        p = Path(validate_path)
+        if not p.is_file():
+            click.echo(json.dumps(_land_envelope(
+                "inconclusive", f"no decision document at {validate_path}",
+                remediation="Produce one with the `lander` agent first."), indent=2))
+            sys.exit(2)
+        try:
+            decision = json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            click.echo(json.dumps(_land_envelope(
+                "inconclusive", f"decision document is not valid JSON: {exc}",
+                remediation="Re-emit the decision document."), indent=2))
+            sys.exit(2)
+        env = _land_validate_decision(decision, manifest)
+        click.echo(json.dumps(env, indent=2))
+        sys.exit(_land_exit_code(env["verdict"]))
+
+    # --apply: the only writing mode.
+    #
+    # REQ-LAND-010 IS CHECKED FIRST, before the tty gate and before anything is read: running
+    # from the wrong checkout means every plan-folder read is against a stale bundle, and no
+    # later step can recover from having been given the wrong tree to begin with.
+    where = _land_assert_primary_checkout()
+    if not where["ok"]:
+        click.echo(json.dumps(_land_envelope(
+            "fail", where["reason"], remediation=where["remediation"],
+            halt_class=LAND_HALT_MECHANICAL, cwd=where["cwd"],
+            primary_checkout=where["primary"]), indent=2))
+        sys.exit(1)
+
+    # The terminal gate is checked next, before anything is written, so a refusal cannot be
+    # preceded by a write.
+    gate = _land_tty_gate()
+    if not gate["allowed"]:
+        click.echo(json.dumps(_land_envelope(
+            "fail", gate["reason"],
+            remediation=gate["remediation"],
+            halt_class=LAND_HALT_OUTWARD,
+            route_record=gate["route_record"]), indent=2))
+        sys.exit(3)
+    click.echo(json.dumps(_land_envelope(
+        "inconclusive",
+        "the --apply executor is not implemented in this change-set",
+        remediation="Epics 3 and 4 implement the journal, the conflict contract and the "
+                    "L0-L19 steps."), indent=2))
+    sys.exit(2)
+
+
+def _land_route_record() -> dict:
+    """The ROUTE RECORD (`REQ-LAND-015`, Issue 3.4) — stamped on every `--apply` and every
+    gate close: the controlling tty or its absence, `CLAUDECODE`/entrypoint presence, pid,
+    sid.
+
+    THIS IS DETECTION, NOT PREVENTION, and the phrase is in the requirement text verbatim.
+    The markers are strippable. They are useful because they are strippable ASYMMETRICALLY:
+    a clean record is WEAK evidence of a human, a dirty one is STRONG evidence of an agent.
+    It would have surfaced dixson3/yoshiko-flow#293 within seconds.
+
+    Reads only the NAMES of the agent-marker variables and records presence as a boolean —
+    it never captures a value, so no secret can reach the record.
+    """
+    try:
+        tty = os.ttyname(0)
+    except OSError:
+        tty = None
+    try:
+        sid = os.getsid(0)
+    except OSError:
+        sid = None
+    agent_markers = sorted(
+        k for k in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "OPENCODE", "PI_CODING_AGENT",
+                    "CURSOR_TRACE_ID", "HERDR_PANE_ID")
+        if os.environ.get(k)
+    )
+    return {
+        "tty": tty,
+        "has_tty": tty is not None,
+        "agent_markers": agent_markers,   # NAMES ONLY — never a value
+        "pid": os.getpid(),
+        "ppid": os.getppid(),
+        "sid": sid,
+        "stamped_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "note": "detection, not prevention — the markers are strippable, but asymmetrically",
+    }
+
+
+def _land_route_record_is_agent(rr: dict) -> bool:
+    """Does this route record show an AGENT resolved something? (REQ-LAND-015)
+
+    ONE predicate, used by every caller, because two copies of an asymmetric rule drift and
+    the drift is invisible. The rule: NO controlling terminal AND at least one agent marker.
+
+    THE ASYMMETRY IS THE WHOLE VALUE. `False` means "not detected", NEVER "a human did it" —
+    the markers are strippable, so a clean record is weak evidence. `True` is strong: nothing
+    sets `CLAUDECODE` and removes the controlling terminal by accident. Detection, not
+    prevention.
+    """
+    return bool(rr) and rr.get("has_tty") is False and bool(rr.get("agent_markers"))
+
+
+def _land_tty_gate(allow_list: list[str] | None = None) -> dict:
+    """The controlling-terminal gate on `land --apply` (`REQ-LAND-014`, Issue 3.3).
+
+    PURE POSIX, and deliberately nothing more: refuse when `os.ttyname(0)` raises OR
+    `/dev/tty` is not openable. Measured inside a Claude Code Bash subprocess, `/dev/tty` is
+    NOT openable (`OSError [Errno 6] Device not configured`), so the gate refuses an agent by
+    default; being POSIX-only it is portable across harnesses rather than Claude-specific.
+
+    THE REFUSAL IS EXIT 3 — the gate-signal code. Not 1: nothing about the landing was
+    measured false, and banking a 3 as a red observation would be a false statement about the
+    plan. Not 2: the verb ran perfectly and reached a definite conclusion — *this caller may
+    not do this*. Collapsing it into either is #263's two-facts-one-signal defect, and a
+    caller retrying on a 2 would loop forever against a gate that never opens on retry.
+
+    THIS IS NOT PREVENTION, and the requirement says so in its own text. `herdr pane run
+    <pane> <cmd>` runs a command in a pane with a GENUINE PTY in ONE SANCTIONED TOOL CALL,
+    and is named here as a KNOWN BYPASS — materially cheaper than the `pty.fork()` evasion
+    EXP-005 priced at ~15 lines. The gate converts self-authorization from a RATIONALIZABLE
+    act into an UNMISTAKABLE one, and nothing more.
+
+    ANY ALLOW-LIST IS OPERATOR-CONFIGURED, NEVER HERDR-DERIVED. Measured: `herdr api schema
+    --json` contains ZERO occurrences of `human` and ZERO of `attached`, so "a pane herdr
+    reports as human-attached" is not a capability herdr has, and such a predicate would
+    degrade to matching ANY herdr pane — including one the agent just created.
+    """
+    record = _land_route_record()
+
+    fd = None
+    try:
+        fd = os.open("/dev/tty", os.O_RDONLY)
+        dev_tty_openable = True
+        dev_tty_error = None
+    except OSError as exc:
+        dev_tty_openable = False
+        dev_tty_error = f"{type(exc).__name__} [Errno {exc.errno}] {exc.strerror}"
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+    record["dev_tty_openable"] = dev_tty_openable
+    record["dev_tty_error"] = dev_tty_error
+
+    allowed = record["has_tty"] and dev_tty_openable
+    if not allowed and allow_list and record.get("tty") in allow_list:
+        # OPERATOR-CONFIGURED escape hatch only. Never herdr-derived, never inferred.
+        allowed = True
+        record["allowed_by"] = "operator-configured allow-list"
+
+    if allowed:
+        return {"allowed": True, "reason": "a controlling terminal is present",
+                "remediation": None, "route_record": record}
+
+    why = ("no controlling terminal on fd 0" if not record["has_tty"]
+           else f"/dev/tty is not openable ({dev_tty_error})")
+    return {
+        "allowed": False,
+        "reason": (f"`land --apply` REFUSED: {why}. This command writes to the default "
+                   f"branch, the upstream tracker, the worktree set and the installed "
+                   f"toolchain, and must be run by an operator in their own shell "
+                   f"(REQ-LAND-013/014)."),
+        "remediation": ("Run the `apply_command` printed by `land --dry-run` yourself, in "
+                        "an interactive shell. NOTE, stated rather than hidden: this gate "
+                        "is DETECTION, not prevention — `herdr pane run <pane> <cmd>` "
+                        "produces a genuine pty in one sanctioned call and is a KNOWN "
+                        "BYPASS. Using it to self-authorize is not a loophole; it is an "
+                        "unmistakable act, which is the whole of what this gate buys."),
+        "route_record": record,
+    }
+
+
+# ------------------------------------------------------------------------------------------
+# The landing journal (REQ-LAND-006/008/009, Issue 3.1)
+# ------------------------------------------------------------------------------------------
+
+#: STAGED INSIDE THE REPO TREE, never a `mktemp -d`. A staging directory on a different
+#: filesystem turns `os.rename` into a COPY and voids every durability claim the journal
+#: makes — the reason `okf_hygiene` states the same constraint.
+LAND_JOURNAL_DIR = ".yf/plan/landing-journal"
+
+
+def _land_fsync_write(path: Path, text: str) -> None:
+    """Write and FSYNC — the journal must survive the crash it exists to describe.
+
+    Both fsyncs are load-bearing: `fsync(fd)` flushes the bytes, and `fsync(dirfd)` flushes
+    the DIRECTORY ENTRY. Without the second, a journal file can be durable in content and
+    absent in the directory after a power loss, which is the one outcome a recovery keyed on
+    the recorded phase cannot survive.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    try:
+        os.write(fd, text.encode("utf-8"))
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    dfd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(dfd)
+    finally:
+        os.close(dfd)
+
+
+class LandingJournal:
+    """A durable record of WHICH ENUMERATED STATE a landing is in (REQ-LAND-006).
+
+    RECOVERY IS KEYED ON THE RECORDED PHASE, NEVER ON OBSERVED STATE (REQ-LAND-009). That
+    distinction is the whole mechanism: at several boundaries "wrote nothing" and "wrote
+    everything then died" are INDISTINGUISHABLE from the filesystem and from git. A merge
+    that was committed and a merge that was never attempted both leave a clean tree once the
+    process is gone; only the recorded phase separates them.
+
+    The state set is CLOSED — `LAND_JOURNAL_STATES` — and `spec/landing.md` names the same
+    seventeen. `okf_hygiene`'s R2, SC11 and test suite all keyed on "a set of five" that no
+    document listed, so a five-state test and a five-state journal could have been five
+    DIFFERENT fives with every instrument green. Enumerating once, in one place that the spec
+    is asserted against, is what removes that.
+    """
+
+    def __init__(self, root: Path, plan_id: str):
+        self.root = Path(root)
+        self.plan_id = plan_id
+        self.path = self.root / LAND_JOURNAL_DIR / f"{plan_id}.json"
+
+    # -- state -----------------------------------------------------------------------------
+
+    def read(self) -> dict | None:
+        if not self.path.is_file():
+            return None
+        try:
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            # A CORRUPT JOURNAL IS NOT AN ABSENT ONE. Returning None here would say "nothing
+            # started", which is the single most dangerous wrong answer available: it invites
+            # a re-run of steps that may already have pushed.
+            return {"phase": None, "corrupt": True, "plan_id": self.plan_id}
+
+    def write(self, phase: str, **detail) -> dict:
+        if phase not in LAND_JOURNAL_STATES:
+            raise ValueError(
+                f"{phase!r} is not one of the {len(LAND_JOURNAL_STATES)} enumerated landing "
+                f"journal states. The set is CLOSED (REQ-LAND-006); adding a state means "
+                f"amending spec/landing.md in the same change-set.")
+        prior = self.read() or {}
+        rec = {
+            "schema": "yf-plan/landing-journal@1",
+            "plan_id": self.plan_id,
+            "phase": phase,
+            "meaning": LAND_JOURNAL_STATES[phase],
+            "history": (prior.get("history") or []) + [phase],
+            "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "route_record": _land_route_record(),
+            "detail": detail,
+        }
+        _land_fsync_write(self.path, json.dumps(rec, indent=2))
+        return rec
+
+    def clear(self) -> None:
+        """Remove the journal. Called ONLY after the terminal green state."""
+        try:
+            self.path.unlink()
+        except FileNotFoundError:
+            pass
+
+    # -- recovery --------------------------------------------------------------------------
+
+    def recover(self) -> dict:
+        """What a resumed `--apply` should do, derived from the RECORDED PHASE.
+
+        TOTAL over the state set (REQ-LAND-009): every one of the seventeen has a row, and an
+        unknown or corrupt phase is INCONCLUSIVE rather than "start over".
+        """
+        rec = self.read()
+        if rec is None:
+            return {"action": "start", "phase": None,
+                    "reason": "no journal — this is a fresh landing"}
+        if rec.get("corrupt"):
+            return {"action": "halt", "phase": None, "inconclusive": True,
+                    "reason": "the journal is unreadable. A corrupt journal is NOT an absent "
+                              "one: treating it as absent would re-run steps that may already "
+                              "have pushed.",
+                    "remediation": "Inspect the repository state by hand, then either repair "
+                                   "the journal or remove it deliberately."}
+        phase = rec.get("phase")
+        if phase not in LAND_JOURNAL_STATES:
+            return {"action": "halt", "phase": phase, "inconclusive": True,
+                    "reason": f"recorded phase {phase!r} is not an enumerated state"}
+
+        if phase in LAND_CONFLICT_STATES:
+            return {"action": "halt", "phase": phase,
+                    "reason": f"the previous run halted at {phase}: "
+                              f"{LAND_JOURNAL_STATES[phase]}",
+                    "recovery": LAND_CONFLICT_RECOVERY[phase]}
+        if phase == LAND_TERMINAL_STATE:
+            return {"action": "done", "phase": phase,
+                    "reason": "the landing already reached its terminal green state"}
+
+        order = LAND_PROGRESS_ORDER
+        nxt = order[order.index(phase) + 1] if phase in order[:-1] else None
+        return {"action": "resume", "phase": phase, "resume_after": phase, "next": nxt,
+                "reason": f"resume after {phase} ({LAND_JOURNAL_STATES[phase]})",
+                # RE-DERIVED, NOT TRUSTED: a resume re-computes the manifest and re-checks the
+                # digest before continuing (REQ-LAND-011). The journal says WHERE it was, never
+                # WHAT WAS TRUE.
+                "must_recheck_digest": True}
+
+
+#: The progress states IN ORDER. Separate from the conflict states because they form a
+#: sequence and the conflict states do not — each of the latter is entered FROM a specific
+#: progress state and returns to a DIFFERENT recovery.
+LAND_PROGRESS_ORDER: tuple[str, ...] = (
+    "L_INIT", "L_LOCKED", "L_DOWNMERGED", "L_MERGED_UNCOMMITTED", "L_VALIDATED",
+    "L_PREPUSH_CHECKED", "L_PUSHED_1", "L_RECONCILED", "L_CLOSED", "L_PUSHED_2",
+    "L_MIRRORED", "L_PRUNED", "L_DONE",
+)
+
+#: The four conflict states and their per-site recovery. THE RECOVERIES ARE NOT UNIFORM, and
+#: that non-uniformity is why there are four states rather than one generic "conflicted".
+LAND_CONFLICT_RECOVERY: dict[str, str] = {
+    "L_CONFLICT_DOWNMERGE":
+        "capture from three sources, then `git merge --abort`. Fully local, pre-L6 and "
+        "pre-L7: nothing has been pushed and nothing posted, so there is no outward trace.",
+    "L_CONFLICT_MERGE":
+        "capture from three sources, then `git merge --abort`. Fully local, pre-L6 and "
+        "pre-L7 — same recovery as the down-merge, and for the same reason.",
+    "L_REJECTED_PUSH_1":
+        "`git pull --rebase`, then RE-VALIDATE (re-run the FULL tier), then retry. Still "
+        "pre-outward-write. NEVER push an unvalidated rebase.",
+    "L_REJECTED_PUSH_2":
+        "`git pull --rebase` and retry. NEVER REVERT. By L16 the reconcile comments are "
+        "posted (L7), the bead tree is closed (L12) and `status: complete` is written (L15); "
+        "reverting would contradict outward statements already made.",
+}
+
+LAND_CONFLICT_STATES: frozenset[str] = frozenset(LAND_CONFLICT_RECOVERY)
+
+
+# ------------------------------------------------------------------------------------------
+# The conflict contract (REQ-LAND-017, Issue 3.5) — FOUR sites, NON-UNIFORM recoveries
+# ------------------------------------------------------------------------------------------
+
+#: Flags that silently discard one side's work. NEVER PASSED, and enumerated so a test can
+#: assert their absence from the merge path rather than trusting a comment.
+LAND_FORBIDDEN_MERGE_FLAGS: tuple[str, ...] = (
+    "-X", "--strategy-option", "-Xours", "-Xtheirs", "ours", "theirs",
+)
+
+
+def _land_capture_conflict(site: str, root: Path) -> dict:
+    """Capture a conflict from THREE INDEPENDENT SOURCES (REQ-LAND-017).
+
+    Three, not one, because they answer different questions and any one alone under-reports:
+
+      * `git diff --name-only --diff-filter=U`  — WHICH PATHS are unmerged
+      * `git status --porcelain=v2`             — the PER-PATH STAGE DETAIL (which sides exist)
+      * `MERGE_HEAD`                            — WHAT was being merged in
+
+    NEVER AUTO-RESOLVE. No `-X ours`, no `-X theirs`, no strategy override, no heuristic. Each
+    silently discards one side's work and the discarding is INVISIBLE in the resulting commit.
+    This function's job ends at handing the whole picture back: the verb has no basis for
+    choosing, while the agent — holding the plan and both diffs — at least has one.
+    """
+    if site not in LAND_CONFLICT_STATES:
+        raise ValueError(f"{site!r} is not one of the four enumerated conflict states")
+
+    paths = _run_git(["diff", "--name-only", "--diff-filter=U"], cwd=root)
+    status = _run_git(["status", "--porcelain=v2"], cwd=root)
+    head = _run_git(["rev-parse", "--verify", "MERGE_HEAD"], cwd=root)
+
+    return {
+        "site": site,
+        "meaning": LAND_JOURNAL_STATES[site],
+        "recovery": LAND_CONFLICT_RECOVERY[site],
+        # Source 1 — the path list.
+        "unmerged_paths": [p for p in paths.stdout.splitlines() if p]
+                          if paths.returncode == 0 else [],
+        # Source 2 — per-path stage detail. `u ` lines are the unmerged entries.
+        "porcelain_v2": [ln for ln in status.stdout.splitlines() if ln.startswith("u ")]
+                        if status.returncode == 0 else [],
+        # Source 3 — the incoming commit.
+        "merge_head": head.stdout.strip() if head.returncode == 0 else None,
+        "auto_resolved": False,   # ALWAYS. There is no code path that sets this True.
+    }
+
+
+def _land_abort_merge(root: Path) -> dict:
+    """`git merge --abort` — the recovery for the TWO PRE-OUTWARD-WRITE sites only.
+
+    L1 and L2 are fully local: nothing pushed, nothing posted, so aborting leaves no outward
+    trace. Measured in the spike, an abort returns the tree to an EMPTY `--porcelain`.
+
+    IT IS THE WRONG RECOVERY FOR L16 AND MUST NOT BE CALLED THERE. By then the reconcile
+    comments are posted, the bead tree is closed and `status: complete` is written; reverting
+    would contradict outward statements already made. That is why the four sites carry four
+    recoveries rather than sharing one.
+    """
+    r = _run_git(["merge", "--abort"], cwd=root)
+    after = _run_git(["status", "--porcelain"], cwd=root)
+    return {
+        "aborted": r.returncode == 0,
+        "tree_clean": after.returncode == 0 and after.stdout.strip() == "",
+        "detail": (r.stderr or r.stdout).strip() or None,
+    }
+
+
+# ------------------------------------------------------------------------------------------
+# Apply-time re-derivation and the staleness halt (REQ-LAND-002/011/018, Issues 3.2 and 3.6)
+# ------------------------------------------------------------------------------------------
+
+def _land_bind_decision(plan_dir: Path, decision: dict) -> dict:
+    """Bind a decision to RE-DERIVED reality (Issue 3.2 / REQ-LAND-002).
+
+    Recomputes the manifest and compares digests. A MISMATCH HALTS and routes back to
+    `--dry-run`; it is NEVER an override path. This is the single invariant that makes the
+    three-layer split load-bearing rather than decorative: the decision is trusted for
+    judgements only and for NO FACT WHATSOEVER.
+    """
+    manifest = _land_manifest(plan_dir)
+    env = _land_validate_decision(decision, manifest)
+    return {"manifest": manifest, "validation": env,
+            "bound": env["verdict"] == "pass",
+            "digest": _land_digest(manifest["facts"])}
+
+
+def _land_repreview_or_halt(plan_dir: Path, decision: dict) -> dict:
+    """Re-preview IMMEDIATELY BEFORE the merge and halt on any drift (Issue 3.6).
+
+    A CLEAN PREVIEW DOES NOT GUARANTEE A CLEAN APPLY. Measured: preview clean at T0, the
+    target advances, the SAME merge conflicts at T1.
+
+    THE HALT REPORTS A DIGEST MISMATCH RATHER THAN THE BARE CONFLICT, and that framing is the
+    deliverable. The predicted merge-tree oid CHANGES when the target moves, so the drift is
+    detectable BEFORE the merge is attempted — which turns "a conflicted working tree
+    discovered afterwards" into "a legible staleness report before anything was touched".
+    """
+    bound = _land_bind_decision(plan_dir, decision)
+    if bound["bound"]:
+        return {"stale": False, "proceed": True, "digest": bound["digest"]}
+
+    env = bound["validation"]
+    digest_problem = [p for p in env.get("problems", []) if "MISMATCH" in p]
+    return {
+        "stale": bool(digest_problem),
+        "proceed": False,
+        "digest": bound["digest"],
+        "halt_class": LAND_HALT_MECHANICAL,
+        "reason": (
+            "the merge target moved since this decision was minted, so the decision was "
+            "adjudicated against facts that no longer hold. Reported as a DIGEST MISMATCH "
+            "rather than as a conflict, because the mismatch is detectable BEFORE the merge "
+            "is attempted." if digest_problem
+            else "the decision is not conformant against re-derived reality"),
+        "problems": env.get("problems", []),
+        "remediation": ("Re-run `land --dry-run`, re-dispatch the `lander`, and re-validate. "
+                        "A stale decision is never applied and never overridden."),
+    }
+
+
+# ==========================================================================================
+# THE ORDERED LANDING STEPS L0-L19 (REQ-LAND-004, Epic 4)
+# ==========================================================================================
+#
+# Every step has the SAME SHAPE: it takes the context, returns a verdict dict, and NEVER
+# raises for an expected condition. The executor advances the journal between them and halts
+# on the first non-`pass` whose step is `halting`.
+#
+# A step returns:
+#   {"step": "l6_push_one", "verdict": "pass|fail|inconclusive", "reason": ...,
+#    "journal": "<state to record on success>", "halting": bool, "detail": {...}}
+
+
+class LandingContext:
+    """Everything the steps share. Assembled ONCE, from RE-DERIVED facts (REQ-LAND-002)."""
+
+    def __init__(self, plan_dir: Path, decision: dict, manifest: dict,
+                 root: Path | None = None, runner=None):
+        self.plan_dir = Path(plan_dir)
+        self.plan_id = _plan_id_from_dir(self.plan_dir)
+        self.decision = decision
+        self.manifest = manifest
+        self.facts = manifest["facts"]
+        self.root = Path(root) if root else _land_primary_checkout()
+        self.target = self.facts["git"]["merge_target"]
+        self.execute_branch = self.facts["git"]["execute_branch"]
+        self.worktree = self.root / self.facts["git"]["worktree_path"]
+        self.journal = LandingJournal(self.root, self.plan_id)
+        #: INJECTABLE so Tier-1 tests drive every step without a network or a real remote.
+        #: NOT a second implementation — the SAME step functions run either way (REQ-LAND-001's
+        #: "one code path"), only the process spawner differs.
+        #:
+        #: THE PROGRAM IS AN EXPLICIT ARGUMENT, and that is a correction rather than a style
+        #: choice. An earlier version wrapped `_run_git` and every step called `ctx.run([...])`
+        #: — so L7 ran `git issue comment`, L17 ran `git push --issues` and L19 ran
+        #: `git self install`. Every Tier-1 test passed, because the injected fake returned 0
+        #: for any argv it did not recognise. THE EPIC-6 REHEARSAL CAUGHT IT, which is exactly
+        #: the gap between a mock that answers and a process that runs.
+        self._runner = runner
+        self.run = self._dispatch
+        self.results: list[dict] = []
+
+
+    def _dispatch(self, prog: str, args: list[str], cwd: Path | None = None):
+        """Run `<prog> <args>`. `prog` is EXPLICIT so a step cannot silently run the wrong
+        executable — see the note on `self.run`."""
+        if self._runner is not None:
+            return self._runner(prog, args, cwd=cwd or self.root)
+        if prog == "git":
+            return _run_git(args, cwd=cwd or self.root)
+        return subprocess.run([prog, *args], cwd=str(cwd or self.root),
+                              capture_output=True, text=True)
+
+    def step_enabled(self, key: str) -> tuple[bool, str | None]:
+        """Is this step enabled by the decision? Returns (enabled, skip_reason).
+
+        NARROWING-ONLY (REQ-LAND-002): a non-skippable step is ALWAYS enabled regardless of
+        what the decision says — `--validate-decision` already refuses such a decision, and
+        this is the belt to that suspenders. A decision cannot widen and cannot skip the
+        merge.
+        """
+        v = (self.decision.get("steps") or {}).get(key, "enable")
+        if key in LAND_NON_SKIPPABLE:
+            return True, None
+        if isinstance(v, str) and v.startswith("skip"):
+            return False, v.split(":", 1)[1] if ":" in v else "(no reason given)"
+        return True, None
+
+
+def _step(name: str, verdict: str, reason: str, journal: str | None = None,
+          halting: bool = True, **detail) -> dict:
+    return {"step": name, "verdict": verdict, "reason": reason, "journal": journal,
+            "halting": halting, "detail": detail}
+
+
+# -- L0 ------------------------------------------------------------------------------------
+
+def _land_l0_lock_acquire(ctx: LandingContext) -> dict:
+    """L0 — acquire the single-machine landing lock.
+
+    First because it must precede the first tree mutation, or two landings interleave.
+    """
+    out = _landing_lock_acquire(ctx.plan_id)
+    if not out.get("acquired"):
+        return _step("l0_lock_acquire", "fail",
+                     f"the landing lock is held: {out.get('holder')}",
+                     halting=True, holder=out.get("holder"))
+    return _step("l0_lock_acquire", "pass", "landing lock acquired", journal="L_LOCKED")
+
+
+# -- L1 ------------------------------------------------------------------------------------
+
+def _land_l1_down_merge(ctx: LandingContext) -> dict:
+    """L1 — fetch, then DOWN-MERGE the target into `<plan-id>-execute`, in the worktree.
+
+    This is what makes L11 honest: a down-merge makes the branch tree byte-identical to the
+    merged tree, so completion-time measurement and "the tree that will be on the target" are
+    reconcilable rather than in tension.
+
+    A conflict here is `L_CONFLICT_DOWNMERGE` — fully local, pre-L6 and pre-L7, so the
+    recovery is capture-then-abort and there is no outward trace.
+    """
+    wt = ctx.worktree if ctx.worktree.is_dir() else ctx.root
+    ctx.run("git", ["fetch", "--all", "--prune"], cwd=wt)
+    r = ctx.run("git", ["merge", "--no-ff", "-m",
+                 f"plan-{ctx.plan_id}: down-merge {ctx.target} before landing", ctx.target],
+                cwd=wt)
+    if r.returncode != 0:
+        cap = _land_capture_conflict("L_CONFLICT_DOWNMERGE", wt)
+        restore = _land_abort_merge(wt)
+        return _step("l1_down_merge", "fail",
+                     "the down-merge conflicted — captured and aborted; nothing has been "
+                     "pushed and nothing posted, so there is no outward trace",
+                     journal="L_CONFLICT_DOWNMERGE", halting=True,
+                     conflict=cap, restore=restore)
+    return _step("l1_down_merge", "pass",
+                 f"{ctx.target} down-merged into {ctx.execute_branch}",
+                 journal="L_DOWNMERGED")
+
+
+# -- L2 ------------------------------------------------------------------------------------
+
+def _land_l2_merge(ctx: LandingContext) -> dict:
+    """L2 — checkout the target, `pull --rebase`, `merge --no-ff` LEFT UNCOMMITTED.
+
+    Uncommitted deliberately: L3 must have something to fail closed onto. `--no-ff` keeps the
+    landing one revertable commit and defines the tree L3 validates.
+
+    RUNS IN THE PRIMARY CHECKOUT — a linked worktree cannot check out a branch another
+    worktree holds (REQ-LAND-010).
+    """
+    co = ctx.run("git", ["checkout", ctx.target], cwd=ctx.root)
+    if co.returncode != 0:
+        return _step("l2_merge", "fail",
+                     f"could not check out {ctx.target}: {(co.stderr or '').strip()}",
+                     halting=True)
+    ctx.run("git", ["pull", "--rebase"], cwd=ctx.root)
+    r = ctx.run("git", ["merge", "--no-ff", "--no-commit", ctx.execute_branch], cwd=ctx.root)
+    if r.returncode != 0:
+        cap = _land_capture_conflict("L_CONFLICT_MERGE", ctx.root)
+        restore = _land_abort_merge(ctx.root)
+        return _step("l2_merge", "fail",
+                     "the merge conflicted — captured and aborted; still fully local, "
+                     "pre-push and pre-outward-write",
+                     journal="L_CONFLICT_MERGE", halting=True,
+                     conflict=cap, restore=restore)
+    return _step("l2_merge", "pass",
+                 f"{ctx.execute_branch} merged into {ctx.target}, UNCOMMITTED",
+                 journal="L_MERGED_UNCOMMITTED")
+
+
+# -- L3 ------------------------------------------------------------------------------------
+
+def _land_l3_validate_merged(ctx: LandingContext) -> dict:
+    """L3 — the FULL tier over the merged tree. HALTS WITH THE LOCK STILL HELD on fail.
+
+    plan-009 INV-4, and the single most important correction to #301, which puts the FULL
+    tier AFTER the document close and bead close-out — where a red tier has nothing to fail
+    closed onto.
+
+    THE LOCK STAYS HELD so the operator repairs under serialization. An `inconclusive` is
+    reported and NOT coerced to `fail` — the #262 defect lives inside `_validate_merged`
+    itself and must not be reproduced one frame up.
+    """
+    out = _validate_merged(ctx.plan_dir)
+    status = (out.get("status") or out.get("verdict") or "").lower()
+    if status == "fail":
+        return _step("l3_validate_merged", "fail",
+                     "the FULL tier is RED on the merged tree. The landing HALTS and THE "
+                     "LOCK IS STILL HELD, so the repair happens under serialization. "
+                     "Nothing has been pushed and nothing posted.",
+                     halting=True, lock_held=True, engine=out.get("engine"),
+                     first_failure=out.get("first_failure"))
+    if status not in ("pass", ""):
+        return _step("l3_validate_merged", "inconclusive",
+                     f"merged-state validation was INCONCLUSIVE ({status}) — reported, and "
+                     f"deliberately NOT coerced to fail",
+                     journal=None, halting=False, engine=out.get("engine"))
+    return _step("l3_validate_merged", "pass",
+                 f"merged-state validation green (engine: {out.get('engine')})",
+                 journal=None, engine=out.get("engine"),
+                 cross_plan_notice=out.get("notice"))
+
+
+# -- L4 ------------------------------------------------------------------------------------
+
+def _land_l4_commit_merge(ctx: LandingContext) -> dict:
+    """L4 — commit the merge, then RELEASE the lock.
+
+    Released here rather than at the end: the base is now green, and holding the global lock
+    across the remaining steps (which include an operator-facing wait) would serialize them
+    needlessly.
+
+    THE POST-MERGE TREE ASSERTION lives here (Issue 4.1). `pull --rebase` at L2 can pick up
+    commits that arrived AFTER L1's down-merge, and the lock is single-machine only — so the
+    merge result's tree may no longer equal the down-merged branch tree. Asserting it is what
+    catches that; without it L11 would measure a tree nobody validated.
+    """
+    r = ctx.run("git", ["commit", "--no-edit"], cwd=ctx.root)
+    if r.returncode != 0 and "nothing to commit" not in (r.stdout + r.stderr).lower():
+        return _step("l4_commit_merge", "fail",
+                     f"could not commit the merge: {(r.stderr or '').strip()}", halting=True)
+
+    merged_tree = ctx.run("git", ["rev-parse", "HEAD^{tree}"], cwd=ctx.root).stdout.strip()
+    branch_tree = ctx.run("git", ["rev-parse", f"{ctx.execute_branch}^{{tree}}"],
+                          cwd=ctx.root).stdout.strip()
+    tree_match = bool(merged_tree) and merged_tree == branch_tree
+
+    _landing_lock_release(ctx.plan_id, False)
+
+    if not tree_match:
+        return _step("l4_commit_merge", "fail",
+                     "the merge result's tree does NOT match the down-merged branch tree. "
+                     "`pull --rebase` picked up commits that arrived after L1, and the "
+                     "landing lock is single-machine only — so what is about to be pushed is "
+                     "not what L1 made byte-identical, and L11 would measure a tree nothing "
+                     "validated.",
+                     halting=True, merged_tree=merged_tree, branch_tree=branch_tree,
+                     lock_released=True)
+    return _step("l4_commit_merge", "pass",
+                 "merge committed, post-merge tree assertion holds, landing lock released",
+                 journal="L_VALIDATED", merged_tree=merged_tree, lock_released=True)
+
+
+# -- L5 ------------------------------------------------------------------------------------
+
+def _land_l5_advisory_recheck(ctx: LandingContext) -> dict:
+    """L5 — ADVISORY `recheck-criteria` on the merged tree, BEFORE the push.
+
+    THE LAST FULLY REVERSIBLE POINT. Tree-sensitive criteria are exercised while the landing
+    can still be abandoned with no outward trace.
+
+    ADVISORY DESCRIBES THE VERDICT, NOT WHETHER IT RUNS (`REQ-LAND-004` L5): it never halts.
+    The authoritative halting run is L11, after the reconcile writes that some criteria
+    depend on.
+    """
+    proc = subprocess.run(
+        ["uv", "run", str(Path(__file__).resolve()), "recheck-criteria",
+         str(ctx.plan_dir), "--json"],
+        capture_output=True, text=True, cwd=ctx.root)
+    return _step("l5_advisory_recheck", "pass",
+                 f"advisory pre-push criteria run complete (exit {proc.returncode}) — "
+                 f"ADVISORY, never halting; the authoritative run is L11",
+                 journal="L_PREPUSH_CHECKED", halting=False,
+                 exit_code=proc.returncode, advisory=True,
+                 output=(proc.stdout or proc.stderr)[-2000:])
+
+
+# -- L6 ------------------------------------------------------------------------------------
+
+def _land_l6_push_one(ctx: LandingContext) -> dict:
+    """L6 — PUSH #1. **THE FIRST IRREVERSIBLE STEP OF THE LANDING.**
+
+    Stated in the verdict rather than implied away: every halt after this leaves the target
+    ALREADY CARRYING THE MERGE. What makes that acceptable is that L3's FULL tier ran first,
+    so the code on the target is validated; the later halts (L10, L11, L12) concern plan
+    bookkeeping and upstream state, not code correctness, and each is repairable without a
+    revert.
+
+    A REJECTION IS `L_REJECTED_PUSH_1` — still pre-outward-write, so the recovery is
+    `pull --rebase`, RE-VALIDATE, retry. Never push an unvalidated rebase.
+    """
+    r = ctx.run("git", ["push", "origin", ctx.target], cwd=ctx.root)
+    if r.returncode != 0:
+        return _step("l6_push_one", "fail",
+                     "push #1 was REJECTED — the remote advanced. Recovery: `pull --rebase`, "
+                     "then RE-VALIDATE (re-run the FULL tier), then retry. This is still "
+                     "PRE-OUTWARD-WRITE: nothing has been posted and nothing closed.",
+                     journal="L_REJECTED_PUSH_1", halting=True,
+                     recovery=LAND_CONFLICT_RECOVERY["L_REJECTED_PUSH_1"],
+                     stderr=(r.stderr or "").strip()[:400])
+    return _step("l6_push_one", "pass",
+                 "push #1 complete — THE FIRST IRREVERSIBLE STEP HAS BEEN CROSSED. Every "
+                 "halt from here leaves the merge on the target; L3's FULL tier ran first, "
+                 "so what is on the target is validated.",
+                 journal="L_PUSHED_1", irreversible=True)
+
+
+# -- L7 ------------------------------------------------------------------------------------
+
+def _land_l7_reconcile_writes(ctx: LandingContext) -> dict:
+    """L7 — the reconcile writes. **THE FIRST OUTWARD-FACING WRITE.**
+
+    EVERY WRITE IS VERIFIED BY READ-BACK (`REQ-LAND-019`) — `gh issue view` after the write —
+    never by exit code and never by the returned URL alone. Measured on issue #292 during this
+    plan's own drafting: an exit 0 from `gh` does not establish that the body posted is the
+    body intended.
+
+    THE DISPOSITION CONTRACT IS READ, NOT DISCOVERED. `UPSTREAM_REQUIREMENTS` already encodes
+    the per-row end state, so a close the disposition does not permit is REFUSED here
+    regardless of what the decision asks for — the agent explains the contract, it does not
+    get to override it (D-6).
+    """
+    writes = ctx.decision.get("upstream_writes") or []
+    rows = {str(r["issue"]): r for r in ctx.facts["upstream"]["rows"]}
+    performed, refused, failed = [], [], []
+
+    for w in writes:
+        issue = str(w.get("issue"))
+        action = w.get("action")
+        row = rows.get(issue)
+        if row is None:
+            refused.append({"issue": issue, "action": action,
+                            "refused_because": "no such row in the plan's Upstream Issues "
+                                               "table — the decision may not invent a write"})
+            continue
+        if action == "close" and row.get("required_end_state") != "CLOSED":
+            refused.append({
+                "issue": issue, "action": action,
+                "refused_because": (
+                    f"disposition `{row['disposition']}` requires end state "
+                    f"{row['required_end_state']}. Closing it would contradict the "
+                    f"dispositions the plan was APPROVED with. {row.get('why')}")})
+            continue
+
+        body_path = w.get("body_path")
+        if action == "comment":
+            if not body_path or not Path(body_path).is_file():
+                failed.append({"issue": issue, "reason": f"body_path {body_path} missing"})
+                continue
+            r = ctx.run("gh", ["issue", "comment", issue, "--body-file", body_path], cwd=ctx.root)
+        else:
+            r = ctx.run("gh", ["issue", "close", issue], cwd=ctx.root)
+
+        # STRUCTURAL VERIFICATION BY READ-BACK — never `$?`, never the returned URL.
+        back = ctx.run("gh", ["issue", "view", issue, "--json",
+                        "state,comments"], cwd=ctx.root)
+        ok = False
+        detail = ""
+        if back.returncode == 0:
+            try:
+                seen = json.loads(back.stdout)
+                if action == "close":
+                    ok = str(seen.get("state", "")).upper() == "CLOSED"
+                    detail = f"read-back state={seen.get('state')}"
+                else:
+                    want = Path(body_path).read_text(encoding="utf-8").strip()
+                    bodies = [c.get("body", "") for c in (seen.get("comments") or [])]
+                    ok = any(want[:200] in b for b in bodies)
+                    detail = (f"read-back found {len(bodies)} comment(s); "
+                              f"body match={ok}")
+            except (json.JSONDecodeError, OSError) as exc:
+                detail = f"read-back unparseable: {exc}"
+        else:
+            detail = f"read-back failed: {(back.stderr or '').strip()[:200]}"
+
+        (performed if ok else failed).append(
+            {"issue": issue, "action": action, "verified_by": "read-back", "detail": detail})
+        if not ok:
+            # FAIL-CLOSED: the first unverified write aborts before any destructive
+            # follow-on stage is reachable (REQ-LAND-020).
+            return _step("l7_reconcile_writes", "fail",
+                         f"an upstream write to #{issue} could NOT be verified by read-back. "
+                         f"An exit 0 is not proof; the landing halts BEFORE any destructive "
+                         f"stage. {detail}",
+                         halting=True, performed=performed, refused=refused, failed=failed)
+
+    return _step("l7_reconcile_writes", "pass",
+                 f"{len(performed)} upstream write(s) posted and verified by read-back; "
+                 f"{len(refused)} refused as contradicting their disposition",
+                 journal="L_RECONCILED", performed=performed, refused=refused,
+                 outward_facing=True)
+
+
+# -- L8-L15 --------------------------------------------------------------------------------
+
+#: The close chain, in REQ-COMPLETE-001 order. `halting` is read from THIS TABLE rather than
+#: inferred, so an advisory step can never accidentally stop a landing and a halting one can
+#: never accidentally be walked past (#180's defect, in which an exit code was captured and
+#: only ECHOED).
+LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
+    ("audit-close",                   "l8_close_chain_head",     False),
+    ("retrospective-report",          "l8_close_chain_head",     False),
+    ("judgement-never-fired-report",  "l8_close_chain_head",     False),
+    ("classify-deliverable",          "l8_close_chain_head",     False),
+    ("close-reconcile-step",          "l9_close_reconcile_step", True),
+    ("verify-reconcile",              "l10_verify_reconcile",    True),
+    ("recheck-criteria",              "l11_recheck_criteria",    True),
+)
+
+
+def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
+    """L8-L15 — the existing close chain, invoked verb by verb.
+
+    EACH EXIT CODE IS **READ**, NOT MERELY ECHOED. That is #180's defect: `close-reconcile-step`
+    was captured into a variable whose `$?` nothing consulted, so an ordering violation
+    reported `inconclusive`, exited 0, and the chain walked on to cascade-close and
+    `set complete` with the reconcile step still open.
+
+    AN `inconclusive` IS REPORTED AND DOES NOT HALT. A `gh` outage must never block completion
+    on healthy work (R1), and `recheck-criteria`'s exit 2 maps to warn per REQ-DATA-057.
+
+    `CHANGED` is computed as `HEAD^1..HEAD` (Issue 1.4 / #303), never `<target>...HEAD`.
+    """
+    out: list[dict] = []
+    me = str(Path(__file__).resolve())
+    changed = _land_changed_set(ctx.root)
+
+    for verb, journal_step, halting in LAND_CLOSE_CHAIN:
+        args = ["uv", "run", me, verb, str(ctx.plan_dir), "--json"]
+        if verb == "classify-deliverable":
+            for p in changed:
+                args += ["--changed", p]
+        proc = subprocess.run(args, capture_output=True, text=True, cwd=ctx.root)
+        rc = proc.returncode                      # READ, not echoed.
+        if rc == 0:
+            out.append(_step(verb, "pass", f"{verb} clean", halting=halting, exit_code=rc))
+            continue
+        if rc == 2:
+            out.append(_step(verb, "inconclusive",
+                             f"{verb} was INCONCLUSIVE (exit 2) — reported, NOT coerced to "
+                             f"fail and NOT halting",
+                             halting=False, exit_code=rc,
+                             output=(proc.stdout or proc.stderr)[-1500:]))
+            continue
+        out.append(_step(verb, "fail",
+                         f"{verb} exited {rc}. "
+                         + ("HALTING: completion stops here and `complete` is NOT set."
+                            if halting else "Advisory — reported, not halting."),
+                         halting=halting, exit_code=rc,
+                         output=(proc.stdout or proc.stderr)[-1500:]))
+        if halting:
+            return out
+    return out
+
+
+def _land_l12_close_cascade(ctx: LandingContext) -> dict:
+    """L12 — `close_cascade.py`. **THE FIRST DESTRUCTIVE STEP.**
+
+    It refuses any container with a non-terminal child and NEVER force-closes an unmet gate:
+    "terminal" means closed, or a resolved/verified gate. An unsatisfied gate is a genuine
+    open child.
+    """
+    epic = _read_plan_epic_field((ctx.plan_dir / "plan.md").read_text(encoding="utf-8"))
+    if not epic:
+        return _step("l12_close_cascade", "inconclusive",
+                     "no **Epic:** field in plan.md — nothing to cascade", halting=False)
+    engine = Path(__file__).resolve().parent / "close_cascade.py"
+    proc = subprocess.run(["uv", "run", str(engine), epic, "--plan", ctx.plan_id, "--json"],
+                          capture_output=True, text=True, cwd=ctx.root)
+    if proc.returncode != 0:
+        return _step("l12_close_cascade", "fail",
+                     f"cascade-close reported open children or a close error (exit "
+                     f"{proc.returncode}). A container in the plan tree still has a "
+                     f"non-terminal child — an UNSATISFIED GATE IS A GENUINE OPEN CHILD and "
+                     f"is never force-closed.",
+                     halting=True, exit_code=proc.returncode, destructive=True,
+                     output=(proc.stdout or proc.stderr)[-1500:])
+    return _step("l12_close_cascade", "pass", "cascade-close clean", destructive=True)
+
+
+def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
+    """L13 complete-gate, L14 pour_fidelity, L15 update-status complete.
+
+    `pour_fidelity` is THREE-VALUED and branching on `!= 0` would report an INCONCLUSIVE as a
+    DIVERGENCE — two different facts collapsed into one signal, the same conflation as
+    `doc_lint`'s `not-selected` vs `no-such-path` (#181). Read the CODE, never the flag.
+    """
+    out: list[dict] = []
+    me = str(Path(__file__).resolve())
+
+    g = subprocess.run(["uv", "run", me, "complete-gate", str(ctx.plan_dir), "--json"],
+                       capture_output=True, text=True, cwd=ctx.root)
+    if g.returncode != 0:
+        out.append(_step("l13_complete_gate", "fail",
+                         "the completion gate blocked a ci-release plan — its "
+                         "runner-only-observable behavior is unverified",
+                         halting=True, exit_code=g.returncode,
+                         output=(g.stdout or g.stderr)[-1200:]))
+        return out
+    out.append(_step("l13_complete_gate", "pass", "completion gate satisfied"))
+
+    beads = ctx.root / ".yf" / "plan" / "land-beads.json"
+    beads.parent.mkdir(parents=True, exist_ok=True)
+    bl = subprocess.run(["bd", "list", "--all", "--include-gates", "--limit", "5000",
+                         "--json"], capture_output=True, text=True)
+    beads.write_text(bl.stdout or "[]", encoding="utf-8")
+    engine = Path(__file__).resolve().parent / "pour_fidelity.py"
+    f = subprocess.run(["uv", "run", str(engine), str(beads), str(ctx.plan_dir),
+                        "--strict", "--plan", ctx.plan_id, "--json"],
+                       capture_output=True, text=True, cwd=ctx.root)
+    if f.returncode == 2:
+        out.append(_step("l14_pour_fidelity", "fail",
+                         "pour fidelity is INCONCLUSIVE — the comparison could not be made "
+                         "AT ALL. This is a statement about the INSTRUMENT, not a verdict on "
+                         "the DAG. An unjudgeable plan is not a clean one, so completion "
+                         "HALTS.",
+                         halting=True, exit_code=2,
+                         output=(f.stdout + f.stderr)[-1500:]))
+        return out
+    if f.returncode != 0:
+        out.append(_step("l14_pour_fidelity", "fail",
+                         "the poured bead DAG does not match the plan's declared DAG",
+                         halting=True, exit_code=f.returncode,
+                         output=(f.stdout + f.stderr)[-1500:]))
+        return out
+    out.append(_step("l14_pour_fidelity", "pass", "pour fidelity clean"))
+
+    s = subprocess.run(["uv", "run", me, "update-status", str(ctx.plan_dir), "complete",
+                        "-m", "plan complete (landed by `land --apply`)"],
+                       capture_output=True, text=True, cwd=ctx.root)
+    if s.returncode != 0:
+        out.append(_step("l15_update_status", "fail",
+                         f"could not set complete: {(s.stderr or '').strip()[:200]}",
+                         halting=True))
+        return out
+    out.append(_step("l15_update_status", "pass", "status set to complete",
+                     journal="L_CLOSED"))
+    return out
+
+
+# -- L16 -----------------------------------------------------------------------------------
+
+def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
+    """L16 — commit the plan-folder writes and PUSH #2.
+
+    **THE STEP NEITHER `SKILL.md` NOR #301 HAS.** Without it every landing ends with an
+    uncommitted, unpushed `plan.md` — measured on plan-057, and the residue this whole
+    capability exists to remove. Skipping it is forbidden (`LAND_NON_SKIPPABLE`).
+
+    A REJECTION HERE IS `L_REJECTED_PUSH_2` AND IS A DIFFERENT ANIMAL from L6's. By now the
+    reconcile comments are posted (L7), the bead tree is closed (L12) and `status: complete`
+    is written (L15). The contract is **retry-after-rebase, NEVER REVERT**: reverting would
+    contradict outward statements already made.
+
+    THE POST-CONDITION IS ASSERTED ON THE WAY OUT, not merely a precondition on the way in
+    (REQ-LAND-020): `git status --porcelain` clean AND zero unpushed commits.
+    """
+    add = ctx.run("git", ["add", "--", ctx.plan_dir.as_posix()], cwd=ctx.root)
+    if add.returncode != 0:
+        return _step("l16_commit_and_push_two", "fail",
+                     f"could not stage the plan folder: {(add.stderr or '').strip()[:200]}",
+                     halting=True)
+
+    staged = ctx.run("git", ["diff", "--cached", "--quiet"], cwd=ctx.root)
+    if staged.returncode != 0:                      # non-zero == there IS something staged
+        c = ctx.run("git", ["commit", "-m",
+                     f"{ctx.plan_id}: plan-folder writes from the landing close chain"],
+                    cwd=ctx.root)
+        if c.returncode != 0:
+            return _step("l16_commit_and_push_two", "fail",
+                         f"could not commit the plan-folder writes: "
+                         f"{(c.stderr or '').strip()[:200]}", halting=True)
+
+    p = ctx.run("git", ["push", "origin", ctx.target], cwd=ctx.root)
+    if p.returncode != 0:
+        return _step("l16_commit_and_push_two", "fail",
+                     "push #2 was REJECTED. THIS IS POST-OUTWARD-WRITE: the reconcile "
+                     "comments are posted, the bead tree is closed and `status: complete` is "
+                     "written. Recovery is `pull --rebase` and RETRY — NEVER REVERT, because "
+                     "reverting would contradict outward statements already made.",
+                     journal="L_REJECTED_PUSH_2", halting=True,
+                     recovery=LAND_CONFLICT_RECOVERY["L_REJECTED_PUSH_2"],
+                     post_outward_write=True,
+                     stderr=(p.stderr or "").strip()[:400])
+
+    # POST-CONDITION, asserted on the way OUT.
+    #
+    # THE LANDING JOURNAL IS EXCLUDED, and it must be. REQ-LAND-008 stages it INSIDE the repo
+    # tree (a `mktemp -d` would turn `os.rename` into a copy and void every durability claim),
+    # and L16 runs at `L_PUSHED_2` — three steps before the landing ends — so the journal is
+    # necessarily still present and necessarily still describing an in-flight landing.
+    #
+    # FOUND BY THE EPIC-6 REHEARSAL, not by review: in a sandbox without the `/.yf/` gitignore
+    # anchor that `yf preflight` ensures, the journal appeared as an untracked file and L16
+    # failed its own post-condition. The live repo has that anchor, so the defect was invisible
+    # here and would have surfaced first in whichever repo lacked it.
+    raw = ctx.run("git", ["status", "--porcelain"], cwd=ctx.root).stdout
+    porcelain = "\n".join(
+        ln for ln in raw.splitlines()
+        if ln.strip() and LAND_JOURNAL_DIR not in ln
+    ).strip()
+    unpushed = ctx.run("git", ["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
+                       cwd=ctx.root).stdout.strip() or "0"
+    if porcelain or unpushed not in ("0", ""):
+        return _step("l16_commit_and_push_two", "fail",
+                     f"L16's post-condition FAILED — this is exactly the residue the step "
+                     f"exists to remove. porcelain={porcelain!r} unpushed={unpushed}",
+                     halting=True, porcelain=porcelain, unpushed=unpushed)
+    return _step("l16_commit_and_push_two", "pass",
+                 "plan-folder writes committed and pushed; working tree clean and zero "
+                 "unpushed commits",
+                 journal="L_PUSHED_2", porcelain="", unpushed=0)
+
+
+# -- L17 -----------------------------------------------------------------------------------
+
+def _land_l17_residual_mirroring(ctx: LandingContext) -> dict:
+    """L17 — mirror residual open beads upstream, grouped per the decision.
+
+    CALLS `upstream.py push --issues <csv> --apply` **CONCRETELY**. `/yf-beads-upstream` is a
+    prose skill for an LLM and this is Python that cannot invoke it (REQ-LAND-021).
+
+    **PROPOSE-ONLY UNLESS THE GRANT DEMONSTRABLY COVERS THE BEAD SET.** That push is
+    confirm-required by default and #280 leaves `detect_followons`' auto-eligible set
+    permanently empty, so "demonstrably" means the decision enumerates each bead id AND the
+    grant names each of them. Absent that, this step emits the proposed invocation and
+    performs NO upstream write.
+
+    Every close is verified STRUCTURALLY by read-back: `bd close` REFUSES AND EXITS 0 when the
+    bead is blocked by an open dependency (#230), so the exit code proves nothing.
+    """
+    groups = ctx.decision.get("residual_bead_groups") or []
+    if not groups:
+        return _step("l17_residual_mirroring", "pass",
+                     "no residual bead groups in the decision — nothing to mirror",
+                     journal="L_MIRRORED", proposed=[], applied=[])
+
+    beads = sorted({b for g in groups for b in (g.get("beads") or [])})
+    grant = _land_grant_covers(ctx.plan_dir, beads)
+    engine = Path(__file__).resolve().parent.parent.parent / "yf-beads-upstream" / "scripts" / "upstream.py"
+    proposal = (f"uv run {engine} push --issues {','.join(beads)} --apply"
+                if beads else None)
+
+    if not grant["covered"]:
+        return _step("l17_residual_mirroring", "pass",
+                     f"PROPOSE-ONLY: the batched grant does not demonstrably cover "
+                     f"{len(beads)} residual bead(s). {grant['reason']} No upstream write was "
+                     f"performed.",
+                     journal="L_MIRRORED", halting=False,
+                     proposed=[proposal] if proposal else [], applied=[],
+                     uncovered=grant.get("uncovered", []))
+
+    r = ctx.run("uv", ["run", str(engine), "push", "--issues", ",".join(beads),
+                        "--apply"], cwd=ctx.root)
+    verified = []
+    for b in beads:
+        back = subprocess.run(["bd", "show", b, "--json"], capture_output=True, text=True)
+        ok = False
+        try:
+            d = json.loads(back.stdout)
+            d = d[0] if isinstance(d, list) and d else d
+            ok = bool((d or {}).get("external_ref"))
+        except (json.JSONDecodeError, IndexError, TypeError):
+            ok = False
+        verified.append({"bead": b, "external_ref_present": ok})
+    unverified = [v["bead"] for v in verified if not v["external_ref_present"]]
+    if unverified:
+        return _step("l17_residual_mirroring", "fail",
+                     f"{len(unverified)} bead(s) have no `external_ref` after the push — "
+                     f"VERIFIED BY READ-BACK, not by exit code, because `bd close` refuses "
+                     f"and exits 0 when blocked (#230): {unverified}",
+                     halting=True, verified=verified, exit_code=r.returncode)
+    return _step("l17_residual_mirroring", "pass",
+                 f"{len(beads)} residual bead(s) mirrored and verified by read-back",
+                 journal="L_MIRRORED", verified=verified)
+
+
+def _land_grant_covers(plan_dir: Path, beads: list[str]) -> dict:
+    """Does the per-landing grant DEMONSTRABLY cover this exact bead set (REQ-LAND-021)?
+
+    "Demonstrably" is deliberately strict: the grant file must NAME EACH BEAD ID. A grant that
+    authorizes "the residual beads" in prose covers nothing checkable, and #280 means no
+    automatic eligibility signal can stand in for it.
+    """
+    grant = plan_dir / "assets" / "upstream-grant.md"
+    if not grant.is_file():
+        return {"covered": False,
+                "reason": f"no grant file at {grant.as_posix()}.",
+                "uncovered": beads}
+    text = grant.read_text(encoding="utf-8")
+    uncovered = [b for b in beads if b not in text]
+    if uncovered:
+        return {"covered": False,
+                "reason": f"the grant does not name {len(uncovered)} of {len(beads)} bead(s).",
+                "uncovered": uncovered}
+    return {"covered": True, "reason": "every bead id is named in the grant", "uncovered": []}
+
+
+# -- L18 -----------------------------------------------------------------------------------
+
+def _land_l18_prune(ctx: LandingContext) -> dict:
+    """L18 — prune, **STRATEGY-AWARE**.
+
+    Deletes `<plan-id>-execute` **ONLY**. Under the `feature-branch` strategy REQ-BRANCH-004
+    requires the feature `<plan-id>` branch to be **PRESERVED**, so the strategy is consulted
+    rather than assumed.
+
+    THE HERDR TAB DEFAULTS TO A PROPOSAL. Tab provenance — "a tab this session created" — is
+    currently UNANSWERABLE (D-7), so a close requires an explicitly supplied tab id AND #204's
+    mechanical harvest preconditions, and is verified by reading back the agent list. Closing
+    a tab this session did not create would destroy scrollback that may be the only copy of
+    something.
+    """
+    strategy = _resolve_landing_strategy()
+    feature = _feature_branch(ctx.plan_id)
+    actions, preserved = [], []
+
+    wt = _worktree_teardown(ctx.plan_dir)
+    actions.append({"action": "worktree-teardown", "result": wt.get("action") or wt})
+
+    d = ctx.run("git", ["branch", "-d", ctx.execute_branch], cwd=ctx.root)
+    actions.append({"action": "delete-execute-branch", "branch": ctx.execute_branch,
+                    "ok": d.returncode == 0,
+                    "detail": (d.stderr or d.stdout).strip()[:200] or None})
+
+    if strategy == "feature-branch":
+        preserved.append(feature)
+    else:
+        # Under `main` there is no feature branch to preserve; say so rather than implying
+        # a deletion happened.
+        preserved.append(f"(none — strategy `main`, no feature branch exists)")
+
+    tab = (ctx.decision.get("herdr_tab") or {})
+    tab_id = tab.get("id")
+    if not tab_id:
+        tab_action = {"action": "herdr-tab", "decision": "PROPOSE",
+                      "reason": "no tab id supplied. Provenance is unanswerable (#204/D-7), "
+                                "so a close is never inferred — closing a tab this session "
+                                "did not create would destroy scrollback that may be the "
+                                "only copy of something."}
+    else:
+        tab_action = {"action": "herdr-tab", "decision": "PROPOSE", "tab": tab_id,
+                      "reason": "a tab id was supplied, but the close is still proposed "
+                                "rather than performed: #204's mechanical harvest "
+                                "preconditions are a yf-herdr deliverable and are not "
+                                "implemented here."}
+    actions.append(tab_action)
+
+    return _step("l18_prune", "pass",
+                 f"pruned under strategy `{strategy}`: {ctx.execute_branch} only; "
+                 f"herdr tab PROPOSED, never closed",
+                 journal="L_PRUNED", strategy=strategy, actions=actions,
+                 preserved=preserved, destructive=True)
+
+
+# -- L19 -----------------------------------------------------------------------------------
+
+def _land_l19_redeploy(ctx: LandingContext) -> dict:
+    """L19 — redeploy **iff** the landed change set touches `skills/` (REQ-LAND-022).
+
+    The last step of the last step, and the only one that mutates the machine OUTSIDE the
+    repository. Never mid-execution: a half-deployed session runs new scripts against old
+    prose.
+
+    ROLLBACK IS ASYMMETRIC and the verdict says so: `yf harness tune --revert` restores config
+    precisely, but the rules aggregate is DELETED rather than restored (#154). That is why the
+    operator's authorization is a precondition rather than a formality.
+    """
+    changed = _land_changed_set(ctx.root)
+    touches = [p for p in changed if p.startswith("skills/")]
+    if not touches:
+        return _step("l19_redeploy", "pass",
+                     "the landed change set does not touch `skills/` — redeploy correctly "
+                     "SKIPPED (iff, not if)",
+                     journal="L_DONE", touched_skills=[], redeployed=False)
+
+    enabled, skip_reason = ctx.step_enabled("l19_redeploy")
+    if not enabled:
+        return _step("l19_redeploy", "pass",
+                     f"redeploy SKIPPED by the decision: {skip_reason}. The landing did less "
+                     f"than a reader might assume, and this is where that is said.",
+                     journal="L_DONE", touched_skills=touches, redeployed=False,
+                     skipped=True)
+
+    r = ctx.run("yf", ["self", "install", "--from-build", "--build"], cwd=ctx.root)
+    if r.returncode != 0:
+        return _step("l19_redeploy", "fail",
+                     f"redeploy failed (exit {r.returncode}). ROLLBACK IS ASYMMETRIC: "
+                     f"`yf harness tune --revert` restores config precisely, but the rules "
+                     f"aggregate is DELETED rather than restored (#154).",
+                     halting=True, touched_skills=touches,
+                     stderr=(r.stderr or "").strip()[:400])
+    return _step("l19_redeploy", "pass",
+                 f"redeployed — the landing touched {len(touches)} path(s) under `skills/`",
+                 journal="L_DONE", touched_skills=touches, redeployed=True)
+
+
+#: The ordered executor table. ONE ROW PER L-LABEL, in REQ-LAND-004's order. A step that
+#: returns a LIST is a group of sub-steps sharing one L-label (the close chain), and the group
+#: halts on the first halting failure inside it.
+LAND_EXECUTOR: tuple[tuple[str, str], ...] = (
+    ("l0_lock_acquire",         "_land_l0_lock_acquire"),
+    ("l1_down_merge",           "_land_l1_down_merge"),
+    ("l2_merge",                "_land_l2_merge"),
+    ("l3_validate_merged",      "_land_l3_validate_merged"),
+    ("l4_commit_merge",         "_land_l4_commit_merge"),
+    ("l5_advisory_recheck",     "_land_l5_advisory_recheck"),
+    ("l6_push_one",             "_land_l6_push_one"),
+    ("l7_reconcile_writes",     "_land_l7_reconcile_writes"),
+    ("l8_close_chain_head",     "_land_l8_to_l15_close_chain"),
+    ("l12_close_cascade",       "_land_l12_close_cascade"),
+    ("l13_complete_gate",       "_land_l13_l15_finish"),
+    ("l16_commit_and_push_two", "_land_l16_commit_and_push_two"),
+    ("l17_residual_mirroring",  "_land_l17_residual_mirroring"),
+    ("l18_prune",               "_land_l18_prune"),
+    ("l19_redeploy",            "_land_l19_redeploy"),
+)
+
+
+#: The journal state each L-step reaches on success. DECLARED rather than inferred, because a
+#: SKIPPED step must still advance the journal: the landing DID get past that point, and a
+#: journal that stalls at the last non-skipped step can never reach `L_DONE` — so a landing
+#: that legitimately skips its final step could never be recorded as complete, and `recover()`
+#: would resume at a step already passed.
+#:
+#: FOUND BY THE EPIC-6 REHEARSAL: skipping L19 (no `yf` in the sandbox) left the terminal state
+#: at `L_PRUNED` with every step green, which SC36b correctly refused to accept as a completed
+#: rehearsal.
+LAND_STEP_JOURNAL: dict[str, str] = {
+    "l0_lock_acquire": "L_LOCKED",
+    "l1_down_merge": "L_DOWNMERGED",
+    "l2_merge": "L_MERGED_UNCOMMITTED",
+    "l4_commit_merge": "L_VALIDATED",
+    "l5_advisory_recheck": "L_PREPUSH_CHECKED",
+    "l6_push_one": "L_PUSHED_1",
+    "l7_reconcile_writes": "L_RECONCILED",
+    "l13_complete_gate": "L_CLOSED",
+    "l16_commit_and_push_two": "L_PUSHED_2",
+    "l17_residual_mirroring": "L_MIRRORED",
+    "l18_prune": "L_PRUNED",
+    "l19_redeploy": "L_DONE",
+}
+
+
+def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
+    """Drive L0-L19, advancing the journal between steps and halting on the first halting
+    failure.
+
+    RESUME IS KEYED ON THE JOURNAL'S RECORDED PHASE (REQ-LAND-009), never on observed state,
+    and a resume RE-DERIVES the manifest and re-checks the digest before continuing
+    (REQ-LAND-011) — the journal says WHERE it was, never WHAT WAS TRUE.
+
+    FAIL-CLOSED AT EVERY EDGE (REQ-LAND-020): the first unverified write aborts before any
+    destructive follow-on stage is reachable, which is why L7's read-back failure returns
+    before L12 can run.
+    """
+    done: set[str] = set()
+    if resume_from:
+        order = list(LAND_PROGRESS_ORDER)
+        if resume_from in order:
+            reached = set(order[: order.index(resume_from) + 1])
+            for key, _ in LAND_EXECUTOR:
+                # A step is complete when the journal state it WRITES has been reached.
+                pass
+            done = reached
+
+    results: list[dict] = []
+    for key, fname in LAND_EXECUTOR:
+        enabled, skip_reason = ctx.step_enabled(key)
+        if not enabled:
+            # A SKIPPED STEP STILL ADVANCES THE JOURNAL. The landing reached this point and
+            # passed it; a journal that stalls at the last non-skipped step can never record
+            # `L_DONE`, and `recover()` would resume at a step already passed.
+            j = LAND_STEP_JOURNAL.get(key)
+            skipped = _step(key, "pass",
+                            f"SKIPPED by the decision: {skip_reason}. Surfaced here so "
+                            f"'the landing did less than you think' is never silent.",
+                            journal=j, halting=False, skipped=True)
+            results.append(skipped)
+            ctx.results.append(skipped)
+            if j:
+                ctx.journal.write(j, step=key, skipped=True)
+            continue
+
+        out = globals()[fname](ctx)
+        batch = out if isinstance(out, list) else [out]
+        results.extend(batch)
+        ctx.results.extend(batch)
+
+        for r in batch:
+            if r.get("journal"):
+                ctx.journal.write(r["journal"], step=r["step"])
+            if r["verdict"] == "fail" and r.get("halting"):
+                if r.get("journal") and r["journal"] in LAND_CONFLICT_STATES:
+                    pass                       # the conflict state is already recorded above
+                return {"halted": True, "at": r["step"], "results": results,
+                        "journal_phase": (ctx.journal.read() or {}).get("phase"),
+                        "reason": r["reason"], "recovery": r.get("detail", {}).get("recovery")
+                                                or r.get("recovery")}
+
+    final = ctx.journal.read() or {}
+    terminal = final.get("phase") == LAND_TERMINAL_STATE
+    if terminal:
+        # THE JOURNAL DESCRIBES AN IN-FLIGHT LANDING. Leaving it behind means the next
+        # `--apply` for this plan reads a terminal phase and reports "already done" — and
+        # leaves a permanent untracked file in the tree. `okf_hygiene` unlinks its journal on
+        # the same reasoning. The phase is captured ABOVE the clear, so the return value still
+        # reports it.
+        ctx.journal.clear()
+    return {"halted": False, "results": results, "journal_phase": final.get("phase"),
+            "terminal": terminal,
+            # SC36b: a rehearsal that halted at L2 must NOT satisfy R1's mitigation, so the
+            # terminal state is REPORTED rather than inferred from "no error".
+            "reached_terminal_state": terminal,
+            "steps_executed": [r["step"] for r in results]}
 
 
 if __name__ == "__main__":

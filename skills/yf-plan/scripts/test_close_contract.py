@@ -454,5 +454,57 @@ def _main(argv: list[str]) -> int:
     return pytest.main([__file__, "-v"])
 
 
+def _skill_text() -> str:
+    return _SKILL.read_text(encoding="utf-8") if "_SKILL" in globals() else (
+        __import__("pathlib").Path(__file__).resolve().parent.parent / "SKILL.md"
+    ).read_text(encoding="utf-8")
+
+
+def _six_four_block() -> str:
+    import re as _re
+    t = _skill_text()
+    m = _re.search(r"### 6\.4.*?(?=\n### |\n## |\Z)", t, _re.S)
+    return m.group(0) if m else ""
+
+
+# --- plan-060 Issue 5.2: the §6 rewrite routes through `land`, and §6.4 survives it -------
+
+def test_phase_six_routes_through_land():
+    """Issue 5.1/5.2. §6 offers the `land` route AND keeps §6.1-§6.4 as the manual path.
+
+    Both halves are asserted because either alone is wrong: a §6 that never mentions `land`
+    ships a verb with no call site, and a §6 that DELETED the manual steps would destroy the
+    specification `land`'s own step order is written against.
+    """
+    text = _skill_text()
+    assert "### 6.0" in text, "§6.0 (the land route) is missing"
+    assert "land --dry-run" in text
+    assert "Read ${SKILL_DIR}/agents/lander.md" in text
+    for heading in ("### 6.1", "### 6.1.5", "### 6.2", "### 6.3", "### 6.4"):
+        assert heading in text, f"{heading} was deleted — the manual path is the specification"
+
+
+def test_the_six_four_block_boundary_survives_the_rewrite():
+    """R8. `test_close_contract` regex-scrapes §6.4 to the next `###`; the §6 rewrite must not
+    move that boundary or leak a teardown step into it."""
+    block = _six_four_block()
+    assert block.strip(), "the §6.4 block scraped empty — the boundary moved"
+    assert "worktree teardown" not in block
+    assert "update-status" in block and "complete" in block
+
+
+def test_the_changed_expression_is_first_parent():
+    """SC34 / Issue 5.4 / #303. The hand-run path uses `HEAD^1..HEAD`.
+
+    The forbidden literal is checked as an ABSENCE, and this test deliberately does not spell
+    it either — a test naming it would put it back in a file the criterion scans, which is
+    exactly how an absence check gets defeated by its own documentation.
+    """
+    text = _skill_text()
+    assert "HEAD^1..HEAD" in text
+    forbidden = "${MERGE_TARGET}" + '"' + "..." + "HEAD"
+    assert forbidden not in text, "the empty-by-construction three-dot form is back"
+
+
 if __name__ == "__main__":
     sys.exit(_main(sys.argv[1:]))
