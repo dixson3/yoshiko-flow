@@ -103,7 +103,7 @@ is real.**
 | #315 | Plan 1/3: standardize the README + code-adjacent documentation layout contract | include | **The coarse tracker for this plan.** | TBD |
 | #244 | README-contract drift: e-readme-layout fails 16/19 skills | include | Full scope per operator. Its counts are superseded by the re-measurement above; comment posted. | TBD |
 | #247 | Drift findings no edge covers; install.sh/install.py do not exist | partial | **The `install.sh` half lands here.** The manifest-diagram half → #317. Comment posted recording the split. | TBD |
-| #273 | The command-vs-obligation law | include | Design input, not a deliverable — why the fix must be a runnable check. | — |
+| #273 | The command-vs-obligation law | partial | Design input, not a deliverable — why the fix must be a runnable check. **Disposition corrected `include`→`partial` at reconcile (lander adjudication):** `include` mechanically requires CLOSED, but #273 is a corpus-wide law measured over five plans and this plan converted ONE obligation into ONE command. Closing it would assert the law is discharged everywhere — the exact class of unproven claim the law warns about, and contradicted by this row's own `Resolved By: —`. `partial` (OPEN + mandatory mention) is what the Notes always meant, and matches #149, whose Notes are the same class. | — |
 | #149 | M5/M9: process rules that nothing executes | partial | Adopt "a step with no exit code is not a step". Not M9's remediation-edge scope. | — |
 | #291 | yf-drift-check edge over the escape/stop taxonomy | deferred | Re-routed to #317 with the rest of the manifest work. Its own body is partly wrong — see exp-004. | — |
 | #127 | web/concepts: define idiomatic workflow terms | exclude | Operator excluded; may fold into #317. | — |

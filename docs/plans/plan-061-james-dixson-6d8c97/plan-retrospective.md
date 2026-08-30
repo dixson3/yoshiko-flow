@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-30 |
+| `stop_class` |  |
+| `asked` | Lander adjudication of the landing manifest |
+| `answered` | Found a fatal blocker the main session missed: _mentions_plan_id normalizes and searches for the FULL plan id (plan061jamesdixson6d8c97); all 7 draft bodies said only 'plan-061' and returned False, so every requires_mention row would have failed the HALTING L10 verify-reconcile even where the close succeeded. Also confirmed the #273 concern with a concrete remedy: the disposition literal include->partial, not a lander refusal (L7 only refuses a close the disposition forbids, so a comment-only write would have posted silently then halted at L10). |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | python3 norm-check over the 7 drafts: all False before the fix, all True after; UPSTREAM_REQUIREMENTS['partial'] = {end_state: OPEN, requires_mention: True} |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

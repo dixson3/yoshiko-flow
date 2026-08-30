@@ -55,4 +55,4 @@ verdict when it could not read its input.
 ## Provenance
 
 Not plan-061's remit to fix; recorded so the next plan does not rediscover it. Adjacent to
-**#289**. Found during plan-061 (tracker #315).
+**#289**. Found during plan-061 (`plan-061-james-dixson-6d8c97`, tracker #315).
