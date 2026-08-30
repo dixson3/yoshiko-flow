@@ -90,6 +90,34 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // `*(testable)*` marker was deliberate: an annotated marker is NOT in the enforced set this
     // file parses, so annotating would have let the requirement escape the gate entirely
     // rather than be bridged by it.
+    //
+    // === plan-061 (#315/#244) — REQ-YF-DOC-*, covered OUT OF CRATE, permanently ===
+    //
+    // §3.11 governs the `skills/*/README.md` documentation surface. Its enforcement is a
+    // **Python** checker (`scripts/checks/check_skill_readme_contract.py`) with an 18-test
+    // suite, wired into `CHANGE-VALIDATION.md`'s FAST and FULL tiers. There is no in-crate
+    // behavior to tag, so these are NOT a temporary bridge in the plan-044 D-7 sense — no
+    // later commit supersedes them with a `// REQ-…` tag, and none should.
+    //
+    // The mechanism is named per row rather than pointed at "CI" generically, because the
+    // whole premise of §3.11 is that an obligation with no runnable command is not enforced
+    // (REQ-YF-DOC-010). An allowlist row naming an unrunnable mechanism would reproduce that
+    // defect inside the gate that exists to catch it.
+    ("REQ-YF-DOC-001", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_missing_readme_is_its_own_class_not_a_mismatch, gated by the CHANGE-VALIDATION.md `skill-readme-contract` row (FAST+FULL)"),
+    ("REQ-YF-DOC-002", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_bullet_list_layout_is_unparseable_not_clean + test_planted_unparseable_fence_emits_fence_unparseable"),
+    ("REQ-YF-DOC-003", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_planted_unparseable_fence_emits_fence_unparseable (the single ASCII-tree parser)"),
+    ("REQ-YF-DOC-004", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_planted_stale_fence_root_fails (the fence root must name the skill's real directory)"),
+    ("REQ-YF-DOC-006", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_planted_layout_defect_fails + test_planted_phantom_fence_entry_fails (drift in both directions)"),
+    ("REQ-YF-DOC-007", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_planted_prereqs_defect_fails (Prerequisites must be a superset of frontmatter depends-on-tool)"),
+    ("REQ-YF-DOC-008", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_planted_unprefixed_invocation_fails + test_planted_missing_usage_section_fails"),
+    ("REQ-YF-DOC-010", "covered out of crate by the existence of the checker itself plus its three CHANGE-VALIDATION.md recipe rows; a check no row invokes is the defect this REQ names"),
+    ("REQ-YF-DOC-011", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_enumeration_is_depth_one_never_rglob"),
+    ("REQ-YF-DOC-012", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py asserts exit 0 (clean), 1 (contract failure) and 2 (INCONCLUSIVE) across its planted-defect, floor and absent-root cases"),
+    ("REQ-YF-DOC-014", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_closed_enum_is_never_exceeded, plus the checker's own runtime assertion that no emitted class falls outside the declared set"),
+    ("REQ-YF-DOC-015", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_min_skills_floor_trips_at_exit_two_on_empty_enumeration + test_min_skills_floor_outranks_a_real_failure (exit 2, never 1)"),
+    ("REQ-YF-DOC-016", "covered out of crate by the plan-061 capability gate, which reads the JSON `verdict` rather than the exit code; an uncaught exception and a real FAIL both exit 1"),
+    ("REQ-YF-DOC-017", "covered out of crate by the CHANGE-VALIDATION.md rows themselves (`skill-readme-contract`, `skill-readme-tests`, `skill-readme-fence`) and their §3 trigger globs"),
+    ("REQ-YF-DOC-018", "covered out of crate: scripts/checks/test_check_skill_readme_contract.py::test_missing_readme_is_its_own_class_not_a_mismatch, which asserts the ABSENCE of any mismatch class"),
 ];
 
 /// Root of the `yf` crate (the dir holding `Cargo.toml`).
