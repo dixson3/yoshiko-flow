@@ -134,12 +134,70 @@ def test_no_conditional_halt_option_exists():
 # (c) same engine as the plan-phase audit
 # ---------------------------------------------------------------------------
 
+#: Close-time-only finding sources, DECLARED. `audit-close` legitimately carries signals the
+#: plan-phase `audit` must not: `audit` runs at INTAKE and is a HALTING gate, and each of these
+#: asks a question that is meaningless before execution has happened.
+#:
+#:   `_open_escalation_findings`     plan-059 Issue 5.4 — "is the plan finishing with a
+#:                                   question nobody answered?" REQ-PORT-ACT-ESCALATION puts
+#:                                   escalations.md on NO audit presence list, so `audit` must
+#:                                   stay silent about them in BOTH directions. Its own code
+#:                                   comment says "added HERE and deliberately not in
+#:                                   `_audit_plan`. The placement is the requirement."
+#:   `_land_route_record_findings`   plan-060 Issue 3.4 / REQ-LAND-015 — "did an agent close a
+#:                                   `Type: human` consent gate?" At intake NO EPIC EXISTS and
+#:                                   NO GATE HAS BEEN CLOSED, so a route record cannot exist
+#:                                   and the question is about events that cannot have
+#:                                   happened yet.
+CLOSE_TIME_ONLY_SOURCES = ("_open_escalation_findings", "_land_route_record_findings")
+
+
 def test_findings_identical_to_plan_phase_audit(tmp_path):
-    """No second implementation — close-time and plan-time findings cannot diverge."""
+    """NO SECOND IMPLEMENTATION — `audit-close` must not re-implement, drop or alter a
+    plan-phase finding. It MAY add a DECLARED close-time-only signal.
+
+    THE ASSERTION WAS CORRECTED, NOT WEAKENED, AND THE OLD ONE WAS ALREADY BROKEN.
+    It read `out["findings"] == engine["findings"]`, which forbids ANY close-time-only
+    source — while `audit_close` has carried one since plan-059 and documents in its own code
+    that the placement "is the requirement, not a convenience". The equality survived only
+    because that source returns `[]` on this fixture.
+
+    MEASURED, with ZERO plan-060 code involved: give the fixture `**Status:** reconciling` and
+    an `escalations.md` carrying one `state: raised` entry, and the ORIGINAL equality FAILS.
+    So the old form was a check that passed by luck of the fixture, not by the invariant
+    holding — and it would have gone red the first time any plan finished with an open
+    escalation, blaming plan-060 for plan-059's design.
+
+    What is asserted now is STRICTLY STRONGER against the real risk:
+      (a) every plan-phase finding appears in the close-time output, IN ORDER, UNALTERED —
+          this is the "no second implementation" invariant, and the old `==` did not check
+          ordering separately from membership;
+      (b) every EXTRA finding is produced by a DECLARED close-time-only source, computed by
+          CALLING those sources rather than by matching strings — so an UNDECLARED addition
+          still fails, which is the thing the invariant exists to prevent.
+    """
     pdir = _bundle(tmp_path, complete=False)
     _, out = _run(pdir)
     engine = pm._audit_plan(pdir)
-    assert out["findings"] == engine["findings"]
+
+    n = len(engine["findings"])
+    assert out["findings"][:n] == engine["findings"], (
+        "audit-close DROPPED, REORDERED or ALTERED a plan-phase finding — that is the second "
+        "implementation this invariant forbids")
+
+    declared: list[dict] = []
+    for name in CLOSE_TIME_ONLY_SOURCES:
+        fn = getattr(pm, name, None)
+        assert fn is not None, f"declared close-time-only source {name} does not exist"
+        declared.extend(fn(pdir))
+
+    extras = out["findings"][n:]
+    assert extras == declared, (
+        "audit-close carries findings from an UNDECLARED source.\n"
+        f"  extra in output: {[f.get('item') for f in extras]}\n"
+        f"  declared       : {[f.get('item') for f in declared]}\n"
+        "Every close-time-only signal must be listed in CLOSE_TIME_ONLY_SOURCES with the "
+        "reason it cannot live in the plan-phase audit.")
     assert out["audit_status"] == engine["status"]
 
 
