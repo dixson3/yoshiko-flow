@@ -307,7 +307,7 @@ folding them back in recreates the plan the operator just split.
 | SC3 | Every one of the 20 skills has a `README.md` | `test "$(ls -d skills/*/ \| while read d; do test -f "$d/README.md" \|\| echo x; done \| wc -l \| tr -d ' ')" = 0` → exit 0 | 3.4 |
 | SC4 | All **20** layout fences parse under the single ASCII-tree parser | `uv run scripts/checks/check_skill_readme_contract.py --min-skills 20 --json \| jq -e '[.failures[]\|select(.class=="fence-unparseable")]\|length==0'` → exit 0 | 2.2, 2.3 |
 | SC5 | No current instruction surface directs a reader to a repo-level `install.sh`/`install.py` | `grep -rlE '(\./install\.(sh\|py)\|repo-level .?install\.(sh\|py)\|`install\.(sh\|py)`)' skills/*/README.md skills/*/SKILL.md skills/*/protocols/*.md README.md DRIFT-CHECK.md` → exit 1 | 4.4 |
-| SC6 | The checker FAILS on a planted defect, and its `--min-skills` floor trips at exit 2 | `uv run -m pytest scripts/checks/test_check_skill_readme_contract.py -q` → exit 0 | 1.4 |
+| SC6 | The checker FAILS on a planted defect, and its `--min-skills` floor trips at exit 2 | `uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q` → exit 0 | 1.4 |
 | SC7 | The `CHANGE-VALIDATION.md` FULL tier is green over the merged tree | `uv run "$(yf skill-dir yf-change-validation)/scripts/change_validation.py" run --tier full --json` → exit 0 | 5.4 |
 | SC8 | `yf-okf-hygiene` appears in the project-root README skill index | `grep -q 'yf-okf-hygiene' README.md` → exit 0 | 3.5 |
 | SC9 | No issue in this plan modifies `web/` or the OKF bundle corpus | manual: the merged diff's path set is read at reconcile — a command asserting the ABSENCE of a path from an unmerged future diff cannot be written at authoring time | 5.4 |

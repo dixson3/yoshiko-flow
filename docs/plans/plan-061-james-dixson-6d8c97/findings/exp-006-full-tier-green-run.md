@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'EXP-006 — the FULL validation tier: run 1 RED (SPEC coverage gap, 15 untagged REQ-YF-DOC ids), run 2 green 65/65. Issue 5.4''s evidence.'
+---
 # exp-006 — the FULL validation tier, and the defect it caught
 
 **Type:** validation evidence (plan-061 Issue 5.4)

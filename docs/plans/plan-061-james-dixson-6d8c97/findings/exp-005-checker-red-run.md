@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'EXP-005 — the skill-README checker''s RED run against the pre-backfill tree: 34 findings over 20 skills. The sensitivity evidence Gate 1 blocks on, and SC1''s artifact.'
+---
 # exp-005 — the checker's RED run against the pre-backfill tree
 
 **Type:** sensitivity evidence (plan-061 Issue 1.5, SC1)
