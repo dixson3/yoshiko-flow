@@ -1457,6 +1457,17 @@ Auto-resolves when all execution beads close. Proceed to Phase 6.
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "reconciling" -m "post-execution reconciliation"
 ```
 
+> **THE DEFAULT ROUTE IS `land` (§6.0).** The whole of Phase 6 — merge-back, validation,
+> push, reconcile writes, the close chain, the plan-folder push, residual mirroring, pruning
+> and redeploy — is one operation with **one informed consent grant** (`REQ-PLAN-083`,
+> `spec/landing.md`). Start at §6.0.
+>
+> **§6.1–§6.4 below remain the authoritative description of what `land` automates**, and the
+> supported manual path when `land` is unavailable. They are not superseded prose: `land`'s
+> step order is specified against them, the §6.4 close chain is invoked verb-by-verb by L8–L15,
+> and `test_close_contract.py` still enumerates §6.4's block. **Do not delete them to reduce
+> duplication** — the duplication is the specification.
+
 **Phase 6 is reordered (plan-009 INV-4): merge-back FIRST, then validate the MERGED
 state, then push.** The old order validated pre-merge, which cannot catch class-(b)
 integration regressions (each change individually green, broken when integrated). All
@@ -1708,7 +1719,14 @@ that §6.4 was run at all.
 
 
 ```bash
-CHANGED=$(git diff --name-only "${MERGE_TARGET}"...HEAD 2>/dev/null)   # merged-tree paths
+# `HEAD^1..HEAD`, NEVER the three-dot symmetric-difference form against the merge target
+# (REQ-LAND-025, #303) — spelled in prose here rather than literally, because SC34
+# asserts that literal's ABSENCE from this file and a comment naming it would defeat
+# the check while looking like documentation. The three-dot
+# form runs at a moment when `HEAD == MERGE_TARGET`, so it is EMPTY BY CONSTRUCTION and
+# `classify-deliverable`'s `path-backed` evidence is structurally unreachable through it.
+# `HEAD^1..HEAD` reads the merge's first-parent range — what actually landed.
+CHANGED=$(git diff --name-only HEAD^1..HEAD 2>/dev/null)   # merged-tree paths
 uv run ${SKILL_DIR}/scripts/plan_manager.py classify-deliverable "${plan_dir}" \
   $(printf ' --changed %q' ${CHANGED}) --json
 # On operator override:

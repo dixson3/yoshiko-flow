@@ -1197,5 +1197,40 @@ def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
     assert "provenance-unknown" in skipped[0]["reason"]
 
 
+def test_change_validation_rows_registered():
+    """SC35 / Issue 5.3. The three new test files are registered under ASSERTED ROW IDS.
+
+    A BARE GLOB MATCH PROVES NOTHING: `skills/yf-plan/scripts/**` already selects all three,
+    so a scoped run would look green while no row actually names them. The assertion is that
+    each file has its OWN id, that the id appears in BOTH tiers, and that the trigger scope
+    maps the file to that id BY NAME.
+    """
+    root = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                               capture_output=True, text=True).stdout.strip())
+    manifest = (root / "CHANGE-VALIDATION.md").read_text(encoding="utf-8")
+
+    expected = {
+        "skills/yf-plan/scripts/test_land_manifest.py": "uv-yf-land-manifest",
+        "skills/yf-plan/scripts/test_lander_agent_contract.py": "uv-yf-lander-contract",
+        "skills/yf-plan/scripts/test_land_apply.py": "uv-yf-land-apply",
+    }
+
+    fast = manifest[manifest.index("### fast"):manifest.index("### full")]
+    full = manifest[manifest.index("### full"):manifest.index("## 2.")]
+    scope = manifest[manifest.index("## 3."):]
+
+    for path, rid in expected.items():
+        assert (root / path).is_file(), f"{path} does not exist"
+        assert f"`{rid}`" in fast, f"{rid} is not a FAST-tier row"
+        assert path in fast, f"the {rid} row does not target {path} explicitly"
+        assert path in full, f"{path} has no FULL-tier row"
+        # The trigger scope must map the FILE to the ID BY NAME — not merely be covered by
+        # the pre-existing broad `skills/yf-plan/scripts/**` glob.
+        line = next((ln for ln in scope.splitlines()
+                     if ln.startswith("|") and f"`{path}`" in ln), None)
+        assert line, f"no trigger-scope row names {path}"
+        assert f"`{rid}`" in line, f"the trigger-scope row for {path} does not name {rid}"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, *sys.argv[1:]]))
