@@ -6,6 +6,22 @@
 > Executable-only: `yf-drift-check` is excluded (prose/LLM trigger, not a runnable
 > command). To roll delegation back to `validate-cmd`/notice, set `approved: no`.
 >
+> plan-061 (#244/#315) — **the exclusion names the SKILL, and that remains true; it does
+> not mean no manifest edge is ever mechanically gated.** `yf-drift-check` is still a
+> prose/LLM trigger with no runnable command, so it is still not a recipe row. But the
+> **mechanical subset** of `DRIFT-CHECK.md`'s four README edges — `e-readme-layout`,
+> `e-readme-prereqs`, `e-readme-usage` and README existence — now ships as
+> `scripts/checks/check_skill_readme_contract.py` and IS gated here, in both tiers.
+>
+> The fourth edge, `e-readme-desc`, is deliberately NOT in that subset: its predicate is
+> that the README one-liner matches the SKILL.md `description` **intent**, which tolerates
+> paraphrase and is not mechanically decidable. It keeps its LLM route, and the checker
+> declares it unchecked rather than implying it passed (SPEC `REQ-YF-DOC-013`).
+>
+> Why this clarification exists at all: the original line was read as *no manifest edge is
+> runnable*, and under that reading the four README edges had no firing surface whatsoever
+> — 18 of 20 skills failed `e-readme-layout` with nothing to notice.
+>
 > plan-042 (#157): added the `sync-e2e` row and `yf/profiles/**` trigger scope. The
 > profiles had NO glob, so editing a `consent_required` entry — the flag the install-time
 > consent gate keys on — fired no validation at all. The row names a **test target**
@@ -130,6 +146,9 @@ approved: yes
 | `uv-yf-verify-beads` | `uv run skills/yf-plan/scripts/test_verify_beads.py` |  |  |
 | `uv-yf-retro-fields` | `uv run skills/yf-plan/scripts/test_retrospective_fields.py` |  |  |
 | `gate-plan052` | `bash docs/plans/plan-052-james-dixson-fa8056/assets/gate-run.sh verify-partition` |  |  |
+| `skill-readme-contract` | `uv run scripts/checks/check_skill_readme_contract.py --min-skills 20` |  |  |
+| `skill-readme-tests` | `uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q` |  |  |
+| `skill-readme-fence` | `uv run scripts/gen_skill_readme_fence.py --check` |  |  |
 
 ### full
 
@@ -197,6 +216,9 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_verify_beads.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_retrospective_fields.py` |  |  |
 |  | `bash docs/plans/plan-052-james-dixson-fa8056/assets/gate-run.sh verify-partition` |  |  |
+| `skill-readme-contract` | `uv run scripts/checks/check_skill_readme_contract.py --min-skills 20` |  |  |
+|  | `uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q` |  |  |
+|  | `uv run scripts/gen_skill_readme_fence.py --check` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -243,6 +265,11 @@ approved: yes
 | `skills/yf-plan/scripts/test_land_apply.py` | `uv-yf-land-apply` |
 | `skills/yf-plan/scripts/land_rehearsal.py` | `uv-yf-land-apply` |
 | `skills/yf-plan/spec/landing.md` | `uv-yf-land-apply` |
+| `skills/*/SKILL.md` | `skill-readme-contract` |
+| `skills/*/README.md` | `skill-readme-contract`, `skill-readme-fence` |
+| `scripts/checks/check_skill_readme_contract.py` | `skill-readme-contract`, `skill-readme-tests` |
+| `scripts/checks/test_check_skill_readme_contract.py` | `skill-readme-tests` |
+| `scripts/gen_skill_readme_fence.py` | `skill-readme-fence`, `skill-readme-contract` |
 | `skills/yf-plan/agents/lander.md` | `uv-yf-lander-contract` |
 | `_shared/test_okf.py` | `uv-okf` |
 | `skills/yf-okf/scripts/**` | `uv-okf`, `uv-_shared` |
