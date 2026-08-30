@@ -32,3 +32,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
 - [reviews/pass-6.md](reviews/pass-6.md) - Red-team pass 6 — REVISE, one high (--others is a tracked-ness filter), all 6 resolved.
 - [assets/enumeration-spike.md](assets/enumeration-spike.md) - EXP-007 — the enumeration spike: every candidate against a fixture holding both tracked-ness states inside and outside a gitignored worktree, from both cwds.
+- [reviews/pass-7.md](reviews/pass-7.md) - Red-team pass 7 — APPROVE, no high; six prose concerns all resolved.

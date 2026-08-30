@@ -82,45 +82,112 @@ ls-files only                                  -> 41     # all 41 are tracked NO
 The last two lines are the state-dependence in one frame: **the same two commands that read
 `0 / 39` before the mid-review commit read `41 / 0` after it.**
 
-## Findings
+## CORRECTION (red-team pass 7): the CAUSE was mis-attributed
 
-**F1 — Neither `ls-files` nor `--others --exclude-standard` is ever correct alone.** They are exact
-complements partitioned by tracked-ness: 2 and 2 against a true answer of 4, in *both* the control
-and the `-C` case. **The operator's hypothesis is confirmed on this point.**
+> Pass 7 rebuilt this fixture independently, reproduced **all 18 rows**, and then ran three cases
+> this spike did not. **The counts were right and the causal story was wrong**, which is the more
+> dangerous kind of error and exactly the class (#263) this plan exists to close — recurring inside
+> the artifact commissioned to close it.
 
-**F2 — The union hypothesis is REFUTED for the cross-checkout case.** The operator proposed the
-union as *"the only candidate that survived both states"*, and asked for it to be proven or refuted
-rather than adopted. Measured: the union is correct **within a repository** (A: 4, C: 4) and returns
-**0** from the primary cwd across the gitignore boundary (B). It survived both *tracked-ness* states
-and does not survive the *cwd* dimension. **Correct per-repo, not correct per-question.**
+### Case D — the worktree is NOT gitignored at all
 
-**F3 — `git ls-files --cached --others --exclude-standard` is a single-command union** and is
-exactly as good as the two-call form (4 in A and C, 0 in B). It should be preferred for being
-atomic — a two-call union can drift when only one call is updated.
+| Candidate (from the primary cwd) | Count | TRUE = 4 |
+| :-- | --: | :-- |
+| `ls-files` | 0 | wrong |
+| `ls-files --others --exclude-standard` | 0 | wrong |
+| `ls-files --cached --others --exclude-standard` | 0 | wrong |
+| `status --porcelain=v2` | 0 | wrong |
+| `status --porcelain=v2 --ignored=matching` | 0 | wrong |
+| `ls-files --others --ignored --exclude-standard` | 0 | wrong |
+| `find -type f` | 4 | correct |
 
-**F4 — A scoped directory listing is the ONLY candidate correct from both cwds.** `find` returns 4
-in A, B and C, and 41 on the live repo from the primary checkout. **It is the only tool that crosses
-the gitignore boundary at all.**
+`git check-ignore wt` -> **NO**. **With gitignore entirely out of the picture, every git candidate
+still returns nothing.**
 
-**F5 — `status --porcelain=v2 --ignored` is a trap, not a fallback.** It is the one git command that
-returns non-zero from the primary cwd (**1**), and that 1 is the ignored **directory**, not its four
-files. A caller checking "did I get a non-empty result" reads success and enumerates nothing —
-#263's two-facts-one-signal shape, in the candidate a reader is most likely to reach for after the
-others return 0.
+### Case E — a PLAIN gitignored directory, no worktree, no `.git` marker
+
+| Candidate (from the primary cwd) | Count | TRUE = 2 |
+| :-- | --: | :-- |
+| `ls-files --others --exclude-standard` | 0 | wrong |
+| **`ls-files --others --ignored --exclude-standard`** | **2** | **correct** |
+| `find -type f` | 2 | correct |
+
+**So git CAN cross a gitignore boundary.** It cannot cross a **checkout** boundary.
+
+### The corrected mechanism
+
+The real cause is **nested-repo opacity**: a linked worktree carries a `.git` marker, so the primary
+checkout's git reports it as one opaque entry and will not descend. **Gitignore is a second,
+independent reason** that happens to apply in this repository. Two facts, one observed signal.
+
+**What this falsifies in the original write-up:** F4's *"the only tool that crosses the gitignore
+boundary at all"* is **false** (case E), and the applicability condition *"only when run inside a
+repository where the path is not ignored"* **mispredicts** — un-ignoring the path fixes nothing
+(case D). A maintainer acting on that reading during Epic 1 would conclude a constraint had
+dissolved when it had not.
+
+### Case F — `find -type f` is wrong in BOTH directions
+
+A bundle with one tracked `a.md`, a **symlink** `link.md`, and an ignored `.DS_Store`:
+
+| Candidate | Count | Correct? |
+| :-- | --: | :-- |
+| `find -type f` | 2 | **wrong twice** — misses the symlink, counts the `.DS_Store` |
+| `find ! -type d` | 3 | catches the symlink, still counts the `.DS_Store` |
+| **`git -C wt ls-files -co --exclude-standard`** | **2** | **correct** — `a.md` + `link.md`, junk excluded |
+
+`.DS_Store` is near-certain on macOS in any directory opened in Finder, so this is not a contrived
+case.
+
+## Findings (as corrected)
+
+**F1 — Neither `ls-files` nor `--others --exclude-standard` is ever correct alone.** Exact
+complements partitioned by tracked-ness: 2 and 2 against 4, in both the control and the `-C` case.
+**Confirmed and unchanged.**
+
+**F2 — The union is correct WITHIN a checkout and returns 0 ACROSS one.** The operator's hypothesis
+survives tracked-ness and not the checkout dimension. **Confirmed; only the stated cause changes.**
+
+**F3 — `git ls-files --cached --others --exclude-standard` is a correct single-command union**, and
+is preferable to two calls for being atomic. **Confirmed.**
+
+**F4 — CORRECTED.** A scoped listing is the only candidate correct from both cwds *among those
+measured* — but the boundary it crosses is the **checkout** boundary, not the gitignore boundary
+(case E), and it is **not** reliably correct even then (case F).
+
+**F5 — `status --porcelain=v2 --ignored` is a trap, and pass 7 made it stronger.** It returns **1**
+from the primary cwd — the ignored *directory*, not its files. Pass 7 measured that the two
+candidates an implementer reaches for next — `--ignored=matching` (the documented fix for
+directory-collapsing) and `ls-files --others --ignored --exclude-standard` — **also return 1** in
+the worktree case. **The trap survives its own documented workaround.**
 
 ## The prescription this spike supports
 
-For a **presence-on-disk** fact:
+For a **presence** fact about a bundle inside a **linked worktree**:
 
-1. **A scoped directory listing** — the only tool correct from either cwd, and the only one that
-   works across the gitignore boundary; **or**
-2. **`git -C <that worktree> ls-files --cached --others --exclude-standard`** — correct, atomic, and
-   preferable when git's own ignore semantics are wanted, but **only when run inside a repository
-   where the path is not ignored**.
+1. **Preferred — `git -C <that worktree> ls-files --cached --others --exclude-standard`.** Correct,
+   atomic, handles symlinks as git does, and excludes ignored junk (case F). It must run **inside
+   that worktree's checkout**; from the primary checkout it returns 0 regardless of gitignore.
+2. **Fallback, when the process cannot run inside that checkout — an explicit scoped listing**,
+   written as `find <dir> ! -type d` (never `-type f`, which drops symlinks). Accept that it counts
+   ignored junk, and filter deliberately if that matters.
 
-Never `ls-files` alone, never `--others` alone, never either from a checkout that ignores the path,
-and never `status --porcelain=v2 --ignored` as a fallback.
+**The two branches answer different questions and the choice must be deliberate:** the listing
+answers *"what is on disk"*; the `git -C` form answers *"what git considers part of the tree"*. For
+`upstream.rows[].draft_present` the second is the wanted question — a `.DS_Store` is not a draft.
+
+Never `ls-files` alone, never `--others` alone, never any git form from a **different checkout**,
+and never `status --porcelain=v2 --ignored` (or `--ignored=matching`) as a fallback.
+
+## Scope limits, stated
+
+- **`--recurse-submodules` was listed as a candidate against a fixture containing no submodule.**
+  That row measures nested-repo opacity like every other, not submodule behaviour. It is retained
+  only as a negative result about the worktree case and claims nothing about submodules.
+- **`core.excludesFile` (global gitignore) is untested.** It is immaterial to the listing branch and
+  material to the `git -C` branch, where `--exclude-standard` honours it — so a user's global
+  `.DS_Store` or `*.local` pattern participates in what branch 1 returns.
 
 ## Residue
 
-None. The fixture was removed (`rm -rf`) at the end of the run.
+None. Both fixtures were removed (`rm -rf`) at the end of their runs.
