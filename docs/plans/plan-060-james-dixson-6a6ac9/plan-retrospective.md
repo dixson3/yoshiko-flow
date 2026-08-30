@@ -51,3 +51,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | Not a defect to prevent. What made the right call CHEAP is worth keeping: the halt was reached by an exit code (`stop_class: 4`), not by judgement, and `escalation-raise` gave the question a durable artifact rather than a prompt that could be lost. **Positive controls are rarer than defects and are not usually written down** — the corpus records what went wrong far more often than what a mechanism prevented, which biases any later analysis of whether these gates are worth their cost. The *strengthening* worth having is an escalation whose resolver identity is not first-party — the same unsolved problem as #304. |
 | `cost` | one operator round trip |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-29 |
+| `stop_class` |  |
+| `asked` | Whether an ordinary operational action taken for an unrelated reason can invalidate a plan's design premise mid-review. |
+| `answered` | Yes, and it did. The operator directed a durability commit of the bundle. That commit falsified Issue 1.9's premise that draft bodies are untracked BY CONSTRUCTION at dry-run time, and flipped the prescribed enumeration from 37-correct to 0-against-40. The premise was state-dependent and nothing in the plan said so. |
+| `frontloadable` | partial |
+| `detected_by` | operator |
+| `evidence` | Before commit a5664e7: ls-files 0, --others --exclude-standard 39. After: 41 and 0. Same commands, same paths, opposite answers. See assets/enumeration-spike.md F2. |
+| `escape_class` | intra-plan — caught at review, before execution |
+| `adjudication` | **A finding about premises being STATE-DEPENDENT, not a mistake by anyone.** The commit was correct and was taken for durability: before it, the bundle was 39 untracked files on a branch with zero commits, and a `git clean -xdf` would have destroyed five review passes and six investigations. It happened to change the truth value of a design claim in an unrelated part of the plan. **Neither party could reasonably have connected the two beforehand** — which is exactly what makes it worth recording. The plan asserted a property of the world (*"draft bodies are untracked by construction"*) as though it were a property of the design, and nothing in the document marked it as contingent. |
+| `origin` | Issue 1.9, written in the pass-3 revision |
+| `culpability` | none for the commit. The session's is the unmarked contingency: a premise that depends on whether someone has run `commit-plan` is not "by construction". |
+| `prevention` | **The spike is the generalisable remedy, and it is stronger than the specific fix.** A fixture holds BOTH states at once; the live repository can only ever be in one, so five consecutive rounds each measured a true fact about a transient state and generalised it. `assets/enumeration-spike.md` runs every candidate against both states and both cwds simultaneously — which is why it settled in one pass what prose reasoning had missed five times. **The transferable rule: when a claim is about which of several tools is correct, build the fixture that distinguishes them rather than reasoning about their semantics.** Secondarily: mark contingent premises as contingent, and prefer a criterion over a premise wherever the criterion can be written. |
+| `cost` | one high-severity red-team concern, one bound raise, one spike |
+

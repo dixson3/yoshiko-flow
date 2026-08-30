@@ -52,10 +52,10 @@ warning, which would train a reader to ignore it.
 | `detected_by` | mechanical-check |
 | `evidence` | review-loop-check --max-review-cycles 6 --json => {cycles: 6, limit: 6, escalates: true, stop_class: 4}. Concerns per pass measured from reviews/pass-N.md: 14/11/7/5/4/6; highs 3/2/0/1/1/1. |
 | `asked_of` |  |
-| `state` | raised |
-| `answer` |  |
+| `state` | resolved |
+| `answer` | TWO PARTS, IN ORDER. (1) SPIKE THE ENUMERATION FIRST, empirically, before further prose reasoning — a fixture holding tracked and untracked files both inside and outside a gitignored worktree, every candidate run from both cwds against a known true answer, no residue, the table in the bundle and the fix citing it. Rationale: the area was wrong five consecutive rounds and every fix was prose-reasoned, each a lateral move rather than a correction. (2) THEN cycle 7 is GRANTED as a FULL pass over the spike-backed revision, not a narrowed one — the session's reasoning for full scope was accepted verbatim, that its own judgement this area is settled has a poor track record and should not be trusted to narrow the scope. Both parts done: assets/enumeration-spike.md is the artifact and Issue 1.9 now cites it. The operator's union hypothesis was tested rather than adopted, and is REFUTED for the cross-checkout case. |
 | `raised_when` | 2026-08-29 |
-| `resolved_when` |  |
+| `resolved_when` | 2026-08-29 |
 | `no_answer_taken` | no |
 | `push_batch` | 20260829T191613-1 |
 
