@@ -96,6 +96,7 @@ approved: yes
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
 | `gate-plan060-figures` | `uv run scripts/checks/check-cited-figures.py docs/plans/plan-060-james-dixson-6a6ac9/assets/cited-figures.md --min-figures 6` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
+| `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -165,6 +166,7 @@ approved: yes
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
 | `gate-plan060-figures` | `uv run scripts/checks/check-cited-figures.py docs/plans/plan-060-james-dixson-6a6ac9/assets/cited-figures.md --min-figures 6` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
+| `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -213,8 +215,10 @@ approved: yes
 | `skills/yf-plan/OKF-EXTENSION.md` | `okf-index-drift`, `uv-okf` |
 | `skills/yf-plan/scripts/test_recheck_criteria.py` | `uv-recheck-criteria` |
 | `skills/yf-plan/scripts/test_index_members.py` | `uv-index-members` |
-| `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum`, `uv-yf-land-manifest` |
+| `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum`, `uv-yf-land-manifest`, `uv-yf-lander-contract` |
 | `skills/yf-plan/scripts/test_land_manifest.py` | `uv-yf-land-manifest` |
+| `skills/yf-plan/scripts/test_lander_agent_contract.py` | `uv-yf-lander-contract` |
+| `skills/yf-plan/agents/lander.md` | `uv-yf-lander-contract` |
 | `_shared/test_okf.py` | `uv-okf` |
 | `skills/yf-okf/scripts/**` | `uv-okf`, `uv-_shared` |
 | `skills/yf-okf-hygiene/scripts/**` | `okf-hygiene-tests`, `uv-okf`, `uv-_shared` |

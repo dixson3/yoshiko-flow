@@ -137,6 +137,7 @@ agents/
   reviewer.md                Conformance/completeness plan check (PASS|INCOMPLETE), runs first
   red-team.md                Adversarial plan review before approval (drives the phase transition)
   captor.md                  Drafts missing portability-contract files for /yf-plan capture
+  lander.md                  Adjudicates a landing manifest into a decision document
 formulas/
   plan-execute.formula.toml  Beads molecule for execution pipeline
   plan-investigate.formula.toml  Beads molecule for investigation wisp
