@@ -614,6 +614,110 @@ def test_route_record_check_does_not_flag_a_clean_close(repo, monkeypatch):
     assert pm._land_route_record_findings(Path("docs/plans") / PLAN_ID) == []
 
 
+def test_route_record_check_agrees_across_address_spaces(repo, monkeypatch, tmp_path):
+    """REQ-LAND-015. THE CHECK MUST ANSWER THE SAME FROM BOTH ADDRESS SPACES.
+
+    THE DEFECT THIS PINS, measured on the live tree at 09c74f6: identical command, identical
+    plan_dir, `fail` from the primary checkout and `pass` from the execute worktree — because
+    `plan_dir/plan.md` is read RELATIVE TO CWD and the `**Epic:**` field is written
+    PRIMARY-SIDE, so the worktree's copy predates it. The check had TWO TRUTHS, and the wrong
+    one was a SILENT PASS.
+
+    The fixture reproduces exactly that asymmetry: the epic field exists only in the primary's
+    plan.md, and the linked worktree carries the pre-execution copy.
+    """
+    wt = repo / ".worktrees" / PLAN_ID
+    (repo / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    _git("add", "-A", cwd=repo); _git("commit", "-q", "-m", "ignore", cwd=repo)
+    assert _git("worktree", "add", "-q", str(wt), f"{PLAN_ID}-execute", cwd=repo).returncode == 0
+
+    # THE ASYMMETRY: the epic field lands PRIMARY-SIDE only, which is what the address-space
+    # model prescribes and what actually happens during execution.
+    pm_md = repo / "docs" / "plans" / PLAN_ID / "plan.md"
+    t = pm_md.read_text(encoding="utf-8").replace("\n## ", "\n**Epic:** yf-mol-test\n\n## ", 1)
+    pm_md.write_text(t, encoding="utf-8")
+    assert "yf-mol-test" not in (wt / "docs" / "plans" / PLAN_ID / "plan.md").read_text(
+        encoding="utf-8"), "the fixture must reproduce the asymmetry, not paper over it"
+
+    gate = {"id": "yf-mol-test.8", "title": "Gate: g", "status": "closed",
+            "issue_type": "gate",
+            "metadata": {"gate_type": "human",
+                         "route_record": {"has_tty": False,
+                                          "agent_markers": ["CLAUDECODE"]}}}
+    # The epic, stamped with metadata.plan_dir at pour time — the cwd-INDEPENDENT linkage.
+    epic_bead = {"id": "yf-mol-test", "title": "plan-execute", "status": "open",
+                 "issue_type": "epic",
+                 "metadata": {"plan_dir": f"docs/plans/{PLAN_ID}"}}
+
+    class _P:
+        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
+
+    real_run = subprocess.run
+
+    def fake_run(args, *a, **kw):
+        if isinstance(args, list) and args and args[0] == "bd":
+            if "--type" in args and "gate" in args:
+                return _P(json.dumps([gate] if "--all" in args else []))
+            return _P(json.dumps([epic_bead, gate]))
+        return real_run(args, *a, **kw)
+
+    monkeypatch.setattr(pm.subprocess, "run", fake_run)
+    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
+
+    rel = Path("docs/plans") / PLAN_ID
+    cwd0 = os.getcwd()
+    try:
+        os.chdir(repo)
+        from_primary = pm._land_route_record_findings(rel)
+        os.chdir(wt)
+        from_worktree = pm._land_route_record_findings(rel)
+    finally:
+        os.chdir(cwd0)
+
+    def shape(fs):
+        return sorted((f["status"], f.get("class", "finding"), f["item"]) for f in fs)
+
+    assert shape(from_primary) == shape(from_worktree), (
+        "THE CHECK HAS TWO TRUTHS depending on where the caller stands:\n"
+        f"  primary : {shape(from_primary)}\n"
+        f"  worktree: {shape(from_worktree)}\n"
+        "A control that answers differently by address space is not a control.")
+    assert from_primary, "both agreed — on NOTHING. Agreement on silence is not agreement."
+    assert any(f["status"] == "fail" for f in from_primary)
+
+
+def test_route_record_check_no_op_is_LOUD(repo, monkeypatch):
+    """The check must never return an empty list meaning "did not run".
+
+    `if not epic: return out` was silent, and every caller read the empty list as "checked and
+    clean". A control whose failure mode is indistinguishable from a clean result is the
+    defect this plan exists to remove. The no-op is now an INCONCLUSIVE-class finding —
+    `warn`, never `fail`, per REQ-DATA-057: an instrument that could not run must not
+    manufacture a verdict on the artifact.
+    """
+    class _P:
+        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
+
+    real_run = subprocess.run
+    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
+    monkeypatch.setattr(pm.subprocess, "run",
+                        lambda args, *a, **kw: _P("[]")
+                        if isinstance(args, list) and args and args[0] == "bd"
+                        else real_run(args, *a, **kw))
+
+    out = pm._land_route_record_findings(Path("docs/plans") / PLAN_ID)
+    assert out, "an unresolvable epic must NOT return an empty list — that reads as `clean`"
+    assert out[0]["class"] == "inconclusive"
+    assert out[0]["status"] == "warn", "INCONCLUSIVE maps to warn, never fail (REQ-DATA-057)"
+    assert "DID NOT RUN" in out[0]["detail"]
+
+    # And when `bd` is absent entirely — also loud, for the same reason.
+    monkeypatch.setattr(pm.shutil, "which", lambda n: None)
+    out2 = pm._land_route_record_findings(Path("docs/plans") / PLAN_ID)
+    assert out2 and out2[0]["class"] == "inconclusive"
+    assert "not on PATH" in out2[0]["detail"]
+
+
 def test_no_target_taking_rewind_in_landing_path():
     """REQ-LAND-017a. No landing step issues a history-rewind that takes a TARGET REVISION.
 

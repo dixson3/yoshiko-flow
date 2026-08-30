@@ -6490,6 +6490,69 @@ def judgement_never_fired_report(plan_dir: str, as_json: bool):
     raise SystemExit(0)
 
 
+def _land_epic_from_bd(plan_dir: Path) -> str | None:
+    """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
+
+    Mirrors `_resume_scan`'s `epic_source=bd_metadata` route: the pour stamps the epic with
+    `metadata.plan_dir` (SKILL.md §5.2a step (a)) exactly so the linkage is findable when
+    plan.md carries no `**Epic:**` field. Reused here so the route-record check answers the
+    same in both address spaces.
+    """
+    want = plan_dir.as_posix().rstrip("/")
+    want_leaf = plan_dir.name
+    proc = subprocess.run(["bd", "list", "--all", "--limit", "5000", "--json"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(data, dict):
+        data = data.get("issues") or []
+    for b in data if isinstance(data, list) else []:
+        meta = b.get("metadata") or {}
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except json.JSONDecodeError:
+                continue
+        pd = str(meta.get("plan_dir") or "").rstrip("/")
+        # Match on the full repo-relative path OR its leaf: the two address spaces agree on
+        # the leaf even where a caller passes an absolute or differently-rooted plan_dir.
+        if pd and (pd == want or Path(pd).name == want_leaf):
+            return str(b.get("id", "")).split(".")[0] or None
+    return None
+
+
+def _land_assert_primary_checkout() -> dict:
+    """REQ-LAND-010 ENFORCED, not assumed: `--apply` runs from the PRIMARY checkout.
+
+    Every `_land_*` helper reads `plan_dir` RELATIVE TO CWD, and the plan folder is
+    primary-side — so run from a linked worktree they read a STALE bundle. That is not a
+    hypothetical: measured on this plan, `plan.md`, `log.md`, `index.md` and
+    `plan-retrospective.md` all differ between the two address spaces mid-execution.
+
+    For `land --apply` the cwd is PINNED by contract, so cwd-relative reads are correct there
+    — but a contract nothing checks is the same silent divergence one layer up. This makes it
+    an exit code. L2 would fail anyway (a linked worktree cannot check out a branch another
+    worktree holds), but it would fail AFTER L0 took the lock and L1 mutated the branch;
+    refusing up front costs nothing and leaves nothing to unwind.
+    """
+    cwd = Path.cwd().resolve()
+    primary = _land_primary_checkout().resolve()
+    if cwd == primary:
+        return {"ok": True, "cwd": str(cwd), "primary": str(primary)}
+    return {
+        "ok": False, "cwd": str(cwd), "primary": str(primary),
+        "reason": (f"`land --apply` must run from the PRIMARY checkout ({primary}), not from "
+                   f"{cwd}. Every plan-folder read is cwd-relative and the plan folder is "
+                   f"primary-side, so from here the landing would read a STALE bundle — and "
+                   f"L2 cannot check out the merge target from a linked worktree anyway."),
+        "remediation": f"cd {primary} && re-run the `apply_command` from `land --dry-run`.",
+    }
+
+
 def _land_route_record_findings(plan_dir: Path) -> list[dict]:
     """`Type: human` gates whose ROUTE RECORD says an agent resolved them (REQ-LAND-015).
 
@@ -6503,28 +6566,59 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
     human-resolved, and nothing here should be read as doing so. DETECTION, NOT PREVENTION.
     """
     out: list[dict] = []
+
+    def _inconclusive(reason: str) -> list[dict]:
+        """A LOUD NO-OP. The check DID NOT RUN, and that is a different fact from `clean`.
+
+        Silence here was the third vacuity path in this control: `if not epic: return out`
+        returned an empty list, which every caller read as "checked and found nothing". A
+        control whose failure mode is indistinguishable from a clean result is the defect this
+        plan exists to remove (#263, #181).
+
+        `warn`, never `fail` — REQ-DATA-057's precedent: an INCONCLUSIVE is a statement about
+        the INSTRUMENT, not a verdict on the artifact, so it must not manufacture a failure.
+        """
+        return [{"item": "route-record check", "status": "warn", "class": "inconclusive",
+                 "detail": (f"ROUTE-RECORD CHECK DID NOT RUN: {reason}. This is NOT a clean "
+                            f"result — the REQ-LAND-015 detection control for #293 was not "
+                            f"evaluated. Distinguish it from a pass.")}]
+
+    # RESOLVE THE EPIC ID FROM A CWD-INDEPENDENT SOURCE FIRST.
+    #
+    # WHY: `plan_dir/plan.md` is read RELATIVE TO CWD, and the plan folder is PRIMARY-SIDE by
+    # the address-space model — so the worktree's copy predates every field the execution
+    # wrote. Measured on this very plan at 09c74f6: identical command, identical plan_dir,
+    # `fail` from the primary and `pass` from the worktree, because the `**Epic:**` field is
+    # present in one plan.md and absent in the other. TWO TRUTHS, and the wrong one was the
+    # silent pass.
+    #
+    # `bd` IS THE CWD-INDEPENDENT SOURCE and is the right one on the merits, not merely the
+    # convenient one: INV-2 makes the shared Dolt DB reachable identically from either address
+    # space, and the epic is STAMPED with `metadata.plan_dir` at pour time precisely so the
+    # linkage survives a plan.md that lacks the field — that is `_resume_scan`'s documented
+    # `epic_source=bd_metadata` fallback, reused here rather than reinvented.
+    #
+    # DELIBERATELY NOT CHOSEN: reading the PRIMARY's plan.md from a worktree invocation. It
+    # would work, and it is what this session reached for once already and was right to be
+    # corrected on — a check that silently reaches across the address-space boundary to find a
+    # more convenient answer is how the boundary stops meaning anything. `bd` is shared BY
+    # DESIGN; the other checkout is not.
+    if not shutil.which("bd"):
+        return _inconclusive("`bd` is not on PATH, so neither the epic id nor the gate list "
+                             "could be resolved")
+
+    epic = None
     plan_md = plan_dir / "plan.md"
-    if not plan_md.is_file():
-        return out
-    # `_read_plan_epic_field` takes plan.md TEXT, not a Path. Handing it the directory raised
-    # IsADirectoryError — caught by test_audit_close.py, which is the second time in this
-    # epic that an existing helper's signature was assumed rather than read.
-    epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
-    if not epic or not shutil.which("bd"):
-        return out
-    # `--all` IS LOAD-BEARING AND ITS ABSENCE MADE THIS CHECK VACUOUS. `bd list` EXCLUDES
-    # CLOSED ISSUES BY DEFAULT, and a route record is stamped AT CLOSE — so without it the
-    # two reachable states were:
-    #
-    #     gate OPEN   -> no route_record yet -> nothing to flag
-    #     gate CLOSED -> record exists       -> INVISIBLE TO THE QUERY
-    #
-    # There is no third state, so the check could never fire for any gate, ever. Measured on
-    # the live tree: `select(.id=="yf-mol-gazh.8")` returned 0 results without `--all` and 1
-    # with it, against a gate whose metadata carried a correct agent route record.
-    #
-    # `--type gate` STAYS. plan-057 measured that `bd list --all` alone EXCLUDES gate-typed
-    # beads, so the two flags are both required and neither substitutes for the other.
+    if plan_md.is_file():
+        epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
+    if not epic:
+        epic = _land_epic_from_bd(plan_dir)
+    if not epic:
+        return _inconclusive(
+            f"could not resolve the epic id — it is absent from {plan_md} (which is read "
+            f"relative to cwd, and the plan folder is primary-side) and no bead carries "
+            f"`metadata.plan_dir == {plan_dir.as_posix()}`")
+
     proc = subprocess.run(
         ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
         capture_output=True, text=True)
@@ -8186,8 +8280,21 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
         click.echo(json.dumps(env, indent=2))
         sys.exit(_land_exit_code(env["verdict"]))
 
-    # --apply: the only writing mode. Epic 3/4 own the executor; the terminal gate is
-    # checked FIRST, before anything is read, so a refusal cannot be preceded by a write.
+    # --apply: the only writing mode.
+    #
+    # REQ-LAND-010 IS CHECKED FIRST, before the tty gate and before anything is read: running
+    # from the wrong checkout means every plan-folder read is against a stale bundle, and no
+    # later step can recover from having been given the wrong tree to begin with.
+    where = _land_assert_primary_checkout()
+    if not where["ok"]:
+        click.echo(json.dumps(_land_envelope(
+            "fail", where["reason"], remediation=where["remediation"],
+            halt_class=LAND_HALT_MECHANICAL, cwd=where["cwd"],
+            primary_checkout=where["primary"]), indent=2))
+        sys.exit(1)
+
+    # The terminal gate is checked next, before anything is written, so a refusal cannot be
+    # preceded by a write.
     gate = _land_tty_gate()
     if not gate["allowed"]:
         click.echo(json.dumps(_land_envelope(
