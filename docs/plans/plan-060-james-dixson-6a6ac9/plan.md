@@ -8,7 +8,7 @@ description: 'Plan-landing capability: a plan_manager.py land verb (--dry-run en
 id: plan-060-james-dixson-6a6ac9
 author: james-dixson
 created: '2026-08-29'
-status: executing
+status: complete
 deliverable_class: standard
 fingerprint: f0ee540e5bf2112706d56f6f60a2cb0cad3eac24faae620e67d03735f7e37bf8
 epic: yf-mol-gazh
@@ -18,7 +18,7 @@ epic: yf-mol-gazh
 **ID:** plan-060-james-dixson-6a6ac9
 **Author:** james-dixson
 **Created:** 2026-08-29
-**Status:** executing
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-gazh
 **Fingerprint:** f0ee540e5bf2112706d56f6f60a2cb0cad3eac24faae620e67d03735f7e37bf8

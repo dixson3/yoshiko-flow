@@ -1,5 +1,10 @@
 # Log
 
+## 2026-08-30
+- complete: close chain re-run after the RE-020 retrospective write; all steps green
+
+- complete: plan complete — landed by the OPERATOR at b01c99f (merge + FULL tier green on the merged tree + push + deploy); the close chain was run by this session
+
 ## 2026-08-29
 - executing: start gate resolved
 - intake: epic yf-mol-gazh poured

@@ -195,7 +195,7 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `answered` | NO. It could not fire, for any gate, ever. _land_route_record_findings queried 'bd list --type gate' without --all, and bd list excludes closed issues by default; a route record is stamped AT CLOSE, so gate-open means no record yet and gate-closed means invisible to the query. There is no third state. A CHECK THAT CANNOT FAIL, shipped as the detection control for #293, by the plan whose declared subject is checks that cannot fail. AND I ASSERTED IN G1'S PERMANENT CLOSE REASON THAT THE AUDIT WOULD FLAG THAT CLOSE, without running audit-close to confirm — reporting what I intended rather than what I verified, in the record of a consent gate. Fixed by adding --all (keeping --type gate; plan-057 measured --all alone excludes gate-typed beads). Pinned by a regression test whose fake bd returns the closed gate ONLY with --all, proven red-then-green. Audited every bd list in the skill scripts: one defect, no others — the three flagless sites are liveness/reachability probes or a passthrough whose four callers all scope correctly. G1's close reason corrected by an APPENDED bd comment recording that the claim was false when written and when it became true. |
 | `frontloadable` | yes |
 | `detected_by` | operator |
-| `evidence` | bd list --type gate | select(.id==yf-mol-gazh.8) -> 0 results; bd list --all --type gate -> 1 result, against metadata carrying has_tty false and three agent markers. After the fix, audit-close against the real gate reports exactly one route-record finding. Test proven RED against the unfixed query and GREEN against the fixed one by reverting the flag. |
+| `evidence` | bd list --type gate \| select(.id==yf-mol-gazh.8) -> 0 results; bd list --all --type gate -> 1 result, against metadata carrying has_tty false and three agent markers. After the fix, audit-close against the real gate reports exactly one route-record finding. Test proven RED against the unfixed query and GREEN against the fixed one by reverting the flag. |
 | `escape_class` |  |
 | `adjudication` |  |
 | `origin` |  |
@@ -336,3 +336,131 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-018
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-30 |
+| `stop_class` |  |
+| `asked` | Did plan-060's landing use the landing capability plan-060 built? |
+| `answered` | NO. THIS PLAN'S OWN LANDING WAS PERFORMED MANUALLY, ONE OPERATOR INSTRUCTION AT A TIME — commit, merge, FULL tier, push, deploy, close #301 — which is EXACTLY THE DRIP-FEED #301 WAS FILED ABOUT. The plan measured that landing plan-057 took eleven separate operator instructions, and then landed itself the same way. The verb it built could not be used: 'land --apply' refuses an agent caller at exit 3 (REQ-LAND-014), and until the deploy at the very end of that sequence the verb was not installed anywhere the session could reach. BOTH FACTS ARE BY DESIGN AND NEITHER IS A DEFECT — the refusal is the consent model working, and the not-yet-installed state is the three-artifacts rule. BUT THE CONSEQUENCE MUST NOT BE SOFTENED: THE FIX IS UNPROVEN. What is proven is that the code runs — 62/62 FULL-tier rows on the merged tree, 101 tests, 41/41 criteria, and a rehearsal that drove the executor to its terminal journal state against a fake origin. What is NOT proven is that the capability does the thing it was built for, because it has never landed a plan. THE FIRST REAL TEST OF 'land' IS THE NEXT PLAN'S LANDING, NOT THIS ONE. A retrospective implying otherwise would be the plan's own thesis violated in its closing artifact: an account that describes a capability standing in for evidence that it works. |
+| `frontloadable` | no |
+| `detected_by` | operator |
+| `evidence` | Landing performed by the operator: 0007b25 commit, b01c99f merge --no-ff, FULL tier 62/62 on the merged tree, push 4f4bd94..b01c99f, 'yf self install --from-build --build --force' exit 0, #301 closed. No step of that sequence invoked 'land'. Verified by me: yf --version reports b01c99f == HEAD; the land verb is present in main's plan_manager.py; land --apply still refuses this session at exit 3. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-019
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-30 |
+| `stop_class` |  |
+| `asked` | Did the #303 fix matter on a real landing, or only in a fixture? |
+| `answered` | IT MATTERED, MEASURED ON THIS PLAN'S ACTUAL MERGE COMMIT. Running the close chain against b01c99f: 'git diff --name-only HEAD^1..HEAD' returns 19 changed paths, and the documented 'git diff --name-only <target>...HEAD' returns 0. So classify-deliverable's path-backed evidence was structurally unreachable through the old expression on a real landing, exactly as #303 says and as the fixture predicted. The fixture was not a contrivance. NOTE ON THE RESULT: with 19 real paths available, classify-deliverable still suggested ci-release on evidence 'prose-only' with signals ['release','deploy'] — the SELF-REFERENCE class SKILL.md warns about, since plan-060's prose discusses deploys at length while its deliverable is a CLI verb. Read evidence, not confidence: the class was left 'standard' and the completion gate correctly reported N/A. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | At b01c99f: HEAD^1..HEAD -> 19 paths; main...HEAD -> 0 paths. classify-deliverable --changed <19 paths> -> suggested ci-release, evidence prose-only, confidence low, signals ['release','deploy']. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-020
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-30 |
+| `stop_class` |  |
+| `asked` | The individual vacuous checks are each recorded. Are they recorded as ONE CLASS? |
+| `answered` | NO — and that gap is itself an instance of the plan's own thesis. Seventeen entries recorded seven separate incidents well; none said they were one thing. 'catalog' and 'taxonom' appeared zero times in this file. This entry names the class: A CHECK WHOSE FAILURE MODE IS INDISTINGUISHABLE FROM A CLEAN RESULT. Seven shapes were found in one plan. The full table, with the load-bearing WHY-IT-RETURNED-GREEN column, is in the prose section below this entry. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | grep -ci catalog -> 0; grep -ci taxonom -> 0 against plan-retrospective.md. Coverage check across seven shapes: three present, four absent (invisible-domain, silent-early-return, halted-before-subject, semantic-inversion), the last filed only as bead yf-kgz5. |
+| `escape_class` | vacuous-check / green-on-broken |
+| `adjudication` | The class is REAL and is the plan's central finding. It is filed to #263 as meta-issue; instances that escaped into their own issues are #302 #305 #306 #307 #308. Semantic inversion (yf-kgz5) is categorically worse than the other six and is argued separately below. |
+| `origin` | Seven independent sites across Epics 0-6, plus one that PREDATED plan-060 entirely (the fixture-luck assertion in test_audit_close.py) and was merely exposed by it. |
+| `culpability` | DISTRIBUTED, and honestly. MINE: the invisible-domain bd query, the silent early return, the omniscient fake, the halted-before-subject test, and asserting a detection had fired without running audit-close. THE CONTROLLING SESSION'S: the union hypothesis that returns 0 across a nested-repo boundary, the reset target that would have deleted my own fix, the 'structurally unsatisfiable' misdiagnosis that sent me to move correct writes, and a truncated 14-row tier reported as though 13 of 14 had passed. NEITHER OF OURS: the fixture-luck assertion, which predates this plan. The distribution matters — a class attributed wholly to one actor gets read as that actor's carelessness rather than as a structural property of checks. |
+| `prevention` | TO TEST A CHECK, MAKE IT FACE AN INPUT WHOSE CORRECT ANSWER YOU ALREADY KNOW, AND CONFIRM IT CAN RETURN THE WRONG ONE. Not one of the seven was found by reading. Every one was found by RUNNING it against a known-answer case: a spike, an injected failure, a wrong-address-space run, a fixture holding two states at once. Seven red-team passes of prose review found NONE of them. |
+| `cost` | Three fixes shipped believed-complete while an instrument disagreed; one consent record asserted a detection that had not occurred; and one grant file authorised the exact act it was written to forbid. All were caught before harm, none by review. |
+
+
+### RE-020 — the class: a check whose failure mode is a clean result
+
+Seven shapes, one plan. The last column is the load-bearing one: **none of these errored.** Every
+one returned a pass, which is why none was noticed until something ran it against a known answer.
+
+| # | Shape | Site | Measured evidence | **Why it returned GREEN** |
+| --: | :-- | :-- | :-- | :-- |
+| 1 | **selector-discarded** | the house `pytest.main([__file__, "-q"])` shim | `uv run <file>.py -k this_matches_nothing` ran all 22 tests, **exit 0** | `sys.argv` is discarded, so the selector never reaches pytest. The file runs whole and *some* test passes — the criterion asserts "something was green", which stays true when the named test is **deleted**. |
+| 2 | **invisible-domain** | `_land_route_record_findings`: `bd list --type gate` | `select(.id=="yf-mol-gazh.8")` → **0** rows without `--all`, **1** with it | The query's domain **excluded the only state the subject can exist in**. A route record is stamped *at close*; `bd list` omits closed issues. Gate open → no record yet; gate closed → invisible. No third state, so the check could never fire for any gate, ever. |
+| 3 | **silent-early-return** | the same function's `if not epic: return out` | `fail` from the primary checkout, `pass` from the worktree — same command, same plan_dir | An **empty list is the same value as "checked and found nothing"**. The caller cannot distinguish *clean* from *never ran*. Two truths by address space, and the wrong one was the silent pass. |
+| 4 | **fixture-luck** | `test_findings_identical_to_plan_phase_audit` | with `status: reconciling` + one `state: raised` escalation, the original `==` **fails** — zero plan-060 code involved | The assertion forbade *any* close-time-only source, while one had existed since plan-059. It passed because that source returned `[]` **on this fixture**. The invariant never held; the fixture never asked. |
+| 5 | **halted-before-subject** | `test_a_skipped_step_is_surfaced_never_silent` | executor halted at `l14_pour_fidelity`; the skipped step was `l18_prune` | The test asserted a property of a step **the run never reached**. Its subject was absent, so the assertion was vacuously satisfiable — it would have passed against an executor that surfaces no skip at all. |
+| 6 | **omniscient-fake** | `ctx.run` wrapping `_run_git` | `L7` ran `git issue comment`, `L17` `git push --issues`, `L19` `git self install` — **38 green tests** | The injected double **returned 0 for any argv it did not recognise**. A fake that is total over its input domain cannot witness *which call was made* — only what the caller does with the answer. |
+| 7 | **semantic-inversion** | `_grant_coverage`: `ok = "clos" in window` | the grant's row `\| #301 \| close \| NO — deliberately withheld \|` → reported **covered**, gate exit 0 | A keyword match over prose. The refusal *mentions* the action it refuses, so the text forbidding the close **satisfied the check for the close**. |
+
+#### The invariant they share
+
+**Every one returned a `PASS`. None raised.** That is the class, and it is why they are one thing
+rather than seven accidents.
+
+A check whose failure mode is indistinguishable from a clean result is **not a weak check — it is
+ZERO check**, and its cost is *worse than absence*: an absent check is visible in a coverage audit,
+and a green vacuous one is not. Six of the seven sat in instruments this repository had already
+built *to prevent exactly this*, which is the part worth sitting with.
+
+#### Semantic inversion is categorically worse, and gets its own paragraph
+
+Shapes 1–6 **fail to detect**. Shape 7 **authorises the exact act it was written to forbid.**
+
+`_grant_coverage` judges a close by `"clos" in window`, where `window` is the lines naming the
+issue. plan-060's grant file recorded the operator's **withholding** of the `#301` close in a table
+row — and that row contains `#301` and `clos`, so the checker reported the withheld close as
+**covered** and the gate exited 0. **A consent artifact saying DO NOT CLOSE authorised the close.**
+
+The failure mode has moved from *"authorised less than it said"* — which is what the verb was built
+to catch, after plan-048's grant omitted `#172` — to *"authorised more than it said"*, which is the
+dangerous direction for consent. A keyword match cannot distinguish a **use** from a **mention**,
+or a **permission** from a **prohibition**. Filed as `yf-kgz5`; not fixed here, because changing the
+grant format touches every plan's reconcile gate.
+
+**The same use/mention defect appeared independently at Epic 5**, which is what makes it a class and
+not a one-off: a `SKILL.md` comment *explaining* the forbidden `<target>...HEAD` expression violated
+the criterion asserting that literal's **absence**, by spelling it. Documentation naming a forbidden
+thing and code using it are indistinguishable to a substring search. Nothing was authorised that
+time — but it is the same blindness, one severity down.
+
+#### The detection asymmetry — the actionable part
+
+**Not one of the seven was found by reading.** Seven red-team passes of prose review found **none**
+of them. Every one was found by **running the check against a case whose answer was already known**:
+
+| Shape | What exposed it |
+| :-- | :-- |
+| selector-discarded | running the selector against a name that matches nothing |
+| invisible-domain | querying the live gate both ways and diffing the row counts |
+| silent-early-return | running the same command from **both address spaces** |
+| fixture-luck | reconstructing the fixture with the pre-existing source made non-empty |
+| halted-before-subject | a guard that reports **which steps were actually reached** |
+| omniscient-fake | a **rehearsal against a real process** instead of a double |
+| semantic-inversion | reading the predicate's source after its verdict disagreed with the operator's intent |
+
+**The prescription: to test a check, make it face an input whose correct answer you already know,
+and confirm it can return the WRONG one.** A check only ever demonstrated returning `pass` has
+demonstrated nothing — proving it *can* fail is the only evidence that its green means anything.
+That discipline is why every fix in this plan ships with an injected-failure demonstration.
+
+#### Links
+
+`#263` is the meta-issue for the class. Instances that escaped into their own issues: `#302`,
+`#305`, `#306`, `#307`, `#308`. `yf-kgz5` carries semantic inversion.
