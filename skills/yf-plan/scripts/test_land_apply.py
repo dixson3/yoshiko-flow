@@ -780,15 +780,22 @@ class FakeRunner:
         self.script = script or {}
         self.calls: list[list[str]] = []
 
-    def __call__(self, args, cwd=None):
-        self.calls.append(list(args))
+    def __call__(self, prog, args, cwd=None):
+        # THE PROGRAM IS PART OF THE RECORDED CALL. An earlier version dropped it and
+        # returned 0 for any argv, which is precisely why `git issue comment`,
+        # `git push --issues` and `git self install` all passed their tests. A fake that
+        # answers everything cannot witness the wrong executable being invoked.
+        self.calls.append([prog, *args])
         for key, res in self.script.items():
-            if all(tok in args for tok in key.split("|")):
+            if all(tok in [prog, *args] for tok in key.split("|")):
                 return res
         return _R(0)
 
     def saw(self, *toks) -> bool:
         return any(all(t in c for t in toks) for c in self.calls)
+
+    def programs(self) -> set:
+        return {c[0] for c in self.calls}
 
 
 class _R:
@@ -1230,6 +1237,158 @@ def test_change_validation_rows_registered():
                      if ln.startswith("|") and f"`{path}`" in ln), None)
         assert line, f"no trigger-scope row names {path}"
         assert f"`{rid}`" in line, f"the trigger-scope row for {path} does not name {rid}"
+
+
+def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
+    """THE TEST THAT WOULD HAVE CAUGHT THE BUG THE REHEARSAL FOUND.
+
+    `ctx.run` used to wrap `_run_git`, so every step's argv was handed to **git**: L7 ran
+    `git issue comment`, L17 ran `git push --issues`, L19 ran `git self install`. All 38
+    Tier-1 tests passed, because the injected fake returned 0 for any argv it did not
+    recognise — a fake that answers everything cannot witness the wrong executable.
+
+    This asserts the PROGRAM, not the arguments. It is the cheap check that closes the gap
+    between "a mock answered" and "a process ran".
+    """
+    body = repo / "b.md"; body.write_text("x\n", encoding="utf-8")
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    monkeypatch.setattr(pm, "_land_changed_set", lambda root=None: ["skills/a.py"])
+
+    checks = [
+        (pm._land_l1_down_merge,   {},                                          {"git"}),
+        (pm._land_l2_merge,        {},                                          {"git"}),
+        (pm._land_l6_push_one,     {},                                          {"git"}),
+        (pm._land_l7_reconcile_writes,
+         {"upstream_writes": [{"issue": "301", "action": "comment",
+                               "body_path": str(body)}]},                       {"gh"}),
+        (pm._land_l16_commit_and_push_two, {},                                  {"git"}),
+        (pm._land_l18_prune,       {},                                          {"git"}),
+        (pm._land_l19_redeploy,    {},                                          {"yf"}),
+    ]
+    for fn, dec, want in checks:
+        r = FakeRunner({"issue|view": _R(0, json.dumps(
+            {"state": "OPEN", "comments": [{"body": "x"}]}))})
+        fn(_ctx(repo, r, decision=dec or None))
+        got = r.programs()
+        assert got == want, (
+            f"{fn.__name__} invoked {got or 'nothing'}, expected {want}. Running the wrong "
+            f"executable is invisible to a fake that answers any argv.")
+
+    # L17 shells out to `uv run <upstream.py>`, not to git and not to a prose skill.
+    g = repo / "docs" / "plans" / PLAN_ID / "assets" / "upstream-grant.md"
+    g.parent.mkdir(parents=True, exist_ok=True)
+    g.write_text("authorized: yf-aaa\n", encoding="utf-8")
+    r17 = FakeRunner()
+    pm._land_l17_residual_mirroring(_ctx(
+        repo, r17, decision={"residual_bead_groups": [{"beads": ["yf-aaa"]}]}))
+    assert r17.programs() == {"uv"}, (
+        f"L17 invoked {r17.programs()}; it must call `uv run upstream.py push` CONCRETELY")
+    assert r17.saw("run", "push", "--issues", "--apply")
+
+
+# =========================================================================================
+# EPIC 6 — the rehearsal (Issue 6.1), read from its COMMISSIONED artifact
+# =========================================================================================
+
+def _rehearsal_record():
+    """The record the rehearsal WROTE. Read, never invented.
+
+    Resolved from either checkout for the address-space reason recorded on
+    `test_cited_figures_match_repository`: the artifact is a plan-folder file and the tests
+    are code, so before the landing merges them they live in different checkouts.
+    """
+    root = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                               capture_output=True, text=True).stdout.strip())
+    rel = Path("docs/plans/plan-060-james-dixson-6a6ac9/assets/rehearsal-record.json")
+    cands = [root / rel]
+    common = subprocess.run(["git", "rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], capture_output=True, text=True).stdout.strip()
+    if common and Path(common).name == ".git":
+        cands.append(Path(common).parent / rel)
+    for c in cands:
+        if c.is_file():
+            return json.loads(c.read_text(encoding="utf-8"))
+    return None
+
+
+def test_rehearsal_origin_is_not_this_repo():
+    """SC36 / Issue 6.1. The rehearsal ran against a SANDBOX CLONE with a FAKE ORIGIN.
+
+    A verb whose first real execution is the landing of the plan that built it has no rollback
+    if it is wrong. This asserts the origin was a throwaway local bare repo — and, crucially,
+    that it was NOT this repository or any remote of it.
+    """
+    rec = _rehearsal_record()
+    assert rec is not None, "no rehearsal record — the rehearsal was never run"
+    assert rec["schema"] == "yf-plan/landing-rehearsal@1"
+    assert rec["origin_is_local_sandbox"] is True
+    origin = rec["origin_url"]
+    assert origin.endswith("fake-origin.git"), origin
+    assert "yoshiko-flow" not in origin, "the rehearsal targeted the LIVE repository"
+    assert "github.com" not in origin and "://" not in origin, (
+        "the rehearsal origin must be a local path, not a network remote")
+    assert rec["plan_id"] != "plan-060-james-dixson-6a6ac9", (
+        "the rehearsal must not be this plan's OWN landing")
+
+
+def test_rehearsal_reached_terminal_state():
+    """SC36b / Issue 6.1. The rehearsal drove the landing to a GREEN TERMINAL journal state,
+    executing every enabled step.
+
+    A REHEARSAL THAT HALTED AT L2 MUST NOT SATISFY R1's MITIGATION. That is the whole point of
+    this criterion, and it is why the record carries the terminal state by name rather than a
+    bare success flag.
+    """
+    rec = _rehearsal_record()
+    assert rec is not None, "no rehearsal record — the rehearsal was never run"
+    assert rec["halted"] is False, f"the rehearsal HALTED at {rec.get('halted_at')}"
+    assert rec["terminal_journal_state"] == "L_DONE"
+    assert rec["reached_terminal_state"] is True
+    assert all(v == "pass" for v in rec["verdicts"].values()), (
+        f"non-passing steps: {[k for k, v in rec['verdicts'].items() if v != 'pass']}")
+
+    # EVERY ENABLED STEP RAN. The stubbed and skipped sets are declared in the record, so a
+    # rehearsal that quietly executed less than it claims is visible rather than plausible.
+    executed = set(rec["steps_executed"])
+    for key in ("l1_down_merge", "l2_merge", "l6_push_one", "l16_commit_and_push_two",
+                "l18_prune"):
+        assert key in executed, f"{key} never ran — the rehearsal did not exercise the landing"
+    assert "l19_redeploy" in executed, "the skipped step must still be REPORTED, not omitted"
+
+    # The push actually reached the fake origin — the rehearsal moved real refs.
+    assert any("landed" in p for p in rec["pushed_paths_on_fake_origin"]), (
+        "nothing reached the fake origin; the pushes were not real")
+
+
+def test_runbook_covers_every_journal_state():
+    """SC38 / Issue 6.3. The runbook names EVERY enumerated journal state.
+
+    Derived from `LAND_JOURNAL_STATES`, never from a hand-written list — a hand-written list
+    is a second enumeration that can drift from the first, which is the exact defect
+    `okf_hygiene`'s five-state model suffered and that `spec/landing.md` exists to prevent.
+    """
+    root = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                               capture_output=True, text=True).stdout.strip())
+    rel = Path("docs/plans/plan-060-james-dixson-6a6ac9/assets/landing-runbook.md")
+    cands = [root / rel]
+    common = subprocess.run(["git", "rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], capture_output=True, text=True).stdout.strip()
+    if common and Path(common).name == ".git":
+        cands.append(Path(common).parent / rel)
+    rb = next((c for c in cands if c.is_file()), None)
+    assert rb is not None, "no landing runbook"
+    text = rb.read_text(encoding="utf-8")
+
+    missing = [st for st in pm.LAND_JOURNAL_STATES if st not in text]
+    assert not missing, f"the runbook does not name journal state(s): {missing}"
+
+    # And each CONFLICT state must carry its recovery, since those are the four that differ.
+    for st in pm.LAND_CONFLICT_STATES:
+        i = text.index(st)
+        row = text[i:text.index("\n", i)]
+        assert row.count("|") >= 2, f"{st} has no recovery column in the runbook"
+    assert "NEVER REVERT" in text, "the L16 recovery's defining constraint is missing"
+    assert "exit 3" in text and "detection" in text.lower()
 
 
 if __name__ == "__main__":

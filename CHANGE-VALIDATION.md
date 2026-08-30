@@ -241,6 +241,7 @@ approved: yes
 | `skills/yf-plan/scripts/test_land_manifest.py` | `uv-yf-land-manifest` |
 | `skills/yf-plan/scripts/test_lander_agent_contract.py` | `uv-yf-lander-contract` |
 | `skills/yf-plan/scripts/test_land_apply.py` | `uv-yf-land-apply` |
+| `skills/yf-plan/scripts/land_rehearsal.py` | `uv-yf-land-apply` |
 | `skills/yf-plan/spec/landing.md` | `uv-yf-land-apply` |
 | `skills/yf-plan/agents/lander.md` | `uv-yf-lander-contract` |
 | `_shared/test_okf.py` | `uv-okf` |

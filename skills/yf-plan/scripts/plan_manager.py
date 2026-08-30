@@ -8751,8 +8751,27 @@ class LandingContext:
         #: INJECTABLE so Tier-1 tests drive every step without a network or a real remote.
         #: NOT a second implementation — the SAME step functions run either way (REQ-LAND-001's
         #: "one code path"), only the process spawner differs.
-        self.run = runner or (lambda args, cwd=None: _run_git(args, cwd=cwd or self.root))
+        #:
+        #: THE PROGRAM IS AN EXPLICIT ARGUMENT, and that is a correction rather than a style
+        #: choice. An earlier version wrapped `_run_git` and every step called `ctx.run([...])`
+        #: — so L7 ran `git issue comment`, L17 ran `git push --issues` and L19 ran
+        #: `git self install`. Every Tier-1 test passed, because the injected fake returned 0
+        #: for any argv it did not recognise. THE EPIC-6 REHEARSAL CAUGHT IT, which is exactly
+        #: the gap between a mock that answers and a process that runs.
+        self._runner = runner
+        self.run = self._dispatch
         self.results: list[dict] = []
+
+
+    def _dispatch(self, prog: str, args: list[str], cwd: Path | None = None):
+        """Run `<prog> <args>`. `prog` is EXPLICIT so a step cannot silently run the wrong
+        executable — see the note on `self.run`."""
+        if self._runner is not None:
+            return self._runner(prog, args, cwd=cwd or self.root)
+        if prog == "git":
+            return _run_git(args, cwd=cwd or self.root)
+        return subprocess.run([prog, *args], cwd=str(cwd or self.root),
+                              capture_output=True, text=True)
 
     def step_enabled(self, key: str) -> tuple[bool, str | None]:
         """Is this step enabled by the decision? Returns (enabled, skip_reason).
@@ -8804,8 +8823,8 @@ def _land_l1_down_merge(ctx: LandingContext) -> dict:
     recovery is capture-then-abort and there is no outward trace.
     """
     wt = ctx.worktree if ctx.worktree.is_dir() else ctx.root
-    ctx.run(["fetch", "--all", "--prune"], cwd=wt)
-    r = ctx.run(["merge", "--no-ff", "-m",
+    ctx.run("git", ["fetch", "--all", "--prune"], cwd=wt)
+    r = ctx.run("git", ["merge", "--no-ff", "-m",
                  f"plan-{ctx.plan_id}: down-merge {ctx.target} before landing", ctx.target],
                 cwd=wt)
     if r.returncode != 0:
@@ -8832,13 +8851,13 @@ def _land_l2_merge(ctx: LandingContext) -> dict:
     RUNS IN THE PRIMARY CHECKOUT — a linked worktree cannot check out a branch another
     worktree holds (REQ-LAND-010).
     """
-    co = ctx.run(["checkout", ctx.target], cwd=ctx.root)
+    co = ctx.run("git", ["checkout", ctx.target], cwd=ctx.root)
     if co.returncode != 0:
         return _step("l2_merge", "fail",
                      f"could not check out {ctx.target}: {(co.stderr or '').strip()}",
                      halting=True)
-    ctx.run(["pull", "--rebase"], cwd=ctx.root)
-    r = ctx.run(["merge", "--no-ff", "--no-commit", ctx.execute_branch], cwd=ctx.root)
+    ctx.run("git", ["pull", "--rebase"], cwd=ctx.root)
+    r = ctx.run("git", ["merge", "--no-ff", "--no-commit", ctx.execute_branch], cwd=ctx.root)
     if r.returncode != 0:
         cap = _land_capture_conflict("L_CONFLICT_MERGE", ctx.root)
         restore = _land_abort_merge(ctx.root)
@@ -8899,13 +8918,13 @@ def _land_l4_commit_merge(ctx: LandingContext) -> dict:
     merge result's tree may no longer equal the down-merged branch tree. Asserting it is what
     catches that; without it L11 would measure a tree nobody validated.
     """
-    r = ctx.run(["commit", "--no-edit"], cwd=ctx.root)
+    r = ctx.run("git", ["commit", "--no-edit"], cwd=ctx.root)
     if r.returncode != 0 and "nothing to commit" not in (r.stdout + r.stderr).lower():
         return _step("l4_commit_merge", "fail",
                      f"could not commit the merge: {(r.stderr or '').strip()}", halting=True)
 
-    merged_tree = ctx.run(["rev-parse", "HEAD^{tree}"], cwd=ctx.root).stdout.strip()
-    branch_tree = ctx.run(["rev-parse", f"{ctx.execute_branch}^{{tree}}"],
+    merged_tree = ctx.run("git", ["rev-parse", "HEAD^{tree}"], cwd=ctx.root).stdout.strip()
+    branch_tree = ctx.run("git", ["rev-parse", f"{ctx.execute_branch}^{{tree}}"],
                           cwd=ctx.root).stdout.strip()
     tree_match = bool(merged_tree) and merged_tree == branch_tree
 
@@ -8963,7 +8982,7 @@ def _land_l6_push_one(ctx: LandingContext) -> dict:
     A REJECTION IS `L_REJECTED_PUSH_1` — still pre-outward-write, so the recovery is
     `pull --rebase`, RE-VALIDATE, retry. Never push an unvalidated rebase.
     """
-    r = ctx.run(["push", "origin", ctx.target], cwd=ctx.root)
+    r = ctx.run("git", ["push", "origin", ctx.target], cwd=ctx.root)
     if r.returncode != 0:
         return _step("l6_push_one", "fail",
                      "push #1 was REJECTED — the remote advanced. Recovery: `pull --rebase`, "
@@ -9021,12 +9040,12 @@ def _land_l7_reconcile_writes(ctx: LandingContext) -> dict:
             if not body_path or not Path(body_path).is_file():
                 failed.append({"issue": issue, "reason": f"body_path {body_path} missing"})
                 continue
-            r = ctx.run(["issue", "comment", issue, "--body-file", body_path], cwd=ctx.root)
+            r = ctx.run("gh", ["issue", "comment", issue, "--body-file", body_path], cwd=ctx.root)
         else:
-            r = ctx.run(["issue", "close", issue], cwd=ctx.root)
+            r = ctx.run("gh", ["issue", "close", issue], cwd=ctx.root)
 
         # STRUCTURAL VERIFICATION BY READ-BACK — never `$?`, never the returned URL.
-        back = ctx.run(["issue", "view", issue, "--json",
+        back = ctx.run("gh", ["issue", "view", issue, "--json",
                         "state,comments"], cwd=ctx.root)
         ok = False
         detail = ""
@@ -9229,15 +9248,15 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
     THE POST-CONDITION IS ASSERTED ON THE WAY OUT, not merely a precondition on the way in
     (REQ-LAND-020): `git status --porcelain` clean AND zero unpushed commits.
     """
-    add = ctx.run(["add", "--", ctx.plan_dir.as_posix()], cwd=ctx.root)
+    add = ctx.run("git", ["add", "--", ctx.plan_dir.as_posix()], cwd=ctx.root)
     if add.returncode != 0:
         return _step("l16_commit_and_push_two", "fail",
                      f"could not stage the plan folder: {(add.stderr or '').strip()[:200]}",
                      halting=True)
 
-    staged = ctx.run(["diff", "--cached", "--quiet"], cwd=ctx.root)
+    staged = ctx.run("git", ["diff", "--cached", "--quiet"], cwd=ctx.root)
     if staged.returncode != 0:                      # non-zero == there IS something staged
-        c = ctx.run(["commit", "-m",
+        c = ctx.run("git", ["commit", "-m",
                      f"{ctx.plan_id}: plan-folder writes from the landing close chain"],
                     cwd=ctx.root)
         if c.returncode != 0:
@@ -9245,7 +9264,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
                          f"could not commit the plan-folder writes: "
                          f"{(c.stderr or '').strip()[:200]}", halting=True)
 
-    p = ctx.run(["push", "origin", ctx.target], cwd=ctx.root)
+    p = ctx.run("git", ["push", "origin", ctx.target], cwd=ctx.root)
     if p.returncode != 0:
         return _step("l16_commit_and_push_two", "fail",
                      "push #2 was REJECTED. THIS IS POST-OUTWARD-WRITE: the reconcile "
@@ -9258,8 +9277,22 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
                      stderr=(p.stderr or "").strip()[:400])
 
     # POST-CONDITION, asserted on the way OUT.
-    porcelain = ctx.run(["status", "--porcelain"], cwd=ctx.root).stdout.strip()
-    unpushed = ctx.run(["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
+    #
+    # THE LANDING JOURNAL IS EXCLUDED, and it must be. REQ-LAND-008 stages it INSIDE the repo
+    # tree (a `mktemp -d` would turn `os.rename` into a copy and void every durability claim),
+    # and L16 runs at `L_PUSHED_2` — three steps before the landing ends — so the journal is
+    # necessarily still present and necessarily still describing an in-flight landing.
+    #
+    # FOUND BY THE EPIC-6 REHEARSAL, not by review: in a sandbox without the `/.yf/` gitignore
+    # anchor that `yf preflight` ensures, the journal appeared as an untracked file and L16
+    # failed its own post-condition. The live repo has that anchor, so the defect was invisible
+    # here and would have surfaced first in whichever repo lacked it.
+    raw = ctx.run("git", ["status", "--porcelain"], cwd=ctx.root).stdout
+    porcelain = "\n".join(
+        ln for ln in raw.splitlines()
+        if ln.strip() and LAND_JOURNAL_DIR not in ln
+    ).strip()
+    unpushed = ctx.run("git", ["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
                        cwd=ctx.root).stdout.strip() or "0"
     if porcelain or unpushed not in ("0", ""):
         return _step("l16_commit_and_push_two", "fail",
@@ -9310,7 +9343,8 @@ def _land_l17_residual_mirroring(ctx: LandingContext) -> dict:
                      proposed=[proposal] if proposal else [], applied=[],
                      uncovered=grant.get("uncovered", []))
 
-    r = ctx.run(["push", "--issues", ",".join(beads), "--apply"], cwd=ctx.root)
+    r = ctx.run("uv", ["run", str(engine), "push", "--issues", ",".join(beads),
+                        "--apply"], cwd=ctx.root)
     verified = []
     for b in beads:
         back = subprocess.run(["bd", "show", b, "--json"], capture_output=True, text=True)
@@ -9377,7 +9411,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     wt = _worktree_teardown(ctx.plan_dir)
     actions.append({"action": "worktree-teardown", "result": wt.get("action") or wt})
 
-    d = ctx.run(["branch", "-d", ctx.execute_branch], cwd=ctx.root)
+    d = ctx.run("git", ["branch", "-d", ctx.execute_branch], cwd=ctx.root)
     actions.append({"action": "delete-execute-branch", "branch": ctx.execute_branch,
                     "ok": d.returncode == 0,
                     "detail": (d.stderr or d.stdout).strip()[:200] or None})
@@ -9441,7 +9475,7 @@ def _land_l19_redeploy(ctx: LandingContext) -> dict:
                      journal="L_DONE", touched_skills=touches, redeployed=False,
                      skipped=True)
 
-    r = ctx.run(["self", "install", "--from-build", "--build"], cwd=ctx.root)
+    r = ctx.run("yf", ["self", "install", "--from-build", "--build"], cwd=ctx.root)
     if r.returncode != 0:
         return _step("l19_redeploy", "fail",
                      f"redeploy failed (exit {r.returncode}). ROLLBACK IS ASYMMETRIC: "
@@ -9476,6 +9510,31 @@ LAND_EXECUTOR: tuple[tuple[str, str], ...] = (
 )
 
 
+#: The journal state each L-step reaches on success. DECLARED rather than inferred, because a
+#: SKIPPED step must still advance the journal: the landing DID get past that point, and a
+#: journal that stalls at the last non-skipped step can never reach `L_DONE` — so a landing
+#: that legitimately skips its final step could never be recorded as complete, and `recover()`
+#: would resume at a step already passed.
+#:
+#: FOUND BY THE EPIC-6 REHEARSAL: skipping L19 (no `yf` in the sandbox) left the terminal state
+#: at `L_PRUNED` with every step green, which SC36b correctly refused to accept as a completed
+#: rehearsal.
+LAND_STEP_JOURNAL: dict[str, str] = {
+    "l0_lock_acquire": "L_LOCKED",
+    "l1_down_merge": "L_DOWNMERGED",
+    "l2_merge": "L_MERGED_UNCOMMITTED",
+    "l4_commit_merge": "L_VALIDATED",
+    "l5_advisory_recheck": "L_PREPUSH_CHECKED",
+    "l6_push_one": "L_PUSHED_1",
+    "l7_reconcile_writes": "L_RECONCILED",
+    "l13_complete_gate": "L_CLOSED",
+    "l16_commit_and_push_two": "L_PUSHED_2",
+    "l17_residual_mirroring": "L_MIRRORED",
+    "l18_prune": "L_PRUNED",
+    "l19_redeploy": "L_DONE",
+}
+
+
 def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
     """Drive L0-L19, advancing the journal between steps and halting on the first halting
     failure.
@@ -9502,10 +9561,18 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
     for key, fname in LAND_EXECUTOR:
         enabled, skip_reason = ctx.step_enabled(key)
         if not enabled:
-            results.append(_step(key, "pass",
-                                 f"SKIPPED by the decision: {skip_reason}. Surfaced here so "
-                                 f"'the landing did less than you think' is never silent.",
-                                 halting=False, skipped=True))
+            # A SKIPPED STEP STILL ADVANCES THE JOURNAL. The landing reached this point and
+            # passed it; a journal that stalls at the last non-skipped step can never record
+            # `L_DONE`, and `recover()` would resume at a step already passed.
+            j = LAND_STEP_JOURNAL.get(key)
+            skipped = _step(key, "pass",
+                            f"SKIPPED by the decision: {skip_reason}. Surfaced here so "
+                            f"'the landing did less than you think' is never silent.",
+                            journal=j, halting=False, skipped=True)
+            results.append(skipped)
+            ctx.results.append(skipped)
+            if j:
+                ctx.journal.write(j, step=key, skipped=True)
             continue
 
         out = globals()[fname](ctx)
@@ -9526,6 +9593,13 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
 
     final = ctx.journal.read() or {}
     terminal = final.get("phase") == LAND_TERMINAL_STATE
+    if terminal:
+        # THE JOURNAL DESCRIBES AN IN-FLIGHT LANDING. Leaving it behind means the next
+        # `--apply` for this plan reads a terminal phase and reports "already done" — and
+        # leaves a permanent untracked file in the tree. `okf_hygiene` unlinks its journal on
+        # the same reasoning. The phase is captured ABOVE the clear, so the return value still
+        # reports it.
+        ctx.journal.clear()
     return {"halted": False, "results": results, "journal_phase": final.get("phase"),
             "terminal": terminal,
             # SC36b: a rehearsal that halted at L2 must NOT satisfy R1's mitigation, so the
