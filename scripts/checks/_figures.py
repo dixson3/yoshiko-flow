@@ -65,16 +65,36 @@ def inconclusive(msg: str) -> "int":
     return 2
 
 
+#: The pre-plan-060 baseline commit. plan-060's Gate-G1 claim — "all 20 EXISTING call sites
+#: of `_run_git` are read-only or worktree/branch operations" — is a statement about the
+#: repository AS IT STOOD WHEN THE GATE WAS WRITTEN, so the figure must be pinned to that
+#: tree. Measured live: unpinned, the same count reads 29 on the execute branch, because
+#: plan-060's own Epic 1 added nine more (all reads: merge-tree, rev-parse, ls-tree, diff,
+#: rev-list, ls-files). Reporting 29 against a quoted 20 is a TRUE drift of a FALSE figure —
+#: the claim never was "the repository has exactly 20 forever".
+RUN_GIT_BASELINE_REV = "777c5be5298564c0c027a7570b70b3e668ffe0b7"
+
+
 def f_run_git_call_sites() -> int | str:
-    """Call sites of the `_run_git` helper — the figure behind 'all 20 are read-only'.
+    """Call sites of `_run_git` AT THE PINNED PRE-PLAN BASELINE.
 
     The DEFINITION is excluded: `def _run_git(` is not a call site, and counting it would
     inflate the figure by exactly one — the drift red-team pass 1 found.
+
+    PINNED, NOT LIVE, and the pin is the whole correction. A live count of a helper that any
+    later plan may legitimately call more of is a figure that goes stale on every commit and
+    therefore teaches its reader to ignore it. The claim this figure underwrites is
+    historical, so the measurement is historical too.
     """
-    if not PLAN_MANAGER.is_file():
-        return inconclusive(f"no plan_manager.py at {PLAN_MANAGER}")
-    text = PLAN_MANAGER.read_text(encoding="utf-8")
-    return len(re.findall(r"(?<!def )\b_run_git\(", text))
+    proc = subprocess.run(
+        ["git", "show", f"{RUN_GIT_BASELINE_REV}:skills/yf-plan/scripts/plan_manager.py"],
+        capture_output=True, text=True, cwd=ROOT)
+    if proc.returncode != 0 or not proc.stdout:
+        return inconclusive(
+            f"the baseline commit {RUN_GIT_BASELINE_REV[:10]} is not reachable in this "
+            f"clone — a shallow clone cannot measure a historical figure, and an "
+            f"unreachable baseline is INCONCLUSIVE, never a drift")
+    return len(re.findall(r"(?<!def )\b_run_git\(", proc.stdout))
 
 
 def f_close_chain_steps() -> int | str:
