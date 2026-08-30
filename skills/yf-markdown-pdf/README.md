@@ -134,15 +134,17 @@ None. This is a tool/reference skill with no phases or state transitions.
 ## File layout
 
 ```text
-markdown-pdf/
-  SKILL.md            entry point — trigger, invocation, pipeline defaults
-  README.md           this file
-  scripts/
-    md2pdf.py                  pandoc/xelatex wrapper (PEP 723, argparse)
-    landscape_wide_tables.lua  render-time filter: rotate wide tables to landscape
-    blocks.lua                 render-time filter: d2 fences -> PDF, csv -> table
-    glyph-fallback.tex         macOS -H header: remap ✅ color emoji -> monochrome ✔
-    test_md2pdf.py             pytest: fence render, no-leak, glyph degrade
+skills/yf-markdown-pdf/
+├── scripts/
+│   ├── blocks.lua                 # render-time filter: d2 fences -> PDF, csv -> table
+│   ├── caption_from_title.lua
+│   ├── glyph-fallback.tex         # macOS -H header: remap ✅ color emoji -> monochrome ✔
+│   ├── landscape_wide_tables.lua  # render-time filter: rotate wide tables to landscape
+│   ├── md2pdf.py                  # pandoc/xelatex wrapper (PEP 723, argparse)
+│   └── test_md2pdf.py             # pytest: fence render, no-leak, glyph degrade
+├── README.md                      # this file
+├── SKILL.md                       # entry point — trigger, invocation, pipeline defaults
+└── SPEC.md
 ```
 
 Requirements (`pandoc` + `xelatex`) and the platform-aware font defaults (macOS

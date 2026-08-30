@@ -129,15 +129,15 @@ None. This is a tool/reference skill with no phases or state transitions.
 ## File layout
 
 ```text
-markdown-html/
-  SKILL.md            entry point — trigger, invocation, pipeline defaults
-  SPEC.md             per-skill requirements (REQ-MDHTML-*) + guardrails
-  README.md           this file
-  scripts/
-    md2html.py        pandoc wrapper (PEP 723, argparse)
-    criticmarkup.lua  opt-in Inlines filter: CriticMarkup -> styled HTML
-    default.css       broad-coverage default stylesheet (incl. cm-* classes)
-    test_md2html.py   pytest: render, embed, math, CriticMarkup, arg constraints
+skills/yf-markdown-html/
+├── scripts/
+│   ├── criticmarkup.lua  # opt-in Inlines filter: CriticMarkup -> styled HTML
+│   ├── default.css       # broad-coverage default stylesheet (incl. cm-* classes)
+│   ├── md2html.py        # pandoc wrapper (PEP 723, argparse)
+│   └── test_md2html.py   # pytest: render, embed, math, CriticMarkup, arg constraints
+├── README.md             # this file
+├── SKILL.md              # entry point — trigger, invocation, pipeline defaults
+└── SPEC.md               # per-skill requirements (REQ-MDHTML-*) + guardrails
 ```
 
 Requirements (`pandoc`) and the pipeline defaults (standalone, embed-resources,

@@ -77,8 +77,14 @@ incubators and biasing toward the most active (bookpipe, gloak, yoshiko-flow):
 
 ## Layout
 
-- `SKILL.md` — instruction-only entry point (frontmatter trigger, invocation,
-  schema as output contract, subcommand steps, constraints).
-- `README.md` — this file.
-- `scripts/incubator-index.py` — `uv` PEP-723 script; classifies managed vs
-  unmanaged, sorts by priority then staleness, `--json` / `--write` options.
+```
+skills/yf-incubator/
+├── scripts/
+│   ├── incubator-index.py       # `uv` PEP-723 script; classifies managed vs
+│   ├── okf.py
+│   └── test_incubator_index.py
+├── OKF-EXTENSION.md
+├── README.md                    # this file.
+├── SKILL.md                     # instruction-only entry point (frontmatter trigger, invocation,
+└── SPEC.md
+```

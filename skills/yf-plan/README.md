@@ -113,73 +113,155 @@ A cold reader in a different repo, with no access to the drafting conversation, 
 ## File Layout
 
 ```
-SKILL.md                     Claude Code skill entry point (includes all phases inline)
-SPEC.md                      Requirements (REQ-PLAN-NNN), guardrails, verification map
-README.md                    This file
-OKF-EXTENSION.md             The per-skill OKF extension rules for a plan bundle
-spec/
-  phases.md                  Phase model and status value requirements
-  cli.md                     Invocation, pre-flight, and plan_manager.py interface
-  agents.md                  Agent roles, inputs, outputs, and behavioral constraints
-  data.md                    Plan identity, plan.md schema, config, formulas, doc types
-  prerequisites.md           Required/optional tools, bootstrap flow, install URLs
-  portability.md             Portability contract, audit semantics, activation date
-  ci-release-completion.md   The ci-release completion criterion and its evidence contract
-  landing.md                 The landing capability (REQ-LAND-*): the L0-L19 order, the journal
-                             state set, the conflict contract, and the consent model
-  worktree-execute-lifecycle.d2   d2 source for the worktree execution lifecycle diagram
-  worktree-execute-lifecycle.png  Rendered lifecycle diagram (referenced from SKILL.md)
-agents/
-  coordinator.md             Drives execution DAG to completion
-  investigator.md            Runs single experiment in disposable worktree
-  planner.md                 Synthesizes scope + findings into plan
-  reconciler.md              Updates upstream issues per dispositions
-  reviewer.md                Conformance/completeness plan check (PASS|INCOMPLETE), runs first
-  red-team.md                Adversarial plan review before approval (drives the phase transition)
-  captor.md                  Drafts missing portability-contract files for /yf-plan capture
-  lander.md                  Adjudicates a landing manifest into a decision document
-formulas/
-  plan-execute.formula.toml  Beads molecule for execution pipeline
-  plan-investigate.formula.toml  Beads molecule for investigation wisp
-  plan-review.formula.toml   Beads molecule for the Phase-3 review loop (sequencing only)
-  verify-artifact.formula.toml  ASPECT woven over plan-review's steps at COOK time —
-                             one verify step per declared step (#197)
-scripts/
-  plan_manager.py            Plan CRUD, prerequisite checking, portability audit, crash-recovery
-                             resume scan, worktree lifecycle, landing lock, merged-state
-                             validation, autonomy config resolution, retrospective append
-  plan_template.py           The canonical plan.md skeleton + producer constants (vendored
-                             from _shared/, synced by _shared/sync.py)
-  okf.py                     Vendored OKF engine (byte-identical to _shared/okf.py)
-  close_cascade.py           Bottom-up cascade-close of all-terminal containers (§6.4)
-  gate_consistency.py        Gate/Blocks-set consistency: self-satisfaction and
-                             discharger-closure arms (#113)
-  verify_beads.py            Injection-time verify beads for plan-execute, which
-                             declares one step and cannot be woven (#197)
-  retrospective_fields.py    prevention_formula enum check + prevention_vars (#196)
-  repair_dangling_epics.py   One-shot repair for epics orphaned by a crashed pour
-  manifest_update.py         Vendored manifest hash/version helper
-  fixtures/classify/         Ground-truth corpus for test_classify_deliverable.py
-  test_*.py                  Tier-1 unit tests, one per verb cluster — worktree, gates,
-                             close contract/cascade, complete gate, config tiers, autonomy,
-                             retrospective, review count/verdict, stamp-tracker,
-                             verify-reconcile, classify-deliverable, audit-close, and the
-                             CLI enumeration guard
-protocols/
-  PLANS.md                   Planning protocol (installed to the scope+surface rules dir, e.g.
-                             ~/.claude/rules/PLANS.md or <git-root>/.claude/rules/PLANS.md,
-                             by install.sh)
-  DOC-LINT.md                Document-lint on-edit trigger — fires the linter on a create or
-                             modify under docs/plans/**, Incubator/*/plans/** or
-                             docs/research/**. NO marker file: inertness is structural,
-                             because the engine is path-keyed. Mandates parsing
-                             files_checked from --json (files_checked: 0 is PASS/exit 0 and
-                             must be reported as not-a-typed-document, never as clean)
-  manifest.json              Hash manifest for PLANS.md and DOC-LINT.md
-test-harness/
-  bootstrap.sh               Tier-2 sandboxed-HOME harness setup (see TESTING.md)
-  smoke.sh                   Tier-2 mechanical drive of the manager verbs
-  README.md                  How to run the Tier-2 harness
+skills/yf-plan/
+├── agents/
+│   ├── captor.md                          # Drafts missing portability-contract files for /yf-plan capture
+│   ├── coordinator.md                     # Drives execution DAG to completion
+│   ├── investigator.md                    # Runs single experiment in disposable worktree
+│   ├── lander.md                          # Adjudicates a landing manifest into a decision document
+│   ├── planner.md                         # Synthesizes scope + findings into plan
+│   ├── reconciler.md                      # Updates upstream issues per dispositions
+│   ├── red-team.md                        # Adversarial plan review before approval (drives the phase transition)
+│   └── reviewer.md                        # Conformance/completeness plan check (PASS|INCOMPLETE), runs first
+├── fixtures/
+│   └── severity-vocabulary/
+│       └── off-vocabulary-med.md
+├── formulas/
+│   ├── plan-execute.formula.toml          # Beads molecule for execution pipeline
+│   ├── plan-investigate.formula.toml      # Beads molecule for investigation wisp
+│   ├── plan-review.formula.toml           # Beads molecule for the Phase-3 review loop (sequencing only)
+│   └── verify-artifact.formula.toml       # ASPECT woven over plan-review's steps at COOK time —
+├── protocols/
+│   ├── DOC-LINT.md                        # Document-lint on-edit trigger — fires the linter on a create or
+│   ├── manifest.json                      # Hash manifest for PLANS.md and DOC-LINT.md
+│   └── PLANS.md                           # Planning protocol (installed to the scope+surface rules dir, e.g.
+├── scripts/
+│   ├── document_types/
+│   │   ├── agent.toml
+│   │   ├── asset.toml
+│   │   ├── context.toml
+│   │   ├── escalations.toml
+│   │   ├── finding.toml
+│   │   ├── plan-relations.toml
+│   │   ├── plan-retrospective.toml
+│   │   ├── plan.toml
+│   │   ├── reference-authored.toml
+│   │   ├── reference-comment.toml
+│   │   ├── reference-tracker.toml
+│   │   ├── reference.toml
+│   │   ├── research-artifact.toml
+│   │   ├── research-sources.toml
+│   │   ├── research-summary.toml
+│   │   ├── review.toml
+│   │   ├── skill.toml
+│   │   ├── upstream-reference.toml
+│   │   └── upstream-triage.toml
+│   ├── fixtures/
+│   │   └── classify/                      # Ground-truth corpus for test_classify_deliverable.py
+│   │       ├── d3-pxe-plan-006/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-007/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-008/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-009/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-010/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-011/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-012/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-013/
+│   │       │   └── plan.md
+│   │       ├── d3-pxe-plan-014/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-031/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-032/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-033/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-034/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-035/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-036/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-037/
+│   │       │   └── plan.md
+│   │       ├── yoshiko-flow-plan-038/
+│   │       │   └── plan.md
+│   │       ├── BASELINE.json
+│   │       ├── MANIFEST.json
+│   │       └── README.md                  # This file
+│   ├── close_cascade.py                   # Bottom-up cascade-close of all-terminal containers (§6.4)
+│   ├── doc_lint.py
+│   ├── gate_consistency.py                # Gate/Blocks-set consistency: self-satisfaction and
+│   ├── land_rehearsal.py
+│   ├── manifest_update.py                 # Vendored manifest hash/version helper
+│   ├── okf.py                             # Vendored OKF engine (byte-identical to _shared/okf.py)
+│   ├── plan_extract.py
+│   ├── plan_manager.py                    # Plan CRUD, prerequisite checking, portability audit, crash-recovery
+│   ├── plan_template.py                   # The canonical plan.md skeleton + producer constants (vendored
+│   ├── pour_fidelity.py
+│   ├── repair_dangling_epics.py           # One-shot repair for epics orphaned by a crashed pour
+│   ├── retrospective_fields.py            # prevention_formula enum check + prevention_vars (#196)
+│   ├── test_audit_close.py
+│   ├── test_autonomy.py
+│   ├── test_cascade_root_resolution.py
+│   ├── test_classify_deliverable.py
+│   ├── test_cli_enumeration.py
+│   ├── test_close_cascade.py
+│   ├── test_close_contract.py
+│   ├── test_complete_gate.py
+│   ├── test_config_tiers.py
+│   ├── test_epic_ref_audit.py
+│   ├── test_escalations.py
+│   ├── test_gate_consistency.py
+│   ├── test_gates.py
+│   ├── test_index_members.py
+│   ├── test_intake_lint_binding.py
+│   ├── test_judgement_trigger.py
+│   ├── test_land_apply.py
+│   ├── test_land_manifest.py
+│   ├── test_lander_agent_contract.py
+│   ├── test_recheck_criteria.py
+│   ├── test_reconcile_step_resolution.py
+│   ├── test_retrospective.py
+│   ├── test_retrospective_fields.py
+│   ├── test_review_agent_contract.py
+│   ├── test_review_count.py
+│   ├── test_review_verdict.py
+│   ├── test_severity_vocabulary.py
+│   ├── test_stamp_tracker.py
+│   ├── test_update_status_gate.py
+│   ├── test_update_status_idempotent.py
+│   ├── test_upstream_requirements.py
+│   ├── test_verify_beads.py
+│   ├── test_verify_reconcile.py
+│   ├── test_worktree.py
+│   └── verify_beads.py                    # Injection-time verify beads for plan-execute, which
+├── spec/
+│   ├── agents.md                          # Agent roles, inputs, outputs, and behavioral constraints
+│   ├── ci-release-completion.md           # The ci-release completion criterion and its evidence contract
+│   ├── cli.md                             # Invocation, pre-flight, and plan_manager.py interface
+│   ├── data.md                            # Plan identity, plan.md schema, config, formulas, doc types
+│   ├── landing.md                         # The landing capability (REQ-LAND-*): the L0-L19 order, the journal
+│   ├── phases.md                          # Phase model and status value requirements
+│   ├── portability.md                     # Portability contract, audit semantics, activation date
+│   ├── prerequisites.md                   # Required/optional tools, bootstrap flow, install URLs
+│   ├── worktree-execute-lifecycle.d2      # d2 source for the worktree execution lifecycle diagram
+│   └── worktree-execute-lifecycle.png     # Rendered lifecycle diagram (referenced from SKILL.md)
+├── test-harness/
+│   ├── .gitignore
+│   ├── bootstrap.sh                       # Tier-2 sandboxed-HOME harness setup (see TESTING.md)
+│   ├── README.md                          # This file
+│   └── smoke.sh                           # Tier-2 mechanical drive of the manager verbs
+├── OKF-EXTENSION.md                       # The per-skill OKF extension rules for a plan bundle
+├── README.md                              # This file
+├── SKILL.md                               # Claude Code skill entry point (includes all phases inline)
+└── SPEC.md                                # Requirements (REQ-PLAN-NNN), guardrails, verification map
 ```
 
 _Every entry above is verified against the shipped tree by

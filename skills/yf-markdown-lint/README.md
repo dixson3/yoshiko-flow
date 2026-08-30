@@ -129,13 +129,22 @@ None. This is a tool/reference skill with no phases or state transitions.
 ## File layout
 
 ```text
-markdown-lint/
-  SKILL.md            entry point — rules, table conventions, lint-on-edit
-  README.md           this file
-  protocols/
-    MARKDOWN_LINT.md  always-loaded lint-on-edit trigger (opt-in, portable)
-  scripts/
-    markdown_lint.py      the GFM linter (PEP 723, argparse)
+skills/yf-markdown-lint/
+├── fixtures/
+│   ├── images/
+│   │   └── x.png
+│   ├── ml003_titled_image.md
+│   ├── ml010_criticmarkup.md
+│   ├── ml011_empty_alt.md
+│   └── ml011_image_vs_link.md
+├── protocols/
+│   └── MARKDOWN_LINT.md        # always-loaded lint-on-edit trigger (opt-in, portable)
+├── scripts/
+│   ├── markdown_lint.py        # the GFM linter (PEP 723, argparse)
+│   └── test_markdown_lint.py
+├── README.md                   # this file
+├── SKILL.md                    # entry point — rules, table conventions, lint-on-edit
+└── SPEC.md
 ```
 
 ---
