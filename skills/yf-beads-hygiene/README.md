@@ -145,12 +145,12 @@ a live DB.
 
 ```
 skills/yf-beads-hygiene/
-├── SKILL.md                    # trigger contract, audit/repair/restore procedure
-├── SPEC.md                     # REQ-HYG-* requirements
-├── README.md                   # this file
-└── scripts/
-    ├── beads_hygiene.py        # PEP 723 engine: audit / reconcile / repair / restore
-    └── test_beads_hygiene.py   # four-class + #29 regression + reconcile active-set tests
+├── scripts/
+│   ├── beads_hygiene.py       # PEP 723 engine: audit / reconcile / repair / restore
+│   └── test_beads_hygiene.py  # four-class + #29 regression + reconcile active-set tests
+├── README.md                  # this file
+├── SKILL.md                   # trigger contract, audit/repair/restore procedure
+└── SPEC.md                    # REQ-HYG-* requirements
 ```
 
 ## Install

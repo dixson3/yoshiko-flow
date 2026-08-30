@@ -110,17 +110,19 @@ invokes the other.
 
 ```
 skills/yf-change-validation/
-├── SKILL.md                          # engine: invocation, manifest detection, dispatch, run-and-report
-├── README.md                         # this file
-├── SPEC.md                           # the requirement-numbered (REQ-CHGVAL-*) per-skill spec
-├── spec/
-│   ├── schema.md                     # the 4-section manifest schema + structured tier rows (REQ-SCHEMA-*)
-│   ├── engine.md                     # no-op, infer→approve→enforce, run-and-report, fail-closed, re-propose, rollback (REQ-ENGINE-*)
-│   └── inference.md                  # inference precedence, PEP-723 per-file idiom, FULL-superset, validate-cmd seed (REQ-INFER-*)
+├── protocols/
+│   ├── CHANGE-VALIDATION-TRIGGER.md  # always-loaded on-edit (FAST) + pre-push (FULL) firing surface
+│   └── manifest.json
 ├── scripts/
-│   └── change_validation.py          # the Python engine: infer / run / check-drift
+│   ├── change_validation.py          # the Python engine: infer / run / check-drift
+│   └── test_change_validation.py
+├── spec/
+│   ├── engine.md                     # no-op, infer→approve→enforce, run-and-report, fail-closed, re-propose, rollback (REQ-ENGINE-*)
+│   ├── inference.md                  # inference precedence, PEP-723 per-file idiom, FULL-superset, validate-cmd seed (REQ-INFER-*)
+│   └── schema.md                     # the 4-section manifest schema + structured tier rows (REQ-SCHEMA-*)
 ├── templates/
 │   └── manifest.md                   # blank CHANGE-VALIDATION.md a repo fills in (inert approved: no)
-└── protocols/
-    └── CHANGE-VALIDATION-TRIGGER.md  # always-loaded on-edit (FAST) + pre-push (FULL) firing surface
+├── README.md                         # this file
+├── SKILL.md                          # engine: invocation, manifest detection, dispatch, run-and-report
+└── SPEC.md                           # the requirement-numbered (REQ-CHGVAL-*) per-skill spec
 ```

@@ -76,9 +76,12 @@ refused.
 
 ```
 skills/yf-herdr/
-├── SKILL.md        # trigger contract, launch procedure, observation contract, deviation taxonomy
-├── README.md       # this file
-└── SPEC.md         # REQ-HERDR-NNN requirements, taxonomy provenance, dependency posture
+├── scripts/
+│   ├── test_herdr_channel.py
+│   └── test_launch_contract.py
+├── README.md                    # this file
+├── SKILL.md                     # trigger contract, launch procedure, observation contract, deviation taxonomy
+└── SPEC.md                      # REQ-HERDR-NNN requirements, taxonomy provenance, dependency posture
 ```
 
 No `scripts/`, `agents/`, `formulas/`, `templates/`, or `protocols/` — the skill is prose only

@@ -117,10 +117,10 @@ out leaves every created file behind and reports success.
 ```
 skills/yf-okf-hygiene/
 ├── scripts/
-│   ├── okf.py                # the per-bundle OKF engine, vendored from yf-okf
-│   ├── okf_hygiene.py        # PEP 723 corpus engine: audit / backfill / reindex / restore
-│   └── test_okf_hygiene.py   # classification, backfill journal, and restore-kind tests
-├── README.md                 # this file
-├── SKILL.md                  # trigger boundary with yf-okf, invocation, dispatch, subcommands
-└── SPEC.md                   # REQ-OKFH-* requirements
+│   ├── okf.py               # the per-bundle OKF engine, vendored from yf-okf
+│   ├── okf_hygiene.py       # PEP 723 corpus engine: audit / backfill / reindex / restore
+│   └── test_okf_hygiene.py  # classification, backfill journal, and restore-kind tests
+├── README.md                # this file
+├── SKILL.md                 # trigger boundary with yf-okf, invocation, dispatch, subcommands
+└── SPEC.md                  # REQ-OKFH-* requirements
 ```

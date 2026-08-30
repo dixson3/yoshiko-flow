@@ -75,21 +75,22 @@ uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols
 ## Layout shipped by this skill
 
 ```
-.{claude,agents}/skills/skill-authoring/
-├── SKILL.md
-├── README.md                       # this file
+skills/yf-skill-authoring/
 ├── agents/
-│   ├── reviewer.md                 # general skill review
-│   ├── reviewer-tokens.md          # token-efficiency reviewer (skill-dir instruction files)
-│   ├── red-team.md                 # adversarial skill check
-│   └── reviewer-python.md          # Python helper review
+│   ├── red-team.md            # adversarial skill check
+│   ├── reviewer-python.md     # Python helper review
+│   ├── reviewer-tokens.md     # token-efficiency reviewer (skill-dir instruction files)
+│   └── reviewer.md            # general skill review
 ├── reference/
-│   ├── SURFACE_CONVENTION.md       # full Skill Surface Convention spec + worked example
-│   ├── PORTABILITY.md              # SKILL_DIR resolution + portability checklist
-│   ├── PIPELINE.md                 # multi-agent skill conventions
-│   └── AGENT_ROLES.md              # canonical agent role vocabulary + factoring test + role table
-└── scripts/
-    └── manifest_update.py          # shared manifest helper (vendored by adopting skills)
+│   ├── AGENT_ROLES.md         # canonical agent role vocabulary + factoring test + role table
+│   ├── PIPELINE.md            # multi-agent skill conventions
+│   ├── PORTABILITY.md         # SKILL_DIR resolution + portability checklist
+│   └── SURFACE_CONVENTION.md  # full Skill Surface Convention spec + worked example
+├── scripts/
+│   └── manifest_update.py     # shared manifest helper (vendored by adopting skills)
+├── README.md                  # this file
+├── SKILL.md
+└── SPEC.md
 ```
 
 ## Why the convention exists

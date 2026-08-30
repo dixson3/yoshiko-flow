@@ -88,17 +88,24 @@ Safety invariant (everywhere): never a bare `bd <backend> sync`; always `--push-
 ## Layout
 
 ```
-skills/beads-upstream/
-├── SKILL.md                       # entry point: trigger split, backends, init/push/status, safety invariants
-├── README.md                      # this file
+skills/yf-beads-upstream/
 ├── protocols/
-│   ├── UPSTREAM_TRACKING.md       # always-loaded companion rule (close-time trigger + safety invariant)
-│   └── manifest.json              # hash/version manifest for UPSTREAM_TRACKING.md
+│   ├── manifest.json                     # hash/version manifest for UPSTREAM_TRACKING.md
+│   └── UPSTREAM_TRACKING.md              # always-loaded companion rule (close-time trigger + safety invariant)
 ├── scripts/
-│   ├── upstream.py                # enumerate open/deferred beads + parse External: mappings (uv/PEP723)
-│   └── manifest_update.py         # recompute manifest hashes + bump versions (vendored)
-└── spec/
-    ├── operations.md              # init/push/status behavioral contract (REQ-OP-*)
-    ├── safety.md                  # never-bare-sync, inline auth, idempotency, disabled no-op (REQ-SAFE-*)
-    └── backends.md                # backend coverage, flag divergence, trigger split (REQ-BE-*)
+│   ├── check_gh_direct.py
+│   ├── check_no_universe_fanout.py
+│   ├── check_prescriptive_push.py
+│   ├── manifest_update.py                # recompute manifest hashes + bump versions (vendored)
+│   ├── test_check_no_universe_fanout.py
+│   ├── test_upstream.py
+│   ├── upstream.py                       # enumerate open/deferred beads + parse External: mappings (uv/PEP723)
+│   └── upstream_render.py
+├── spec/
+│   ├── backends.md                       # backend coverage, flag divergence, trigger split (REQ-BE-*)
+│   ├── operations.md                     # init/push/status behavioral contract (REQ-OP-*)
+│   └── safety.md                         # never-bare-sync, inline auth, idempotency, disabled no-op (REQ-SAFE-*)
+├── README.md                             # this file
+├── SKILL.md                              # entry point: trigger split, backends, init/push/status, safety invariants
+└── SPEC.md
 ```

@@ -68,17 +68,18 @@ dispatch drift-verifier sub-agent over the scoped edges (report-only, evidence s
 ## Layout
 
 ```
-skills/drift-check/
-├── SKILL.md                          # engine: carved description, manifest detection, dispatch, check engines
-├── README.md                         # this file
+skills/yf-drift-check/
 ├── agents/
-│   └── drift-verifier.md             # isolated report-only verifier: scoped edges, evidence standard, PASS/FAIL/INCONCLUSIVE/CONFLICT
+│   └── drift-verifier.md       # isolated report-only verifier: scoped edges, evidence standard, PASS/FAIL/INCONCLUSIVE/CONFLICT
 ├── protocols/
-│   └── DRIFT-CHECK-TRIGGER.md        # always-loaded companion rule (installed to rules surface): the firing surface
+│   └── DRIFT-CHECK-TRIGGER.md  # always-loaded companion rule (installed to rules surface): the firing surface
 ├── spec/
-│   ├── schema.md                     # the 7-section manifest schema + 6-term contract vocabulary (REQ-SCHEMA-*)
-│   ├── checks.md                     # the 4 check-category semantics + evidence standard (REQ-CHECK-*)
-│   └── engine.md                     # bootstrap contract, no-manifest=silent-no-op, dispatch boundary (REQ-ENGINE-*)
-└── templates/
-    └── manifest.md                   # blank 7-section DRIFT-CHECK.md a repo fills in
+│   ├── checks.md               # the 4 check-category semantics + evidence standard (REQ-CHECK-*)
+│   ├── engine.md               # bootstrap contract, no-manifest=silent-no-op, dispatch boundary (REQ-ENGINE-*)
+│   └── schema.md               # the 7-section manifest schema + 6-term contract vocabulary (REQ-SCHEMA-*)
+├── templates/
+│   └── manifest.md             # blank 7-section DRIFT-CHECK.md a repo fills in
+├── README.md                   # this file
+├── SKILL.md                    # engine: carved description, manifest detection, dispatch, check engines
+└── SPEC.md
 ```

@@ -66,18 +66,19 @@ surface change report
 ## Layout
 
 ```
-skills/optimal-instructions/
-├── SKILL.md                          # entry point: trigger, SKILL_DIR, workflow, rules
-├── README.md                         # this file
+skills/yf-optimal-instructions/
 ├── agents/
-│   └── instruction-optimizer.md      # apply agent: K1 auto + K2 proposal + change report
+│   └── instruction-optimizer.md  # apply agent: K1 auto + K2 proposal + change report
 ├── protocols/
-│   ├── INSTRUCTIONS.md               # always-loaded companion rule (installed to rules surface)
-│   └── manifest.json                 # hash/version manifest for INSTRUCTIONS.md
+│   ├── INSTRUCTIONS.md           # always-loaded companion rule (installed to rules surface)
+│   └── manifest.json             # hash/version manifest for INSTRUCTIONS.md
 ├── scripts/
-│   └── manifest_update.py            # recompute manifest hashes + bump versions (vendored)
-└── spec/
-    ├── structure.md                  # K2 structural convention (REQ-STRUCT-*)
-    ├── apply.md                      # split-apply contract + idempotency + before/after example (REQ-APPLY-*)
-    └── integration.md                # surface detection, runtime carve-out, no-dup boundary (REQ-INT-*)
+│   └── manifest_update.py        # recompute manifest hashes + bump versions (vendored)
+├── spec/
+│   ├── apply.md                  # split-apply contract + idempotency + before/after example (REQ-APPLY-*)
+│   ├── integration.md            # surface detection, runtime carve-out, no-dup boundary (REQ-INT-*)
+│   └── structure.md              # K2 structural convention (REQ-STRUCT-*)
+├── README.md                     # this file
+├── SKILL.md                      # entry point: trigger, SKILL_DIR, workflow, rules
+└── SPEC.md
 ```

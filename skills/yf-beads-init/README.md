@@ -133,14 +133,15 @@ It is not a repo-tracked file, so retirement is a documented manual step, not a 
 ## Layout
 
 ```
-skills/beads-init/
-├── SKILL.md                  # verify/repair procedure, the corrections, preflight-home role
-├── README.md                 # this file
+skills/yf-beads-init/
+├── protocols/
+│   ├── BEADS_INIT.md  # always-loaded trigger contract (installed to rules/)
+│   └── manifest.json  # rule hash/version manifest
 ├── scripts/
-│   └── beads_init.py         # PEP 723 engine: verify / repair / status
-└── protocols/
-    ├── BEADS_INIT.md         # always-loaded trigger contract (installed to rules/)
-    └── manifest.json         # rule hash/version manifest
+│   └── beads_init.py  # PEP 723 engine: verify / repair / status
+├── README.md          # this file
+├── SKILL.md           # verify/repair procedure, the corrections, preflight-home role
+└── SPEC.md
 ```
 
 ## Install

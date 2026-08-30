@@ -71,14 +71,12 @@ worktree and installed address spaces.
 
 ```
 skills/yf-okf/
-├── SKILL.md                    # engine: operational summary, invocations, dispatch
-├── README.md                   # this file
-├── LICENSE                     # MIT
-├── SPEC.md                     # requirement-numbered (REQ-OKF-*) per-skill spec
-├── agents/
 ├── scripts/
-│   └── okf.py                  # vendored engine (Issue 1.6 registers the sync); canonical: _shared/okf.py
-└── spec/
-    ├── OKF-BASELINE.md         # upstream OKF v0.2 rules (pinned okf_version: 0.2)
-    └── OKF-YF-EXTENSIONS.md    # the yoshiko-flow extension layer (reserves OKF-SPECIFICATION)
+│   └── okf.py                # vendored engine (Issue 1.6 registers the sync); canonical: _shared/okf.py
+├── spec/
+│   ├── OKF-BASELINE.md       # upstream OKF v0.2 rules (pinned okf_version: 0.2)
+│   └── OKF-YF-EXTENSIONS.md  # the yoshiko-flow extension layer (reserves OKF-SPECIFICATION)
+├── README.md                 # this file
+├── SKILL.md                  # engine: operational summary, invocations, dispatch
+└── SPEC.md                   # requirement-numbered (REQ-OKF-*) per-skill spec
 ```
