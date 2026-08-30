@@ -116,8 +116,10 @@ still returns nothing.**
 
 ### The corrected mechanism
 
-The real cause is **nested-repo opacity**: a linked worktree carries a `.git` marker, so the primary
-checkout's git reports it as one opaque entry and will not descend. **Gitignore is a second,
+The real cause is **nested-repo opacity**, confirmed at the byte level: a linked worktree's `.git` is an
+**88-byte ASCII FILE, not a directory** — `gitdir: /…/.git/worktrees/plan-060-development` — and git treats
+that marker as a **nested-repo boundary**, which is opaque *regardless of gitignore*. That is precisely why
+un-ignoring the path (case D) changes nothing. **Gitignore is a second,
 independent reason** that happens to apply in this repository. Two facts, one observed signal.
 
 **What this falsifies in the original write-up:** F4's *"the only tool that crosses the gitignore

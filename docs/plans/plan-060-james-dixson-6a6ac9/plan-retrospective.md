@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | **The spike is the generalisable remedy, and it is stronger than the specific fix.** A fixture holds BOTH states at once; the live repository can only ever be in one, so five consecutive rounds each measured a true fact about a transient state and generalised it. `assets/enumeration-spike.md` runs every candidate against both states and both cwds simultaneously — which is why it settled in one pass what prose reasoning had missed five times. **The transferable rule: when a claim is about which of several tools is correct, build the fixture that distinguishes them rather than reasoning about their semantics.** Secondarily: mark contingent premises as contingent, and prefer a criterion over a premise wherever the criterion can be written. |
 | `cost` | one high-severity red-team concern, one bound raise, one spike |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-08-29 |
+| `stop_class` |  |
+| `asked` | Whether the review loop actually catches refuted DESIGN CLAIMS, or only polishes prose once a plan converges. |
+| `answered` | It catches them. Two load-bearing design claims were refuted and replaced during this plan, both originating with the session: (1) at investigation, #301's three-layer 'structural' claim, refuted by EXP-005 — the lander cannot forge the artifact but the main session still causes the act; (2) at pass 7, the enumeration causal story — gitignore was not the cause, nested-repo opacity was, proven by un-ignoring the path and measuring no change. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | Seven passes, concerns 14/11/7/5/4/6/6, highs 3/2/0/1/1/1/0. Passes 5, 6 and 7 each FALSIFIED a claim rather than polishing prose: pass 5 the tty gate's herdr predicate, pass 6 the tracked-blindness, pass 7 the causal attribution. Confirmed at the mechanism level: .worktrees/plan-060-development/.git is an 88-byte ASCII file, a worktree marker git treats as a nested-repo boundary. |
+| `escape_class` | none — both claims were caught intra-plan, before execution |
+| `adjudication` | **The loop worked as designed, and the shape of the evidence matters more than the outcome.** Both refuted claims **originated with the session, not the operator**, and neither was found by re-reading: each fell to a *measurement* the session had not thought to take. #301's three-layer claim was refuted by asking who INVOKES the writing layer; the enumeration story by removing gitignore from the fixture and observing nothing change. **The last three passes each falsified a claim rather than polishing prose** — pass 5 the tty gate's herdr predicate, pass 6 the tracked-blindness, pass 7 the causal attribution — which is the opposite of the failure mode #286 warns about, where a converged plan attracts a manufactured tail. Notably the concern COUNT stopped falling at pass 6 (14/11/7/5/4/6/6) while the SEVERITY did not: the later passes found fewer, harder things. A count-only reading of convergence would have called that thrash. |
+| `origin` | the session, both times |
+| `culpability` | the session's, both times — and worth stating plainly, since the record otherwise reads as the review loop finding operator errors, which it did not |
+| `prevention` | **Not preventable by more careful drafting, and that is the finding.** Both claims were internally coherent and survived multiple readings; what killed them was building the thing that could disagree. The transferable rule is RE-003's, in its second application: *build the fixture that distinguishes the alternatives rather than reasoning about their semantics.* Secondarily, the dispatch prompts that produced passes 4–7 each instructed the reviewer to **verify the previous pass's resolutions** and to **run the prescribed commands rather than read them** — that instruction caught every one of the three phantom cells and the causal error. It is currently ad hoc per dispatch and belongs in the `red-team.md` agent contract, filed as #306. |
+| `cost` | two bound raises, one spike, three review passes
+

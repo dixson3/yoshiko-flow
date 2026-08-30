@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-29
+- approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE (pass-7) + audit pass
 - review-pass: pass-7 red-team presented — APPROVE, no high, 6 prose concerns all resolved
 - autonomy: max-review-cycles raised to 6 for this invocation (cycles=6) — escalation override
