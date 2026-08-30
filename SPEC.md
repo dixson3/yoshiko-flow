@@ -847,6 +847,29 @@
 >   adjudicator never writes and `--apply` re-derives every fact — and stays open for the general
 >   unmintable-consent-token problem.
 >   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-061 (2026-08-30, #315 / #244 / #247-partial):** skill-README layout & completeness
+>   contract — added **§3.11 `REQ-YF-DOC-001..018`**. Pins (a) the **ASCII-tree layout fence** as
+>   the single conformant form, its real `skills/<name>/` root line, its per-entry `# description`
+>   comment, and a reviewable exclusion set (`__pycache__`, `.pytest_cache`, `*.pyc`, `.DS_Store`,
+>   gitignored paths); (b) the Prerequisites / Usage / Install section contracts, including that a
+>   README shall not teach an invocation the skill does not answer to and shall not name the
+>   **nonexistent** repo-level `install.sh` / `install.py` (`install.py` retired at plan-010; the
+>   hosted vendor installer at `yoshikoflow.sh/install.sh` is a distinct, legitimate artifact); and
+>   (c) the runnable checker `scripts/checks/check_skill_readme_contract.py` — depth-1 enumeration,
+>   the `0/1/2` exit contract, a `--json` verdict whose `failures[].class` is a **closed enum**
+>   (`layout | prereqs | usage | missing-readme | fence-unparseable`), a `--min-skills` floor that
+>   trips at **`2`** rather than `1`, verdict-not-exit-code as the gate predicate, `missing-readme`
+>   as a first-class class distinct from mismatch, and FAST+FULL `CHANGE-VALIDATION.md` wiring.
+>
+>   **Why a REQ and not a repair pass.** The four `DRIFT-CHECK.md` README edges had **no firing
+>   surface**: `CHANGE-VALIDATION.md` excludes `yf-drift-check` as a prose/LLM trigger, and #273
+>   measured that prose naming an obligation is skipped where prose naming a command is followed.
+>   #244's figures went stale inside one plan-cycle (16/19 → 18 FAIL of 20; 10 → 12 `SPEC.md`
+>   omissions; 5 → 10 stale roots), which is the strongest available evidence that the fix must be
+>   a check rather than a repair. `REQ-YF-DOC-013` deliberately leaves `e-readme-desc` on the LLM
+>   route — its predicate is *intent* match, which is not mechanically decidable, and claiming it
+>   would be exactly the vacuous check (#263) this amendment exists to close.
+>   Implementation lands in Epics 1-5; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 
@@ -2089,6 +2112,125 @@ rule deployment.
   therefore **coincidence**, and an audit whose read set is narrower than the harness's own will
   report a green while a higher-precedence layer overrides everything it just checked. An audit that
   cannot see a layer the harness obeys shall report **INCONCLUSIVE** for that key, never `ok`.
+
+### 3.11 Skill README layout & completeness contract (`REQ-YF-DOC`)
+
+Scope note: these requirements govern the **skill tree `yf` embeds and installs** — the
+`skills/*/README.md` surface a reader meets before ever running the tool. They live in §3 with
+the rest of the `REQ-YF-*` family because the artifacts they constrain are exactly the artifacts
+`REQ-YF-EMBED-*` bakes into the binary. They are the machine-checkable subset of the four
+`DRIFT-CHECK.md` README edges (`e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`,
+`e-readme-desc`); the manifest remains the human-readable statement of intent, and its
+`e-readme-desc` edge stays on the LLM route (REQ-YF-DOC-013).
+
+**The layout fence.**
+
+- **REQ-YF-DOC-001** *(testable)* every `skills/<name>/` directory shall contain a
+  `README.md`. Its **absence** is a first-class finding class distinct from a contract
+  mismatch (REQ-YF-DOC-018) — an absent README has no contract to fail.
+
+- **REQ-YF-DOC-002** *(testable)* every skill `README.md` shall carry a **file-layout fence**:
+  a fenced code block introduced by a heading whose text matches `layout` case-insensitively
+  (`## File layout`, `## Layout`). The fence, not a bullet list, is the sole conformant form —
+  a bullet list is **unparseable** under the single parser REQ-YF-DOC-011 mandates.
+
+- **REQ-YF-DOC-003** *(testable)* the fence shall be in **ASCII-tree form**: a first line that
+  is the skill's own repo-relative root path with a trailing `/` (`skills/<name>/`), then one
+  line per entry drawn with the box-drawing prefixes `├── `, `└── `, `│   ` and `    `. The
+  ASCII tree was already the plurality form (10 of 19 measured 2026-08-30) and is chosen so the
+  generator is one code path and the checker one parser.
+
+- **REQ-YF-DOC-004** *(testable)* the fence's **root line shall name the skill's real directory**
+  — `skills/<name>/`. The historically common unprefixed (`markdown-lint/`) and pre-rename
+  (`skills/beads-init/`, `.{claude,agents}/skills/skill-authoring/`) roots are drift: they name a
+  path that does not exist, so a reader cannot `cd` to it.
+
+- **REQ-YF-DOC-005** the fence **should** carry a per-entry trailing `# <description>` comment.
+  A generator shall **preserve** an existing comment verbatim and shall **flag** an entry that
+  has none, rather than silently emitting a bare tree — losing hand-authored descriptions is a
+  strictly worse outcome than an incomplete one.
+
+- **REQ-YF-DOC-006** *(testable)* the fence's entry set shall equal the file set
+  `find skills/<name> -type f` reports, **minus the exclusion set**. The exclusion set is pinned
+  here rather than in the checker alone, so it is reviewable: `__pycache__/**`, `.pytest_cache/**`,
+  `*.pyc`, `.DS_Store`, and anything `git check-ignore` claims. Directory entries in the tree are
+  structural and are not themselves compared.
+
+**Required sections.**
+
+- **REQ-YF-DOC-007** *(testable)* a skill `README.md`'s **Prerequisites** section shall be a
+  **superset** of that skill's `SKILL.md` frontmatter `depends-on-tool` list. Frontmatter is the
+  fixed authority: a mismatch is the README drifting, never the frontmatter.
+
+- **REQ-YF-DOC-008** *(testable)* a skill `README.md`'s **Usage** section shall mention every
+  invocation command the skill's `SKILL.md` teaches, and shall teach **no invocation the skill
+  does not answer to** — an unprefixed `/beads-upstream` or `/incubator` where the real command
+  is `/yf-beads-upstream` / `/yf-incubator` is a failure of this requirement.
+
+- **REQ-YF-DOC-009** a skill `README.md`'s **Install** section shall name a **real** installation
+  mechanism. `yf self install --from-build --build` and `yf skills install` are the repo-side
+  authorities; the **hosted vendor installer** at `yoshikoflow.sh/install.sh` is a distinct,
+  legitimate artifact and may be referenced by URL. A repo-level `./install.sh` or `install.py`
+  shall **not** be referenced: neither exists (`install.py` was retired at plan-010).
+
+**The checker.**
+
+- **REQ-YF-DOC-010** *(testable)* the contract shall be enforced by a runnable check,
+  `scripts/checks/check_skill_readme_contract.py`, not by an on-edit prose obligation.
+  Rationale, measured: `CHANGE-VALIDATION.md` excludes `yf-drift-check` as a prose/LLM trigger, so
+  the four README edges had **no firing surface at all**, and #244's own figures went stale inside
+  a single plan-cycle. A repair pass without a runnable check regenerates the drift.
+
+- **REQ-YF-DOC-011** *(testable)* the checker shall enumerate skills by **depth-1 `skills/*/`
+  globbing, never `rglob`**, and shall parse every fence with a **single** ASCII-tree parser.
+
+- **REQ-YF-DOC-012** *(testable)* the checker shall follow the house exit contract:
+  **`0`** clean · **`1`** contract failure · **`2`** INCONCLUSIVE (the checker could not run).
+  `126`/`127` stay reserved to the shell.
+
+- **REQ-YF-DOC-013** the checker shall implement the **mechanically decidable** edges only —
+  `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, and README existence. It shall **not**
+  implement `e-readme-desc`: that edge's predicate is that the README one-liner matches the
+  `SKILL.md` `description` **intent**, which tolerates paraphrase and is not mechanically
+  decidable. It keeps its LLM route, and the checker shall make no claim about it.
+
+- **REQ-YF-DOC-014** *(testable)* the checker shall emit a `--json` verdict object carrying at
+  minimum: `verdict` (`PASS | FAIL | INCONCLUSIVE`), `skills_enumerated` (an integer), and
+  `failures` (an array). Each element of `failures` shall carry a `skill`, a human-readable
+  `detail`, and a `class` drawn from the **CLOSED enum**
+  `layout | prereqs | usage | missing-readme | fence-unparseable`.
+
+  The enum is pinned as a **closed set**, not merely as a field name, and that is load-bearing:
+  a criterion of the form *"the `fence-unparseable` array is empty"* is satisfied **vacuously**
+  by a checker that never emits that class. Pinning the field alone leaves every consumer reading
+  named fields that nothing obliges the producer to populate.
+
+- **REQ-YF-DOC-015** *(testable)* the checker shall accept `--min-skills N` and shall exit
+  **`2` (INCONCLUSIVE)**, never `1`, when it enumerated fewer than `N` skills.
+
+  **The exit code is the requirement, not the floor.** A floor tripping at `1` is byte-identical
+  to a real contract failure, so a sensitivity gate of the form *"the checker exits non-zero"*
+  is satisfied by a checker that enumerated **nothing** — the risk realised through its own
+  mitigation. Exit `2` states that the *instrument* could not run, which is a different claim
+  from the *corpus* being dirty. This matches `check_okf_index_drift.py`'s `--min-roots` floor
+  and the REQ-DATA-057 INCONCLUSIVE→`warn` precedent.
+
+- **REQ-YF-DOC-016** *(testable)* a **verdict**, not an exit code, shall be the gate predicate
+  where a gate needs to distinguish *failed* from *crashed*. An uncaught exception and an
+  unresolvable PEP 723 dependency both exit `1`; only the JSON verdict separates them from a
+  genuine `FAIL`.
+
+- **REQ-YF-DOC-018** *(testable)* a **missing** `README.md` shall be reported under its own
+  verdict class, `missing-readme`, and shall never be collapsed into a layout, prereqs or usage
+  failure. `yf-okf-hygiene` is the live instance: it has no README, so there is nothing for a
+  contract to be measured against. Collapsing *absence* into *mismatch* is the two-facts-one-signal
+  conflation this repository has now hit three times (#181 `not-selected` vs `no-such-path`, #207
+  `resume-scan`'s `found`, #263 the vacuous check).
+
+- **REQ-YF-DOC-017** *(testable)* the checker shall be wired into `CHANGE-VALIDATION.md` in both
+  the **FAST** tier (scoped to `skills/*/SKILL.md` and `skills/*/README.md`) and the **FULL**
+  tier. A check no recipe row invokes is not enforcement (REQ-YF-DOC-010's premise applied to
+  itself).
 
 ## 4. Skill catalog (per-skill specs)
 
