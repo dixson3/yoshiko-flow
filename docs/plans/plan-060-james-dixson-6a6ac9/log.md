@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-29
+- review: max-review-cycles raised 5 -> 6 by OPERATOR decision (ESC-001 resolved, no_answer_taken: no) — pass 6 authorized to seek APPROVE
+- autonomy: max-review-cycles raised to 6 for this invocation (cycles=5) — escalation override
+- judgement: not-fired — review-loop-check: 5/6 cycle(s), converging
 - judgement: fired — review-loop-check: 5/5 cycle(s), ESCALATING (stop class 4)
 - judgement: fired — review-loop-check: 5/5 cycle(s), ESCALATING (stop class 4)
 - review-pass: pass-5 red-team presented — REVISE, 1 high (the enumeration fix was itself gitignore-blind), all 4 resolved
