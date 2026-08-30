@@ -99,6 +99,37 @@ artifacts, and the gap used to be silent.
 yf self install --from-build --build   # rebuild, promote, and SYNC (skills + rules + config)
 ```
 
+### Run it ONLY from local `main`, in sync with `origin`
+
+**Preconditions, all three. Check them; do not assume them.**
+
+```bash
+git rev-parse --abbrev-ref HEAD          # must be `main` — NOT a worktree, NOT a plan branch
+git status --porcelain                   # must be empty
+git fetch origin && git rev-list --left-right --count origin/main...main   # must be `0	0`
+```
+
+The install **bakes whatever tree it builds into the binary** and deploys it to every detected
+harness. So the binary is only ever as correct as the checkout it was built from, and the failure
+is silent — a deployed skill tree that exists on no branch anyone can check out.
+
+Each precondition rules out a distinct way to get that:
+
+- **A worktree or plan branch** carries work that has not landed. Deploying from one installs a
+  toolchain matching no published state; the next `main`-based install silently reverts it, and
+  nothing records that either happened.
+- **A dirty tree** bakes uncommitted edits. `yf --version` reports `-dirty`, but the *hash* still
+  reads as the commit — so the stamp looks right while the tree is not.
+- **`main` ahead of `origin`** deploys code no one else has. Behind, it deploys a tree already
+  superseded. `--force` suppresses the staleness checks that would otherwise question either.
+
+**`--force` does not make any of this safe — it removes the objections.** Add it only when a
+re-deploy is genuinely intended and the three checks above already pass.
+
+**Corollary for plan execution:** the redeploy is the **last** step of landing, after the merge to
+`main` and after the FULL validation tier passes **on the merged tree**. A plan that redeploys from
+its own execute branch has deployed something `main` does not contain.
+
 **The three-step ritual is retired** (plan-042, #157). `yf self install --from-build` now runs
 the **install-time sync** itself (`REQ-YF-SELF-005`): after promoting the binary it execs the
 **freshly promoted** copy once per detected harness, deploying skills, the rules aggregate, and
