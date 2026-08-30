@@ -104,8 +104,18 @@ under-reports from exactly the tree the landing is about.
 
 This is [#294](https://github.com/dixson3/yoshiko-flow/issues/294)'s class — gitignored paths and
 enumeration — meeting the shell divergence above, and it is why **Issue 1.9** forbids recursive
-content grep for enumeration and requires `git ls-files` / `git -C <worktree>` /
-`git worktree list --porcelain` instead. **R13** carries the risk; **SC10b** tests it.
+content grep for enumeration. **R13** carries the risk; **SC10b** tests it.
+
+> **SUPERSEDED — read before acting on the tool list this paragraph originally gave.** It named
+> `git ls-files` / `git -C <worktree>` / `git worktree list --porcelain`, and that prescription was
+> corrected **three** times: see *"A third divergence: TRACKED-ness is not PRESENCE"*, *"A fourth:
+> the fix was itself gitignore-blind"*, and *"A fifth: `--others` is a tracked-ness filter too"*
+> below. The current prescription is a **scoped directory listing**, or the explicit **union**
+> `ls-files ∪ ls-files --others --exclude-standard`, run via `git -C <worktree>`.
+>
+> *(This pointer was recorded as landed in `reviews/pass-5.md`'s C4 resolution and did NOT land —
+> the edit silently no-opped on an unmatched string. That is #250's class: a resolution recorded as
+> done and never written. Caught by red-team pass 6, not by any check.)*
 
 ### Audit of this plan's own criteria against the trap
 
@@ -130,7 +140,7 @@ $ git ls-files docs/plans/plan-060-james-dixson-6a6ac9              # from the p
 $ git -C .worktrees/plan-060-development ls-files <same path>       # from the worktree
 0
 $ git -C .worktrees/plan-060-development ls-files --others --exclude-standard <same path>
-37
+37     # ... AT THE TIME. Now 0 — see the fifth divergence below.
 $ git -C .worktrees/plan-060-development status --porcelain <same path>
 ?? docs/plans/plan-060-james-dixson-6a6ac9/
 ```
@@ -141,8 +151,10 @@ which is why the count itself is not the claim.) And that is not an accident of
 timing: **draft comment bodies are untracked BY CONSTRUCTION at `--dry-run` time**, because the
 plan-folder writes are not committed until L16 — which is D-2's entire point.
 
-**The cheapest possible fixture for SC10b is sitting in the repository right now**: an untracked
-bundle inside a gitignored worktree, exercising both blindnesses at once.
+**That fixture no longer exists.** When this was written the bundle was untracked and this sentence
+claimed it was "the cheapest possible fixture for SC10b". The operator then committed it
+(`a5664e7`), so the bundle is now **40 tracked / 0 untracked**. SC10b must construct its own — and
+per the fifth divergence below it must carry **both** a tracked and an untracked draft.
 
 ### And a shell-INDEPENDENT reason, which is the one that reaches the Python path
 
@@ -207,3 +219,43 @@ So the tally is four divergences, in three directions, from two independent caus
 That recurrence is the finding, more than any individual measurement: each fix was correct about the
 defect it named and wrong about the one it introduced, and each was caught only by *running* the
 prescribed command rather than reading it.
+
+## A fifth: `--others` is a tracked-ness filter too, and the premise died mid-review
+
+Red-team pass 6 ran the prescription again after the operator's mid-review commit and found the
+fourth fix incomplete on a new axis. `git ls-files --others` is the **exact complement** of
+`git ls-files`, so it is *also* a tracked-ness filter and omits every **tracked** file:
+
+```console
+# same bundle, from the worktree, AFTER it was committed (a5664e7)
+$ git ls-files <bundle>                                            -> 40
+$ git ls-files --others --exclude-standard <bundle>                 -> 0     # the prescribed tool
+$ { ls-files ; ls-files --others --exclude-standard ; } | sort -u   -> 40
+$ find <bundle> -type f                                             -> 40
+```
+
+**Neither `ls-files` nor `--others` alone is a presence fact.** Only the union, or a non-git scoped
+listing, answers "is this file here".
+
+### The premise was falsified by this plan's own history
+
+Issue 1.9 rested on *"draft comment bodies are untracked BY CONSTRUCTION at `--dry-run` time,
+because the plan-folder writes are not committed until L16."* `commit-plan` exists precisely to
+commit a bundle **before** landing, the operator invoked it here, and the command that returned
+**37** while the bundle was untracked returns **0** now. `draft_present` would have been wrong in
+*both* directions, depending on nothing but whether someone had committed.
+
+### Five divergences, and the shape of the recurrence
+
+| # | Divergence | Direction | Cause |
+| --: | :-- | :-- | :-- |
+| 1 | interactive `grep` wrapper honours `.gitignore` | under-report | shell |
+| 2 | `git ls-files` is index-only | under-report | plumbing |
+| 3 | `/usr/bin/grep -r` across both roots | **over**-report | plumbing |
+| 4 | `--exclude-standard` / `git status` honour `.gitignore` | under-report | plumbing |
+| 5 | `--others` is the complement of `ls-files` | under-report | plumbing |
+
+**Four consecutive review rounds carried the same blindness class, and each fix was correct about
+the defect it named and wrong about the one it introduced.** Every one was caught by *running* the
+prescribed command rather than reading it — and #5 was invisible to five passes purely because the
+bundle happened to be untracked until the operator committed it.

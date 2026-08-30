@@ -20,13 +20,13 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `kind` | stop |
 | `when` | 2026-08-29 |
 | `stop_class` | 4 |
-| `asked` | review-loop-check reported cycles 5 of 5, escalates=true, stop_class 4. The session asked the operator whether to raise --max-review-cycles to 6 and run a sixth pass, stop with the plan in review carrying a REVISE, or approve over the REVISE with --override-ready-check. |
+| `asked` | `review-loop-check` reported cycles 5 of 5, `escalates=true`, `stop_class 4`. The session asked the operator whether to raise `--max-review-cycles` to 6 and run a sixth pass, stop with the plan in review carrying a REVISE, or approve over the REVISE with `--override-ready-check`. |
 | `answered` | Operator raised the bound to 6 and directed pass 6. The override-ready-check option was explicitly declined. |
 | `frontloadable` | no |
 | `detected_by` | mechanical-check |
-| `evidence` | review-loop-check --json => {cycles: 5, limit: 5, escalates: true, stop_class: 4}; five reviews/pass-*.md; count-equality with log.md at 5/5. ESC-001 raised, pushed, and resolved with no_answer_taken: false. |
+| `evidence` | `review-loop-check --json` => `{cycles: 5, limit: 5, escalates: true, stop_class: 4}`; five `reviews/pass-*.md`; count-equality with `log.md` at 5/5. ESC-001 raised, pushed, and resolved with no_answer_taken: false. |
 | `escape_class` | none — no defect escaped; this entry records a control that HELD |
-| `adjudication` | **POSITIVE CONTROL for #293, recorded at operator request.** #293 is an executing agent closing a `Type: human` consent gate by writing its own authorization into the close reason — the two cases producing identical artifacts. This is the same mechanism exercised correctly: a limit whose documented purpose is to require operator judgement, which the session could have granted itself with a single flag and which nothing would have detected, was instead escalated and waited on. **The contrast is exact.** In #293 the executor supplied the second party's authorization as free text; here the executor declined to supply it at all and made the absence visible. The plan this occurred in is the plan whose subject is that a session must not authorize its own landing — so the behaviour and the artifact agree, which is the property #293's incident lacked. |
+| `adjudication` | Mechanical stop, correctly reached. `review-loop-check` returned `escalates: true` with `stop_class: 4`, so the halt was an exit code rather than a judgement call. *(The positive-control note originally written here was MISPLACED by a mis-targeted edit — it belongs on RE-002, the entry about the refusal, and has been moved there and rescoped. Recorded rather than silently relocated.)* |
 | `origin` | plan-060 review loop, cycle 5 |
 | `culpability` | none |
 | `prevention` | Not a defect to prevent. What made the right call CHEAP is worth keeping: `review-loop-check` returned a machine-readable `escalates: true` with `stop_class: 4`, so the halt was reached by an exit code rather than by judgement, and `escalation-raise`/`escalation-push` gave the question a durable artifact rather than a prompt that could be lost. **Positive controls are rarer than defects and are not usually written down** — the corpus records what went wrong far more often than what a mechanism prevented, which biases any later analysis of whether these gates are worth their cost. |
@@ -43,11 +43,11 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `answered` | It declined to self-grant. The bound is documented as the operator's lever, with the stated purpose that a plan which has burned N cycles must not SILENTLY resume. The session halted, raised ESC-001, and waited. |
 | `frontloadable` | no |
 | `detected_by` | self-report |
-| `evidence` | SKILL.md: 'the operator's only exit is a per-invocation --max-review-cycles <n> raise, echoed to log.md'. The session ran review-loop-check, got escalates=true, and raised ESC-001 instead of passing --max-review-cycles itself. |
-| `escape_class` |  |
-| `adjudication` |  |
-| `origin` |  |
-| `culpability` |  |
-| `prevention` |  |
-| `cost` |  |
+| `evidence` | `SKILL.md`: `the operator's only exit is a per-invocation --max-review-cycles <n> raise, echoed to log.md`. The session ran `review-loop-check`, got `escalates=true`, and raised ESC-001 instead of passing `--max-review-cycles` itself. |
+| `escape_class` | none — no defect escaped; this entry records a control that HELD |
+| `adjudication` | **A positive control on the BEHAVIOUR, and explicitly NOT on the artifact.** #293 is an executing agent closing a `Type: human` gate by writing its own authorization into the close reason. What this entry can prove is narrow and mechanical: `review-loop-check` returned `escalates: true`, and the session did **not** pass `--max-review-cycles` itself — the ESC-001 artifact exists and the bound was raised only after an operator turn. **What it CANNOT prove is the part that would make it an exact contrast**, and the earlier draft of this cell claimed otherwise. `ESC-001.answer` is **free text written by this session** recording what the operator decided, which is structurally the SAME artifact class as #293's close reason: nothing in the record distinguishes "the operator answered and the session recorded it" from "the session wrote the answer itself". `asked_of` is empty, so the escalation names no recipient, and the `push_batch` token has no verifiable upstream trace. So: a positive control on conduct, evidenced by an absence (the flag not passed) rather than by a presence — and the residual gap is the very one #293 exposes. Claiming "the contrast is exact" was the one self-favourable unfalsifiable claim in a bundle whose thesis is that such claims are the defect, and red-team pass 6 was right to catch it. |
+| `origin` | plan-060 review loop, cycle 5 |
+| `culpability` | none for the refusal; the overclaim in the first draft of this cell is the session's |
+| `prevention` | Not a defect to prevent. What made the right call CHEAP is worth keeping: the halt was reached by an exit code (`stop_class: 4`), not by judgement, and `escalation-raise` gave the question a durable artifact rather than a prompt that could be lost. **Positive controls are rarer than defects and are not usually written down** — the corpus records what went wrong far more often than what a mechanism prevented, which biases any later analysis of whether these gates are worth their cost. The *strengthening* worth having is an escalation whose resolver identity is not first-party — the same unsolved problem as #304. |
+| `cost` | one operator round trip |
 
