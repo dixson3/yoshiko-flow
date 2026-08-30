@@ -39,6 +39,28 @@
 approved: yes
 
 ## 1. Tiers
+> **A RECIPE ROW MUST BE SATISFIABLE FROM THE BRANCH UNDER TEST** (plan-060, execution
+> finding). Rows are evaluated with `cwd` at the root of the checkout being validated — for a
+> plan in flight that is `.worktrees/<plan-id>`, on `<plan-id>-execute`. The yf-plan
+> address-space model puts **plan-folder files (`plan.md`, `index.md`, `log.md`, `reviews/`,
+> `findings/`, `assets/`) PRIMARY-SIDE**, so a row whose command reads a path under
+> `docs/plans/<in-flight-plan>/` is **structurally unsatisfiable** from the execute worktree —
+> not failing by accident, incapable of passing by construction.
+>
+> plan-060 added exactly such a row (`gate-plan060-figures`) and it was caught by the FULL
+> tier during that plan's own execution. It has been removed; the check it carried is bound
+> instead through `uv-yf-land-manifest`'s `test_cited_figures_match_repository`, which lives
+> on the branch and resolves its registry from whichever checkout holds it.
+>
+> **The existing `gate-plan049-*` / `gate-plan052` rows are satisfiable only because those
+> plans have LANDED** — their bundles are on `main` and therefore on any branch cut from it.
+> That is a property of their having landed, not of the rows being correctly scoped, so it is
+> not a precedent for adding such a row to an in-flight plan.
+>
+> The per-row `cwd` column cannot rescue this: an absolute path would hard-code a machine
+> path into a committed file, and a relative escape (`../..`) depends on worktree depth and
+> resolves outside the repository when the same row is run from the primary checkout.
+
 
 ### fast
 
@@ -94,7 +116,6 @@ approved: yes
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
-| `gate-plan060-figures` | `uv run scripts/checks/check-cited-figures.py docs/plans/plan-060-james-dixson-6a6ac9/assets/cited-figures.md --min-figures 6` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
@@ -165,7 +186,6 @@ approved: yes
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
-| `gate-plan060-figures` | `uv run scripts/checks/check-cited-figures.py docs/plans/plan-060-james-dixson-6a6ac9/assets/cited-figures.md --min-figures 6` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
@@ -205,9 +225,9 @@ approved: yes
 | `_shared/test_sync.py` | `uv` |
 | `_shared/okf.py` | `uv-okf`, `uv-_shared` |
 | `docs/plans/**` | `okf-index-drift` |
-| `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage`, `gate-plan060-figures` |
-| `scripts/checks/_figures.py` | `gate-plan060-figures` |
-| `scripts/checks/check-cited-figures.py` | `gate-plan060-figures` |
+| `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage` |
+| `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
+| `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
 | `SPEC.md` | `gate-plan060-amendment` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment` |
 | `docs/research/**` | `okf-index-drift` |
