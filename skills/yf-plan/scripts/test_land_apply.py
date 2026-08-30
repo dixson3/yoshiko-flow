@@ -509,6 +509,43 @@ def test_conflict_states_have_non_uniform_recoveries():
         "closed and `status: complete` written")
 
 
+def test_no_target_taking_rewind_in_landing_path():
+    """REQ-LAND-017a. No landing step issues a history-rewind that takes a TARGET REVISION.
+
+    THIS PINS AN IMMUNITY THAT WAS ACCIDENTAL. The landing path happens to contain no `reset`,
+    `revert`, `cherry-pick` or forced push, and its one history-affecting operation
+    (`git merge --abort`) takes NO revision argument — git computes the restore point from
+    MERGE_HEAD/ORIG_HEAD, so there is no target to select wrongly.
+
+    Why it needs pinning: during this plan's own execution the session proposed
+    `git reset --hard <commit>` on the TRUE premise that the commit being dropped contained
+    nothing it had authored, and that reset would have deleted a LATER commit sitting on top —
+    the very fix the reset existed to preserve. A rewind target is defined by what it
+    PRESERVES, not by what it drops. An executor computing one the same way would make that
+    error with the operator's authorization already attached.
+
+    Issue 4.10 still has to decide abort-vs-leave empirically, so a future implementation could
+    reach for a target-taking form. This test is what makes that a failure rather than a
+    regression nobody notices.
+    """
+    code = _code_only(_PM.read_text(encoding="utf-8"))
+    landing = code[code.index("LAND_SCHEMA_MANIFEST"):]
+
+    for verb in ("reset", "cherry-pick", "--hard", "--force", "-f'", "revert"):
+        assert f"'{verb}'" not in landing and f'"{verb}"' not in landing, (
+            f"the landing path issues a history-rewinding git verb: {verb}")
+
+    # The one permitted operation, asserted to take NO revision argument.
+    import inspect
+    abort = _code_only(inspect.getsource(pm._land_abort_merge))
+    assert '"merge", "--abort"' in abort or "'merge', '--abort'" in abort
+    call = re.search(r"_run_git\(\[(.*?)\]", abort, re.S)
+    assert call, "could not locate the abort invocation"
+    args = [a.strip().strip("\"'") for a in call.group(1).split(",")]
+    assert args == ["merge", "--abort"], (
+        f"`merge --abort` must take NO revision argument; got {args}")
+
+
 def test_capture_rejects_an_unenumerated_site(repo):
     with pytest.raises(ValueError, match="four enumerated conflict states"):
         pm._land_capture_conflict("L_SOMETHING_ELSE", repo)

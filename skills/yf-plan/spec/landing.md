@@ -267,6 +267,27 @@ shall:
 
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_conflict_captured_and_restored`
 
+REQ-LAND-017a: **No landing step shall issue a history-rewinding git command that takes a
+TARGET REVISION** — no `reset`, no `revert`, no `cherry-pick`, no forced push. The only
+history-affecting operation permitted on the recovery path is `git merge --abort`, which takes
+**no revision argument**: git computes the restore point itself from `MERGE_HEAD`/`ORIG_HEAD`.
+
+Rationale, and it is a defect the plan committed against itself rather than a hypothetical. A
+rewind target is defined by **what it PRESERVES**, never by what it drops. During this plan's own
+execution the session proposed `git reset --hard <epic-3-commit>` on the true premise that the
+commit being removed "contains nothing I authored" — and that reset would have dropped a **later**
+commit sitting on top of it, deleting the very fix the reset existed to preserve. The premise was
+verified; the conclusion did not follow, because the reasoning was about which commit to remove
+rather than about what the target keeps. `git merge-base --is-ancestor <fix> <target>` answers it
+in one command.
+
+An executor that computed such a target the same way would make that error **with the operator's
+authorization already attached**, which is the worst available moment for it. The prohibition is
+therefore structural rather than advisory: the shipped landing path contains zero occurrences of
+any of these verbs, and this requirement plus its test PIN that property, which until now held
+only by accident.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_no_target_taking_rewind_in_landing_path`
+
 REQ-LAND-018: **A clean preview does not guarantee a clean apply.** `land --apply` shall
 **re-preview immediately before the merge** and halt on any change since the decision was minted,
 reporting the **digest mismatch** rather than the bare conflict.
