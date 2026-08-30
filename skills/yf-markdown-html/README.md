@@ -93,7 +93,7 @@ companion rule.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every
+Deployed by `yf harness skills install`, which auto-discovers every
 `skills/*/` directory (group `markdown`). See the project
 [README](../../README.md) for flags. Or per-skill: copy `skills/yf-markdown-html`
 to `~/.claude/skills/yf-markdown-html`.

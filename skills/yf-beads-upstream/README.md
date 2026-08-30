@@ -21,10 +21,10 @@ or coordinator loop.
 
 ## Install
 
-Installed by the repo-level `install.sh`, which auto-discovers every `skills/*/` directory. The
-skill ships one **companion rule** (`protocols/UPSTREAM_TRACKING.md`) that `install.sh` surfaces
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/` directory. The
+skill ships one **companion rule** (`protocols/UPSTREAM_TRACKING.md`) that the same command deploys
 to the install's rules dir (always-loaded), and **no hook**. No install changes needed. See the
-project [README](../../README.md) for `install.sh` flags.
+project [README](../../README.md) for `yf harness skills install` flags.
 
 ## Usage
 

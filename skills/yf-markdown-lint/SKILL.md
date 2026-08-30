@@ -189,7 +189,7 @@ resolution (ML003/ML004) to stay fast; run the full set (no `--rules`) for a
 deliberate link audit (which also surfaces ML011 empty-alt).
 
 **Portable (preferred) — the always-loaded trigger rule.** `protocols/MARKDOWN_LINT.md`
-ships with the skill and is installed to the rules surface by `install.sh`. It is
+ships with the skill and is deployed to the rules surface by `yf harness skills install`. It is
 a **silent no-op unless the repo opts in** by placing a `.markdown-lint-on-edit`
 marker file at its root; with the marker present, the agent lints each changed
 `.md` on edit. This works across harnesses and travels with the skill install.

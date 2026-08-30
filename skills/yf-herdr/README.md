@@ -39,7 +39,7 @@ relationship is a **prose soft-dep**, not a `depends-on-skill` entry — see SKI
 
 ## Install
 
-Installed by `yf skills install` / the repo-level `install.sh`, which auto-discover every
+Deployed by `yf harness skills install`, which auto-discovers every
 `skills/*/` directory. This skill ships **no companion rule**, **no hook**, and **no scripts**,
 so no installer change is needed — it is picked up automatically. It belongs to the `utility`
 install group, so `yf skills install --group utility` includes it. See the project

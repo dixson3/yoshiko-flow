@@ -22,11 +22,11 @@ strict evidence standard and returns PASS / FAIL / INCONCLUSIVE / CONFLICT. It n
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 directory. This skill ships one **companion rule** (`protocols/DRIFT-CHECK-TRIGGER.md`) that the
 installer surfaces to the rules dir as an always-loaded firing surface (`install_rules` globs
 `protocols/*.md`), and **no hook**. No installer change is needed — both the skill and its rule
-are picked up automatically. See the project [README](../../README.md) for `install.sh` flags.
+are picked up automatically. See the project [README](../../README.md) for `yf harness skills install` flags.
 
 ## Usage
 

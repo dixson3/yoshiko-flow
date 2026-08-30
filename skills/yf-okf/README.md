@@ -26,10 +26,10 @@ non-empty `type` on every non-reserved `.md`, the dual frontmatter + `**Field:**
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 directory. yf-okf ships **no companion rule and no hook** — it is operator-invoked, not on-edit
 auto-fire — so there is no `protocols/` rule to surface and no installer change is needed. See the
-project [README](../../README.md) for `install.sh` flags. It adds **no `yf` Rust subcommand** — it
+project [README](../../README.md) for `yf harness skills install` flags. It adds **no `yf` Rust subcommand** — it
 routes as a skill (the kernel/skill boundary).
 
 ## Usage

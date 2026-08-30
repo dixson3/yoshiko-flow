@@ -16,13 +16,7 @@ The gotchas are certified for bd 1.0.5–1.1.0 — re-verify against your instal
 
 ## Install
 
-Via repo-level installer:
-
-```bash
-./install.sh
-```
-
-Or per-skill, use the canonical installer, which resolves the destination for
+Deployed by the canonical installer, which resolves the destination for
 **whichever harness you name** rather than hardcoding claude-code's — and deploys
 the companion rule with it:
 

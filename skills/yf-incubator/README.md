@@ -19,9 +19,9 @@ nothing is kept in session-only or Claude-only stores.
 
 ## Install
 
-Installed by the repo-level `install.sh`, which auto-discovers every `skills/*/` directory and
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/` directory and
 closes over `depends-on-skill` (it pulls `beads-extra` transitively). No install changes needed.
-See the project [README](../../README.md) for `install.sh` flags.
+See the project [README](../../README.md) for `yf harness skills install` flags.
 
 ## Usage
 

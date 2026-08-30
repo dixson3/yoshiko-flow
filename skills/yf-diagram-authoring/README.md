@@ -92,7 +92,7 @@ hook). Preflight only checks that `d2` is on PATH — it never probes the Chromi
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 directory. No hook, no companion rule. See the project [README](../../README.md) for flags.
 
 ## Usage

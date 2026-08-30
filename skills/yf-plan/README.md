@@ -49,22 +49,12 @@ Optional:
 - `gh` — GitHub CLI (for upstream issue tracking)
 - `glab` — GitLab CLI (for upstream issue tracking)
 
-The repo installer (`install.sh`) installs the `PLANS.md` companion rule alongside the skill, to a rules dir anchored by scope and surface — `--scope user` (default) → `~/.<surface>/rules/` (global, shared by every project), `--scope project` → `<git-root>/.<surface>/rules/` (`.claude` or `.agents` per `--surface`). `/yf-plan init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/plans` dir + a single `/.yf/` gitignore anchor) is ensured automatically by preflight on every healthy `check`.
+`yf harness skills install` deploys the `PLANS.md` companion rule alongside the skill, to a rules dir anchored by scope and harness — `--scope user` (default) → `~/.<surface>/rules/` (global, shared by every project), `--scope project` → `<git-root>/.<surface>/rules/`, with `--harness claude-code|codex|opencode|pi|agents` selecting the surface. `/yf-plan init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/plans` dir + a single `/.yf/` gitignore anchor) is ensured automatically by preflight on every healthy `check`.
 
 ## Install
 
-Via the repo-level installer (installs the skill + its companion rule):
-
-```bash
-./install.sh                       # all skills -> ~/.claude/{skills,rules}/
-./install.sh --scope project       # -> <git-root>/.claude/{skills,rules}/
-./install.sh --surface agents      # -> ~/.agents/{skills,rules}/
-./install.sh --force yf-plan        # reinstall yf-plan, overwriting its rule
-```
-
-Or per-skill, use the canonical installer, which resolves the destination for
-**whichever harness you name** rather than hardcoding claude-code's — and deploys
-the companion rule with it:
+Deployed by the canonical installer, which installs the skill **and** its `PLANS.md` companion rule, and resolves the destination for
+**whichever harness you name** rather than hardcoding claude-code's:
 
 ```bash
 yf harness skills install yf-plan --harness pi     # or claude-code, codex, opencode, agents

@@ -264,7 +264,7 @@ about one bundle, this skill is right and that is a defect there.
 ## Init
 
 `/yf-okf init` initializes yf-okf for a project. The skill and its `spec/` reference are picked
-up automatically by the repo-level `install.sh` / `install.py` (auto-discovers every `skills/*/`
+up automatically by `yf harness skills install` (auto-discovers every `skills/*/`
 directory); yf-okf ships **no companion rule and no hook**, so no installer change is needed.
 `init` is therefore consent-only: confirm `uv` is on `PATH`, confirm the engine
 (`scripts/okf.py`, vendored per Issue 1.6) is present, and report readiness. The engine is

@@ -92,7 +92,7 @@ missing. No `init` step, no config, no companion rule.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers
+Deployed by `yf harness skills install`, which auto-discovers
 every `skills/*/` directory (group `markdown`). See the project
 [README](../../README.md) for flags. Or per-skill, use the canonical installer,
 which resolves the destination for **whichever harness you name** rather than

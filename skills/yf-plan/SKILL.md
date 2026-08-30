@@ -167,7 +167,8 @@ moved into the `yf` kernel. See docs/yf/preflight-contract.md.)
   set up the project. Stop.
 - **`rule_missing` / `rule_drift` / `rule_deprecated` / `manifest_*`**: follow the
   `instructions` in the result. The companion rule is installed by the repo installer, so
-  these point at `install.sh` (e.g. re-run `install.sh --force` to restore a drifted rule),
+  these point at `yf harness skills install` (e.g. re-run it with `--force` to restore a drifted
+  rule),
   not `init`. Stop.
 
 Config vs state: **config** is operator decision — `ignore-skill`, `plans-root`,
@@ -180,7 +181,7 @@ writes `.yf/plan/preflight.json`, and the manager's own state (`landing.lock`) a
 `.yf/plan/` — both short-name, matching the `yf` binary. `yf migrate` moves legacy → canonical;
 preflight does not auto-migrate. *(dixson3/yoshiko-flow#100 delivered both the canonical-first
 read and the short-name layout, and is closed; text describing either as pending was stale.)* The companion rule is installed by the repo installer
-(`install.sh`) to the scope+surface rules dir (user-scope `~/.<surface>/rules/PLANS.md`,
+(`yf harness skills install`) to the scope+surface rules dir (user-scope `~/.<surface>/rules/PLANS.md`,
 project-scope `<git-root>/.<surface>/rules/PLANS.md`; `.claude` or `.agents`); preflight
 resolves it in precedence order (user/global copy first) and hash-checks it against
 `protocols/manifest.json`.
@@ -196,7 +197,7 @@ Run yf-plan init for Claude Code:
    On status "ok", preflight has already ensured the idempotent scaffold (the docs/plans dir
    plus a single `/.yf/` gitignore anchor); `scaffold_added` lists
    what it created. Per-incubator plan roots (`Incubator/<slug>/plans/`) are created lazily.
-   The companion rule `PLANS.md` is installed by the repo installer (`install.sh`), not here —
+   The companion rule `PLANS.md` is deployed by `yf harness skills install`, not here —
    never write to AGENTS/ and never edit CLAUDE.md.
 2. If status is "system_deps_missing" or "bd_not_initialized", return the JSON as-is. Do nothing
    else. (The scaffold is intentionally NOT ensured until the project is ready.)
@@ -205,7 +206,7 @@ Run yf-plan init for Claude Code:
 
 Handle the sub-agent result:
 
-- **"ready"**: print actions taken. If the returned `rule.outcome` is not `ok`/`update_available` (e.g. `rule_missing`/`rule_drift`), tell the user the companion rule is missing or drifted and to re-run the repo installer — `install.sh` (add `--force` to clobber a drifted/hand-edited copy); init does not install rules. Then show usage.
+- **"ready"**: print actions taken. If the returned `rule.outcome` is not `ok`/`update_available` (e.g. `rule_missing`/`rule_drift`), tell the user the companion rule is missing or drifted and to re-run `yf harness skills install` (add `--force` to clobber a drifted/hand-edited copy); init does not install rules. Then show usage.
 - **"system_deps_missing"** or **"bd_not_initialized"**: print the missing items and instructions. Ask: "Would you like to (1) stop and fix the prerequisites, or (2) ignore yf-plan in this project?" If ignore, write `{"ignore-skill":true}` to `.yf-plan.local.json` at the repo root, and ensure `/.yf-plan.local.json` is in `.gitignore`, then exit.
 
 **Rule:** All task tracking uses `bd`. Never use TodoWrite, markdown checklists, or inline task lists.

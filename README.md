@@ -39,7 +39,7 @@ the uv-style self-contained model — served from the project's own domain,
 curl --proto '=https' --tlsv1.2 -LsSf https://yoshikoflow.sh/install.sh | sh
 ```
 
-The hosted `install.sh` is a byte-for-byte mirror of cargo-dist's `yf-installer.sh` from a
+The hosted installer script is a byte-for-byte mirror of cargo-dist's `yf-installer.sh` from a
 pinned GitHub release; **GitHub Releases stays canonical** for every binary and for
 self-update. This does not install `bd` / `uv` — see [Prerequisites](#prerequisites).
 

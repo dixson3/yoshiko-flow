@@ -146,5 +146,5 @@ skills/yf-beads-init/
 
 ## Install
 
-Deployed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 by its `SKILL.md` frontmatter and surfaces `protocols/*.md` to the rules dir.

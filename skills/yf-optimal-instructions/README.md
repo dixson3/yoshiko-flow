@@ -21,11 +21,11 @@ cuts, and proposes structural relocation toward AGENTS.md-primacy, then reports 
 
 ## Install
 
-Installed by the repo-level `install.sh`, which auto-discovers every `skills/*/` directory. This
-skill ships one **companion rule** (`protocols/INSTRUCTIONS.md`) that `install.sh` surfaces to
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/` directory. This
+skill ships one **companion rule** (`protocols/INSTRUCTIONS.md`) that the same command deploys to
 the install's rules dir (always-loaded), and **no hook**. No install changes needed — both the
 skill and its rule are picked up automatically. See the project [README](../../README.md) for
-`install.sh` flags.
+`yf harness skills install` flags.
 
 ## Usage
 

@@ -18,13 +18,7 @@ No `init` step — this skill ships no `protocols/` rule and writes no config or
 
 ## Install
 
-Via repo-level installer:
-
-```bash
-./install.sh
-```
-
-Or per-skill, use the canonical installer, which resolves the destination for
+Deployed by the canonical installer, which resolves the destination for
 **whichever harness you name** rather than hardcoding claude-code's — and deploys
 the companion rule with it:
 

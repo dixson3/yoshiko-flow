@@ -27,12 +27,12 @@ no-op and `run` returns a clean refusal.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 directory. This skill ships one **companion rule**
 (`protocols/CHANGE-VALIDATION-TRIGGER.md`) that the installer surfaces to the rules dir as an
 always-loaded firing surface (`install_rules` globs `protocols/*.md`), and **no hook**. No
 installer change is needed — both the skill and its rule are picked up automatically. See the
-project [README](../../README.md) for `install.sh` flags. It adds **no `yf` Rust subcommand** —
+project [README](../../README.md) for `yf harness skills install` flags. It adds **no `yf` Rust subcommand** —
 it routes as a skill (the kernel/skill boundary).
 
 ## Usage

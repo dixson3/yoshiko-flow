@@ -91,7 +91,7 @@ no companion rule.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers
+Deployed by `yf harness skills install`, which auto-discovers
 every `skills/*/` directory (group `markdown`) and copies the skill's
 `protocols/*.md` companion rule to the rules surface. See the project
 [README](../../README.md) for flags. Or per-skill, use the canonical installer, which

@@ -194,7 +194,7 @@ its own output on the next write.
 
 ## Companion rule
 
-This skill ships `protocols/INSTRUCTIONS.md` — an always-loaded rule that `install.sh` surfaces
+This skill ships `protocols/INSTRUCTIONS.md` — an always-loaded rule that `yf harness skills install` surfaces
 to the rules dir. It states the on-write token-efficiency obligation for all instruction
 surfaces (project-root and skill-dir) and points to yf-skill-authoring `SKILL.md` "Token
 efficiency" § as the single source of truth. It is the always-loaded backstop for this skill's
