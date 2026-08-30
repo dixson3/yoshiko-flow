@@ -365,6 +365,61 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   rewritten, so that citation stands as written and resolves here. This note deliberately
   spells the retired number bare, so it is not itself a citation of the retired id.
 
+- **REQ-PLAN-083** *(testable, plan-060 / #301, #304)* yf-plan shall provide a **landing
+  capability** — the `land` verb (REQ-CLI-030) and the `lander` agent (REQ-AGENT-065) — that takes
+  a plan from "the work is done on `<plan-id>-execute`" to merged, pushed, reconciled, closed,
+  pruned and redeployed on **one informed consent grant**. The step order, journal, conflict
+  contract and runtime preconditions are specified in `spec/landing.md` (`REQ-LAND-*`); the
+  ordering constraints are `REQ-COMPLETE-005`.
+
+  **The design premise is that authorizing the merge IS the authorization.** When an operator says
+  "merge this plan", they have already decided the plan is done; everything downstream is
+  mechanical consequence of a decision already taken. Measured: landing plan-057 took **eleven
+  separate operator instructions**, each asked for explicitly, one at a time, *after* the plan was
+  already `complete` and verified green. Re-soliciting consent per step buys nothing except
+  attrition — and attrition is the condition under which an operator starts rubber-stamping, which
+  is the precondition for `dixson3/yoshiko-flow#293`.
+
+  **The consent model, and what each of its three parts does NOT guarantee.** Each is labelled
+  here rather than in a commentary, because an honestly-labelled detection control is worth more
+  than a prevention claim that does not hold:
+
+  1. **The session does not get the verb** (`REQ-LAND-013`). The session runs `land --dry-run`,
+     dispatches the `lander`, then **stops** and prints the `land --apply` command for the operator
+     to run in their own shell. This is the only genuinely structural row, and its guarantee is
+     the **absence of the capability** — it dies the moment a future rule adds the capability back,
+     which is why it is paired with (2).
+  2. **A controlling-terminal gate** on `land --apply` (`REQ-LAND-014`), specified as pure POSIX:
+     refuse when `os.ttyname(0)` raises or `/dev/tty` is not openable, at exit 3.
+     **This is not prevention.** `herdr pane run <pane> <cmd>` runs a command in a pane with a genuine pty in
+     **one sanctioned tool call**, and is named here as a **known bypass**; the `pty.fork()`
+     evasion an investigation priced at ~15 lines is in fact far cheaper than that. Any allow-list
+     shall be **operator-configured, never herdr-derived** — `herdr api schema --json` contains
+     zero occurrences of `human` and zero of `attached`, so "a pane herdr reports as
+     human-attached" is not a capability herdr has. The gate converts self-authorization from a
+     *rationalizable* act into an *unmistakable* one, and nothing more.
+  3. **A route record** (`REQ-LAND-015`) — tty or its absence, `CLAUDECODE`/entrypoint presence,
+     pid and sid — stamped on every `--apply` and every gate close, with `audit-close` failing a
+     `Type: human` gate whose record reads "no tty, `CLAUDECODE` set".
+     **This is detection, not prevention.** The markers are strippable; they are useful because they are strippable
+     *asymmetrically* — a clean record is weak evidence of a human, a dirty one is strong evidence
+     of an agent. It would have surfaced #293 within seconds.
+
+  **What this requirement does not claim.** It does **not** make a self-authorized landing
+  impossible. Measured (plan-060 D-12): **no purely local artifact is unmintable** — any token a
+  local verifier can check, a local agent can produce — so #301's claim that the three-layer split
+  is *structural* does not hold in full, and `dixson3/yoshiko-flow#304` exists precisely because
+  that residue is real. The genuinely off-machine lever (branch protection on the default branch)
+  is absent, admin-removable, and guards one branch; it is deliberately **not** built here and is
+  tracked on #304.
+  Verification: `uv run skills/yf-plan/scripts/test_cli_enumeration.py`;
+  `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_tty_gate_refuses_and_is_posix_only`;
+  `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_route_record_detects_agent`.
+  Note on the id: **083**, never **082** — which is *consumed* at `plan_manager.py:7330` (the
+  plan-059 escalation payload) and *defined nowhere*, so reusing it would collide with a live
+  reference — and never **078**, which is retired. Allocation verified against
+  `docs/plans/plan-060-james-dixson-6a6ac9/assets/free-req-ids.md`.
+
 ### 2.8 Capture (manual)
 
 - **REQ-PLAN-070** `capture` shall be re-entrant and status-agnostic (pre-intake phases only), purely

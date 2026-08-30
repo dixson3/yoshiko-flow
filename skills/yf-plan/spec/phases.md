@@ -341,3 +341,63 @@ Verification: `scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_cl
 index_add_verb` (the verb is registered, asserted by set-equality rather than by `--help`) and
 `uv run scripts/checks/check_okf_index_drift.py --min-roots 30` (the corpus is clean, having
 actually enumerated it).
+
+## Landing (the `land` verb's ordering constraints)
+
+REQ-COMPLETE-005: *(added plan-060 Issue 0.5)* **The landing ordering constraints.** A landing —
+`plan_manager.py land --apply`, executing the L0–L19 order of `REQ-LAND-004` — extends the §6.4
+chain outward from the plan document to the repository, the upstream tracker, the worktree set and
+the installed toolchain. Its ordering constraints are:
+
+1. **Validation before irreversibility.** The FULL-tier `validate-merged` (L3) runs **before** the
+   first irreversible step, and halts **with the landing lock still held**. The first irreversible
+   step is push #1 (L6); the first outward-facing write is the reconcile writes (L7). Those two
+   boundaries are one step apart, and only the earlier one bounds recoverability.
+2. **Merge before close.** The merge (L2) and its validation (L3) precede the document close chain
+   (L8–L15) and the bead close-out (L12). A conflict at the merge must not strand a plan already
+   marked `complete` with its beads closed and its comments posted.
+3. **Reconcile-verification before destruction**, unchanged from REQ-COMPLETE-001 constraint 2:
+   `verify-reconcile` (L10) and `recheck-criteria` (L11) run after the reconcile bead closes (L9)
+   and before `close_cascade.py` (L12), the first destructive step.
+4. **Plan-folder writes are committed and pushed** (L16) **after** the close chain that produces
+   them, and **before** any pruning (L18) that would remove the branch they lived on.
+5. **Redeploy last** (L19), and only if the landing touched `skills/`. It is the only step that
+   mutates the machine outside the repository.
+
+**#301's rule as filed is over-broad, and this requirement restates it correctly.** The issue says
+no *bead close* may precede a green `verify-reconcile`. That is false as written: it is
+`close_cascade.py` (L12) and `complete-gate` (L13) that must not precede a green `verify-reconcile`
+— **not** "any bead close". `close-reconcile-step` (L9) is itself a bead close, and
+REQ-COMPLETE-001 constraint 2 **already requires it to run first**, since `verify-reconcile` has
+nothing to verify until the reconcile bead is closed. Adopting #301's wording verbatim would make
+the chain unsatisfiable by contradicting a constraint already in force.
+Rationale: the landing order was derived from measurement (plan-060 EXP-004), which found neither
+`SKILL.md`'s Phase 6 nor #301's six-step order correct. #301 places the FULL tier at its step 4,
+*after* the document close and bead close-out, so a red tier has nothing to fail closed onto —
+which discards plan-009's INV-4. Preserving INV-4 is the single most important correction.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_landing_spec_enumerates_steps_and_journal_states`
+and `uv run skills/yf-plan/scripts/test_close_contract.py`.
+
+### The stop-class-1 exception to REQ-AGENT-064
+
+REQ-AGENT-064 states that **"every stop class is an exit code or a counter"** and that no halt is
+reachable by prose judgement alone. **Stop class 1 — a declared outward-facing or irreversible
+write — is an exception, and it is recorded here rather than left as a contradiction.**
+
+`SKILL.md`'s retrospective **write-site table already states it**: class 1 is the one row with
+**no write site**, "empty by construction, not by omission". Every instance of it in this skill is
+a **consent gate by design** — the §6.2 `git push` / `bd dolt push` handoff, the §4.5
+`gh issue create`, the §6.4 `closable` proposal of `gh issue close`, and now `REQ-LAND-013`'s
+withheld `land --apply`. In each case the operator is asked because an outward-facing write
+genuinely requires authorization, not because the system failed to anticipate something.
+
+So class 1 halts on a **declaration**, not on an exit code: nothing about "this next command
+pushes to a remote" produces a non-zero status, and a mechanism that waited for one would never
+fire. The other four classes remain exit-code-or-counter, and this exception does not widen them —
+in particular it does not re-admit "scope ambiguity" as a stop, which is the loophole
+REQ-AGENT-064's enumeration exists to close.
+Rationale: a specification that asserts a universal its own sibling document contradicts teaches
+readers to discount both. Naming the single exception, and bounding it to declared outward-facing
+writes, keeps the universal true of everything it still covers.
+Verification: `SKILL.md`'s "Retrospective emit → Write sites" table carries a class-1 row that is
+empty by construction and states why; `uv run skills/yf-plan/scripts/test_close_contract.py`.

@@ -30,7 +30,7 @@ REQ-CLI-006: `plan_manager.py` exposes its subcommands **flat** — one `@cli.co
 
 > the set of verbs enumerated in this REQ **equals** the set of `@cli.command` names in `skills/yf-plan/scripts/plan_manager.py`.
 
-The enumeration (currently **39**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `grant` (REQ-CLI-025), `ownership-report` (REQ-DATA-071), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `verify-beads` (#197), `clear-epic` (REQ-CLI-027), `index-add` (REQ-PLAN-081), `escalation-raise` (REQ-PORT-053), `escalation-resolve` (REQ-PORT-054), `escalation-report` (plan-059 Issue 3.5), `escalation-push` (plan-059 Issue 3.3), `judgement-echo-check` (plan-059 Issue 5.1), `judgement-never-fired-report` (plan-059 Issue 5.2).
+The enumeration (currently **40**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `grant` (REQ-CLI-025), `ownership-report` (REQ-DATA-071), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `verify-beads` (#197), `clear-epic` (REQ-CLI-027), `index-add` (REQ-PLAN-081), `escalation-raise` (REQ-PORT-053), `escalation-resolve` (REQ-PORT-054), `escalation-report` (plan-059 Issue 3.5), `escalation-push` (plan-059 Issue 3.3), `judgement-echo-check` (plan-059 Issue 5.1), `judgement-never-fired-report` (plan-059 Issue 5.2), `land` (REQ-CLI-030).
 
 Adding a verb **requires** adding it here. The count is written as *currently N* precisely because it is a **derived** fact: the invariant is the set equality, and the number is a convenience that the executing check re-derives. Separately, `plan_manager.py` also exposes the click **groups** `fingerprint`, `worktree` and `landing-lock`, whose subcommands are registered on the group (`@fingerprint.command`, etc.) and are therefore **outside** both the enumeration and the check — which is why REQ-CLI-021 mandates the flat form.
 Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. This REQ has drifted **three times**: it read 10 while the script carried 21; plan-045 corrected it to 23, then to 24 when `review-loop-check` landed; and it was *still* wrong at 25 because `retrospective-report` was added in the same epic that fixed the previous drift. Each fix bumped a hardcoded literal, which is a repair that re-breaks on the very next verb.
@@ -380,3 +380,58 @@ of it, and the count is the assertion.
 
 Verification of the extension: `scripts/checks/harness-selftest.sh --require 16` — 9 enumerated
 before this plan plus the 7 it authors, the selftest excluding itself from its own count.
+
+REQ-CLI-030: *(added plan-060 Issue 0.3)* **The `land` verb.** `plan_manager.py` shall expose
+`land` as a **flat** `@cli.command`, never a command group, with exactly three mutually exclusive
+modes:
+
+| Mode | Writes? | Produces |
+| :-- | :-- | :-- |
+| `land --dry-run <plan-dir>` | no | the **manifest** — facts, exit codes, merge preview, every enumerated write with its body, plus the fully-qualified `--apply` command an operator must run |
+| `land --validate-decision <decision.json> <plan-dir>` | no | a report-only conformance verdict on a decision document — schema, `manifest_digest` match, per-write `body_sha256`, narrowing-only |
+| `land --apply <decision.json> <plan-dir>` | **yes — the only writing mode** | the execution of the L0–L19 order |
+
+**Flat, not a group, and the reason is mechanical.** REQ-CLI-021 mandates the flat form, and a
+group's subcommands are registered on the group rather than on `cli` — so a `land` group would
+**escape `test_cli_enumeration.py`'s set-equality check entirely**, exactly as `fingerprint`,
+`worktree` and `landing-lock` already do. A verb that governs merging and pushing is the last one
+that should be outside the check that notices it exists.
+
+**The envelope is REQ-COMPLETE-003's**, extended with one field:
+
+- `halt_class` — the declared stop class (1–5) of a halt, so a session's stop is signalled
+  **mechanically** rather than judged from the prose of a `reason` string. Absent on a non-halting
+  verdict.
+
+**The exit vocabulary is FOUR-valued, and the fourth value is the point:**
+
+| Exit | Meaning |
+| --: | :-- |
+| `0` | the landing (or the preview, or the validation) succeeded |
+| `1` | a **verdict of FAIL** — a step's condition was measured and does not hold |
+| `2` | **INCONCLUSIVE** — the verb could not measure at all (per `scripts/checks/_common.sh`, REQ-CLI-029) |
+| `3` | **the controlling-terminal refusal** (REQ-LAND-014) |
+
+**The tty refusal is `3`, and it is neither `1` nor `2`.** It is not `1`: nothing about the
+landing was measured false, and banking it as a red observation would be a false statement about
+the plan. It is not `2`: the verb ran perfectly and reached a definite conclusion — *this caller
+may not do this* — which is a **gate signal**, not an instrument failure. Collapsing it into
+either is the same two-facts-one-signal defect `dixson3/yoshiko-flow#263` catalogues, and a
+caller that retried on a `2` would loop forever against a gate that will never open on retry.
+
+**`inconclusive` shall never be coerced to `fail`.** That coercion is a live defect in
+`_validate_merged` — the helper this verb calls (`dixson3/yoshiko-flow#262`) — and a verb whose
+own specification cites #263 must not reproduce it one call frame up.
+Rationale: `land` is the first code in this repository that performs `git merge`, `git pull` and
+`git push`; all 20 pre-existing `_run_git` call sites are read-only or worktree/branch operations.
+A verb with that blast radius earns an explicit registration, envelope and exit contract rather
+than inheriting one by convention.
+Verification: **executed** — `uv run skills/yf-plan/scripts/test_cli_enumeration.py` asserts the
+set equality that includes `land`, and
+`bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_manifest.py test_apply_command_is_fully_qualified`
+asserts the `--dry-run` mode emits the fully-qualified `--apply` command. The behavioural contract
+of each mode is specified in [landing.md](landing.md) (`REQ-LAND-*`).
+
+> **`plan_manager.py land` is NOT `upstream.py land`.** `upstream.py` already carries a `land`
+> verb — the close-time follow-on hoist. They are different operations on different objects, and
+> the distinction is stated at every point the two co-occur (plan-060 R11).

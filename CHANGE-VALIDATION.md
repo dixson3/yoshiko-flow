@@ -92,6 +92,9 @@ approved: yes
 | `dag-guard` | `uv run _shared/test_dag_guard.py` |  |  |
 | `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
+| `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan060-figures` | `uv run scripts/checks/check-cited-figures.py docs/plans/plan-060-james-dixson-6a6ac9/assets/cited-figures.md --min-figures 6` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -157,6 +160,9 @@ approved: yes
 | `dag-guard` | `uv run _shared/test_dag_guard.py` |  |  |
 | `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
+| `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan060-figures` | `uv run scripts/checks/check-cited-figures.py docs/plans/plan-060-james-dixson-6a6ac9/assets/cited-figures.md --min-figures 6` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -193,6 +199,11 @@ approved: yes
 | `_shared/test_sync.py` | `uv` |
 | `_shared/okf.py` | `uv-okf`, `uv-_shared` |
 | `docs/plans/**` | `okf-index-drift` |
+| `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage`, `gate-plan060-figures` |
+| `scripts/checks/_figures.py` | `gate-plan060-figures` |
+| `scripts/checks/check-cited-figures.py` | `gate-plan060-figures` |
+| `SPEC.md` | `gate-plan060-amendment` |
+| `skills/yf-plan/spec/**` | `gate-plan060-amendment` |
 | `docs/research/**` | `okf-index-drift` |
 | `Incubator/*/plans/**` | `okf-index-drift` |
 | `Incubator/*/research/**` | `okf-index-drift` |
