@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Repo-wide `REQ-*` allocation table computed across skills/, SPEC.md, yf/src, scripts/ and _shared/ — a dated allocation-time snapshot recording which ids were free when plan-060 allocated its five.'
+---
+
 # Free `REQ-*` ids — repo-wide allocation table
 
 > **Issue 0.1 of plan-060.** No issue in this plan may allocate a `REQ-*` id before this

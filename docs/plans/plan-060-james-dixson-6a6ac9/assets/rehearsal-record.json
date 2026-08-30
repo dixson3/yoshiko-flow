@@ -1,0 +1,58 @@
+{
+  "schema": "yf-plan/landing-rehearsal@1",
+  "generated_at": "2026-08-30T06:51:18-07:00",
+  "plan_id": "plan-999-rehearsal-sandbox",
+  "origin_url": "/var/folders/xc/y6k9w0m55k37b1571xch_2cw0000gn/T/yf-land-rehearsal-bnncprti/fake-origin.git",
+  "origin_is_local_sandbox": true,
+  "sandbox_root": "/var/folders/xc/y6k9w0m55k37b1571xch_2cw0000gn/T/yf-land-rehearsal-bnncprti",
+  "terminal_journal_state": "L_DONE",
+  "reached_terminal_state": true,
+  "halted": false,
+  "halted_at": null,
+  "steps_executed": [
+    "l0_lock_acquire",
+    "l1_down_merge",
+    "l2_merge",
+    "l3_validate_merged",
+    "l4_commit_merge",
+    "l5_advisory_recheck",
+    "l6_push_one",
+    "l7_reconcile_writes",
+    "l8_close_chain_head",
+    "l12_close_cascade",
+    "l15_update_status",
+    "l16_commit_and_push_two",
+    "l17_residual_mirroring",
+    "l18_prune",
+    "l19_redeploy"
+  ],
+  "stubbed_steps": [
+    "l8_close_chain_head",
+    "l12_close_cascade",
+    "l15_update_status"
+  ],
+  "pushed_paths_on_fake_origin": [
+    ".gitignore",
+    "docs/plans/plan-999-rehearsal-sandbox/log.md",
+    "docs/plans/plan-999-rehearsal-sandbox/plan.md",
+    "skills/base.txt",
+    "skills/landed.py"
+  ],
+  "verdicts": {
+    "l0_lock_acquire": "pass",
+    "l1_down_merge": "pass",
+    "l2_merge": "pass",
+    "l3_validate_merged": "pass",
+    "l4_commit_merge": "pass",
+    "l5_advisory_recheck": "pass",
+    "l6_push_one": "pass",
+    "l7_reconcile_writes": "pass",
+    "l8_close_chain_head": "pass",
+    "l12_close_cascade": "pass",
+    "l15_update_status": "pass",
+    "l16_commit_and_push_two": "pass",
+    "l17_residual_mirroring": "pass",
+    "l18_prune": "pass",
+    "l19_redeploy": "pass"
+  }
+}
