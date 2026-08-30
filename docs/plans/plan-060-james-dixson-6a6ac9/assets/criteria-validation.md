@@ -259,3 +259,98 @@ commit a bundle **before** landing, the operator invoked it here, and the comman
 the defect it named and wrong about the one it introduced.** Every one was caught by *running* the
 prescribed command rather than reading it — and #5 was invisible to five passes purely because the
 bundle happened to be untracked until the operator committed it.
+
+## Post-Epic-0 re-run (2026-08-29, execution)
+
+Every criterion whose command exists **at this point in execution**, re-run from the **execute
+worktree** (`.worktrees/plan-060-james-dixson-6a6ac9`) under `bash -c` — the shell
+`recheck-criteria` actually uses, where `grep` resolves to `/usr/bin/grep` rather than to the
+interactive `ugrep` shell function. Re-confirmed live this session: `type grep` reports *"grep is a
+shell function"* even inside the Bash tool, so the shell column stays a column.
+
+| # | Shell | Verdict | Exit | Reading |
+| :-- | :-- | :-- | --: | :-- |
+| SC1 | `bash -c` | **PASS** | 0 | Was `2` (not-yet-true) at approval. Epic 0 landed the amendment-log entry: *"10 amended id(s) all carry an amendment-log bullet; all 37 non-exempt implementation issues reach a REQ-naming Epic-0 issue"*. |
+| SC2 | `bash -c` | **PASS** | 0 | 39 non-Epic-0 issues, all covered; floor 30 satisfied. |
+| SC2b | `bash -c` | not-yet-true | 1 | Correct: the three test files do not exist until Epics 1–3. |
+| SC4 | `bash -c` | **RED** | 1 | **The criteria layer demonstrably CAN fail — this is the point of Issue 0.9.** `spec/cli.md` now enumerates `land` while `plan_manager.py` does not register it (`2 failed, 5 passed`). SPEC-first makes this window expected; it closes at Issue 1.6. Before Epic 0 this criterion was green, so the transition green→red→green is *observed*, not asserted. |
+| SC13 | `bash -c` | not-yet-true | 1 | The `agents/lander.md` dispatch line lands at Issue 2.4. |
+| SC32 | `bash -c` | not-yet-true | 2 | `--assert-invocation land` reports the verb is unregistered. Exit 2 is its unregistered-verb code. Closes at 1.6/5.2. |
+| SC33 | `bash -c` | **PASS** | 0 | `10 passed` — the §6.4 baseline the Epic-5 rewrite must preserve, re-confirmed after the Epic-0 spec edits. |
+| SC34 | `bash -c` | not-yet-true | 1 | The `SKILL.md` prose fix lands at Issue 5.4. |
+| SC37 | `bash -c` | not-yet-true | 2 | `assets/full-tier-record.md` does not exist until Issue 6.2. |
+
+## The exit-2 collapse, recorded rather than left implicit (Issue 0.9)
+
+`scripts/checks/check-pytest-ran.sh` is three-valued — `0` the named test ran and passed, `1` it ran
+and failed **or does not exist**, `2` **INCONCLUSIVE**, the instrument could not run. **The
+`recheck-criteria` clause grammar is binary**, and it collapses that `2` to *criterion FALSE*.
+
+**Measured, not inferred.** `plan_manager.py:3229`:
+
+```python
+def _recheck_holds(rc: int, want: str) -> bool:
+    if want == "non-zero":
+        return rc != 0
+    return rc == int(want)
+```
+
+Every criterion in this plan is written `-> exit 0`, so `want == "0"` and `_recheck_holds(2, "0")`
+evaluates `2 == 0` → `False`. An INCONCLUSIVE is therefore reported as a criterion that does not
+hold.
+
+**This is the fail-closed direction, and it is a property of the grammar rather than of this plan.**
+An instrument that could not run must never be read as a criterion that holds. But a plan carrying
+`dixson3/yoshiko-flow#263` — and whose own `spec/landing.md` `REQ-LAND-012` and `spec/cli.md`
+`REQ-CLI-030` both require that `inconclusive` is **never coerced to `fail`** — must not leave its
+own criteria layer quietly doing the opposite. So it is stated here:
+
+- **Inside `land`'s own verdicts**, `inconclusive` is a distinct third value and is never coerced
+  (`REQ-LAND-012`).
+- **At the `recheck-criteria` binding**, an INCONCLUSIVE from a criterion's command is read as
+  FALSE, because the clause grammar has no third value to read it into.
+
+The two are not in conflict, but they are also not the same rule, and a reader who assumed the first
+implied the second would misread a red SC as a measured regression when it may be a broken
+instrument. The remedy when this bites is to read the instrument's own output — `check-pytest-ran.sh`
+prints its INCONCLUSIVE reason — never to relax the clause.
+
+## R13 instance #2 — zsh does not word-split, and it reported eight false INCONCLUSIVEs
+
+**Found during execution, Issue 1.8.** A fourth incarnation of R13's class, recorded here because
+the class keeps arriving in a new disguise and the bundle — not a pane scrollback — is where it has
+to live.
+
+The verification loop was written:
+
+```bash
+for sc in "SC6 test_dry_run_does_not_mutate" ...; do
+  set -- $sc
+  bash scripts/checks/check-pytest-ran.sh <file> $2 ; echo "$1 exit=$?"
+done
+```
+
+Run under the ambient **zsh**, every row reported `exit=2`. Run directly, the identical check
+reported `exit=0`.
+
+**Cause: `zsh` does not word-split unquoted parameter expansions**, where `bash` does (`SH_WORD_SPLIT`
+is off by default). So `set -- $sc` set `$1` to the **entire string** `"SC6 test_dry_run_does_not_mutate"`
+and left `$2` **empty**; `check-pytest-ran.sh` received no test name and correctly returned
+**INCONCLUSIVE**. The tell was visible in the output and easy to read past: the label column printed
+`SC6 test_dry_run_does_not_mutate` where it should have printed `SC6`.
+
+**Why this belongs to R13 rather than being a separate curiosity.** R13's shape is *"an assertion
+reads a different answer depending on the shell"*, and its first three incarnations were all about
+`grep` resolving to a ugrep function. This one has nothing to do with `grep` — it is
+**word-splitting** — which is the point: the invariant is the **shell**, not the command. Both
+incarnations produce a **wrong answer at a plausible exit code**, and both vanish under `bash -c`.
+
+**The failure direction was benign here and that is luck, not design.** Eight false INCONCLUSIVEs
+are loud: `recheck-criteria`'s binary grammar collapses a `2` to *criterion FALSE* (recorded above),
+so the mistake would have surfaced as eight red criteria, not eight green ones. The **same** cause
+in a loop whose check defaults to green would have been silent.
+
+**Mitigation, unchanged from R13's original: run it under `bash -c`.** Every criterion in this plan
+was validated that way, and the re-run above was redone that way, at which point all eight reported
+`exit=0`. `recheck-criteria` itself uses `subprocess.run(["bash", "-c", cmd])`, so `bash -c` is not
+a convention — it is the shell the criteria are actually evaluated in.

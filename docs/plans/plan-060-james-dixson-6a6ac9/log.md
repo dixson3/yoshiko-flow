@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-08-29
+- executing: start gate resolved
+- intake: epic yf-mol-gazh poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE (pass-7) + audit pass
 - review-pass: pass-7 red-team presented — APPROVE, no high, 6 prose concerns all resolved
