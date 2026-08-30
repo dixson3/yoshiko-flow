@@ -25,15 +25,15 @@ See the project [README](../../README.md) for `install.sh` flags.
 
 ## Usage
 
-User-invocable (`/incubator`). Subcommands:
+User-invocable (`/yf-incubator`). Subcommands:
 
 ```
-/incubator new <name> [seed notes]   create, set active
-/incubator fork <name>               fork current sidequest into a new incubator, set active
-/incubator bookmark [notes]          rewrite active incubator's ## Resume + last_reviewed
-/incubator resume <name>             load bookmark, set active
-/incubator list                      index all incubators by state + staleness
-/incubator touch <name>              bump last_reviewed only
+/yf-incubator new <name> [seed notes]  create, set active
+/yf-incubator fork <name>              fork current sidequest into a new incubator, set active
+/yf-incubator bookmark [notes]         rewrite active incubator's ## Resume + last_reviewed
+/yf-incubator resume <name>            load bookmark, set active
+/yf-incubator list                     index all incubators by state + staleness
+/yf-incubator touch <name>             bump last_reviewed only
 ```
 
 Proactive sidequest detection (offer once to fork a tangent) also fires from natural-language

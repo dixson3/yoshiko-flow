@@ -111,7 +111,7 @@ marker at its root (see SKILL.md "Lint on edit").
 User-invocable. Lint files or directories, optionally scoping the rule set:
 
 ```
-/markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]
+/yf-markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]
 ```
 
 ```bash

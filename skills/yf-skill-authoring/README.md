@@ -8,6 +8,41 @@ tags: []
 
 Conventions for Claude Code skills, agents, and instruction files. Read by humans authoring skills; loaded by agents via [SKILL](SKILL.md) at the moment of need.
 
+## Prerequisites
+
+- `uv` on `PATH` — the frontmatter declares `depends-on-tool: [uv]`. It is what runs
+  `scripts/manifest_update.py` and every PEP 723 helper this skill teaches you to write.
+
+No other tool is required: the conventions themselves are prose, and everything else in this
+skill is read rather than executed.
+
+## Install
+
+Deployed by `yf skills install`, which auto-discovers every `skills/*/` by its `SKILL.md`
+frontmatter. From a clean `main`, rebuild and deploy in one step:
+
+```bash
+yf self install --from-build --build
+```
+
+## Usage
+
+**Not user-invocable** (`user-invocable: false`) — there is no `/yf-skill-authoring` command.
+The skill loads from its description when you create or edit a file under
+`.{claude,agents}/skills/<skill>/`: a `SKILL.md`, an `agents/*.md`, a skill's own rules, or a
+`.py` helper meant to run via `uv run`.
+
+Project-root instruction files (`CLAUDE.md`, `AGENTS.md`, `AGENTS/*`) route to
+**`yf-optimal-instructions`** instead. That is the distinguishing axis: this skill owns
+**skill-dir** instruction files; `yf-optimal-instructions` owns **project-root** ones.
+
+The one command this skill ships is the protocol-manifest refresh, run after editing a
+`protocols/*.md` file:
+
+```bash
+uv run ${SKILL_DIR}/scripts/manifest_update.py ${SKILL_DIR}/protocols
+```
+
 ## What this skill covers
 
 - **Structure.** Where skill files live, when to extract a script or module, what the directory layout looks like.

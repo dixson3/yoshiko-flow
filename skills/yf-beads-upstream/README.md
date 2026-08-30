@@ -28,12 +28,12 @@ project [README](../../README.md) for `install.sh` flags.
 
 ## Usage
 
-User-invocable (`/beads-upstream`). Operations:
+User-invocable (`/yf-beads-upstream`). Operations:
 
-- `/beads-upstream init` — detect git remote → propose backend (`github|gitlab|jira|none`) →
+- `/yf-beads-upstream init` — detect git remote → propose backend (`github|gitlab|jira|none`) →
   write `<backend>.*` config. `none` fully disables upstream tracking (a first-class, re-enableable choice).
-- `/beads-upstream` (push) — land-the-plane: push open/deferred beads upstream (scoped, dry-run-first).
-- `/beads-upstream status` — enumerate the upstream worklist (or fall back to local `bd` when disabled).
+- `/yf-beads-upstream` (push) — land-the-plane: push open/deferred beads upstream (scoped, dry-run-first).
+- `/yf-beads-upstream status` — enumerate the upstream worklist (or fall back to local `bd` when disabled).
 
 The **close-time / land-the-plane push trigger** is not invoked by intent language; it is bound
 by the always-loaded companion rule `protocols/UPSTREAM_TRACKING.md`.

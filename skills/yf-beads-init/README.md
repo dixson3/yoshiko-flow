@@ -95,7 +95,7 @@ skill for direct-CLI semantics.
 ## Usage
 
 ```
-/beads-init
+/yf-beads-init
 ```
 
 Or invoke the engine directly:
