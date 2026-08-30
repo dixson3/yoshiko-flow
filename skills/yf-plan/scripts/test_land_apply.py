@@ -509,6 +509,111 @@ def test_conflict_states_have_non_uniform_recoveries():
         "closed and `status: complete` written")
 
 
+def test_route_record_check_sees_a_CLOSED_gate(repo, monkeypatch):
+    """REQ-LAND-015 regression. THE CHECK MUST BE ABLE TO FIRE AT ALL.
+
+    THE DEFECT THIS PINS, measured on the live tree: `_land_route_record_findings` queried
+    `bd list --type gate` WITHOUT `--all`, and **`bd list` excludes closed issues by
+    default**. A route record is stamped AT CLOSE, so the two reachable states were:
+
+        gate OPEN   -> no route_record yet   -> `if not rr: continue` -> nothing to flag
+        gate CLOSED -> record exists         -> INVISIBLE TO THE QUERY
+
+    There is no third state, so the check could never fire — for any gate, ever. A CHECK THAT
+    CANNOT FAIL, shipped as the detection control for dixson3/yoshiko-flow#293, by the plan
+    whose subject is checks that cannot fail.
+
+    THE FAKE `bd` REPRODUCES THE REAL SEMANTICS rather than just returning the gate: it
+    returns the closed gate ONLY when `--all` is present. So this test is RED against the
+    unfixed query and GREEN against the fixed one, which is the property that makes it a
+    regression test rather than a restatement.
+    """
+    pdir = repo / "docs" / "plans" / PLAN_ID
+    # The **Epic:** field is a HEADER field and must sit ABOVE the first `## ` heading —
+    # `_read_plan_field` reads the header block only. Appending it at end-of-file (an earlier
+    # draft of this fixture) leaves it unread, and the check then returns early having never
+    # queried bd, which looks exactly like the bug under test. A fixture that reproduces the
+    # symptom for the wrong reason is worse than no fixture.
+    t = (pdir / "plan.md").read_text(encoding="utf-8")
+    t = t.replace("\n## ", "\n**Epic:** yf-mol-test\n\n## ", 1)
+    (pdir / "plan.md").write_text(t, encoding="utf-8")
+
+    gate = {
+        "id": "yf-mol-test.8",
+        "title": "Gate: a human consent gate",
+        "status": "closed",
+        "issue_type": "gate",
+        "metadata": {
+            "gate_type": "human",
+            "route_record": {
+                "has_tty": False,
+                "agent_markers": ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"],
+                "closed_by": "execution-agent",
+            },
+        },
+    }
+
+    calls: list[list[str]] = []
+
+    class _P:
+        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
+
+    real_run = subprocess.run
+
+    def fake_run(args, *a, **kw):
+        if isinstance(args, list) and args and args[0] == "bd":
+            calls.append(args)
+            # REAL SEMANTICS: closed issues are returned ONLY with --all.
+            return _P(json.dumps([gate] if "--all" in args else []))
+        return real_run(args, *a, **kw)
+
+    monkeypatch.setattr(pm.subprocess, "run", fake_run)
+    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
+
+    findings = pm._land_route_record_findings(Path("docs/plans") / PLAN_ID)
+
+    assert calls, "the check never queried bd at all"
+    assert any("--all" in c for c in calls), (
+        "the bd gate query omits --all, so it can never see a CLOSED gate — and a route "
+        "record only exists once the gate is closed. The check cannot fire.")
+    assert len(findings) == 1, (
+        f"expected the agent-closed human gate to be flagged, got {findings}")
+    f = findings[0]
+    assert f["status"] == "fail"
+    assert "yf-mol-test.8" in f["item"]
+    assert "CLAUDECODE" in f["detail"]
+    assert "DETECTION, not prevention" in f["detail"]
+
+
+def test_route_record_check_does_not_flag_a_clean_close(repo, monkeypatch):
+    """The other direction. Flagging a CLEAN record would claim it proves a human, which it
+    cannot — the markers are strippable, so absence is weak evidence (REQ-LAND-015)."""
+    pdir = repo / "docs" / "plans" / PLAN_ID
+    # The **Epic:** field is a HEADER field and must sit ABOVE the first `## ` heading —
+    # `_read_plan_field` reads the header block only. Appending it at end-of-file (an earlier
+    # draft of this fixture) leaves it unread, and the check then returns early having never
+    # queried bd, which looks exactly like the bug under test. A fixture that reproduces the
+    # symptom for the wrong reason is worse than no fixture.
+    t = (pdir / "plan.md").read_text(encoding="utf-8")
+    t = t.replace("\n## ", "\n**Epic:** yf-mol-test\n\n## ", 1)
+    (pdir / "plan.md").write_text(t, encoding="utf-8")
+    gate = {"id": "yf-mol-test.8", "title": "Gate: g", "status": "closed",
+            "issue_type": "gate",
+            "metadata": {"gate_type": "human",
+                         "route_record": {"has_tty": True, "agent_markers": []}}}
+
+    class _P:
+        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
+
+    real_run = subprocess.run
+    monkeypatch.setattr(pm.subprocess, "run",
+                        lambda args, *a, **kw: _P(json.dumps([gate]))
+                        if isinstance(args, list) and args and args[0] == "bd"
+                        else real_run(args, *a, **kw))
+    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
+    assert pm._land_route_record_findings(Path("docs/plans") / PLAN_ID) == []
+
+
 def test_no_target_taking_rewind_in_landing_path():
     """REQ-LAND-017a. No landing step issues a history-rewind that takes a TARGET REVISION.
 

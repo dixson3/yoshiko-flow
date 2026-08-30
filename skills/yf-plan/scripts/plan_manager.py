@@ -6512,8 +6512,21 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
     epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
     if not epic or not shutil.which("bd"):
         return out
+    # `--all` IS LOAD-BEARING AND ITS ABSENCE MADE THIS CHECK VACUOUS. `bd list` EXCLUDES
+    # CLOSED ISSUES BY DEFAULT, and a route record is stamped AT CLOSE — so without it the
+    # two reachable states were:
+    #
+    #     gate OPEN   -> no route_record yet -> nothing to flag
+    #     gate CLOSED -> record exists       -> INVISIBLE TO THE QUERY
+    #
+    # There is no third state, so the check could never fire for any gate, ever. Measured on
+    # the live tree: `select(.id=="yf-mol-gazh.8")` returned 0 results without `--all` and 1
+    # with it, against a gate whose metadata carried a correct agent route record.
+    #
+    # `--type gate` STAYS. plan-057 measured that `bd list --all` alone EXCLUDES gate-typed
+    # beads, so the two flags are both required and neither substitutes for the other.
     proc = subprocess.run(
-        ["bd", "list", "--type", "gate", "--limit", "500", "--json"],
+        ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
         capture_output=True, text=True)
     if proc.returncode != 0:
         return out
@@ -8598,6 +8611,498 @@ def _land_repreview_or_halt(plan_dir: Path, decision: dict) -> dict:
         "remediation": ("Re-run `land --dry-run`, re-dispatch the `lander`, and re-validate. "
                         "A stale decision is never applied and never overridden."),
     }
+
+
+# ==========================================================================================
+# THE ORDERED LANDING STEPS L0-L19 (REQ-LAND-004, Epic 4)
+# ==========================================================================================
+#
+# Every step has the SAME SHAPE: it takes the context, returns a verdict dict, and NEVER
+# raises for an expected condition. The executor advances the journal between them and halts
+# on the first non-`pass` whose step is `halting`.
+#
+# A step returns:
+#   {"step": "l6_push_one", "verdict": "pass|fail|inconclusive", "reason": ...,
+#    "journal": "<state to record on success>", "halting": bool, "detail": {...}}
+
+
+class LandingContext:
+    """Everything the steps share. Assembled ONCE, from RE-DERIVED facts (REQ-LAND-002)."""
+
+    def __init__(self, plan_dir: Path, decision: dict, manifest: dict,
+                 root: Path | None = None, runner=None):
+        self.plan_dir = Path(plan_dir)
+        self.plan_id = _plan_id_from_dir(self.plan_dir)
+        self.decision = decision
+        self.manifest = manifest
+        self.facts = manifest["facts"]
+        self.root = Path(root) if root else _land_primary_checkout()
+        self.target = self.facts["git"]["merge_target"]
+        self.execute_branch = self.facts["git"]["execute_branch"]
+        self.worktree = self.root / self.facts["git"]["worktree_path"]
+        self.journal = LandingJournal(self.root, self.plan_id)
+        #: INJECTABLE so Tier-1 tests drive every step without a network or a real remote.
+        #: NOT a second implementation — the SAME step functions run either way (REQ-LAND-001's
+        #: "one code path"), only the process spawner differs.
+        self.run = runner or (lambda args, cwd=None: _run_git(args, cwd=cwd or self.root))
+        self.results: list[dict] = []
+
+    def step_enabled(self, key: str) -> tuple[bool, str | None]:
+        """Is this step enabled by the decision? Returns (enabled, skip_reason).
+
+        NARROWING-ONLY (REQ-LAND-002): a non-skippable step is ALWAYS enabled regardless of
+        what the decision says — `--validate-decision` already refuses such a decision, and
+        this is the belt to that suspenders. A decision cannot widen and cannot skip the
+        merge.
+        """
+        v = (self.decision.get("steps") or {}).get(key, "enable")
+        if key in LAND_NON_SKIPPABLE:
+            return True, None
+        if isinstance(v, str) and v.startswith("skip"):
+            return False, v.split(":", 1)[1] if ":" in v else "(no reason given)"
+        return True, None
+
+
+def _step(name: str, verdict: str, reason: str, journal: str | None = None,
+          halting: bool = True, **detail) -> dict:
+    return {"step": name, "verdict": verdict, "reason": reason, "journal": journal,
+            "halting": halting, "detail": detail}
+
+
+# -- L0 ------------------------------------------------------------------------------------
+
+def _land_l0_lock_acquire(ctx: LandingContext) -> dict:
+    """L0 — acquire the single-machine landing lock.
+
+    First because it must precede the first tree mutation, or two landings interleave.
+    """
+    out = _landing_lock_acquire(ctx.plan_id)
+    if not out.get("acquired"):
+        return _step("l0_lock_acquire", "fail",
+                     f"the landing lock is held: {out.get('holder')}",
+                     halting=True, holder=out.get("holder"))
+    return _step("l0_lock_acquire", "pass", "landing lock acquired", journal="L_LOCKED")
+
+
+# -- L1 ------------------------------------------------------------------------------------
+
+def _land_l1_down_merge(ctx: LandingContext) -> dict:
+    """L1 — fetch, then DOWN-MERGE the target into `<plan-id>-execute`, in the worktree.
+
+    This is what makes L11 honest: a down-merge makes the branch tree byte-identical to the
+    merged tree, so completion-time measurement and "the tree that will be on the target" are
+    reconcilable rather than in tension.
+
+    A conflict here is `L_CONFLICT_DOWNMERGE` — fully local, pre-L6 and pre-L7, so the
+    recovery is capture-then-abort and there is no outward trace.
+    """
+    wt = ctx.worktree if ctx.worktree.is_dir() else ctx.root
+    ctx.run(["fetch", "--all", "--prune"], cwd=wt)
+    r = ctx.run(["merge", "--no-ff", "-m",
+                 f"plan-{ctx.plan_id}: down-merge {ctx.target} before landing", ctx.target],
+                cwd=wt)
+    if r.returncode != 0:
+        cap = _land_capture_conflict("L_CONFLICT_DOWNMERGE", wt)
+        restore = _land_abort_merge(wt)
+        return _step("l1_down_merge", "fail",
+                     "the down-merge conflicted — captured and aborted; nothing has been "
+                     "pushed and nothing posted, so there is no outward trace",
+                     journal="L_CONFLICT_DOWNMERGE", halting=True,
+                     conflict=cap, restore=restore)
+    return _step("l1_down_merge", "pass",
+                 f"{ctx.target} down-merged into {ctx.execute_branch}",
+                 journal="L_DOWNMERGED")
+
+
+# -- L2 ------------------------------------------------------------------------------------
+
+def _land_l2_merge(ctx: LandingContext) -> dict:
+    """L2 — checkout the target, `pull --rebase`, `merge --no-ff` LEFT UNCOMMITTED.
+
+    Uncommitted deliberately: L3 must have something to fail closed onto. `--no-ff` keeps the
+    landing one revertable commit and defines the tree L3 validates.
+
+    RUNS IN THE PRIMARY CHECKOUT — a linked worktree cannot check out a branch another
+    worktree holds (REQ-LAND-010).
+    """
+    co = ctx.run(["checkout", ctx.target], cwd=ctx.root)
+    if co.returncode != 0:
+        return _step("l2_merge", "fail",
+                     f"could not check out {ctx.target}: {(co.stderr or '').strip()}",
+                     halting=True)
+    ctx.run(["pull", "--rebase"], cwd=ctx.root)
+    r = ctx.run(["merge", "--no-ff", "--no-commit", ctx.execute_branch], cwd=ctx.root)
+    if r.returncode != 0:
+        cap = _land_capture_conflict("L_CONFLICT_MERGE", ctx.root)
+        restore = _land_abort_merge(ctx.root)
+        return _step("l2_merge", "fail",
+                     "the merge conflicted — captured and aborted; still fully local, "
+                     "pre-push and pre-outward-write",
+                     journal="L_CONFLICT_MERGE", halting=True,
+                     conflict=cap, restore=restore)
+    return _step("l2_merge", "pass",
+                 f"{ctx.execute_branch} merged into {ctx.target}, UNCOMMITTED",
+                 journal="L_MERGED_UNCOMMITTED")
+
+
+# -- L3 ------------------------------------------------------------------------------------
+
+def _land_l3_validate_merged(ctx: LandingContext) -> dict:
+    """L3 — the FULL tier over the merged tree. HALTS WITH THE LOCK STILL HELD on fail.
+
+    plan-009 INV-4, and the single most important correction to #301, which puts the FULL
+    tier AFTER the document close and bead close-out — where a red tier has nothing to fail
+    closed onto.
+
+    THE LOCK STAYS HELD so the operator repairs under serialization. An `inconclusive` is
+    reported and NOT coerced to `fail` — the #262 defect lives inside `_validate_merged`
+    itself and must not be reproduced one frame up.
+    """
+    out = _validate_merged(ctx.plan_dir)
+    status = (out.get("status") or out.get("verdict") or "").lower()
+    if status == "fail":
+        return _step("l3_validate_merged", "fail",
+                     "the FULL tier is RED on the merged tree. The landing HALTS and THE "
+                     "LOCK IS STILL HELD, so the repair happens under serialization. "
+                     "Nothing has been pushed and nothing posted.",
+                     halting=True, lock_held=True, engine=out.get("engine"),
+                     first_failure=out.get("first_failure"))
+    if status not in ("pass", ""):
+        return _step("l3_validate_merged", "inconclusive",
+                     f"merged-state validation was INCONCLUSIVE ({status}) — reported, and "
+                     f"deliberately NOT coerced to fail",
+                     journal=None, halting=False, engine=out.get("engine"))
+    return _step("l3_validate_merged", "pass",
+                 f"merged-state validation green (engine: {out.get('engine')})",
+                 journal=None, engine=out.get("engine"),
+                 cross_plan_notice=out.get("notice"))
+
+
+# -- L4 ------------------------------------------------------------------------------------
+
+def _land_l4_commit_merge(ctx: LandingContext) -> dict:
+    """L4 — commit the merge, then RELEASE the lock.
+
+    Released here rather than at the end: the base is now green, and holding the global lock
+    across the remaining steps (which include an operator-facing wait) would serialize them
+    needlessly.
+
+    THE POST-MERGE TREE ASSERTION lives here (Issue 4.1). `pull --rebase` at L2 can pick up
+    commits that arrived AFTER L1's down-merge, and the lock is single-machine only — so the
+    merge result's tree may no longer equal the down-merged branch tree. Asserting it is what
+    catches that; without it L11 would measure a tree nobody validated.
+    """
+    r = ctx.run(["commit", "--no-edit"], cwd=ctx.root)
+    if r.returncode != 0 and "nothing to commit" not in (r.stdout + r.stderr).lower():
+        return _step("l4_commit_merge", "fail",
+                     f"could not commit the merge: {(r.stderr or '').strip()}", halting=True)
+
+    merged_tree = ctx.run(["rev-parse", "HEAD^{tree}"], cwd=ctx.root).stdout.strip()
+    branch_tree = ctx.run(["rev-parse", f"{ctx.execute_branch}^{{tree}}"],
+                          cwd=ctx.root).stdout.strip()
+    tree_match = bool(merged_tree) and merged_tree == branch_tree
+
+    _landing_lock_release(ctx.plan_id)
+
+    if not tree_match:
+        return _step("l4_commit_merge", "fail",
+                     "the merge result's tree does NOT match the down-merged branch tree. "
+                     "`pull --rebase` picked up commits that arrived after L1, and the "
+                     "landing lock is single-machine only — so what is about to be pushed is "
+                     "not what L1 made byte-identical, and L11 would measure a tree nothing "
+                     "validated.",
+                     halting=True, merged_tree=merged_tree, branch_tree=branch_tree,
+                     lock_released=True)
+    return _step("l4_commit_merge", "pass",
+                 "merge committed, post-merge tree assertion holds, landing lock released",
+                 journal="L_VALIDATED", merged_tree=merged_tree, lock_released=True)
+
+
+# -- L5 ------------------------------------------------------------------------------------
+
+def _land_l5_advisory_recheck(ctx: LandingContext) -> dict:
+    """L5 — ADVISORY `recheck-criteria` on the merged tree, BEFORE the push.
+
+    THE LAST FULLY REVERSIBLE POINT. Tree-sensitive criteria are exercised while the landing
+    can still be abandoned with no outward trace.
+
+    ADVISORY DESCRIBES THE VERDICT, NOT WHETHER IT RUNS (`REQ-LAND-004` L5): it never halts.
+    The authoritative halting run is L11, after the reconcile writes that some criteria
+    depend on.
+    """
+    proc = subprocess.run(
+        ["uv", "run", str(Path(__file__).resolve()), "recheck-criteria",
+         str(ctx.plan_dir), "--json"],
+        capture_output=True, text=True, cwd=ctx.root)
+    return _step("l5_advisory_recheck", "pass",
+                 f"advisory pre-push criteria run complete (exit {proc.returncode}) — "
+                 f"ADVISORY, never halting; the authoritative run is L11",
+                 journal="L_PREPUSH_CHECKED", halting=False,
+                 exit_code=proc.returncode, advisory=True,
+                 output=(proc.stdout or proc.stderr)[-2000:])
+
+
+# -- L6 ------------------------------------------------------------------------------------
+
+def _land_l6_push_one(ctx: LandingContext) -> dict:
+    """L6 — PUSH #1. **THE FIRST IRREVERSIBLE STEP OF THE LANDING.**
+
+    Stated in the verdict rather than implied away: every halt after this leaves the target
+    ALREADY CARRYING THE MERGE. What makes that acceptable is that L3's FULL tier ran first,
+    so the code on the target is validated; the later halts (L10, L11, L12) concern plan
+    bookkeeping and upstream state, not code correctness, and each is repairable without a
+    revert.
+
+    A REJECTION IS `L_REJECTED_PUSH_1` — still pre-outward-write, so the recovery is
+    `pull --rebase`, RE-VALIDATE, retry. Never push an unvalidated rebase.
+    """
+    r = ctx.run(["push", "origin", ctx.target], cwd=ctx.root)
+    if r.returncode != 0:
+        return _step("l6_push_one", "fail",
+                     "push #1 was REJECTED — the remote advanced. Recovery: `pull --rebase`, "
+                     "then RE-VALIDATE (re-run the FULL tier), then retry. This is still "
+                     "PRE-OUTWARD-WRITE: nothing has been posted and nothing closed.",
+                     journal="L_REJECTED_PUSH_1", halting=True,
+                     recovery=LAND_CONFLICT_RECOVERY["L_REJECTED_PUSH_1"],
+                     stderr=(r.stderr or "").strip()[:400])
+    return _step("l6_push_one", "pass",
+                 "push #1 complete — THE FIRST IRREVERSIBLE STEP HAS BEEN CROSSED. Every "
+                 "halt from here leaves the merge on the target; L3's FULL tier ran first, "
+                 "so what is on the target is validated.",
+                 journal="L_PUSHED_1", irreversible=True)
+
+
+# -- L7 ------------------------------------------------------------------------------------
+
+def _land_l7_reconcile_writes(ctx: LandingContext) -> dict:
+    """L7 — the reconcile writes. **THE FIRST OUTWARD-FACING WRITE.**
+
+    EVERY WRITE IS VERIFIED BY READ-BACK (`REQ-LAND-019`) — `gh issue view` after the write —
+    never by exit code and never by the returned URL alone. Measured on issue #292 during this
+    plan's own drafting: an exit 0 from `gh` does not establish that the body posted is the
+    body intended.
+
+    THE DISPOSITION CONTRACT IS READ, NOT DISCOVERED. `UPSTREAM_REQUIREMENTS` already encodes
+    the per-row end state, so a close the disposition does not permit is REFUSED here
+    regardless of what the decision asks for — the agent explains the contract, it does not
+    get to override it (D-6).
+    """
+    writes = ctx.decision.get("upstream_writes") or []
+    rows = {str(r["issue"]): r for r in ctx.facts["upstream"]["rows"]}
+    performed, refused, failed = [], [], []
+
+    for w in writes:
+        issue = str(w.get("issue"))
+        action = w.get("action")
+        row = rows.get(issue)
+        if row is None:
+            refused.append({"issue": issue, "action": action,
+                            "refused_because": "no such row in the plan's Upstream Issues "
+                                               "table — the decision may not invent a write"})
+            continue
+        if action == "close" and row.get("required_end_state") != "CLOSED":
+            refused.append({
+                "issue": issue, "action": action,
+                "refused_because": (
+                    f"disposition `{row['disposition']}` requires end state "
+                    f"{row['required_end_state']}. Closing it would contradict the "
+                    f"dispositions the plan was APPROVED with. {row.get('why')}")})
+            continue
+
+        body_path = w.get("body_path")
+        if action == "comment":
+            if not body_path or not Path(body_path).is_file():
+                failed.append({"issue": issue, "reason": f"body_path {body_path} missing"})
+                continue
+            r = ctx.run(["issue", "comment", issue, "--body-file", body_path], cwd=ctx.root)
+        else:
+            r = ctx.run(["issue", "close", issue], cwd=ctx.root)
+
+        # STRUCTURAL VERIFICATION BY READ-BACK — never `$?`, never the returned URL.
+        back = ctx.run(["issue", "view", issue, "--json",
+                        "state,comments"], cwd=ctx.root)
+        ok = False
+        detail = ""
+        if back.returncode == 0:
+            try:
+                seen = json.loads(back.stdout)
+                if action == "close":
+                    ok = str(seen.get("state", "")).upper() == "CLOSED"
+                    detail = f"read-back state={seen.get('state')}"
+                else:
+                    want = Path(body_path).read_text(encoding="utf-8").strip()
+                    bodies = [c.get("body", "") for c in (seen.get("comments") or [])]
+                    ok = any(want[:200] in b for b in bodies)
+                    detail = (f"read-back found {len(bodies)} comment(s); "
+                              f"body match={ok}")
+            except (json.JSONDecodeError, OSError) as exc:
+                detail = f"read-back unparseable: {exc}"
+        else:
+            detail = f"read-back failed: {(back.stderr or '').strip()[:200]}"
+
+        (performed if ok else failed).append(
+            {"issue": issue, "action": action, "verified_by": "read-back", "detail": detail})
+        if not ok:
+            # FAIL-CLOSED: the first unverified write aborts before any destructive
+            # follow-on stage is reachable (REQ-LAND-020).
+            return _step("l7_reconcile_writes", "fail",
+                         f"an upstream write to #{issue} could NOT be verified by read-back. "
+                         f"An exit 0 is not proof; the landing halts BEFORE any destructive "
+                         f"stage. {detail}",
+                         halting=True, performed=performed, refused=refused, failed=failed)
+
+    return _step("l7_reconcile_writes", "pass",
+                 f"{len(performed)} upstream write(s) posted and verified by read-back; "
+                 f"{len(refused)} refused as contradicting their disposition",
+                 journal="L_RECONCILED", performed=performed, refused=refused,
+                 outward_facing=True)
+
+
+# -- L8-L15 --------------------------------------------------------------------------------
+
+#: The close chain, in REQ-COMPLETE-001 order. `halting` is read from THIS TABLE rather than
+#: inferred, so an advisory step can never accidentally stop a landing and a halting one can
+#: never accidentally be walked past (#180's defect, in which an exit code was captured and
+#: only ECHOED).
+LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
+    ("audit-close",                   "l8_close_chain_head",     False),
+    ("retrospective-report",          "l8_close_chain_head",     False),
+    ("judgement-never-fired-report",  "l8_close_chain_head",     False),
+    ("classify-deliverable",          "l8_close_chain_head",     False),
+    ("close-reconcile-step",          "l9_close_reconcile_step", True),
+    ("verify-reconcile",              "l10_verify_reconcile",    True),
+    ("recheck-criteria",              "l11_recheck_criteria",    True),
+)
+
+
+def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
+    """L8-L15 — the existing close chain, invoked verb by verb.
+
+    EACH EXIT CODE IS **READ**, NOT MERELY ECHOED. That is #180's defect: `close-reconcile-step`
+    was captured into a variable whose `$?` nothing consulted, so an ordering violation
+    reported `inconclusive`, exited 0, and the chain walked on to cascade-close and
+    `set complete` with the reconcile step still open.
+
+    AN `inconclusive` IS REPORTED AND DOES NOT HALT. A `gh` outage must never block completion
+    on healthy work (R1), and `recheck-criteria`'s exit 2 maps to warn per REQ-DATA-057.
+
+    `CHANGED` is computed as `HEAD^1..HEAD` (Issue 1.4 / #303), never `<target>...HEAD`.
+    """
+    out: list[dict] = []
+    me = str(Path(__file__).resolve())
+    changed = _land_changed_set(ctx.root)
+
+    for verb, journal_step, halting in LAND_CLOSE_CHAIN:
+        args = ["uv", "run", me, verb, str(ctx.plan_dir), "--json"]
+        if verb == "classify-deliverable":
+            for p in changed:
+                args += ["--changed", p]
+        proc = subprocess.run(args, capture_output=True, text=True, cwd=ctx.root)
+        rc = proc.returncode                      # READ, not echoed.
+        if rc == 0:
+            out.append(_step(verb, "pass", f"{verb} clean", halting=halting, exit_code=rc))
+            continue
+        if rc == 2:
+            out.append(_step(verb, "inconclusive",
+                             f"{verb} was INCONCLUSIVE (exit 2) — reported, NOT coerced to "
+                             f"fail and NOT halting",
+                             halting=False, exit_code=rc,
+                             output=(proc.stdout or proc.stderr)[-1500:]))
+            continue
+        out.append(_step(verb, "fail",
+                         f"{verb} exited {rc}. "
+                         + ("HALTING: completion stops here and `complete` is NOT set."
+                            if halting else "Advisory — reported, not halting."),
+                         halting=halting, exit_code=rc,
+                         output=(proc.stdout or proc.stderr)[-1500:]))
+        if halting:
+            return out
+    return out
+
+
+def _land_l12_close_cascade(ctx: LandingContext) -> dict:
+    """L12 — `close_cascade.py`. **THE FIRST DESTRUCTIVE STEP.**
+
+    It refuses any container with a non-terminal child and NEVER force-closes an unmet gate:
+    "terminal" means closed, or a resolved/verified gate. An unsatisfied gate is a genuine
+    open child.
+    """
+    epic = _read_plan_epic_field((ctx.plan_dir / "plan.md").read_text(encoding="utf-8"))
+    if not epic:
+        return _step("l12_close_cascade", "inconclusive",
+                     "no **Epic:** field in plan.md — nothing to cascade", halting=False)
+    engine = Path(__file__).resolve().parent / "close_cascade.py"
+    proc = subprocess.run(["uv", "run", str(engine), epic, "--plan", ctx.plan_id, "--json"],
+                          capture_output=True, text=True, cwd=ctx.root)
+    if proc.returncode != 0:
+        return _step("l12_close_cascade", "fail",
+                     f"cascade-close reported open children or a close error (exit "
+                     f"{proc.returncode}). A container in the plan tree still has a "
+                     f"non-terminal child — an UNSATISFIED GATE IS A GENUINE OPEN CHILD and "
+                     f"is never force-closed.",
+                     halting=True, exit_code=proc.returncode, destructive=True,
+                     output=(proc.stdout or proc.stderr)[-1500:])
+    return _step("l12_close_cascade", "pass", "cascade-close clean", destructive=True)
+
+
+def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
+    """L13 complete-gate, L14 pour_fidelity, L15 update-status complete.
+
+    `pour_fidelity` is THREE-VALUED and branching on `!= 0` would report an INCONCLUSIVE as a
+    DIVERGENCE — two different facts collapsed into one signal, the same conflation as
+    `doc_lint`'s `not-selected` vs `no-such-path` (#181). Read the CODE, never the flag.
+    """
+    out: list[dict] = []
+    me = str(Path(__file__).resolve())
+
+    g = subprocess.run(["uv", "run", me, "complete-gate", str(ctx.plan_dir), "--json"],
+                       capture_output=True, text=True, cwd=ctx.root)
+    if g.returncode != 0:
+        out.append(_step("l13_complete_gate", "fail",
+                         "the completion gate blocked a ci-release plan — its "
+                         "runner-only-observable behavior is unverified",
+                         halting=True, exit_code=g.returncode,
+                         output=(g.stdout or g.stderr)[-1200:]))
+        return out
+    out.append(_step("l13_complete_gate", "pass", "completion gate satisfied"))
+
+    beads = ctx.root / ".yf" / "plan" / "land-beads.json"
+    beads.parent.mkdir(parents=True, exist_ok=True)
+    bl = subprocess.run(["bd", "list", "--all", "--include-gates", "--limit", "5000",
+                         "--json"], capture_output=True, text=True)
+    beads.write_text(bl.stdout or "[]", encoding="utf-8")
+    engine = Path(__file__).resolve().parent / "pour_fidelity.py"
+    f = subprocess.run(["uv", "run", str(engine), str(beads), str(ctx.plan_dir),
+                        "--strict", "--plan", ctx.plan_id, "--json"],
+                       capture_output=True, text=True, cwd=ctx.root)
+    if f.returncode == 2:
+        out.append(_step("l14_pour_fidelity", "fail",
+                         "pour fidelity is INCONCLUSIVE — the comparison could not be made "
+                         "AT ALL. This is a statement about the INSTRUMENT, not a verdict on "
+                         "the DAG. An unjudgeable plan is not a clean one, so completion "
+                         "HALTS.",
+                         halting=True, exit_code=2,
+                         output=(f.stdout + f.stderr)[-1500:]))
+        return out
+    if f.returncode != 0:
+        out.append(_step("l14_pour_fidelity", "fail",
+                         "the poured bead DAG does not match the plan's declared DAG",
+                         halting=True, exit_code=f.returncode,
+                         output=(f.stdout + f.stderr)[-1500:]))
+        return out
+    out.append(_step("l14_pour_fidelity", "pass", "pour fidelity clean"))
+
+    s = subprocess.run(["uv", "run", me, "update-status", str(ctx.plan_dir), "complete",
+                        "-m", "plan complete (landed by `land --apply`)"],
+                       capture_output=True, text=True, cwd=ctx.root)
+    if s.returncode != 0:
+        out.append(_step("l15_update_status", "fail",
+                         f"could not set complete: {(s.stderr or '').strip()[:200]}",
+                         halting=True))
+        return out
+    out.append(_step("l15_update_status", "pass", "status set to complete",
+                     journal="L_CLOSED"))
+    return out
 
 
 if __name__ == "__main__":
