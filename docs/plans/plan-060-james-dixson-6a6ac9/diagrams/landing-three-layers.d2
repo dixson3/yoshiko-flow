@@ -1,0 +1,51 @@
+direction: down
+
+title: |md
+  # plan-060 — the three-layer landing split
+  The agent never writes. The session never applies. Only the operator invokes the writer.
+| {near: top-center}
+
+s: "1 · MAIN SESSION  (may be running autonomously)" {
+  style.fill: "#fff7e6"
+  dry: "plan_manager.py land --dry-run\nREADS ONLY — no merge, no write"
+}
+
+m: "MANIFEST — facts only\nplan · git · close_chain · upstream · beads · prune\n+ sha256 digest over `facts`" {
+  style.fill: "#f2f2f2"
+}
+
+a: "2 · LANDER AGENT  (agents/lander.md)" {
+  style.fill: "#eef6ff"
+  ro: "READ-ONLY with respect to the repository (REQ-AGENT-043)\nEmits a DECISION DOCUMENT, never a command" {style.fill: "#dbeafe"}
+  adj: "Adjudicates exactly five things\n1 · group residual beads by shared CAUSE\n2 · refuse an instruction the dispositions forbid\n3 · spot a mechanical condition gone falsely true\n4 · cross-plan sequencing\n5 · judge whether the bodies are accurate"
+}
+
+d: "DECISION — judgements only\nmanifest_digest · body_sha256 per write\nupstream_writes · refusals · groups\nsteps{enable | skip:<reason>}" {
+  style.fill: "#f2f2f2"
+}
+
+h: "3 · HALT — stop class 1\nThe session STOPS here and prints the exact\n`land --apply` command. It does not run it." {
+  style.fill: "#ffe3e3"
+}
+
+o: "4 · OPERATOR — in their own shell" {
+  style.fill: "#e8f7e8"
+  tty: "controlling-terminal gate\nthe agent has no /dev/tty (measured)\nlabelled: raises the cost, NOT prevention" {style.fill: "#fff0d0"}
+  apply: "plan_manager.py land --apply decision.json\nTHE ONLY LAYER THAT WRITES"
+  route: "route record: tty? CLAUDECODE? pid/sid\nlabelled: DETECTION, NOT PREVENTION" {style.fill: "#fff0d0"}
+  tty -> apply: gates
+  apply -> route: stamps
+}
+
+r: "AT APPLY, EVERY FACT IS RE-DERIVED\nand the digest re-compared. A mismatch HALTS —\nit is never an override path. A decision may only\nNARROW the landing, never widen it." {
+  style.fill: "#fdf0f0"
+  style.stroke-dash: 3
+  style.bold: true
+}
+
+s.dry -> m: emits
+m -> a.adj: reads
+a.adj -> d: emits
+d -> h
+h -> o.tty: operator pastes
+o.route -> r
