@@ -108,3 +108,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-30 |
+| `stop_class` | 1 |
+| `asked` | land --apply, with explicit operator authorization in conversation |
+| `answered` | REFUSED at exit 3: no controlling terminal on fd 0 (REQ-LAND-014). Operator authorization in chat does not satisfy a gate that tests for a human at a shell. Did NOT bypass via herdr pane run — the SKILL names that as a known bypass and self-authorizing through it is dixson3/yoshiko-flow#293. Command handed to the operator. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | land --apply -> APPLY_RC=3, verdict fail, reason 'no controlling terminal on fd 0'; repo verified unmutated afterwards (main at f593c21, both trees clean, no landing.lock) |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
