@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-08-30
+- approved: re-approved after SC6 verification-command repair + #273 disposition correction (operator decision; no --force)
 - reconciling: post-execution reconciliation
 - executing: start gate resolved
 - intake: epic yf-mol-4cyz poured

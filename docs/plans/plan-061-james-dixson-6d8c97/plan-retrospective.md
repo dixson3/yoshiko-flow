@@ -89,3 +89,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-08-30 |
+| `stop_class` | 5 |
+| `asked` | land --dry-run after repairing SC6's verification command |
+| `answered` | HALT: stale-approved, resolvable_by_agent false. Repairing a broken verification command edits the Success Criteria section, which is fingerprint-INCLUDED, so a typo fix demands the same re-approval cycle as a substantive scope change. The criterion's meaning did not change. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | land --dry-run -> verdict fail, halts[0].code=stale-approved; resume-scan stored c6b00c51 vs current a7744389 |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+

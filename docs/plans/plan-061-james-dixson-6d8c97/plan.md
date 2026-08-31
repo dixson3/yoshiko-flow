@@ -6,9 +6,9 @@ description: Standardize the README and code-adjacent documentation layout contr
 id: plan-061-james-dixson-6d8c97
 author: james-dixson
 created: '2026-08-30'
-status: reconciling
+status: approved
 deliverable_class: standard
-fingerprint: c6b00c510909b0b072267e3e028bb9e41aaeb53ee06272ba4b951913888d8c31
+fingerprint: a774438949e605931c7526d7f9476ae03d1c032ff3c212875c72bb9f47fdbdf4
 epic: yf-mol-4cyz
 ---
 # Plan: Standardize the README + code-adjacent documentation layout contract and backfill all 20 skills
@@ -16,10 +16,10 @@ epic: yf-mol-4cyz
 **ID:** plan-061-james-dixson-6d8c97
 **Author:** james-dixson
 **Created:** 2026-08-30
-**Status:** reconciling
+**Status:** approved
 **Deliverable-class:** standard
 **Epic:** yf-mol-4cyz
-**Fingerprint:** c6b00c510909b0b072267e3e028bb9e41aaeb53ee06272ba4b951913888d8c31
+**Fingerprint:** a774438949e605931c7526d7f9476ae03d1c032ff3c212875c72bb9f47fdbdf4
 
 ## Objective
 Standardize the layout/structure contract across `README.md` and code-adjacent documentation
