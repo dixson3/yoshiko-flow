@@ -1,13 +1,7 @@
----
-type: Reference
-okf_spec: OKF-PLAN
-description: 'Draft body for a NEW upstream issue: yf-plan''s land draft_body_path convention posts bundle files verbatim to GitHub, while OKF requires every bundle .md to carry YAML frontmatter. Nothing reconciles the two. Found during plan-061 (plan-061-james-dixson-6d8c97).'
----
 <!-- Draft for a NEW issue. Not filed by the executing session: `gh issue create` is an
      outward-facing write. File with:
        gh issue create --title "<title below>" --body-file <this file> --label bug
-     STRIP THIS COMMENT AND THE FRONTMATTER ABOVE BEFORE POSTING — which is itself an
-     instance of the very defect this issue reports. -->
+     Strip this comment before posting. -->
 
 **Title:** `land`'s `draft_body_path` posts bundle files verbatim, but OKF requires them to carry frontmatter
 

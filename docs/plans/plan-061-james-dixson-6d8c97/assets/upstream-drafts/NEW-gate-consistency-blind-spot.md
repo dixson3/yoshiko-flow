@@ -1,8 +1,3 @@
----
-type: Reference
-okf_spec: OKF-PLAN
-description: 'Draft body for a NEW upstream issue (Issue 5.6): gate_consistency.py returned PASS over a bundle whose gates were unsatisfiable. Filed by the operator; gh issue create is an outward-facing write.'
----
 <!-- Draft for a NEW issue (plan-061 Issue 5.6). Not filed by the executing session:
      `gh issue create` is an outward-facing write. File with:
        gh issue create --title "<title below>" --body-file <this file> --label bug
