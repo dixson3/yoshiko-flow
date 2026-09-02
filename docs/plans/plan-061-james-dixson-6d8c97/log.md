@@ -1,6 +1,11 @@
 # Log
 
 ## 2026-08-30
+- approved: re-approved after SC6 verification-command repair + #273 disposition correction (operator decision; no --force)
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic yf-mol-4cyz poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-4 red-team APPROVE + audit pass
 - review: review-pass: pass-4 red-team APPROVE — C23-C28 folded in; gate 2 green-reachable, all 26 files authorized

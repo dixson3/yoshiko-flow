@@ -8,7 +8,8 @@ author: james-dixson
 created: '2026-08-30'
 status: approved
 deliverable_class: standard
-fingerprint: c6b00c510909b0b072267e3e028bb9e41aaeb53ee06272ba4b951913888d8c31
+fingerprint: a774438949e605931c7526d7f9476ae03d1c032ff3c212875c72bb9f47fdbdf4
+epic: yf-mol-4cyz
 ---
 # Plan: Standardize the README + code-adjacent documentation layout contract and backfill all 20 skills
 
@@ -17,7 +18,8 @@ fingerprint: c6b00c510909b0b072267e3e028bb9e41aaeb53ee06272ba4b951913888d8c31
 **Created:** 2026-08-30
 **Status:** approved
 **Deliverable-class:** standard
-**Fingerprint:** c6b00c510909b0b072267e3e028bb9e41aaeb53ee06272ba4b951913888d8c31
+**Epic:** yf-mol-4cyz
+**Fingerprint:** a774438949e605931c7526d7f9476ae03d1c032ff3c212875c72bb9f47fdbdf4
 
 ## Objective
 Standardize the layout/structure contract across `README.md` and code-adjacent documentation
@@ -101,7 +103,7 @@ is real.**
 | #315 | Plan 1/3: standardize the README + code-adjacent documentation layout contract | include | **The coarse tracker for this plan.** | TBD |
 | #244 | README-contract drift: e-readme-layout fails 16/19 skills | include | Full scope per operator. Its counts are superseded by the re-measurement above; comment posted. | TBD |
 | #247 | Drift findings no edge covers; install.sh/install.py do not exist | partial | **The `install.sh` half lands here.** The manifest-diagram half → #317. Comment posted recording the split. | TBD |
-| #273 | The command-vs-obligation law | include | Design input, not a deliverable — why the fix must be a runnable check. | — |
+| #273 | The command-vs-obligation law | partial | Design input, not a deliverable — why the fix must be a runnable check. **Disposition corrected `include`→`partial` at reconcile (lander adjudication):** `include` mechanically requires CLOSED, but #273 is a corpus-wide law measured over five plans and this plan converted ONE obligation into ONE command. Closing it would assert the law is discharged everywhere — the exact class of unproven claim the law warns about, and contradicted by this row's own `Resolved By: —`. `partial` (OPEN + mandatory mention) is what the Notes always meant, and matches #149, whose Notes are the same class. | — |
 | #149 | M5/M9: process rules that nothing executes | partial | Adopt "a step with no exit code is not a step". Not M9's remediation-edge scope. | — |
 | #291 | yf-drift-check edge over the escape/stop taxonomy | deferred | Re-routed to #317 with the rest of the manifest work. Its own body is partly wrong — see exp-004. | — |
 | #127 | web/concepts: define idiomatic workflow terms | exclude | Operator excluded; may fold into #317. | — |
@@ -305,7 +307,7 @@ folding them back in recreates the plan the operator just split.
 | SC3 | Every one of the 20 skills has a `README.md` | `test "$(ls -d skills/*/ \| while read d; do test -f "$d/README.md" \|\| echo x; done \| wc -l \| tr -d ' ')" = 0` → exit 0 | 3.4 |
 | SC4 | All **20** layout fences parse under the single ASCII-tree parser | `uv run scripts/checks/check_skill_readme_contract.py --min-skills 20 --json \| jq -e '[.failures[]\|select(.class=="fence-unparseable")]\|length==0'` → exit 0 | 2.2, 2.3 |
 | SC5 | No current instruction surface directs a reader to a repo-level `install.sh`/`install.py` | `grep -rlE '(\./install\.(sh\|py)\|repo-level .?install\.(sh\|py)\|`install\.(sh\|py)`)' skills/*/README.md skills/*/SKILL.md skills/*/protocols/*.md README.md DRIFT-CHECK.md` → exit 1 | 4.4 |
-| SC6 | The checker FAILS on a planted defect, and its `--min-skills` floor trips at exit 2 | `uv run -m pytest scripts/checks/test_check_skill_readme_contract.py -q` → exit 0 | 1.4 |
+| SC6 | The checker FAILS on a planted defect, and its `--min-skills` floor trips at exit 2 | `uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q` → exit 0 | 1.4 |
 | SC7 | The `CHANGE-VALIDATION.md` FULL tier is green over the merged tree | `uv run "$(yf skill-dir yf-change-validation)/scripts/change_validation.py" run --tier full --json` → exit 0 | 5.4 |
 | SC8 | `yf-okf-hygiene` appears in the project-root README skill index | `grep -q 'yf-okf-hygiene' README.md` → exit 0 | 3.5 |
 | SC9 | No issue in this plan modifies `web/` or the OKF bundle corpus | manual: the merged diff's path set is read at reconcile — a command asserting the ABSENCE of a path from an unmerged future diff cannot be written at authoring time | 5.4 |
