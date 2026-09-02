@@ -161,7 +161,7 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-readme-desc` | `value-equal` | the skill README one-line description matches the SKILL.md `description` intent. |
 | `e-index-table` | `field-set-equal` | the project README skills index has exactly one row per `skills/*/` dir that has a SKILL.md. |
 | `e-index-desc` | `value-equal` | each skill's description in the project README index matches that skill's README description. |
-| `e-frontmatter` | `field-set-subset` | the project README "Skill frontmatter contract" section's documented keys/rules match the frontmatter `install.py` actually reads (`skill-group` / `depends-on-tool` / `depends-on-skill`). |
+| `e-frontmatter` | `field-set-subset` | the project README "Skill frontmatter contract" section's documented keys/rules match the frontmatter `yf/src/frontmatter.rs` actually reads (`name` / `skill-group` / `depends-on-tool` / `depends-on-skill` / `user-invocable`). **Source of truth corrected (plan-061 / #247):** this edge named the retired repo-level Python installer, deleted at plan-010 — an edge whose declared authority does not exist can never fail, which is the §7 error class committed inside the manifest itself. |
 | `e-prereqs-union` | `field-set-equal` | the project README Prerequisites table is the union of all skill READMEs' prerequisites. |
 | `e-skill-diagram-ref` | `path-resolves` | every markdown image reference `![alt](spec/<slug>.png)` in a skill README resolves to a real PNG under that skill's `spec/`. Render **freshness** is checked by the sibling edge `e-skill-diagram-fresh`; diagram-vs-prose semantics remain out of scope. |
 | `e-docs-diagram-ref` | `path-resolves` | every markdown image reference `![alt](docs/diagrams/<slug>.png)` in a covered top-level doc (the project `README.md` and `DRIFT-CHECK.md`) resolves to a real PNG under `docs/diagrams/`. Render **freshness** is checked by the sibling edge `e-docs-diagram-fresh`; semantics remain out of scope. |
@@ -216,13 +216,13 @@ source that makes each mandatory.
 |:-----------------|:------------|:--------------|
 | One-line description | `skill-readme` | SKILL.md `description` |
 | Prerequisites | `skill-readme` | SKILL.md frontmatter `depends-on-tool` + SKILL.md checks |
-| Install | `skill-readme` | repo-level `install.sh` reference |
+| Install | `skill-readme` | `yf harness skills install` / `yf self install --from-build --build`; the hosted vendor installer at `yoshikoflow.sh` is a distinct artifact and may be named by URL. A repo-level installer script does NOT exist and must not be referenced (SPEC `REQ-YF-DOC-009`). |
 | Usage | `skill-readme` | SKILL.md invocation list |
 | Phase/Behavior model | `skill-readme` | SKILL.md Phase Model / behavior section |
 | File layout | `skill-readme` | actual `find skills/<skill> -type f` listing |
 | Skills index table | `project-readme` | one row per skill |
 | Prerequisites table | `project-readme` | union of all skill prerequisites |
-| Install instructions | `project-readme` | `install.sh` actual flags |
+| Install instructions | `project-readme` | the actual `yf harness skills install` / `yf self install` flags in `yf/src/cli.rs` |
 | Per-skill summary | `project-readme` | each skill's description, setup, usage, README link |
 
 ## 6. Trigger Scope

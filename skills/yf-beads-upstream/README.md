@@ -21,19 +21,19 @@ or coordinator loop.
 
 ## Install
 
-Installed by the repo-level `install.sh`, which auto-discovers every `skills/*/` directory. The
-skill ships one **companion rule** (`protocols/UPSTREAM_TRACKING.md`) that `install.sh` surfaces
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/` directory. The
+skill ships one **companion rule** (`protocols/UPSTREAM_TRACKING.md`) that the same command deploys
 to the install's rules dir (always-loaded), and **no hook**. No install changes needed. See the
-project [README](../../README.md) for `install.sh` flags.
+project [README](../../README.md) for `yf harness skills install` flags.
 
 ## Usage
 
-User-invocable (`/beads-upstream`). Operations:
+User-invocable (`/yf-beads-upstream`). Operations:
 
-- `/beads-upstream init` — detect git remote → propose backend (`github|gitlab|jira|none`) →
+- `/yf-beads-upstream init` — detect git remote → propose backend (`github|gitlab|jira|none`) →
   write `<backend>.*` config. `none` fully disables upstream tracking (a first-class, re-enableable choice).
-- `/beads-upstream` (push) — land-the-plane: push open/deferred beads upstream (scoped, dry-run-first).
-- `/beads-upstream status` — enumerate the upstream worklist (or fall back to local `bd` when disabled).
+- `/yf-beads-upstream` (push) — land-the-plane: push open/deferred beads upstream (scoped, dry-run-first).
+- `/yf-beads-upstream status` — enumerate the upstream worklist (or fall back to local `bd` when disabled).
 
 The **close-time / land-the-plane push trigger** is not invoked by intent language; it is bound
 by the always-loaded companion rule `protocols/UPSTREAM_TRACKING.md`.
@@ -88,17 +88,24 @@ Safety invariant (everywhere): never a bare `bd <backend> sync`; always `--push-
 ## Layout
 
 ```
-skills/beads-upstream/
-├── SKILL.md                       # entry point: trigger split, backends, init/push/status, safety invariants
-├── README.md                      # this file
+skills/yf-beads-upstream/
 ├── protocols/
-│   ├── UPSTREAM_TRACKING.md       # always-loaded companion rule (close-time trigger + safety invariant)
-│   └── manifest.json              # hash/version manifest for UPSTREAM_TRACKING.md
+│   ├── manifest.json                     # hash/version manifest for UPSTREAM_TRACKING.md
+│   └── UPSTREAM_TRACKING.md              # always-loaded companion rule (close-time trigger + safety invariant)
 ├── scripts/
-│   ├── upstream.py                # enumerate open/deferred beads + parse External: mappings (uv/PEP723)
-│   └── manifest_update.py         # recompute manifest hashes + bump versions (vendored)
-└── spec/
-    ├── operations.md              # init/push/status behavioral contract (REQ-OP-*)
-    ├── safety.md                  # never-bare-sync, inline auth, idempotency, disabled no-op (REQ-SAFE-*)
-    └── backends.md                # backend coverage, flag divergence, trigger split (REQ-BE-*)
+│   ├── check_gh_direct.py
+│   ├── check_no_universe_fanout.py
+│   ├── check_prescriptive_push.py
+│   ├── manifest_update.py                # recompute manifest hashes + bump versions (vendored)
+│   ├── test_check_no_universe_fanout.py
+│   ├── test_upstream.py
+│   ├── upstream.py                       # enumerate open/deferred beads + parse External: mappings (uv/PEP723)
+│   └── upstream_render.py
+├── spec/
+│   ├── backends.md                       # backend coverage, flag divergence, trigger split (REQ-BE-*)
+│   ├── operations.md                     # init/push/status behavioral contract (REQ-OP-*)
+│   └── safety.md                         # never-bare-sync, inline auth, idempotency, disabled no-op (REQ-SAFE-*)
+├── README.md                             # this file
+├── SKILL.md                              # entry point: trigger split, backends, init/push/status, safety invariants
+└── SPEC.md
 ```

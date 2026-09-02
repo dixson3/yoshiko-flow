@@ -19,21 +19,21 @@ nothing is kept in session-only or Claude-only stores.
 
 ## Install
 
-Installed by the repo-level `install.sh`, which auto-discovers every `skills/*/` directory and
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/` directory and
 closes over `depends-on-skill` (it pulls `beads-extra` transitively). No install changes needed.
-See the project [README](../../README.md) for `install.sh` flags.
+See the project [README](../../README.md) for `yf harness skills install` flags.
 
 ## Usage
 
-User-invocable (`/incubator`). Subcommands:
+User-invocable (`/yf-incubator`). Subcommands:
 
 ```
-/incubator new <name> [seed notes]   create, set active
-/incubator fork <name>               fork current sidequest into a new incubator, set active
-/incubator bookmark [notes]          rewrite active incubator's ## Resume + last_reviewed
-/incubator resume <name>             load bookmark, set active
-/incubator list                      index all incubators by state + staleness
-/incubator touch <name>              bump last_reviewed only
+/yf-incubator new <name> [seed notes]  create, set active
+/yf-incubator fork <name>              fork current sidequest into a new incubator, set active
+/yf-incubator bookmark [notes]         rewrite active incubator's ## Resume + last_reviewed
+/yf-incubator resume <name>            load bookmark, set active
+/yf-incubator list                     index all incubators by state + staleness
+/yf-incubator touch <name>             bump last_reviewed only
 ```
 
 Proactive sidequest detection (offer once to fork a tangent) also fires from natural-language
@@ -77,8 +77,14 @@ incubators and biasing toward the most active (bookpipe, gloak, yoshiko-flow):
 
 ## Layout
 
-- `SKILL.md` — instruction-only entry point (frontmatter trigger, invocation,
-  schema as output contract, subcommand steps, constraints).
-- `README.md` — this file.
-- `scripts/incubator-index.py` — `uv` PEP-723 script; classifies managed vs
-  unmanaged, sorts by priority then staleness, `--json` / `--write` options.
+```
+skills/yf-incubator/
+├── scripts/
+│   ├── incubator-index.py       # `uv` PEP-723 script; classifies managed vs
+│   ├── okf.py
+│   └── test_incubator_index.py
+├── OKF-EXTENSION.md
+├── README.md                    # this file.
+├── SKILL.md                     # instruction-only entry point (frontmatter trigger, invocation,
+└── SPEC.md
+```

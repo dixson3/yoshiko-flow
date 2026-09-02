@@ -92,7 +92,7 @@ hook). Preflight only checks that `d2` is on PATH — it never probes the Chromi
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 directory. No hook, no companion rule. See the project [README](../../README.md) for flags.
 
 ## Usage
@@ -124,10 +124,11 @@ SKILL.md for the full workflow, the trade-off table, location conventions, and d
 ## Layout
 
 ```
-skills/diagram-authoring/
-├── SKILL.md             # the d2 workflow, location conventions, when-to-diagram, d2 authoring notes
-├── README.md            # this file
-└── scripts/
-    ├── render.py        # PEP 723 helper: preflight / render / render-dir / check-dir / embed / lift / inline
-    └── test_render.py   # pytest: embed/lift/inline parsing + the round-trip guarantee
+skills/yf-diagram-authoring/
+├── scripts/
+│   ├── render.py       # PEP 723 helper: preflight / render / render-dir / check-dir / embed / lift / inline
+│   └── test_render.py  # pytest: embed/lift/inline parsing + the round-trip guarantee
+├── README.md           # this file
+├── SKILL.md            # the d2 workflow, location conventions, when-to-diagram, d2 authoring notes
+└── SPEC.md
 ```

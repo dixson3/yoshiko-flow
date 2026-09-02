@@ -27,12 +27,12 @@ no-op and `run` returns a clean refusal.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers every `skills/*/`
+Deployed by `yf harness skills install`, which auto-discovers every `skills/*/`
 directory. This skill ships one **companion rule**
 (`protocols/CHANGE-VALIDATION-TRIGGER.md`) that the installer surfaces to the rules dir as an
 always-loaded firing surface (`install_rules` globs `protocols/*.md`), and **no hook**. No
 installer change is needed — both the skill and its rule are picked up automatically. See the
-project [README](../../README.md) for `install.sh` flags. It adds **no `yf` Rust subcommand** —
+project [README](../../README.md) for `yf harness skills install` flags. It adds **no `yf` Rust subcommand** —
 it routes as a skill (the kernel/skill boundary).
 
 ## Usage
@@ -110,17 +110,19 @@ invokes the other.
 
 ```
 skills/yf-change-validation/
-├── SKILL.md                          # engine: invocation, manifest detection, dispatch, run-and-report
-├── README.md                         # this file
-├── SPEC.md                           # the requirement-numbered (REQ-CHGVAL-*) per-skill spec
-├── spec/
-│   ├── schema.md                     # the 4-section manifest schema + structured tier rows (REQ-SCHEMA-*)
-│   ├── engine.md                     # no-op, infer→approve→enforce, run-and-report, fail-closed, re-propose, rollback (REQ-ENGINE-*)
-│   └── inference.md                  # inference precedence, PEP-723 per-file idiom, FULL-superset, validate-cmd seed (REQ-INFER-*)
+├── protocols/
+│   ├── CHANGE-VALIDATION-TRIGGER.md  # always-loaded on-edit (FAST) + pre-push (FULL) firing surface
+│   └── manifest.json
 ├── scripts/
-│   └── change_validation.py          # the Python engine: infer / run / check-drift
+│   ├── change_validation.py          # the Python engine: infer / run / check-drift
+│   └── test_change_validation.py
+├── spec/
+│   ├── engine.md                     # no-op, infer→approve→enforce, run-and-report, fail-closed, re-propose, rollback (REQ-ENGINE-*)
+│   ├── inference.md                  # inference precedence, PEP-723 per-file idiom, FULL-superset, validate-cmd seed (REQ-INFER-*)
+│   └── schema.md                     # the 4-section manifest schema + structured tier rows (REQ-SCHEMA-*)
 ├── templates/
 │   └── manifest.md                   # blank CHANGE-VALIDATION.md a repo fills in (inert approved: no)
-└── protocols/
-    └── CHANGE-VALIDATION-TRIGGER.md  # always-loaded on-edit (FAST) + pre-push (FULL) firing surface
+├── README.md                         # this file
+├── SKILL.md                          # engine: invocation, manifest detection, dispatch, run-and-report
+└── SPEC.md                           # the requirement-numbered (REQ-CHGVAL-*) per-skill spec
 ```

@@ -1,7 +1,7 @@
 # Research Protocol
 
 > **Canonical source.** This file travels with the `yf-research` skill. The repo installer
-> (`install.sh`) copies it to the scope+surface rules dir — `~/.<surface>/rules/RESEARCH.md`
+> (`yf harness skills install`) copies it to the scope+surface rules dir — `~/.<surface>/rules/RESEARCH.md`
 > (user scope) or `<git-root>/.<surface>/rules/RESEARCH.md` (project scope), an auto-loaded
 > rules location — so the routing below is always in context. Edit this file, then re-run
 > `install.sh --force` to refresh the installed copy.

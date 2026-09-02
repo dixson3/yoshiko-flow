@@ -92,7 +92,7 @@ no companion rule.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers
+Deployed by `yf harness skills install`, which auto-discovers
 every `skills/*/` directory (group `markdown`). See the project
 [README](../../README.md) for flags. Or per-skill: copy `skills/markdown-format`
 to `~/.claude/skills/markdown-format`.
@@ -156,15 +156,15 @@ None. This is a tool/reference skill with no phases or state transitions.
 ## File layout
 
 ```text
-markdown-format/
-  SKILL.md            entry point — both transforms, --check convention, opt-in
-  README.md           this file
-  SPEC.md             REQ-MDFMT-* contract + GR-MDFMT-* guardrails
-  scripts/
-    md_table_align.py         strict GFM table aligner (--check / --write / stdout)
-    convert_wikilinks.py      Obsidian -> GFM wiki-link migrator (dry-run / in-place)
-    test_md_table_align.py    pytest: align, check-gate, idempotent-write, CJK width, fence skip
-    test_convert_wikilinks.py pytest: dry-run vs write, fence/frontmatter protection, idempotence
+skills/yf-markdown-format/
+├── scripts/
+│   ├── convert_wikilinks.py       # Obsidian -> GFM wiki-link migrator (dry-run / in-place)
+│   ├── md_table_align.py          # strict GFM table aligner (--check / --write / stdout)
+│   ├── test_convert_wikilinks.py
+│   └── test_md_table_align.py     # pytest: align, check-gate, idempotent-write, CJK width, fence skip
+├── README.md                      # this file
+├── SKILL.md                       # entry point — both transforms, --check convention, opt-in
+└── SPEC.md                        # REQ-MDFMT-* contract + GR-MDFMT-* guardrails
 ```
 
 Requirement (`uv` only; both scripts are stdlib-only PEP 723) and the opt-in,

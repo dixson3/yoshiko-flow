@@ -18,13 +18,7 @@ No `init` step — this skill ships no `protocols/` rule and writes no config or
 
 ## Install
 
-Via repo-level installer:
-
-```bash
-./install.sh
-```
-
-Or per-skill, use the canonical installer, which resolves the destination for
+Deployed by the canonical installer, which resolves the destination for
 **whichever harness you name** rather than hardcoding claude-code's — and deploys
 the companion rule with it:
 
@@ -44,9 +38,15 @@ None. This is an instruction-only reference skill with no phases or state transi
 
 ## File layout
 
-- `SKILL.md` — the conventions: SKILL_DIR resolution, formula vs agent split, formula structure and gate gotchas, dynamic fan-out, bead metadata, the coordinator loop, the coordinator resilience contract (resume/recovery/completion), and the `coordinate` subcommand.
-- `README.md` — this file.
-- `agents/reviewer.md` — read-only anti-patterns checklist; one audit item per rule in SKILL.md.
-- `spec/structure.md` — skill layout, formula-vs-agent separation, SKILL_DIR, handoff (REQ-STRUCT-*).
-- `spec/formulas.md` — formula authoring: gate two-bead gotcha, right-sizing, flat-structure limit, fan-out (REQ-FORMULA-*).
-- `spec/orchestration.md` — post-pour metadata, coordinator loop, the resilience contract (resume detection, stuck-bead sweep, stale-run threshold, blocked-gate draining, discovered-work re-entry, completion/git-handoff), coordinate subcommand, gate auto-detection (REQ-ORCH-*).
+```
+skills/yf-beads-authoring/
+├── agents/
+│   └── reviewer.md       # read-only anti-patterns checklist; one audit item per rule in SKILL.md.
+├── spec/
+│   ├── formulas.md       # formula authoring: gate two-bead gotcha, right-sizing, flat-structure limit, fan-out (REQ-FORMULA-*).
+│   ├── orchestration.md  # post-pour metadata, coordinator loop, the resilience contract (resume detection, stuck-bead sweep, stale-run threshold, blocked-gate draining, discovered-work re-entry, completion/git-handoff), coordinate subcommand, gate auto-detection (REQ-ORCH-*).
+│   └── structure.md      # skill layout, formula-vs-agent separation, SKILL_DIR, handoff (REQ-STRUCT-*).
+├── README.md             # this file.
+├── SKILL.md              # the conventions: SKILL_DIR resolution, formula vs agent split, formula structure and gate gotchas, dynamic fan-out, bead metadata, the coordinator loop, the coordinator resilience contract (resume/recovery/completion), and the `coordinate` subcommand.
+└── SPEC.md
+```

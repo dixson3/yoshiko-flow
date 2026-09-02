@@ -39,7 +39,7 @@ the uv-style self-contained model — served from the project's own domain,
 curl --proto '=https' --tlsv1.2 -LsSf https://yoshikoflow.sh/install.sh | sh
 ```
 
-The hosted `install.sh` is a byte-for-byte mirror of cargo-dist's `yf-installer.sh` from a
+The hosted installer script is a byte-for-byte mirror of cargo-dist's `yf-installer.sh` from a
 pinned GitHub release; **GitHub Releases stays canonical** for every binary and for
 self-update. This does not install `bd` / `uv` — see [Prerequisites](#prerequisites).
 
@@ -311,6 +311,7 @@ They are written this way rather than as a literal `.claude/skills/…` path bec
 | [yf-beads-authoring](skills/yf-beads-authoring/) | auto | Conventions for building beads-backed skills — `.formula.toml`, `bd mol pour`, coordinator dispatch |
 | [yf-beads-hygiene](skills/yf-beads-hygiene/README.md) | `/yf-beads-hygiene` | Safe, read-only-first audit and gated repair of a beads dependency graph — finds orphaned beads and dangling edges without mistaking a live gate for one |
 | [yf-okf](skills/yf-okf/README.md) | `/yf-okf` | Constructs and conformance-checks the OKF artifact bundles the yf workflow skills emit, and owns the versioned OKF-\* spec family |
+| [yf-okf-hygiene](skills/yf-okf-hygiene/README.md) | `/yf-okf-hygiene` | Corpus-level OKF health — read-only discovery/classification of every artifact bundle in a repo, the crash-recoverable legacy backfill, index repair, and record-driven reversal |
 | [yf-skill-authoring](skills/yf-skill-authoring/README.md) | auto | How to author, structure, and optimize Claude Code skills themselves |
 | [yf-optimal-instructions](skills/yf-optimal-instructions/README.md) | auto | Auto-fix skill for project instruction files (CLAUDE.md, AGENTS.md, AGENTS/*) — token-efficiency cuts + AGENTS.md-primacy structural proposals |
 | [yf-drift-check](skills/yf-drift-check/README.md) | auto | Verifies content agreement across a repo's declared source-of-truth edges (impl ↔ docs ↔ spec) via a per-repo DRIFT-CHECK.md manifest; reports drift, never auto-fixes |

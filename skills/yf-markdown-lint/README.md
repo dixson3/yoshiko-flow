@@ -91,7 +91,7 @@ no companion rule.
 
 ## Install
 
-Installed by the repo-level `install.sh` / `install.py`, which auto-discovers
+Deployed by `yf harness skills install`, which auto-discovers
 every `skills/*/` directory (group `markdown`) and copies the skill's
 `protocols/*.md` companion rule to the rules surface. See the project
 [README](../../README.md) for flags. Or per-skill, use the canonical installer, which
@@ -111,7 +111,7 @@ marker at its root (see SKILL.md "Lint on edit").
 User-invocable. Lint files or directories, optionally scoping the rule set:
 
 ```
-/markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]
+/yf-markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]
 ```
 
 ```bash
@@ -129,13 +129,22 @@ None. This is a tool/reference skill with no phases or state transitions.
 ## File layout
 
 ```text
-markdown-lint/
-  SKILL.md            entry point — rules, table conventions, lint-on-edit
-  README.md           this file
-  protocols/
-    MARKDOWN_LINT.md  always-loaded lint-on-edit trigger (opt-in, portable)
-  scripts/
-    markdown_lint.py      the GFM linter (PEP 723, argparse)
+skills/yf-markdown-lint/
+├── fixtures/
+│   ├── images/
+│   │   └── x.png
+│   ├── ml003_titled_image.md
+│   ├── ml010_criticmarkup.md
+│   ├── ml011_empty_alt.md
+│   └── ml011_image_vs_link.md
+├── protocols/
+│   └── MARKDOWN_LINT.md        # always-loaded lint-on-edit trigger (opt-in, portable)
+├── scripts/
+│   ├── markdown_lint.py        # the GFM linter (PEP 723, argparse)
+│   └── test_markdown_lint.py
+├── README.md                   # this file
+├── SKILL.md                    # entry point — rules, table conventions, lint-on-edit
+└── SPEC.md
 ```
 
 ---

@@ -16,13 +16,7 @@ The gotchas are certified for bd 1.0.5–1.1.0 — re-verify against your instal
 
 ## Install
 
-Via repo-level installer:
-
-```bash
-./install.sh
-```
-
-Or per-skill, use the canonical installer, which resolves the destination for
+Deployed by the canonical installer, which resolves the destination for
 **whichever harness you name** rather than hardcoding claude-code's — and deploys
 the companion rule with it:
 
@@ -40,7 +34,12 @@ None. This is an instruction-only reference skill with no phases or state transi
 
 ## File layout
 
-- `SKILL.md` — the gotcha reference: `bd create -t` issue types, gate creation/resolution, additive dependency-edge mutation, the epic-blocking rule, defensive `--json` parsing, `bd batch` bulk intake, and `bd mol pour` output shape.
-- `README.md` — this file.
-- `spec/cli.md` — CLI behavioral contracts verified against bd 1.0.5, re-certified 1.1.0 (REQ-CLI-*).
-- `spec/json-and-scope.md` — defensive JSON-parsing contract + the corrects-the-plugin / citation boundary (REQ-JSON-*, REQ-DOC-*).
+```
+skills/yf-beads-extra/
+├── spec/
+│   ├── cli.md             # CLI behavioral contracts verified against bd 1.0.5, re-certified 1.1.0 (REQ-CLI-*).
+│   └── json-and-scope.md  # defensive JSON-parsing contract + the corrects-the-plugin / citation boundary (REQ-JSON-*, REQ-DOC-*).
+├── README.md              # this file.
+├── SKILL.md               # the gotcha reference: `bd create -t` issue types, gate creation/resolution, additive dependency-edge mutation, the epic-blocking rule, defensive `--json` parsing, `bd batch` bulk intake, and `bd mol pour` output shape.
+└── SPEC.md
+```

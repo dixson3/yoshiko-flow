@@ -39,7 +39,7 @@ relationship is a **prose soft-dep**, not a `depends-on-skill` entry — see SKI
 
 ## Install
 
-Installed by `yf skills install` / the repo-level `install.sh`, which auto-discover every
+Deployed by `yf harness skills install`, which auto-discovers every
 `skills/*/` directory. This skill ships **no companion rule**, **no hook**, and **no scripts**,
 so no installer change is needed — it is picked up automatically. It belongs to the `utility`
 install group, so `yf skills install --group utility` includes it. See the project
@@ -76,9 +76,12 @@ refused.
 
 ```
 skills/yf-herdr/
-├── SKILL.md        # trigger contract, launch procedure, observation contract, deviation taxonomy
-├── README.md       # this file
-└── SPEC.md         # REQ-HERDR-NNN requirements, taxonomy provenance, dependency posture
+├── scripts/
+│   ├── test_herdr_channel.py
+│   └── test_launch_contract.py
+├── README.md                    # this file
+├── SKILL.md                     # trigger contract, launch procedure, observation contract, deviation taxonomy
+└── SPEC.md                      # REQ-HERDR-NNN requirements, taxonomy provenance, dependency posture
 ```
 
 No `scripts/`, `agents/`, `formulas/`, `templates/`, or `protocols/` — the skill is prose only

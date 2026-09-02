@@ -2,7 +2,7 @@
 
 Multi-phase, beads-tracked deep research: decomposes a topic into a DAG of focused subtasks (retrieve → triangulate → synthesize → critique → refine → package) and produces a structured, citation-backed report with source credibility scoring. A beads-backed skill — companion to `yf-plan`.
 
-Prefer this over the built-in deep-research harness when the result should be tracked, cited, or resumable. The research protocol and routing rules live in `protocols/RESEARCH.md`; the repo installer (`install.sh`) installs a copy to a scope+surface-anchored rules dir (user-scope `~/.<surface>/rules/`, project-scope `<git-root>/.<surface>/rules/`).
+Prefer this over the built-in deep-research harness when the result should be tracked, cited, or resumable. The research protocol and routing rules live in `protocols/RESEARCH.md`; `yf harness skills install` deploys a copy to a scope+harness-anchored rules dir (user-scope `~/.<surface>/rules/`, project-scope `<git-root>/.<surface>/rules/`).
 
 ## Prerequisites
 
@@ -18,22 +18,12 @@ Also required: an initialized beads database (`bd init`).
 
 Search providers are **advisory, not blocking**. Exa MCP is preferred; absent it, `TAVILY_API_KEY` / `PERPLEXITY_API_KEY` are used if set. Missing providers surface as warnings and never block init.
 
-The `RESEARCH.md` companion rule is installed by the repo installer (`install.sh`) alongside the skill. `/yf-research init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/research` dir + a single `/.yf/` gitignore anchor) is ensured automatically by preflight on every healthy `check`.
+`yf harness skills install` deploys the `RESEARCH.md` companion rule alongside the skill. `/yf-research init` handles consent-only per-project setup (prerequisite check, the prereq-missing opt-out); it does not install the rule. The idempotent scaffold (the `docs/research` dir + a single `/.yf/` gitignore anchor) is ensured automatically by preflight on every healthy `check`.
 
 ## Install
 
-Via the repo-level installer (installs the skill + its companion rule):
-
-```bash
-./install.sh                       # all skills -> ~/.claude/{skills,rules}/
-./install.sh --scope project       # -> <git-root>/.claude/{skills,rules}/
-./install.sh --surface agents      # -> ~/.agents/{skills,rules}/
-./install.sh --force yf-research    # reinstall yf-research, overwriting its rule
-```
-
-Or per-skill, use the canonical installer, which resolves the destination for
-**whichever harness you name** rather than hardcoding claude-code's — and deploys
-the companion rule with it:
+Deployed by the canonical installer, which installs the skill **and** its `RESEARCH.md` companion rule, and resolves the destination for
+**whichever harness you name** rather than hardcoding claude-code's:
 
 ```bash
 yf harness skills install yf-research --harness pi     # or claude-code, codex, opencode, agents
@@ -41,7 +31,7 @@ yf harness skills install yf-research --harness pi     # or claude-code, codex, 
 
 ## Usage
 
-- `/yf-research init` — consent-only per-project setup (prereq check, opt-out; the rule is installed by `install.sh`, the scaffold is ensured by preflight)
+- `/yf-research init` — consent-only per-project setup (prereq check, opt-out; the rule is deployed by `yf harness skills install`, the scaffold is ensured by preflight)
 - `/yf-research <topic>` — start a new research project
 - `/yf-research coordinate [<idx-or-epic>]` — resolve a gate (or resume a crashed run) and run the coordinator loop
 - `/yf-research status [<idx>]` — check research status
@@ -64,25 +54,44 @@ See `spec/phases.md` and the rest of `spec/` for the full requirement set.
 
 ## File layout
 
-- `SKILL.md` — orchestration: invocation, SKILL_DIR resolution, pre-flight, the pour sequence, and the four subcommands.
-- `README.md` — this file.
-- `protocols/RESEARCH.md` — the companion rule installed by `install.sh` (research protocol + yf-research-vs-deep-research routing).
-- `protocols/manifest.json` — hash manifest for the companion rule.
-- `formulas/yf-research.formula.toml` — the fixed DAG skeleton (gate → tooling → triangulate → synthesize → critique → refine → package).
-- `agents/` — one file per pipeline role:
-  - `coordinator.md` — the dispatch loop, with a pre-loop stuck-bead sweep for crash recovery.
-  - `retriever.md` — gather sources for one cluster.
-  - `triangulator.md` — cross-reference claims, score credibility, flag contradictions.
-  - `synthesizer.md` — assemble cited findings.
-  - `red-team.md` — adversarial review of the draft.
-  - `refiner.md` — fill gaps the red-team identifies.
-  - `packager.md` — finalize the report and resolve citations.
-  - `toolsmith.md` — generate per-run helper scripts from the plan's tooling needs.
-- `scripts/` — `uv` PEP-723 helpers:
-  - `research_manager.py` — preflight (`check`), defensive JSON (`json-get`), init support.
-  - `index_manager.py` — initialize and maintain a research output directory.
-  - `credibility_scorer.py` — score sources for credibility (single or batch).
-  - `link_normalizer.py` — normalize citations to plain GFM links.
-  - `search_api.py` — rate-limited multi-provider search wrapper (Tavily/Perplexity fallback).
-  - `manifest_update.py` — vendored manifest hash/version helper.
-- `spec/` — fixed source of truth: `phases.md`, `agents.md`, `cli.md`, `data.md`, `epistemics.md`, `portability.md`, `prerequisites.md`.
+```
+skills/yf-research/
+├── agents/                         # one file per pipeline role:
+│   ├── coordinator.md              # the dispatch loop, with a pre-loop stuck-bead sweep for crash recovery.
+│   ├── packager.md                 # finalize the report and resolve citations.
+│   ├── red-team.md                 # adversarial review of the draft.
+│   ├── refiner.md                  # fill gaps the red-team identifies.
+│   ├── retriever.md                # gather sources for one cluster.
+│   ├── synthesizer.md              # assemble cited findings.
+│   ├── toolsmith.md                # generate per-run helper scripts from the plan's tooling needs.
+│   └── triangulator.md             # cross-reference claims, score credibility, flag contradictions.
+├── formulas/
+│   └── yf-research.formula.toml    # the fixed DAG skeleton (gate → tooling → triangulate → synthesize → critique → refine → package).
+├── protocols/
+│   ├── manifest.json               # hash manifest for the companion rule.
+│   └── RESEARCH.md                 # the companion rule deployed by `yf harness skills install` (research protocol + yf-research-vs-deep-research routing).
+├── scripts/                        # `uv` PEP-723 helpers:
+│   ├── credibility_scorer.py       # score sources for credibility (single or batch).
+│   ├── index_manager.py            # initialize and maintain a research output directory.
+│   ├── link_normalizer.py          # normalize citations to plain GFM links.
+│   ├── manifest_update.py          # vendored manifest hash/version helper.
+│   ├── okf.py
+│   ├── research_manager.py         # preflight (`check`), defensive JSON (`json-get`), init support.
+│   ├── search_api.py               # rate-limited multi-provider search wrapper (Tavily/Perplexity fallback).
+│   ├── test_credibility_scorer.py
+│   ├── test_index_manager.py
+│   ├── test_link_normalizer.py
+│   └── test_research_manager.py
+├── spec/                           # fixed source of truth: `phases.md`, `agents.md`, `cli.md`, `data.md`, `epistemics.md`, `portability.md`, `prerequisites.md`.
+│   ├── agents.md
+│   ├── cli.md
+│   ├── data.md
+│   ├── epistemics.md
+│   ├── phases.md
+│   ├── portability.md
+│   └── prerequisites.md
+├── OKF-EXTENSION.md
+├── README.md                       # this file.
+├── SKILL.md                        # orchestration: invocation, SKILL_DIR resolution, pre-flight, the pour sequence, and the four subcommands.
+└── SPEC.md
+```
