@@ -70,3 +70,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | None sought. This gate should keep firing. The two-stage form the operator used — drafts to disk for wording review, then authorization to write — is a better shape than a single yes/no and is worth keeping: it separates 'is the substance right' from 'is this what should appear under my name'. |
 | `cost` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-03 |
+| `stop_class` | 5 |
+| `asked` | Issue 5.3's FULL tier came back RED — is the plan's change-set broken? |
+| `answered` | No. 1 of 21 commands failed, in test_config_tiers.py, on a pre-existing test-isolation defect unrelated to this plan's code. Fixed in one line under ESC-003. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | change_validation.py run --tier full -> status fail; first_failure test_config_tiers.py rc 1, 'assert {"execute.worktree": False} == {}' at :107. The config file is untracked (git ls-files --error-unmatch fails) and gitignored (.gitignore:25), so it is absent from the merged tree and CI could never reproduce this. |
+| `escape_class` |  |
+| `adjudication` | A genuinely useful red. The test asserted 'no config yields defaults' while reading a real config, so it had been measuring the wrong filesystem for as long as it existed. FRONTLOADABLE: the FULL tier could have been run once at execute start, where this would have surfaced before any work rather than at the last issue before handoff. |
+| `origin` | The test calls _bootstrap_config() OUTSIDE the _in_cwd helper, while _load_pm_in restores the cwd after import — so the assertion resolved against the real repository and passed only while that repository happened to carry no config. plan-062 mandates .yf/plan/config.local.json as an execution precondition, which is what made a latent defect fire. |
+| `culpability` |  |
+| `prevention` | Run the FULL tier ONCE at execute start on plans that mandate a config-file precondition, purely to establish the pre-existing baseline. Without a baseline, every red at Issue 5.3 has to be re-adjudicated as 'mine or theirs' under time pressure. |
+| `cost` |  |
+

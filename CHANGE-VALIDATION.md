@@ -131,6 +131,7 @@ approved: yes
 | `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan062-amendment` | `uv run scripts/check_amendment_log.py --plan plan-062-james-dixson-c3e98f` |  |  |
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
@@ -204,6 +205,7 @@ approved: yes
 | `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan062-amendment` | `uv run scripts/check_amendment_log.py --plan plan-062-james-dixson-c3e98f` |  |  |
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
@@ -248,10 +250,11 @@ approved: yes
 | `_shared/okf.py` | `uv-okf`, `uv-_shared` |
 | `docs/plans/**` | `okf-index-drift` |
 | `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage` |
+| `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment` |
-| `skills/yf-plan/spec/**` | `gate-plan060-amendment` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment` |
+| `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment` |
 | `docs/research/**` | `okf-index-drift` |
 | `Incubator/*/plans/**` | `okf-index-drift` |
 | `Incubator/*/research/**` | `okf-index-drift` |
