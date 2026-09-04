@@ -34,8 +34,9 @@ field in which a condition, an exit code or a consent can be asserted.
 
 REQ-LAND-002: `--apply` shall trust the decision document for **judgements only** — grouping,
 prose bodies, which rows may close, per-step enable/skip — and for **no fact whatsoever**. Every
-fact shall be **re-derived at apply time** and checked against the `manifest_digest` the decision
-carries. A decision that disagrees with re-derived reality is a **halt**, never an override.
+fact shall be **re-derived at apply time**, and every fact in the digest's **coverage set** shall
+be checked against the `manifest_digest` the decision carries (the coverage set is defined by
+REQ-LAND-036, which excludes the facts the landing itself mutates). A decision that disagrees with re-derived reality is a **halt**, never an override.
 
 Three consequences follow structurally rather than procedurally:
 
@@ -183,7 +184,7 @@ Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/te
 
 REQ-LAND-011: A partial failure **is resumable**. Re-invoking `land --apply` with the same
 decision file shall read the journal, resume from the recorded phase per REQ-LAND-009, and
-**re-derive every fact** per REQ-LAND-002 before continuing. A resume whose re-derived manifest
+**re-derive every fact** per REQ-LAND-002 as amended by REQ-LAND-036 before continuing. A resume whose re-derived manifest
 digest no longer matches shall halt as a staleness report and route back to `--dry-run`.
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_resume_skips_completed`
 
@@ -310,6 +311,13 @@ Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/te
 REQ-LAND-020: `land --apply` shall be **fail-closed at every edge**: the first unverified write
 aborts before any destructive follow-on stage is reachable, and a post-condition assertion runs on
 the way out, not merely a precondition on the way in.
+
+**A post-condition shall be able to see what the step did.** A step whose own write removes the
+evidence its post-condition inspects is **not** fail-closed, however the assertion is worded: it
+reports `pass` because the condition it tests was destroyed by the thing it is testing. L16 is
+the measured instance — see REQ-LAND-032 (the commit is path-scoped to what the step staged) and
+REQ-LAND-033 (the post-condition enumerates untracked entries with `-uall` and exempts by path
+prefix). Both are refinements of this requirement, not exceptions to it.
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_close_chain_exit_codes_read`
 
 ## 8. Runtime preconditions
@@ -416,3 +424,154 @@ Measured in a sandbox, a resume after a halt at L17 **re-executed all fifteen st
 including `l6_push_one` and `l7_reconcile_writes`. Wiring REQ-LAND-028 without this makes that
 data-loss path reachable, which is why the fix lands **first** (dixson3/yoshiko-flow#327).
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_resume_skips_completed`
+
+## 10. Step dispatch, step contracts, and digest coverage
+
+REQ-LAND-030: **Step dispatch is fail-closed.** An exception raised by a `LAND_EXECUTOR` step
+shall be caught at the dispatch site and reported as a **halting `inconclusive` step** — verdict
+`inconclusive`, `halting: true`, `journal: null` — never as a traceback, and the halted envelope
+shall be returned directly from the handler rather than falling through to the loop's own
+verdict test. `KeyboardInterrupt` and `SystemExit` shall be re-raised explicitly.
+
+Three properties are normative and each was wrong once:
+
+- **The journal shall not advance.** A step that raised established nothing, and advancing past
+  it would manufacture the very evidence `_land_resume_done` exists to refuse. A resume
+  therefore re-enters the same step and raises again; that is correct and shall not be
+  engineered around.
+- **The caught row is never `pass`.** `inconclusive` states that the step could not be judged,
+  which is exactly what an unexpected exception establishes.
+- **The return is direct.** `_land_execute`'s loop predicate is `verdict == "fail" and
+  halting`, so an `inconclusive` row *falls through* and the loop runs the next step. For a late
+  step that is invisible; for an early one the landing would walk past a crash into destructive
+  work.
+
+The **process** exit code is `1`, not `2`: the CLI sets `verdict = "fail"` when `halted` is set,
+and halted wins over the inconclusive list.
+
+Rationale: plan-062's landing — the first real `--apply` in the repository's history — completed
+every substantive step and then died at L18 on a bare `TypeError`, leaving the journal at
+`L_MIRRORED` with no envelope, no halt class and no remediation. The exception class caught is
+bare `Exception` deliberately: the whole point is the *unexpected* one, and an arity mismatch is
+on nobody's list (dixson3/yoshiko-flow#340).
+
+**Scope, stated honestly.** The wrap covers **step dispatch only**. The executor's own
+bookkeeping — the journal write and the row-shape access *after* a step returns — is outside it,
+and that residue is filed rather than implied to be covered.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_step_exception_becomes_halting`
+
+REQ-LAND-031: **L18's teardown is non-forcing, and its status is surfaced.** Step L18 shall call
+`_worktree_teardown` with `force=False` in **keyword** form, shall **not** issue its own
+`git branch -d` — the teardown already deletes the branch — and shall **branch on the returned
+`status`**, reporting a `blocked` teardown as a non-`pass` step.
+
+`force=False` is the only value consistent with INV-1 (teardown refuses on a dirty tree). The
+keyword form is normative so that the next signature change fails loudly rather than silently
+rebinding a positional. Where the returned mapping carries **no** `status` key, L18 shall treat
+the teardown as **unjudged** and report `inconclusive`, never `pass`.
+
+Rationale: the SPEC was **silent** on all three, which is how the call site drifted unnoticed.
+Measured: the duplicate delete makes L18 permanently report its own headline action as
+`{"action": "delete-execute-branch", "ok": false, "detail": "branch not found"}` once the arity
+defect is fixed, and an unread `status` makes a `blocked` teardown — dirty worktree, nothing
+pruned, branch left behind — report `verdict: pass`. A landing must not report a prune it did
+not perform.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_l18_blocked_teardown`
+
+REQ-LAND-032: **L16's commit shall be path-scoped to what it staged.** Step L16 stages the plan
+folder (`git add -- <plan_dir>`); its commit shall be scoped to the same pathspec —
+`git commit -m <msg> -o -- <plan_dir>` — so the step cannot commit work it did not stage. The
+staged-changes guard shall be scoped identically (`git diff --cached --quiet -- <plan_dir>`).
+
+**Argument order is normative.** After `--` every token is a pathspec, so the `-o -- <dir> -m
+<msg>` form fails with `error: pathspec '-m' did not match any file(s)`, exit 1 — at a
+post-outward-write step, which would fail every landing.
+
+Scoping the guard removes a **misleading commit error**; it does **not** remove the halt. An
+unrelated staged file is still seen by the post-condition of REQ-LAND-033 and still returns a
+halting fail. That halt is intended, and REQ-LAND-034 predicts it at dry-run time.
+
+Rationale: measured, a pre-staged unrelated file was committed under the plan's message and
+pushed to `origin`, with L16 reporting `pass` **because the commit removed the evidence** its
+own post-condition would have seen (dixson3/yoshiko-flow#342).
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_l16_commits_only_plan_dir`
+
+REQ-LAND-033: **L16's post-condition shall enumerate untracked entries and exempt by path
+prefix.** The post-condition shall read `git status --porcelain=v1 -uall -z`, split on NUL, and
+test the **path field** of each record against a `.yf/plan/` **path-prefix allowlist** — never a
+substring match against the raw line.
+
+Each clause is load-bearing:
+
+- **`-uall`**: without it git collapses untracked directories to `?? .yf/`, which contains
+  neither the journal path nor `land-beads.json`, so no prefix filter can work at all.
+- **path field, not raw line**: a porcelain record carries a two-character status plus a space,
+  and quotes paths containing spaces — so a naive `startswith` over the raw line matches nothing
+  and a naive `in` reinstates the substring bug.
+- **prefix, not substring**: the substring form exempted any path *containing* the fragment
+  anywhere, and did not even exempt the journal it was written for.
+
+The rule shall have exactly **one** definition site — a single helper, `_dirty_outside_plan_dir`
+— shared by the enforcement in L16 and the prediction in REQ-LAND-034. Two independent
+implementations of one rule is how the dry run stops predicting L16.
+
+Rationale: the shipped filter is masked in this repository only by the `/.yf/` gitignore anchor,
+and is inoperative in any repository without it (dixson3/yoshiko-flow#343).
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_l16_without_anchor`
+
+REQ-LAND-034: **A primary checkout dirty outside the plan folder is a HALTING dry-run finding.**
+`land --dry-run` shall compute, via the single `_dirty_outside_plan_dir` helper of
+REQ-LAND-033, whether the **primary checkout** carries modified or staged entries outside
+`<plan_dir>`, and shall report a **halting** finding when it does. Dirt *inside* the plan folder
+is not a finding — `git add -- <plan_dir>` is exactly what L16 stages.
+
+Rationale: **a halt strictly dominates a field.** The objection that this blocks a landing over
+an unrelated file is not an objection: L16 blocks that landing regardless. The choice is only
+*where*. A dry-run halt costs one `git stash`; the L16 failure costs a landing wedged at
+`L_CLOSED` with comments posted, issues closed and `status: complete` written, whose recovery
+contract is explicitly *"retry-after-rebase, never revert"* (dixson3/yoshiko-flow#333).
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_dryrun_halts_on_dirty_primary`
+
+REQ-LAND-035: **A decision document, and every `body_path` it names, shall live outside the work
+tree.** `land` shall refuse a decision path inside the work tree, and shall apply the same
+containment check to every `body_path` in the decision. The refusal shall be placed beside
+`_land_assert_primary_checkout` and **before** the tty gate, so a refusal is never preceded by a
+write. The `apply_command` emitted by `--dry-run` shall default the decision path to
+`${TMPDIR:-/tmp}/<plan-id>-decision.json`.
+
+Rationale: a file inside the tree is seen by L16's post-condition and halts the landing past the
+irreversible boundary. `lander.md` emits `body_path` values as bare `"<path>"` with no guidance
+on where they live, and L7 reads them; the emitted `<decision.json>` placeholder is
+repo-relative-*looking* and invites exactly the failure. A suggestion is not a control
+(dixson3/yoshiko-flow#333).
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_decision_inside_tree_refused`
+
+REQ-LAND-036: **The digest's coverage set excludes LANDING-MUTATED facts.** The
+`manifest_digest` of REQ-LAND-002 shall be computed over the manifest's facts **minus** those
+the landing itself changes. The excluded set is, exhaustively:
+
+| Excluded fact | Why |
+| :-- | :-- |
+| `execute_worktree_present` | L18's teardown removes the worktree, flipping it `true` → `false` |
+| `execute_worktree_dirty` | same teardown; three-valued, and becomes `null` once the worktree is gone |
+
+The exclusion shall be recorded in the manifest itself, not merely in this file, and the
+verifying test shall assert **both directions**: flipping an excluded fact leaves the digest
+**equal**, and flipping `primary_checkout_dirty_outside_plan_dir` **changes** it. A one-direction
+assertion is satisfiable by a digest that covers nothing.
+
+Rationale: REQ-LAND-011 re-derives the manifest on resume, so a halt *after* a partial L18 would
+mismatch on a fact the landing itself mutated and route the operator back to `--dry-run` for a
+change the landing made on purpose. This is a **normative deviation** from REQ-LAND-002's and
+REQ-LAND-011's "every fact" wording, which are amended below to match rather than left in
+contradiction with it.
+
+**Amendment to REQ-LAND-002.** "Every fact shall be re-derived at apply time and checked against
+the `manifest_digest`" reads, as amended: every fact shall be re-derived at apply time, and every
+fact **in the digest's coverage set** shall be checked against the `manifest_digest`. The
+landing-mutated facts of the table above are re-derived and reported, and are not compared.
+
+**Amendment to REQ-LAND-011.** "**re-derive every fact** per REQ-LAND-002" reads, as amended:
+re-derive every fact per REQ-LAND-002 **as amended by REQ-LAND-036** — the digest comparison that
+decides staleness is over the coverage set, not over the full fact map.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_digest_survives_resume_after_teardown`
