@@ -8544,6 +8544,84 @@ def _land_tty_gate(allow_list: list[str] | None = None) -> dict:
 #: makes — the reason `okf_hygiene` states the same constraint.
 LAND_JOURNAL_DIR = ".yf/plan/landing-journal"
 
+# The ALLOWLIST the dirty check exempts, as a PATH PREFIX. `.yf/plan/` covers both the landing
+# journal (REQ-LAND-008 stages it inside the tree — a `mktemp -d` would turn `os.rename` into a
+# copy and void every durability claim) and `land-beads.json`, which the old substring filter
+# did not exempt at all.
+LAND_DIRT_ALLOWLIST: tuple[str, ...] = (".yf/plan/",)
+
+
+def _porcelain_records(out: str) -> list[tuple[str, str]]:
+    """Split `git status --porcelain=v1 -uall -z` output into `(status, path)` records.
+
+    NUL-SEPARATED AND UNQUOTED BY CONSTRUCTION. The `-z` form is not a convenience: a `v1`
+    line carries a two-character status plus a space, and QUOTES any path containing a space
+    or a non-ASCII byte. So a naive `startswith` over raw lines matches nothing, and a naive
+    `in` reinstates the substring bug this helper exists to remove.
+
+    A rename/copy record (`R`/`C`) carries TWO NUL-terminated fields — `<new>` then `<orig>`.
+    Both are returned, because either one being outside the plan folder is dirt.
+    """
+    fields = [f for f in out.split("\0") if f != ""]
+    records: list[tuple[str, str]] = []
+    i = 0
+    while i < len(fields):
+        rec = fields[i]
+        if len(rec) < 4:                     # "XY path" is at minimum 4 chars
+            i += 1
+            continue
+        status, path = rec[:2], rec[3:]
+        records.append((status, path))
+        if status[0] in ("R", "C") and i + 1 < len(fields):
+            records.append((status, fields[i + 1]))
+            i += 1
+        i += 1
+    return records
+
+
+def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
+    """THE SINGLE DEFINITION SITE of "the tree is dirty outside the plan folder"
+    (REQ-LAND-033).
+
+    ONE RULE, ONE IMPLEMENTATION, TWO CALLERS: L16's post-condition ENFORCES it and
+    `land --dry-run` PREDICTS it (REQ-LAND-034). Two independent implementations of one rule
+    is precisely how the dry run stops predicting L16 — the defect this plan exists to close
+    — so a second definition site is a regression even when both copies agree today.
+
+    Three clauses, each load-bearing:
+
+    - **`-uall`**: without it git COLLAPSES untracked directories to `?? .yf/`, which contains
+      neither the journal path nor `land-beads.json`. No prefix filter can work over a
+      collapsed entry, so the switch is a precondition of the filter, not a refinement of it.
+    - **the PATH FIELD, not the raw line**: see `_porcelain_records`.
+    - **PREFIX, not substring**: the shipped filter exempted any path *containing* the
+      fragment anywhere in the line, and did not even exempt the journal it was written for.
+
+    Returns `{"dirty", "paths", "staged", "records"}`. `paths` are the offending paths only —
+    the boolean is what the digest carries, the list is what a halt reports (REQ-LAND-036).
+    """
+    root = root or _git_root()
+    prefix = Path(plan_dir).as_posix().rstrip("/") + "/"
+    args = ["status", "--porcelain=v1", "-uall", "-z"]
+    if runner is not None:
+        out = runner("git", args, cwd=root).stdout
+    else:
+        out = _run_git(args, cwd=root).stdout
+
+    paths, staged = [], []
+    for status, path in _porcelain_records(out):
+        if path == prefix.rstrip("/") or path.startswith(prefix):
+            continue
+        if any(path.startswith(a) for a in LAND_DIRT_ALLOWLIST):
+            continue
+        paths.append(f"{status} {path}")
+        # The FIRST column is the index; a non-space, non-`?` value means STAGED.
+        if status[0] not in (" ", "?"):
+            staged.append(path)
+    return {"dirty": bool(paths), "paths": sorted(paths), "staged": sorted(staged),
+            "records": len(paths)}
+
+
 
 def _land_fsync_write(path: Path, text: str) -> None:
     """Write and FSYNC — the journal must survive the crash it exists to describe.
@@ -9356,10 +9434,26 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
                      f"could not stage the plan folder: {(add.stderr or '').strip()[:200]}",
                      halting=True)
 
-    staged = ctx.run("git", ["diff", "--cached", "--quiet"], cwd=ctx.root)
+    # PATH-SCOPED, BOTH HALVES (REQ-LAND-032, #342).
+    #
+    # The guard: an UNRELATED staged file otherwise makes the whole-index `--quiet` say
+    # "there is something staged" while the scoped commit exits 1 `no changes added to
+    # commit` — a misleading failure at a post-outward-write step.
+    #
+    # The commit: `-o` restricts it to the named pathspec, so the step cannot commit work it
+    # did not stage. ARGUMENT ORDER IS LOAD-BEARING — after `--` every token is a pathspec,
+    # so the `-o -- <dir> -m <msg>` order fails with `error: pathspec '-m' did not match any
+    # file(s)`, exit 1, on EVERY landing.
+    #
+    # SCOPING THE GUARD REMOVES A MISLEADING ERROR; IT DOES NOT REMOVE THE HALT. The
+    # post-condition below still sees the unrelated file and returns a halting fail — which
+    # is intended, and is what `--dry-run` now predicts (REQ-LAND-034).
+    staged = ctx.run("git", ["diff", "--cached", "--quiet", "--", ctx.plan_dir.as_posix()],
+                     cwd=ctx.root)
     if staged.returncode != 0:                      # non-zero == there IS something staged
         c = ctx.run("git", ["commit", "-m",
-                     f"{ctx.plan_id}: plan-folder writes from the landing close chain"],
+                     f"{ctx.plan_id}: plan-folder writes from the landing close chain",
+                     "-o", "--", ctx.plan_dir.as_posix()],
                     cwd=ctx.root)
         if c.returncode != 0:
             return _step("l16_commit_and_push_two", "fail",
@@ -9389,11 +9483,9 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
     # anchor that `yf preflight` ensures, the journal appeared as an untracked file and L16
     # failed its own post-condition. The live repo has that anchor, so the defect was invisible
     # here and would have surfaced first in whichever repo lacked it.
-    raw = ctx.run("git", ["status", "--porcelain"], cwd=ctx.root).stdout
-    porcelain = "\n".join(
-        ln for ln in raw.splitlines()
-        if ln.strip() and LAND_JOURNAL_DIR not in ln
-    ).strip()
+    # `-uall` and the PATH-PREFIX filter (REQ-LAND-033, #343). See `_dirty_outside_plan_dir`.
+    dirt = _dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)
+    porcelain = "\n".join(dirt["paths"]).strip()
     unpushed = ctx.run("git", ["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
                        cwd=ctx.root).stdout.strip() or "0"
     if porcelain or unpushed not in ("0", ""):
@@ -9827,7 +9919,11 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
         #
         # SCOPE, STATED HONESTLY: this wraps STEP DISPATCH ONLY. The executor's own bookkeeping
         # below — the journal write and the row-shape access after a step returns — is OUTSIDE
-        # the wrap, and that residue is filed rather than implied to be covered.
+        # the wrap. That residue is NOT covered here and is NOT yet filed upstream; plan-063
+        # Issue 6.1 files it, and the draft body is
+        # `docs/plans/plan-063-james-dixson-3f74c1/assets/upstream-drafts/`. Stated this way
+        # deliberately: a comment claiming a filing that does not exist is the same
+        # unverified-assertion class this plan exists to remove.
         try:
             out = globals()[fname](ctx)
         except (KeyboardInterrupt, SystemExit):

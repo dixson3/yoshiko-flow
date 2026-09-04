@@ -1977,5 +1977,179 @@ def test_l18_blocked_teardown(repo, monkeypatch):
     assert "no `status` key" in out["reason"]
 
 
+# =========================================================================================
+# SC3 / SC3c / SC3d — L16 against a REAL git repo with a REAL bare origin
+# =========================================================================================
+#
+# NOT `FakeRunner` (Issue 3.3). The only pre-existing L16 test drove a fake scripted with
+# `{"diff|--cached": _R(1)}`, so NO REAL GIT RAN — an argv real git rejects (the `-o -- <dir>
+# -m <msg>` ordering, measured: `error: pathspec '-m' did not match any file(s)`) would still
+# have passed. A mock that answers is not a process that runs.
+
+def _real_repo(tmp_path, anchor: bool = True):
+    """A real git repo on `main`, with a real BARE origin, `main` already pushed.
+
+    `anchor` controls the `/.yf/` gitignore entry `yf preflight` ensures in this repository.
+    Without it the landing journal appears as an untracked path — the ONLY configuration in
+    which the exemption filter is load-bearing at all, and the reason SC3c exists.
+    """
+    origin = tmp_path / "origin.git"
+    _git("init", "-q", "--bare", "-b", "main", str(origin), cwd=tmp_path)
+    root = tmp_path / "work"
+    root.mkdir()
+    _git("init", "-q", "-b", "main", ".", cwd=root)
+    for k, v in (("user.email", "t@example.invalid"), ("user.name", "T"),
+                 ("commit.gpgsign", "false")):
+        _git("config", k, v, cwd=root)
+    if anchor:
+        (root / ".gitignore").write_text("/.yf/\n", encoding="utf-8")
+    pdir = root / "docs" / "plans" / PLAN_ID
+    pdir.mkdir(parents=True)
+    (pdir / "plan.md").write_text(f"# Plan: t\n\n**ID:** {PLAN_ID}\n", encoding="utf-8")
+    (root / "unrelated.py").write_text("v1\n", encoding="utf-8")
+    _git("add", "-A", cwd=root)
+    _git("commit", "-q", "-m", "base", cwd=root)
+    _git("remote", "add", "origin", str(origin), cwd=root)
+    _git("push", "-q", "-u", "origin", "main", cwd=root)
+    return root
+
+
+def _l16_ctx(root, monkeypatch):
+    """A LandingContext over a real repo, with the REAL runner (no FakeRunner)."""
+    monkeypatch.chdir(root)
+    rel = Path("docs/plans") / PLAN_ID
+    facts = {"git": {"merge_target": "main", "execute_branch": f"{PLAN_ID}-execute",
+                     "worktree_path": f".worktrees/{PLAN_ID}"}}
+    manifest = {"facts": facts}
+    d = {"schema": pm.LAND_SCHEMA_DECISION, "plan_id": PLAN_ID, "authored_by": "lander",
+         "summary": "s", "upstream_writes": [],
+         "steps": {k: "enable" for k in pm.LAND_STEPS}}
+    return pm.LandingContext(rel, d, manifest, root=root)
+
+
+def _tracked_in_head(root, path: str) -> bool:
+    r = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=str(root),
+                       capture_output=True, text=True)
+    return r.returncode == 0
+
+
+def test_l16_commits_only_plan_dir(tmp_path, monkeypatch):
+    """SC3 / REQ-LAND-032 (#342). A PRE-STAGED UNRELATED FILE IS NOT IN THE COMMIT.
+
+    The expected envelope is pinned, NOT merely the file's absence: `verdict: fail`,
+    `halting: true`, and the file absent from `HEAD`. Writing this to expect `pass` would
+    invite scoping the POST-CONDITION as well — which re-opens #342 on the very axis this
+    gate guards. The commit is scoped; the halt is intended and stays.
+    """
+    root = _real_repo(tmp_path)
+    (root / "unrelated.py").write_text("SECRET v2\n", encoding="utf-8")
+    _git("add", "unrelated.py", cwd=root)                       # PRE-STAGED, unrelated
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- landed\n", encoding="utf-8")
+
+    before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root),
+                            capture_output=True, text=True).stdout.strip()
+    out = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root),
+                           capture_output=True, text=True).stdout.strip()
+
+    assert after != before, "L16 made no commit at all, so the scoping is untested"
+    head = subprocess.run(["git", "show", "--name-only", "--format=", "HEAD"],
+                          cwd=str(root), capture_output=True, text=True).stdout.split()
+    assert "unrelated.py" not in head, (
+        f"#342: the unrelated pre-staged file was committed under the plan's message. "
+        f"HEAD touched {head}")
+    assert f"docs/plans/{PLAN_ID}/log.md" in head, "the plan-folder write was not committed"
+    assert subprocess.run(["git", "show", "HEAD:unrelated.py"], cwd=str(root),
+                          capture_output=True, text=True).stdout.strip() != "SECRET v2", (
+        "the unrelated content reached the commit")
+
+    assert out["verdict"] == "fail", (
+        "the halt is INTENDED — the post-condition still sees the unrelated staged file. "
+        "Expecting `pass` here would invite scoping the post-condition and re-open #342.")
+    assert out["halting"] is True
+    assert "unrelated.py" in out["detail"]["porcelain"]
+
+
+def test_l16_commits_plan_dir_writes(tmp_path, monkeypatch):
+    """SC3d — the POSITIVE case. A normal landing still commits its own plan-folder writes,
+    INCLUDING A NEWLY CREATED UNTRACKED FILE, and still passes.
+
+    Without this, "commits only the plan dir" is satisfiable by committing nothing.
+    """
+    root = _real_repo(tmp_path)
+    pdir = root / "docs" / "plans" / PLAN_ID
+    (pdir / "plan.md").write_text("# Plan: t\n\n**Status:** complete\n", encoding="utf-8")
+    (pdir / "log.md").write_text("- complete\n", encoding="utf-8")       # UNTRACKED, new
+    (pdir / "assets").mkdir()
+    (pdir / "assets" / "a b.md").write_text("spaced\n", encoding="utf-8")  # SPACED PATH
+
+    out = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    assert out["verdict"] == "pass", f"a clean landing must pass: {out['reason']}"
+    assert out["journal"] == "L_PUSHED_2"
+    for f in (f"docs/plans/{PLAN_ID}/log.md",
+              f"docs/plans/{PLAN_ID}/assets/a b.md",
+              f"docs/plans/{PLAN_ID}/plan.md"):
+        assert _tracked_in_head(root, f), f"{f} was not committed"
+    # ...and it really was PUSHED to the real bare origin.
+    local = subprocess.run(["git", "rev-parse", "main"], cwd=str(root),
+                           capture_output=True, text=True).stdout.strip()
+    remote = subprocess.run(["git", "rev-parse", "origin/main"], cwd=str(root),
+                            capture_output=True, text=True).stdout.strip()
+    assert local == remote, "push #2 did not reach the origin"
+
+
+def test_l16_without_anchor(tmp_path, monkeypatch):
+    """SC3c / REQ-LAND-033 (#343). The exemption filter works in a repo WITHOUT `/.yf/` in
+    `.gitignore` — the only configuration where it is load-bearing at all.
+
+    Three things are asserted together because each alone is satisfiable by a wrong filter:
+
+    1. The journal and `land-beads.json` are exempt (a PREFIX match on `.yf/plan/`).
+    2. `-uall` is what makes (1) reachable: without it git collapses the whole tree to a
+       single `?? .yf/` entry, which contains NEITHER path.
+    3. A path with a SPACE outside the plan folder is still caught — the `-z` split and the
+       path-field test, not a `startswith` over a quoted raw line.
+    """
+    root = _real_repo(tmp_path, anchor=False)
+    jdir = root / ".yf" / "plan" / "landing-journal"
+    jdir.mkdir(parents=True)
+    (jdir / f"{PLAN_ID}.json").write_text('{"phase":"L_PUSHED_2"}\n', encoding="utf-8")
+    (root / ".yf" / "plan" / "land-beads.json").write_text("[]\n", encoding="utf-8")
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+
+    # (2) the collapse this filter would otherwise be blind to, measured rather than assumed.
+    collapsed = subprocess.run(["git", "status", "--porcelain"], cwd=str(root),
+                               capture_output=True, text=True).stdout
+    assert "?? .yf/\n" in collapsed, (
+        "the fixture no longer reproduces git's untracked-directory collapse, so clause (2) "
+        "of this test is vacuous")
+
+    out = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    assert out["verdict"] == "pass", (
+        f"#343: the landing journal was not exempted in a repo without the /.yf/ anchor: "
+        f"{out['reason']}")
+
+    # (3) a SPACED path outside the plan folder is still dirt.
+    (root / "some file.txt").write_text("x\n", encoding="utf-8")
+    dirt = pm._dirty_outside_plan_dir(Path("docs/plans") / PLAN_ID, root=root)
+    assert dirt["dirty"] is True
+    assert any("some file.txt" in p for p in dirt["paths"]), (
+        f"a quoted, spaced path was missed by the porcelain split: {dirt['paths']}")
+    assert not any(".yf/plan" in p for p in dirt["paths"]), "the allowlist leaked"
+
+
+def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatch):
+    """REQ-LAND-033's third clause, isolated. A path merely CONTAINING the allowlist
+    fragment is NOT exempt — that is the substring bug (#343) restated as a test."""
+    root = _real_repo(tmp_path, anchor=False)
+    trap = root / "docs" / "a.yf" / "plan"
+    trap.mkdir(parents=True)
+    (trap / "decoy.txt").write_text("x\n", encoding="utf-8")
+    dirt = pm._dirty_outside_plan_dir(Path("docs/plans") / PLAN_ID, root=root)
+    assert any("decoy.txt" in p for p in dirt["paths"]), (
+        f"`docs/a.yf/plan/decoy.txt` CONTAINS `.yf/plan/` but is not PREFIXED by it — a "
+        f"substring filter exempts it. paths={dirt['paths']}")
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, *sys.argv[1:]]))

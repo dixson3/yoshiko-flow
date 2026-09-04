@@ -456,8 +456,9 @@ bare `Exception` deliberately: the whole point is the *unexpected* one, and an a
 on nobody's list (dixson3/yoshiko-flow#340).
 
 **Scope, stated honestly.** The wrap covers **step dispatch only**. The executor's own
-bookkeeping — the journal write and the row-shape access *after* a step returns — is outside it,
-and that residue is filed rather than implied to be covered.
+bookkeeping — the journal write and the row-shape access *after* a step returns — is outside it.
+That residue is **explicitly not covered by this requirement**; it is recorded for filing rather
+than implied to be covered, and until an issue number exists this text claims nothing more.
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_step_exception_becomes_halting`
 
 REQ-LAND-031: **L18's teardown is non-forcing, and its status is surfaced.** Step L18 shall call
