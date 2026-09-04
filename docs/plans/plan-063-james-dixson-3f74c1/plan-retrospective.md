@@ -32,3 +32,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-002
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-04 |
+| `stop_class` | 1 |
+| `asked` | May this session run land --apply for plan-063? |
+| `answered` | Not asked, and not run. SKILL.md 6.0 declares this stop-class-1: the session prints the command and stops. The route and its full halt-recovery contract are handed over at records/landing-handoff.md. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | land --dry-run: verdict pass, halts [], 6/6 upstream drafts present, merge_preview conflicts []. FULL tier: 68/68 pass. The apply_command is printed in the handoff verbatim; REQ-LAND-014's exit-3 tty gate is detection not prevention, and herdr pane run was NOT used to bypass it. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
