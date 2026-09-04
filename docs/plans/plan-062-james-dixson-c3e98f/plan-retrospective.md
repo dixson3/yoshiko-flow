@@ -32,3 +32,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | Issue 0.0 SETS the metadata at pour rather than detecting it afterwards (#273: a detector whose remediation is 'halt' is weaker than a setter). |
 | `cost` |  |
 
+## RE-002
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-09-03 |
+| `stop_class` |  |
+| `asked` | The plan sequences Epic 4's tests (4.1 resume, 4.2 forward-resolution, 4.3 ast, 4.4 inconclusive) AFTER the Epic 2 wiring. Were they authored in that order? |
+| `answered` | No. All of them were authored in the SAME file-pass as Issue 2.0, in commit 0ce0822, before the wiring landed. The bead close order still follows the declared DAG, but the code did not. |
+| `frontloadable` | partial |
+| `detected_by` | self-report |
+| `evidence` | git show --stat 0ce0822 -> skills/yf-plan/scripts/test_land_apply.py only. Suite at 0ce0822 (unwired): 3 failed / 48 passed, the reds being seam_reaches_executor, seam_passes_the_resume_phase_through, inconclusive_not_laundered. Suite at 93eeff7 (wired): 51 passed. |
+| `escape_class` |  |
+| `adjudication` | Benign, and arguably better than the declared order: it produced a stronger record. Measuring all seven new tests against the unwired build is what exposed that test_inconclusive_not_laundered PASSED VACUOUSLY there — the stub emitted verdict inconclusive / exit 2 on its own without ever reaching the executor. That is the #263 class appearing inside the very file written to close it, and the declared order would have measured that test only after the wiring, where it passes for the right reason and the vacuity is invisible. |
+| `origin` | Issue 2.0's own requirement forced it. Its gate demands the seam test be RECORDED AS FAILING against the unwired build, and the honest way to record that is to measure the whole new test block against that build at once — which means writing the whole block first. Writing 4.1-4.4 later would have meant a second, separate pre/post measurement for tests whose pre-state is only meaningful in the same run. |
+| `culpability` |  |
+| `prevention` | A plan that requires a discriminating pre/post measurement should sequence the WHOLE test block before the fix, not just the one test the gate names. Consider making 'author all tests for this change-set' a single issue when a gate demands a red-before-green record. |
+| `cost` |  |
+
