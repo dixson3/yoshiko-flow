@@ -7748,16 +7748,60 @@ def _land_canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+#: THE DIGEST'S COVERAGE SET EXCLUDES LANDING-MUTATED FACTS (REQ-LAND-036).
+#:
+#: Exhaustive, and each member is here for the SAME reason: **L18's own teardown flips it
+#: mid-landing**. `execute_worktree_present` goes `true` -> `false` and `execute_worktree_dirty`
+#: becomes `null` when the worktree is removed. REQ-LAND-011 re-derives the manifest on resume,
+#: so a halt AFTER a partial L18 would mismatch on a fact the landing itself changed and route
+#: the operator back to `--dry-run` for a mutation performed on purpose.
+#:
+#: This is a NORMATIVE DEVIATION from REQ-LAND-002's and REQ-LAND-011's "every fact" wording,
+#: which are amended in `spec/landing.md` to match rather than left in contradiction with it.
+#:
+#: NOTHING ELSE BELONGS HERE. `resolved_target_tip` and `merge_preview` drift when ANOTHER plan
+#: lands, which is exactly the staleness the digest exists to detect — excluding them would make
+#: the check vacuous.
+LAND_DIGEST_EXCLUDED: tuple[tuple[str, ...], ...] = (
+    ("git", "execute_worktree_present"),
+    ("git", "execute_worktree_dirty"),
+)
+
+
+def _land_digest_coverage(facts: dict) -> dict:
+    """`facts` minus the landing-mutated members of `LAND_DIGEST_EXCLUDED`.
+
+    A pure, non-mutating projection — the manifest still REPORTS every fact; only the
+    comparison set is narrowed.
+    """
+    import copy as _copy
+    covered = _copy.deepcopy(facts)
+    for path in LAND_DIGEST_EXCLUDED:
+        node = covered
+        for k in path[:-1]:
+            node = node.get(k) if isinstance(node, dict) else None
+            if node is None:
+                break
+        if isinstance(node, dict):
+            node.pop(path[-1], None)
+    return covered
+
+
 def _land_digest(facts: dict) -> str:
-    """`sha256` over the `facts` object ALONE, excluding `generated_at` (REQ-LAND-018).
+    """`sha256` over the `facts` object's COVERAGE SET (REQ-LAND-018, REQ-LAND-036).
 
     IT MUST COVER `predicted_tree` AND THE TARGET TIP. Measured (EXP-006): those are exactly
     the fields that drift when another plan lands between dry-run and apply, so a digest
     omitting them cannot detect the staleness it exists to detect. They live inside `facts`
     and nothing filters them out — asserted by `test_digest_covers_merge_preview` rather
     than trusted to this comment.
+
+    IT MUST NOT COVER THE LANDING-MUTATED FACTS — see `LAND_DIGEST_EXCLUDED`. The verifying
+    test asserts BOTH DIRECTIONS, because a one-direction assertion ("flipping an excluded
+    fact leaves the digest equal") is satisfied by a digest that covers nothing at all.
     """
-    return "sha256:" + hashlib.sha256(_land_canonical(facts).encode("utf-8")).hexdigest()
+    return "sha256:" + hashlib.sha256(
+        _land_canonical(_land_digest_coverage(facts)).encode("utf-8")).hexdigest()
 
 
 def _land_enumerate(directory: Path, checkout_root: Path | None = None) -> list[str]:
@@ -7985,6 +8029,22 @@ def _land_manifest(plan_dir: str | Path) -> dict:
     execute_branch = _execute_branch(plan_id)
     wt = _worktree_path(plan_dir)
 
+    # THE PRIMARY CHECKOUT, not `_repo_root()` (REQ-LAND-034). L16's post-condition runs
+    # against `ctx.root`, which is the PRIMARY — so a prediction computed in a linked worktree
+    # would be predicting the wrong tree, which is #341's original defect in a new place.
+    # Memoized: the two `primary_checkout_*` facts and the halt below are ONE observation, and
+    # re-running `git status` three times could report three different trees.
+    _primary_dirt_cache: dict = {}
+
+    def _primary_dirt(pd, _root=None):
+        if not _primary_dirt_cache:
+            try:
+                primary = _land_primary_checkout()
+            except Exception:                                   # noqa: BLE001
+                primary = root
+            _primary_dirt_cache.update(_dirty_outside_plan_dir(pd, root=primary))
+        return _primary_dirt_cache
+
     if scan.get("stale_approved"):
         halts.append({
             "code": "stale-approved",
@@ -8027,6 +8087,37 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             "resolvable_by_agent": False,
         })
 
+    # THE HALTING FINDING (REQ-LAND-034, #333/#341). Emitted from the SAME observation the
+    # two `primary_checkout_*` facts are computed from, and scoped to OUTSIDE the plan folder
+    # — dirt inside it is exactly what `git add -- <plan_dir>` is for.
+    #
+    # A HALT STRICTLY DOMINATES A FIELD. "This blocks a landing over an unrelated file" is not
+    # an objection: L16 blocks that landing REGARDLESS. The choice is only WHERE. A dry-run
+    # halt costs one `git stash`; the L16 failure costs a landing wedged at `L_CLOSED` with
+    # comments posted, issues closed and `status: complete` written, whose recovery contract
+    # is explicitly "retry-after-rebase, NEVER REVERT".
+    _dirt = _primary_dirt(plan_dir, root)
+    if _dirt["dirty"]:
+        halts.append({
+            "code": "primary-checkout-dirty-outside-plan-dir",
+            "detail": (
+                f"the PRIMARY checkout carries {len(_dirt['paths'])} entr"
+                f"{'y' if len(_dirt['paths']) == 1 else 'ies'} outside {plan_dir.as_posix()}: "
+                + ", ".join(_dirt["paths"][:20])
+                + (" …" if len(_dirt["paths"]) > 20 else "")
+                + ". L16's post-condition will see these and halt the landing AFTER the "
+                  "reconcile comments are posted, the bead tree is closed and "
+                  "`status: complete` is written. Stash or commit them first — that costs one "
+                  "`git stash`; the L16 failure costs a landing wedged at `L_CLOSED`."
+            ),
+            # TRUE, and it now has a CONSUMER (Issue 4.4) rather than being written and read
+            # nowhere: a `git stash` / `git commit` of unrelated local work is exactly the
+            # class an agent may resolve without an outward-facing write.
+            "resolvable_by_agent": True,
+            "paths": _dirt["paths"],
+            "staged": _dirt["staged"],
+        })
+
     facts = {
         "plan": {
             "plan_id": plan_id,
@@ -8041,7 +8132,27 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             "merge_target": target,
             "execute_branch": execute_branch,
             "worktree_path": wt.as_posix(),
-            "worktree_dirty": bool(_worktree_dirty(wt)) if wt.is_dir() else False,
+            # FOUR FIELDS, REPLACING `worktree_dirty` (REQ-LAND-036 / #341). The rename is
+            # MANDATORY, not cosmetic: `worktree_dirty` named the tree L16 DOES NOT CHECK.
+            # It observed `.worktrees/<plan-id>` while L16's post-condition reads `ctx.root`,
+            # and its value was `bool((False, []))` — a non-empty TUPLE, so it was constantly
+            # `True` and could never report *clean*. (#341's title states the direction
+            # backwards; the closing comment corrects it.)
+            #
+            # THE FACTS STAY BOOLEAN and the path lists live in `halts`. That keeps
+            # `_land_digest` STABLE when the tree is clean, and makes dirt appearing between
+            # dry-run and apply a digest MISMATCH for free.
+            #
+            # `execute_worktree_dirty` is THREE-VALUED: `null` when there is no worktree,
+            # because `false` would assert "clean" about a tree that does not exist.
+            "execute_worktree_present": wt.is_dir(),
+            "execute_worktree_dirty": (bool(_worktree_dirty(wt)[0]) if wt.is_dir() else None),
+            # Computed VIA `_dirty_outside_plan_dir` — the helper REQ-LAND-033 defines — and
+            # never by an inline predicate. Two implementations of one rule is how the dry run
+            # stops predicting L16 (SC4c pins the single definition site).
+            "primary_checkout_dirty_outside_plan_dir": _primary_dirt(plan_dir, root)["dirty"],
+            "primary_checkout_staged_outside_plan_dir": bool(
+                _primary_dirt(plan_dir, root)["staged"]),
             # DIGEST-COVERED, and deliberately so: measured, the predicted tree oid and the
             # target tip are EXACTLY the fields that drift when another plan lands between
             # dry-run and apply. A digest omitting them cannot detect the staleness it
@@ -8075,6 +8186,70 @@ def _land_plan_status(plan_dir: Path) -> str | None:
     return m.group(1) if m else None
 
 
+def _land_default_decision_path(plan_id: str) -> str:
+    """The DEFAULT decision path `--dry-run` emits — OUTSIDE the work tree (REQ-LAND-035).
+
+    The old literal `<decision.json>` was a repo-relative-*looking* placeholder, and a
+    suggestion is not a control: a decision file written inside the tree is seen by L16's
+    post-condition and halts the landing PAST the irreversible boundary (#333). A default
+    under `$TMPDIR` makes the safe path the path of least resistance; the refusal below is
+    what makes it a control.
+    """
+    return str(Path(os.environ.get("TMPDIR", "/tmp")) / f"{plan_id}-decision.json")
+
+
+def _land_path_inside_tree(path: str | Path, root: Path | None = None) -> bool:
+    """Is `path` inside the work tree? (REQ-LAND-035.)
+
+    Resolved on BOTH sides before comparing, so a symlink or a `..` traversal cannot smuggle
+    an in-tree path past a string test. A non-existent path is still judged — the check is
+    about WHERE IT WOULD BE, and a decision file is often written after the dry run.
+    """
+    root = Path(root or _land_primary_checkout()).resolve()
+    p = Path(path).expanduser()
+    if not p.is_absolute():
+        p = (Path.cwd() / p)
+    try:
+        p = p.resolve()
+    except OSError:
+        p = Path(os.path.normpath(str(p)))
+    return p == root or root in p.parents
+
+
+def _land_assert_outside_tree(decision_path, decision: dict | None = None,
+                              root: Path | None = None) -> dict:
+    """Refuse a decision path — or ANY `body_path` it names — inside the work tree.
+
+    THE `body_path` HALF IS NOT AN EXTENSION, IT IS THE SAME DEFECT. `lander.md` emits those
+    as bare `"<path>"` with no guidance on where they live, and L7 READS them; a body file in
+    the tree fails L16 exactly as a decision file does.
+    """
+    root = Path(root or _land_primary_checkout()).resolve()
+    offenders = []
+    if decision_path is not None and _land_path_inside_tree(decision_path, root):
+        offenders.append({"kind": "decision", "path": str(decision_path)})
+    for w in (decision or {}).get("upstream_writes", []) or []:
+        bp = w.get("body_path")
+        if bp and _land_path_inside_tree(bp, root):
+            offenders.append({"kind": "body_path", "path": str(bp),
+                              "issue": w.get("issue")})
+    if not offenders:
+        return {"ok": True, "offenders": []}
+    return {
+        "ok": False,
+        "offenders": offenders,
+        "reason": (
+            f"{len(offenders)} path(s) live INSIDE the work tree {root}: "
+            + ", ".join(f"{o['kind']}={o['path']}" for o in offenders)
+            + ". L16's post-condition enumerates untracked entries, so each of these halts "
+              "the landing AFTER the reconcile comments are posted and `status: complete` is "
+              "written (#333)."),
+        "remediation": (
+            "Move them outside the checkout and re-run. The dry run's `apply_command` "
+            "already defaults the decision file to $TMPDIR for this reason."),
+    }
+
+
 def _land_apply_command(plan_dir: Path, decision_path: str = "<decision.json>") -> str:
     """The FULLY-QUALIFIED `--apply` command the operator runs IN THEIR OWN SHELL.
 
@@ -8083,6 +8258,8 @@ def _land_apply_command(plan_dir: Path, decision_path: str = "<decision.json>") 
     attempting it in a worktree that CANNOT check out the target branch — L2 checks out the
     merge target, and a linked worktree cannot hold a branch another worktree holds.
     """
+    if decision_path == "<decision.json>":
+        decision_path = _land_default_decision_path(_plan_id_from_dir(plan_dir))
     return (f"cd {_land_primary_checkout()} && "
             f"uv run skills/yf-plan/scripts/plan_manager.py land "
             f"--apply {decision_path} {plan_dir.as_posix()}")
@@ -8239,11 +8416,24 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
         facts = manifest["facts"]
         halts = manifest["halts"]
         verdict = "fail" if halts else "pass"
+
+        # `resolvable_by_agent` NOW HAS A CONSUMER (Issue 4.4, REQ-LAND-034). It was written
+        # in five places and READ IN NONE, so the new halt's `true` would have been as inert
+        # as the five existing `false`s — a field nothing reads is a field that cannot be
+        # wrong, which is the vacuous-check class (#263) in data form.
+        #
+        # The consumer is the REMEDIATION ORDER: an agent-resolvable halt is surfaced FIRST,
+        # because it is the one the session can clear without an outward-facing write (a
+        # `git stash` of unrelated local work). An operator-only halt is not reordered away —
+        # both partitions are emitted in full.
+        agent_resolvable = [h for h in halts if h.get("resolvable_by_agent")]
+        operator_only = [h for h in halts if not h.get("resolvable_by_agent")]
+        ordered = agent_resolvable + operator_only
         env = _land_envelope(
             verdict,
-            ("landing is blocked by " + ", ".join(h["code"] for h in halts)) if halts
+            ("landing is blocked by " + ", ".join(h["code"] for h in ordered)) if halts
             else "manifest computed; no halting finding",
-            remediation=(halts[0]["detail"] if halts else None),
+            remediation=(ordered[0]["detail"] if ordered else None),
             halt_class=LAND_HALT_MECHANICAL if halts else None,
         )
         env.update({
@@ -8252,6 +8442,10 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "facts": facts,
             "halts": halts,
+            # The partition, emitted so the READ is observable in the output rather than only
+            # in the ordering above.
+            "halts_resolvable_by_agent": [h["code"] for h in agent_resolvable],
+            "halts_requiring_operator": [h["code"] for h in operator_only],
             # THE SESSION PRINTS THIS AND STOPS (REQ-LAND-013). It does not run it.
             "apply_command": _land_apply_command(pdir),
             "apply_note": (
@@ -8294,6 +8488,17 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             primary_checkout=where["primary"]), indent=2))
         sys.exit(1)
 
+    # CONTAINMENT IS CHECKED HERE — beside `_land_assert_primary_checkout` and BEFORE the
+    # tty gate (REQ-LAND-035), so a refusal is never preceded by a write. The decision file
+    # itself is checked from its PATH alone; the `body_path` half needs the parsed decision
+    # and is re-checked at the same site once it is read, below.
+    contained = _land_assert_outside_tree(apply_path, None, where.get("primary"))
+    if not contained["ok"]:
+        click.echo(json.dumps(_land_envelope(
+            "fail", contained["reason"], remediation=contained["remediation"],
+            halt_class=LAND_HALT_MECHANICAL, offenders=contained["offenders"]), indent=2))
+        sys.exit(1)
+
     # The terminal gate is checked next, before anything is written, so a refusal cannot be
     # preceded by a write.
     gate = _land_tty_gate()
@@ -8328,6 +8533,16 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             remediation="Re-emit the decision document.",
             halt_class=LAND_HALT_MECHANICAL), indent=2))
         sys.exit(2)
+
+    # THE `body_path` HALF of the containment check (REQ-LAND-035), re-run now that the
+    # decision is parsed. It is still BEFORE the first write — the journal read below mutates
+    # nothing — so the "a refusal is never preceded by a write" property holds for both halves.
+    contained = _land_assert_outside_tree(apply_path, decision, where.get("primary"))
+    if not contained["ok"]:
+        click.echo(json.dumps(_land_envelope(
+            "fail", contained["reason"], remediation=contained["remediation"],
+            halt_class=LAND_HALT_MECHANICAL, offenders=contained["offenders"]), indent=2))
+        sys.exit(1)
 
     # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-009), never observed
     # state. `recover()` is TOTAL over the seventeen states, so all four of its actions are

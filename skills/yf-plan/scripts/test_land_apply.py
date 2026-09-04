@@ -385,13 +385,17 @@ def test_tty_gate_refuses_and_is_posix_only():
     assert allowed["allowed"] is False or allowed["route_record"].get("allowed_by")
 
 
-def test_tty_refusal_exits_three_not_one_or_two(repo):
+def test_tty_refusal_exits_three_not_one_or_two(repo, tmp_path):
     """The exit code is the CONTRACT (REQ-CLI-030), and 3 is neither 1 nor 2.
 
     Not 1: nothing about the landing was measured false. Not 2: the verb ran and reached a
     definite conclusion. Driven through the real CLI, not the helper.
+
+    THE DECISION FILE IS OUTSIDE THE TREE, and that is not incidental to this test: the
+    containment refusal (REQ-LAND-035) sits BEFORE the tty gate, so an in-tree decision
+    path now exits 1 at the earlier gate and this test would be asserting the wrong control.
     """
-    dec = repo / "d.json"
+    dec = tmp_path / "d.json"
     dec.write_text(json.dumps(_decision("sha256:" + "0" * 64)), encoding="utf-8")
     p = subprocess.run(
         ["uv", "run", str(_PM), "land", "--apply", str(dec), f"docs/plans/{PLAN_ID}"],
@@ -2149,6 +2153,199 @@ def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatc
     assert any("decoy.txt" in p for p in dirt["paths"]), (
         f"`docs/a.yf/plan/decoy.txt` CONTAINS `.yf/plan/` but is not PREFIXED by it — a "
         f"substring filter exempts it. paths={dirt['paths']}")
+
+
+# =========================================================================================
+# SC5 / SC5b / SC6 — the dry-run facts that PREDICT L16 (REQ-LAND-034/035/036)
+# =========================================================================================
+
+def test_dryrun_halts_on_dirty_primary(tmp_path, monkeypatch):
+    """SC5 / REQ-LAND-034 (#333). A primary checkout dirty OUTSIDE the plan folder is a
+    HALTING dry-run finding — and dirt INSIDE it is not.
+
+    Both directions, because a halt that fires on everything is as useless as one that fires
+    on nothing: dirt inside the plan folder is exactly what `git add -- <plan_dir>` stages.
+    """
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+    rel = Path("docs/plans") / PLAN_ID
+
+    # (a) CLEAN — no finding, and the facts say so.
+    m = pm._land_manifest(rel)
+    codes = [h["code"] for h in m["halts"]]
+    assert "primary-checkout-dirty-outside-plan-dir" not in codes, (
+        f"a clean primary must not halt: {codes}")
+    assert m["facts"]["git"]["primary_checkout_dirty_outside_plan_dir"] is False
+    assert m["facts"]["git"]["primary_checkout_staged_outside_plan_dir"] is False
+
+    # (b) dirt INSIDE the plan folder — still no finding.
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+    m = pm._land_manifest(rel)
+    assert "primary-checkout-dirty-outside-plan-dir" not in [h["code"] for h in m["halts"]], (
+        "dirt INSIDE the plan folder is what L16 stages; it must not halt the dry run")
+    assert m["facts"]["git"]["primary_checkout_dirty_outside_plan_dir"] is False
+
+    # (c) dirt OUTSIDE it — HALTING.
+    (root / "unrelated.py").write_text("v2\n", encoding="utf-8")
+    m = pm._land_manifest(rel)
+    h = [x for x in m["halts"] if x["code"] == "primary-checkout-dirty-outside-plan-dir"]
+    assert h, f"an unrelated modified file must halt the dry run: {m['halts']}"
+    assert h[0]["resolvable_by_agent"] is True
+    assert any("unrelated.py" in p for p in h[0]["paths"])
+    assert m["facts"]["git"]["primary_checkout_dirty_outside_plan_dir"] is True
+    assert m["facts"]["git"]["primary_checkout_staged_outside_plan_dir"] is False
+
+    # (d) STAGED outside it — the second field flips too.
+    _git("add", "unrelated.py", cwd=root)
+    m = pm._land_manifest(rel)
+    assert m["facts"]["git"]["primary_checkout_staged_outside_plan_dir"] is True
+
+    # THE FACTS ARE BOOLEAN and the path list lives in `halts` (Issue 4.1) — so the digest is
+    # stable when clean, and dirt appearing between dry-run and apply is a MISMATCH for free.
+    for k in ("primary_checkout_dirty_outside_plan_dir",
+              "primary_checkout_staged_outside_plan_dir"):
+        assert isinstance(m["facts"]["git"][k], bool), f"{k} must be a bare boolean"
+
+    # ISSUE 4.4: the field has a CONSUMER. An agent-resolvable halt is ordered first.
+    assert pm._land_manifest(rel)["halts"], "the fixture must still be dirty here"
+
+
+def test_dryrun_predicts_the_L16_halt_it_causes(tmp_path, monkeypatch):
+    """The whole point of Issue 4.2, asserted as one statement: the dry-run finding and the
+    L16 halt AGREE, because they call the SAME helper (SC4c's single definition site).
+
+    Silent when L16 passes, halting exactly where L16 fails.
+    """
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+    rel = Path("docs/plans") / PLAN_ID
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+
+    predicted = any(h["code"] == "primary-checkout-dirty-outside-plan-dir"
+                    for h in pm._land_manifest(rel)["halts"])
+    l16 = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    assert predicted is False and l16["verdict"] == "pass", "clean case: both silent"
+
+    (tmp_path / "b").mkdir()
+    root2 = _real_repo(tmp_path / "b")
+    monkeypatch.chdir(root2)
+    (root2 / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+    (root2 / "unrelated.py").write_text("v2\n", encoding="utf-8")
+    predicted2 = any(h["code"] == "primary-checkout-dirty-outside-plan-dir"
+                     for h in pm._land_manifest(rel)["halts"])
+    l16b = pm._land_l16_commit_and_push_two(_l16_ctx(root2, monkeypatch))
+    assert predicted2 is True and l16b["verdict"] == "fail", (
+        "dirty case: the dry run must predict the halt L16 actually performs")
+
+
+def test_digest_survives_resume_after_teardown(tmp_path, monkeypatch):
+    """SC5b / REQ-LAND-036. BOTH DIRECTIONS, and the second one is what stops this test from
+    being satisfied by a digest that covers nothing.
+
+    1. Flipping a LANDING-MUTATED fact (`execute_worktree_present`, which L18's own teardown
+       flips true->false) leaves the digest EQUAL — so a halt after a partial L18 does not
+       mismatch on a change the landing made on purpose.
+    2. Flipping `primary_checkout_dirty_outside_plan_dir` CHANGES it — so the digest is
+       demonstrably covering something.
+    """
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+    facts = pm._land_manifest(Path("docs/plans") / PLAN_ID)["facts"]
+    base = pm._land_digest(facts)
+
+    import copy
+    for k, before, after in (("execute_worktree_present", True, False),
+                             ("execute_worktree_dirty", True, None)):
+        f = copy.deepcopy(facts)
+        f["git"][k] = before
+        f2 = copy.deepcopy(facts)
+        f2["git"][k] = after
+        assert pm._land_digest(f) == pm._land_digest(f2) == base, (
+            f"{k} is LANDING-MUTATED: L18's teardown flips it mid-landing, so a resume "
+            f"would mismatch on a fact the landing itself changed")
+
+    f3 = copy.deepcopy(facts)
+    f3["git"]["primary_checkout_dirty_outside_plan_dir"] = (
+        not facts["git"]["primary_checkout_dirty_outside_plan_dir"])
+    assert pm._land_digest(f3) != base, (
+        "the digest must still COVER the L16-predictive facts — otherwise direction (1) is "
+        "satisfied by a digest that covers nothing at all")
+
+    # The exclusion is EXHAUSTIVE and recorded, not ad hoc.
+    assert pm.LAND_DIGEST_EXCLUDED == (("git", "execute_worktree_present"),
+                                       ("git", "execute_worktree_dirty"))
+    for path in pm.LAND_DIGEST_EXCLUDED:
+        assert path[-1] not in json.dumps(pm._land_digest_coverage(facts)), (
+            f"{path[-1]} leaked into the coverage set")
+    assert "resolved_target_tip" in json.dumps(pm._land_digest_coverage(facts)), (
+        "the staleness-detecting facts must stay covered")
+
+
+def test_decision_inside_tree_refused(tmp_path, monkeypatch):
+    """SC6 / REQ-LAND-035 (#333). A decision path — or any `body_path` — inside the work tree
+    is REFUSED, and the refusal is placed BEFORE the tty gate so it is never preceded by a
+    write."""
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+
+    inside = root / "decision.json"
+    outside = tmp_path / "decision.json"
+    assert pm._land_path_inside_tree(inside, root) is True
+    assert pm._land_path_inside_tree(outside, root) is False
+    # `..` traversal and a relative path are resolved on BOTH sides before comparing.
+    assert pm._land_path_inside_tree(root / "docs" / ".." / "d.json", root) is True
+
+    v = pm._land_assert_outside_tree(str(inside), None, root)
+    assert v["ok"] is False and v["offenders"][0]["kind"] == "decision"
+    assert "#333" in v["reason"]
+
+    # The `body_path` half — the SAME defect by another route (`lander.md` emits bare paths).
+    dec = {"upstream_writes": [{"issue": "342", "action": "comment",
+                                "body_path": str(root / "b.md")}]}
+    v = pm._land_assert_outside_tree(str(outside), dec, root)
+    assert v["ok"] is False, "a body_path inside the tree fails L16 exactly as a decision does"
+    assert v["offenders"][0]["kind"] == "body_path"
+    assert v["offenders"][0]["issue"] == "342"
+
+    # Both outside — allowed.
+    dec_ok = {"upstream_writes": [{"issue": "342", "body_path": str(tmp_path / "b.md")}]}
+    assert pm._land_assert_outside_tree(str(outside), dec_ok, root)["ok"] is True
+
+    # THE EMITTED DEFAULT IS OUTSIDE THE TREE. The old literal `<decision.json>` was a
+    # repo-relative-LOOKING placeholder that invited exactly this failure.
+    cmd = pm._land_apply_command(Path("docs/plans") / PLAN_ID)
+    assert "<decision.json>" not in cmd, "the placeholder still invites an in-tree path"
+    emitted = re.search(r"--apply (\S+)", cmd).group(1)
+    assert pm._land_path_inside_tree(emitted, root) is False, (
+        f"the default decision path {emitted} is inside the work tree")
+    assert emitted.endswith(f"{PLAN_ID}-decision.json")
+
+
+def test_the_containment_refusal_precedes_the_tty_gate():
+    """REQ-LAND-035's ORDERING, asserted on the source. A refusal that came after the tty
+    gate would be fine today and wrong the moment the gate does anything but read."""
+    src = _PM.read_text(encoding="utf-8")
+    apply_branch = src[src.index("    # --apply: the only writing mode."):]
+    i_primary = apply_branch.index("_land_assert_primary_checkout()")
+    i_contain = apply_branch.index("_land_assert_outside_tree(")
+    i_tty = apply_branch.index("_land_tty_gate()")
+    assert i_primary < i_contain < i_tty, (
+        "the containment refusal must sit BESIDE _land_assert_primary_checkout and BEFORE "
+        "the tty gate, so a refusal is never preceded by a write")
+
+
+def test_resolvable_by_agent_has_a_consumer():
+    """Issue 4.4 / SC7. The field is READ, not merely written.
+
+    It was written in five places and read in none. A field nothing reads cannot be wrong,
+    which is the vacuous-check class in data form — so the choice was `give it a consumer or
+    drop it`, and this asserts the branch taken.
+    """
+    src = _code_only(_PM.read_text(encoding="utf-8"))
+    reads = re.findall(r'\.get\(\s*["\']resolvable_by_agent["\']', src)
+    assert reads, "resolvable_by_agent is still written-only"
+    assert "halts_resolvable_by_agent" in src and "halts_requiring_operator" in src, (
+        "the read must be OBSERVABLE in the output, not only in an internal ordering")
 
 
 if __name__ == "__main__":
