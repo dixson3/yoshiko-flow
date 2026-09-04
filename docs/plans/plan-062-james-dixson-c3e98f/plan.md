@@ -6,7 +6,7 @@ author: James Dixson
 created: '2026-09-03'
 status: executing
 deliverable_class: standard
-fingerprint: 3d9a163bb1360a70884097a453fb100a1f396af9ce9c4e2ea2894ae60df244de
+fingerprint: 755a996cd7d9f240c8d27b6c600a94b8b37787f3a52f9e4f0341a649f3ac3a1e
 epic: yf-mol-tm2d
 ---
 # Plan: Wire `land --apply` to `_land_execute`, and make the seam testable
@@ -17,7 +17,7 @@ epic: yf-mol-tm2d
 **Status:** executing
 **Deliverable-class:** standard
 **Epic:** yf-mol-tm2d
-**Fingerprint:** 3d9a163bb1360a70884097a453fb100a1f396af9ce9c4e2ea2894ae60df244de
+**Fingerprint:** 755a996cd7d9f240c8d27b6c600a94b8b37787f3a52f9e4f0341a649f3ac3a1e
 
 ## Objective
 

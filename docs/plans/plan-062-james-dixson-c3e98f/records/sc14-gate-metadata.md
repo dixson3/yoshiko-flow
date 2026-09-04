@@ -1,8 +1,10 @@
 ---
 type: Record
+okf_spec: OKF-PLAN
 id: sc14-gate-metadata
 plan: plan-062-james-dixson-c3e98f
 created: 2026-09-03
+description: 'SC14 evidence for plan-062 Issue 0.0 — the read-back of gate_type/test/test_class/cwd from all three capability-gate beads (yf-mol-tm2d.6/.7/.8), plus the execute-start sweep results and the reading of the two declared benign reds.'
 ---
 # SC14 — capability-gate metadata read-back (Issue 0.0)
 
