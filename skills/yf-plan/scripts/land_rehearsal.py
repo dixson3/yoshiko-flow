@@ -137,7 +137,26 @@ def rehearse(out_path: Path | None = None) -> dict:
                 {"step": "l15_update_status", "verdict": "pass", "reason": "stubbed (no bd)",
                  "journal": "L_CLOSED", "halting": False, "detail": {"stubbed": True}}]
             pm._validate_merged = lambda pd: {"status": "pass", "engine": "rehearsal-stub"}
-            pm._worktree_teardown = lambda pd: {"action": "not-registered"}
+            # THE ORIGIN STUB FOR #340, CORRECTED (plan-063 Issue 5.1). It faked
+            # `_worktree_teardown` with ONE parameter and returned `{"action": ...}` — a key
+            # the real function NEVER produces. That is mechanically why plan-060's rehearsal
+            # recorded `l18_prune: pass` on a code path that could not run: the stub encoded
+            # the CALLER's wrong arity, so the rehearsal exercised the mistake instead of
+            # catching it.
+            #
+            # BOTH AXES are corrected, and only one of them is mechanically checkable:
+            # `check_mock_fidelity.py` binds `inspect.signature` and catches the ARITY; it is
+            # STRUCTURALLY BLIND to the RETURN SHAPE, which L18 now branches on
+            # (REQ-LAND-031). A stub returning no `status` is reported `inconclusive` by L18
+            # — correct, but it would make every rehearsal record an unjudged prune.
+            def _teardown_stub(plan_dir, force=False):
+                return {"status": "ok", "path": f".worktrees/{PLAN_ID}",
+                        "branch": f"{PLAN_ID}-execute",
+                        "steps": {"remove": {"ok": True, "detail": "sandbox stub"},
+                                  "branch_delete": {"ok": True, "detail": "sandbox stub"},
+                                  "prune": {"ok": True, "detail": "sandbox stub"}}}
+
+            pm._worktree_teardown = _teardown_stub
 
             ctx = pm.LandingContext(rel, decision, manifest, root=work)
             result = pm._land_execute(ctx)
