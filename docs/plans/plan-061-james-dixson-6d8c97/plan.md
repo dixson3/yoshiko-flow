@@ -6,7 +6,7 @@ description: Standardize the README and code-adjacent documentation layout contr
 id: plan-061-james-dixson-6d8c97
 author: james-dixson
 created: '2026-08-30'
-status: approved
+status: complete
 deliverable_class: standard
 fingerprint: a774438949e605931c7526d7f9476ae03d1c032ff3c212875c72bb9f47fdbdf4
 epic: yf-mol-4cyz
@@ -16,7 +16,7 @@ epic: yf-mol-4cyz
 **ID:** plan-061-james-dixson-6d8c97
 **Author:** james-dixson
 **Created:** 2026-08-30
-**Status:** approved
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-4cyz
 **Fingerprint:** a774438949e605931c7526d7f9476ae03d1c032ff3c212875c72bb9f47fdbdf4

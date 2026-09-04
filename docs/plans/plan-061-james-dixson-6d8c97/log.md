@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-02
+
+- complete: Landed manually (land --apply stubbed — #327): merge 44cb2f2, FULL tier 65/65, 6 comments verified, #315/#244 closed, redeploy yf 0.5.0 (44cb2f2).
+
 ## 2026-08-30
 - approved: re-approved after SC6 verification-command repair + #273 disposition correction (operator decision; no --force)
 - reconciling: post-execution reconciliation
