@@ -20,6 +20,7 @@ from collections import Counter
 import socket
 import subprocess
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -9744,7 +9745,59 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
                 ctx.journal.write(j, step=key, skipped=True)
             continue
 
-        out = globals()[fname](ctx)
+        # FAIL-CLOSED STEP DISPATCH (REQ-LAND-030, #340).
+        #
+        # An uncaught exception here is how plan-062's landing — the first real `--apply` in
+        # this repository's history — died: a bare `TypeError` at L18, after two pushes, three
+        # public comments and `status: complete`, leaving the journal at `L_MIRRORED` with no
+        # envelope, no halt class and no remediation.
+        #
+        # THREE PROPERTIES, EACH LOAD-BEARING:
+        #
+        # 1. `KeyboardInterrupt` / `SystemExit` are RE-RAISED. They do not inherit from
+        #    `Exception`, so this clause is strictly redundant against the hierarchy — it is
+        #    written anyway so the invariant is READABLE rather than inferred.
+        # 2. The row is `inconclusive` and `journal=None`. The step established nothing, so the
+        #    journal MUST NOT advance: advancing past a step that raised would manufacture
+        #    exactly the evidence `_land_resume_done` exists to refuse. A resume therefore
+        #    re-enters this step and raises again. That is CORRECT and must not be engineered
+        #    around — and `LandingJournal.write` would reject any phase outside its closed
+        #    17-state set anyway.
+        # 3. The halted envelope is returned DIRECTLY from the handler. The loop's own predicate
+        #    below is `verdict == "fail" and halting`, so an `inconclusive` row FALLS THROUGH
+        #    and the loop runs the next step. For L18 that is invisible because L19 is next; for
+        #    an early step the landing would walk PAST A CRASH INTO DESTRUCTIVE WORK.
+        #
+        # The caught class is bare `Exception` deliberately: the whole point is the *unexpected*
+        # one, and an arity mismatch is on nobody's list.
+        #
+        # SCOPE, STATED HONESTLY: this wraps STEP DISPATCH ONLY. The executor's own bookkeeping
+        # below — the journal write and the row-shape access after a step returns — is OUTSIDE
+        # the wrap, and that residue is filed rather than implied to be covered.
+        try:
+            out = globals()[fname](ctx)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as exc:                      # noqa: BLE001 - see the comment above
+            row = _step(
+                key, "inconclusive",
+                f"{fname} raised {type(exc).__name__}: {exc}. The step could not be judged, so "
+                f"the journal was NOT advanced and the landing halts here. A RESUME WILL "
+                f"RE-ENTER THIS SAME STEP AND RAISE AGAIN until the cause is fixed — that is "
+                f"correct: advancing the journal past a step that raised would manufacture the "
+                f"evidence a resume checks.",
+                journal=None, halting=True,
+                exception=type(exc).__name__,
+                traceback=traceback.format_exc(),
+                recovery="Fix the cause, then re-run `land --apply` with the same decision "
+                         "file; the resume re-enters this step.",
+            )
+            results.append(row)
+            ctx.results.append(row)
+            return {"halted": True, "at": row["step"], "results": results,
+                    "journal_phase": (ctx.journal.read() or {}).get("phase"),
+                    "reason": row["reason"],
+                    "recovery": row["detail"].get("recovery")}
         batch = out if isinstance(out, list) else [out]
         results.extend(batch)
         ctx.results.extend(batch)

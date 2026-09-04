@@ -1760,5 +1760,112 @@ def test_resume_done_set_is_step_keys_not_journal_states(repo):
             f"{k} has no journaled successor, so nothing can establish that it ran")
 
 
+# =========================================================================================
+# SC1 / REQ-LAND-030 — a step that RAISES becomes a halting envelope, not a traceback
+# =========================================================================================
+
+def test_step_exception_becomes_halting(repo, monkeypatch):
+    """REQ-LAND-030 (#340). An exception raised by a `LAND_EXECUTOR` step is caught at the
+    dispatch site and becomes a HALTING `inconclusive` row with NO journal advance.
+
+    Four assertions, each pinning something that was wrong once:
+
+    1. The envelope exists at all. plan-062's landing died at L18 on a bare `TypeError`
+       with no envelope, no halt class and no remediation.
+    2. `halted` and the halt point. An `inconclusive` row FALLS THROUGH the loop's own
+       `verdict == "fail" and halting` predicate, so the handler must return the halted
+       envelope DIRECTLY. Asserting only `verdict == "inconclusive"` would pass against a
+       fall-through, which for an early step walks past a crash into destructive work.
+    3. NO STEP AFTER THE RAISER RAN. This is the fall-through detector.
+    4. The journal did NOT advance past the raising step, and the reason SAYS SO — a resume
+       re-enters this same step and raises again (Issue 1.2). That is correct: advancing the
+       journal would manufacture the evidence `_land_resume_done` exists to refuse.
+    """
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+
+    boom_key = "l3_validate_merged"
+
+    def _boom(ctx):
+        raise TypeError("_worktree_teardown() takes 1 positional argument but 2 were given")
+
+    monkeypatch.setattr(pm, "_land_l3_validate_merged", _boom)
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+    ctx = _ctx(repo, r)
+    out = pm._land_execute(ctx)
+
+    assert out["halted"] is True, "a raising step must halt the landing"
+    assert out["at"] == boom_key, f"halted at {out['at']!r}, expected {boom_key!r}"
+
+    row = out["results"][-1]
+    assert row["step"] == boom_key
+    assert row["verdict"] == "inconclusive", (
+        "a step that raised established NOTHING; `fail` would assert a measurement that "
+        "never happened and `pass` would assert its opposite")
+    assert row["halting"] is True
+    assert row["journal"] is None, "the journal must NOT advance past a step that raised"
+    assert row["detail"]["exception"] == "TypeError"
+    assert "TypeError" in row["detail"]["traceback"]
+    assert "RESUME WILL RE-ENTER THIS SAME STEP" in row["reason"].upper(), (
+        "Issue 1.2: the reason must RECORD that a resume re-enters the same step and raises "
+        "again, so the behaviour is read as correct rather than engineered around")
+
+    steps_run = [x["step"] for x in out["results"]]
+    assert steps_run[-1] == boom_key, (
+        f"a step ran AFTER the raiser: {steps_run}. The handler must return the halted "
+        f"envelope directly — the loop predicate is `fail and halting`, so an "
+        f"`inconclusive` row falls through and the next step runs.")
+    assert boom_key in steps_run and len(steps_run) >= 2, (
+        "the executor never reached the raising step, so this test would pass vacuously")
+
+    phase = (ctx.journal.read() or {}).get("phase")
+    assert phase != pm.LAND_STEP_JOURNAL.get(boom_key), (
+        "the journal recorded the raising step's own phase")
+
+
+def test_step_exception_exit_code_is_one_not_two(repo, monkeypatch, tmp_path, capsys):
+    """REQ-LAND-030's exit code, asserted EXPLICITLY because it is the one number the
+    investigation measured wrong.
+
+    EXP-002's measured exit 2 came from calling `_land_execute` DIRECTLY, where the
+    `inconclusive` row *fell through* to the loop's own end — an artifact of the very defect
+    the wrapper removes. Through the CLI, `halted` sets `verdict = "fail"` and halted wins
+    over the inconclusive list, so the process exit is **1**.
+    """
+    assert pm._land_exit_code("fail") == 1
+    assert pm._land_exit_code("inconclusive") == 2
+
+    # The verdict derivation the CLI performs: halted DOMINATES a non-empty inconclusive list.
+    out = {"halted": True, "at": "l3_validate_merged",
+           "results": [{"step": "l3_validate_merged", "verdict": "inconclusive",
+                        "reason": "raised", "journal": None, "halting": True, "detail": {}}]}
+    results = out["results"]
+    inconclusive = [x for x in results if x.get("verdict") == "inconclusive"]
+    assert inconclusive, "the fixture must exercise the halted-vs-inconclusive precedence"
+    verdict = "fail" if out.get("halted") else ("inconclusive" if inconclusive else "pass")
+    assert verdict == "fail"
+    assert pm._land_exit_code(verdict) == 1, (
+        "a halted landing exits 1; the measured 2 was an artifact of the fall-through")
+
+
+def test_dispatch_wrapper_reraises_control_flow(repo, monkeypatch):
+    """`KeyboardInterrupt` and `SystemExit` are RE-RAISED, never captured as a step row.
+
+    They do not inherit from `Exception`, so the clause is redundant against the hierarchy —
+    which is exactly why it is asserted: the invariant must survive someone widening the
+    handler to `BaseException`.
+    """
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+
+    for exc in (KeyboardInterrupt, SystemExit):
+        def _raise(ctx, _e=exc):
+            raise _e()
+        monkeypatch.setattr(pm, "_land_l3_validate_merged", _raise)
+        with pytest.raises(exc):
+            pm._land_execute(_ctx(repo, r))
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, *sys.argv[1:]]))
