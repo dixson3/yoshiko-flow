@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-063-james-dixson-3f74c1
 author: James Dixson
 created: '2026-09-03'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 4d1c302dccc464b802c5ec9e17b997799a35dbff22608b7311b45e8dd81145da
+epic: yf-mol-3wtq
 ---
 # Plan: Make landings stick — fix the L18 crash, the L16 commit, and the dry-run blind spot
 
 **ID:** plan-063-james-dixson-3f74c1
 **Author:** James Dixson
 **Created:** 2026-09-03
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-3wtq
 **Fingerprint:** 4d1c302dccc464b802c5ec9e17b997799a35dbff22608b7311b45e8dd81145da
 
 ## Objective
