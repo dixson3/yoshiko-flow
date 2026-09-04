@@ -51,3 +51,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-09-04 |
+| `stop_class` |  |
+| `asked` | n/a — no operator interaction |
+| `answered` | The session ran 'close-reconcile-step' while intending only to PREVIEW whether its gate-before-close precondition was satisfied, and labelled the output 'NOT run for real'. The verb has no dry-run mode: it closed yf-mol-3wtq.12 before the landing's L7 had performed any reconcile write. Detected immediately and reverted with 'bd update yf-mol-3wtq.12 --status open'; the bead is open again and the landing's close chain will close it after L7. |
+| `frontloadable` | no |
+| `detected_by` | self-report |
+| `evidence` | close-reconcile-step returned {verdict: pass, bead: yf-mol-3wtq.12, already_closed: false, reason: 'closed reconcile bead yf-mol-3wtq.12'}. After revert, bd show yf-mol-3wtq.12 reports status: open. No upstream write occurred at any point; the error was local and reversible. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
