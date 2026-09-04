@@ -8303,12 +8303,113 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             halt_class=LAND_HALT_OUTWARD,
             route_record=gate["route_record"]), indent=2))
         sys.exit(3)
-    click.echo(json.dumps(_land_envelope(
-        "inconclusive",
-        "the --apply executor is not implemented in this change-set",
-        remediation="Epics 3 and 4 implement the journal, the conflict contract and the "
-                    "L0-L19 steps."), indent=2))
-    sys.exit(2)
+    # ---- THE SEAM (REQ-LAND-028, dixson3/yoshiko-flow#327) --------------------------------
+    #
+    # Everything above this line was already here; what was missing was the CALL. `_land_execute`
+    # drove all fifteen steps, advanced the journal and was fail-closed, while having exactly one
+    # occurrence in this file — its own `def`. `--apply` returned an unconditional stub, so the
+    # sole writing mode of the landing capability could land nothing.
+    #
+    # Read the decision. Reading it here rather than earlier is deliberate: `--apply` must not
+    # touch the filesystem before the tty gate has allowed the run.
+    ap = Path(apply_path)
+    if not ap.is_file():
+        click.echo(json.dumps(_land_envelope(
+            "inconclusive", f"no decision document at {apply_path}",
+            remediation="Produce one with the `lander` agent, then `--validate-decision` it.",
+            halt_class=LAND_HALT_MECHANICAL), indent=2))
+        sys.exit(2)
+    try:
+        decision = json.loads(ap.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        click.echo(json.dumps(_land_envelope(
+            "inconclusive", f"decision document is not valid JSON: {exc}",
+            remediation="Re-emit the decision document.",
+            halt_class=LAND_HALT_MECHANICAL), indent=2))
+        sys.exit(2)
+
+    # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-009), never observed
+    # state. `recover()` is TOTAL over the seventeen states, so all four of its actions are
+    # branched on here — an unhandled action would silently become a fresh landing, which is
+    # the one wrong answer that can re-push and re-post.
+    journal = LandingJournal(_land_primary_checkout(), _plan_id_from_dir(pdir))
+    rec = journal.recover()
+    action = rec.get("action")
+
+    if action == "done":
+        click.echo(json.dumps(_land_envelope(
+            "pass", rec["reason"], journal_phase=rec.get("phase"),
+            remediation=None), indent=2))
+        sys.exit(0)
+    if action == "halt":
+        # A CORRUPT OR CONFLICTED JOURNAL IS INCONCLUSIVE, NOT A FAILED LANDING. Nothing about
+        # the landing was measured false; the journal could not be read, or a previous run left
+        # a conflict a human must resolve.
+        click.echo(json.dumps(_land_envelope(
+            "inconclusive", rec["reason"],
+            remediation=rec.get("remediation") or rec.get("recovery"),
+            halt_class=LAND_HALT_MECHANICAL,
+            journal_phase=rec.get("phase")), indent=2))
+        sys.exit(2)
+
+    resume_from = rec.get("resume_after") if action == "resume" else None
+
+    # RE-DERIVE AND RE-CHECK BEFORE ANY WRITE (REQ-LAND-002 / REQ-LAND-011). The decision is
+    # trusted for JUDGEMENTS only and for no fact whatsoever, so a decision minted against a
+    # target that has since moved halts as a legible staleness report — before the merge is
+    # attempted, never as a conflicted tree discovered afterwards.
+    bind = _land_repreview_or_halt(pdir, decision)
+    if not bind["proceed"]:
+        click.echo(json.dumps(_land_envelope(
+            "fail", bind["reason"], remediation=bind["remediation"],
+            halt_class=bind["halt_class"], stale=bind["stale"],
+            digest=bind["digest"], problems=bind.get("problems", []),
+            journal_phase=rec.get("phase")), indent=2))
+        sys.exit(1)
+
+    # `manifest` is ALREADY IN SCOPE — computed above for every mode. Re-deriving it here would
+    # compute the same facts a second time and, worse, invite the two copies to drift.
+    ctx = LandingContext(pdir, decision, manifest)
+    out = _land_execute(ctx, resume_from=resume_from)
+
+    # ---- THE VERDICT IS THREE-VALUED, DERIVED FROM THE RESULTS (REQ-LAND-012) -------------
+    #
+    # `halted -> fail / reached_terminal_state -> pass` is WRONG. L8's and L12's `inconclusive`
+    # results are explicitly NON-HALTING, so a landing can reach `L_DONE` carrying one, and
+    # laundering that into `pass` is exactly the coercion REQ-LAND-012 forbids.
+    results = out.get("results", [])
+    inconclusive = [r for r in results if r.get("verdict") == "inconclusive"]
+    if out.get("halted"):
+        verdict, reason = "fail", out.get("reason", "the landing halted")
+    elif inconclusive:
+        verdict = "inconclusive"
+        reason = ("the landing reached its terminal state, but "
+                  f"{len(inconclusive)} step(s) could not be measured: "
+                  + ", ".join(sorted({r['step'] for r in inconclusive})))
+    elif out.get("reached_terminal_state"):
+        verdict, reason = "pass", "the landing reached L_DONE with every step measured"
+    else:
+        # Not halted, not terminal, nothing inconclusive: the executor ran to the end of the
+        # table without recording the terminal state. That is a statement about the INSTRUMENT.
+        verdict = "inconclusive"
+        reason = ("the executor completed without halting but did not record the terminal "
+                  f"state (journal phase {out.get('journal_phase')!r})")
+
+    env = _land_envelope(
+        verdict, reason,
+        remediation=out.get("recovery") if out.get("halted") else None,
+        halt_class=LAND_HALT_MECHANICAL if out.get("halted") else None,
+        halted=bool(out.get("halted")),
+        halted_at=out.get("at"),
+        resumed_from=resume_from,
+        journal_phase=out.get("journal_phase"),
+        reached_terminal_state=bool(out.get("reached_terminal_state")),
+        steps_executed=out.get("steps_executed", []),
+        inconclusive_steps=sorted({r["step"] for r in inconclusive}),
+        results=results,
+    )
+    click.echo(json.dumps(env, indent=2))
+    sys.exit(_land_exit_code(verdict))
 
 
 def _land_route_record() -> dict:
