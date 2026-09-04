@@ -5,13 +5,17 @@ title: '`_land_tty_gate(allow_list=[None])` opens the consent gate unconditional
 upstream_action: gh issue create
 plan: plan-062-james-dixson-c3e98f
 discharges: 5.1
-status: drafted-awaiting-authorization
+status: filed
+upstream_url: https://github.com/dixson3/yoshiko-flow/issues/334
 description: 'Draft body for a NEW upstream issue covering two defects at one site: allow_list=[None] opens the tty consent gate unconditionally in a no-tty environment (measured, latent rather than CLI-reachable), and the test at test_land_apply.py:384 that should catch it passes vacuously because its own or-fallback guarantees a non-match.'
 ---
 # Upstream filing draft — `_land_tty_gate(allow_list=[None])` opens the consent gate unconditionally, and its test is vacuous
 
-> **NOT YET FILED.** Issue 5.1 of plan-062. Filing is an outward-facing write and is
-> the operator's to authorize; this file is the reviewable draft. Intended action:
+> **FILED** — https://github.com/dixson3/yoshiko-flow/issues/334
+>
+> Issue 5.1 of plan-062. The operator reviewed this draft on disk
+> and authorized the write; the posted body was verified BYTE-EXACT by `gh issue view`
+> read-back, not by exit code. Action taken:
 > `gh issue create` against `dixson3/yoshiko-flow`. The title above is the intended issue title.
 
 ## Two defects, one site

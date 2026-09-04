@@ -5,13 +5,17 @@ title: '`land` is incompatible with `execute.worktree: false` — no execute bra
 upstream_action: gh issue create
 plan: plan-062-james-dixson-c3e98f
 discharges: 5.1
-status: drafted-awaiting-authorization
+status: filed
+upstream_url: https://github.com/dixson3/yoshiko-flow/issues/331
 description: 'Draft body for a NEW upstream issue: under execute.worktree false no execute branch is ever created, so _land_manifest halts execute-branch-missing with resolvable_by_agent false and land cannot run at all. Records the Issue 0.7 hand-created-branch workaround and two candidate fixes.'
 ---
 # Upstream filing draft — `land` is incompatible with `execute.worktree: false` — no execute branch is ever created
 
-> **NOT YET FILED.** Issue 5.1 of plan-062. Filing is an outward-facing write and is
-> the operator's to authorize; this file is the reviewable draft. Intended action:
+> **FILED** — https://github.com/dixson3/yoshiko-flow/issues/331
+>
+> Issue 5.1 of plan-062. The operator reviewed this draft on disk
+> and authorized the write; the posted body was verified BYTE-EXACT by `gh issue view`
+> read-back, not by exit code. Action taken:
 > `gh issue create` against `dixson3/yoshiko-flow`. The title above is the intended issue title.
 
 ## What

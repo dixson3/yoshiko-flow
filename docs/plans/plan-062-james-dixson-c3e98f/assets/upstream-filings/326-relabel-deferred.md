@@ -5,13 +5,17 @@ title: '#326 — re-label `deferred` and point at the completed design'
 upstream_action: gh issue edit + gh issue comment
 plan: plan-062-james-dixson-c3e98f
 discharges: 5.1
-status: drafted-awaiting-authorization
+status: filed
+upstream_url: https://github.com/dixson3/yoshiko-flow/issues/326#issuecomment-5534901718
 description: 'Draft for the ONE upstream EDIT in Issue 5.1: re-label the already-open #326 as `deferred` and comment a pointer to findings/exp-003, which carries the complete verified fix design (strip + temp file + compare-the-stripped-text, reusing okf.read_frontmatter, 7/7 spike). Records that REQ-LAND-027 is reserved for it, so the id hole in spec/landing.md is documented rather than unexplained.'
 ---
 # Upstream filing draft — #326 re-label
 
-> **NOT YET FILED.** Issue 5.1 of plan-062. Filing is an outward-facing write and is the
-> operator's to authorize; this file is the reviewable draft.
+> **FILED** — https://github.com/dixson3/yoshiko-flow/issues/326#issuecomment-5534901718
+>
+> Issue 5.1 of plan-062. The operator reviewed this draft on disk and
+> authorized the write; the posted comment was verified BYTE-EXACT by `gh issue view`
+> read-back, not by exit code.
 
 ## Intended actions
 

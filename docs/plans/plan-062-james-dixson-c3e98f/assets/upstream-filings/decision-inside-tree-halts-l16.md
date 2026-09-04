@@ -5,13 +5,17 @@ title: 'A decision file written inside the tree halts the landing at L16, past t
 upstream_action: gh issue create
 plan: plan-062-james-dixson-c3e98f
 discharges: 5.1
-status: drafted-awaiting-authorization
+status: filed
+upstream_url: https://github.com/dixson3/yoshiko-flow/issues/333
 description: 'Draft body for a NEW upstream issue: a decision document written inside the repo tree is never staged by L16, so its clean-porcelain post-condition fails and the landing halts PAST the irreversible boundary, after the L6 push and the L7 reconcile comments. Proposes a pre-write refusal at the top of --apply.'
 ---
 # Upstream filing draft — A decision file written inside the tree halts the landing at L16, past the irreversible boundary
 
-> **NOT YET FILED.** Issue 5.1 of plan-062. Filing is an outward-facing write and is
-> the operator's to authorize; this file is the reviewable draft. Intended action:
+> **FILED** — https://github.com/dixson3/yoshiko-flow/issues/333
+>
+> Issue 5.1 of plan-062. The operator reviewed this draft on disk
+> and authorized the write; the posted body was verified BYTE-EXACT by `gh issue view`
+> read-back, not by exit code. Action taken:
 > `gh issue create` against `dixson3/yoshiko-flow`. The title above is the intended issue title.
 
 ## What
