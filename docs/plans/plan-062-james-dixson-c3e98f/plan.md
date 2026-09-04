@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-062-james-dixson-c3e98f
 author: James Dixson
 created: '2026-09-03'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 3d9a163bb1360a70884097a453fb100a1f396af9ce9c4e2ea2894ae60df244de
+epic: yf-mol-tm2d
 ---
 # Plan: Wire `land --apply` to `_land_execute`, and make the seam testable
 
 **ID:** plan-062-james-dixson-c3e98f
 **Author:** James Dixson
 **Created:** 2026-09-03
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-tm2d
 **Fingerprint:** 3d9a163bb1360a70884097a453fb100a1f396af9ce9c4e2ea2894ae60df244de
 
 ## Objective
