@@ -89,3 +89,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | Run the FULL tier ONCE at execute start on plans that mandate a config-file precondition, purely to establish the pre-existing baseline. Without a baseline, every red at Issue 5.3 has to be re-adjudicated as 'mine or theirs' under time pressure. |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-09-03 |
+| `stop_class` |  |
+| `asked` | How many of this plan's wrong claims came from the thing under test being wrong, versus from the INSTRUMENT failing silently? |
+| `answered` | Three incidents, one class, and none of them was the subject being wrong. In each case a measuring apparatus returned a confident green while measuring nothing, or measuring the wrong thing entirely. |
+| `frontloadable` | partial |
+| `detected_by` | operator |
+| `evidence` | (1) Issue 4.7: 'diff <(extract a019b41) <(extract HEAD)' inside a shell function — both extracts failed with 'bad substitution', diff compared two EMPTY strings and printed IDENTICAL. Caught by noticing the stderr, not by the check. (2) Issue 5.1b/SC17b: 'okf.py reindex --check ... | tail -20; echo 0' — 0 is TAIL's exit code, so a drifting index reported exit 0 and I published the false claim that the checker 'exits 0 even on drift'. Operator measured the opposite; re-measured directly, clean->0, one entry removed->1. (3) Issue 2.0/4.4: test_inconclusive_not_laundered PASSED against the unwired build, because the stub emitted verdict inconclusive / exit 2 on its own without ever reaching the executor. |
+| `escape_class` |  |
+| `adjudication` | Recorded as a CLASS rather than as three incidents, at the operator's direction, because the fixes are unrelated one-by-one and identical as a family: before believing a green, establish that the instrument could have produced a red. Each was caught by a human or by accident, never by the check itself — which is exactly the property that makes the class dangerous. |
+| `origin` | One shape in three costumes: THE INSTRUMENT FAILED SILENTLY AND ITS FAILURE WAS INDISTINGUISHABLE FROM A PASS. An empty comparison, a pipeline's exit code, and a test whose subject was never invoked all produce the same green a real success produces. This is the same defect class as the plan's own headline bug — #327 is a 43-test suite passing comprehensively over an engine no entry point called — and as #263, #181's not-selected-vs-no-such-path, and #207's found flag. The plan was written to attack this class and then reproduced it three times while doing so. |
+| `culpability` |  |
+| `prevention` | A green is only evidence if the same apparatus has been SEEN to go red. Concretely: assert both sides of a comparison are non-empty before comparing (fixed in the 4.7 close reason); never read 0 after a pipeline — capture to a file and read the producer's code (fixed); and for any new test, run it against the UNWIRED build and record the red (this plan's Gate 2 already mandated exactly that, and it is what caught incident 3). The gate generalises: the red-before-green measurement should be the default for a check, not a special ceremony for one test. |
+| `cost` |  |
+
