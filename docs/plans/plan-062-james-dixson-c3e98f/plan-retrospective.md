@@ -108,3 +108,22 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | A green is only evidence if the same apparatus has been SEEN to go red. Concretely: assert both sides of a comparison are non-empty before comparing (fixed in the 4.7 close reason); never read 0 after a pipeline — capture to a file and read the producer's code (fixed); and for any new test, run it against the UNWIRED build and record the red (this plan's Gate 2 already mandated exactly that, and it is what caught incident 3). The gate generalises: the red-before-green measurement should be the default for a check, not a special ceremony for one test. |
 | `cost` |  |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-09-03 |
+| `stop_class` |  |
+| `asked` | The bundle ends NON-CONFORMANT on REQ-OKF-003 for assets/upstream-drafts/{327,266,304}.md. Is that a defect? |
+| `answered` | No. It is deliberate, operator-decided, and must not be 'fixed'. Those three files are posted VERBATIM as GitHub comments by L7, so any frontmatter they carry becomes a raw YAML block at the top of a public comment. The operator's call — the same one taken on plan-061 — is to strip it. |
+| `frontloadable` | yes |
+| `detected_by` | operator |
+| `evidence` | After the strip: plan_manager.py audit -> status fail with three [fail] okf:assets/upstream-drafts/{266,304,327}.md REQ-OKF-003 'no YAML frontmatter block' plus three [warn] doc-lint/asset-type-declared. okf.py reindex --check -> exit 0 (membership is unaffected by the strip). audit-close -> exit 0, because it is ADVISORY and exits 0 unconditionally, so completion is not gated. |
+| `escape_class` |  |
+| `adjudication` | ORDERING WAS LOAD-BEARING and is worth recording separately from the decision. The frontmatter stayed PRESENT through Issues 5.2, 5.3, 5.4, 5.5 and 5.1b, so every step that reads the bundle saw a conformant tree, and was stripped only as the last action before handoff. The reason is that L7's read-back compares THE FILE against THE POSTED COMMENT, so the two must match: stripping the files keeps them matching while making the comments clean. Stripping earlier would have shown every intervening step a non-conformant tree for no benefit. |
+| `origin` | dixson3/yoshiko-flow#326, now OPEN and labelled `deferred`. OKF requires frontmatter on every bundle file while `draft_body_path` posts the file byte-for-byte, and nothing reconciles the two. The complete verified fix design — strip, write to a temp file, and compare THE STRIPPED TEXT on read-back, reusing okf.read_frontmatter rather than adding a second parser, with a 7/7 spike — is in findings/exp-003, and REQ-LAND-027 is reserved for it. |
+| `culpability` |  |
+| `prevention` | DO NOT re-add the frontmatter to make the finding go away — that would silently reverse an operator decision in order to satisfy a check, which is worse than the finding. The finding is the visible trace of a known deferred defect and should stay visible until #326 lands. |
+| `cost` |  |
+
