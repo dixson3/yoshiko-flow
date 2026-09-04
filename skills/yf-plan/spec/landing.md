@@ -185,7 +185,7 @@ REQ-LAND-011: A partial failure **is resumable**. Re-invoking `land --apply` wit
 decision file shall read the journal, resume from the recorded phase per REQ-LAND-009, and
 **re-derive every fact** per REQ-LAND-002 before continuing. A resume whose re-derived manifest
 digest no longer matches shall halt as a staleness report and route back to `--dry-run`.
-Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_stale_decision_halts_before_merge`
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_resume_skips_completed`
 
 REQ-LAND-012: `land` shall register as a **flat** `@cli.command`, not a command group, and shall
 use three-valued verdicts (`pass | fail | inconclusive`) throughout, with a `halt_class` field in
@@ -372,3 +372,47 @@ and no bead is mutated. The merge preview uses `git merge-tree --write-tree`, wh
 an unreferenced object-database tree object — recorded honestly here so that no requirement and no
 criterion claims the dry run "writes nothing at all".
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_manifest.py test_dry_run_does_not_mutate`
+
+REQ-LAND-027: *(reserved — deliberately unallocated.)* This id is held for the deferred
+`draft_body_path` OKF-frontmatter fix (dixson3/yoshiko-flow#326), whose complete verified design
+is recorded in `docs/plans/plan-062-james-dixson-c3e98f/findings/exp-003`. plan-062 was narrowed
+at its pass-4 review and took 028/029 instead, leaving a **documented** hole here rather than an
+unexplained gap in the id sequence (plan-062 pass-5 C54).
+
+REQ-LAND-028: **`land --apply` shall reach the executor.** The `--apply` branch of `land_cmd`
+shall invoke `_land_execute`; a build whose CLI does not invoke it is **non-conformant**, however
+comprehensively `_land_execute` itself is tested.
+Rationale: `_land_execute` drives all fifteen `LAND_EXECUTOR` steps and was fully implemented and
+covered, yet had **exactly one occurrence in the file — its own `def`**. `--apply` returned an
+unconditional "executor is not implemented" stub, so the sole writing mode of the landing
+capability could not land anything, and no test could observe it because every test drove
+`_land_execute` directly. That is the `#263` vacuous-check class at the **harness** level: a suite
+passing comprehensively over an engine no entry point invokes (dixson3/yoshiko-flow#327).
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_seam_reaches_executor`
+
+REQ-LAND-029: **A resume shall not re-execute a completed step.** On `land --apply` with a
+`resume_from`, `_land_execute` shall skip every step whose journal state has already been reached
+and shall mark each skipped step explicitly in `results` (a `resumed` marker), so a skip is
+observable rather than inferred from an absence.
+
+Two constraints qualify the rule, and both are load-bearing:
+
+- **Unjournaled steps resolve FORWARD, never backward.** Three `LAND_EXECUTOR` keys
+  (`l3_validate_merged`, `l8_close_chain_head`, `l12_close_cascade`) have no entry in
+  `LAND_STEP_JOURNAL`. Such a step is done only when the journal state of the **next journaled**
+  step is in `reached`. A backward scan is unsafe: after a halt at `l3_validate_merged` the
+  preceding state `L_MERGED_UNCOMMITTED` is already reached, so backward resolution would mark l3
+  done and **skip validation of the merged tree**.
+- **`l0_lock_acquire` is EXEMPT and always re-executes.** The landing lock is released at L4, not
+  at the end, so a uniform skip rule would run L1–L4 holding no lock and then `unlink` a lock it
+  never acquired — `_landing_lock_release` is keyed on plan+host, not PID. Re-executing L0 is safe
+  because `_landing_lock_acquire` reclaims a same-host dead-PID lock. **Known asymmetry, recorded
+  rather than papered over:** on a resume from L5 onward, L0 re-acquires while L4 is skipped, so
+  that run ends holding a lock nothing released; it self-heals via dead-PID reclaim.
+
+Rationale: the `resume_from` block contained `for key, _ in LAND_EXECUTOR: pass` — `done` was
+stored and **loaded nowhere**, and held journal states where the step loop needed step keys.
+Measured in a sandbox, a resume after a halt at L17 **re-executed all fifteen steps from L0**,
+including `l6_push_one` and `l7_reconcile_writes`. Wiring REQ-LAND-028 without this makes that
+data-loss path reachable, which is why the fix lands **first** (dixson3/yoshiko-flow#327).
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_resume_skips_completed`

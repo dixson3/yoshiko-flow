@@ -104,7 +104,13 @@ def test_no_config_yields_defaults(repo):
     pm = _load_pm_in(repo)
     assert pm.PLANS_DIR == Path("docs/plans")
     assert pm.INCUBATOR_PARENT == Path("Incubator")
-    assert pm._bootstrap_config() == {}
+    # `_in_cwd`, NOT a bare call. `_load_pm_in` RESTORES the cwd after the import, so a
+    # bare `pm._bootstrap_config()` here resolves the config tiers against the REAL
+    # repository — and this assertion then passes only while that repository happens to
+    # carry no config. Measured: with `.yf/plan/config.local.json` present (untracked and
+    # gitignored, so invisible to CI) it read `{"execute.worktree": False}` and failed.
+    # The three assertions below already use this helper for exactly this reason.
+    assert _in_cwd(repo, pm._bootstrap_config) == {}
 
 
 def test_canonical_local_only(repo):

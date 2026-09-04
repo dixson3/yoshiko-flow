@@ -870,6 +870,40 @@
 >   route — its predicate is *intent* match, which is not mechanically decidable, and claiming it
 >   would be exactly the vacuous check (#263) this amendment exists to close.
 >   Implementation lands in Epics 1-5; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-062 (2026-09-03, #327 / #326-deferred / #266-partial / #304-partial):** wire
+>   `land --apply` to `_land_execute`, and make the seam testable — added
+>   **`REQ-LAND-028`** (`land --apply` **shall reach the executor**; a build whose CLI does not
+>   invoke `_land_execute` is non-conformant, however comprehensively `_land_execute` itself is
+>   tested) and **`REQ-LAND-029`** (a resume **shall not re-execute** a step whose journal state
+>   is reached, and shall mark skipped steps explicitly in `results`, with FORWARD resolution for
+>   the three unjournaled keys and an `l0_lock_acquire` exemption). Revised
+>   **`REQ-LAND-011`**'s `Verification:` line, which named `test_stale_decision_halts_before_merge`
+>   — a **staleness** test standing as the verification of a **resumability** requirement — and now
+>   names `test_resume_skips_completed`. **`REQ-LAND-027` is deliberately RESERVED, not skipped
+>   silently:** it is held for the deferred `draft_body_path` OKF-frontmatter fix (#326), whose
+>   complete verified design is recorded in `findings/exp-003`, so the id sequence carries a
+>   documented hole rather than an unexplained gap.
+>
+>   **Why REQ-LAND-028 is a requirement and not a bug fix.** `_land_execute` drives all fifteen
+>   `LAND_EXECUTOR` steps, advances the journal, is fail-closed, and was covered by a passing
+>   suite — while having **exactly one occurrence in the file, its own `def`**. `--apply` returned
+>   an unconditional "executor is not implemented" stub, so the **sole writing mode** of the
+>   landing capability could land nothing and plan-061 landed only by hand. No test could observe
+>   it, because every test drove `_land_execute` **directly**: that is the `#263` vacuous-check
+>   class at the **harness** level — a suite passing comprehensively over an engine no entry point
+>   invokes. A one-line fix closes the instance; a requirement plus a seam-level test closes the
+>   class, which is why both land here.
+>
+>   **Why REQ-LAND-029 lands FIRST, before the wiring.** `depends-on` ordering is not atomicity.
+>   The `resume_from` block contained `for key, _ in LAND_EXECUTOR: pass`; `done` was stored and
+>   **loaded nowhere**. Measured in a sandbox, a resume after a halt at L17 re-executed all fifteen
+>   steps from L0, including `l6_push_one` and `l7_reconcile_writes` — so wiring the seam first
+>   would open a window in which `--apply` works and a resume re-posts every reconcile comment.
+>   Reversed, the resume fix is **inert until something calls the engine**.
+>
+>   `#266` (the `## Gates` grammar cannot express `test_class` or `cwd`) is depended upon and
+>   **not** closed: the plan's gate metadata is SET directly at pour rather than extracted.
+>   Implementation lands in Epics 1-5; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 

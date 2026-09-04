@@ -1391,5 +1391,374 @@ def test_runbook_covers_every_journal_state():
     assert "exit 3" in text and "detection" in text.lower()
 
 
+# =========================================================================================
+# plan-062 — THE SEAM. `land --apply` must REACH `_land_execute` (REQ-LAND-028, #327)
+# =========================================================================================
+#
+# WHY THESE TESTS EXIST AT ALL. `_land_execute` drives all fifteen `LAND_EXECUTOR` steps,
+# advances the journal, is fail-closed, and was covered by 43 passing tests above — while
+# having exactly ONE occurrence in `plan_manager.py`: its own `def`. `--apply` returned an
+# unconditional "the --apply executor is not implemented" stub. Every test in this file drove
+# `_land_execute` DIRECTLY, so no test could observe that nothing called it. That is the #263
+# vacuous-check class at the HARNESS level: a suite passing comprehensively over an engine no
+# entry point invokes.
+#
+# THE MECHANISM IS DELIBERATE AND ADDS NO PRODUCTION-REACHABLE BYPASS (EXP-001, #304). The
+# defect sits BELOW the tty gate, so a real pty is not required to observe it. Of the four
+# mechanisms measured, a `YF_LAND*` test env flag and wiring the dormant `allow_list` both
+# create a bypass reachable in production; monkeypatching the gate in-process creates none —
+# the patch exists only inside the test process. `test_tty_refusal_exits_three_not_one_or_two`
+# above is retained UNMODIFIED as the gate-closed half's real-process coverage, and
+# `test_ast_gate_called_before_any_write` below closes the one gap a gate-stubbed test cannot
+# see: that the gate is still CALLED.
+
+
+def _seam_decision(rel):
+    """A decision conformant against RE-DERIVED reality, so nothing halts on binding."""
+    manifest = pm._land_manifest(rel)
+    return _decision(pm._land_digest(manifest["facts"]))
+
+
+def _open_the_gate(monkeypatch):
+    """Stub the two pre-executor refusals, and ONLY those two.
+
+    Neither is the subject: REQ-LAND-010's checkout assertion and REQ-LAND-014's tty gate both
+    sit ABOVE the seam, and both are covered elsewhere in this file. Stubbing anything BELOW
+    the seam would be stubbing the thing under test.
+    """
+    monkeypatch.setattr(pm, "_land_assert_primary_checkout",
+                        lambda: {"ok": True, "cwd": ".", "primary": "."})
+    monkeypatch.setattr(pm, "_land_tty_gate",
+                        lambda allow_list=None: {"allowed": True, "reason": "stubbed in-test",
+                                                 "route_record": {"tty": "/dev/ttys999"}})
+
+
+def _run_land_apply(repo, tmp_path, monkeypatch, decision=None, execute_spy=None):
+    """Drive the REAL click command in-process and return (exit_code, envelope)."""
+    from click.testing import CliRunner
+
+    rel = Path("docs/plans") / PLAN_ID
+    _open_the_gate(monkeypatch)
+    if execute_spy is not None:
+        monkeypatch.setattr(pm, "_land_execute", execute_spy)
+
+    # OUTSIDE THE TREE ON PURPOSE. A decision file written inside the repo is an untracked
+    # path that halts the landing at L16, past the irreversible boundary.
+    dpath = tmp_path / "decision.json"
+    dpath.write_text(json.dumps(decision or _seam_decision(rel)), encoding="utf-8")
+
+    res = CliRunner().invoke(
+        pm.cli, ["land", "--apply", str(dpath), str(rel)], catch_exceptions=False)
+    try:
+        env = json.loads(res.output)
+    except json.JSONDecodeError:
+        env = {"_raw": res.output}
+    return res.exit_code, env
+
+
+def test_seam_reaches_executor(repo, tmp_path, monkeypatch):
+    """SC1 / Issue 2.0 / REQ-LAND-028. `--apply` REACHES `_land_execute`.
+
+    THE ASSERTION IS ABOUT THE CALL, NOT ABOUT THE LANDING. What must be true is that the CLI
+    entry point invokes the executor and that the executor genuinely started — `l0_lock_acquire`
+    is the first row of `LAND_EXECUTOR`, so its presence in the executed steps is the earliest
+    observable proof that control crossed the seam. Whether the landing then succeeds is a
+    different question, tested by the fifteen step tests above.
+
+    AUTHORED BEFORE THE WIRING, AND RECORDED AS FAILING AGAINST THE UNWIRED BUILD. A test
+    written after its fix proves only that the fix is self-consistent. Against the shipped
+    stub this asserted `exit 2` / verdict `inconclusive` / "executor is not implemented" and
+    reached no step at all.
+    """
+    seen: dict = {}
+
+    def spy(ctx, resume_from=None):
+        seen["called"] = True
+        seen["ctx"] = ctx
+        seen["resume_from"] = resume_from
+        return {"halted": False, "results": [_step_ok("l0_lock_acquire", journal="L_LOCKED")],
+                "journal_phase": "L_LOCKED", "terminal": False,
+                "reached_terminal_state": False,
+                "steps_executed": ["l0_lock_acquire"]}
+
+    code, env = _run_land_apply(repo, tmp_path, monkeypatch, execute_spy=spy)
+
+    assert seen.get("called"), (
+        "`land --apply` did not reach `_land_execute` — the CLI entry point is disconnected "
+        "from the engine (REQ-LAND-028). This is the #327 defect: a fully implemented, fully "
+        "tested executor that no entry point invokes.")
+    assert isinstance(seen["ctx"], pm.LandingContext), (
+        "the seam must hand the executor a real LandingContext, assembled from re-derived "
+        "facts (REQ-LAND-002)")
+    assert seen["ctx"].plan_id == PLAN_ID
+    assert "l0_lock_acquire" in (env.get("steps_executed") or
+                                [r["step"] for r in env.get("results", [])]), (
+        f"the executor was called but its first step is not reported: {env}")
+    assert "not implemented" not in json.dumps(env), (
+        "the unconditional stub verdict is still being emitted")
+    assert code in (0, 1, 2), f"unexpected exit {code}: {env}"
+
+
+def test_seam_passes_the_resume_phase_through(repo, tmp_path, monkeypatch):
+    """The seam is not merely A call — it must carry the journal's resume point.
+
+    A seam that always calls `_land_execute(ctx)` with no `resume_from` would satisfy
+    `test_seam_reaches_executor` while making Epic 1's whole resume fix unreachable: every
+    re-invocation would restart at L0 and re-execute `l6_push_one` and `l7_reconcile_writes`.
+    The two defects compose, so the test for the second is separate from the test for the
+    first.
+    """
+    rel = Path("docs/plans") / PLAN_ID
+    j = pm.LandingJournal(repo, PLAN_ID)
+    j.write("L_RECONCILED", note="a prior --apply halted here")
+
+    seen: dict = {}
+
+    def spy(ctx, resume_from=None):
+        seen["resume_from"] = resume_from
+        return {"halted": False, "results": [], "journal_phase": "L_RECONCILED",
+                "terminal": False, "reached_terminal_state": False, "steps_executed": []}
+
+    _run_land_apply(repo, tmp_path, monkeypatch, execute_spy=spy)
+    assert seen.get("resume_from") == "L_RECONCILED", (
+        f"the seam discarded the journal's recorded phase: resume_from={seen.get('resume_from')!r}. "
+        "A resume that restarts at L0 re-posts every reconcile comment.")
+
+
+def test_inconclusive_not_laundered(repo, tmp_path, monkeypatch):
+    """SC12 / Issues 2.2 + 4.4 / REQ-LAND-012. `inconclusive` is NEVER coerced.
+
+    L8's and L12's `inconclusive` results are explicitly NON-HALTING, so a landing can reach
+    `L_DONE` while carrying one. A two-valued wrapper (`halted -> fail`, else `pass`) launders
+    that into a green landing — which is exactly the coercion REQ-LAND-012 forbids, and
+    without this test Issue 2.2's three-valued derivation is unobservable.
+    """
+    def spy(ctx, resume_from=None):
+        return {"halted": False,
+                "results": [_step_ok("l0_lock_acquire", journal="L_LOCKED"),
+                            {"step": "l12_close_cascade", "verdict": "inconclusive",
+                             "reason": "pour fidelity could not be measured",
+                             "journal": None, "halting": False, "detail": {}}],
+                "journal_phase": "L_DONE", "terminal": True,
+                "reached_terminal_state": True,
+                "steps_executed": ["l0_lock_acquire", "l12_close_cascade"]}
+
+    called: dict = {}
+    _spy = spy
+
+    def spy(ctx, resume_from=None):          # noqa: F811 — wraps to record the call
+        called["yes"] = True
+        return _spy(ctx, resume_from)
+
+    code, env = _run_land_apply(repo, tmp_path, monkeypatch, execute_spy=spy)
+
+    # THE VACUITY GUARD, AND IT IS NOT DECORATION. Measured against the unwired build this
+    # test PASSED — because the stub `land_cmd` emitted verdict `inconclusive` / exit 2 all
+    # on its own, without ever calling the executor. A test that cannot tell "derived
+    # three-valued from the executor's results" from "never reached the executor" is the
+    # #263 vacuous check, in the very file written to close it.
+    assert called.get("yes"), (
+        "`_land_execute` was never called, so this test measured the stub's own "
+        "`inconclusive`, not a verdict DERIVED from the executor's results")
+    assert env.get("verdict") == "inconclusive", (
+        f"a non-halting `inconclusive` reaching L_DONE was laundered into "
+        f"{env.get('verdict')!r} — REQ-LAND-012 forbids the coercion")
+    assert code == 2, f"an inconclusive verdict must exit 2, got {code}"
+
+
+def test_ast_gate_called_before_any_write(repo):
+    """SC9 / Issue 4.3. `land_cmd` CALLS `_land_tty_gate`, asserted at the SOURCE level.
+
+    THIS IS A FUTURE REGRESSION GUARD, NOT EVIDENCE ABOUT THE PRESENT DEFECT. `land_cmd`
+    already calls the gate, so this passes the moment it is written. It exists because the
+    seam tests above monkeypatch the gate open: a gate-stubbed test cannot see the gate being
+    DELETED, and the source is the only place that fact is observable.
+
+    The file already uses `ast` this way for the two shell-out absence checks near the top.
+    """
+    import ast as _ast
+
+    # THE MODULE SOURCE, not `inspect.getsource(pm.land_cmd)`. `land_cmd` is a click
+    # `Command` object, not a function — `inspect` raises `TypeError` on it, which is how
+    # this test first failed. Parsing the file is also the stronger form: it reads what a
+    # reviewer reads, with no decorator indirection in between.
+    # RAW source, not `_code_only`. This check looks for CALL nodes, and a docstring is a
+    # `Constant` — it can never be mistaken for a call, so the prose-vs-code distinction
+    # `_code_only` exists to draw does not arise here. (It is also unusable module-wide: it
+    # unparses a docstring-only function into a `def` with an empty body.)
+    tree_all = _ast.parse(_PM.read_text(encoding="utf-8"))
+    fn = next((n for n in _ast.walk(tree_all)
+               if isinstance(n, _ast.FunctionDef) and n.name == "land_cmd"), None)
+    assert fn is not None, "no `land_cmd` function in plan_manager.py"
+    calls = [n for n in _ast.walk(fn)
+             if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)]
+    names = [n.func.id for n in calls]
+    assert "_land_tty_gate" in names, (
+        "`land_cmd` does not call `_land_tty_gate` — the outward-write consent gate can be "
+        "deleted and every gate-stubbed test above would still pass (REQ-LAND-014)")
+    assert "_land_assert_primary_checkout" in names, (
+        "`land_cmd` does not assert the primary checkout (REQ-LAND-010)")
+
+    # ORDER, not merely presence: the gate must precede the executor call, or a refusal could
+    # be preceded by a write.
+    order = {}
+    for n in calls:
+        order.setdefault(n.func.id, n.lineno)
+    assert order["_land_assert_primary_checkout"] < order["_land_tty_gate"], (
+        "REQ-LAND-010's checkout assertion must run BEFORE the tty gate")
+    if "_land_execute" in order:
+        assert order["_land_tty_gate"] < order["_land_execute"], (
+            "the tty gate must be called BEFORE `_land_execute` — otherwise a refusal can be "
+            "preceded by a write")
+
+
+def test_no_test_only_bypass_was_introduced():
+    """SC11. No `YF_LAND`-prefixed environment escape exists in the production module.
+
+    EXP-001 measured this alternative and rejected it: an env-var gate bypass is
+    PRODUCTION-REACHABLE — anything that can set an environment variable can open the consent
+    gate, and #293 is already an instance of an executing agent closing that gate by asserting
+    its own authorization. The in-process monkeypatch above cannot escape the test process.
+    """
+    src = _PM.read_text(encoding="utf-8")
+    assert "YF_LAND" not in src, (
+        "a `YF_LAND*` environment escape appears in plan_manager.py — that is a "
+        "production-reachable tty-gate bypass, which EXP-001 rejected on exactly this ground")
+
+
+# =========================================================================================
+# plan-062 — THE RESUME. A resume must not re-execute completed steps (REQ-LAND-029, #327)
+# =========================================================================================
+
+def _resume_ctx(repo, monkeypatch, phase):
+    """A context whose journal is at `phase`, with every step stubbed to a recording no-op.
+
+    THE STEPS ARE STUBBED BECAUSE THE SUBJECT IS THE SKIP DECISION, NOT THE STEPS. Each stub
+    records that it ran, so "did not re-execute" is measured by an ABSENCE FROM A RECORD
+    rather than inferred from a green result — an unstubbed step that halts early would make
+    every "did not run" assertion pass vacuously.
+    """
+    ran: list[str] = []
+
+    def _mk(key, journal):
+        def _f(ctx):
+            ran.append(key)
+            return _step_ok(key, journal=journal)
+        return _f
+
+    for key, fname in pm.LAND_EXECUTOR:
+        j = pm.LAND_STEP_JOURNAL.get(key)
+        if fname == "_land_l8_to_l15_close_chain":
+            def _chain(ctx, _k=key):
+                ran.append(_k)
+                return [_step_ok(_k)]
+            monkeypatch.setattr(pm, fname, _chain)
+        elif fname == "_land_l13_l15_finish":
+            def _fin(ctx, _k=key, _j=j):
+                ran.append(_k)
+                return [_step_ok(_k, journal=_j)]
+            monkeypatch.setattr(pm, fname, _fin)
+        else:
+            monkeypatch.setattr(pm, fname, _mk(key, j))
+
+    j = pm.LandingJournal(repo, PLAN_ID)
+    j.write(phase, note="a prior --apply halted here")
+    return _ctx(repo, FakeRunner()), ran
+
+
+def test_resume_skips_completed(repo, monkeypatch):
+    """SC4 / Issue 4.1 / REQ-LAND-029. REQ-LAND-011's `Verification:` names THIS test.
+
+    After a halt at L17, a resume must execute NEITHER `l6_push_one` NOR
+    `l7_reconcile_writes` — the two irreversible outward writes. Measured before the fix, a
+    resume from that point re-executed all fifteen steps from L0, re-pushing and re-posting
+    every reconcile comment.
+
+    AND IT MUST STILL EXECUTE `l0_lock_acquire`. The lock is released at L4, not at the end,
+    so a uniform skip rule would run the remaining steps holding no lock and then `unlink` a
+    lock it never acquired — `_landing_lock_release` is keyed on plan+host, not PID, so that
+    unlink would steal a concurrent landing's lock. A resume that silently skipped L0 would
+    look correct here and be unsafe.
+    """
+    ctx, ran = _resume_ctx(repo, monkeypatch, "L_MIRRORED")
+    out = pm._land_execute(ctx, resume_from="L_MIRRORED")
+
+    assert "l6_push_one" not in ran, "a resume RE-PUSHED — the irreversible L6 write repeated"
+    assert "l7_reconcile_writes" not in ran, (
+        "a resume RE-POSTED the reconcile comments — the irreversible L7 write repeated")
+    assert "l0_lock_acquire" in ran, (
+        "the resume skipped `l0_lock_acquire`, so the rest of the landing ran holding no "
+        "lock and would `unlink` a lock it never acquired (the L4-release asymmetry)")
+    assert "l18_prune" in ran, (
+        "the resume skipped work that had NOT completed — L18 follows L17 (L_MIRRORED), so "
+        "it must still run. Without this the test would pass against an executor that skips "
+        "everything.")
+
+    resumed = [r["step"] for r in out["results"] if r.get("detail", {}).get("resumed")]
+    assert "l6_push_one" in resumed and "l7_reconcile_writes" in resumed, (
+        f"a skipped step must be SURFACED with an explicit `resumed` marker, never a silent "
+        f"absence (REQ-LAND-029). Marked: {resumed}")
+
+
+def test_resume_forward_resolution(repo, monkeypatch):
+    """SC4b / Issue 4.2 / REQ-LAND-029. The three unjournaled steps resolve FORWARD.
+
+    `l3_validate_merged`, `l8_close_chain_head` and `l12_close_cascade` have no entry in
+    `LAND_STEP_JOURNAL`, so whether they are "done" must be borrowed from a neighbour. Taking
+    the PRECEDING neighbour is unsafe, and the failure is concrete rather than theoretical:
+    after a halt at `l3_validate_merged` the preceding state `L_MERGED_UNCOMMITTED` is ALREADY
+    reached, so a backward scan marks l3 done and SKIPS VALIDATION OF THE MERGED TREE — the
+    one check standing between a merge and a push.
+
+    These are the two cases a backward scan would silently break, which is why they are tested
+    separately from the L17 case above.
+    """
+    # -- halt at l3: L_MERGED_UNCOMMITTED is reached, but l3 itself did NOT complete.
+    ctx, ran = _resume_ctx(repo, monkeypatch, "L_MERGED_UNCOMMITTED")
+    pm._land_execute(ctx, resume_from="L_MERGED_UNCOMMITTED")
+    assert "l3_validate_merged" in ran, (
+        "BACKWARD RESOLUTION: `l3_validate_merged` was skipped because its PREDECESSOR's "
+        "journal state was reached. The merged tree would be pushed unvalidated.")
+    assert "l2_merge" not in ran, "L2 genuinely completed (it wrote L_MERGED_UNCOMMITTED)"
+
+    # -- halt at l8: the close chain is unjournaled and its successor L13 wrote nothing yet.
+    ctx2, ran2 = _resume_ctx(repo, monkeypatch, "L_RECONCILED")
+    pm._land_execute(ctx2, resume_from="L_RECONCILED")
+    assert "l8_close_chain_head" in ran2, (
+        "BACKWARD RESOLUTION: the close chain was skipped because L7's `L_RECONCILED` was "
+        "reached — but the chain itself never ran.")
+    assert "l12_close_cascade" in ran2, "l12 is unjournaled too and had not run"
+    assert "l7_reconcile_writes" not in ran2, "L7 genuinely completed (it wrote L_RECONCILED)"
+
+
+def test_resume_done_set_is_step_keys_not_journal_states(repo):
+    """The unit under the two tests above, asserted directly.
+
+    The original defect was a TYPE CONFUSION with no type error: `done` was built from journal
+    PHASES (`L_PUSHED_1`, ...), named as though it held executor STEP KEYS (`l6_push_one`,
+    ...), and then never read — so the mistake was invisible in both directions. Asserting the
+    set's MEMBERSHIP VOCABULARY is what makes a regression to phases fail loudly.
+    """
+    done = pm._land_resume_done("L_MIRRORED")
+    keys = {k for k, _ in pm.LAND_EXECUTOR}
+    assert done, "a resume from L_MIRRORED must mark earlier steps done"
+    assert done <= keys, (
+        f"`done` contains members that are not executor step keys: {sorted(done - keys)}. "
+        "The journal's phase vocabulary and the executor's key vocabulary are different sets.")
+    assert not (done & set(pm.LAND_PROGRESS_ORDER)), "`done` must not hold journal phases"
+    assert "l0_lock_acquire" not in done, "L0 is exempt from skipping"
+
+    assert pm._land_resume_done(None) == set(), "no resume point means nothing is done"
+    assert pm._land_resume_done("L_NOT_A_STATE") == set(), "an unknown phase claims nothing"
+
+    # A trailing unjournaled step is never marked done — there is no successor to borrow from.
+    keys_list = [k for k, _ in pm.LAND_EXECUTOR]
+    trailing = [k for k in keys_list if k not in pm.LAND_STEP_JOURNAL
+                and not any(x in pm.LAND_STEP_JOURNAL for x in keys_list[keys_list.index(k) + 1:])]
+    for k in trailing:
+        assert k not in pm._land_resume_done(pm.LAND_PROGRESS_ORDER[-1]), (
+            f"{k} has no journaled successor, so nothing can establish that it ran")
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, *sys.argv[1:]]))
