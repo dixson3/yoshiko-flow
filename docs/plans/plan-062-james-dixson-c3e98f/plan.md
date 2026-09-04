@@ -131,14 +131,14 @@ failure is expressible as a repo-wide clause, so the read-back is recorded by Is
 
 ### Epic 1: Fix the resume no-op FIRST — inert until Epic 2 gives it a caller
 - Issue 1.1: Replace the dead `for key, _ in LAND_EXECUTOR: pass` loop (`:9555-9557`) with a real step-to-journal translation: a step is done when `LAND_STEP_JOURNAL[key]` is in `reached`. For the three keys absent from that map (`l3_validate_merged`, `l8_close_chain_head`, `l12_close_cascade`) resolve **FORWARD** — done only when the journal state of the *next journaled* step is in `reached`. A backward scan is unsafe: after a halt at `l3_validate_merged`, `L_MERGED_UNCOMMITTED` is already reached, so backward resolution would mark l3 done and **skip validation of the merged tree** (pass-1 C7). **`l0_lock_acquire` is EXEMPT from skipping and always re-executes** (pass-2 C19): the landing lock is released at L4, not at the end, so a uniform skip rule would run L1-L4 holding no lock and then `unlink` a lock it never acquired — `_landing_lock_release` is keyed on plan+host, not PID. Re-executing L0 is safe because `_landing_lock_acquire` reclaims a same-host dead-PID lock. **Known asymmetry, recorded rather than papered over** (pass-3 C36): on a resume from L5 onward, L0 re-acquires while L4 is skipped, so that run ends holding a lock nothing released; it self-heals via dead-PID reclaim.
-  - depends-on: 0.7
+  - depends-on: 0.5, 0.7
   - resolves-upstream: #327 (include)
 - Issue 1.2: **Actually consult `done`** in the step loop at `:9561`, skipping completed steps and recording an explicit `resumed` marker in `results`. Today `done` is stored at `:9550` and `:9558` and loaded nowhere.
   - depends-on: 1.1
 
 ### Epic 2: Wire the seam
 - Issue 2.0: **Author the seam test FIRST, before any wiring**, and record that it FAILS against the unwired build. An in-process `CliRunner` test with `_land_tty_gate` monkeypatched open and `LandingContext(runner=...)` injected, asserting `--apply` against a conformant decision reaches at least `l0_lock_acquire`. A test authored after the fix proves only that the fix is self-consistent.
-  - depends-on: 0.7
+  - depends-on: 0.4, 0.7
 - Issue 2.1: Replace `plan_manager.py:8306-8311` with the glue: parse the decision (mirror `:8265-8278`), `LandingJournal(...).recover()` and branch on its four actions, `_land_repreview_or_halt` on a stale bind, construct `LandingContext(...)` — **`manifest` is already in scope in `land_cmd`**, so reuse it rather than re-deriving; that fact is *why* ~40 lines is true — then call `_land_execute(ctx, resume_from=...)`. Verified end-to-end in EXP-002's sandbox.
   - depends-on: 1.2, 2.0
   - resolves-upstream: #327 (include)
