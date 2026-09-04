@@ -767,6 +767,21 @@ def test_capture_rejects_an_unenumerated_site(repo):
 # EPIC 4 — the ordered steps L0-L19, and the CONFLICT MATRIX (Issue 4.10)
 # =========================================================================================
 
+
+def _teardown_ok(plan_dir, force=False):
+    """A stub of `_worktree_teardown` that matches the REAL SIGNATURE AND THE REAL SHAPE.
+
+    Both axes were wrong, and only one of them is mechanically detectable. `check_mock_fidelity`
+    binds `inspect.signature`, so it catches the arity; it is STRUCTURALLY BLIND to the RETURN
+    shape, and the return shape is what L18 branches on (REQ-LAND-031). The four shipped stubs
+    returned `{"action": "removed"}` — a key `_worktree_teardown` NEVER produces.
+    """
+    return {"status": "ok", "path": f".worktrees/{PLAN_ID}", "branch": f"{PLAN_ID}-execute",
+            "steps": {"remove": {"ok": True, "detail": ""},
+                      "branch_delete": {"ok": True, "detail": ""},
+                      "prune": {"ok": True, "detail": ""}}}
+
+
 def _step_ok(name, journal=None):
     return {"step": name, "verdict": "pass", "reason": "stubbed", "journal": journal,
             "halting": False, "detail": {}}
@@ -1020,17 +1035,33 @@ def test_residual_mirroring_is_concrete_and_gated(repo):
 def test_prune_is_strategy_aware(repo, monkeypatch):
     """SC29 / Issue 4.8. A `feature-branch` fixture KEEPS `<plan-id>` and loses only
     `<plan-id>-execute`; the tab close defaults to a PROPOSAL."""
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    seen = []
+
+    def _capture(plan_dir, force=False, **kw):
+        seen.append(((plan_dir,), {"force": force, **kw}))
+        return _teardown_ok(plan_dir, force)
+
+    monkeypatch.setattr(pm, "_worktree_teardown", _capture)
 
     monkeypatch.setattr(pm, "_resolve_landing_strategy", lambda: "feature-branch")
     r = FakeRunner()
     out = pm._land_l18_prune(_ctx(repo, r))
     assert out["detail"]["strategy"] == "feature-branch"
     assert PLAN_ID in out["detail"]["preserved"], "REQ-BRANCH-004: the feature branch is KEPT"
-    deleted = [c for c in r.calls if "branch" in c and "-d" in c]
-    assert deleted and all(f"{PLAN_ID}-execute" in c for c in deleted), (
-        "ONLY the execute branch may be deleted")
-    assert not any(c[-1] == PLAN_ID for c in deleted), "the feature branch was deleted"
+    # REPLACED, NOT DELETED (Issue 2.2). The duplicate `ctx.run` branch-delete this used to
+    # assert on is gone — the real delete happens INSIDE `_worktree_teardown` via `_run_git`
+    # and is invisible to `ctx.run`. Deleting the assertion would leave L18's HEADLINE ACTION
+    # untested at the step level, so it is replaced with the two facts that survive the fix:
+    # the delegation is made with the right arguments, and no branch delete reaches `ctx.run`.
+    assert seen == [((pm.Path("docs/plans") / PLAN_ID,), {"force": False})], (
+        f"L18 must delegate to _worktree_teardown(plan_dir, force=False) in KEYWORD form; "
+        f"observed {seen}")
+    assert not [c for c in r.calls if "branch" in c and "-d" in c], (
+        "L18 must NOT issue its own `git branch -d` — the teardown already deletes the "
+        "branch, so a second delete permanently reports ok:false 'branch not found'")
+    dele = [a for a in out["detail"]["actions"] if a["action"] == "delete-execute-branch"][0]
+    assert dele["via"] == "_worktree_teardown" and dele["ok"] is True, (
+        "the delete is REPORTED from the teardown's own branch_delete step")
 
     tab = [a for a in out["detail"]["actions"] if a["action"] == "herdr-tab"][0]
     assert tab["decision"] == "PROPOSE", "provenance is unanswerable, so a close is never inferred"
@@ -1177,7 +1208,7 @@ def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
     monkeypatch.setattr(pm, "_validate_merged", lambda pd: {"status": "pass", "engine": "x"})
     monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
     monkeypatch.setattr(pm, "_landing_lock_release", lambda p, f=False: {"released": True})
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    monkeypatch.setattr(pm, "_worktree_teardown", _teardown_ok)
     # Stub the close chain: this test isolates SKIP SURFACING, and an unstubbed
     # pour-fidelity legitimately halts at L14 on a fixture with no real beads — which the
     # guard below caught, rather than letting the test pass vacuously.
@@ -1251,7 +1282,7 @@ def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
     between "a mock answered" and "a process ran".
     """
     body = repo / "b.md"; body.write_text("x\n", encoding="utf-8")
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    monkeypatch.setattr(pm, "_worktree_teardown", _teardown_ok)
     monkeypatch.setattr(pm, "_land_changed_set", lambda root=None: ["skills/a.py"])
 
     checks = [
@@ -1262,7 +1293,11 @@ def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
          {"upstream_writes": [{"issue": "301", "action": "comment",
                                "body_path": str(body)}]},                       {"gh"}),
         (pm._land_l16_commit_and_push_two, {},                                  {"git"}),
-        (pm._land_l18_prune,       {},                                          {"git"}),
+        # L18 invokes NOTHING through `ctx.run` (Issue 2.2): its only process work is the
+        # branch delete, and that is DELEGATED to `_worktree_teardown`, which uses `_run_git`
+        # directly. The empty set is the assertion, not an omission — a `{"git"}` expectation
+        # here would only be satisfiable by restoring the duplicate delete this plan removed.
+        (pm._land_l18_prune,       {},                                          set()),
         (pm._land_l19_redeploy,    {},                                          {"yf"}),
     ]
     for fn, dec, want in checks:
@@ -1865,6 +1900,81 @@ def test_dispatch_wrapper_reraises_control_flow(repo, monkeypatch):
         monkeypatch.setattr(pm, "_land_l3_validate_merged", _raise)
         with pytest.raises(exc):
             pm._land_execute(_ctx(repo, r))
+
+
+# =========================================================================================
+# SC2c / SC2d / REQ-LAND-031 — L18 branches on the teardown's STATUS, and delegates the delete
+# =========================================================================================
+
+def test_l18_delegates_branch_delete(repo, monkeypatch):
+    """SC2d. L18 still deletes the execute branch — VIA THE TEARDOWN, not by itself.
+
+    The pair with `test_prune_is_strategy_aware`: that one asserts no `git branch -d` reaches
+    `ctx.run`; this one asserts the delete is nonetheless reported, sourced from the
+    teardown's own `branch_delete` step. Without both, "the duplicate is gone" and "the
+    branch is still deleted" cannot be distinguished from "nothing deletes it any more".
+    """
+    seen = []
+
+    def _capture(plan_dir, force=False):
+        seen.append((plan_dir, force))
+        return _teardown_ok(plan_dir, force)
+
+    monkeypatch.setattr(pm, "_worktree_teardown", _capture)
+    r = FakeRunner()
+    out = pm._land_l18_prune(_ctx(repo, r))
+
+    assert len(seen) == 1 and seen[0][1] is False, (
+        f"L18 must call the teardown exactly once with force=False; saw {seen}")
+    dele = [a for a in out["detail"]["actions"] if a["action"] == "delete-execute-branch"][0]
+    assert dele["via"] == "_worktree_teardown"
+    assert dele["ok"] is True, "the branch delete is reported from the teardown's own step"
+    assert dele["branch"] == f"{PLAN_ID}-execute", "ONLY the execute branch"
+    assert not [c for c in r.calls if "branch" in c and "-d" in c], (
+        "the duplicate delete is gone: nothing reaches ctx.run")
+    assert out["verdict"] == "pass" and out["journal"] == "L_PRUNED"
+
+
+def test_l18_blocked_teardown(repo, monkeypatch):
+    """SC2c / REQ-LAND-031. A `blocked` teardown is a HALTING fail, never a `pass`.
+
+    Measured before the fix: a dirty worktree meant nothing was removed and the branch was
+    left behind, and L18 reported `verdict: pass`. A landing must not report a prune it did
+    not perform.
+
+    The ABSENT-`status` case is asserted in the same test because it is the shape the shipped
+    stubs produced — `{"action": "removed"}`, a key `_worktree_teardown` never returns. It is
+    `inconclusive`, never `pass`: nothing was established in either direction.
+    """
+    blocked = {"status": "blocked", "path": f".worktrees/{PLAN_ID}",
+               "branch": f"{PLAN_ID}-execute",
+               "steps": {"remove": {"ok": False, "detail": "contains modified files"}},
+               "detail": "worktree remove refused (dirty?)"}
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd, force=False: blocked)
+    out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "fail", "a blocked teardown pruned NOTHING"
+    assert out["halting"] is True
+    assert out["journal"] is None, "the journal must not record L_PRUNED when nothing pruned"
+    assert out["detail"]["teardown_status"] == "blocked"
+    assert "BLOCKED" in out["reason"]
+
+    # PARTIAL — some step failed. Non-halting, but never `pass`.
+    partial = dict(blocked, status="partial",
+                   steps={"remove": {"ok": True, "detail": ""},
+                          "branch_delete": {"ok": False, "detail": "not fully merged"},
+                          "prune": {"ok": True, "detail": ""}})
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd, force=False: partial)
+    out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "inconclusive" and out["halting"] is False
+
+    # ABSENT `status` — the old stub shape. UNJUDGED, so `inconclusive`.
+    monkeypatch.setattr(pm, "_worktree_teardown",
+                        lambda pd, force=False: {"action": "removed"})
+    out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "inconclusive", (
+        "a return shape carrying no `status` establishes nothing about the prune")
+    assert out["detail"]["teardown_status"] is None
+    assert "no `status` key" in out["reason"]
 
 
 if __name__ == "__main__":

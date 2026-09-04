@@ -9510,13 +9510,39 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     feature = _feature_branch(ctx.plan_id)
     actions, preserved = [], []
 
-    wt = _worktree_teardown(ctx.plan_dir)
-    actions.append({"action": "worktree-teardown", "result": wt.get("action") or wt})
+    # REQ-LAND-031 (#340). THREE DEFECTS LIVED IN THE THREE LINES THIS REPLACES.
+    #
+    # (a) ARITY. `_worktree_teardown(plan_dir, force)` takes TWO parameters; the call passed
+    #     one, and raised `TypeError` on the first real `--apply` in this repository's
+    #     history — after two pushes, three public comments and `status: complete`. The
+    #     KEYWORD form is deliberate: the next signature change fails loudly rather than
+    #     silently rebinding a positional. `force=False` is the only value consistent with
+    #     INV-1 (never `--force` without confirmation) and is confirmed against the CLI path.
+    #
+    # (b) A DUPLICATE DELETE. `_worktree_teardown` already deletes the execute branch (its
+    #     `branch_delete` step). The direct `ctx.run` git branch-delete call that stood here
+    #     (spelled in prose rather than literally, because SC2b asserts that literal's
+    #     ABSENCE from this file and a comment naming it would defeat the check while looking
+    #     like documentation) therefore ran SECOND, against a branch that no longer existed — so once (a) was
+    #     fixed, L18 would PERMANENTLY report its own headline action as
+    #     `{"action": "delete-execute-branch", "ok": false, "detail": "branch not found"}`.
+    #     The delete is delegated; the report below reads the teardown's own step.
+    #
+    # (c) AN UNREAD STATUS. `_worktree_teardown` returns `{"status", "path", "branch",
+    #     "steps"}` and NEVER an `"action"` key, so `wt.get("action") or wt` always took the
+    #     fallback — and nothing consulted `status` at all. A `blocked` teardown (dirty
+    #     worktree: nothing removed, branch left behind) reported `verdict: pass`. A landing
+    #     must not report a prune it did not perform.
+    wt = _worktree_teardown(ctx.plan_dir, force=False)
+    status = wt.get("status") if isinstance(wt, dict) else None
+    actions.append({"action": "worktree-teardown", "status": status, "result": wt})
 
-    d = ctx.run("git", ["branch", "-d", ctx.execute_branch], cwd=ctx.root)
+    bd_step = (wt.get("steps") or {}).get("branch_delete") if isinstance(wt, dict) else None
     actions.append({"action": "delete-execute-branch", "branch": ctx.execute_branch,
-                    "ok": d.returncode == 0,
-                    "detail": (d.stderr or d.stdout).strip()[:200] or None})
+                    "via": "_worktree_teardown",
+                    "ok": bool(bd_step.get("ok")) if isinstance(bd_step, dict) else None,
+                    "detail": (bd_step or {}).get("detail") if isinstance(bd_step, dict)
+                              else "the teardown reported no branch_delete step"})
 
     if strategy == "feature-branch":
         preserved.append(feature)
@@ -9541,11 +9567,39 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
                                 "implemented here."}
     actions.append(tab_action)
 
-    return _step("l18_prune", "pass",
-                 f"pruned under strategy `{strategy}`: {ctx.execute_branch} only; "
-                 f"herdr tab PROPOSED, never closed",
-                 journal="L_PRUNED", strategy=strategy, actions=actions,
-                 preserved=preserved, destructive=True)
+    # BRANCH ON THE RETURNED `status` (REQ-LAND-031). Three-valued, and the ABSENT case is
+    # stated rather than inferred: a stub or a future return shape carrying no `status` has
+    # established NOTHING about the prune, so the step is `inconclusive` — never `pass`.
+    if status == "ok":
+        return _step("l18_prune", "pass",
+                     f"pruned under strategy `{strategy}`: {ctx.execute_branch} only; "
+                     f"herdr tab PROPOSED, never closed",
+                     journal="L_PRUNED", strategy=strategy, actions=actions,
+                     preserved=preserved, destructive=True, teardown_status=status)
+    if status == "blocked":
+        return _step("l18_prune", "fail",
+                     f"the worktree teardown was BLOCKED — nothing was pruned and "
+                     f"{ctx.execute_branch} is still present. "
+                     f"{wt.get('detail') or 'the worktree is probably dirty.'} "
+                     f"A landing must not report a prune it did not perform.",
+                     journal=None, halting=True, strategy=strategy, actions=actions,
+                     preserved=preserved, destructive=True, teardown_status=status,
+                     recovery="Inspect the worktree, confirm no work is lost, then re-run "
+                              "`land --apply`; L18 re-executes on the resume.")
+    if status == "partial":
+        return _step("l18_prune", "inconclusive",
+                     f"the worktree teardown reported `partial` under strategy "
+                     f"`{strategy}`: at least one of remove/branch-delete/prune did not "
+                     f"succeed. Steps: {wt.get('steps')}",
+                     journal="L_PRUNED", halting=False, strategy=strategy, actions=actions,
+                     preserved=preserved, destructive=True, teardown_status=status)
+    return _step("l18_prune", "inconclusive",
+                 f"the worktree teardown returned no `status` key "
+                 f"(got {sorted(wt) if isinstance(wt, dict) else type(wt).__name__}), so the "
+                 f"prune is UNJUDGED. This is a statement about the instrument, not the "
+                 f"landing.",
+                 journal="L_PRUNED", halting=False, strategy=strategy, actions=actions,
+                 preserved=preserved, destructive=True, teardown_status=status)
 
 
 # -- L19 -----------------------------------------------------------------------------------
