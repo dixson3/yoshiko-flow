@@ -904,6 +904,58 @@
 >   `#266` (the `## Gates` grammar cannot express `test_class` or `cwd`) is depended upon and
 >   **not** closed: the plan's gate metadata is SET directly at pour rather than extracted.
 >   Implementation lands in Epics 1-5; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-063 (2026-09-04, #340 / #342 / #343 / #341 / #333 / #331-partial):** make landings
+>   **complete correctly or fail legibly** — added **`REQ-LAND-030`** (**step dispatch is
+>   fail-closed**: an exception raised by a `LAND_EXECUTOR` step is caught and returned *directly*
+>   as a halting `inconclusive` row with `journal: null`, `KeyboardInterrupt`/`SystemExit`
+>   re-raised, process exit **1**), **`REQ-LAND-031`** (L18's teardown is **non-forcing** —
+>   `force=False` in keyword form — issues no duplicate `git branch -d`, and **branches on the
+>   returned `status`**, reporting an absent `status` as `inconclusive`), **`REQ-LAND-032`**
+>   (L16's commit **and its staged-changes guard** are path-scoped to `<plan_dir>`, with the
+>   `-m <msg> -o -- <dir>` argument order normative), **`REQ-LAND-033`** (L16's post-condition
+>   reads `--porcelain=v1 -uall -z` and exempts `.yf/plan/` by **path prefix over the path
+>   field**, with exactly one definition site, `_dirty_outside_plan_dir`), **`REQ-LAND-034`**
+>   (a **primary checkout dirty outside the plan folder is a HALTING `--dry-run` finding**,
+>   computed via that same single helper), **`REQ-LAND-035`** (a decision document **and every
+>   `body_path` it names** live outside the work tree; the refusal sits beside
+>   `_land_assert_primary_checkout` and **before** the tty gate; `apply_command` defaults the
+>   decision path to `${TMPDIR:-/tmp}/<plan-id>-decision.json`), and **`REQ-LAND-036`** (the
+>   `manifest_digest`'s **coverage set excludes LANDING-MUTATED facts**, exhaustively
+>   `execute_worktree_present` and `execute_worktree_dirty`, because L18's own teardown flips
+>   them mid-landing). Amended **`REQ-LAND-020`** (a post-condition **shall be able to see what
+>   the step did** — a step whose write removes the evidence its post-condition inspects is not
+>   fail-closed however the assertion is worded), and amended **`REQ-LAND-002`** and
+>   **`REQ-LAND-011`**, whose "**re-derive every fact**" wording contradicted REQ-LAND-036's
+>   exclusion; both now read against the digest's **coverage set**.
+>
+>   **Why the exclusion is a SPEC change and not an implementation detail.** REQ-LAND-036 is a
+>   **normative deviation** from two shipped requirements. Left unamended, a halt after a partial
+>   L18 would re-derive a manifest that mismatches on a fact **the landing itself changed** and
+>   route the operator back to `--dry-run` for a mutation performed on purpose. The verifying
+>   test asserts **both directions** — flipping an excluded fact leaves the digest equal, and
+>   flipping `primary_checkout_dirty_outside_plan_dir` changes it — because a one-direction
+>   assertion is satisfied by a digest that covers nothing (`#263`'s vacuous-check class).
+>
+>   **The motivating evidence, stated no more strongly than it supports.** The first real
+>   `land --apply` in the repository's history completed every substantive step — two pushes,
+>   three public comments, `#327` closed, 31/31 beads, `status: complete` — and then crashed at
+>   L18 on a bare `TypeError`, leaving the journal at `L_MIRRORED`. Investigating it found two
+>   defects nobody had filed, and one is worse than the crash: **L16 commits the whole index and
+>   reports `pass`** (`#342`), because the commit removes the evidence its post-condition would
+>   have seen. A whole-module arity sweep found **1 defect in 252 functions** — the common thread
+>   is not dead code but that **every instrument was calibrated against the call site instead of
+>   the callee**: 4 of 78 monkeypatched stubs fake `_worktree_teardown` with one parameter
+>   instead of two, including `land_rehearsal.py:140`, which is mechanically why plan-060's
+>   rehearsal recorded `l18_prune: pass` on a code path that could not run. The class-level
+>   answer is `scripts/checks/check_mock_fidelity.py`, which binds every stub against
+>   `inspect.signature` of its target and is the **only** one of four candidate passes that would
+>   have caught `#340` before the first real `--apply`. Its stated blind spot: it binds the
+>   **argument** axis only — return shapes, keyword-only-ness and assignments to non-callables
+>   are outside it, and the divergence load-bearing in this very plan is a **return** shape.
+>
+>   `#331` (`land` is incompatible with `execute.worktree: false`) is depended upon and **not**
+>   closed: this is the third consecutive plan to hand-cut its own execute branch.
+>   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 

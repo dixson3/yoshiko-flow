@@ -385,13 +385,17 @@ def test_tty_gate_refuses_and_is_posix_only():
     assert allowed["allowed"] is False or allowed["route_record"].get("allowed_by")
 
 
-def test_tty_refusal_exits_three_not_one_or_two(repo):
+def test_tty_refusal_exits_three_not_one_or_two(repo, tmp_path):
     """The exit code is the CONTRACT (REQ-CLI-030), and 3 is neither 1 nor 2.
 
     Not 1: nothing about the landing was measured false. Not 2: the verb ran and reached a
     definite conclusion. Driven through the real CLI, not the helper.
+
+    THE DECISION FILE IS OUTSIDE THE TREE, and that is not incidental to this test: the
+    containment refusal (REQ-LAND-035) sits BEFORE the tty gate, so an in-tree decision
+    path now exits 1 at the earlier gate and this test would be asserting the wrong control.
     """
-    dec = repo / "d.json"
+    dec = tmp_path / "d.json"
     dec.write_text(json.dumps(_decision("sha256:" + "0" * 64)), encoding="utf-8")
     p = subprocess.run(
         ["uv", "run", str(_PM), "land", "--apply", str(dec), f"docs/plans/{PLAN_ID}"],
@@ -767,6 +771,21 @@ def test_capture_rejects_an_unenumerated_site(repo):
 # EPIC 4 — the ordered steps L0-L19, and the CONFLICT MATRIX (Issue 4.10)
 # =========================================================================================
 
+
+def _teardown_ok(plan_dir, force=False):
+    """A stub of `_worktree_teardown` that matches the REAL SIGNATURE AND THE REAL SHAPE.
+
+    Both axes were wrong, and only one of them is mechanically detectable. `check_mock_fidelity`
+    binds `inspect.signature`, so it catches the arity; it is STRUCTURALLY BLIND to the RETURN
+    shape, and the return shape is what L18 branches on (REQ-LAND-031). The four shipped stubs
+    returned `{"action": "removed"}` — a key `_worktree_teardown` NEVER produces.
+    """
+    return {"status": "ok", "path": f".worktrees/{PLAN_ID}", "branch": f"{PLAN_ID}-execute",
+            "steps": {"remove": {"ok": True, "detail": ""},
+                      "branch_delete": {"ok": True, "detail": ""},
+                      "prune": {"ok": True, "detail": ""}}}
+
+
 def _step_ok(name, journal=None):
     return {"step": name, "verdict": "pass", "reason": "stubbed", "journal": journal,
             "halting": False, "detail": {}}
@@ -1020,17 +1039,33 @@ def test_residual_mirroring_is_concrete_and_gated(repo):
 def test_prune_is_strategy_aware(repo, monkeypatch):
     """SC29 / Issue 4.8. A `feature-branch` fixture KEEPS `<plan-id>` and loses only
     `<plan-id>-execute`; the tab close defaults to a PROPOSAL."""
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    seen = []
+
+    def _capture(plan_dir, force=False, **kw):
+        seen.append(((plan_dir,), {"force": force, **kw}))
+        return _teardown_ok(plan_dir, force)
+
+    monkeypatch.setattr(pm, "_worktree_teardown", _capture)
 
     monkeypatch.setattr(pm, "_resolve_landing_strategy", lambda: "feature-branch")
     r = FakeRunner()
     out = pm._land_l18_prune(_ctx(repo, r))
     assert out["detail"]["strategy"] == "feature-branch"
     assert PLAN_ID in out["detail"]["preserved"], "REQ-BRANCH-004: the feature branch is KEPT"
-    deleted = [c for c in r.calls if "branch" in c and "-d" in c]
-    assert deleted and all(f"{PLAN_ID}-execute" in c for c in deleted), (
-        "ONLY the execute branch may be deleted")
-    assert not any(c[-1] == PLAN_ID for c in deleted), "the feature branch was deleted"
+    # REPLACED, NOT DELETED (Issue 2.2). The duplicate `ctx.run` branch-delete this used to
+    # assert on is gone — the real delete happens INSIDE `_worktree_teardown` via `_run_git`
+    # and is invisible to `ctx.run`. Deleting the assertion would leave L18's HEADLINE ACTION
+    # untested at the step level, so it is replaced with the two facts that survive the fix:
+    # the delegation is made with the right arguments, and no branch delete reaches `ctx.run`.
+    assert seen == [((pm.Path("docs/plans") / PLAN_ID,), {"force": False})], (
+        f"L18 must delegate to _worktree_teardown(plan_dir, force=False) in KEYWORD form; "
+        f"observed {seen}")
+    assert not [c for c in r.calls if "branch" in c and "-d" in c], (
+        "L18 must NOT issue its own `git branch -d` — the teardown already deletes the "
+        "branch, so a second delete permanently reports ok:false 'branch not found'")
+    dele = [a for a in out["detail"]["actions"] if a["action"] == "delete-execute-branch"][0]
+    assert dele["via"] == "_worktree_teardown" and dele["ok"] is True, (
+        "the delete is REPORTED from the teardown's own branch_delete step")
 
     tab = [a for a in out["detail"]["actions"] if a["action"] == "herdr-tab"][0]
     assert tab["decision"] == "PROPOSE", "provenance is unanswerable, so a close is never inferred"
@@ -1177,7 +1212,7 @@ def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
     monkeypatch.setattr(pm, "_validate_merged", lambda pd: {"status": "pass", "engine": "x"})
     monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
     monkeypatch.setattr(pm, "_landing_lock_release", lambda p, f=False: {"released": True})
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    monkeypatch.setattr(pm, "_worktree_teardown", _teardown_ok)
     # Stub the close chain: this test isolates SKIP SURFACING, and an unstubbed
     # pour-fidelity legitimately halts at L14 on a fixture with no real beads — which the
     # guard below caught, rather than letting the test pass vacuously.
@@ -1251,7 +1286,7 @@ def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
     between "a mock answered" and "a process ran".
     """
     body = repo / "b.md"; body.write_text("x\n", encoding="utf-8")
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd: {"action": "removed"})
+    monkeypatch.setattr(pm, "_worktree_teardown", _teardown_ok)
     monkeypatch.setattr(pm, "_land_changed_set", lambda root=None: ["skills/a.py"])
 
     checks = [
@@ -1262,7 +1297,11 @@ def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
          {"upstream_writes": [{"issue": "301", "action": "comment",
                                "body_path": str(body)}]},                       {"gh"}),
         (pm._land_l16_commit_and_push_two, {},                                  {"git"}),
-        (pm._land_l18_prune,       {},                                          {"git"}),
+        # L18 invokes NOTHING through `ctx.run` (Issue 2.2): its only process work is the
+        # branch delete, and that is DELEGATED to `_worktree_teardown`, which uses `_run_git`
+        # directly. The empty set is the assertion, not an omission — a `{"git"}` expectation
+        # here would only be satisfiable by restoring the duplicate delete this plan removed.
+        (pm._land_l18_prune,       {},                                          set()),
         (pm._land_l19_redeploy,    {},                                          {"yf"}),
     ]
     for fn, dec, want in checks:
@@ -1758,6 +1797,555 @@ def test_resume_done_set_is_step_keys_not_journal_states(repo):
     for k in trailing:
         assert k not in pm._land_resume_done(pm.LAND_PROGRESS_ORDER[-1]), (
             f"{k} has no journaled successor, so nothing can establish that it ran")
+
+
+# =========================================================================================
+# SC1 / REQ-LAND-030 — a step that RAISES becomes a halting envelope, not a traceback
+# =========================================================================================
+
+def test_step_exception_becomes_halting(repo, monkeypatch):
+    """REQ-LAND-030 (#340). An exception raised by a `LAND_EXECUTOR` step is caught at the
+    dispatch site and becomes a HALTING `inconclusive` row with NO journal advance.
+
+    Four assertions, each pinning something that was wrong once:
+
+    1. The envelope exists at all. plan-062's landing died at L18 on a bare `TypeError`
+       with no envelope, no halt class and no remediation.
+    2. `halted` and the halt point. An `inconclusive` row FALLS THROUGH the loop's own
+       `verdict == "fail" and halting` predicate, so the handler must return the halted
+       envelope DIRECTLY. Asserting only `verdict == "inconclusive"` would pass against a
+       fall-through, which for an early step walks past a crash into destructive work.
+    3. NO STEP AFTER THE RAISER RAN. This is the fall-through detector.
+    4. The journal did NOT advance past the raising step, and the reason SAYS SO — a resume
+       re-enters this same step and raises again (Issue 1.2). That is correct: advancing the
+       journal would manufacture the evidence `_land_resume_done` exists to refuse.
+    """
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+
+    boom_key = "l3_validate_merged"
+
+    def _boom(ctx):
+        raise TypeError("_worktree_teardown() takes 1 positional argument but 2 were given")
+
+    monkeypatch.setattr(pm, "_land_l3_validate_merged", _boom)
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+    ctx = _ctx(repo, r)
+    out = pm._land_execute(ctx)
+
+    assert out["halted"] is True, "a raising step must halt the landing"
+    assert out["at"] == boom_key, f"halted at {out['at']!r}, expected {boom_key!r}"
+
+    row = out["results"][-1]
+    assert row["step"] == boom_key
+    assert row["verdict"] == "inconclusive", (
+        "a step that raised established NOTHING; `fail` would assert a measurement that "
+        "never happened and `pass` would assert its opposite")
+    assert row["halting"] is True
+    assert row["journal"] is None, "the journal must NOT advance past a step that raised"
+    assert row["detail"]["exception"] == "TypeError"
+    assert "TypeError" in row["detail"]["traceback"]
+    assert "RESUME WILL RE-ENTER THIS SAME STEP" in row["reason"].upper(), (
+        "Issue 1.2: the reason must RECORD that a resume re-enters the same step and raises "
+        "again, so the behaviour is read as correct rather than engineered around")
+
+    steps_run = [x["step"] for x in out["results"]]
+    assert steps_run[-1] == boom_key, (
+        f"a step ran AFTER the raiser: {steps_run}. The handler must return the halted "
+        f"envelope directly — the loop predicate is `fail and halting`, so an "
+        f"`inconclusive` row falls through and the next step runs.")
+    assert boom_key in steps_run and len(steps_run) >= 2, (
+        "the executor never reached the raising step, so this test would pass vacuously")
+
+    phase = (ctx.journal.read() or {}).get("phase")
+    assert phase != pm.LAND_STEP_JOURNAL.get(boom_key), (
+        "the journal recorded the raising step's own phase")
+
+
+def test_step_exception_exit_code_is_one_not_two(repo, monkeypatch, tmp_path, capsys):
+    """REQ-LAND-030's exit code, asserted EXPLICITLY because it is the one number the
+    investigation measured wrong.
+
+    EXP-002's measured exit 2 came from calling `_land_execute` DIRECTLY, where the
+    `inconclusive` row *fell through* to the loop's own end — an artifact of the very defect
+    the wrapper removes. Through the CLI, `halted` sets `verdict = "fail"` and halted wins
+    over the inconclusive list, so the process exit is **1**.
+    """
+    assert pm._land_exit_code("fail") == 1
+    assert pm._land_exit_code("inconclusive") == 2
+
+    # The verdict derivation the CLI performs: halted DOMINATES a non-empty inconclusive list.
+    out = {"halted": True, "at": "l3_validate_merged",
+           "results": [{"step": "l3_validate_merged", "verdict": "inconclusive",
+                        "reason": "raised", "journal": None, "halting": True, "detail": {}}]}
+    results = out["results"]
+    inconclusive = [x for x in results if x.get("verdict") == "inconclusive"]
+    assert inconclusive, "the fixture must exercise the halted-vs-inconclusive precedence"
+    verdict = "fail" if out.get("halted") else ("inconclusive" if inconclusive else "pass")
+    assert verdict == "fail"
+    assert pm._land_exit_code(verdict) == 1, (
+        "a halted landing exits 1; the measured 2 was an artifact of the fall-through")
+
+
+def test_dispatch_wrapper_reraises_control_flow(repo, monkeypatch):
+    """`KeyboardInterrupt` and `SystemExit` are RE-RAISED, never captured as a step row.
+
+    They do not inherit from `Exception`, so the clause is redundant against the hierarchy —
+    which is exactly why it is asserted: the invariant must survive someone widening the
+    handler to `BaseException`.
+    """
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+
+    for exc in (KeyboardInterrupt, SystemExit):
+        def _raise(ctx, _e=exc):
+            raise _e()
+        monkeypatch.setattr(pm, "_land_l3_validate_merged", _raise)
+        with pytest.raises(exc):
+            pm._land_execute(_ctx(repo, r))
+
+
+# =========================================================================================
+# SC2c / SC2d / REQ-LAND-031 — L18 branches on the teardown's STATUS, and delegates the delete
+# =========================================================================================
+
+def test_l18_delegates_branch_delete(repo, monkeypatch):
+    """SC2d. L18 still deletes the execute branch — VIA THE TEARDOWN, not by itself.
+
+    The pair with `test_prune_is_strategy_aware`: that one asserts no `git branch -d` reaches
+    `ctx.run`; this one asserts the delete is nonetheless reported, sourced from the
+    teardown's own `branch_delete` step. Without both, "the duplicate is gone" and "the
+    branch is still deleted" cannot be distinguished from "nothing deletes it any more".
+    """
+    seen = []
+
+    def _capture(plan_dir, force=False):
+        seen.append((plan_dir, force))
+        return _teardown_ok(plan_dir, force)
+
+    monkeypatch.setattr(pm, "_worktree_teardown", _capture)
+    r = FakeRunner()
+    out = pm._land_l18_prune(_ctx(repo, r))
+
+    assert len(seen) == 1 and seen[0][1] is False, (
+        f"L18 must call the teardown exactly once with force=False; saw {seen}")
+    dele = [a for a in out["detail"]["actions"] if a["action"] == "delete-execute-branch"][0]
+    assert dele["via"] == "_worktree_teardown"
+    assert dele["ok"] is True, "the branch delete is reported from the teardown's own step"
+    assert dele["branch"] == f"{PLAN_ID}-execute", "ONLY the execute branch"
+    assert not [c for c in r.calls if "branch" in c and "-d" in c], (
+        "the duplicate delete is gone: nothing reaches ctx.run")
+    assert out["verdict"] == "pass" and out["journal"] == "L_PRUNED"
+
+
+def test_l18_blocked_teardown(repo, monkeypatch):
+    """SC2c / REQ-LAND-031. A `blocked` teardown is a HALTING fail, never a `pass`.
+
+    Measured before the fix: a dirty worktree meant nothing was removed and the branch was
+    left behind, and L18 reported `verdict: pass`. A landing must not report a prune it did
+    not perform.
+
+    The ABSENT-`status` case is asserted in the same test because it is the shape the shipped
+    stubs produced — `{"action": "removed"}`, a key `_worktree_teardown` never returns. It is
+    `inconclusive`, never `pass`: nothing was established in either direction.
+    """
+    blocked = {"status": "blocked", "path": f".worktrees/{PLAN_ID}",
+               "branch": f"{PLAN_ID}-execute",
+               "steps": {"remove": {"ok": False, "detail": "contains modified files"}},
+               "detail": "worktree remove refused (dirty?)"}
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd, force=False: blocked)
+    out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "fail", "a blocked teardown pruned NOTHING"
+    assert out["halting"] is True
+    assert out["journal"] is None, "the journal must not record L_PRUNED when nothing pruned"
+    assert out["detail"]["teardown_status"] == "blocked"
+    assert "BLOCKED" in out["reason"]
+
+    # PARTIAL — some step failed. Non-halting, but never `pass`.
+    partial = dict(blocked, status="partial",
+                   steps={"remove": {"ok": True, "detail": ""},
+                          "branch_delete": {"ok": False, "detail": "not fully merged"},
+                          "prune": {"ok": True, "detail": ""}})
+    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd, force=False: partial)
+    out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "inconclusive" and out["halting"] is False
+
+    # ABSENT `status` — the old stub shape. UNJUDGED, so `inconclusive`.
+    monkeypatch.setattr(pm, "_worktree_teardown",
+                        lambda pd, force=False: {"action": "removed"})
+    out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
+    assert out["verdict"] == "inconclusive", (
+        "a return shape carrying no `status` establishes nothing about the prune")
+    assert out["detail"]["teardown_status"] is None
+    assert "no `status` key" in out["reason"]
+
+
+# =========================================================================================
+# SC3 / SC3c / SC3d — L16 against a REAL git repo with a REAL bare origin
+# =========================================================================================
+#
+# NOT `FakeRunner` (Issue 3.3). The only pre-existing L16 test drove a fake scripted with
+# `{"diff|--cached": _R(1)}`, so NO REAL GIT RAN — an argv real git rejects (the `-o -- <dir>
+# -m <msg>` ordering, measured: `error: pathspec '-m' did not match any file(s)`) would still
+# have passed. A mock that answers is not a process that runs.
+
+def _real_repo(tmp_path, anchor: bool = True):
+    """A real git repo on `main`, with a real BARE origin, `main` already pushed.
+
+    `anchor` controls the `/.yf/` gitignore entry `yf preflight` ensures in this repository.
+    Without it the landing journal appears as an untracked path — the ONLY configuration in
+    which the exemption filter is load-bearing at all, and the reason SC3c exists.
+    """
+    origin = tmp_path / "origin.git"
+    _git("init", "-q", "--bare", "-b", "main", str(origin), cwd=tmp_path)
+    root = tmp_path / "work"
+    root.mkdir()
+    _git("init", "-q", "-b", "main", ".", cwd=root)
+    for k, v in (("user.email", "t@example.invalid"), ("user.name", "T"),
+                 ("commit.gpgsign", "false")):
+        _git("config", k, v, cwd=root)
+    if anchor:
+        (root / ".gitignore").write_text("/.yf/\n", encoding="utf-8")
+    pdir = root / "docs" / "plans" / PLAN_ID
+    pdir.mkdir(parents=True)
+    (pdir / "plan.md").write_text(f"# Plan: t\n\n**ID:** {PLAN_ID}\n", encoding="utf-8")
+    (root / "unrelated.py").write_text("v1\n", encoding="utf-8")
+    _git("add", "-A", cwd=root)
+    _git("commit", "-q", "-m", "base", cwd=root)
+    _git("remote", "add", "origin", str(origin), cwd=root)
+    _git("push", "-q", "-u", "origin", "main", cwd=root)
+    return root
+
+
+def _l16_ctx(root, monkeypatch):
+    """A LandingContext over a real repo, with the REAL runner (no FakeRunner)."""
+    monkeypatch.chdir(root)
+    rel = Path("docs/plans") / PLAN_ID
+    facts = {"git": {"merge_target": "main", "execute_branch": f"{PLAN_ID}-execute",
+                     "worktree_path": f".worktrees/{PLAN_ID}"}}
+    manifest = {"facts": facts}
+    d = {"schema": pm.LAND_SCHEMA_DECISION, "plan_id": PLAN_ID, "authored_by": "lander",
+         "summary": "s", "upstream_writes": [],
+         "steps": {k: "enable" for k in pm.LAND_STEPS}}
+    return pm.LandingContext(rel, d, manifest, root=root)
+
+
+def _tracked_in_head(root, path: str) -> bool:
+    r = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=str(root),
+                       capture_output=True, text=True)
+    return r.returncode == 0
+
+
+def test_l16_commits_only_plan_dir(tmp_path, monkeypatch):
+    """SC3 / REQ-LAND-032 (#342). A PRE-STAGED UNRELATED FILE IS NOT IN THE COMMIT.
+
+    The expected envelope is pinned, NOT merely the file's absence: `verdict: fail`,
+    `halting: true`, and the file absent from `HEAD`. Writing this to expect `pass` would
+    invite scoping the POST-CONDITION as well — which re-opens #342 on the very axis this
+    gate guards. The commit is scoped; the halt is intended and stays.
+    """
+    root = _real_repo(tmp_path)
+    (root / "unrelated.py").write_text("SECRET v2\n", encoding="utf-8")
+    _git("add", "unrelated.py", cwd=root)                       # PRE-STAGED, unrelated
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- landed\n", encoding="utf-8")
+
+    before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root),
+                            capture_output=True, text=True).stdout.strip()
+    out = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root),
+                           capture_output=True, text=True).stdout.strip()
+
+    assert after != before, "L16 made no commit at all, so the scoping is untested"
+    head = subprocess.run(["git", "show", "--name-only", "--format=", "HEAD"],
+                          cwd=str(root), capture_output=True, text=True).stdout.split()
+    assert "unrelated.py" not in head, (
+        f"#342: the unrelated pre-staged file was committed under the plan's message. "
+        f"HEAD touched {head}")
+    assert f"docs/plans/{PLAN_ID}/log.md" in head, "the plan-folder write was not committed"
+    assert subprocess.run(["git", "show", "HEAD:unrelated.py"], cwd=str(root),
+                          capture_output=True, text=True).stdout.strip() != "SECRET v2", (
+        "the unrelated content reached the commit")
+
+    assert out["verdict"] == "fail", (
+        "the halt is INTENDED — the post-condition still sees the unrelated staged file. "
+        "Expecting `pass` here would invite scoping the post-condition and re-open #342.")
+    assert out["halting"] is True
+    assert "unrelated.py" in out["detail"]["porcelain"]
+
+
+def test_l16_commits_plan_dir_writes(tmp_path, monkeypatch):
+    """SC3d — the POSITIVE case. A normal landing still commits its own plan-folder writes,
+    INCLUDING A NEWLY CREATED UNTRACKED FILE, and still passes.
+
+    Without this, "commits only the plan dir" is satisfiable by committing nothing.
+    """
+    root = _real_repo(tmp_path)
+    pdir = root / "docs" / "plans" / PLAN_ID
+    (pdir / "plan.md").write_text("# Plan: t\n\n**Status:** complete\n", encoding="utf-8")
+    (pdir / "log.md").write_text("- complete\n", encoding="utf-8")       # UNTRACKED, new
+    (pdir / "assets").mkdir()
+    (pdir / "assets" / "a b.md").write_text("spaced\n", encoding="utf-8")  # SPACED PATH
+
+    out = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    assert out["verdict"] == "pass", f"a clean landing must pass: {out['reason']}"
+    assert out["journal"] == "L_PUSHED_2"
+    for f in (f"docs/plans/{PLAN_ID}/log.md",
+              f"docs/plans/{PLAN_ID}/assets/a b.md",
+              f"docs/plans/{PLAN_ID}/plan.md"):
+        assert _tracked_in_head(root, f), f"{f} was not committed"
+    # ...and it really was PUSHED to the real bare origin.
+    local = subprocess.run(["git", "rev-parse", "main"], cwd=str(root),
+                           capture_output=True, text=True).stdout.strip()
+    remote = subprocess.run(["git", "rev-parse", "origin/main"], cwd=str(root),
+                            capture_output=True, text=True).stdout.strip()
+    assert local == remote, "push #2 did not reach the origin"
+
+
+def test_l16_without_anchor(tmp_path, monkeypatch):
+    """SC3c / REQ-LAND-033 (#343). The exemption filter works in a repo WITHOUT `/.yf/` in
+    `.gitignore` — the only configuration where it is load-bearing at all.
+
+    Three things are asserted together because each alone is satisfiable by a wrong filter:
+
+    1. The journal and `land-beads.json` are exempt (a PREFIX match on `.yf/plan/`).
+    2. `-uall` is what makes (1) reachable: without it git collapses the whole tree to a
+       single `?? .yf/` entry, which contains NEITHER path.
+    3. A path with a SPACE outside the plan folder is still caught — the `-z` split and the
+       path-field test, not a `startswith` over a quoted raw line.
+    """
+    root = _real_repo(tmp_path, anchor=False)
+    jdir = root / ".yf" / "plan" / "landing-journal"
+    jdir.mkdir(parents=True)
+    (jdir / f"{PLAN_ID}.json").write_text('{"phase":"L_PUSHED_2"}\n', encoding="utf-8")
+    (root / ".yf" / "plan" / "land-beads.json").write_text("[]\n", encoding="utf-8")
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+
+    # (2) the collapse this filter would otherwise be blind to, measured rather than assumed.
+    collapsed = subprocess.run(["git", "status", "--porcelain"], cwd=str(root),
+                               capture_output=True, text=True).stdout
+    assert "?? .yf/\n" in collapsed, (
+        "the fixture no longer reproduces git's untracked-directory collapse, so clause (2) "
+        "of this test is vacuous")
+
+    out = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    assert out["verdict"] == "pass", (
+        f"#343: the landing journal was not exempted in a repo without the /.yf/ anchor: "
+        f"{out['reason']}")
+
+    # (3) a SPACED path outside the plan folder is still dirt.
+    (root / "some file.txt").write_text("x\n", encoding="utf-8")
+    dirt = pm._dirty_outside_plan_dir(Path("docs/plans") / PLAN_ID, root=root)
+    assert dirt["dirty"] is True
+    assert any("some file.txt" in p for p in dirt["paths"]), (
+        f"a quoted, spaced path was missed by the porcelain split: {dirt['paths']}")
+    assert not any(".yf/plan" in p for p in dirt["paths"]), "the allowlist leaked"
+
+
+def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatch):
+    """REQ-LAND-033's third clause, isolated. A path merely CONTAINING the allowlist
+    fragment is NOT exempt — that is the substring bug (#343) restated as a test."""
+    root = _real_repo(tmp_path, anchor=False)
+    trap = root / "docs" / "a.yf" / "plan"
+    trap.mkdir(parents=True)
+    (trap / "decoy.txt").write_text("x\n", encoding="utf-8")
+    dirt = pm._dirty_outside_plan_dir(Path("docs/plans") / PLAN_ID, root=root)
+    assert any("decoy.txt" in p for p in dirt["paths"]), (
+        f"`docs/a.yf/plan/decoy.txt` CONTAINS `.yf/plan/` but is not PREFIXED by it — a "
+        f"substring filter exempts it. paths={dirt['paths']}")
+
+
+# =========================================================================================
+# SC5 / SC5b / SC6 — the dry-run facts that PREDICT L16 (REQ-LAND-034/035/036)
+# =========================================================================================
+
+def test_dryrun_halts_on_dirty_primary(tmp_path, monkeypatch):
+    """SC5 / REQ-LAND-034 (#333). A primary checkout dirty OUTSIDE the plan folder is a
+    HALTING dry-run finding — and dirt INSIDE it is not.
+
+    Both directions, because a halt that fires on everything is as useless as one that fires
+    on nothing: dirt inside the plan folder is exactly what `git add -- <plan_dir>` stages.
+    """
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+    rel = Path("docs/plans") / PLAN_ID
+
+    # (a) CLEAN — no finding, and the facts say so.
+    m = pm._land_manifest(rel)
+    codes = [h["code"] for h in m["halts"]]
+    assert "primary-checkout-dirty-outside-plan-dir" not in codes, (
+        f"a clean primary must not halt: {codes}")
+    assert m["facts"]["git"]["primary_checkout_dirty_outside_plan_dir"] is False
+    assert m["facts"]["git"]["primary_checkout_staged_outside_plan_dir"] is False
+
+    # (b) dirt INSIDE the plan folder — still no finding.
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+    m = pm._land_manifest(rel)
+    assert "primary-checkout-dirty-outside-plan-dir" not in [h["code"] for h in m["halts"]], (
+        "dirt INSIDE the plan folder is what L16 stages; it must not halt the dry run")
+    assert m["facts"]["git"]["primary_checkout_dirty_outside_plan_dir"] is False
+
+    # (c) dirt OUTSIDE it — HALTING.
+    (root / "unrelated.py").write_text("v2\n", encoding="utf-8")
+    m = pm._land_manifest(rel)
+    h = [x for x in m["halts"] if x["code"] == "primary-checkout-dirty-outside-plan-dir"]
+    assert h, f"an unrelated modified file must halt the dry run: {m['halts']}"
+    assert h[0]["resolvable_by_agent"] is True
+    assert any("unrelated.py" in p for p in h[0]["paths"])
+    assert m["facts"]["git"]["primary_checkout_dirty_outside_plan_dir"] is True
+    assert m["facts"]["git"]["primary_checkout_staged_outside_plan_dir"] is False
+
+    # (d) STAGED outside it — the second field flips too.
+    _git("add", "unrelated.py", cwd=root)
+    m = pm._land_manifest(rel)
+    assert m["facts"]["git"]["primary_checkout_staged_outside_plan_dir"] is True
+
+    # THE FACTS ARE BOOLEAN and the path list lives in `halts` (Issue 4.1) — so the digest is
+    # stable when clean, and dirt appearing between dry-run and apply is a MISMATCH for free.
+    for k in ("primary_checkout_dirty_outside_plan_dir",
+              "primary_checkout_staged_outside_plan_dir"):
+        assert isinstance(m["facts"]["git"][k], bool), f"{k} must be a bare boolean"
+
+    # ISSUE 4.4: the field has a CONSUMER. An agent-resolvable halt is ordered first.
+    assert pm._land_manifest(rel)["halts"], "the fixture must still be dirty here"
+
+
+def test_dryrun_predicts_the_L16_halt_it_causes(tmp_path, monkeypatch):
+    """The whole point of Issue 4.2, asserted as one statement: the dry-run finding and the
+    L16 halt AGREE, because they call the SAME helper (SC4c's single definition site).
+
+    Silent when L16 passes, halting exactly where L16 fails.
+    """
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+    rel = Path("docs/plans") / PLAN_ID
+    (root / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+
+    predicted = any(h["code"] == "primary-checkout-dirty-outside-plan-dir"
+                    for h in pm._land_manifest(rel)["halts"])
+    l16 = pm._land_l16_commit_and_push_two(_l16_ctx(root, monkeypatch))
+    assert predicted is False and l16["verdict"] == "pass", "clean case: both silent"
+
+    (tmp_path / "b").mkdir()
+    root2 = _real_repo(tmp_path / "b")
+    monkeypatch.chdir(root2)
+    (root2 / "docs" / "plans" / PLAN_ID / "log.md").write_text("- x\n", encoding="utf-8")
+    (root2 / "unrelated.py").write_text("v2\n", encoding="utf-8")
+    predicted2 = any(h["code"] == "primary-checkout-dirty-outside-plan-dir"
+                     for h in pm._land_manifest(rel)["halts"])
+    l16b = pm._land_l16_commit_and_push_two(_l16_ctx(root2, monkeypatch))
+    assert predicted2 is True and l16b["verdict"] == "fail", (
+        "dirty case: the dry run must predict the halt L16 actually performs")
+
+
+def test_digest_survives_resume_after_teardown(tmp_path, monkeypatch):
+    """SC5b / REQ-LAND-036. BOTH DIRECTIONS, and the second one is what stops this test from
+    being satisfied by a digest that covers nothing.
+
+    1. Flipping a LANDING-MUTATED fact (`execute_worktree_present`, which L18's own teardown
+       flips true->false) leaves the digest EQUAL — so a halt after a partial L18 does not
+       mismatch on a change the landing made on purpose.
+    2. Flipping `primary_checkout_dirty_outside_plan_dir` CHANGES it — so the digest is
+       demonstrably covering something.
+    """
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+    facts = pm._land_manifest(Path("docs/plans") / PLAN_ID)["facts"]
+    base = pm._land_digest(facts)
+
+    import copy
+    for k, before, after in (("execute_worktree_present", True, False),
+                             ("execute_worktree_dirty", True, None)):
+        f = copy.deepcopy(facts)
+        f["git"][k] = before
+        f2 = copy.deepcopy(facts)
+        f2["git"][k] = after
+        assert pm._land_digest(f) == pm._land_digest(f2) == base, (
+            f"{k} is LANDING-MUTATED: L18's teardown flips it mid-landing, so a resume "
+            f"would mismatch on a fact the landing itself changed")
+
+    f3 = copy.deepcopy(facts)
+    f3["git"]["primary_checkout_dirty_outside_plan_dir"] = (
+        not facts["git"]["primary_checkout_dirty_outside_plan_dir"])
+    assert pm._land_digest(f3) != base, (
+        "the digest must still COVER the L16-predictive facts — otherwise direction (1) is "
+        "satisfied by a digest that covers nothing at all")
+
+    # The exclusion is EXHAUSTIVE and recorded, not ad hoc.
+    assert pm.LAND_DIGEST_EXCLUDED == (("git", "execute_worktree_present"),
+                                       ("git", "execute_worktree_dirty"))
+    for path in pm.LAND_DIGEST_EXCLUDED:
+        assert path[-1] not in json.dumps(pm._land_digest_coverage(facts)), (
+            f"{path[-1]} leaked into the coverage set")
+    assert "resolved_target_tip" in json.dumps(pm._land_digest_coverage(facts)), (
+        "the staleness-detecting facts must stay covered")
+
+
+def test_decision_inside_tree_refused(tmp_path, monkeypatch):
+    """SC6 / REQ-LAND-035 (#333). A decision path — or any `body_path` — inside the work tree
+    is REFUSED, and the refusal is placed BEFORE the tty gate so it is never preceded by a
+    write."""
+    root = _real_repo(tmp_path)
+    monkeypatch.chdir(root)
+
+    inside = root / "decision.json"
+    outside = tmp_path / "decision.json"
+    assert pm._land_path_inside_tree(inside, root) is True
+    assert pm._land_path_inside_tree(outside, root) is False
+    # `..` traversal and a relative path are resolved on BOTH sides before comparing.
+    assert pm._land_path_inside_tree(root / "docs" / ".." / "d.json", root) is True
+
+    v = pm._land_assert_outside_tree(str(inside), None, root)
+    assert v["ok"] is False and v["offenders"][0]["kind"] == "decision"
+    assert "#333" in v["reason"]
+
+    # The `body_path` half — the SAME defect by another route (`lander.md` emits bare paths).
+    dec = {"upstream_writes": [{"issue": "342", "action": "comment",
+                                "body_path": str(root / "b.md")}]}
+    v = pm._land_assert_outside_tree(str(outside), dec, root)
+    assert v["ok"] is False, "a body_path inside the tree fails L16 exactly as a decision does"
+    assert v["offenders"][0]["kind"] == "body_path"
+    assert v["offenders"][0]["issue"] == "342"
+
+    # Both outside — allowed.
+    dec_ok = {"upstream_writes": [{"issue": "342", "body_path": str(tmp_path / "b.md")}]}
+    assert pm._land_assert_outside_tree(str(outside), dec_ok, root)["ok"] is True
+
+    # THE EMITTED DEFAULT IS OUTSIDE THE TREE. The old literal `<decision.json>` was a
+    # repo-relative-LOOKING placeholder that invited exactly this failure.
+    cmd = pm._land_apply_command(Path("docs/plans") / PLAN_ID)
+    assert "<decision.json>" not in cmd, "the placeholder still invites an in-tree path"
+    emitted = re.search(r"--apply (\S+)", cmd).group(1)
+    assert pm._land_path_inside_tree(emitted, root) is False, (
+        f"the default decision path {emitted} is inside the work tree")
+    assert emitted.endswith(f"{PLAN_ID}-decision.json")
+
+
+def test_the_containment_refusal_precedes_the_tty_gate():
+    """REQ-LAND-035's ORDERING, asserted on the source. A refusal that came after the tty
+    gate would be fine today and wrong the moment the gate does anything but read."""
+    src = _PM.read_text(encoding="utf-8")
+    apply_branch = src[src.index("    # --apply: the only writing mode."):]
+    i_primary = apply_branch.index("_land_assert_primary_checkout()")
+    i_contain = apply_branch.index("_land_assert_outside_tree(")
+    i_tty = apply_branch.index("_land_tty_gate()")
+    assert i_primary < i_contain < i_tty, (
+        "the containment refusal must sit BESIDE _land_assert_primary_checkout and BEFORE "
+        "the tty gate, so a refusal is never preceded by a write")
+
+
+def test_resolvable_by_agent_has_a_consumer():
+    """Issue 4.4 / SC7. The field is READ, not merely written.
+
+    It was written in five places and read in none. A field nothing reads cannot be wrong,
+    which is the vacuous-check class in data form — so the choice was `give it a consumer or
+    drop it`, and this asserts the branch taken.
+    """
+    src = _code_only(_PM.read_text(encoding="utf-8"))
+    reads = re.findall(r'\.get\(\s*["\']resolvable_by_agent["\']', src)
+    assert reads, "resolvable_by_agent is still written-only"
+    assert "halts_resolvable_by_agent" in src and "halts_requiring_operator" in src, (
+        "the read must be OBSERVABLE in the output, not only in an internal ordering")
 
 
 if __name__ == "__main__":

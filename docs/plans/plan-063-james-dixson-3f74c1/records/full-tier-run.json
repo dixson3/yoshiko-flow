@@ -1,0 +1,551 @@
+{
+  "tier": "full",
+  "status": "pass",
+  "commands": [
+    {
+      "id": null,
+      "cmd": "cargo fmt --all -- --check",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": ""
+    },
+    {
+      "id": null,
+      "cmd": "cargo clippy --workspace --all-targets -- -D warnings",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s"
+    },
+    {
+      "id": null,
+      "cmd": "cargo test --workspace",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "test no_sync_deploys_nothing ... ok\ntest codex_is_reachable_and_writes_its_own_rule_target ... ok\ntest config_delta_appears_in_the_report ... ok\ntest ci_suppresses_config_half_while_skills_and_rules_still_deploy ... ok\ntest harness_tune_run_twice_is_byte_identical_on_every_surface ... ok\ntest sync_exec_deploys_skills_and_rules_and_no_config ... ok\ntest second_sync_run_is_byte_identical ... ok\ntest sync_dedupes_shared_skills_root ... ok\ntest bridge_requires_consent_flag_before_writing_config ... ok\n\ntest result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.74s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s\n     Running unittests src/main.rs (target/debug/deps/yf-7e8f78adf9480718)\n     Running tests/build_stamp_freshness.rs (target/debug/deps/build_stamp_freshness-8f6fa81d7f64d7a7)\n     Running tests/embed_addition.rs (target/debug/deps/embed_addition-963a9dccd7f5ac8a)\n     Running tests/embed_watch_drift.rs (target/debug/deps/embed_watch_drift-542728eac67be696)\n     Running tests/flow_install_e2e.rs (target/debug/deps/flow_install_e2e-cb4e48d64e6e5d3c)\n     Running tests/harness_cross_e2e.rs (target/debug/deps/harness_cross_e2e-f62bc4749e4a890f)\n     Running tests/install_sync_e2e.rs (target/debug/deps/install_sync_e2e-ce88bbabebcf31be)"
+    },
+    {
+      "id": null,
+      "cmd": "cargo test -p yf --test install_sync_e2e",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "running 9 tests\ntest no_sync_deploys_nothing ... ok\ntest codex_is_reachable_and_writes_its_own_rule_target ... ok\ntest ci_suppresses_config_half_while_skills_and_rules_still_deploy ... ok\ntest config_delta_appears_in_the_report ... ok\ntest harness_tune_run_twice_is_byte_identical_on_every_surface ... ok\ntest sync_exec_deploys_skills_and_rules_and_no_config ... ok\ntest second_sync_run_is_byte_identical ... ok\ntest sync_dedupes_shared_skills_root ... ok\ntest bridge_requires_consent_flag_before_writing_config ... ok\n\ntest result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.21s\n\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s\n     Running tests/install_sync_e2e.rs (target/debug/deps/install_sync_e2e-ce88bbabebcf31be)"
+    },
+    {
+      "id": null,
+      "cmd": "uv run --with pytest python3 -m pytest _shared/test_sync.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "...............................                                          [100%]\n31 passed in 0.07s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run --with pytest python3 -m pytest skills/yf-beads-hygiene/scripts/test_beads_hygiene.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "................................                                         [100%]\n32 passed in 0.79s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run --with pytest python3 -m pytest skills/yf-beads-upstream/scripts/test_upstream.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "........................................................................ [ 54%]\n...........................................................              [100%]\n131 passed in 3.21s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-beads-upstream/scripts/check_prescriptive_push.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "PASS: 2 guarded section(s); no prescriptive raw push in a fenced block.\n      Explanatory mentions (invariants, dated blockquotes, tripwire) intact."
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-beads-upstream/scripts/check_gh_direct.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_gh_direct: clean \u2014 no `bd <backend>` write path in upstream.py code."
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-change-validation/scripts/test_change_validation.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "..........................                                               [100%]\n26 passed in 1.05s"
+    },
+    {
+      "id": "check-smoke-tier",
+      "cmd": "uv run scripts/checks/check_smoke_tier.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_smoke_tier: `harness-smoke` is in no tier table, no \u00a71 prose claims it, and `check_smoke_tier` is registered in `### full`"
+    },
+    {
+      "id": "uv-recheck-criteria",
+      "cmd": "uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_recheck_criteria.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": ".......                                                                  [100%]\n7 passed in 0.96s"
+    },
+    {
+      "id": "uv-index-members",
+      "cmd": "uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_index_members.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
+    },
+    {
+      "id": "okf-index-drift",
+      "cmd": "uv run scripts/checks/check_okf_index_drift.py --min-roots 30",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": " \"check\": \"check-okf-index-drift\",\n \"bundles_checked\": 68,\n \"roots\": [\n  \"docs/plans/*\",\n  \"docs/research/*\",\n  \"Incubator/*/plans/*\",\n  \"Incubator/*/research/*\"\n ],\n \"exclude_globs\": [\n  \"assets/fixtures/**\",\n  \"findings/okf-migration-samples/**\"\n ],\n \"with_index\": 60,\n \"no_index\": 8,\n \"drifting\": 0,\n \"inconclusive\": 0,\n \"verdict\": \"clean\",\n \"exit\": 0,\n \"reason\": \"68 bundle(s) enumerated; no root-index drift\"\n}"
+    },
+    {
+      "id": null,
+      "cmd": "uv run --with pytest python3 -m pytest skills/yf-markdown-lint/scripts/test_markdown_lint.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "..............................................                           [100%]\n46 passed in 0.20s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_worktree.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "........................................................................ [ 72%]\n............................                                             [100%]\n100 passed in 8.11s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_close_cascade.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "............                                                             [100%]\n12 passed in 0.01s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "..........                                                               [100%]\n10 passed in 0.03s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_complete_gate.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "................                                                         [100%]\n16 passed in 0.03s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_review_verdict.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "..................                                                       [100%]\n18 passed in 0.09s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_config_tiers.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "...............................                                          [100%]\n31 passed in 1.78s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_classify_deliverable.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "collecting ... collected 11 items\n\nskills/yf-plan/scripts/test_classify_deliverable.py::test_corpus_is_present_and_labeled PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_no_false_negatives PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_positive_example_still_classifies_ci_release PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_precision_does_not_regress \nclassifier corpus (re-derived): TP=1 FP=2 TN=14 FN=0 n=17\npre-fix baseline (generated):   TP=1 FP=16 TN=0 FN=0 n=17\n  FP d3-pxe-plan-006\n  FP yoshiko-flow-plan-033\nPASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_f1_title_is_out_of_scan_region PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_f1_scanned_sections_still_match PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_f5_code_spans_and_fences_are_not_claims PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_f5_fenced_block PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_result_reports_an_evidence_basis PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_low_only_match_does_not_suggest_ci_release PASSED\nskills/yf-plan/scripts/test_classify_deliverable.py::test_negative_context_guards PASSED\n\n============================== 11 passed in 0.06s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_close_contract.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "platform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- /Users/james/.cache/uv/environments-v2/test-close-contract-c5d2653f1eb65354/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollecting ... collected 13 items\n\nskills/yf-plan/scripts/test_close_contract.py::test_block_boundary_is_well_formed PASSED [  7%]\nskills/yf-plan/scripts/test_close_contract.py::test_enumeration_is_not_capture_only PASSED [ 15%]\nskills/yf-plan/scripts/test_close_contract.py::test_comment_only_invocations_are_enumerated PASSED [ 23%]\nskills/yf-plan/scripts/test_close_contract.py::test_no_shorthand_verb_references_evade_the_enumerator PASSED [ 30%]\nskills/yf-plan/scripts/test_close_contract.py::test_every_invocation_is_capturing_or_exempt PASSED [ 38%]\nskills/yf-plan/scripts/test_close_contract.py::test_exempt_list_has_no_dead_entries PASSED [ 46%]\nskills/yf-plan/scripts/test_close_contract.py::test_complete_gate_failing_path_captures_on_stdout PASSED [ 53%]\nskills/yf-plan/scripts/test_close_contract.py::test_complete_gate_missing_plan_md_captures_on_stdout PASSED [ 61%]\nskills/yf-plan/scripts/test_close_contract.py::test_complete_gate_noop_path_is_envelope_conformant PASSED [ 69%]\nskills/yf-plan/scripts/test_close_contract.py::test_close_cascade_failing_path_captures_on_stdout PASSED [ 76%]\nskills/yf-plan/scripts/test_close_contract.py::test_phase_six_routes_through_land PASSED [ 84%]\nskills/yf-plan/scripts/test_close_contract.py::test_the_six_four_block_boundary_survives_the_rewrite PASSED [ 92%]\nskills/yf-plan/scripts/test_close_contract.py::test_the_changed_expression_is_first_parent PASSED [100%]\n\n============================== 13 passed in 0.33s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_verify_reconcile.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "skills/yf-plan/scripts/test_verify_reconcile.py::test_row_shape_variants[[#42](https://github.com/o/r/issues/42)] PASSED [ 50%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_row_shape_variants[o/r#42] PASSED [ 52%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_row_shape_variants[**[#42](https://github.com/o/r/issues/42)**] PASSED [ 55%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_one_parser_only PASSED [ 58%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_table_ends_at_next_section PASSED [ 61%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_tracker_row_is_inconclusive_not_fail PASSED [ 64%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_missing_plan_md_is_fail_on_stdout PASSED [ 67%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_normalized_mention_matching[Resolved by plan-999-tester-abc123-True] PASSED [ 70%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_normalized_mention_matching[resolved by PLAN-999-TESTER-ABC123-True] PASSED [ 73%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_normalized_mention_matching[see `plan-999-tester-abc123`.-True] PASSED [ 76%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_normalized_mention_matching[resolved by plan-998-other-xyz999-False] PASSED [ 79%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_normalized_mention_matching[2.2/REQ-AGENT-046 shipped-False] PASSED [ 82%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_deferred_open_passes_with_no_plan_id_mention PASSED [ 85%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_deferred_closed_fails PASSED [ 88%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_tracker_is_inconclusive_in_both_directions[gh_payload0] PASSED [ 91%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_tracker_is_inconclusive_in_both_directions[gh_payload1] PASSED [ 94%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_unrecognised_disposition_fails_not_inconclusive PASSED [ 97%]\nskills/yf-plan/scripts/test_verify_reconcile.py::test_bolded_disposition_is_normalized_not_unrecognised PASSED [100%]\n\n============================== 34 passed in 0.07s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_audit_close.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- /Users/james/.cache/uv/environments-v2/test-audit-close-dd9e41f59fc59611/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollecting ... collected 11 items\n\nskills/yf-plan/scripts/test_audit_close.py::test_failing_bundle_still_exits_zero PASSED [  9%]\nskills/yf-plan/scripts/test_audit_close.py::test_clean_bundle_passes PASSED [ 18%]\nskills/yf-plan/scripts/test_audit_close.py::test_exit_code_is_zero_for_every_finding_set PASSED [ 27%]\nskills/yf-plan/scripts/test_audit_close.py::test_no_conditional_halt_option_exists PASSED [ 36%]\nskills/yf-plan/scripts/test_audit_close.py::test_findings_identical_to_plan_phase_audit PASSED [ 45%]\nskills/yf-plan/scripts/test_audit_close.py::test_plan_phase_audit_still_halts PASSED [ 54%]\nskills/yf-plan/scripts/test_audit_close.py::test_audit_close_runs_above_the_dual_write PASSED [ 63%]\nskills/yf-plan/scripts/test_audit_close.py::test_status_transition_is_last PASSED [ 72%]\nskills/yf-plan/scripts/test_audit_close.py::test_verify_reconcile_precedes_the_first_destructive_step PASSED [ 81%]\nskills/yf-plan/scripts/test_audit_close.py::test_envelope_conformance PASSED [ 90%]\nskills/yf-plan/scripts/test_audit_close.py::test_advisory_wiring_avoids_fail_loud_vocabulary PASSED [100%]\n\n============================== 11 passed in 3.17s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "cachedir: .pytest_cache\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollecting ... collected 14 items\n\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_resolves_reconcile_bead_from_the_epic PASSED [  7%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_ignores_reconcile_step_environment_variable PASSED [ 14%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_no_epic_reports_and_never_closes PASSED [ 21%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_no_reconcile_bead_reports_and_never_closes PASSED [ 28%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_bd_unavailable_reports_and_never_closes PASSED [ 35%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_never_emits_an_empty_id_close[no-epic] PASSED [ 42%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_never_emits_an_empty_id_close[no-bead] PASSED [ 50%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_never_emits_an_empty_id_close[bd-down] PASSED [ 57%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_already_closed_is_a_clean_pass PASSED [ 64%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_close_failure_is_inconclusive_not_silent PASSED [ 71%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_skill_md_no_longer_closes_via_the_shell_variable PASSED [ 78%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_unresolved_reconcile_gate_fails_loud_and_never_closes PASSED [ 85%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_resolved_reconcile_gate_permits_the_close PASSED [ 92%]\nskills/yf-plan/scripts/test_reconcile_step_resolution.py::test_skill_md_reads_the_close_reconcile_step_exit_code PASSED [100%]\n\n============================== 14 passed in 0.02s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_update_status_idempotent.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- /Users/james/.cache/uv/environments-v2/test-update-status-idempotent-365f1b4ad2aed85d/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollecting ... collected 8 items\n\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_running_close_twice_leaves_one_complete_bullet PASSED [ 12%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_many_reruns_still_leave_one PASSED [ 25%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_status_field_is_still_written_on_a_deduped_run PASSED [ 37%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_a_different_message_still_appends PASSED [ 50%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_a_different_status_still_appends PASSED [ 62%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_a_later_date_still_appends PASSED [ 75%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_review_count_and_grandfather_parsers_unperturbed PASSED [ 87%]\nskills/yf-plan/scripts/test_update_status_idempotent.py::test_dedupe_does_not_drop_scoping_entries PASSED [100%]\n\n============================== 8 passed in 0.04s ==============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_cascade_root_resolution.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- /Users/james/.cache/uv/environments-v2/test-cascade-root-resolution-94d42a5fede8c577/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollecting ... collected 10 items\n\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_root_not_found_fails_loudly PASSED [ 10%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_root_not_found_via_clean_empty_result PASSED [ 20%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_bd_unavailable_is_inconclusive_and_does_not_halt[`bd` not found on PATH] PASSED [ 30%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_bd_unavailable_is_inconclusive_and_does_not_halt[`bd` could not be run: [Errno 8] Exec format error] PASSED [ 40%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_bd_unavailable_is_inconclusive_and_does_not_halt[unparseable `bd` output: Expecting value] PASSED [ 50%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_identical_bead_failure_yields_opposite_verdicts PASSED [ 60%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_health_probe_is_bead_independent PASSED [ 70%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_open_child_still_fails_loudly PASSED [ 80%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_clean_tree_passes PASSED [ 90%]\nskills/yf-plan/scripts/test_cascade_root_resolution.py::test_human_output_does_not_report_no_containers_on_a_missing_root PASSED [100%]\n\n============================== 10 passed in 0.01s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_epic_ref_audit.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "skills/yf-plan/scripts/test_epic_ref_audit.py::test_absent_epic_field_is_not_this_checks_business PASSED [ 19%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_severity_is_missing_level_not_okf_missing_level PASSED [ 23%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_resume_scan_reports_epic_resolves_false_on_a_dangling_ref PASSED [ 28%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_resume_scan_epic_resolves_true_when_the_bead_exists PASSED [ 33%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_resume_scan_epic_resolves_is_none_when_unknowable PASSED [ 38%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_state_none_when_no_epic_is_recorded PASSED [ 42%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_state_stale_on_a_dangling_ref PASSED [ 47%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_state_present_when_the_epic_resolves_with_open_work PASSED [ 52%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_state_complete_when_every_descendant_is_terminal PASSED [ 57%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_state_foreign_when_the_epic_belongs_to_another_bundle PASSED [ 61%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_state_unknown_when_bd_is_unreadable PASSED [ 66%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_epic_status_and_plan_dir_are_surfaced PASSED [ 71%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_a_gates_only_bead_dict_does_not_libel_a_healthy_epic PASSED [ 76%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_clear_epic_removes_BOTH_dual_written_surfaces PASSED [ 80%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_clear_epic_is_idempotent PASSED [ 85%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_clear_epic_refuses_on_present_and_unknown_without_force PASSED [ 90%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_clear_epic_reports_metadata_fallback_remains PASSED [ 95%]\nskills/yf-plan/scripts/test_epic_ref_audit.py::test_clear_epic_keeps_the_intake_history_and_appends_pointer_cleared PASSED [100%]\n\n============================== 21 passed in 0.67s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run scripts/check_frontmatter.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_frontmatter: 43 files clean"
+    },
+    {
+      "id": null,
+      "cmd": "uv run scripts/check_skill_script_refs.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_skill_script_refs: 201 invocation(s) checked, 0 violations"
+    },
+    {
+      "id": null,
+      "cmd": "uv run scripts/test_check_skill_script_refs.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   MUTANT: plan-050's original bug, re-inserted verbatim, returns exit 1\nok   MUTANT: ...naming `_shared/plan_extract.py`\nok   MUTANT: ...classified `repo-only`, NOT `missing-in-repo`\nok   repo-only: a `_shared/` path is flagged\nok   repo-only: ...and classified `repo-only`\nok   missing-in-repo: a CORRECTLY ROOTED path naming a never-vendored script is flagged\nok   missing-in-repo: ...and is NOT conflated with `repo-only`\nok   ok: a rooted path that resolves is clean\nok   carve: PROSE mentioning a `_shared/` path is not an invocation\nok   carve: a NON-SHELL fence is a code listing, not a command listing\nok   carve: a path with no directory component is `illustrative`\nok   carve: the allow marker opts out a DELIBERATE external reference\nok   the allow marker does NOT blanket the rest of the file\nok   root: the `<yf-NAME>/` placeholder form resolves\nok   command substitution: `VAR=$(uv run ...)` is seen\nok   scope: `README.md` IS in scope \u2014 the same break lives there\nok   exit contract: a missing `skills/` tree is INCONCLUSIVE (2), never a FAIL\nok   exit contract: ...and says so in the JSON\n\nall passed"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-research/scripts/test_link_normalizer.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": ".......                                                                  [100%]\n7 passed in 0.01s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-research/scripts/test_credibility_scorer.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "................                                                         [100%]\n16 passed in 0.01s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run _shared/sync.py --check",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "in sync: skills/yf-markdown-html/README.md\nin sync: skills/yf-markdown-html/SKILL.md\nin sync: skills/yf-markdown-lint/README.md\nin sync: skills/yf-markdown-lint/SKILL.md\nin sync: skills/yf-markdown-pdf/README.md\nin sync: skills/yf-markdown-pdf/SKILL.md\nin sync: skills/yf-okf/SKILL.md\nin sync: skills/yf-okf-hygiene/SKILL.md\nin sync: skills/yf-optimal-instructions/SKILL.md\nin sync: skills/yf-plan/SKILL.md\nin sync: skills/yf-plan/test-harness/README.md\nin sync: skills/yf-research/SKILL.md\nin sync: skills/yf-research/agents/coordinator.md\nin sync: skills/yf-research/agents/packager.md\nin sync: skills/yf-research/agents/retriever.md\nin sync: skills/yf-research/agents/toolsmith.md\nin sync: skills/yf-research/agents/triangulator.md\nin sync: skills/yf-skill-authoring/SKILL.md\nin sync: skills/yf-skill-authoring/reference/PORTABILITY.md\nin sync: skills/yf-skill-authoring/reference/SURFACE_CONVENTION.md"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-herdr/scripts/test_launch_contract.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "...............                                                          [100%]\n15 passed in 0.01s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_autonomy.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "......................                                                   [100%]\n22 passed in 0.09s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_gates.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "......................                                                   [100%]\n22 passed in 0.05s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_retrospective.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "...................                                                      [100%]\n19 passed in 0.15s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_cli_enumeration.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": ".......                                                                  [100%]\n7 passed in 0.02s"
+    },
+    {
+      "id": "uv-okf",
+      "cmd": "uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "........................................................................ [ 96%]\n...                                                                      [100%]\n75 passed in 0.11s"
+    },
+    {
+      "id": "okf-hygiene-tests",
+      "cmd": "uv run skills/yf-okf-hygiene/scripts/test_okf_hygiene.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": ".................                                                        [100%]\n17 passed in 3.64s"
+    },
+    {
+      "id": "baseline-pin-drift",
+      "cmd": "bash scripts/baseline-pin-drift.sh",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "baseline-pin-drift: live upstream matches the pin (26aa5da029278939f914e578107242d9607d4f2dc5fe153272b82f9ed1030101)"
+    },
+    {
+      "id": "doclint",
+      "cmd": "uv run _shared/doc_lint.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "W docs/research/004-plan-process-defect-mining/artifacts/triangulation.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-execution-telemetry.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-git-churn-signatures.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-herdr-repo-interrogation.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-operator-breakthrough-turns.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-prior-art.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-review-pass-recurrence.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/critique.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/tooling-notes.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/triangulation.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/001-okf-compliance-delta/sources.md: [has-sources] required pattern absent: \\[[^\\]]+\\]\\(https?://|^\\| *[Ss]ource\nW docs/research/003-graph-engineering-hypothesis/sources.md: [has-sources] required pattern absent: \\[[^\\]]+\\]\\(https?://|^\\| *[Ss]ource\nW docs/research/001-okf-compliance-delta/Summary.md: [absence-declared] required pattern absent: (?im)^#{1,3} .*(not established|could not establish|absence)\nW docs/research/002-harness-global-rule-minimization/Summary.md: [absence-declared] required pattern absent: (?im)^#{1,3} .*(not established|could not establish|absence)\nW skills/yf-herdr/SKILL.md: [depends-on-skill-declared] missing frontmatter key(s): depends-on-skill\nW skills/yf-markdown-format/SKILL.md: [user-invocable-declared] missing frontmatter key(s): user-invocable\nW skills/yf-markdown-html/SKILL.md: [user-invocable-declared] missing frontmatter key(s): user-invocable\nW skills/yf-markdown-lint/SKILL.md: [user-invocable-declared] missing frontmatter key(s): user-invocable\nW skills/yf-markdown-pdf/SKILL.md: [user-invocable-declared] missing frontmatter key(s): user-invocable\nPASS: 1410 file(s), 0 error(s), 628 warning(s), 1895 report-only"
+    },
+    {
+      "id": "doclint-tests",
+      "cmd": "uv run _shared/test_doc_lint.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   SC19 [047]: excluded == unexcluded - that plan's own contribution (derived; no literal appears in this assertion)\nok   SC19 [047]: the arm is not vacuous \u2014 the plan really does contribute\nok   SC19: `--exclude` is honoured even under `--no-exclude` \u2014 the schema's carve-outs and a caller's self-exclusion are different kinds of thing\nok   SC20: the rule fires on ZERO of the finished corpus plans\nok   SC20: ...and DOES fire on the same bundle in-flight \u2014 so the silence above is scoping, not a dead rule\nok   SC20: it stays at its declared `W` even at `review` \u2014 a HINT must never hard-fail intake (check-level `promote = false`)\nok   SC20: and the bundle's error count is unaffected by it\nok   SC20: findings/ and reviews/ are skipped \u2014 a writeup and a review verdict are point-in-time records BY CONSTRUCTION\nok   SC21: the DENOMINATOR-ONLY blind spot is stated where a reader meets it \u2014 in the finding text itself\nok   SC21: ...and in the check's own declaration, so an author reading the schema meets it\nok   SC21: ...and in the engine's own docstring for the kind\nok   check-level `promote = false` is SURGICAL \u2014 only the hint opts out\nok   ARM 0 (baseline): a `drafting` plan with placeholders has W findings and 0 errors\nok   ARM 1: a PRESENT but UNRECOGNISED status fails CLOSED (W promoted to E)\nok   ARM 2 (invariant): bundle_status is genuinely None for the null fixture\nok   ARM 2 (invariant): the null fixture really carries a `W` finding\nok   ARM 2 (invariant): a NULL-`bundle_status` document is UNCHANGED (0 errors)\nok   the None and present-but-unrecognised branches are DISTINGUISHABLE\n\nall passed"
+    },
+    {
+      "id": "plan-extract",
+      "cmd": "uv run _shared/test_plan_extract.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   plan-047 extracts with ZERO unparsed\nok   plan-047 has 11 epics / 77 issues / 75 edges / 6 gates\nok   REQ-DATA-052: a declaration at the end of the ISSUE BULLET is recovered\nok   REQ-DATA-052: a declaration at the end of a CONTINUATION LINE is recovered\nok   REQ-DATA-052: the PARENTHESISED trailing form is recovered\nok   REQ-DATA-052: the recovery is AUDITABLE \u2014 each carries a before/after pair\nok   REQ-DATA-052: recovering adds NO residue when every referent resolves\nok   REQ-DATA-052: LETTERED referents are recovered, not silently skipped\nok   SC6 negative: a MID-LINE declaration with a prose tail materialises NO edge (where the list ends is unknowable)\nok   SC6 negative: and the refusal is REPORTED, not silently dropped\nok   SC6 negative: a declaration on a NESTED SUB-BULLET is not attributed to the issue (the mis-attribution a naive 'any indented line' rule would make)\nok   SC6 negative: a declaration under a column-0 bullet that is not an issue is refused (the preceding issue is no longer in scope)\nok   SC6 negative: ALL-OR-NOTHING holds for the trailing form too \u2014 one unresolvable referent refuses the whole declaration, rather than recovering the readable half\nok   SC6 negative: and that refusal is reported with its referent named\nok   SC5: at least 60 of the measured 89 inline declarations are recovered as edges\nok   SC5: the recovery is spread across all five affected plans, not concentrated in one\nok   SC8: 006 no longer reports 0 edges while carrying declarations\nok   SC8: 007 no longer reports 0 edges while carrying declarations\n\nall passed"
+    },
+    {
+      "id": "dag-guard",
+      "cmd": "uv run _shared/test_dag_guard.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   mutant D: `okf.py migrate` ran over the whole corpus\n     [measured] mutant D: 313 differing path(s) across 63 bundles\nok   SC3 mutant D: a real corpus-wide migrate exits 0 \u2014 the guard is not FAIL-happy\n     [measured] mutant F: 11 plan(s) fanned out -> +278 invented edges, L3 unchanged (2086 -> 2086)\nok   mutant F really invents edges (else the arm is vacuous)\nok   mutant F leaves the RAW TOKEN STREAM untouched \u2014 no document was edited, so no new declaration licenses these edges\nok   SC38 mutant F: LOSS-ONLY containment passes it cleanly \u2014 which is the whole argument for a paired upper bound\nok   SC38 mutant F: the count-only straw man passes it too \u2014 invention is not a loss under ANY loss-only reading\nok   SC38 mutant F: the UPPER BOUND exits 1 on the same snapshot pair\nok   SC38 mutant F: the bound names the offending plans with their headroom\nok   SC38: the upper bound does NOT fire on the real migrate (mutant D stays 0)\nok   SC38: nor on the DAG-preserving write (mutant C stays 0)\nok   SC38: and it never DOWNGRADES a verdict \u2014 mutant A still exits 1\nok   SC26: `snapshot` and `verify` are both exposed\nok   SC26: a plan that VANISHES from the population exits 2 (INCONCLUSIVE), never 1\nok   SC26: and the vanished plan is named\nok   SC26: an unreadable --pre snapshot exits 2, not 1\nok   SC26: an identical pre/post pair exits 0\n\nall passed"
+    },
+    {
+      "id": "gate-dagguard",
+      "cmd": "bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "     [measured] mutant D: 313 differing path(s) across 63 bundles\nok   SC3 mutant D: a real corpus-wide migrate exits 0 \u2014 the guard is not FAIL-happy\n     [measured] mutant F: 11 plan(s) fanned out -> +278 invented edges, L3 unchanged (2086 -> 2086)\nok   mutant F really invents edges (else the arm is vacuous)\nok   mutant F leaves the RAW TOKEN STREAM untouched \u2014 no document was edited, so no new declaration licenses these edges\nok   SC38 mutant F: LOSS-ONLY containment passes it cleanly \u2014 which is the whole argument for a paired upper bound\nok   SC38 mutant F: the count-only straw man passes it too \u2014 invention is not a loss under ANY loss-only reading\nok   SC38 mutant F: the UPPER BOUND exits 1 on the same snapshot pair\nok   SC38 mutant F: the bound names the offending plans with their headroom\nok   SC38: the upper bound does NOT fire on the real migrate (mutant D stays 0)\nok   SC38: nor on the DAG-preserving write (mutant C stays 0)\nok   SC38: and it never DOWNGRADES a verdict \u2014 mutant A still exits 1\nok   SC26: `snapshot` and `verify` are both exposed\nok   SC26: a plan that VANISHES from the population exits 2 (INCONCLUSIVE), never 1\nok   SC26: and the vanished plan is named\nok   SC26: an unreadable --pre snapshot exits 2, not 1\nok   SC26: an identical pre/post pair exits 0\n\nall passed\ngate-dagguard: CAPABILITY PRESENT \u2014 the guard fails A and B and passes D."
+    },
+    {
+      "id": "gate-cellcheck",
+      "cmd": "bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "gate-cellcheck: ok m-empty-required-cell -> exit 1\ngate-cellcheck: ok m-zero-row-criteria -> exit 1\ngate-cellcheck: ok m-gate-all-three-absent -> exit 1\ngate-cellcheck: ok control-conformant -> exit 0\ngate-cellcheck: ok control-canonical-start-gate -> exit 0\ngate-cellcheck: CAPABILITY PRESENT \u2014 both checks fire on the three mutants and on neither control."
+    },
+    {
+      "id": "gate-plan060-amendment",
+      "cmd": "uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_amendment_log: 10 amended id(s) all carry an amendment-log bullet; all 37 non-exempt implementation issues reach a REQ-naming Epic-0 issue"
+    },
+    {
+      "id": "gate-plan062-amendment",
+      "cmd": "uv run scripts/check_amendment_log.py --plan plan-062-james-dixson-c3e98f",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_amendment_log: 4 amended id(s) all carry an amendment-log bullet; all 16 non-exempt implementation issues reach a REQ-naming Epic-0 issue"
+    },
+    {
+      "id": "gate-plan060-reqcoverage",
+      "cmd": "uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "     3.7  direct-dep       0.9\n     4.1  transitive-dep   0.9\n     4.2  transitive-dep   0.9\n     4.3  transitive-dep   0.9\n     4.4  transitive-dep   0.9\n     4.5  transitive-dep   0.9\n     4.6  transitive-dep   0.9\n     4.7  transitive-dep   0.9\n     4.8  names-req        REQ-BRANCH-004\n     4.9  transitive-dep   0.9\n    4.10  direct-dep       0.9\n     5.1  transitive-dep   0.9\n     5.2  transitive-dep   0.9\n     5.3  transitive-dep   0.9\n     5.4  transitive-dep   0.9\n     6.1  transitive-dep   0.9\n     6.2  transitive-dep   0.9\n     6.3  transitive-dep   0.9\ncheck-req-coverage: 39 non-Epic-0 issue(s); 9 direct Epic-0 dep, 38 transitive, 1 name a REQ, 0 declared bug fix\ncheck-req-coverage: every non-Epic-0 issue is covered"
+    },
+    {
+      "id": "uv-yf-land-manifest",
+      "cmd": "uv run skills/yf-plan/scripts/test_land_manifest.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollected 15 items\n\nskills/yf-plan/scripts/test_land_manifest.py ...............             [100%]\n\n============================== 15 passed in 4.21s =============================="
+    },
+    {
+      "id": "uv-yf-lander-contract",
+      "cmd": "uv run skills/yf-plan/scripts/test_lander_agent_contract.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollected 12 items\n\nskills/yf-plan/scripts/test_lander_agent_contract.py ............        [100%]\n\n============================== 12 passed in 0.44s =============================="
+    },
+    {
+      "id": "uv-yf-land-apply",
+      "cmd": "uv run skills/yf-plan/scripts/test_land_apply.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollected 66 items\n\nskills/yf-plan/scripts/test_land_apply.py .............................. [ 45%]\n....................................                                     [100%]\n\n============================= 66 passed in 24.39s =============================="
+    },
+    {
+      "id": "mock-fidelity",
+      "cmd": "uv run scripts/checks/check_mock_fidelity.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_mock_fidelity: 35 stub(s) bind against their targets (0 skipped as non-callable). NOT COVERED: return shapes, keyword-only-ness, non-callable assignments."
+    },
+    {
+      "id": "gate-plan063-amendment",
+      "cmd": "uv run scripts/check_amendment_log.py --plan plan-063-james-dixson-3f74c1",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "check_amendment_log: 10 amended id(s) all carry an amendment-log bullet; all 19 non-exempt implementation issues reach a REQ-naming Epic-0 issue"
+    },
+    {
+      "id": "pour-fidelity",
+      "cmd": "uv run _shared/test_pour_fidelity.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   ...and the edge is reported as INVENTED (present in bd, declared nowhere)\nok   deleting a gate block makes the comparator FAIL\nok   ...and the gate counts disagree\nok   population `no_mapping` is reported as a distinct count\nok   population `dropped_among_joinable` is reported as a distinct count\nok   population `invented_in_cleanly_parsed_plans` is reported as a distinct count\nok   population `invented_where_document_is_unreadable` is reported as a distinct count\nok   the no-mapping population is exactly the three EXP-003 plans (006/007/036)\nok   --strict exits 0 on a clean plan\nok   --strict exits 1 on a divergent plan\nok   TIER A baseline: a clean, joinable, in-scope plan exits 0\nok   A1: --strict exits 2 (INCONCLUSIVE) when plan.md has an unparsed construct\nok   A2: --strict exits 2 on a `no-mapping` plan (was a silent 0)\nok   A2: ...and the plan really IS in the no-mapping population (not vacuous)\nok   A3: --strict exits 2 when --plan selects nothing\nok   A4: --strict exits 2 on a bundle with no **Epic:** field\nok   A4: ...and it is reported in skipped[], with a reason\nok   A5 (NARROWNESS): the clean plan STILL exits 0 after all four exit-2 arms\n\nall passed"
+    },
+    {
+      "id": "uv-yf-review-count",
+      "cmd": "uv run skills/yf-plan/scripts/test_review_count.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   a `review:` status transition is inert to the count\nok   ...however many status transitions there are\nok   a genuinely missing pass file is still caught\nok   in `review` with no presentation yet expects 0\nok   a legacy bundle falls back to the `review:` count\nok   ...but a legacy bundle with NO pass files expects 0, not 1\nok   `review-pass:` is not a plan status\n\nall passed"
+    },
+    {
+      "id": "uv-yf-status-gate",
+      "cmd": "uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "........                                                                 [100%]\n8 passed in 3.15s"
+    },
+    {
+      "id": "uv-yf-upstream-req",
+      "cmd": "uv run skills/yf-plan/scripts/test_upstream_requirements.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "platform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- /Users/james/.cache/uv/environments-v2/test-upstream-requirements-49e722898a255952/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/james/workspace/dixson3/yoshiko-flow\ncollecting ... collected 13 items\n\nskills/yf-plan/scripts/test_upstream_requirements.py::test_every_disposition_has_exactly_one_entry PASSED [  7%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_the_set_is_not_vacuously_equal PASSED [ 15%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_every_entry_carries_every_field PASSED [ 23%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_actions_are_derived_from_the_fields_not_declared PASSED [ 30%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_both_readers_change_when_one_entry_is_mutated PASSED [ 38%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_the_stub_is_load_bearing PASSED [ 46%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_covers_every_disposition_without_crashing[deferred] PASSED [ 53%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_covers_every_disposition_without_crashing[exclude] PASSED [ 61%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_covers_every_disposition_without_crashing[include] PASSED [ 69%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_covers_every_disposition_without_crashing[partial] PASSED [ 76%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_covers_every_disposition_without_crashing[supersede] PASSED [ 84%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_grant_covers_every_disposition_without_crashing[tracker] PASSED [ 92%]\nskills/yf-plan/scripts/test_upstream_requirements.py::test_an_unrecognised_disposition_fails_loudly_rather_than_being_skipped PASSED [100%]\n\n============================== 13 passed in 0.02s =============================="
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_gate_consistency.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   ARM 1 fires when a BLOCKED issue is named as producing the evidence\nok   ARM 1 does NOT fire when the named issue is OUTSIDE the Blocks set\nok   ARM 1 id boundary: 'built by 1.55' -> silent\nok   ARM 1 id boundary: 'built by 11.5' -> silent\nok   ARM 1 id boundary: 'built by 1.5.2' -> silent\nok   ARM 1 id boundary: 'built by 1.5' -> fires\nok   ARM 1 id boundary: 'built by 1.5, and more' -> fires\nok   ARM 2 fires when every discharger sits INSIDE the Blocks set\nok   ARM 2 is SILENT when at least one discharger is outside the Blocks set\nok   ARM 2 fires on a discharger TRANSITIVELY BEHIND the Blocks set\nok   ARM 2 fires when the Condition requires a control NO criterion discharges\nok   ARM 2 ignores a prose GLOB rather than treating it as a control id\nok   a gate with an EMPTY Blocks set produces no finding\n\nall passed"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_verify_beads.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   only this plan's TASK beads are targets\nok   a GATE gets no verify bead \u2014 its Test IS its verification\nok   a CONTAINER (epic) gets no verify bead\nok   another plan's bead is not a target\nok   ONE verify bead per execution bead, never a blanket bead\nok   each verify bead names the DISTINCT bead it verifies\nok   each carries plan + plan_issue metadata, so the mapping is reconstructable\nok   each DEPENDS on the bead it verifies, so it cannot run first\nok   each inherits the target's parent, so it lands in the same epic\nok   a bead already carrying a verify obligation is not re-targeted (idempotent)\nok   a verify bead is never itself a target \u2014 no obligation recursion\nok   an empty universe yields NO targets, which the caller reports as a real negative\n\nall passed"
+    },
+    {
+      "id": null,
+      "cmd": "uv run skills/yf-plan/scripts/test_retrospective_fields.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   a KNOWN formula is accepted (exit 0)\nok   an UNKNOWN formula is REJECTED (exit 1, a real negative)\nok   ...and the rejection names the closed domain\nok   an EMPTY name is rejected \u2014 an empty name prevents nothing\nok   an unreachable domain is INCONCLUSIVE (exit 2), never FAIL\nok   ...and says the name is UNVALIDATED, not invalid\nok   near-miss 'plan-reviews' is rejected\nok   near-miss 'Plan-Review' is rejected\nok   near-miss 'plan_review' is rejected\nok   near-miss ' plan-review' is rejected\nok   prevention_vars parses k=v pairs\nok   a malformed prevention_vars entry is an error, not silently dropped\nok   an empty KEY is an error\nok   only the FIRST '=' splits, so a value may contain one\nok   known_formulas reads the --json shape\nok   known_formulas falls back to the human table\nok   a bd failure yields None (INCONCLUSIVE), never an empty-and-therefore-strict domain\n\nall passed"
+    },
+    {
+      "id": null,
+      "cmd": "bash docs/plans/plan-052-james-dixson-fa8056/assets/gate-run.sh verify-partition",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "PASS: core(21) u ext(4) u land(4) == all(29)"
+    },
+    {
+      "id": "skill-readme-contract",
+      "cmd": "uv run scripts/checks/check_skill_readme_contract.py --min-skills 20",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": " \"classes\": [\n  \"layout\",\n  \"prereqs\",\n  \"usage\",\n  \"missing-readme\",\n  \"fence-unparseable\"\n ],\n \"by_class\": {\n  \"layout\": 0,\n  \"prereqs\": 0,\n  \"usage\": 0,\n  \"missing-readme\": 0,\n  \"fence-unparseable\": 0\n },\n \"failures\": [],\n \"not_checked\": [\n  \"e-readme-desc\"\n ],\n \"reason\": \"20 skill(s) enumerated; README contract clean\"\n}"
+    },
+    {
+      "id": null,
+      "cmd": "uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "..................                                                       [100%]\n18 passed in 1.05s"
+    },
+    {
+      "id": null,
+      "cmd": "uv run scripts/gen_skill_readme_fence.py --check",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "    \"spec/data.md\",\n    \"spec/epistemics.md\",\n    \"spec/phases.md\",\n    \"spec/portability.md\",\n    \"spec/prerequisites.md\",\n    \"OKF-EXTENSION.md\",\n    \"SPEC.md\"\n   ],\n   \"status\": \"clean\"\n  },\n  {\n   \"skill\": \"yf-skill-authoring\",\n   \"uncommented\": [\n    \"SKILL.md\",\n    \"SPEC.md\"\n   ],\n   \"status\": \"clean\"\n  }\n ]\n}"
+    }
+  ],
+  "first_failure": null
+}
