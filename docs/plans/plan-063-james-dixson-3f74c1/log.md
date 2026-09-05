@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-05
+
+- complete: plan complete (landed by `land --apply`)
+
 ## 2026-09-04
 - executing: start gate resolved
 - intake: epic yf-mol-3wtq poured
