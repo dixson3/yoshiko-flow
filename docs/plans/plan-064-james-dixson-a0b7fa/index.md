@@ -1,0 +1,25 @@
+---
+okf_version: 0.2
+---
+
+# plan-064-james-dixson-a0b7fa
+
+> Make the yf-okf-hygiene backfill/restore engine trustworthy enough to run the #316 corpus transform: gitignore-aware member enumeration (#294), a restore that cannot silently destroy data, a sound and reachable crash journal, an honest dry run, and an objective-reconcile path
+
+This plan folder is **portable** — a cold reader understands its purpose, environment, reviewer history, and upstream context from the files below alone, without the drafting conversation.
+
+- [plan.md](plan.md) - The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes.
+- [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
+- [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
+- [upstream-triage.md](upstream-triage.md) - Disposition of each candidate upstream issue (include / exclude / partial / supersede / deferred) with the reasoning. The triage record behind plan.md's Upstream Issues table.
+- [findings/exp-001-backfill-restore-roundtrip.md](findings/exp-001-backfill-restore-roundtrip.md) - Sandbox rehearsal of the backfill/restore round-trip. Refutes the plan's original premise: 8/8 target bundles halt, `restore --apply` has three silent total-data-loss paths, and the crash journal is unsound and has no CLI verb. The reason this plan repairs the engine instead of running the transform.
+- [findings/exp-002-issue-294-index-drift-residue.md](findings/exp-002-issue-294-index-drift-residue.md) - Reproduction and characterization of #294. Establishes that the member walk has no version-control awareness at all, that the defect is bidirectional (`missing` on a dirty clone, permanent `ghost` once committed), and that the fix must land *before* any `backfill --apply`.
+- [findings/exp-003-okf-extension-drift-nodes.md](findings/exp-003-okf-extension-drift-nodes.md) - Whether the 3 per-skill `OKF-EXTENSION.md` files need `DRIFT-CHECK.md` nodes. Corrects #316's overstated premise (0/3 noded, but 1/3 *is* behaviorally covered) and routes the node work to #247, keeping a 2-line slice here.
+- [references/upstream-316.md](references/upstream-316.md) - Full body of GitHub #316, the plan-2-of-3 issue that commissioned this work. The source of the acceptance criteria this plan defers to its follow-on.
+- [references/upstream-294.md](references/upstream-294.md) - Full body of GitHub #294, the index-drift-residue defect this plan fixes in Epic 1. Dispositioned `include`; EXP-002 established it is a prerequisite of any future corpus `--apply`.
+- [references/upstream-271.md](references/upstream-271.md) - Full body of GitHub #271 (plan-056 execution tracking), captured by the triage sweep and dispositioned `exclude` — an unrelated coarse tracker that matched on keyword only.
+- [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1: REVISE. Three mechanical blockers — the mandatory SPEC gate was unsatisfiable as written, the SPEC epic was misnumbered so the repo coverage checker reported all 38 issues uncovered, and six verification commands were non-runnable for a missing `--with pyyaml`.
+- [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2: REVISE. Pass-1's five high concerns verified genuinely resolved by re-measurement, but the C4 fix reintroduced the C3 class as six unquoted `-k` expressions (exit 4), SC13 reproduced the false green it was created to close, and a second false green was found on `REQ-OKFH-010`.
+- [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3: REVISE. Pass-2's ten resolutions verified by re-measurement, but the negative control added to close C15 cannot work — the crash test hand-builds every journal state and never invokes `backfill`, so reverting the phase-ordering fix cannot make it fail.
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4: REVISE. The first pass to EXECUTE the prescribed fix rather than read it, and it found that Issue 3.1 as written opens a new total-loss window at `S3` that the shipped buggy code does not have — with no specified test arm able to reach it.
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5: APPROVE. Confirmation pass. C30's fix verified by EXECUTING it across three engine variants and both crash seams — Issue 3.9 closes the total-loss window; the one new low-medium finding was taken rather than accepted as residual risk.
