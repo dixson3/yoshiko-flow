@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-09-05
+- executing: start gate resolved
+- intake: epic yf-mol-18gi poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE (pass 5) + audit pass
 - review-pass: pass-5 APPROVE — C30 fix verified by executing it across 3 engine variants and both crash seams; 1 low-medium residual taken rather than accepted

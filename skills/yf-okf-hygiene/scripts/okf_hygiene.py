@@ -10,7 +10,8 @@ Four verbs, plus `assess` as a declared alias of `audit`:
     audit     read-only discovery + classification          (REQ-OKFH-003/004/005)
     backfill  the THREE-STEP legacy transform, journalled   (REQ-OKFH-006/007/008/009)
     reindex   index repair, REFUSING a legacy prose index   (REQ-OKFH-010)
-    restore   record-driven reversal, per-path op kind      (REQ-OKFH-010)
+    restore   record-driven reversal, per-path op kind      (REQ-OKFH-010/013)
+    recover   finish or roll back an interrupted backfill   (REQ-OKFH-008)
 
 EXIT CONTRACT (REQ-OKFH-002, inheriting REQ-CLI-029):
     0  the criterion holds   1  it does not   2  the check could NOT RUN
@@ -23,6 +24,7 @@ is the engine's own verdict, surfaced at population scale.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -32,6 +34,38 @@ import sys
 from pathlib import Path
 
 CHECK = "okf-hygiene"
+
+#: THE RECORD SCHEMA VERSION (REQ-OKFH-013). Bumped whenever the meaning of a `--record`
+#: artifact changes in a way `restore` must not misread.
+#:
+#: Version 1 is the FIRST versioned schema, and its arrival is itself the breaking change: the
+#: pre-1 (unversioned) record carried a before/after audit VERDICT and no operations at all,
+#: while `restore` re-derived the operation list by `rglob` + `git ls-files` at restore time.
+#: Read under the record-driven contract, that legacy shape yields an EMPTY operation list —
+#: which a record-driven `restore` would faithfully execute as "reverse nothing" and report as
+#: `pass`. That is why an unversioned record is REFUSED rather than tolerated: the failure it
+#: prevents is silent, and the check is one field.
+RECORD_SCHEMA_VERSION = 1
+
+#: The internal switch Issue 3.8's negative control flips (SC13b). It forces `restore` back onto
+#: the PRE-record-driven derivation, so the mutation the control needs is ONE FLAG rather than a
+#: hand-reconstructed revert of a function. A control that has to rebuild the defect it is
+#: testing for is a control nobody re-runs.
+#:
+#: It is deliberately an ENV VAR and not a CLI flag: it must never appear in `--help` as
+#: something an operator could reach for, because selecting it re-opens all three data-loss
+#: paths EXP-001 measured.
+LEGACY_DERIVATION_ENV = "OKFH_FORCE_LEGACY_DERIVATION"
+
+#: The sibling switch for `REQ-OKFH-008` (Issue 3.8 / SC13a). It restores the PRE-Issue-3.1
+#: phase ordering — each phase written AFTER the operation it names — so the negative control
+#: reproduces that defect by FLIPPING A SWITCH rather than by reconstructing a revert with `sed`.
+#:
+#: A control whose mutant must be hand-rebuilt drifts from the code the moment either changes,
+#: and then silently tests nothing. Both of this plan's false-green mutations are therefore one
+#: switch each. Like its sibling it is an ENV VAR, never a CLI flag: selecting it re-opens the
+#: total-loss window EXP-001 measured.
+LEGACY_PHASE_ORDER_ENV = "OKFH_FORCE_LEGACY_PHASE_ORDER"
 
 # The engine is vendored beside this script (registered as okf.py's fifth consumer in
 # `_shared/sync.py`, plan-057 Issue 1.6). Skills deploy STANDALONE, so a `sys.path` hack to
@@ -331,11 +365,50 @@ class Journal:
                 pass          # not empty, or already gone — both fine
 
 
-def recover(tree: Path, bundle: Path) -> dict:
-    """Deterministically finish or roll back, FROM ANY OF THE FIVE STATES.
+ERRNO_DIR_NOT_EMPTY = 66          # macOS ENOTEMPTY; Linux reports 39. Both are handled below.
 
-    Keyed on the JOURNAL's recorded phase, never on directory presence — which is exactly the
-    distinction that makes S1 and S4 separable at all.
+
+def _rename_onto(src: Path, dst: Path) -> tuple[bool, str]:
+    """`os.rename(src, dst)` with the errno-66 window handled (Issue 3.3).
+
+    `os.rename` onto a NON-EMPTY directory raises `OSError` (`ENOTEMPTY`: errno 66 on macOS, 39
+    on Linux). That is the whole reason the swap is two renames rather than one, and it is
+    reachable during recovery in BOTH `S2`-branch renames — so both are wrapped here rather than
+    each open-coding a `try`.
+
+    Returns ``(ok, note)`` instead of raising: recovery must be able to REPORT that it could not
+    proceed. An uncaught `OSError` here wedges `recover()` idempotently — no data is lost, but
+    every subsequent invocation raises the same exception, which SC11 forbids.
+    """
+    try:
+        os.rename(src, dst)
+        return True, ""
+    except OSError as exc:
+        if exc.errno in (ERRNO_DIR_NOT_EMPTY, 39):
+            return False, (f"cannot rename {src.name} onto {dst.name}: the destination exists and "
+                           f"is not empty (errno {exc.errno})")
+        return False, f"cannot rename {src.name} onto {dst.name}: {exc}"
+
+
+def recover(tree: Path, bundle: Path) -> dict:
+    """Deterministically finish or roll back, FROM ANY OF THE FIVE PHYSICAL STATES.
+
+    Keyed on the JOURNAL's recorded phase, never on directory presence — that distinction is what
+    makes the states separable at all.
+
+    **BUT EVERY BRANCH TOLERATES A PHYSICAL PHASE ONE STEP BEHIND ITS RECORDED PHASE**
+    (REQ-OKFH-008 as amended, Issue 3.9). This is the obligation the over-approximation creates,
+    and it is NOT optional: because Issue 3.1 writes each phase BEFORE its operation, a crash in
+    the window between the write and the operation records a phase the code had not yet reached.
+    A branch that reads its recorded phase and ASSUMES the named operation completed is a
+    data-loss path under this very invariant.
+
+    Concretely, and measured: the shipped `S3`/`S4` branch unconditionally `rmtree`d both stash
+    and staging and returned ``recovered: True, "completed cleanup"``. Under the fixed ordering
+    that branch is reachable with the physical state at `S2` — bundle ABSENT, staging present,
+    rename 2 not yet performed — so it would have DESTROYED THE BUNDLE. The phase-ordering fix
+    would have introduced exactly the failure EXP-001 refuted the plan's premise with, relocated
+    from `S1` to `S3`. Hence: complete the pending rename FIRST, clean up second.
     """
     j = Journal(tree, bundle)
     rec = j.read()
@@ -345,35 +418,95 @@ def recover(tree: Path, bundle: Path) -> dict:
     staging, stash = Path(rec["staging"]), Path(rec["stash"])
 
     if phase in ("S0", "S1"):
-        # Nothing irreversible happened. Discard the staged copy; the bundle is untouched.
+        # Legacy records only — the fixed ordering never writes these. Nothing irreversible
+        # happened: discard the staged copy; the bundle is untouched.
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
         j.clear()
         return {"recovered": True, "phase": phase, "action": "discarded staging; bundle untouched"}
+
     if phase == "S2":
-        # The bundle is ABSENT — the dangerous window. Roll FORWARD if the staged copy is
-        # intact, else roll BACK from the stash. Presence alone could not tell these apart.
+        # Recorded `S2` spans TWO physical states, because it is written before staging:
+        #   (a) physical S0/S1 — the bundle is STILL PRESENT, rename 1 has not run;
+        #   (b) physical S2    — the bundle is ABSENT, rename 1 has run.
+        # They are distinguishable without ambiguity: after rename 2 the staging directory no
+        # longer exists, so `bundle present AND staging present` can only mean (a).
+        if bundle.exists():
+            # (a) NOTHING IRREVERSIBLE HAPPENED — rename 1 has not completed. Rolling "forward"
+            # here would rename staging onto a LIVE directory, which is the uncaught errno-66
+            # red-team pass 5 measured. Discard staging (it may not even exist yet: `S2` is
+            # written before staging begins, so this branch also covers a crash at physical S0).
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+            j.clear()
+            return {"recovered": True, "phase": phase, "physical": "S0/S1",
+                    "action": "discarded staging; bundle untouched (crashed before rename 1)"}
         if staging.exists():
-            os.rename(staging, bundle)
+            # (b) The dangerous window: roll FORWARD.
+            ok, note = _rename_onto(staging, bundle)
+            if not ok:
+                return {"recovered": False, "phase": phase, "physical": "S2",
+                        "action": f"UNRECOVERABLE without operator action: {note}",
+                        "staging": str(staging), "stash": str(stash)}
             if stash.exists():
                 shutil.rmtree(stash, ignore_errors=True)
             j.clear()
-            return {"recovered": True, "phase": phase, "action": "rolled forward from staging"}
+            return {"recovered": True, "phase": phase, "physical": "S2",
+                    "action": "rolled forward from staging"}
         if stash.exists():
-            os.rename(stash, bundle)
+            ok, note = _rename_onto(stash, bundle)
+            if not ok:
+                return {"recovered": False, "phase": phase, "physical": "S2",
+                        "action": f"UNRECOVERABLE without operator action: {note}",
+                        "stash": str(stash)}
             j.clear()
-            return {"recovered": True, "phase": phase, "action": "rolled back from stash"}
+            return {"recovered": True, "phase": phase, "physical": "S2",
+                    "action": "rolled back from stash"}
         j.clear()
         return {"recovered": False, "phase": phase,
                 "action": "UNRECOVERABLE: neither staging nor stash survives"}
+
     if phase in ("S3", "S4"):
+        # PRESENCE-TOLERANT (Issue 3.9). `S3` is written BEFORE rename 2 and `S4` BEFORE the
+        # cleanup, so either may be recorded while the physical state is one step behind.
+        # COMPLETE THE PENDING OPERATION BEFORE CLEANING UP — never the other way round.
+        if not bundle.exists() and staging.exists():
+            # Physical S2: rename 2 never ran. Cleaning up here is the total-loss path.
+            ok, note = _rename_onto(staging, bundle)
+            if not ok:
+                return {"recovered": False, "phase": phase, "physical": "S2",
+                        "action": f"UNRECOVERABLE without operator action: {note}",
+                        "staging": str(staging), "stash": str(stash)}
+            if stash.exists():
+                shutil.rmtree(stash, ignore_errors=True)
+            j.clear()
+            return {"recovered": True, "phase": phase, "physical": "S2",
+                    "action": "completed rename 2 from staging, then cleaned up"}
+        if not bundle.exists() and stash.exists():
+            # Staging is gone and the bundle is absent: the only surviving copy is the stash.
+            # Rolling back is strictly better than cleaning up, which would delete it.
+            ok, note = _rename_onto(stash, bundle)
+            if not ok:
+                return {"recovered": False, "phase": phase,
+                        "action": f"UNRECOVERABLE without operator action: {note}",
+                        "stash": str(stash)}
+            j.clear()
+            return {"recovered": True, "phase": phase, "physical": "S2",
+                    "action": "rolled back from stash (staging did not survive)"}
+        if not bundle.exists():
+            j.clear()
+            return {"recovered": False, "phase": phase,
+                    "action": "UNRECOVERABLE: the bundle is absent and neither staging nor "
+                              "stash survives"}
         # The swap completed; only cleanup remains. Idempotent.
         if stash.exists():
             shutil.rmtree(stash, ignore_errors=True)
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
         j.clear()
-        return {"recovered": True, "phase": phase, "action": "completed cleanup"}
+        return {"recovered": True, "phase": phase, "physical": phase,
+                "action": "completed cleanup"}
+
     j.clear()
     return {"recovered": False, "phase": phase, "action": f"unknown phase {phase!r}"}
 
@@ -458,8 +591,17 @@ def _legacy_objective(legacy_index: Path) -> str:
     return okf._one_line(m.group(1)) if m else ""
 
 
-def halts(bundle: Path, cls: str) -> list[dict]:
-    """The two declared halt classes (REQ-OKFH-007). Neither is auto-resolvable."""
+def halts(bundle: Path, cls: str, *, reconcile_objective: bool = False) -> list[dict]:
+    """The two declared halt classes (REQ-OKFH-007).
+
+    `hybrid-partial` is never auto-resolvable — which of two indexes the author meant is not
+    derivable from anything on disk.
+
+    `objective-divergence` IS auto-resolvable, OPT-IN, via `--reconcile-objective`
+    (REQ-OKFH-012): `plan.md`'s `H1` is authoritative and the stale legacy `>` line is rewritten
+    from it. THE HALT REMAINS THE DEFAULT — a guard whose remedy is enabled by default is a guard
+    that has been removed.
+    """
     out: list[dict] = []
     if cls == "hybrid-partial":
         out.append({"kind": "hybrid-partial",
@@ -468,10 +610,12 @@ def halts(bundle: Path, cls: str) -> list[dict]:
     legacy = next((bundle / n for n in LEGACY_INDEX_NAMES if (bundle / n).is_file()), None)
     if legacy is not None:
         lo, po = _legacy_objective(legacy), _objective(bundle / "plan.md")
-        if lo and po and lo != po:
+        if lo and po and lo != po and not reconcile_objective:
             out.append({"kind": "objective-divergence",
                         "detail": "the legacy index's objective differs from plan.md's",
-                        "legacy": lo, "plan": po})
+                        "legacy": lo, "plan": po,
+                        "remediation": "re-run with --reconcile-objective to adopt plan.md's H1 "
+                                       "as authoritative (the rewrite is reported per bundle)"})
     return out
 
 
@@ -489,7 +633,179 @@ def _render_backfilled_index(bundle: Path, objective: str) -> str:
     return "".join(lines)
 
 
-def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) -> dict:
+def _sha256(path: Path) -> str | None:
+    """Content hash of a file, or ``None`` when it cannot be read."""
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 16), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return None
+
+
+def _snapshot(tree: Path, bundle: Path) -> dict[str, str]:
+    """{repo-relative path -> sha256} for every file in ``bundle``.
+
+    Taken on BOTH sides of the transform so the operation list below is a DIFF OF MEASURED
+    STATE, not an inference from what the transform intended to do. The distinction matters:
+    the three-step transform delegates to `okf.migrate`, so the set of files it touches is not
+    fully knowable from this module's own code.
+    """
+    out: dict[str, str] = {}
+    if not bundle.is_dir():
+        return out
+    for p in sorted(bundle.rglob("*")):
+        if not p.is_file():
+            continue
+        try:
+            rel = p.relative_to(tree).as_posix()
+        except ValueError:
+            rel = p.as_posix()
+        digest = _sha256(p)
+        if digest is not None:
+            out[rel] = digest
+    return out
+
+
+def _diff_ops(before: dict[str, str], after: dict[str, str]) -> list[dict]:
+    """The PER-PATH OPERATION LIST `REQ-OKFH-010` requires, as created / deleted / modified.
+
+    This is the artifact that makes a reversal claim CHECKABLE. Re-deriving it at restore time
+    from `rglob` + `git ls-files` — what the shipped code did — cannot distinguish a file the
+    transform created from one that merely happens to be untracked now, so the reversal was
+    incidental to `git` rather than driven by a record of what was done.
+
+    A path present on both sides with an unchanged hash is NOT an operation: recording it would
+    bloat the record with the overwhelming majority of a bundle's files and bury the few paths a
+    reviewer needs to look at.
+    """
+    ops: list[dict] = []
+    for rel in sorted(set(before) | set(after)):
+        b, a = before.get(rel), after.get(rel)
+        if b is None and a is not None:
+            ops.append({"path": rel, "kind": "created", "sha256_before": None, "sha256_after": a})
+        elif b is not None and a is None:
+            ops.append({"path": rel, "kind": "deleted", "sha256_before": b, "sha256_after": None})
+        elif b != a:
+            ops.append({"path": rel, "kind": "modified", "sha256_before": b, "sha256_after": a})
+    return ops
+
+
+#: `description:` stamping exemptions (REQ-DATA-075). DECLARED, never inferred — an inferred
+#: exemption is indistinguishable from an unstamped producer, which is the defect the
+#: requirement addresses. `index.md`/`log.md` are already exempt by carrying no frontmatter.
+DESCRIPTION_EXEMPT = ("context.md", "plan-retrospective.md")
+
+
+def _stamp_descriptions(staging: Path, objective: str) -> list[str]:
+    """Stamp `description:` onto the frontmatter this transform writes (REQ-DATA-075, Issue 4.3).
+
+    MEASURED GAP THIS CLOSES (EXP-001): the transform adds `type:` and `okf_spec:` to every
+    non-reserved `.md` and stamps `description:` on NONE of them, so a freshly backfilled bundle
+    still fails a convention this repository's own producers are held to.
+
+    THE DERIVATION USES ONLY CONTENT THE PRODUCER ALREADY HOLDS, and NEVER INVENTS ONE. `plan.md`
+    takes the bundle objective; anything else takes its own `H1`. A file with neither is left
+    UNSTAMPED — REQ-OKF-011's "never invent a description" rule applies here too, and a
+    manufactured string like "A finding" satisfies the letter of REQ-DATA-075 while defeating its
+    purpose.
+
+    An existing non-empty `description:` is never overwritten.
+    """
+    stamped: list[str] = []
+    for md in sorted(staging.rglob("*.md")):
+        if md.name in okf.RESERVED_FILES or md.name in DESCRIPTION_EXEMPT:
+            continue
+        try:
+            fm, body = okf.read_frontmatter(md)
+        except Exception:
+            continue
+        if not fm:
+            continue                       # migrate stamps no frontmatter here; nothing to add to
+        if str(fm.get("description") or "").strip():
+            continue                       # already carries one — never overwrite
+        if md.name == "plan.md" and objective:
+            desc = objective
+        else:
+            desc = okf._one_line(okf._first_h1(body))
+        if not desc:
+            continue                       # NEVER INVENT ONE
+        try:
+            okf.write_frontmatter(md, {"description": desc})
+            stamped.append(md.relative_to(staging).as_posix())
+        except Exception:
+            continue
+    return stamped
+
+
+def _stage_transformed(src: Path, staging: Path, member_skill: str, objective: str) -> list[str]:
+    """The THREE-STEP transform, applied to a staging copy. Shared by the dry run and by apply.
+
+    ONE implementation, deliberately (REQ-OKFH-011). The dry run reaches the apply-only guards by
+    staging without swapping, never by duplicating each guard on a second code path — two
+    implementations of one guard is the defect restated, not repaired: they agree until they do
+    not, and nothing detects the day they stop.
+    """
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, staging)
+    # STEP 1 — migrate (renames the legacy index to index.md, stamps frontmatter,
+    #                   extracts the phase log into log.md).
+    okf.migrate(staging, skill=member_skill)
+    # STEP 2 — DELETE the renamed legacy index. It is legacy PROSE, not a listing, and
+    #          `reindex --write` would append a generated listing BENEATH it, producing one
+    #          file with two contradictory listings.
+    (staging / "index.md").unlink(missing_ok=True)
+    # STEP 2b — stamp `description:` (REQ-DATA-075, Issue 4.3), BEFORE the listing is rendered
+    #           so the generated entries can pick the new descriptions up.
+    stamped = _stamp_descriptions(staging, objective)
+    # STEP 3 — REGENERATE the listing.
+    (staging / "index.md").write_text(_render_backfilled_index(staging, objective),
+                                      encoding="utf-8")
+    return stamped
+
+
+def _staged_halts(plan_before: str, staging: Path, member_skill: str) -> list[dict]:
+    """Every halt that can only be judged AFTER staging (REQ-OKFH-011).
+
+    These used to run inside `if apply:`, which made `would-backfill` a WEAKER CLAIM THAN IT
+    READS AS: measured, `plan-030` cleared the dry run and then halted under `--apply` on
+    `phase-log-loss`. A dry run that under-reports halts is worse than one that reports none,
+    because an operator consents to the transform on evidence that does not cover the condition
+    that stops it.
+    """
+    out: list[dict] = []
+
+    # ---- the phase-log guarantee (REQ-OKFH-009) --------------------------------------
+    # The FINGERPRINT IS NOT THE GUARANTEE: it covers plan.md's content sections only and
+    # excludes every file this transform mutates. The phase log lives ABOVE the first `## `
+    # and is excluded from the hash, and it is the one MEASURED data-loss mode.
+    src_bul, src_dates = _log_signature(plan_before)
+    log_after = staging / "log.md"
+    dst_bul, dst_dates = _log_signature(
+        log_after.read_text(encoding="utf-8") if log_after.is_file() else "")
+    lost_dates = src_dates - dst_dates
+    if lost_dates:
+        out.append({"kind": "phase-log-loss",
+                    "detail": f"{len(lost_dates)} phase-log date(s) would be lost",
+                    "dates": sorted(lost_dates)})
+
+    # ---- the manufactured-hybrid post-condition --------------------------------------
+    # Judged on the STAGED result, so the dry run predicts it too. Creating a hybrid is
+    # strictly worse than not running, so it is asserted rather than merely avoided.
+    leftover = [n_ for n_ in LEGACY_INDEX_NAMES if (staging / n_).exists()]
+    if leftover and (staging / "index.md").exists():
+        out.append({"kind": "manufactured-hybrid",
+                    "detail": f"the transform would leave {leftover} beside a new index.md — "
+                              f"member {member_skill!r} is wrong for this bundle"})
+    return out
+
+
+def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None,
+                 reconcile_objective: bool = False) -> dict:
     """`migrate` -> DELETE the renamed legacy index -> REGENERATE the listing.
 
     NEVER `migrate` ALONE (REQ-OKFH-006). Measured: a bare `migrate` takes plan-010 from audit
@@ -510,7 +826,7 @@ def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) ->
         rec["reason"] = "unclassifiable — never transformed blind"
         return rec
 
-    h = halts(bundle, cls)
+    h = halts(bundle, cls, reconcile_objective=reconcile_objective)
     if h:
         rec["action"] = "halt"
         rec["halts"] = h
@@ -522,69 +838,116 @@ def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) ->
     rec["member_skill"] = member_skill
     rec["before"] = {"verdict": audit_verdict(bundle)}
     legacy_name = detail["legacy_index"][0]
-    objective = _legacy_objective(bundle / legacy_name) or _objective(bundle / "plan.md")
+    legacy_obj = _legacy_objective(bundle / legacy_name)
+    plan_obj = _objective(bundle / "plan.md")
+
+    # OBJECTIVE RECONCILIATION (REQ-OKFH-012, Issue 4.2). `plan.md`'s H1 is the authority: the
+    # divergence is directional — the plan's H1 is revised during re-scoping while the legacy
+    # `>` line is not — so the H1 is correct and the legacy line is stale. Reported per bundle,
+    # because rewriting an objective line is a content change to a reviewed artifact and must
+    # never be a silent consequence of running the verb.
+    if reconcile_objective and legacy_obj and plan_obj and legacy_obj != plan_obj:
+        objective = plan_obj
+        rec["reconciled_objective"] = {"from": legacy_obj, "to": plan_obj,
+                                       "authority": "plan.md H1"}
+    else:
+        objective = legacy_obj or plan_obj
     plan_before = (bundle / "plan.md").read_text(encoding="utf-8") \
         if (bundle / "plan.md").is_file() else ""
 
     if not apply:
-        rec["action"] = "would-backfill"
-        rec["steps"] = ["migrate", f"delete-renamed-{legacy_name}-prose", "regenerate-listing"]
-        return rec
+        # THE DRY RUN IS PREDICTIVE OF APPLY (REQ-OKFH-011, Issue 4.1). It stages into a
+        # throwaway copy and evaluates EVERY guard apply evaluates — it simply never swaps.
+        # Previously the post-staging guards lived inside `if apply:`, so `would-backfill` was a
+        # weaker claim than it read as.
+        #
+        # The staging copy is removed on BOTH exit paths, and NO JOURNAL IS WRITTEN: a dry run
+        # must leave nothing behind, least of all a journal that would make the next `backfill`
+        # refuse (Issue 3.4).
+        dry = bundle.parent / STAGING_DIR / f"{bundle.name}.dry-run"
+        try:
+            stamped = _stage_transformed(bundle, dry, member_skill, objective)
+            dh = _staged_halts(plan_before, dry, member_skill)
+            if dh:
+                rec["action"] = "halt"
+                rec["halts"] = dh
+                return rec
+            rec["action"] = "would-backfill"
+            rec["steps"] = ["migrate", f"delete-renamed-{legacy_name}-prose",
+                            "stamp-descriptions", "regenerate-listing"]
+            rec["would_stamp_descriptions"] = stamped
+            return rec
+        finally:
+            shutil.rmtree(dry, ignore_errors=True)
+            try:
+                dry.parent.rmdir()      # only if empty — never destroys a concurrent staging
+            except OSError:
+                pass
 
     j = Journal(tree, bundle)
-    j.write("S0")
+    # THE JOURNAL INVARIANT (REQ-OKFH-008 as amended, Issue 3.1): the RECORDED phase is always
+    # `>=` the PHYSICAL phase, because every phase is written and fsynced BEFORE the operation
+    # it names. The recorded phase is an OVER-APPROXIMATION, so the only error recovery can make
+    # is to believe MORE has happened than has — which is recoverable. The converse ordering is
+    # not: a phase written AFTER its operation leaves a window where the physical state is AHEAD
+    # of the record, and recovery then rolls back work it cannot see.
+    #
+    # MEASURED, and this is why the ordering changed: the shipped code wrote `S2` AFTER rename 1,
+    # so a crash in that window left the journal reading `S1`, `recover()` took its "nothing
+    # irreversible happened" branch, `rmtree`d the transformed staging copy, and reported
+    # `recovered: true` WITH THE BUNDLE GONE.
+    #
+    # `S2` is written before STAGING, not merely before rename 1. Everything from "about to
+    # stage" through "about to rename 1" is recovered identically (discard staging, the bundle is
+    # untouched), so one phase covers the whole span and `S1` is never written at all — it
+    # remains a reachable PHYSICAL state that the journal records as `S2`, exactly as the
+    # amended five-state table says.
+    _legacy_order = bool(os.environ.get(LEGACY_PHASE_ORDER_ENV))   # Issue 3.8's mutation switch
+    j.write("S0" if _legacy_order else "S2")
     # ---- stage: a full copy, transformed, INSIDE THE REPO TREE ------------------------
     # Never `$(mktemp -d)`: a cross-filesystem staging turns the rename below into a COPY,
     # which voids every durability claim the journal makes (measured EXDEV risk).
-    if j.staging.exists():
-        shutil.rmtree(j.staging)
-    j.staging.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(bundle, j.staging)
+    rec["stamped_descriptions"] = _stage_transformed(bundle, j.staging, member_skill, objective)
 
-    # STEP 1 — migrate (renames the legacy index to index.md, stamps frontmatter,
-    #                   extracts the phase log into log.md).
-    okf.migrate(j.staging, skill=member_skill)
-    # STEP 2 — DELETE the renamed legacy index. It is legacy PROSE, not a listing, and
-    #          `reindex --write` would append a generated listing BENEATH it, producing one
-    #          file with two contradictory listings.
-    (j.staging / "index.md").unlink(missing_ok=True)
-    # STEP 3 — REGENERATE the listing.
-    (j.staging / "index.md").write_text(_render_backfilled_index(j.staging, objective),
-                                        encoding="utf-8")
-    j.write("S1")
-
-    # ---- the phase-log guarantee (REQ-OKFH-009) --------------------------------------
-    # The FINGERPRINT IS NOT THE GUARANTEE: it covers plan.md's content sections only and
-    # excludes every file this transform mutates. The phase log lives ABOVE the first `## `
-    # and is excluded from the hash, and it is the one MEASURED data-loss mode.
-    src_bul, src_dates = _log_signature(plan_before)
-    log_after = (j.staging / "log.md")
-    dst_bul, dst_dates = _log_signature(
-        log_after.read_text(encoding="utf-8") if log_after.is_file() else "")
-    lost_dates = src_dates - dst_dates
-    if lost_dates:
+    # THE SAME guards the dry run ran, on the same staged result (REQ-OKFH-011).
+    ah = _staged_halts(plan_before, j.staging, member_skill)
+    if ah:
         shutil.rmtree(j.staging, ignore_errors=True)
         j.clear()
         rec["action"] = "halt"
-        rec["halts"] = [{"kind": "phase-log-loss",
-                         "detail": f"{len(lost_dates)} phase-log date(s) would be lost",
-                         "dates": sorted(lost_dates)}]
+        rec["halts"] = ah
         return rec
 
+    # PER-PATH OPERATION LIST (REQ-OKFH-010, Issue 2.1). Both sides are snapshotted around the
+    # swap, HERE, where the transform actually knows what it did — the information the shipped
+    # record threw away, forcing `restore` to guess it back from the filesystem.
+    snap_before = _snapshot(tree, bundle)
+
     # ---- the swap: TWO renames, with a window in which the bundle is absent -----------
-    j.write("S1")
-    os.rename(bundle, j.stash)          # rename 1
-    j.write("S2")
-    os.rename(j.staging, bundle)        # rename 2
-    j.write("S3")
-    shutil.rmtree(j.stash, ignore_errors=True)
-    j.write("S4")
+    # Each phase is written BEFORE the operation it names (Issue 3.1). `S2` is already on disk
+    # from before staging, so rename 1 is covered.
+    if _legacy_order:
+        # THE DEFECT, reproduced on demand for the negative control ONLY. Each phase is written
+        # AFTER the operation it names, so a crash lands in a window where the physical state is
+        # AHEAD of the record — and recovery rolls back work it cannot see.
+        j.write("S1")
+        os.rename(bundle, j.stash)
+        j.write("S2")
+        os.rename(j.staging, bundle)
+        j.write("S3")
+        shutil.rmtree(j.stash, ignore_errors=True)
+        j.write("S4")
+    else:
+        os.rename(bundle, j.stash)      # rename 1  — recorded S2, physical S2
+        j.write("S3")                   # BEFORE rename 2
+        os.rename(j.staging, bundle)    # rename 2  — the window Issue 3.9's branch must tolerate
+        j.write("S4")                   # BEFORE the cleanup
+        shutil.rmtree(j.stash, ignore_errors=True)
     j.clear()
 
-    # POST-CONDITION: the transform must not have MANUFACTURED a hybrid. A leftover legacy
-    # index beside a new `index.md` is precisely the state `hybrid-partial` exists to refuse,
-    # and creating it would be strictly worse than not running — so it is asserted on the way
-    # out, not merely avoided on the way in.
+    # POST-CONDITION, RETAINED even though `_staged_halts` now predicts it. Predicting a
+    # condition on a staged copy and asserting it on the real bundle are different claims: the
+    # second is what catches a swap that did not do what staging said it would.
     leftover = [n_ for n_ in LEGACY_INDEX_NAMES if (bundle / n_).exists()]
     if leftover and (bundle / "index.md").exists():
         rec["action"] = "halt"
@@ -594,6 +957,7 @@ def backfill_one(tree: Path, bundle: Path, *, apply: bool, skill: str | None) ->
         return rec
 
     rec["after"] = {"verdict": audit_verdict(bundle)}
+    rec["operations"] = _diff_ops(snap_before, _snapshot(tree, bundle))
     rec["action"] = "backfilled"
     return rec
 
@@ -637,23 +1001,152 @@ def cmd_audit(a) -> int:
     return 0
 
 
+def stale_journals(tree: Path) -> list[dict]:
+    """Every journal left on disk from a previous run (Issue 3.4).
+
+    A journal exists ONLY between `backfill`'s first phase write and `Journal.clear()`, so any
+    journal present at ENTRY is the residue of a run that did not finish — i.e. a crash whose
+    recovery has never been performed. Measured: nothing looked. `recover()` had no CLI verb and
+    `backfill` never called it, so a stale journal was never noticed by anything, and the next
+    `backfill` would stage over a bundle whose previous swap was half-done.
+    """
+    jdir = tree / JOURNAL_DIR
+    out: list[dict] = []
+    if not jdir.is_dir():
+        return out
+    for f in sorted(jdir.glob("*.json")):
+        try:
+            rec = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            rec = {"phase": "?", "unreadable": True}
+        out.append({"journal": str(f.relative_to(tree) if f.is_relative_to(tree) else f),
+                    "bundle": rec.get("bundle"), "phase": rec.get("phase")})
+    return out
+
+
+def cmd_recover(a) -> int:
+    """The `recover` VERB (Issue 3.2 / REQ-OKFH-008 as amended).
+
+    `recover()` shipped as a module function with NO CLI VERB and no caller, so the durability
+    mechanism the SPEC describes was, in practice, unreachable. A recovery mechanism that cannot
+    be invoked is a recovery mechanism only in the sense that the code exists.
+    """
+    tree = Path.cwd()
+    stale = stale_journals(tree)
+    if not stale:
+        print(json.dumps({"check": CHECK, "command": "recover", "verdict": "pass", "exit": 0,
+                          "journals": [], "reason": "no journal on disk — nothing to recover"},
+                         indent=1))
+        return 0
+
+    targets = stale
+    if getattr(a, "bundle", None):
+        wanted = set(a.bundle)
+        targets = [j for j in stale if j["bundle"] and Path(j["bundle"]).name in wanted]
+        if not targets:
+            print(json.dumps({"check": CHECK, "command": "recover", "verdict": "inconclusive",
+                              "exit": 2, "journals": stale,
+                              "reason": f"--bundle {sorted(wanted)} matched no journal"}, indent=1))
+            return 2
+
+    if not a.apply:
+        # DRY RUN BY DEFAULT, like `backfill`. Recovery moves directories on disk.
+        print(json.dumps({"check": CHECK, "command": "recover", "apply": False,
+                          "verdict": "pass", "exit": 0, "journals": targets,
+                          "reason": "dry run — re-run with --apply to recover"}, indent=1))
+        return 0
+
+    results = []
+    for j in targets:
+        if not j["bundle"]:
+            results.append({"journal": j["journal"], "recovered": False,
+                            "action": "unreadable journal — no bundle path recorded"})
+            continue
+        results.append({"journal": j["journal"], **recover(tree, Path(j["bundle"]))})
+    failed = [r for r in results if not r.get("recovered")]
+    out = {"check": CHECK, "command": "recover", "apply": True,
+           "recovered": len(results) - len(failed), "failed": len(failed),
+           "results": results,
+           "verdict": "fail" if failed else "pass", "exit": 1 if failed else 0}
+    print(json.dumps(out, indent=1))
+    return out["exit"]
+
+
 def cmd_backfill(a) -> int:
     tree = Path.cwd()
+
+    # ---- REFUSE ON A STALE JOURNAL (Issue 3.4 / REQ-OKFH-008 as amended) -----------------
+    # A journal on disk at entry means a previous run crashed mid-swap and was never recovered.
+    # Proceeding would stage over a bundle whose swap is half-done. REFUSING rather than
+    # auto-recovering is deliberate: recovery moves directories, and doing that as a silent side
+    # effect of an unrelated invocation is precisely the class of surprise `--apply` is gated on.
+    stale = stale_journals(tree)
+    if stale:
+        print(json.dumps({"check": CHECK, "command": "backfill", "verdict": "refused", "exit": 1,
+                          "stale_journals": stale,
+                          "reason": f"{len(stale)} journal(s) from an unfinished previous run are "
+                                    f"on disk — a crash mid-swap has never been recovered.",
+                          "remediation": "Inspect with `okf_hygiene.py recover`, then run "
+                                         "`okf_hygiene.py recover --apply`. Re-run backfill "
+                                         "afterwards."}, indent=1))
+        return 1
+
     roots = a.root or ["docs/plans", "docs/research"]
     bundles = discover(roots, a.maxdepth, DEFAULT_EXCLUDE_GLOBS)
-    records = [backfill_one(tree, b, apply=a.apply, skill=a.skill) for b in bundles]
+    records = [backfill_one(tree, b, apply=a.apply, skill=a.skill,
+                            reconcile_objective=bool(getattr(a, 'reconcile_objective', False)))
+               for b in bundles]
     touched = [r for r in records if r.get("action") in ("backfilled", "would-backfill")]
     halted = [r for r in records if r.get("action") == "halt"]
+    # MIXED-RUN LEGIBILITY (Issue 2.6). A run that MUTATED N bundles and halted on M must never
+    # be readable as "nothing happened". The exit code alone cannot carry that: `exit 1` is the
+    # same number whether the first bundle halted before touching anything or the tenth halted
+    # after nine were rewritten — and the second is the state an operator must not walk away
+    # from. So the counts are reported SEPARATELY and named.
+    mutated = [r for r in records if r.get("action") == "backfilled"]
+    reconciled = [r for r in records if r.get("reconciled_objective")]
     out = {"check": CHECK, "command": "backfill", "apply": bool(a.apply),
            "bundles_checked": len(records), "transformed": len(touched),
-           "halted": len(halted), "bundles": records,
+           "mutated": len(mutated), "halted": len(halted),
+           "reconciled_objectives": [
+               {"bundle": r["bundle"], **r["reconciled_objective"]} for r in reconciled],
+           "bundles": records,
            "verdict": "fail" if halted else "pass", "exit": 1 if halted else 0}
+    if mutated and halted:
+        out["mixed_run"] = True
+        out["mixed_run_note"] = (
+            f"PARTIAL: {len(mutated)} bundle(s) were REWRITTEN ON DISK and {len(halted)} halted. "
+            f"exit {out['exit']} does NOT mean 'nothing happened'. The record lists the per-path "
+            f"operations for the mutated bundles only; halted bundles were not touched and carry "
+            f"no operations."
+        )
+        out["mutated_bundles"] = [r["bundle"] for r in mutated]
+        out["halted_bundles"] = [r["bundle"] for r in halted]
+    else:
+        out["mixed_run"] = False
+
     if a.record:
         rp = Path(a.record) if Path(a.record).is_absolute() else tree / a.record
         rp.parent.mkdir(parents=True, exist_ok=True)
-        rp.write_text(json.dumps(
-            {"bundles": [r for r in records if "before" in r and "after" in r]},
-            indent=1), encoding="utf-8")
+        # THE RECORD IS VERSIONED (REQ-OKFH-013) and carries the PER-PATH OPERATIONS
+        # (REQ-OKFH-010) rather than a before/after verdict alone. `restore` refuses anything
+        # without `schema_version`, because the legacy shape reads as an empty operation list —
+        # a silent "reverse nothing" wearing a `pass`.
+        rp.write_text(json.dumps({
+            "schema_version": RECORD_SCHEMA_VERSION,
+            "check": CHECK,
+            "apply": bool(a.apply),
+            "mixed_run": out["mixed_run"],
+            "mutated": len(mutated),
+            "halted": len(halted),
+            "bundles": [
+                {"bundle": r["bundle"],
+                 "before": r.get("before"),
+                 "after": r.get("after"),
+                 "operations": r.get("operations", [])}
+                for r in records if "before" in r and "after" in r
+            ],
+        }, indent=1), encoding="utf-8")
         out["record"] = str(rp)
     print(json.dumps(out, indent=1))
     return out["exit"]
@@ -682,37 +1175,210 @@ def cmd_reindex(a) -> int:
     return 0 if res["verdict"] == "clean" else 1
 
 
+def _is_git_tree(tree: Path) -> bool:
+    """Is ``tree`` inside a git work tree? REFUSAL CONDITION 1 (REQ-OKFH-010 as amended)."""
+    r = subprocess.run(["git", "-C", str(tree), "rev-parse", "--is-inside-work-tree"],
+                       capture_output=True, text=True)
+    return r.returncode == 0 and r.stdout.strip() == "true"
+
+
+def _tracked_at_head(tree: Path, rel: str) -> bool:
+    """Is ``rel`` present in ``HEAD``? REFUSAL CONDITION 2's predicate.
+
+    `HEAD`, not the index: `restore`'s whole mechanism is `git checkout`, which restores
+    COMMITTED bytes. A path staged but never committed is not recoverable by it.
+    """
+    r = subprocess.run(["git", "-C", str(tree), "cat-file", "-e", f"HEAD:{rel}"],
+                       capture_output=True)
+    return r.returncode == 0
+
+
+def _bundle_dirty(tree: Path, rel_bundle: str, ops: list[dict]) -> list[str]:
+    """Paths in ``rel_bundle`` that differ from the POST-BACKFILL state. REFUSAL CONDITION 3.
+
+    The comparison is against the state `backfill` LEFT, which is exactly what the record's
+    `sha256_after` records. Anything else is an edit made since — and `restore`'s unlink pass
+    would destroy it with no warning, which is the third measured loss path.
+
+    Untracked files that the record does not mention are also reported: the shipped code
+    unlinked every untracked file in the bundle, so a file nobody recorded is precisely the
+    thing at risk.
+    """
+    expected = {op["path"]: op.get("sha256_after") for op in ops
+                if op["kind"] in ("created", "modified")}
+    deleted = {op["path"] for op in ops if op["kind"] == "deleted"}
+    dirty: list[str] = []
+    bundle = tree / rel_bundle
+    seen = set()
+    for p in sorted(bundle.rglob("*")):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(tree).as_posix()
+        seen.add(rel)
+        if rel in expected:
+            if _sha256(p) != expected[rel]:
+                dirty.append(rel)
+        elif rel in deleted:
+            dirty.append(rel)          # backfill deleted it; it is back — an edit since.
+    for rel in expected:
+        if rel not in seen:
+            dirty.append(rel)          # backfill created/modified it; it is gone — an edit since.
+    return sorted(set(dirty))
+
+
+def _legacy_derive_ops(tree: Path, rel_bundle: str) -> list[dict]:
+    """THE PRE-RECORD-DRIVEN DERIVATION, retained ONLY as Issue 3.8's mutation switch.
+
+    This is the shipped behaviour EXP-001 measured and `REQ-OKFH-010` forbids: it re-derives the
+    operation list from the filesystem at restore time, so it cannot distinguish a file the
+    transform CREATED from one that merely happens to be untracked now. It is unreachable except
+    via ``OKFH_FORCE_LEGACY_DERIVATION``, and it exists so `check-crash-test-detects-lag.sh
+    --req REQ-OKFH-010` can produce the defect by FLIPPING A SWITCH rather than by reconstructing
+    a deleted function — a control that must rebuild its own mutant is a control nobody re-runs.
+
+    DO NOT "clean this up". Deleting it does not remove a code path an operator can reach; it
+    removes the only reproducible mutant for SC13b, turning that criterion back into an
+    assertion nothing tests.
+    """
+    ops: list[dict] = []
+    b = tree / rel_bundle
+    for path in sorted(p for p in b.rglob("*") if p.is_file()):
+        rel = path.relative_to(tree).as_posix()
+        tracked = subprocess.run(["git", "-C", str(tree), "ls-files", "--error-unmatch", rel],
+                                 capture_output=True).returncode == 0
+        ops.append({"path": rel, "kind": "modified" if tracked else "created",
+                    "sha256_before": None, "sha256_after": None})
+    return ops
+
+
 def cmd_restore(a) -> int:
     tree = Path.cwd()
     rp = Path(a.record) if Path(a.record).is_absolute() else tree / a.record
+
+    def refuse(reason: str, **extra) -> int:
+        print(json.dumps({"check": CHECK, "command": "restore", "verdict": "refused",
+                          "exit": 1, "reason": reason, **extra}, indent=1))
+        return 1
+
     try:
         data = json.loads(rp.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         print(json.dumps({"check": CHECK, "command": "restore", "verdict": "inconclusive",
                           "exit": 2, "reason": f"cannot read the record: {exc}"}, indent=1))
         return 2
-    ops = []
-    for entry in data.get("bundles", []):
-        b = tree / entry["bundle"]
-        for path in sorted(p for p in b.rglob("*") if p.is_file()):
-            rel = path.relative_to(tree).as_posix()
-            # PER-PATH OPERATION KIND (REQ-OKFH-010). `git checkout` ALONE CANNOT UNDO THIS
-            # TRANSFORM: a modified or deleted TRACKED file is restored by checkout, but a
-            # CREATED index.md/log.md is absent from HEAD and must be UNLINKED. A restore that
-            # only checks out leaves every created file behind and reports success.
-            tracked = subprocess.run(["git", "-C", str(tree), "ls-files", "--error-unmatch",
-                                      rel], capture_output=True).returncode == 0
-            ops.append({"path": rel, "kind": "git-checkout" if tracked else "unlink"})
-        ops.append({"path": entry["bundle"], "kind": "git-checkout-tree"})
+
+    # ---- REQ-OKFH-013: refuse an unversioned or unrecognised record ----------------------
+    # Read BEFORE anything else, because every guard below is stated in terms of what the
+    # record knows — and a legacy record knows nothing. Tolerating it would yield an EMPTY
+    # operation list, which a record-driven restore executes as "reverse nothing" and reports
+    # as `pass`: a silent no-op wearing a success.
+    version = data.get("schema_version")
+    if version is None:
+        return refuse(
+            "the record carries no `schema_version` — it is a LEGACY (pre-REQ-OKFH-013) record "
+            "written by a `backfill` that stored a before/after audit verdict and NO operations. "
+            "Reading it under the record-driven contract yields an empty operation list, which "
+            "would be executed as 'reverse nothing' and reported as success.",
+            record_schema_version=None, expected=RECORD_SCHEMA_VERSION,
+            remediation="This record cannot drive a reversal. For a committed corpus the "
+                        "reversal route is `git revert` of the backfill commit; for an "
+                        "uncommitted one, re-run `backfill --apply --record <path>` is NOT a "
+                        "reversal and must not be used as one.")
+    if version != RECORD_SCHEMA_VERSION:
+        return refuse(
+            f"unrecognised record `schema_version` {version!r} (this build understands "
+            f"{RECORD_SCHEMA_VERSION}). Refusing rather than guessing which fields mean what.",
+            record_schema_version=version, expected=RECORD_SCHEMA_VERSION,
+            remediation="Use the `okf_hygiene.py` build that wrote this record.")
+
+    entries = data.get("bundles", [])
+
+    # ---- Issue 2.4: the PER-BUNDLE FILTER ------------------------------------------------
+    # A batch record that can only be replayed IN FULL makes the safe response to one bad
+    # bundle indistinguishable from the destructive one.
+    if getattr(a, "bundle", None):
+        wanted = set(a.bundle)
+        known = {e["bundle"] for e in entries}
+        unknown = sorted(wanted - known)
+        if unknown:
+            return refuse(
+                f"--bundle named {unknown} which the record does not contain — refusing rather "
+                f"than silently reversing a different set.",
+                record_bundles=sorted(known))
+        entries = [e for e in entries if e["bundle"] in wanted]
+    if not entries:
+        print(json.dumps({"check": CHECK, "command": "restore", "verdict": "inconclusive",
+                          "exit": 2,
+                          "reason": "the record contains no reversible bundle. This is NOT a "
+                                    "clean reversal — nothing was examined."}, indent=1))
+        return 2
+
+    # ---- REFUSAL 1 (REQ-OKFH-010): a non-git tree ----------------------------------------
+    # NOT overridable. `restore`'s mechanism is `git checkout` plus an unlink pass; outside a
+    # work tree the checkout is a no-op and the unlink pass is all that runs — measured, that
+    # DELETES THE ENTIRE BUNDLE while reporting `pass` and exiting 0.
+    if not _is_git_tree(tree):
+        return refuse(
+            f"{tree} is not a git work tree. `restore` reverses tracked content by `git "
+            f"checkout`; without it only the unlink pass would run, which DELETES THE BUNDLE. "
+            f"Refusing — this condition is not overridable.",
+            remediation="Run `restore` from inside the repository the backfill ran in.")
+
+    plan: list[dict] = []
+    for entry in entries:
+        rel_bundle = entry["bundle"]
+        ops = entry.get("operations") or []
+        if os.environ.get(LEGACY_DERIVATION_ENV):
+            # Issue 3.8's mutation switch — see `_legacy_derive_ops`.
+            ops = _legacy_derive_ops(tree, rel_bundle)
+
+        # ---- REFUSAL 2 (REQ-OKFH-010): the bundle is untracked at HEAD -------------------
+        # NOT overridable. This is the realistic case for an uncommitted plan, and it was
+        # measured as TOTAL LOSS: nothing to check out, everything unlinked.
+        recoverable = [op["path"] for op in ops
+                       if op["kind"] in ("modified", "deleted") and _tracked_at_head(tree, op["path"])]
+        if not recoverable:
+            return refuse(
+                f"no path in {rel_bundle!r} is present at HEAD, so `git checkout` can restore "
+                f"nothing and only the unlink pass would run — TOTAL LOSS. This is the "
+                f"uncommitted-bundle case. Refusing; not overridable.",
+                bundle=rel_bundle,
+                remediation="Commit the bundle before backfilling, or reverse by other means.")
+
+        # ---- REFUSAL 3 (REQ-OKFH-010): dirty relative to the POST-BACKFILL state ---------
+        # Overridable by explicit --force, because a deliberate re-reversal over known local
+        # edits is legitimate if rare — but the operator must say so. Measured consequence of
+        # NOT guarding it: every untracked file in the bundle unlinked, no warning.
+        dirty = _bundle_dirty(tree, rel_bundle, ops)
+        if dirty and not a.force:
+            return refuse(
+                f"{rel_bundle!r} has {len(dirty)} path(s) that differ from the state `backfill` "
+                f"left. Reversing would discard those edits without warning. Refusing.",
+                bundle=rel_bundle, dirty=dirty[:50],
+                remediation="Inspect the listed paths. Re-run with `--force` only if discarding "
+                            "them is intended.")
+
+        plan.append({"bundle": rel_bundle, "operations": ops, "dirty": dirty})
+
     if a.apply:
-        for op in ops:
-            if op["kind"] == "unlink":
-                (tree / op["path"]).unlink(missing_ok=True)
-        subprocess.run(["git", "-C", str(tree), "checkout", "--"]
-                       + [e["bundle"] for e in data.get("bundles", [])],
-                       capture_output=True)
+        for item in plan:
+            # A `created` path is ABSENT FROM HEAD and must be UNLINKED — `git checkout` alone
+            # would leave every created file behind and report success.
+            for op in item["operations"]:
+                if op["kind"] == "created":
+                    (tree / op["path"]).unlink(missing_ok=True)
+            paths = [op["path"] for op in item["operations"]
+                     if op["kind"] in ("modified", "deleted")]
+            if paths:
+                subprocess.run(["git", "-C", str(tree), "checkout", "--", *paths],
+                               capture_output=True)
+
     print(json.dumps({"check": CHECK, "command": "restore", "apply": bool(a.apply),
-                      "operations": ops, "verdict": "pass", "exit": 0}, indent=1))
+                      "record_schema_version": version,
+                      "bundles": [i["bundle"] for i in plan],
+                      "operations": [op for i in plan for op in i["operations"]],
+                      "forced": bool(a.force),
+                      "verdict": "pass", "exit": 0}, indent=1))
     return 0
 
 
@@ -743,6 +1409,10 @@ def main() -> int:
     p.add_argument("--record", default=None, help="write the per-bundle audit record here")
     p.add_argument("--skill", default=None,
                    help="OVERRIDE the per-bundle member detection (rarely correct)")
+    p.add_argument("--reconcile-objective", action="store_true",
+                   help="adopt plan.md's H1 as authoritative for a divergent legacy objective "
+                        "line instead of halting (REQ-OKFH-012). OPT-IN: the halt is the "
+                        "default, and each rewrite is reported per bundle.")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_backfill)
 
@@ -752,8 +1422,22 @@ def main() -> int:
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_reindex)
 
+    p = sub.add_parser("recover", help="finish or roll back an interrupted backfill (REQ-OKFH-008)")
+    p.add_argument("--bundle", action="append", default=None,
+                   help="recover ONLY these bundles (repeatable)")
+    p.add_argument("--apply", action="store_true", help="perform the recovery (dry-run default)")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_recover)
+
     p = sub.add_parser("restore", help="record-driven reversal, per-path operation kind")
     p.add_argument("--record", required=True)
+    p.add_argument("--bundle", action="append", default=None,
+                   help="reverse ONLY these bundles from the record (repeatable). Without it "
+                        "the whole batch is reversed (REQ-OKFH-010 per-bundle filter).")
+    p.add_argument("--force", action="store_true",
+                   help="override ONLY the dirty-bundle refusal. The non-git-tree and "
+                        "untracked-at-HEAD refusals are NOT overridable — there is no state in "
+                        "which deleting an unrecoverable bundle is the operator's intent.")
     p.add_argument("--apply", action="store_true")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_restore)

@@ -138,6 +138,9 @@ approved: yes
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
 | `mock-fidelity` | `uv run scripts/checks/check_mock_fidelity.py` |  |  |
 | `gate-plan063-amendment` | `uv run scripts/check_amendment_log.py --plan plan-063-james-dixson-3f74c1` |  |  |
+| `gate-plan064-amendment` | `uv run scripts/check_amendment_log.py --plan plan-064-james-dixson-a0b7fa` |  |  |
+| `gate-plan064-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-064-james-dixson-a0b7fa` |  |  |
+| `gate-plan064-dualhome` | `uv run scripts/checks/check-dual-home-amendment.py --plan plan-064-james-dixson-a0b7fa` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -214,6 +217,9 @@ approved: yes
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
 | `mock-fidelity` | `uv run scripts/checks/check_mock_fidelity.py` |  |  |
 | `gate-plan063-amendment` | `uv run scripts/check_amendment_log.py --plan plan-063-james-dixson-3f74c1` |  |  |
+| `gate-plan064-amendment` | `uv run scripts/check_amendment_log.py --plan plan-064-james-dixson-a0b7fa` |  |  |
+| `gate-plan064-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-064-james-dixson-a0b7fa` |  |  |
+| `gate-plan064-dualhome` | `uv run scripts/checks/check-dual-home-amendment.py --plan plan-064-james-dixson-a0b7fa` |  |  |
 | `pour-fidelity` | `uv run _shared/test_pour_fidelity.py` |  |  |
 | `uv-yf-review-count` | `uv run skills/yf-plan/scripts/test_review_count.py` |  |  |
 | `uv-yf-status-gate` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_update_status_gate.py -q` |  |  |
@@ -257,15 +263,21 @@ approved: yes
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome` |
+| `skills/yf-okf/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
+| `skills/yf-okf-hygiene/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |
 | `docs/plans/plan-063-james-dixson-3f74c1/**` | `okf-index-drift`, `gate-plan063-amendment` |
+| `docs/plans/plan-064-james-dixson-a0b7fa/**` | `okf-index-drift`, `gate-plan064-amendment`, `gate-plan064-reqcoverage`, `gate-plan064-dualhome` |
 | `scripts/checks/check_mock_fidelity.py` | `mock-fidelity` |
+| `scripts/checks/check-dual-home-amendment.py` | `gate-plan064-dualhome` |
 | `docs/research/**` | `okf-index-drift` |
 | `Incubator/*/plans/**` | `okf-index-drift` |
 | `Incubator/*/research/**` | `okf-index-drift` |
 | `scripts/checks/check_okf_index_drift.py` | `okf-index-drift` |
 | `skills/yf-plan/OKF-EXTENSION.md` | `okf-index-drift`, `uv-okf` |
+| `skills/yf-research/OKF-EXTENSION.md` | `okf-index-drift`, `uv-okf` |
+| `skills/yf-incubator/OKF-EXTENSION.md` | `okf-index-drift`, `uv-okf` |
 | `skills/yf-plan/scripts/test_recheck_criteria.py` | `uv-recheck-criteria` |
 | `skills/yf-plan/scripts/test_index_members.py` | `uv-index-members` |
 | `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum`, `uv-yf-land-manifest`, `uv-yf-lander-contract`, `uv-yf-land-apply`, `mock-fidelity` |

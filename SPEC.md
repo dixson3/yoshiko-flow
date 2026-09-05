@@ -956,6 +956,79 @@
 >   `#331` (`land` is incompatible with `execute.worktree: false`) is depended upon and **not**
 >   closed: this is the third consecutive plan to hand-cut its own execute branch.
 >   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendment.
+> - **plan-064 (2026-09-05, #316-partial / #294 / #298-avoided):** make the `yf-okf-hygiene`
+>   backfill/restore engine trustworthy enough to run the #316 corpus transform — the transform
+>   itself is **deliberately deferred to a follow-on**, because EXP-001 measured that it cannot run
+>   (8/8 target bundles halt) and that its advertised rollback destroys data on three paths. A plan
+>   claiming `legacy: 0` while the engine halts 8/8 would be asserting a green it never measured.
+>
+>   **Two ids amended, three added, and the split between those two sets is the point.** Amended
+>   **`REQ-OKF-012`**(a) — rule D's recursive member walk shall skip version-control-**ignored**
+>   paths at **every level**, in **both** the count arm and the enumerate arm, with **producer and
+>   checker bound to one predicate**, failing **open** outside a git work tree behind a hardcoded
+>   residue floor. Amended **`REQ-OKF-CHK-004`** on two axes it was measured wrong on rather than
+>   merely imprecise: its predicate ("untracked" → **"ignored"**) and its scope ("the driver" → **the
+>   engine walk it delegates to**). Both ids are **dual-homed**; the normative text lands in
+>   `skills/yf-okf/SPEC.md` and this entry is the root record — `check_amendment_log.py` reads root
+>   `SPEC.md` only, so root alone satisfies the gate while leaving the per-skill copy stale, and
+>   Issue 0.8 asserts the per-skill copy received the same amendment.
+>
+>   **Why "ignored" and not "untracked" is load-bearing.** An untracked-but-not-ignored member — a
+>   `findings/exp-004.md` authored seconds ago — is a **real member**. The FAST tier fires **on
+>   edit**, which is the one moment a newly authored member is untracked by definition, so a
+>   tracked-ness filter would make the check structurally unable to see the drift it exists to catch.
+>   The `ghost` inversion is what makes the ordering matter: residue present at backfill time is
+>   enumerated into a committed `index.md`, and deleting it later flips `missing` to **`ghost`** —
+>   red on every clone, including a clean one, until eight `index.md` files are hand-edited.
+>
+>   **Added `REQ-OKFH-011`** (a `would-backfill` dry-run verdict shall be **predictive of apply**:
+>   every halt condition apply evaluates, the dry run evaluates — reached by staging **without**
+>   swapping, never by a second copy of each guard's logic; measured, `phase-log-loss` is computed
+>   inside `if apply:`, so `plan-030` clears the dry run and halts under `--apply`).
+>   **Added `REQ-OKFH-012`** (the **opt-in** `--reconcile-objective` mode, `plan.md`'s `H1`
+>   authoritative, each rewrite reported per bundle, and the halt retained as the **default** — a
+>   guard whose remedy is on by default is a guard that has been removed).
+>   **Added `REQ-OKFH-013`** (the `--record` artifact carries a **schema version** and `restore`
+>   **refuses** an unversioned or unrecognised record; without it the legacy record shape yields an
+>   **empty** operation list, which a record-driven `restore` executes as *"reverse nothing"* and
+>   reports as `pass`).
+>
+>   **`REQ-OKFH-008` and `REQ-OKFH-010` were amended and deliberately minted NO new ids** — this is
+>   the plan's own answer to `#298`. An earlier draft would have filed new ids for `restore`'s
+>   record-drivenness and the journal's determinism, which is exactly the ambiguous-id defect `#298`
+>   tracks: **both requirements already mandate those behaviours**, so what EXP-001 found is a
+>   **conformance defect in the code**, not a gap in the SPEC. `REQ-OKFH-008` now states the journal
+>   invariant explicitly — the **recorded phase is always `>=` the physical phase**, every phase
+>   written and fsynced *before* the operation it names — restates the normative five-state table
+>   under that over-approximation reading (`S1` becomes **recovery-time-only**, never written), and
+>   states the obligation the reading creates: **every `recover()` branch shall tolerate a physical
+>   phase one step BEHIND its recorded phase**. That sentence is load-bearing rather than
+>   explanatory: without it the phase-ordering fix *introduces* a total-loss window at `S3` while
+>   closing the one at `S1`, because the `S3`/`S4` branch assumes the swap completed. `REQ-OKFH-010`
+>   now requires `backfill` to **write** the per-path operation list it already knows at transform
+>   time, and `restore` to **refuse** on all three measured loss paths (non-git tree, untracked at
+>   `HEAD`, dirty — the last overridable by explicit `--force`, the first two never) and to accept a
+>   **per-bundle filter**. The `#298`-avoidance is the recorded rationale, not a side effect.
+>
+>   **Both requirements' `§5` traceability rows were corrected, because both were verified by tests
+>   that pass against non-conforming code** — measured, `::crash_recovery_all_states` and
+>   `::restore_round_trip` both exit **0** today. The first **hand-constructs each journal state and
+>   never invokes `backfill`'s swap**, so it mocks the call site it exists to observe and is
+>   insensitive to the phase ordering *by construction*; patching its assertions would leave the
+>   false green intact under a new name, which is why the plan **replaces** rather than repairs it.
+>   This is `#263`'s vacuous-check class and `plan-063`'s "every instrument was calibrated against
+>   the call site instead of the callee" finding, recurring on a third engine. Pinning the new
+>   criteria to **new** test names prevents *inheriting* a false green but never *detects* one, so
+>   the plan additionally adds a **negative control** (`check-crash-test-detects-lag.sh`, with a
+>   `--req` arm covering both) that reverts each fix in a sandbox and asserts the test **FAILS**.
+>
+>   **Declared `no-req-required` set: {1.7, 5.1, 5.2, 5.3, 5.4, 5.5}** — a `.gitignore` entry, two
+>   `CHANGE-VALIDATION.md` trigger-scope rows, and three upstream comment/issue/bead filings. None
+>   amends a behavioural requirement of this repository.
+>
+>   **`#316` is re-dispositioned from `include` to `partial` on measured evidence**, and `#298` is
+>   excluded on the reasoning above. Implementation lands in Epics 1-5; this entry records the
+>   SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 

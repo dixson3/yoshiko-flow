@@ -66,4 +66,38 @@ if [ "${RC_FLOOR}" = "0" ]; then
   ck_fail "--min-roots 100000 exited 0 — the floor does not bite, so 'clean' and 'not read' are the same observation"
 fi
 
-ck_done "synthetic-clean-corpus=${RC_CORPUS}, nonexistent-root=${RC_BADROOT}, impossible-floor=${RC_FLOOR} — the three are distinguishable"
+# --- ARM 4: GITIGNORE AWARENESS, BOTH SIDES (REQ-OKF-CHK-004 as corrected, #294) -----
+# The contract check had NO gitignore arm until plan-064 Issue 1.6, which is why #294 could
+# sit open against a requirement that already mandated the behaviour: nothing here looked.
+#
+# THE ARM IS TWO-SIDED, and that is the whole of its value. A one-sided arm ("residue does
+# not cause drift") is satisfied by a driver that ignores every UNTRACKED path — which is the
+# fix #294 proposed, and which would blind the FAST tier at exactly the moment it fires (on
+# edit, when a newly authored member is untracked BY DEFINITION). So:
+#
+#   4a  IGNORED residue dropped into a conformant bundle must NOT turn the corpus red.
+#   4b  An UNTRACKED-but-NOT-IGNORED member must STILL turn it red — it is a real member,
+#       missing from the index, and that is a genuine drift finding.
+#
+# Passing 4a while failing 4b is precisely the wrong fix passing a weak test.
+printf '__pycache__/\n*.pyc\n' > "${FIX}/.gitignore"
+mkdir -p "${FIX}/corpus/bundle-a/__pycache__"
+: > "${FIX}/corpus/bundle-a/__pycache__/okf.cpython-314.pyc"
+: > "${FIX}/corpus/bundle-a/stale.pyc"
+
+RC_IGNORED="$( (cd "${FIX}" && uv run "${DRIVER}" --root 'corpus/*' --min-roots 1 >/dev/null 2>&1); echo $? )"
+if [ "${RC_IGNORED}" != "0" ]; then
+  ck_fail "arm 4a: IGNORED build residue turned the corpus red (exit ${RC_IGNORED}) — the walk is not gitignore-aware (#294)"
+fi
+
+# 4b — the other side. A real, untracked, NOT-ignored member is absent from the index, so the
+# driver MUST report drift. NON-VACUITY for 4a: without this, 4a is satisfied by a driver that
+# suppresses everything untracked.
+: > "${FIX}/corpus/bundle-a/scratch-notes.md"
+RC_UNTRACKED="$( (cd "${FIX}" && uv run "${DRIVER}" --root 'corpus/*' --min-roots 1 >/dev/null 2>&1); echo $? )"
+if [ "${RC_UNTRACKED}" = "0" ]; then
+  ck_fail "arm 4b: an UNTRACKED-but-NOT-IGNORED member did not register as drift — the predicate is tracked-ness, not ignored-ness, which blinds the on-edit FAST tier"
+fi
+rm -f "${FIX}/corpus/bundle-a/scratch-notes.md"
+
+ck_done "synthetic-clean-corpus=${RC_CORPUS}, nonexistent-root=${RC_BADROOT}, impossible-floor=${RC_FLOOR}, ignored-residue=${RC_IGNORED}, untracked-member=${RC_UNTRACKED} — all distinguishable, and arm 4 is two-sided"

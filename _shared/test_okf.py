@@ -15,6 +15,7 @@ simulated installed address space (script + bundled OKF-EXTENSION.md only, no
 sibling skills present) and asserts BASELINE ∪ YF-EXTENSIONS ∪ per-skill compose.
 """
 import importlib.util
+import pathlib
 import sys
 from pathlib import Path
 
@@ -1519,3 +1520,232 @@ def test_index_bullet_is_the_single_flat_format(tmp_path):
     for ln in okf.render_index(b).splitlines():
         if ln.startswith("- ") or ln.startswith("* "):
             assert okf._INDEX_ENTRY_RE.match(ln), ln
+
+
+# ---------------------------------------------------------------------------------------------
+# REQ-OKF-012(a) as amended by plan-064 / REQ-OKF-CHK-004 as corrected — VCS-IGNORE AWARENESS.
+#
+# THE ARMS ARE TWO-SIDED ON PURPOSE. A one-sided test ("residue is absent") is satisfied by an
+# implementation that drops every UNTRACKED path — which is the fix #294 actually proposed, and
+# which would make the on-edit FAST tier structurally unable to see the drift it exists to catch,
+# because a newly authored member is untracked by definition at exactly that moment. So the
+# keeps-untracked arm is not a nicety; it is the arm that distinguishes the correct predicate
+# from the plausible wrong one.
+# ---------------------------------------------------------------------------------------------
+
+def _git_bundle(tmp_path, *, gitignore="__pycache__/\n*.pyc\n", commit=True):
+    """A bundle inside a real git work tree, carrying residue AND an untracked non-ignored file."""
+    import subprocess
+
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    (root / ".gitignore").write_text(gitignore)
+
+    b = root / "plan-x"
+    (b / "findings" / "__pycache__").mkdir(parents=True)
+    (b / "index.md").write_text("# plan-x\n")
+    (b / "log.md").write_text("# log\n")
+    (b / "plan.md").write_text("# Plan: x\n")
+    (b / "findings" / "exp-001.md").write_text("# exp\n")
+    (b / "findings" / "__pycache__" / "okf.cpython-314.pyc").write_bytes(b"\x00residue")
+    (b / "stale.pyc").write_bytes(b"\x00residue")
+    if commit:
+        subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
+            cwd=root, check=True,
+        )
+    # AFTER the commit, so it is genuinely untracked-and-not-ignored — the state a member has
+    # the instant an author writes it, which is when the FAST tier fires.
+    (b / "scratch-notes.md").write_text("# untracked, NOT ignored\n")
+    return b
+
+
+def test_vcs_ignored_drops_residue(tmp_path):
+    """REQ-OKF-012(a) — ignored residue is absent from BOTH arms of the walk (#294)."""
+    b = _git_bundle(tmp_path)
+
+    # NON-VACUITY: the oracle must actually see the residue, or the assertion below is empty.
+    ignored = okf._vcs_ignored(b)
+    assert "findings/__pycache__/okf.cpython-314.pyc" in ignored, \
+        f"fixture did not produce ignored residue; got {sorted(ignored)}"
+
+    members = okf._listing_members(b)
+    assert not any("__pycache__" in m for m in members), members
+    assert not any(m.endswith(".pyc") for m in members), members
+
+    # THE COUNT ARM AGREES WITH THE ENUMERATE ARM. `findings/` holds one real file and one
+    # residue file; if the count arm still saw the residue the two arms would disagree about
+    # what a member is — the precise defect the shared predicate exists to prevent.
+    assert okf._recursive_file_count(b / "findings", [], "findings/", ignored) == 1
+
+
+def test_vcs_ignored_keeps_untracked(tmp_path):
+    """REQ-OKF-CHK-004 as corrected — an UNTRACKED but NOT IGNORED member is still enumerated.
+
+    This is the arm that fails against a `git ls-files`/tracked-ness fix. It is the reason the
+    SPEC wording was corrected from "untracked" to "ignored" rather than merely clarified.
+    """
+    b = _git_bundle(tmp_path)
+
+    # NON-VACUITY: the file really is untracked, and really is NOT ignored.
+    import subprocess
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "plan-x/scratch-notes.md"],
+        cwd=b.parent, capture_output=True,
+    )
+    assert tracked.returncode != 0, "fixture file is tracked; the arm would be vacuous"
+    assert "scratch-notes.md" not in okf._vcs_ignored(b), "fixture file is ignored; arm vacuous"
+
+    assert "scratch-notes.md" in okf._listing_members(b)
+
+
+def test_vcs_ignored_floor(tmp_path):
+    """Issue 1.3 — the hardcoded floor holds OUTSIDE a git work tree (the deliberate fail-open).
+
+    Outside a tree there is no ignore oracle, so `_vcs_ignored` fails open to an empty set. The
+    floor is what keeps "fail open" from meaning "enumerate everything", and it is the case a
+    bundle copied out of its repository actually lands in — the portability case OKF exists for.
+    """
+    b = tmp_path / "loose" / "plan-x"
+    (b / "findings" / "__pycache__").mkdir(parents=True)
+    (b / "index.md").write_text("# plan-x\n")
+    (b / "plan.md").write_text("# Plan: x\n")
+    (b / "findings" / "exp-001.md").write_text("# exp\n")
+    (b / "findings" / "__pycache__" / "okf.cpython-314.pyc").write_bytes(b"\x00")
+    (b / "stale.pyc").write_bytes(b"\x00")
+
+    # NON-VACUITY: this really is the fail-open path — no oracle is available here.
+    assert okf._vcs_ignored(b) == frozenset(), "fixture is inside a work tree; arm would be vacuous"
+
+    members = okf._listing_members(b)
+    assert not any("__pycache__" in m for m in members), members
+    assert not any(m.endswith(".pyc") for m in members), members
+    # ...and the floor is a FLOOR, not a blanket: the real member survives it.
+    assert "findings/exp-001.md" in members, members
+
+
+def test_vcs_ignored_force_added_pyc(tmp_path):
+    """A FORCE-ADDED `.pyc` is tracked — and `-o` makes a tracked member structurally undroppable.
+
+    The floor and the ignore oracle disagree here on purpose, and the test records which wins.
+    `git ls-files -o -i` cannot return a tracked path, so the ORACLE leaves it in; the hardcoded
+    FLOOR still removes it. That is the intended precedence: the floor is a residue rule, not a
+    version-control query, and a `.pyc` deliberately committed is still build residue in a
+    listing. Recording it as an assertion means a later change to that precedence is a test
+    failure rather than a silent behaviour change.
+    """
+    import subprocess
+
+    b = _git_bundle(tmp_path)
+    subprocess.run(["git", "add", "-f", "plan-x/stale.pyc"], cwd=b.parent, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "force-add"],
+        cwd=b.parent, check=True,
+    )
+
+    # NON-VACUITY: the oracle genuinely does NOT list it, because it is now tracked.
+    assert "stale.pyc" not in okf._vcs_ignored(b), "fixture .pyc is not tracked; arm would be vacuous"
+
+    # The floor removes it anyway.
+    assert "stale.pyc" not in okf._listing_members(b)
+
+
+def _live_bundles():
+    """Every live bundle root in THIS repository, by the four roots the drift check declares."""
+    import subprocess
+
+    try:
+        root = pathlib.Path(subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip())
+    except Exception:
+        return None
+    out = []
+    for pat in ("docs/plans/*", "docs/research/*", "Incubator/*/plans/*", "Incubator/*/research/*"):
+        out.extend(p for p in sorted(root.glob(pat)) if p.is_dir())
+    return out
+
+
+def test_vcs_ignored_noop(tmp_path):
+    """Issue 1.8 / R3 — the #294 fix is a NO-OP on the clean corpus, measured bundle by bundle.
+
+    THE COMPARISON IS EXACT, NOT AN APPROXIMATION. The change added exactly two predicates to the
+    walk — `_vcs_ignored` membership and `_residue_floor_hit`. Neutralising both reproduces the
+    PRE-CHANGE walk byte for byte, so this test compares the real implementation against its own
+    former self rather than against a reimplementation that could drift from either.
+
+    Why it matters: this walk feeds a check that runs in the FAST tier on every edit. A fix that
+    silently changed what 68 live bundles enumerate would rewrite the meaning of every committed
+    `index.md` — and the `ghost` inversion makes that damage PERMANENT once an `index.md` is
+    committed with residue in it. "No-op on the clean corpus" is the property that makes the fix
+    safe to land ahead of any transform.
+    """
+    bundles = _live_bundles()
+    if bundles is None:
+        pytest.skip("not inside a git work tree — the live corpus is not resolvable")
+
+    # A FLOOR, so "no drift" is distinguishable from "nothing was read" (REQ-CLI-029(b)).
+    assert len(bundles) >= 30, f"only {len(bundles)} bundle(s) enumerated — the corpus was not read"
+
+    real_ignored = okf._vcs_ignored
+    real_floor = okf._residue_floor_hit
+    changed: list[tuple[str, list[str], list[str]]] = []
+    try:
+        for b in bundles:
+            after = okf._listing_members(b)
+            # Neutralise BOTH added predicates → the pre-change walk, exactly.
+            okf._vcs_ignored = lambda _b: frozenset()
+            okf._residue_floor_hit = lambda _rel: False
+            try:
+                before = okf._listing_members(b)
+            finally:
+                okf._vcs_ignored = real_ignored
+                okf._residue_floor_hit = real_floor
+            if before != after:
+                changed.append((str(b), before, after))
+    finally:
+        okf._vcs_ignored = real_ignored
+        okf._residue_floor_hit = real_floor
+
+    assert not changed, (
+        f"the #294 fix is NOT a no-op on {len(changed)} of {len(bundles)} live bundle(s): "
+        + "; ".join(
+            f"{name}: removed {sorted(set(bef) - set(aft))}, added {sorted(set(aft) - set(bef))}"
+            for name, bef, aft in changed[:5]
+        )
+    )
+
+
+def test_vcs_ignored_cost_recorded(tmp_path):
+    """Issue 1.8 / R3 — record the FAST-tier cost the fix adds, and bound it.
+
+    R3 is that `_vcs_ignored` forks `git` once per bundle in a check that runs on every edit.
+    The bound is deliberately LOOSE (a per-bundle mean, generously ceilinged) because a tight
+    timing assertion is a flaky test, and a flaky gate gets disabled — which would cost more than
+    the risk it guards. What this arm buys is that a change turning one fork per BUNDLE into one
+    fork per DIRECTORY — the regression that would actually hurt — fails here loudly.
+    """
+    import time
+
+    bundles = _live_bundles()
+    if bundles is None:
+        pytest.skip("not inside a git work tree — the live corpus is not resolvable")
+    assert len(bundles) >= 30, f"only {len(bundles)} bundle(s) enumerated — the corpus was not read"
+
+    t0 = time.perf_counter()
+    for b in bundles:
+        okf._vcs_ignored(b)
+    elapsed = time.perf_counter() - t0
+    per_bundle_ms = (elapsed / len(bundles)) * 1000.0
+
+    print(
+        f"\n[Issue 1.8] _vcs_ignored cost: {elapsed*1000:.0f} ms over {len(bundles)} bundles "
+        f"= {per_bundle_ms:.1f} ms/bundle (scoping estimate: ~18 ms/bundle, ~1.25 s over 68)"
+    )
+    assert per_bundle_ms < 250, (
+        f"{per_bundle_ms:.1f} ms/bundle is far above the ~18 ms measured at scoping — this is the "
+        "shape of one fork per DIRECTORY rather than one per bundle (R3's regression)"
+    )

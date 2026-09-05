@@ -30,6 +30,13 @@ the renamed index that `reindex --write` cannot repair. The correct transform is
 
 ## 2. Requirements (`REQ-OKFH-NNN`)
 
+> **Identifier allocation (plan-064 Issue 0.8).** `REQ-OKFH-011`, `REQ-OKFH-012` and `REQ-OKFH-013`
+> were allocated by plan-064 Issues 0.5/0.6/0.7 from the block-local next-free set, each measured
+> collision-free against this file and repo-wide at allocation time. They are **new behaviours**, not
+> restatements: the amendments plan-064 makes to `REQ-OKFH-008` and `REQ-OKFH-010` record
+> **conformance defects against existing clauses** and deliberately mint **no** ids, because a
+> duplicate id for a behaviour an existing requirement already mandates is the ambiguity #298 tracks.
+>
 > **Identifier allocation.** `REQ-OKFH-001`..`REQ-OKFH-010` were allocated by plan-057 Issue 0.2 and
 > measured collision-free repo-wide at allocation time (2026-08-29: zero occurrences outside the
 > commissioning plan's own `plan.md`). The block is contiguous and this file is its only home.
@@ -133,21 +140,60 @@ the renamed index that `reindex --write` cannot repair. The correct transform is
   presence is not total over the reachable states and reads *"staged, crashed before rename 1"* as
   *"done"*.
 
+  **THE JOURNAL INVARIANT: the RECORDED phase shall always be `>=` the PHYSICAL phase** *(amended
+  plan-064 Issue 0.4)*. Every phase shall be written and fsynced **before** the operation it names,
+  never after. The recorded phase is therefore an **upper bound** — an over-approximation — and
+  recovery reasons from it safely because the only error it can make is to believe *more* has
+  happened than has. The converse ordering is unrecoverable: a phase written *after* its operation
+  lets a crash land in a window where the physical state is **ahead** of the record, and recovery
+  then rolls back work it cannot see.
+
+  **CONFORMANCE DEFECT, RECORDED (measured, EXP-001).** The shipped swap writes `S2` **after** the
+  first `os.rename`, violating both this invariant and this requirement's existing *"never on
+  directory presence"* clause. Measured consequence: a crash after rename 1 leaves the journal
+  reading `S1`, `recover()` takes its *"nothing irreversible happened"* branch, `rmtree`s the
+  transformed staging copy, and reports `recovered: true` **with the bundle gone**. This is a
+  defect in the code against a requirement that already forbade it — **not** a gap in the
+  requirement, and therefore **not** grounds for a new id (#298).
+
   **The reachable states are FIVE and are enumerated here, once, normatively** — because a five-state
   test and a five-state journal could otherwise be five *different* fives with every instrument
-  green:
+  green. **The table below is restated under the over-approximation reading** *(amended plan-064
+  Issue 0.4)*: each row names the physical state, and the `recorded as` column names the phase the
+  journal carries while the process is in it.
 
-  | state | meaning |
-  | :-- | :-- |
-  | `S0` | nothing staged |
-  | `S1` | staged, before rename 1 |
-  | `S2` | after rename 1 — the bundle is **absent** |
-  | `S3` | after rename 2 — the original is stashed |
-  | `S4` | after rename 2, before the journal is unlinked |
+  | state | meaning | recorded as |
+  | :-- | :-- | :-- |
+  | `S0` | nothing staged | — (no journal) |
+  | `S1` | staged, before rename 1 | `S2` |
+  | `S2` | after rename 1 — the bundle is **absent** | `S2`, then `S3` |
+  | `S3` | after rename 2 — the original is stashed | `S3` |
+  | `S4` | after rename 2, before the journal is unlinked | `S4` |
 
-  Recovery shall be **deterministic from all five**. Staging shall occur **inside the repository
-  tree**, never in a system temporary directory — measured `EXDEV` risk across filesystems, which
-  would turn a rename into a copy and void the reasoning above.
+  **`S1` is a RECOVERY-TIME-ONLY state and shall never be WRITTEN once the ordering is fixed.** It
+  remains a reachable *physical* state — a crash can still land there — but the journal records `S2`
+  throughout it, because `S2` is written before rename 1. The states are still five; what changed is
+  that the recorded label and the physical label are no longer required to be equal.
+
+  **THE OBLIGATION THE OVER-APPROXIMATION CREATES: every `recover()` branch shall tolerate a physical
+  phase ONE STEP BEHIND its recorded phase.** This sentence is normative and is the half a reader
+  most easily misses. Over-approximation is not merely a property of the *journal*; it is a
+  precondition on every *consumer* of the journal. A branch that reads its recorded phase and assumes
+  the named operation **completed** is a data-loss path under this very invariant — concretely, an
+  `S3`/`S4` branch that unconditionally cleans up both staging and stash destroys the bundle when the
+  physical state is `S2` (bundle absent, staging present, rename 2 not yet performed). Such a branch
+  shall instead **complete** the pending operation before cleaning up.
+
+  Recovery shall be **deterministic from all five**, and shall be **OPERATOR-INVOCABLE** *(amended
+  plan-064 Issue 0.4)* — exposed as a CLI verb, not merely present as a module function. **Recorded
+  defect:** `recover()` ships with **no CLI verb** and is called by `backfill` on neither entry nor
+  failure, so a stale journal is never noticed by anything. A recovery mechanism that cannot be
+  invoked is a recovery mechanism only in the sense that the code exists. `backfill` shall
+  additionally **detect a stale journal on entry and REFUSE**, rather than proceeding over it.
+
+  Staging shall occur **inside the repository tree**, never in a system temporary directory —
+  measured `EXDEV` risk across filesystems, which would turn a rename into a copy and void the
+  reasoning above.
 
 - **REQ-OKFH-009** *(testable)* `backfill` shall emit a **per-bundle audit record** and shall treat
   **three separate fail-closed preconditions** as the safety guarantee: **fingerprint invariance**,
@@ -182,12 +228,106 @@ the renamed index that `reindex --write` cannot repair. The correct transform is
   legacy `README.md` files were verified **individually** to be git-tracked — not assumed from the
   population.
 
+  **CONFORMANCE DEFECT, RECORDED (measured, EXP-001)** *(plan-064 Issue 0.3)*. The shipped `restore`
+  is **not** record-driven, in violation of this requirement's *existing* "record-driven with a
+  PER-PATH operation kind" clause. The `--record` file carries a before/after audit verdict and
+  **no operations at all** — no created, deleted or modified paths — and `restore` re-derives them by
+  `rglob` + `git ls-files` at restore time. The round-trip is byte-exact on the happy path only
+  because `git checkout` restores committed bytes; the record contributes nothing. Recording this as
+  a **defect against an existing clause** rather than minting a new id is deliberate — the
+  requirement already says what was found missing, and a duplicate id is the ambiguity #298 tracks.
+
+  **`backfill` shall WRITE the per-path operation list** *(amended plan-064 Issue 0.3)*, at transform
+  time, when it already knows it: each path with its operation kind (`created` / `deleted` /
+  `modified`) and a content hash. A reversal claim is checkable only against a record of what was
+  done; re-deriving it from the filesystem makes the reversal *incidental to `git`* and the
+  "record-driven" label unfalsifiable.
+
+  **`restore` shall REFUSE, not delete, on all three measured loss paths** *(amended plan-064 Issue
+  0.3)*. Each was measured to destroy data while reporting `pass` and exiting `0`:
+
+  | # | Condition | Measured consequence today | Required behaviour |
+  | :-- | :-- | :-- | :-- |
+  | 1 | the tree is **not a git work tree** | the entire bundle is deleted | **refuse** |
+  | 2 | the bundle is **untracked at `HEAD`** | total loss — the realistic case for an uncommitted plan | **refuse** |
+  | 3 | the bundle is **dirty** relative to its post-backfill state | every untracked file in the bundle is unlinked, with no warning | **refuse**, overridable only by an explicit `--force` |
+
+  Conditions 1 and 2 are **not** overridable: there is no state in which deleting an unrecoverable
+  bundle is the operator's intent. Condition 3 is overridable because a deliberate re-reversal over
+  known local edits is a legitimate, if rare, act — but it shall require the operator to say so.
+
+  **`restore` shall accept a PER-BUNDLE filter** *(amended plan-064 Issue 0.3)*, so that a record
+  written for a batch of `N` bundles does not force whole-batch reversal. A batch record that can
+  only be replayed in full makes the safe response to one bad bundle indistinguishable from the
+  destructive one.
+
   **The `_index.md` route dispatches on the detected member, not the filename**, so a bundle whose
   legacy index is named `_index.md` takes the same transform as one named `README.md` without a
   second code path. Scope is recorded honestly: it has exactly **one live in-repo target**, and the
   47% figure that motivates it is 227-of-243 in a **single foreign repository** this plan may not
   touch. The route is therefore built largely against self-authored fixtures, and that
   over-building risk is **accepted knowingly** rather than discovered later.
+
+- **REQ-OKFH-011** *(testable)* *(added plan-064 Issue 0.5)* **a `would-backfill` dry-run verdict
+  shall be PREDICTIVE OF APPLY.** Every halt condition `--apply` evaluates, the dry run shall also
+  evaluate, so a green dry run is a claim about what apply will do rather than a claim about what a
+  subset of the guards happened to check.
+
+  **Measured defect this closes (EXP-001).** `phase-log-loss` is computed **after staging, inside
+  `if apply:`**, so the dry run never runs it. `plan-030` — the one target bundle of eight that
+  clears the dry run — then halts under `--apply` on exactly that guard. `would-backfill` is
+  therefore a **weaker claim than it reads as**, and the gap is silent in the direction that matters:
+  it under-reports halts, so an operator consents to a transform on evidence that does not cover the
+  condition that stops it.
+
+  **The dry run shall reach the apply-only guards by STAGING WITHOUT SWAPPING** — building the
+  transformed copy in the staging area and evaluating every guard against it, then discarding it —
+  never by duplicating each guard's logic on a second code path. Two implementations of one guard is
+  the defect restated, not repaired: they agree until they do not, and nothing detects the day they
+  stop.
+
+  **A dry run shall remain READ-ONLY with respect to the bundle** (GR-OKFH-001's reasoning extends
+  here): staging occurs inside the repository tree per REQ-OKFH-008, no rename is performed, and the
+  staging copy is removed on both exit paths.
+
+- **REQ-OKFH-012** *(testable)* *(added plan-064 Issue 0.6)* **`backfill` shall offer an OPT-IN
+  `--reconcile-objective` mode** in which a legacy index's objective line is rewritten from the
+  authoritative source rather than halting the bundle.
+
+  **`plan.md`'s `H1` is the authority.** The divergence is directional and mechanical: a plan's `H1`
+  is revised during re-scoping while the legacy `README.md`'s `>` objective line is not, so the two
+  disagree with the `H1` correct and the legacy line stale. Measured (EXP-001), **7 of the 8**
+  remaining legacy bundles halt on `objective-divergence` — the guard is correctly detecting real
+  divergence, with nothing in the engine able to reconcile it. `SKILL.md`'s claim of 7-of-31 is a
+  rate over a population that no longer exists; on what actually remains the rate is **7/8**, because
+  the easy bundles were transformed already and the residue is precisely what the guard fires on.
+
+  **The mode shall be OPT-IN, and the rewrite shall be REPORTED PER BUNDLE.** Rewriting an objective
+  line is a content change to a reviewed artifact; it shall never be a silent consequence of running
+  the default verb. The per-bundle report is what makes the change reviewable after the fact.
+
+  **The halt shall remain the DEFAULT.** Absent the flag, `objective-divergence` continues to halt.
+  A guard whose remedy is enabled by default is a guard that has been removed.
+
+- **REQ-OKFH-013** *(testable)* *(added plan-064 Issue 0.7)* **the `--record` artifact shall carry a
+  SCHEMA VERSION, and `restore` shall REFUSE an unversioned or unrecognised record** rather than
+  misreading it.
+
+  **This is what makes REQ-OKFH-010's record rewrite safe to ship.** That amendment changes what a
+  record *means*: a record written by the previous implementation carries an audit verdict and no
+  operations, while the new `restore` expects a per-path operation list. Reading the old shape under
+  the new contract yields an **empty** operation list — which a record-driven `restore` would execute
+  as *"reverse nothing"* and report as success. A missing version is therefore not a cosmetic gap; it
+  is the difference between a refusal and a silent no-op wearing a `pass`.
+
+  **The refusal shall be explicit and shall name the remedy.** An unversioned record is a legacy
+  artifact, not a corrupt one, and the operator's route forward (`git revert` for a committed corpus)
+  differs from the route for a malformed file.
+
+  **Blast radius, measured (red-team C10):** `git ls-files` shows **no committed record artifacts**
+  anywhere in this repository, and a record is a transient per-batch file — so the compatibility
+  surface is a single in-flight run. The version is required despite that, because the failure it
+  prevents is silent and the check is one field.
 
 ## 3. Interfaces
 
@@ -230,9 +370,12 @@ the renamed index that `reindex --write` cannot repair. The correct transform is
 | REQ-OKFH-005 | `test_okf_hygiene.py::root_detection_self_contained` |
 | REQ-OKFH-006 | `test_okf_hygiene.py::fingerprint_invariance` + the corpus run |
 | REQ-OKFH-007 | `test_okf_hygiene.py::plan030_hybrid_log_preserved` |
-| REQ-OKFH-008 | `test_okf_hygiene.py::crash_recovery_all_states` — naming **each** of `S0`..`S4` |
+| REQ-OKFH-008 | `test_okf_hygiene.py::crash_s1_bundle_present`, `::crash_s2_errno66`, `::crash_s3_recorded_physical_s2`, `::crash_s4_recorded_physical_s3`, `::crash_recovery_every_reachable_state_survives` — all driving the **real `backfill` swap** through a deterministic seam, covering each of the five **physical** states under the over-approximation reading in which `S1` is recovery-time-only and never written. "All states" means all PHYSICAL states, not all recorded labels: the recorded set is a proper subset, so a test enumerating recorded labels leaves the `S1` window — where the bundle is destroyed — unexercised. Detection is itself verified by `scripts/checks/check-crash-test-detects-lag.sh`. The superseded `::crash_recovery_all_states` is **not** named: measured, it hand-constructed each journal state, never invoked the swap, and was byte-identically green before and after the phase-ordering fix. |
 | REQ-OKFH-009 | `scripts/checks/check-backfill-audit-delta.py --record <path>` |
-| REQ-OKFH-010 | `test_okf_hygiene.py::restore_round_trip`, `::underscore_index_live_target`, `::audit_readonly_and_reindex_refusal` |
+| REQ-OKFH-010 | `test_okf_hygiene.py::restore_record_driven` (the reversal is driven by the RECORDED op list, so a `restore` re-deriving from `rglob` + `git ls-files` FAILS it), `::restore_refuses_non_git`, `::restore_refuses_untracked`, `::restore_refuses_dirty`, `::restore_refuses_legacy_record`, `::restore_bundle_filter`, `::underscore_index_live_target`, `::audit_readonly_and_reindex_refusal`; detection verified by `scripts/checks/check-crash-test-detects-lag.sh --req REQ-OKFH-010`. The superseded `::restore_round_trip` is NOT named: measured, it exits 0 against the non-record-driven `restore` this requirement forbids, so naming it would carry a false green into the traceability table. |
+| REQ-OKFH-011 | `test_okf_hygiene.py::dry_run_predictive` |
+| REQ-OKFH-012 | `test_okf_hygiene.py::reconcile_objective` |
+| REQ-OKFH-013 | `test_okf_hygiene.py::restore_refuses_legacy_record` |
 
 The suite runs in **both** `CHANGE-VALIDATION.md` tiers, so it is paid on every land rather than
 once — six shipped scripts in this repository already have no tests at all (#189) and this skill

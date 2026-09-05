@@ -8,17 +8,19 @@ description: 'Make the yf-okf-hygiene backfill/restore engine trustworthy enough
 id: plan-064-james-dixson-a0b7fa
 author: james-dixson
 created: '2026-09-05'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: 68c76d5248b9f26508d9a4a42193ca0154b9426ffe59a5cb93242aaa65620fcf
+epic: yf-mol-18gi
 ---
 # Plan: Make the yf-okf-hygiene backfill/restore engine trustworthy enough to run the #316 corpus transform: gitignore-aware member enumeration (#294), a restore that cannot silently destroy data, a sound and reachable crash journal, an honest dry run, and an objective-reconcile path
 
 **ID:** plan-064-james-dixson-a0b7fa
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-18gi
 **Fingerprint:** 68c76d5248b9f26508d9a4a42193ca0154b9426ffe59a5cb93242aaa65620fcf
 
 ## Objective
@@ -56,6 +58,7 @@ been exercised is an assumption, not a capability.
 ## Upstream Issues
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
+| [#357](https://github.com/dixson3/yoshiko-flow/issues/357) | plan-064-james-dixson-a0b7fa execution tracking | tracker | The single coarse tracking issue for this plan-scale effort (AGENTS.md convention). Filed at intake §4.5; stamped onto the epic as `external_ref` at pour (REQ-PLAN-073). Not a work item. | — |
 | #316 | Plan 2/3: run the yf-okf-hygiene corpus backfill — 8 legacy-readme bundles | partial | **Re-dispositioned from `include` on EXP-001.** This plan unblocks #316 by repairing the engine; the 8-bundle transform and #316's `legacy: 0` criterion are discharged by the follow-on it files. | 4.5, 5.4, 5.5 |
 | #294 | okf index drift enumerates gitignored build residue | include | Operator scoped a real fix into this plan (D2), not a contingency. EXP-002 then found it is a **hard prerequisite** of any `backfill --apply`. | 0.1, 0.2, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8 |
 | #140 | yf-okf: enforce OKF structure below the bundle root; index drift/regeneration model | exclude | Adjacent and larger. This plan runs the transform the existing engine already implements; it does not deepen the model below the bundle root. | — |

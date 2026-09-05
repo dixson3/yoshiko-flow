@@ -134,6 +134,7 @@ fi
 | `backfill [--apply]` | the three-step legacy transform; **dry-run by default** |
 | `reindex <bundle>` | index repair; **REFUSES** a legacy prose index — that is backfill's job |
 | `restore --record <p>` | record-driven reversal, with a per-path operation kind |
+| `recover [--apply]` | finish or roll back an INTERRUPTED backfill; **dry-run by default** |
 
 Non-engine-backed subcommands: none
 
@@ -185,25 +186,55 @@ alone: measured on `plan-010`, a bare `migrate` takes the portability audit from
 **`fail`** — it stamps `plan.md` frontmatter (flipping `okf_missing_level` to `fail`) and leaves
 the renamed README's File-map prose in `index.md`, which `reindex --write` cannot repair.
 
-**Two halt classes, neither auto-resolvable** (`hybrid-partial`, objective divergence), plus a
-phase-log-loss guard. Measured over this repo: **31** legacy bundles, of which **7** halt on
-objective divergence — matching D-5's independent count.
+**Two halt classes** (`hybrid-partial`, objective divergence), plus a phase-log-loss guard.
+Objective divergence **is** auto-resolvable, opt-in, via `--reconcile-objective`.
+
+**Read the rate against the population that remains.** The **31 legacy bundles / 7 divergent**
+figure is historical: the easy bundles were transformed long ago, and what is left is precisely
+the residue the guard fires on. Measured on the current population (plan-064 EXP-001): **8**
+legacy bundles, of which **7** halt on objective divergence — a rate of 7/8, not 7/31.
 
 **Crash-recoverable by MECHANISM, and NOT atomic.** `os.rename` onto a non-empty directory
-raises `OSError errno 66`, so the swap is **two renames with a window in which the bundle is
-absent**. Recovery therefore keys on a durable per-bundle journal fsynced before the first
-rename — never on directory presence, which cannot separate `S1` from `S4`:
+raises `OSError` (`ENOTEMPTY` — errno 66 on macOS, 39 on Linux), so the swap is **two renames
+with a window in which the bundle is absent**. Recovery keys on a durable per-bundle journal
+fsynced **before** each operation — never on directory presence, which cannot separate `S1`
+from `S4`.
 
-| State | Meaning |
-| :-- | :-- |
-| `S0` | nothing staged |
-| `S1` | staged, before rename 1 |
-| `S2` | after rename 1 — the bundle is **absent** |
-| `S3` | after rename 2 — the original is stashed |
-| `S4` | after rename 2, before the journal is unlinked |
+**The journal invariant: the RECORDED phase is always `>=` the PHYSICAL phase.** Every phase is
+written before the operation it names, so the record is an **over-approximation** — recovery may
+believe more has happened than has, never less. The table therefore has two columns, because the
+recorded label and the physical state are *not* the same thing:
+
+| Physical state | Meaning | Recorded as |
+| :-- | :-- | :-- |
+| `S0` | nothing staged | `S2` (written before staging) |
+| `S1` | staged, before rename 1 | `S2` |
+| `S2` | after rename 1 — the bundle is **absent** | `S2`, then `S3` |
+| `S3` | after rename 2 — the original is stashed | `S3` |
+| `S4` | after rename 2, before the journal is unlinked | `S4` |
+
+**`S1` is never WRITTEN.** It remains a reachable *physical* state — a crash can land there — but
+the journal records `S2` throughout it. Consequently every `recover()` branch tolerates a
+physical phase **one step behind** its recorded phase; a branch that assumed its named operation
+had completed would be a data-loss path under this very invariant.
 
 Staging happens **inside the repo tree**, never in a system temp dir: a cross-filesystem staging
 turns the rename into a copy and voids every durability claim above.
+
+**Recovery is operator-invocable, and `backfill` refuses over a stale journal.** `recover` is a
+verb (dry-run by default); a journal on disk at `backfill` entry means a previous run crashed
+mid-swap and was never recovered, so `backfill` **refuses** rather than staging over a half-done
+swap. It does not auto-recover: recovery moves directories, and doing that as a silent side
+effect of an unrelated invocation is the class of surprise `--apply` is gated on.
+
+> **What this section used to overstate (corrected by plan-064 Issue 3.7).** It described the
+> journal as delivering deterministic recovery from all five states, which the shipped code did
+> not do: `S2` was written *after* rename 1, so a crash in that window recorded `S1` and recovery
+> **deleted the transformed copy** while reporting `recovered: true`; and `recover()` had **no CLI
+> verb and no caller**, so a stale journal was never noticed by anything. The mechanism is now
+> what this section claims — and the claim is checked by
+> `scripts/checks/check-crash-test-detects-lag.sh`, which asserts the crash tests **fail** against
+> a tree with the phase ordering reverted.
 
 **Read the safety evidence precisely.** The `plan.md` content fingerprint is **not** the
 guarantee — it excludes `README.md`, `index.md` and `log.md`, i.e. *every file this transform
@@ -217,6 +248,30 @@ Record-driven, with a **per-path operation kind**. `git checkout` alone **cannot
 transform: a modified or deleted *tracked* file is restored by checkout, but a *created*
 `index.md`/`log.md` is absent from `HEAD` and must be **unlinked**. A restore that only checks
 out leaves every created file behind and reports success.
+
+**The record is written by `backfill --apply --record`, is VERSIONED, and carries the operations
+themselves** — each path with its kind (`created` / `deleted` / `modified`) and content hashes.
+`restore` **refuses an unversioned or unrecognised record** rather than misreading it: the
+pre-versioning shape carried an audit verdict and no operations, which under the record-driven
+contract reads as an empty operation list — a silent *"reverse nothing"* wearing a `pass`.
+
+**`restore` REFUSES rather than deleting, on three measured loss paths:**
+
+| Condition | Behaviour |
+| :-- | :-- |
+| the tree is **not a git work tree** | refuse — **not** overridable |
+| the bundle is **untracked at `HEAD`** | refuse — **not** overridable |
+| the bundle is **dirty** relative to its post-backfill state | refuse; overridable by explicit `--force` |
+
+The first two are not overridable because there is no state in which deleting an unrecoverable
+bundle is the operator's intent. `--bundle <name>` (repeatable) reverses only part of a batch
+record, so one bad bundle does not force whole-batch reversal.
+
+> **What this section used to overstate (corrected by plan-064 Issue 3.7).** `restore` was
+> described as record-driven while the record carried **no operations at all** and the reversal
+> was re-derived by `rglob` + `git ls-files` at restore time — so the byte-exact round trip was
+> `git checkout`'s doing, not the record's. All three conditions above were measured to destroy
+> data while reporting `pass` and exiting `0`.
 
 ## Rules
 

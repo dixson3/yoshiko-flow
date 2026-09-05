@@ -33,6 +33,7 @@ import fnmatch
 import json
 import os
 import re
+import subprocess
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -1474,8 +1475,80 @@ def check_markers(text: str) -> None:
 LISTING_DEPTH_K = 10
 
 
-def _recursive_file_count(d: Path, exclude_globs: Sequence[str], prefix: str) -> int:
+# The HARDCODED RESIDUE FLOOR (REQ-OKF-012(a), plan-064 Issue 1.3). It exists to cover the
+# DELIBERATE FAIL-OPEN below: outside a git work tree there is no ignore oracle to consult, and
+# a bundle copied out of its repository is exactly the portability case OKF exists to support.
+# Failing CLOSED there would make such a bundle enumerate nothing — a worse failure than
+# enumerating a little too much — so the walk falls back to this minimum.
+#
+# It is applied UNCONDITIONALLY rather than only on the fail-open path. Inside a work tree it is
+# very nearly a no-op (these paths are ignored by every sane `.gitignore`), and making it
+# unconditional means the floor has ONE behaviour to test instead of two, with no branch that is
+# exercised only on the rarer path.
+#
+# It is deliberately NOT expressed as an `OKF-EXTENSION.md` §3b glob: that section's own text
+# reserves member-declared exclusions for FIXTURE CARVE-OUTS, and build residue is not a fixture.
+_VCS_RESIDUE_FLOOR_DIRS = ("__pycache__",)
+_VCS_RESIDUE_FLOOR_GLOBS = ("*.pyc",)
+
+
+def _residue_floor_hit(rel: str) -> bool:
+    """Is bundle-relative ``rel`` build residue under the hardcoded floor?
+
+    Matched per PATH COMPONENT, not against the whole string, so `a/__pycache__/b.pyc` is caught
+    at any depth rather than only at the top level.
+    """
+    parts = rel.rstrip("/").split("/")
+    if any(p in _VCS_RESIDUE_FLOOR_DIRS for p in parts):
+        return True
+    name = parts[-1] if parts else rel
+    return any(fnmatch.fnmatch(name, g) for g in _VCS_RESIDUE_FLOOR_GLOBS)
+
+
+def _vcs_ignored(bundle: Path) -> frozenset[str]:
+    """Bundle-relative paths git IGNORES beneath ``bundle`` (REQ-OKF-012(a) / #294).
+
+    THE PREDICATE IS `IGNORED`, NEVER `TRACKED`, and the distinction is the whole point.
+    `git ls-files -o -i --exclude-standard` lists files that are **other** (untracked) **and**
+    ignored — so a tracked file is structurally undroppable (it is never `-o`), and an
+    untracked-but-NOT-ignored member — a `findings/exp-004.md` authored seconds ago — is
+    correctly left in. A `git ls-files`-based "keep only tracked files" fix would suppress
+    exactly that member, and because the FAST tier fires ON EDIT, when a newly authored member is
+    untracked by definition, it would make this walk structurally unable to see the drift it
+    exists to catch.
+
+    `git check-ignore` (as #294 proposed) is not used: it cannot express the tracked-is-undroppable
+    property, and it would be one fork per candidate path rather than ONE FORK PER BUNDLE.
+
+    FAILS OPEN to an empty set — outside a git work tree, with `git` absent, or on any error.
+    The caller still applies `_residue_floor_hit`, so "fail open" means "fall back to the floor",
+    not "enumerate everything". Measured cost inside a tree: ~18 ms per bundle, a no-op across all
+    68 live bundles.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "ls-files", "-o", "-i", "--exclude-standard", "-z"],
+            cwd=str(bundle), capture_output=True, check=True, timeout=30,
+        )
+    except Exception:
+        return frozenset()
+    return frozenset(
+        p.decode("utf-8", "surrogateescape")
+        for p in r.stdout.split(b"\0")
+        if p
+    )
+
+
+def _recursive_file_count(d: Path, exclude_globs: Sequence[str], prefix: str,
+                          ignored: frozenset[str] = frozenset()) -> int:
     """Files reachable RECURSIVELY beneath ``d``, honouring the member's exclusions.
+
+    ``ignored`` is the bundle's version-control-ignored set (``_vcs_ignored``), threaded down
+    from ``_listing_members`` so it is computed ONCE PER BUNDLE rather than once per directory.
+    THE COUNT ARM AND THE ENUMERATE ARM MUST APPLY THE SAME PREDICATE (REQ-OKF-012(a) as amended
+    by plan-064): if this function counted residue that ``_nested_files`` then declined to list,
+    a directory could cross the ``<= K`` threshold on files that never appear — the two arms would
+    disagree about what a member is, which is the defect the shared predicate exists to prevent.
 
     RECURSIVE IS NORMATIVE, and the reading is load-bearing (REQ-OKF-012(a)). Simulated over
     all 64 enumerated bundles: recursive gives total 867 / median 12 / max 30; direct-children
@@ -1493,9 +1566,13 @@ def _recursive_file_count(d: Path, exclude_globs: Sequence[str], prefix: str) ->
             if child.is_dir():
                 if is_excluded(rel + "/", exclude_globs) or is_excluded(rel, exclude_globs):
                     continue
-                n += _recursive_file_count(child, exclude_globs, rel + "/")
+                if _residue_floor_hit(rel + "/"):
+                    continue
+                n += _recursive_file_count(child, exclude_globs, rel + "/", ignored)
             elif child.is_file():
                 if is_excluded(rel, exclude_globs):
+                    continue
+                if rel in ignored or _residue_floor_hit(rel):
                     continue
                 n += 1
     except OSError:
@@ -1503,8 +1580,12 @@ def _recursive_file_count(d: Path, exclude_globs: Sequence[str], prefix: str) ->
     return n
 
 
-def _nested_files(d: Path, exclude_globs: Sequence[str], prefix: str) -> list[str]:
-    """Every file beneath ``d``, as bundle-relative paths, in sorted order."""
+def _nested_files(d: Path, exclude_globs: Sequence[str], prefix: str,
+                  ignored: frozenset[str] = frozenset()) -> list[str]:
+    """Every file beneath ``d``, as bundle-relative paths, in sorted order.
+
+    ``ignored`` is threaded from ``_listing_members``; see ``_recursive_file_count`` for why the
+    two arms must apply ONE predicate (REQ-OKF-012(a) as amended by plan-064)."""
     out: list[str] = []
     try:
         for child in sorted(d.iterdir()):
@@ -1514,9 +1595,13 @@ def _nested_files(d: Path, exclude_globs: Sequence[str], prefix: str) -> list[st
             if child.is_dir():
                 if is_excluded(rel + "/", exclude_globs) or is_excluded(rel, exclude_globs):
                     continue
-                out.extend(_nested_files(child, exclude_globs, rel + "/"))
+                if _residue_floor_hit(rel + "/"):
+                    continue
+                out.extend(_nested_files(child, exclude_globs, rel + "/", ignored))
             elif child.is_file():
                 if is_excluded(rel, exclude_globs):
+                    continue
+                if rel in ignored or _residue_floor_hit(rel):
                     continue
                 out.append(rel)
     except OSError:
@@ -1556,12 +1641,23 @@ def _listing_members(bundle: Path, exclude_globs: Optional[Sequence[str]] = None
             exclude_globs = resolve_extension().exclude_globs
         except Exception:
             exclude_globs = []
+    # WALK SITE 0: the version-control-ignored set, computed ONCE PER BUNDLE and threaded into
+    # both arms below (REQ-OKF-012(a) as amended by plan-064 / #294). Computing it here rather
+    # than inside the recursion is what makes the cost one `git` fork per bundle (~18 ms) instead
+    # of one per directory, and — more importantly — what guarantees the count arm and the
+    # enumerate arm see the SAME set even if the filesystem changes mid-walk.
+    ignored = _vcs_ignored(bundle)
     out: list[str] = []
     for child in sorted(bundle.iterdir()):
         if child.name in RESERVED_FILES or child.name.startswith("."):
             continue
         if is_excluded(child.name + ("/" if child.is_dir() else ""), exclude_globs) \
                 or is_excluded(child.name, exclude_globs):
+            continue
+        rel_top = child.name + ("/" if child.is_dir() else "")
+        if _residue_floor_hit(rel_top):
+            continue
+        if child.is_file() and child.name in ignored:
             continue
         if child.is_dir():
             # An EMPTY directory is not a listing member. git does not track empty
@@ -1575,13 +1671,13 @@ def _listing_members(bundle: Path, exclude_globs: Optional[Sequence[str]] = None
             except OSError:
                 continue
             if deep:
-                count = _recursive_file_count(child, exclude_globs, child.name + "/")
+                count = _recursive_file_count(child, exclude_globs, child.name + "/", ignored)
                 if count == 0:
                     # Non-empty on disk but every file excluded (or only empty subdirs):
                     # nothing to enumerate and nothing worth a stub.
                     continue
                 if count <= k:
-                    out.extend(_nested_files(child, exclude_globs, child.name + "/"))
+                    out.extend(_nested_files(child, exclude_globs, child.name + "/", ignored))
                     continue
             out.append(child.name + "/")
         elif child.is_file():

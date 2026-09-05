@@ -42,3 +42,23 @@ __pycache__/
 
 # beads-init: required exclusions
 .beads/proxieddb/
+
+# yf-okf-hygiene scaffolding (plan-064 Issue 1.7 / #294).
+#
+# These two directories are created by `okf_hygiene.py backfill` INSIDE the bundle roots — and
+# `docs/plans/*` is a depth-1 glob that matches them, because `pathlib.Path.glob('*')` matches
+# dot-prefixed names (unlike `glob.glob`). `Journal.clear()`'s own docstring records that this
+# already cost a `64 -> 66` inflation of the enumerated bundle count.
+#
+# They SURVIVE A HALT by design (that is what makes crash recovery possible), so they are not
+# transient enough to ignore in practice, and they were untracked-but-NOT-ignored — precisely
+# the class the corrected REQ-OKF-CHK-004 predicate keeps ENUMERATED. Ignoring them is the
+# right remedy: they are genuinely not members, and the driver's root filter cannot see them
+# because it filters bundle ROOTS, one level above where they sit.
+#
+# NO TRAILING SLASH, deliberately. A `dir/` pattern is DIRECTORY-ONLY, and git can only apply
+# that when the path exists on disk — so `git check-ignore docs/plans/.okf-hygiene-staging`
+# returns 1 (not ignored) whenever the scaffolding is absent, which is most of the time and is
+# exactly when a criterion would be checking it. The bare-name form matches regardless.
+.okf-hygiene-staging
+.okf-hygiene-journal

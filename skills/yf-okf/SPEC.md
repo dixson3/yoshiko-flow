@@ -369,7 +369,21 @@ are per-skill (the three current models genuinely differ) and are specified in e
   defect reappearing in the enumerator.
 
   **The exclusion source is REQ-OKF-CHK-003's §3b**, not a second list. The driver shall additionally
-  be **gitignore-aware**, so an untracked scratch directory is never enumerated.
+  be **gitignore-aware**, so a version-control-**ignored** path is never enumerated.
+
+  **The predicate is IGNORED, not UNTRACKED, and the scope is the ENGINE WALK — not the driver
+  alone** *(amended plan-064 Issue 0.2 / #294)*. Both corrections are to this requirement's original
+  wording, and both were measured wrong rather than merely imprecise:
+
+  - **"untracked" was the wrong predicate.** An untracked-but-not-ignored member — a
+    `scratch-notes.md`, or a `findings/exp-004.md` authored moments ago — is a **real member** and
+    shall still be enumerated. Suppressing untracked paths would make this check structurally unable
+    to see the drift it exists to catch, because the FAST tier fires **on edit**, at the one moment a
+    newly authored member is untracked by definition. The correct predicate is *ignored*.
+  - **"the driver" was the wrong scope.** Gitignore-awareness applied at the driver's **bundle-root**
+    filter stops one level *above* where members live, so the recursive member walk the driver
+    delegates to never sees it. The requirement binds the **engine walk** (`REQ-OKF-012`(a) as
+    amended), so producer and checker compute membership under one predicate at every level.
 
   **Its exit contract is three-valued** and follows `scripts/checks/_common.sh` (REQ-CLI-029):
   `0` clean · `1` drift · `2` INCONCLUSIVE. It shall **hard-error on a nonexistent enumerated root**
@@ -526,6 +540,31 @@ are per-skill (the three current models genuinely differ) and are specified in e
   single bare directory bullet is emitted for the subdirectory. **`K` is the constant `10`, not a
   configuration key** — a per-repo knob would make two corpora's indexes incomparable and would
   re-open the boilerplate question this requirement exists to close.
+
+  **The recursive member walk shall skip version-control-IGNORED paths AT EVERY LEVEL** *(amended
+  plan-064 Issue 0.1 / #294)*. The predicate is *ignored*, never *untracked*: a member that is
+  merely untracked — a `findings/exp-004.md` authored seconds ago — is a real member and shall be
+  enumerated, while `__pycache__/`, `*.pyc` and anything else the repository's ignore rules exclude
+  is build residue and shall not be. Filtering on *tracked* instead would make the on-edit checker
+  structurally unable to see the drift it exists to catch, because a newly authored member is
+  untracked by definition.
+
+  **The skip shall apply at EVERY level of the recursion, and to BOTH arms.** The count arm (the
+  `<= K` recursive file count) and the enumerate arm (the emitted bullets) shall use **one
+  predicate**, so the two can never disagree about what a member is. A filter applied only to
+  bundle *roots* — one level above where members live — satisfies neither arm.
+
+  **PRODUCER AND CHECKER ARE BOUND TO THE SAME PREDICATE.** The engine that *writes* a listing and
+  the driver that *checks* one for drift shall compute membership identically. This is the
+  load-bearing half: if the producer enumerates residue that the checker later does not, the
+  polarity of the finding **inverts** — a `missing` entry becomes a permanent `ghost` on every
+  clone, including a clean one, and the only remedy is hand-editing every committed `index.md`.
+  Binding both to one predicate is what makes that state unreachable rather than merely unlikely.
+
+  **Outside a git work tree the walk shall FAIL OPEN**, enumerating everything except a hardcoded
+  residue floor (`__pycache__/`, `*.pyc`). Failing *closed* would make a bundle copied out of its
+  repository enumerate nothing — the exact portability case OKF exists to support — which is a
+  worse failure than enumerating a little too much.
 
   **The recursive reading is normative and the choice is load-bearing.** Simulated 2026-08-29 over
   all 64 enumerated bundles: recursive gives total 867, median 12, max **30**; direct-children gives

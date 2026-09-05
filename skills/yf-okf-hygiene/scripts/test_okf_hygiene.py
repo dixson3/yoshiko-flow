@@ -39,6 +39,11 @@ _spec.loader.exec_module(hyg)
 REPO = _HERE.parents[2]
 
 
+def okf_read(path):
+    """Frontmatter + body, VIA THE SHIPPED ENGINE — never a second parser in the test."""
+    return hyg.okf.read_frontmatter(path)
+
+
 # --- helpers ---------------------------------------------------------------------------
 
 PLAN_MD = """---
@@ -121,17 +126,57 @@ def _fingerprint(plan_dir: Path) -> str | None:
     ("_index.md", "legacy-underscore-index"),
 ])
 def test_two_variant_equivalence(tmp_path, legacy_name, expected):
-    """REQ-OKFH-004/010 — the two legacy variants classify to their own class and are
-    otherwise handled IDENTICALLY. The `_index.md` route dispatches on the DETECTED MEMBER,
-    not on the filename, so it needs no second code path."""
+    """REQ-OKFH-004/010 — the two legacy variants CLASSIFY to their own class, by detected
+    member rather than by filename.
+
+    **THE TRANSFORM ROUTE DOES NOT YET MATCH THE CLASSIFICATION ROUTE, AND THIS TEST NOW SAYS SO
+    (plan-064 Issue 4.1/4.5).** Until the dry run became predictive (REQ-OKFH-011) this test
+    asserted `would-backfill` for BOTH variants and passed — but only because the dry run never
+    staged, so it could not see the `manufactured-hybrid` post-condition. Measured on the real
+    apply path, before and after that change:
+
+        README.md  ->  dry: would-backfill   apply: backfilled
+        _index.md  ->  dry: halt             apply: halt (manufactured-hybrid)
+
+    So `_index.md` under the `yf-plan` member ALWAYS halted under `--apply`; the previous green
+    was the blind dry run disagreeing with apply, which is exactly the defect REQ-OKFH-011
+    closes. The cause: `okf.migrate` is member-driven and OKF-PLAN's `index_source` is
+    `README.md`, so for an `_index.md` bundle it scaffolds a fresh `index.md` and leaves
+    `_index.md` beside it — the `hybrid-partial` state the tool refuses to create.
+
+    Repairing that routing means changing `okf.migrate`'s `index_source` resolution across six
+    vendored engine copies, which is outside every epic of plan-064. It is recorded as a finding
+    and filed as a follow-on (Issues 4.5 / 5.3) rather than silently absorbed — and this test now
+    asserts the MEASURED behaviour of each variant, so the divergence cannot be re-hidden.
+    """
     b = make_legacy(tmp_path, legacy_name=legacy_name)
     cls, detail = hyg.classify(b)
     assert cls == expected
     assert detail["legacy_index"] == [legacy_name]
 
     plan = hyg.backfill_one(tmp_path, b, apply=False, skill="yf-plan")
-    assert plan["action"] == "would-backfill"
-    assert plan["steps"][0] == "migrate" and plan["steps"][-1] == "regenerate-listing"
+
+    if legacy_name == "README.md":
+        assert plan["action"] == "would-backfill"
+        assert plan["steps"][0] == "migrate" and plan["steps"][-1] == "regenerate-listing"
+    else:
+        # THE RECORDED DIVERGENCE. Asserted, not skipped: if the routing is ever repaired this
+        # arm FAILS and forces the finding above to be revisited, which is what makes it a
+        # record rather than a comment.
+        assert plan["action"] == "halt", (
+            "the _index.md transform route now succeeds — REQ-OKFH-010's two-variant equivalence "
+            "may have been delivered. Re-measure, update this arm, and close the follow-on."
+        )
+        assert [h["kind"] for h in plan["halts"]] == ["manufactured-hybrid"], plan
+
+    # THE PREDICTIVE PROPERTY ITSELF (REQ-OKFH-011): whatever the dry run says, apply agrees.
+    b2 = make_legacy(tmp_path / "apply-side", legacy_name=legacy_name)
+    applied = hyg.backfill_one(tmp_path / "apply-side", b2, apply=True, skill="yf-plan")
+    corresponding = {"would-backfill": "backfilled", "halt": "halt", "skip": "skip"}
+    assert applied["action"] == corresponding[plan["action"]], (
+        f"the dry run said {plan['action']!r} and apply did {applied['action']!r} — "
+        f"the dry run is NOT predictive of apply (REQ-OKFH-011)"
+    )
 
 
 def test_classification_covers_every_class(tmp_path):
@@ -312,65 +357,322 @@ def test_hybrid_partial_halts(tmp_path):
     assert "hybrid-partial" in [h["kind"] for h in rec["halts"]]
 
 
-def test_crash_recovery_all_states(tmp_path):
-    """SC11 / REQ-OKFH-008 — recovery is deterministic from ALL FIVE crash points.
+# =========================================================================================
+# REQ-OKFH-008 as amended — CRASH RECOVERY, DRIVEN BY THE REAL SWAP (plan-064 Epic 3).
+#
+# `test_crash_recovery_all_states` USED TO LIVE HERE AND WAS REPLACED, NOT REPAIRED (Issue 3.6).
+#
+# THE MEASURED DIAGNOSIS. It HAND-CONSTRUCTED each journal state — `shutil.copytree`,
+# `j.write("S1")`, `os.rename`, `j.write("S2")` — and NEVER INVOKED `backfill`'s swap. So it
+# mocked the call site it existed to observe: applying Issue 3.1's phase-ordering change and
+# re-running it yielded BYTE-IDENTICAL output, because it never executed the ordering it was
+# meant to be checking. It was insensitive to the production ordering BY CONSTRUCTION, which is
+# why it was green against violating code, and why patching its assertions would have left the
+# false green intact under a new name.
+#
+# THE REPLACEMENT DRIVES THE REAL `backfill_one` SWAP and interposes a deterministic crash. Two
+# seams, and WHICH ONE a window needs is not a style choice:
+#
+#   * the `os.rename` seam reaches windows delimited by a RENAME;
+#   * the JOURNAL-WRITE seam reaches windows delimited by a JOURNAL WRITE — including the
+#     `S3`-recorded / `S2`-physical window Issue 3.1 opens, which the rename seam CANNOT reach
+#     by construction (it lies between a journal write and the rename that follows it).
+#
+# This is the same "every instrument was calibrated against the call site instead of the callee"
+# class plan-063 recorded, on a third engine.
+# =========================================================================================
 
-    The five are ENUMERATED in `okf_hygiene.STATES` and this test names EACH of them, because
-    a five-state test and a five-state journal could otherwise be five DIFFERENT fives with
-    every instrument green.
+class _Crash(RuntimeError):
+    """A deterministic stand-in for SIGKILL, raised at a chosen seam inside the real swap."""
 
-    S1 is the case that motivates the journal at all: a table keyed on directory PRESENCE
-    reads "staged, crashed before rename 1" (bundle present, staging present) the same way it
-    reads S4 (bundle present, staging gone) — and it reads S2, where the bundle is ABSENT, as
-    a deleted bundle. Only a recorded phase separates them.
+
+def _drive_swap_crashing(monkeypatch, root, bundle, *, at_journal=None, before_journal=None,
+                         at_rename=None, skill="yf-plan"):
+    """Run the REAL `backfill_one` and crash at one deterministic seam.
+
+    ``at_journal``      crash AFTER the journal write of this phase (the record is durable).
+    ``before_journal``  crash BEFORE it (the record still holds the PREVIOUS phase).
+    ``at_rename``       crash BEFORE the Nth `os.rename` (1-based) inside the swap.
     """
-    assert set(hyg.STATES) == {"S0", "S1", "S2", "S3", "S4"}, hyg.STATES
-    results = {}
+    real_write = hyg.Journal.write
+    real_rename = hyg.os.rename
+    calls = {"rename": 0}
 
-    for state in ("S0", "S1", "S2", "S3", "S4"):
-        root = tmp_path / state
+    def fake_write(self, phase, **extra):
+        if before_journal is not None and phase == before_journal:
+            raise _Crash(f"before journal write {phase}")
+        real_write(self, phase, **extra)
+        if at_journal is not None and phase == at_journal:
+            raise _Crash(f"after journal write {phase}")
+
+    def fake_rename(src, dst, *a, **k):
+        calls["rename"] += 1
+        if at_rename is not None and calls["rename"] == at_rename:
+            raise _Crash(f"before rename {calls['rename']}")
+        return real_rename(src, dst, *a, **k)
+
+    monkeypatch.setattr(hyg.Journal, "write", fake_write)
+    monkeypatch.setattr(hyg.os, "rename", fake_rename)
+    try:
+        hyg.backfill_one(root, bundle, apply=True, skill=skill)
+    except _Crash:
+        pass
+    else:
+        raise AssertionError("the seam never fired — this arm would be vacuous")
+    finally:
+        monkeypatch.setattr(hyg.Journal, "write", real_write)
+        monkeypatch.setattr(hyg.os, "rename", real_rename)
+
+
+def _assert_content_preserved(bundle, marker):
+    """The bundle's content survived — as EITHER a roll-back OR a completed roll-forward.
+
+    BOTH ARE CORRECT RECOVERIES AND THE DISTINCTION IS WORTH ASSERTING RATHER THAN GLOSSING.
+    From the `S2`-physical window `recover` completes rename 2, so the bundle holds the
+    TRANSFORMED content (`plan.md` with its phase log extracted into `log.md`); from the
+    pre-rename-1 window it holds the ORIGINAL. What must never happen is a third outcome — a
+    missing bundle, an empty `plan.md`, or a bundle whose objective has been lost — so the
+    assertion enumerates the two legal states instead of pinning one.
+    """
+    assert (bundle / "plan.md").is_file(), "plan.md is gone"
+    text = (bundle / "plan.md").read_text()
+    assert text.strip(), "plan.md is empty"
+
+    rolled_back = text == marker
+    rolled_forward = (bundle / "index.md").is_file() and (bundle / "log.md").is_file()
+    assert rolled_back or rolled_forward, (
+        "the bundle is in NEITHER legal state: it is not the original content, and it is not a "
+        "completed transform (index.md + log.md present)"
+    )
+    # Whichever it is, the plan's own subject matter survived.
+    assert "## Objective" in text, "the plan's Objective section was lost"
+    return "rolled-back" if rolled_back else "rolled-forward"
+
+
+def _assert_recovers_intact(root, bundle, marker, *, expect_phase=None):
+    """Recover, and assert the BUNDLE IS PRESENT with its content — the SC11 invariant."""
+    j = hyg.Journal(root, bundle)
+    rec = j.read()
+    assert rec is not None, "no journal survived the crash — nothing to recover from"
+    if expect_phase is not None:
+        assert rec["phase"] == expect_phase, f"recorded {rec['phase']!r}, expected {expect_phase!r}"
+
+    out = hyg.recover(root, bundle)
+    assert bundle.is_dir(), f"THE BUNDLE DID NOT SURVIVE RECOVERY: {out}"
+    out["outcome"] = _assert_content_preserved(bundle, marker)
+    assert out["recovered"] is True, out
+    assert not j.staging.exists(), f"staging residue: {out}"
+    assert not j.stash.exists(), f"stash residue: {out}"
+    assert not j.path.exists(), f"journal residue: {out}"
+    return out
+
+
+def test_crash_s1_bundle_present(tmp_path, monkeypatch):
+    """SC11 — crash STAGED, BEFORE RENAME 1. The bundle is present; recovery must keep it.
+
+    Swap-driven by construction, so it is one of the two arms Issue 3.8's control may pin to.
+    """
+    root = tmp_path / "r"
+    root.mkdir()
+    b = make_legacy(root)
+    marker = (b / "plan.md").read_text()
+
+    _drive_swap_crashing(monkeypatch, root, b, at_rename=1)
+
+    # THE PHASE-ORDERING ASSERTION. Under the fixed ordering the journal already reads `S2`
+    # here, even though physically rename 1 has NOT run. That over-approximation is the whole
+    # point: recovery may believe more happened than did, never less. Against the OLD ordering
+    # this window recorded `S1`.
+    j = hyg.Journal(root, b)
+    assert j.read()["phase"] == "S2", (
+        "the journal does not record S2 before rename 1 — the phase-ordering fix (Issue 3.1) "
+        "is not in effect, and a crash here would be recovered from a phase whose branch "
+        "rmtree's the staged copy"
+    )
+    assert b.is_dir(), "precondition: the bundle is still present before rename 1"
+
+    _assert_recovers_intact(root, b, marker, expect_phase="S2")
+
+
+def test_crash_s2_errno66(tmp_path, monkeypatch):
+    """SC11 / Issue 3.3 — no UNHANDLED errno-66, on the JOURNAL-WRITE seam.
+
+    Red-team pass 5's window: `S2` is recorded while the bundle is still PRESENT, so a recovery
+    that rolls forward renames staging onto a live directory and raises an uncaught `OSError`
+    (`ENOTEMPTY` — errno 66 on macOS, 39 on Linux). No data is lost, but `recover()` wedges
+    IDEMPOTENTLY: every later invocation raises the same exception. SC11 forbids it.
+
+    The `os.rename` seam cannot reach this window — it lies between a journal write and the
+    rename that follows — which is the same blindness diagnosed for `S3`. Hence the journal seam.
+    """
+    root = tmp_path / "r"
+    root.mkdir()
+    b = make_legacy(root)
+    marker = (b / "plan.md").read_text()
+
+    # Crash immediately AFTER `S2` is written — before staging, before rename 1.
+    _drive_swap_crashing(monkeypatch, root, b, at_journal="S2")
+
+    j = hyg.Journal(root, b)
+    assert j.read()["phase"] == "S2"
+    assert b.is_dir(), "precondition: the bundle is present while S2 is recorded"
+
+    # MUST NOT RAISE. The assertion is the absence of an exception, so it is written as a call.
+    out = hyg.recover(root, b)
+    assert b.is_dir(), f"the bundle did not survive: {out}"
+    # Crashed BEFORE rename 1, so this window must roll BACK — the original content, exactly.
+    assert _assert_content_preserved(b, marker) == "rolled-back", out
+    assert out["recovered"] is True, out
+
+    # IDEMPOTENT: a second recovery is a clean no-op, not a second exception.
+    again = hyg.recover(root, b)
+    assert again["recovered"] is False and "nothing to recover" in again["action"], again
+    assert b.is_dir()
+
+
+def test_crash_s3_recorded_physical_s2(tmp_path, monkeypatch):
+    """SC11 / Issue 3.9 — THE WINDOW ISSUE 3.1 OPENS, and the one that would destroy the bundle.
+
+    `S3` is written BEFORE rename 2, so a crash in between records `S3` while the physical state
+    is `S2`: the bundle is ABSENT, staging and stash both present. The SHIPPED `S3`/`S4` branch
+    assumed the swap had completed and unconditionally `rmtree`d both — returning
+    `recovered: True, "completed cleanup"` WITH THE BUNDLE DESTROYED.
+
+    So the phase-ordering fix alone would have RELOCATED the total-loss window from `S1` to `S3`
+    rather than closing it. This arm is what makes that non-hypothetical.
+
+    IT MUST USE THE JOURNAL-WRITE SEAM. The `os.rename` seam cannot reach this window by
+    construction — an arm hung off it is blind to exactly the defect this test exists for.
+    """
+    root = tmp_path / "r"
+    root.mkdir()
+    b = make_legacy(root)
+    marker = (b / "plan.md").read_text()
+
+    _drive_swap_crashing(monkeypatch, root, b, at_journal="S3")
+
+    j = hyg.Journal(root, b)
+    # THE PRECONDITIONS ARE THE POINT — assert the window really is the dangerous one.
+    assert j.read()["phase"] == "S3", "the fixture did not reach the S3-recorded window"
+    assert not b.exists(), "S3-recorded/S2-physical means the bundle is ABSENT"
+    assert j.staging.exists(), "staging must survive — rename 2 has not run"
+    assert j.stash.exists(), "the stash must survive — it holds the original"
+
+    out = _assert_recovers_intact(root, b, marker, expect_phase="S3")
+    assert out.get("physical") == "S2", out
+
+
+def test_crash_s4_recorded_physical_s3(tmp_path, monkeypatch):
+    """SC11 — `S4` is written BEFORE the stash cleanup, so it too may be one step ahead."""
+    root = tmp_path / "r"
+    root.mkdir()
+    b = make_legacy(root)
+
+    _drive_swap_crashing(monkeypatch, root, b, at_journal="S4")
+
+    j = hyg.Journal(root, b)
+    assert j.read()["phase"] == "S4"
+    assert b.is_dir(), "rename 2 completed, so the bundle is present"
+    assert j.stash.exists(), "the stash has not been cleaned up yet — that is the window"
+
+    out = hyg.recover(root, b)
+    assert out["recovered"] is True, out
+    assert b.is_dir() and (b / "index.md").is_file(), "the TRANSFORMED bundle must survive"
+    assert not j.stash.exists() and not j.path.exists()
+
+
+def test_crash_recovery_every_reachable_state_survives(tmp_path, monkeypatch):
+    """SC11 / REQ-OKFH-008 — THE REPLACEMENT for `test_crash_recovery_all_states` (Issue 3.6).
+
+    Every seam below drives the REAL `backfill_one` swap. "All states" means all PHYSICAL states
+    under the amended over-approximation reading: `S1` is recovery-time-only and is never
+    WRITTEN, so enumerating recorded labels would leave the `S1` window — the one where the
+    bundle is destroyed — unexercised. That is why the table is keyed on seams, not on labels.
+    """
+    seams = [
+        ("before-staging",   dict(at_journal="S2"), "S2"),
+        ("before-rename-1",  dict(at_rename=1),     "S2"),
+        ("before-rename-2",  dict(at_journal="S3"), "S3"),
+        ("before-cleanup",   dict(at_journal="S4"), "S4"),
+    ]
+    seen_phases = set()
+    for name, kw, expect in seams:
+        root = tmp_path / name
         root.mkdir()
         b = make_legacy(root)
-        j = hyg.Journal(root, b)
         marker = (b / "plan.md").read_text()
 
-        if state == "S0":
-            j.write("S0")
-        elif state == "S1":
-            shutil.copytree(b, j.staging)
-            j.write("S1")
-        elif state == "S2":
-            shutil.copytree(b, j.staging)
-            j.write("S1")
-            os.rename(b, j.stash)
-            j.write("S2")
-            assert not b.exists(), "S2's precondition is that the bundle is ABSENT"
-        elif state == "S3":
-            shutil.copytree(b, j.staging)
-            os.rename(b, j.stash)
-            os.rename(j.staging, b)
-            j.write("S3")
-        else:  # S4
-            shutil.copytree(b, j.staging)
-            os.rename(b, j.stash)
-            os.rename(j.staging, b)
-            shutil.rmtree(j.stash, ignore_errors=True)
-            j.write("S4")
+        _drive_swap_crashing(monkeypatch, root, b, **kw)
+        j = hyg.Journal(root, b)
+        rec = j.read()
+        assert rec is not None, f"{name}: no journal survived"
+        assert rec["phase"] == expect, f"{name}: recorded {rec['phase']!r}, expected {expect!r}"
+        seen_phases.add(rec["phase"])
 
         out = hyg.recover(root, b)
-        results[state] = out
-        assert out["recovered"] is True, f"{state}: {out}"
-        # THE INVARIANT THAT HOLDS FROM EVERY STATE: the bundle exists, its content is intact,
-        # and no residue is left behind.
-        assert b.is_dir(), f"{state}: the bundle did not survive recovery"
-        assert (b / "plan.md").read_text() == marker, f"{state}: content was lost"
-        assert not j.staging.exists(), f"{state}: staging residue"
-        assert not j.stash.exists(), f"{state}: stash residue"
-        assert not j.path.exists(), f"{state}: journal residue"
+        # THE ONE INVARIANT THAT HOLDS FROM EVERY SEAM: the bundle exists and its content is
+        # intact. Everything else about recovery is negotiable; this is not.
+        assert b.is_dir(), f"{name}: THE BUNDLE DID NOT SURVIVE RECOVERY — {out}"
+        _assert_content_preserved(b, marker)
+        assert out["recovered"] is True, f"{name}: {out}"
+        assert not j.staging.exists() and not j.stash.exists() and not j.path.exists(), \
+            f"{name}: residue after recovery — {out}"
 
-    assert set(results) == set(hyg.STATES)
-    # S1 and S4 are DISTINGUISHABLE — the whole reason the journal exists.
-    assert results["S1"]["action"] != results["S4"]["action"]
+    # NON-VACUITY: the seams really did produce distinct recorded phases, not four of one.
+    assert seen_phases == {"S2", "S3", "S4"}, seen_phases
+    # ...and `S1` is never WRITTEN, which is the amended table's claim.
+    assert "S1" not in seen_phases
+    assert set(hyg.STATES) == {"S0", "S1", "S2", "S3", "S4"}, hyg.STATES
+
+
+def test_recover_verb_exists(tmp_path, monkeypatch):
+    """SC12 / Issue 3.2 — recovery is OPERATOR-INVOCABLE, not merely present as a function."""
+    root = tmp_path / "r"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    b = make_legacy(root)
+    marker = (b / "plan.md").read_text()
+
+    _drive_swap_crashing(monkeypatch, root, b, at_journal="S3")
+    assert not b.exists(), "precondition: the crash left the bundle absent"
+
+    # DRY RUN BY DEFAULT — it reports the journal and changes nothing.
+    dry = _run(root, "recover")
+    assert dry.returncode == 0, dry.stdout + dry.stderr
+    assert json.loads(dry.stdout)["journals"], dry.stdout
+    assert not b.exists(), "the dry run recovered something — it must not"
+
+    applied = _run(root, "recover", "--apply")
+    assert applied.returncode == 0, applied.stdout + applied.stderr
+    assert b.is_dir(), "the verb did not recover the bundle"
+    _assert_content_preserved(b, marker)
+
+
+def test_backfill_refuses_stale_journal(tmp_path, monkeypatch):
+    """SC12 / Issue 3.4 — `backfill` REFUSES over a journal from an unfinished run.
+
+    Measured: nothing looked. `recover()` had no caller and no verb, so a stale journal was never
+    noticed and the next `backfill` would stage over a half-swapped bundle.
+    """
+    root = tmp_path / "r"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    b = make_legacy(root)
+
+    _drive_swap_crashing(monkeypatch, root, b, at_journal="S3")
+    assert hyg.stale_journals(root), "precondition: a stale journal exists"
+
+    proc = _run(root, "backfill", "--root", ".", "--apply")
+    assert proc.returncode == 1, proc.stdout
+    out = json.loads(proc.stdout)
+    assert out["verdict"] == "refused"
+    assert out["stale_journals"], out
+    assert "recover" in out["remediation"]
+
+    # ...and after recovering, backfill runs again — the refusal is a gate, not a wall.
+    assert _run(root, "recover", "--apply").returncode == 0
+    assert not hyg.stale_journals(root)
+    assert _run(root, "backfill", "--root", ".", "--apply").returncode == 0
 
 
 def test_backfill_leaves_no_residue(tmp_path):
@@ -434,37 +736,399 @@ def test_underscore_index_live_target(tmp_path):
         assert (work / "index.md").is_file() and not (work / "_index.md").exists()
 
 
-def test_restore_round_trip(tmp_path):
-    """SC14 / REQ-OKFH-010 — `restore` returns a backfilled bundle to its pre-run state,
-    INCLUDING unlinking files the backfill CREATED.
+# =========================================================================================
+# REQ-OKFH-010 as amended + REQ-OKFH-013 — the RECORD, and the three REFUSALS (plan-064 Epic 2).
+#
+# `test_restore_round_trip` USED TO LIVE HERE AND WAS REPLACED, NOT REPAIRED (Issue 2.8).
+# Measured: it exited 0 against the `restore` EXP-001 proved is NOT record-driven. It
+# hand-constructed an UNVERSIONED record carrying no operations and then asserted on the op
+# list `restore` RE-DERIVED from `rglob` + `git ls-files` — so it asserted the presence of the
+# very behaviour `REQ-OKFH-010` forbids, and would have passed under both implementations.
+# A test that passes under both measures nothing. Patching its assertions would have left the
+# false green intact under a familiar name, which is why the replacement asserts the reversal is
+# DRIVEN BY THE RECORDED OP LIST and fails against a filesystem-derived one.
+# =========================================================================================
 
-    `git checkout` alone cannot do this: a created `index.md`/`log.md` is absent from HEAD, so
-    a restore that only checks out leaves every created file behind and reports success. The
-    operation kind is therefore PER PATH.
+def _git_legacy_repo(tmp_path, **kw):
+    """A legacy bundle inside a real git work tree, COMMITTED.
+
+    Committed on purpose: `restore`'s mechanism is `git checkout`, so an uncommitted fixture
+    exercises the untracked-at-HEAD refusal instead of the happy path — which is a different
+    test (`test_restore_refuses_untracked`).
     """
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    b = make_legacy(root, **kw)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
+                   cwd=root, check=True)
+    return root, b
+
+
+def _run(root, *args, env=None):
+    e = dict(os.environ)
+    if env:
+        e.update(env)
+    return subprocess.run(["uv", "run", str(_HERE / "okf_hygiene.py"), *args],
+                          capture_output=True, text=True, cwd=root, env=e)
+
+
+def _backfill_with_record(root, bundle_parent="."):
+    """Run a real `backfill --apply --record` and return (proc, record dict)."""
+    proc = _run(root, "backfill", "--root", bundle_parent, "--apply", "--record", "rec.json")
+    rec_path = root / "rec.json"
+    data = json.loads(rec_path.read_text()) if rec_path.is_file() else None
+    return proc, data, rec_path
+
+
+def test_backfill_record_is_versioned_and_carries_operations(tmp_path):
+    """Issue 2.1 / REQ-OKFH-010 + REQ-OKFH-013 — the record RECORDS."""
+    root, b = _git_legacy_repo(tmp_path)
+    proc, data, _ = _backfill_with_record(root)
+    assert data is not None, proc.stdout + proc.stderr
+    assert data["schema_version"] == hyg.RECORD_SCHEMA_VERSION
+
+    entries = data["bundles"]
+    assert entries, f"no bundle recorded: {proc.stdout}"
+    ops = entries[0]["operations"]
+    assert ops, "the record carries NO operations — this is the exact EXP-001 defect"
+
+    kinds = {o["kind"] for o in ops}
+    assert kinds <= {"created", "deleted", "modified"}, kinds
+    # The transform's signature: index.md/log.md CREATED, the legacy README DELETED.
+    assert any(o["path"].endswith("index.md") and o["kind"] == "created" for o in ops), ops
+    assert any(o["path"].endswith("log.md") and o["kind"] == "created" for o in ops), ops
+    assert any(o["path"].endswith("README.md") and o["kind"] == "deleted" for o in ops), ops
+    # Content hashes, not just names — a reversal claim is checkable only against them.
+    for o in ops:
+        if o["kind"] in ("created", "modified"):
+            assert o["sha256_after"], o
+        if o["kind"] in ("deleted", "modified"):
+            assert o["sha256_before"], o
+
+
+def test_restore_record_driven(tmp_path):
+    """SC8 / REQ-OKFH-010 — the reversal is DRIVEN BY THE RECORDED OP LIST.
+
+    THE ARM THAT REPLACES `test_restore_round_trip`. It is built so a `restore` that re-derives
+    from `rglob` + `git ls-files` FAILS it: the record is mutated to omit one created path, and a
+    record-driven restore must then leave that path alone. A filesystem-derived restore cannot
+    see the omission — it re-discovers the file and unlinks it anyway — so the two
+    implementations are DISTINGUISHABLE here, which is precisely what the old test lacked.
+    """
+    root, b = _git_legacy_repo(tmp_path)
+    _, data, rec_path = _backfill_with_record(root)
+    assert (b / "index.md").is_file() and (b / "log.md").is_file()
+
+    # NON-VACUITY: both files really were recorded as `created`.
+    created = [o["path"] for o in data["bundles"][0]["operations"] if o["kind"] == "created"]
+    assert any(p.endswith("index.md") for p in created), created
+    assert any(p.endswith("log.md") for p in created), created
+
+    # Drop `log.md` from the RECORD only. The file stays on disk.
+    data["bundles"][0]["operations"] = [
+        o for o in data["bundles"][0]["operations"] if not o["path"].endswith("log.md")
+    ]
+    rec_path.write_text(json.dumps(data))
+
+    proc = _run(root, "restore", "--record", "rec.json", "--apply", "--force")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+    assert not (b / "index.md").exists(), "a RECORDED created path was not reversed"
+    assert (b / "log.md").exists(), (
+        "an UNRECORDED path was unlinked — the reversal is driven by the filesystem, not by "
+        "the record (REQ-OKFH-010's record-driven clause)"
+    )
+
+
+def test_restore_bundle_filter(tmp_path):
+    """SC8 / REQ-OKFH-010 — a batch record does not force whole-batch reversal (Issue 2.4)."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    a = make_legacy(root, name="plan-901-fixture-aaaaaa")
+    c = make_legacy(root, name="plan-902-fixture-bbbbbb")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "s"],
+                   cwd=root, check=True)
+
+    _, data, _ = _backfill_with_record(root)
+    assert len(data["bundles"]) == 2, data          # NON-VACUITY: it really is a batch.
+    assert (a / "index.md").is_file() and (c / "index.md").is_file()
+
+    proc = _run(root, "restore", "--record", "rec.json", "--bundle", a.name, "--apply", "--force")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert not (a / "index.md").exists(), "the named bundle was not reversed"
+    assert (c / "index.md").is_file(), "an UNNAMED bundle was reversed — the filter is not honoured"
+
+    # An unknown --bundle is a REFUSAL, never a silent reversal of a different set.
+    bad = _run(root, "restore", "--record", "rec.json", "--bundle", "no-such-bundle", "--apply")
+    assert bad.returncode == 1, bad.stdout
+    assert json.loads(bad.stdout)["verdict"] == "refused"
+
+
+def test_restore_refuses_legacy_record(tmp_path):
+    """SC8 / REQ-OKFH-013 — an UNVERSIONED record is REFUSED, not misread.
+
+    This is the arm that catches the silent no-op: the legacy shape carries no operations, so a
+    record-driven restore reading it would reverse NOTHING and report `pass`.
+    """
+    root, b = _git_legacy_repo(tmp_path)
+    _backfill_with_record(root)
+
+    # The pre-REQ-OKFH-013 shape, verbatim: a verdict, and no operations.
+    (root / "legacy.json").write_text(json.dumps({"bundles": [
+        {"bundle": b.name, "before": {"verdict": "pass"}, "after": {"verdict": "pass"}}]}))
+
+    proc = _run(root, "restore", "--record", "legacy.json", "--apply")
+    assert proc.returncode == 1, proc.stdout
+    out = json.loads(proc.stdout)
+    assert out["verdict"] == "refused"
+    assert "schema_version" in out["reason"]
+    # AND IT REVERSED NOTHING: refusal means refusal, not a partial pass.
+    assert (b / "index.md").is_file()
+
+    # An unrecognised FUTURE version is refused too — refusing beats guessing field meanings.
+    (root / "future.json").write_text(json.dumps({"schema_version": 999, "bundles": []}))
+    fut = _run(root, "restore", "--record", "future.json", "--apply")
+    assert fut.returncode == 1, fut.stdout
+    assert json.loads(fut.stdout)["verdict"] == "refused"
+
+
+def test_restore_refuses_non_git(tmp_path):
+    """SC9 / REQ-OKFH-010 — LOSS PATH 1: a non-git tree. Measured: the bundle was DELETED."""
+    root, b = _git_legacy_repo(tmp_path)
+    _, data, _ = _backfill_with_record(root)
+
+    # Move the backfilled bundle and its record OUT of any work tree.
+    loose = tmp_path / "loose"
+    loose.mkdir()
+    shutil.copytree(b, loose / b.name)
+    (loose / "rec.json").write_text(json.dumps(data))
+
+    # NON-VACUITY: this really is not a work tree.
+    assert not hyg._is_git_tree(loose)
+    before = sorted(p.name for p in (loose / b.name).iterdir())
+    assert before, "fixture bundle is empty; the arm would be vacuous"
+
+    proc = _run(loose, "restore", "--record", "rec.json", "--apply")
+    assert proc.returncode == 1, proc.stdout
+    assert json.loads(proc.stdout)["verdict"] == "refused"
+    # THE POINT OF THE ARM: nothing was deleted.
+    assert sorted(p.name for p in (loose / b.name).iterdir()) == before
+
+
+def test_restore_refuses_untracked(tmp_path):
+    """SC9 / REQ-OKFH-010 — LOSS PATH 2: the bundle is untracked at HEAD. Measured: TOTAL LOSS.
+
+    The realistic case for an uncommitted plan: nothing to check out, so the unlink pass runs
+    alone and takes the whole bundle with it.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    # A commit that does NOT contain the bundle, so HEAD exists but the bundle is absent from it.
+    (root / "seed.txt").write_text("seed\n")
+    subprocess.run(["git", "add", "seed.txt"], cwd=root, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
+                   cwd=root, check=True)
+    b = make_legacy(root)
+
+    _, data, _ = _backfill_with_record(root)
+    assert data["bundles"], data
+
+    # NON-VACUITY: the bundle really is absent from HEAD.
+    assert not hyg._tracked_at_head(root, f"{b.name}/plan.md")
+    before = sorted(p.name for p in b.iterdir())
+
+    proc = _run(root, "restore", "--record", "rec.json", "--apply")
+    assert proc.returncode == 1, proc.stdout
+    assert json.loads(proc.stdout)["verdict"] == "refused"
+    assert sorted(p.name for p in b.iterdir()) == before, "the bundle was mutated despite refusal"
+
+
+def test_restore_refuses_dirty(tmp_path):
+    """SC9 / REQ-OKFH-010 — LOSS PATH 3: post-backfill edits.
+
+    Measured: every untracked file in the bundle was unlinked, with no dirty-tree guard and no
+    warning. Overridable by explicit `--force` — a deliberate re-reversal over known local edits
+    is legitimate if rare — but the operator must SAY SO.
+    """
+    root, b = _git_legacy_repo(tmp_path)
+    _backfill_with_record(root)
+
+    # An edit made AFTER the backfill, to a file the backfill created.
+    (b / "index.md").write_text((b / "index.md").read_text() + "\n<!-- hand edit -->\n")
+    precious = b / "notes-since-backfill.md"
+    precious.write_text("# work that exists nowhere else\n")
+
+    proc = _run(root, "restore", "--record", "rec.json", "--apply")
+    assert proc.returncode == 1, proc.stdout
+    out = json.loads(proc.stdout)
+    assert out["verdict"] == "refused"
+    assert out["dirty"], out
+    assert precious.is_file(), "the untracked post-backfill file was destroyed despite refusal"
+
+    # ...and `--force` is a real override, not decoration.
+    forced = _run(root, "restore", "--record", "rec.json", "--apply", "--force")
+    assert forced.returncode == 0, forced.stdout + forced.stderr
+
+
+def test_mixed_run_exit_is_legible(tmp_path):
+    """SC10 / Issue 2.6 — a run that MUTATES N and HALTS on M is not readable as 'nothing happened'.
+
+    The exit code cannot carry this: `1` is the same number whether the first bundle halted
+    before touching anything or the tenth halted after nine were rewritten. Only the second is a
+    state an operator must not walk away from, so the counts are reported separately and named.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    good = make_legacy(root, name="plan-901-fixture-aaaaaa")
+    # A bundle that HALTS: its README objective diverges from plan.md's H1.
+    bad = make_legacy(root, name="plan-902-fixture-bbbbbb",
+                      objective="The real objective", readme_objective="A stale objective")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "s"],
+                   cwd=root, check=True)
+
+    proc, data, _ = _backfill_with_record(root)
+    out = json.loads(proc.stdout)
+
+    # NON-VACUITY: the fixture really is mixed.
+    assert out["mutated"] >= 1 and out["halted"] >= 1, out
+    assert out["mixed_run"] is True, out
+    assert "PARTIAL" in out["mixed_run_note"]
+    assert out["mutated_bundles"] and out["halted_bundles"]
+    assert set(out["mutated_bundles"]).isdisjoint(out["halted_bundles"])
+    assert proc.returncode == 1, "a halt must still be a non-zero exit"
+
+    # THE RECORD SAYS WHICH. A halted bundle carries no operations to reverse.
+    recorded = {e["bundle"] for e in data["bundles"]}
+    assert recorded == set(out["mutated_bundles"]), (recorded, out["mutated_bundles"])
+    assert bad.name not in recorded, "a HALTED bundle appears in the record as reversible"
+    assert data["mixed_run"] is True
+
+
+# =========================================================================================
+# REQ-OKFH-011 / REQ-OKFH-012 / REQ-DATA-075 — an honest dry run, and objective reconciliation.
+# =========================================================================================
+
+def test_dry_run_predictive(tmp_path):
+    """SC15 / REQ-OKFH-011 — every halt condition apply evaluates, the dry run evaluates.
+
+    THE ARM IS BUILT ON THE HALT THAT MEASURABLY ESCAPED. `phase-log-loss` was computed AFTER
+    staging, inside `if apply:`, so `plan-030` — the one target bundle of eight that cleared the
+    dry run — then halted under `--apply` on exactly that guard. A dry run that under-reports
+    halts is worse than one that reports none: an operator consents on evidence that does not
+    cover the condition that stops it.
+    """
+    # A bundle whose phase log would be LOST: dated bullets in plan.md that the transform
+    # cannot carry into log.md.
+    b = make_legacy(tmp_path, phaselog="- 2026-08-01 scoping: started\n- 2026-08-02 drafting: x\n")
+    (b / "plan.md").write_text(
+        (b / "plan.md").read_text().replace("**Phase log:**", "**Not a phase log:**"))
+
+    dry = hyg.backfill_one(tmp_path, b, apply=False, skill="yf-plan")
+
+    # NON-VACUITY: the fixture really does trip a POST-STAGING guard, not a pre-staging one.
+    assert dry["action"] == "halt", dry
+    kinds = [h["kind"] for h in dry["halts"]]
+    assert "phase-log-loss" in kinds, kinds
+
+    # ...and apply agrees. THIS is the predictive property: same input, same verdict.
+    b2 = make_legacy(tmp_path / "apply-side",
+                     phaselog="- 2026-08-01 scoping: started\n- 2026-08-02 drafting: x\n")
+    (b2 / "plan.md").write_text(
+        (b2 / "plan.md").read_text().replace("**Phase log:**", "**Not a phase log:**"))
+    applied = hyg.backfill_one(tmp_path / "apply-side", b2, apply=True, skill="yf-plan")
+    assert applied["action"] == "halt", applied
+    assert [h["kind"] for h in applied["halts"]] == kinds, (dry["halts"], applied["halts"])
+
+    # THE DRY RUN LEFT NOTHING BEHIND — no staging, and crucially NO JOURNAL, which would make
+    # the next backfill refuse (Issue 3.4).
+    assert not hyg.stale_journals(tmp_path), "the dry run wrote a journal"
+    assert not (b.parent / hyg.STAGING_DIR).exists(), "the dry run left staging residue"
+
+
+def test_dry_run_leaves_no_residue_on_the_happy_path(tmp_path):
+    """REQ-OKFH-011 — staging-without-swapping must be invisible afterwards."""
     b = make_legacy(tmp_path)
-    created_before = {p.name for p in b.iterdir()}
+    before = sorted(p.name for p in b.iterdir())
+
+    dry = hyg.backfill_one(tmp_path, b, apply=False, skill="yf-plan")
+    assert dry["action"] == "would-backfill", dry
+
+    assert sorted(p.name for p in b.iterdir()) == before, "the dry run MUTATED the bundle"
+    assert not (b.parent / hyg.STAGING_DIR).exists(), "staging residue"
+    assert not hyg.stale_journals(tmp_path), "journal residue"
+
+
+def test_reconcile_objective(tmp_path):
+    """SC16 / REQ-OKFH-012 — `plan.md`'s H1 is authoritative, OPT-IN, and reported per bundle."""
+    def fixture(root):
+        return make_legacy(root, objective="The current objective",
+                           readme_objective="A stale objective")
+
+    # DEFAULT: the halt is retained. A guard whose remedy is on by default is not a guard.
+    b = fixture(tmp_path)
+    halted = hyg.backfill_one(tmp_path, b, apply=False, skill="yf-plan")
+    assert halted["action"] == "halt", halted
+    assert [h["kind"] for h in halted["halts"]] == ["objective-divergence"], halted
+    assert "reconcile-objective" in halted["halts"][0]["remediation"]
+
+    # OPT-IN: the same bundle clears, and the rewrite is REPORTED.
+    root2 = tmp_path / "opt-in"
+    b2 = fixture(root2)
+    ok = hyg.backfill_one(root2, b2, apply=True, skill="yf-plan", reconcile_objective=True)
+    assert ok["action"] == "backfilled", ok
+    assert ok["reconciled_objective"]["from"] == "A stale objective"
+    assert ok["reconciled_objective"]["to"] == "The current objective"
+    assert ok["reconciled_objective"]["authority"] == "plan.md H1"
+
+    # THE AUTHORITY IS plan.md's H1, and it reached the generated index.
+    idx = (b2 / "index.md").read_text()
+    assert "> The current objective" in idx, idx[:400]
+    assert "A stale objective" not in idx
+
+
+def test_stamps_description(tmp_path):
+    """SC16 / REQ-DATA-075 — the transform stamps `description:`, derived and never invented."""
+    b = make_legacy(tmp_path)
     rec = hyg.backfill_one(tmp_path, b, apply=True, skill="yf-plan")
     assert rec["action"] == "backfilled", rec
-    after = {p.name for p in b.iterdir()}
-    created = after - created_before
-    assert "index.md" in created and "log.md" in created, created
 
-    # The per-path kind is what the round trip depends on. Verified structurally: in a tree
-    # with no git history every path is UNTRACKED, so every op must be `unlink` — the branch
-    # `git checkout` alone would skip.
-    record = tmp_path / "rec.json"
-    record.write_text(json.dumps({"bundles": [{"bundle": b.name,
-                                               "before": {"verdict": "pass"},
-                                               "after": {"verdict": "pass"}}]}))
-    proc = subprocess.run(["uv", "run", str(_HERE / "okf_hygiene.py"), "restore",
-                           "--record", str(record)],
-                          capture_output=True, text=True, cwd=tmp_path)
-    assert proc.returncode == 0, proc.stderr
-    ops = json.loads(proc.stdout)["operations"]
-    kinds = {o["kind"] for o in ops}
-    assert "unlink" in kinds, f"no unlink op was planned — created files would survive: {ops}"
-    assert any(o["path"].endswith("index.md") and o["kind"] == "unlink" for o in ops)
+    fm, _ = okf_read(b / "plan.md")
+    assert str(fm.get("description") or "").strip(), f"plan.md carries no description: {fm}"
+    assert fm["description"] == "An objective", fm["description"]
+
+    ffm, _ = okf_read(b / "findings" / "exp-001.md")
+    assert str(ffm.get("description") or "").strip() == "A finding", ffm
+
+    # EXEMPT, and the exemption is DECLARED (REQ-DATA-075): context.md would carry the same
+    # string in every bundle, and a key constant across the corpus carries zero information.
+    cfm, _ = okf_read(b / "context.md")
+    assert not str(cfm.get("description") or "").strip(), cfm
+
+    # RESERVED files carry no frontmatter at all (REQ-OKF-031) — never stamped.
+    assert not (b / "index.md").read_text().startswith("---\ntype:")
+    assert "description:" not in (b / "log.md").read_text().split("\n#")[0]
+
+
+def test_description_is_never_invented(tmp_path):
+    """REQ-DATA-075 / REQ-OKF-011 — a file with no derivable description is left UNSTAMPED.
+
+    A manufactured string satisfies the letter of the requirement and defeats its purpose, so
+    "no H1, no description" must be the behaviour rather than "no H1, invent one".
+    """
+    b = make_legacy(tmp_path, extra=(("findings/no-heading.md", "just prose, no H1 at all\n"),))
+    hyg.backfill_one(tmp_path, b, apply=True, skill="yf-plan")
+
+    fm, _ = okf_read(b / "findings" / "no-heading.md")
+    assert fm, "the transform stamped no frontmatter at all — arm would be vacuous"
+    assert not str(fm.get("description") or "").strip(), \
+        f"a description was INVENTED for a file with no H1: {fm}"
 
 
 def test_migration_samples_are_untouched(tmp_path):
