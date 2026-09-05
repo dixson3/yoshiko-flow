@@ -8,7 +8,7 @@ description: 'Make the yf-okf-hygiene backfill/restore engine trustworthy enough
 id: plan-064-james-dixson-a0b7fa
 author: james-dixson
 created: '2026-09-05'
-status: executing
+status: complete
 deliverable_class: standard
 fingerprint: 68c76d5248b9f26508d9a4a42193ca0154b9426ffe59a5cb93242aaa65620fcf
 epic: yf-mol-18gi
@@ -18,7 +18,7 @@ epic: yf-mol-18gi
 **ID:** plan-064-james-dixson-a0b7fa
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** executing
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-18gi
 **Fingerprint:** 68c76d5248b9f26508d9a4a42193ca0154b9426ffe59a5cb93242aaa65620fcf

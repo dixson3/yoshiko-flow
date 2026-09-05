@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-05
+- complete: plan complete
+- reconciling: post-execution reconciliation
 - executing: start gate resolved
 - intake: epic yf-mol-18gi poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level

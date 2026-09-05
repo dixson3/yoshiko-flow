@@ -11,7 +11,22 @@ This is the measurement the follow-on transform plan starts from. Every number b
 run**. `backfill --apply` was never run against the repository corpus — that is the follow-on's
 work, not this plan's.
 
-## 1. The halt profile, before and after
+## Approach Tested
+
+**measured:** every number below is a **dry run** of
+`okf_hygiene.py backfill` over `docs/plans` + `docs/research` at `--maxdepth 2`, on the
+merged post-repair tree, with and without the new `--reconcile-objective`. The three
+previously-untested surfaces were probed separately: the `_index.md` route by driving
+`backfill_one` on both legacy variants through dry run *and* apply; the classification
+question by tabulating `classify()` over all 69 enumerated bundles; the partial-batch
+record by a mixed fixture (one clean bundle, one halting). The `warn` question was
+measured on sandbox copies of three real targets under `--apply`, outside the repository.
+
+`backfill --apply` was **never** run against the repository corpus.
+
+## Result
+
+### 1. The halt profile, before and after
 
 Run over `docs/plans` + `docs/research`, `--maxdepth 2`, on the merged post-repair tree.
 
@@ -29,9 +44,9 @@ measured data-loss mode, so it is correctly blocking and must not be waved throu
 inside `if apply:`. The dry run above now reports that halt **without applying anything**. The
 dry run's claim and apply's behaviour are the same claim for the first time.
 
-## 2. The three surfaces EXP-001 did not test
+### 2. The three surfaces EXP-001 did not test
 
-### 2a. The `_index.md` legacy-variant route — a **real defect**, routed to the follow-on
+#### 2a. The `_index.md` legacy-variant route — a **real defect**, routed to the follow-on
 
 **Measured, both before and after this plan's changes:**
 
@@ -55,13 +70,13 @@ which is outside every epic of plan-064 — so it is **recorded and filed**, not
 `test_two_variant_equivalence` now asserts the measured behaviour of each variant, so the
 divergence cannot be re-hidden, and that arm **fails** if the routing is ever repaired.
 
-### 2b. Does any target classify `hybrid-partial`? — **No**
+#### 2b. Does any target classify `hybrid-partial`? — **No**
 
 Measured over all 69 enumerated bundles: `{conformant: 61, legacy-readme: 8}`. **Zero**
 `hybrid-partial`, **zero** `legacy-underscore-index`, **zero** `unclassifiable`. The remaining
 population is homogeneous, which removes one of R8's named unknowns.
 
-### 2c. The record contents of a partially-halted batch — **mutated bundles only**
+#### 2c. The record contents of a partially-halted batch — **mutated bundles only**
 
 A run that mutates *N* and halts on *M* now reports `mixed_run: true`, the counts separately, and
 both bundle lists by name. **The record contains entries only for the mutated bundles**: a halted
@@ -69,7 +84,7 @@ bundle was never touched and has nothing to reverse. Asserted by
 `test_mixed_run_exit_is_legible`, which also asserts the two lists are disjoint and that a halted
 bundle never appears in the record as reversible.
 
-## 3. Why the audit verdict stayed `warn` → `warn` (Issue 4.6)
+### 3. Why the audit verdict stayed `warn` → `warn` (Issue 4.6)
 
 **Because `warn` is a SATURATING LABEL, not a measure.** `audit_verdict` returns `warn` when the
 status is `pass` **and the report contains at least one `[warn]` line**. One residual finding
@@ -103,9 +118,44 @@ verdict was reporting a boolean and being read as a measure — the corpus-level
 is `verdict: warn` a failure signal. The actionable numbers are `legacy: N` and the per-bundle
 **finding count**, before and after.
 
-## 4. Residue
+## Residue
 
 Both corpus dry runs left **no** `.okf-hygiene-staging` or `.okf-hygiene-journal` directories and
 **no** modification to any bundle (`git status --porcelain` clean apart from this plan's own
 files). The dry run stages into a throwaway copy, removes it on both exit paths, and writes no
 journal.
+
+## Implications for Plan
+
+**measured:** the engine repairs achieved what they were scoped to achieve — the transform went
+from *impossible* (8/8 halting, with one of those halts invisible to the dry run) to *tractable*
+(7/8 clearing, the last halt real and correctly blocking). That discharges plan-064's objective
+and confirms D6's split: the corpus transform belongs to a follow-on that can now trust the
+instrument.
+
+Two results change what the follow-on must do rather than merely informing it:
+
+- **`plan-030` must not be forced.** Its `phase-log-loss` halt guards the single measured
+  data-loss mode. It needs its phase log reconciled by hand before any `--apply` touches it.
+- **The acceptance signal must be the finding COUNT, not the verdict.** §3 shows the verdict is a
+  saturating boolean that reports no change across an 85-88% improvement. A follow-on gating on
+  `verdict` would conclude the transform did nothing.
+
+**inferred:** the `_index.md` defect (§2a) is unlikely to block the follow-on, because zero of the
+8 targets are `_index.md`. That is an inference from today's population, not a guarantee about a
+future one — which is why it is filed rather than closed.
+
+## Recommendations
+
+1. **Run the follow-on transform with `--reconcile-objective`**, on the 7 bundles that clear.
+   Handle `plan-030` separately and by hand.
+2. **Rollback is `git revert` of the backfill commit, not `restore`** (D10). All 8 targets are
+   tracked and committed — the path EXP-001 measured byte-exact. `restore` is now genuinely
+   record-driven and refuses on all three loss paths, but for a committed corpus `git revert` is
+   simpler and stronger.
+3. **Rehearse `restore` anyway** (D3, and #316's own second acceptance bullet): sandbox copy,
+   `git init`, `backfill --apply --record`, `restore --record --apply`, diff. A reversal path never
+   exercised is an assumption.
+4. **Measure per-bundle finding counts before and after**, not the audit verdict.
+5. **Do not repair the `_index.md` route as part of the transform.** It touches `okf.migrate`
+   across six vendored copies and blocks nothing in this corpus; it is filed separately.
