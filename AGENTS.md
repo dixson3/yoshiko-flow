@@ -9,6 +9,50 @@ Do NOT use Claude Code memory (`~/.claude/` memory directories). Two tiers:
 - **Ephemeral / clone-local** → `bd remember "<insight>"`; recall with `bd memories <keyword>` / `bd recall`. Injected at `bd prime`. Project-DB-local: absent from JSONL export, never synced upstream. Never promote to durable or portable use.
 - **Durable / cross-clone / behavioral** → an `AGENTS/` rule or a bead filed and pushed upstream. Anything another clone, machine, or harness must see goes here — not `bd remember`.
 
+## Shell — this repo runs ZSH, not bash
+
+`$SHELL` is `/bin/zsh` (5.9). Agent tool calls run under it. **Verify rather than assume** —
+`echo "${ZSH_VERSION:-} ${BASH_VERSION:-}"` settles it in one line — because the difference below
+is silent in both directions.
+
+**The rule is to write constructs that behave IDENTICALLY in both shells, not to detect and
+branch.** Detection yields two code paths where the inactive one is never exercised, and the
+detection is itself a thing to get wrong. Know your shell to *read* a failure; write portably to
+*prevent* one.
+
+### The trap that has actually bitten (measured, plan-063)
+
+**zsh does not word-split unquoted parameter expansions.** bash does.
+
+```bash
+m="a:1 b:2 c:3"
+for x in $m; do ...; done     # bash: 3 iterations · zsh: ONE, x = the whole string
+```
+
+Under zsh the loop still runs, still exits 0, and the body still does something plausible with a
+mangled value. Measured cost: a `bd update --external-ref` loop wrote **one** bead the **wrong**
+issue url and skipped six. Exit code 0; caught only by reading the values back.
+
+### Write it this way instead
+
+| Instead of | Use |
+| :-- | :-- |
+| `for x in $var` over a built-up string | `printf '%s\n' "a 1" "b 2" \| while read -r k v; do …; done` |
+| relying on `$(cmd)` splitting into words | `while IFS= read -r line; do …; done < <(cmd)` |
+| `${arr[0]}` / bare `${#arr}` | avoid shell arrays entirely — indexing is 0-based in bash, **1-based in zsh** |
+| a multi-step data transform in shell | a `python3 - <<'EOF'` heredoc |
+
+Two more that differ and are worth knowing: `echo` flag handling is not portable — use `printf`;
+and `setopt`/`shopt` are not interchangeable.
+
+### Verify the effect, never the exit code
+
+The failure mode above is **exit 0 with wrong data**, so a green exit proves nothing. Any loop
+that writes — beads, files, upstream refs — must **read its writes back** and print what it
+found. That is the same standard this repo applies to upstream writes (see Upstream Tracking:
+"Verify a posted body by reading it back, not by trusting exit 0"); it applies to local shell
+loops for exactly the same reason.
+
 ## SPEC-first
 
 SPEC changes always happen **first**. Before implementing a behavior change, land (or stage
