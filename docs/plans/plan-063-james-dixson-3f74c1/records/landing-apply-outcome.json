@@ -1,0 +1,185 @@
+{
+  "attempt-1": {
+    "verdict": "fail",
+    "passed": false,
+    "halted": true,
+    "halt_class": 5,
+    "reason": "verify-reconcile exited 1. HALTING: completion stops here and `complete` is NOT set.",
+    "journal_phase": "L_RECONCILED",
+    "resumed_from": null,
+    "reached_terminal_state": false,
+    "steps": [
+      {
+        "step": "l0_lock_acquire",
+        "verdict": "pass"
+      },
+      {
+        "step": "l1_down_merge",
+        "verdict": "pass"
+      },
+      {
+        "step": "l2_merge",
+        "verdict": "pass"
+      },
+      {
+        "step": "l3_validate_merged",
+        "verdict": "pass"
+      },
+      {
+        "step": "l4_commit_merge",
+        "verdict": "pass"
+      },
+      {
+        "step": "l5_advisory_recheck",
+        "verdict": "pass"
+      },
+      {
+        "step": "l6_push_one",
+        "verdict": "pass"
+      },
+      {
+        "step": "l7_reconcile_writes",
+        "verdict": "pass"
+      },
+      {
+        "step": "audit-close",
+        "verdict": "pass"
+      },
+      {
+        "step": "retrospective-report",
+        "verdict": "pass"
+      },
+      {
+        "step": "judgement-never-fired-report",
+        "verdict": "pass"
+      },
+      {
+        "step": "classify-deliverable",
+        "verdict": "pass"
+      },
+      {
+        "step": "close-reconcile-step",
+        "verdict": "pass"
+      },
+      {
+        "step": "verify-reconcile",
+        "verdict": "fail"
+      }
+    ]
+  },
+  "attempt-2-digest-halt": {
+    "verdict": "fail",
+    "passed": false,
+    "halted": null,
+    "halt_class": 5,
+    "reason": "the merge target moved since this decision was minted, so the decision was adjudicated against facts that no longer hold. Reported as a DIGEST MISMATCH rather than as a conflict, because the mismatch is detectable BEFORE the merge is attempted.",
+    "journal_phase": "L_RECONCILED",
+    "resumed_from": null,
+    "reached_terminal_state": null,
+    "steps": []
+  },
+  "attempt-3-final": {
+    "verdict": "pass",
+    "passed": true,
+    "halted": false,
+    "halt_class": null,
+    "reason": "the landing reached L_DONE with every step measured",
+    "journal_phase": "L_DONE",
+    "resumed_from": "L_RECONCILED",
+    "reached_terminal_state": true,
+    "steps": [
+      {
+        "step": "l0_lock_acquire",
+        "verdict": "pass"
+      },
+      {
+        "step": "l1_down_merge",
+        "verdict": "pass"
+      },
+      {
+        "step": "l2_merge",
+        "verdict": "pass"
+      },
+      {
+        "step": "l3_validate_merged",
+        "verdict": "pass"
+      },
+      {
+        "step": "l4_commit_merge",
+        "verdict": "pass"
+      },
+      {
+        "step": "l5_advisory_recheck",
+        "verdict": "pass"
+      },
+      {
+        "step": "l6_push_one",
+        "verdict": "pass"
+      },
+      {
+        "step": "l7_reconcile_writes",
+        "verdict": "pass"
+      },
+      {
+        "step": "audit-close",
+        "verdict": "pass"
+      },
+      {
+        "step": "retrospective-report",
+        "verdict": "pass"
+      },
+      {
+        "step": "judgement-never-fired-report",
+        "verdict": "pass"
+      },
+      {
+        "step": "classify-deliverable",
+        "verdict": "pass"
+      },
+      {
+        "step": "close-reconcile-step",
+        "verdict": "pass"
+      },
+      {
+        "step": "verify-reconcile",
+        "verdict": "pass"
+      },
+      {
+        "step": "recheck-criteria",
+        "verdict": "pass"
+      },
+      {
+        "step": "l12_close_cascade",
+        "verdict": "pass"
+      },
+      {
+        "step": "l13_complete_gate",
+        "verdict": "pass"
+      },
+      {
+        "step": "l14_pour_fidelity",
+        "verdict": "pass"
+      },
+      {
+        "step": "l15_update_status",
+        "verdict": "pass"
+      },
+      {
+        "step": "l16_commit_and_push_two",
+        "verdict": "pass"
+      },
+      {
+        "step": "l17_residual_mirroring",
+        "verdict": "pass"
+      },
+      {
+        "step": "l18_prune",
+        "verdict": "pass"
+      },
+      {
+        "step": "l19_redeploy",
+        "verdict": "pass"
+      }
+    ]
+  }
+}
