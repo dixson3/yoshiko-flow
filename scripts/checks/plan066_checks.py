@@ -402,7 +402,11 @@ def sc_backend_sites(root: Path, a) -> tuple[bool, str, dict]:
 def sc_group_membership(root: Path, a) -> tuple[bool, str, dict]:
     """SC9 — `architecture.d2` depicts the WORKFLOWS group it previously omitted entirely, and
     every group's enumerated member NAMES agree with frontmatter (mandate (d))."""
-    d2 = read(root, ARCH_D2)
+    # NORMALIZE THE `.d2` ESCAPE FIRST. A label is one physical line with `\n` as a literal
+    # two-character escape, so "(5)\nbeads-init" puts an `n` immediately before the member name
+    # and any word-boundary match fails. Measured: without this, 9 of 20 members read as absent
+    # from a diagram that names every one of them.
+    d2 = read(root, ARCH_D2).replace("\\n", " · ")
     census = skill_group_census(root)
     findings = []
     for group in SKILL_GROUPS:
@@ -410,9 +414,17 @@ def sc_group_membership(root: Path, a) -> tuple[bool, str, dict]:
             findings.append(f"group `{group}` is NOT DEPICTED in {ARCH_D2}")
             continue
         expected = census.get(group, [])
-        absent = [s for s in expected if s not in d2]
+        # ACCEPT THE SHORTHAND FORM. The diagram labels read `beads-init · beads-extra`, not
+        # `yf-beads-init · yf-beads-extra`: on a rendered image the `yf-` on every name is pure
+        # noise, and dropping it is the right authoring choice. `check_web_counts` already
+        # resolves shorthand against the same census, so requiring the long form HERE would put
+        # two criteria in disagreement about one fact — which is its own defect, and exactly the
+        # class this plan exists to close.
+        absent = [s for s in expected
+                  if s not in d2 and not re.search(rf"(?<![a-z0-9-]){re.escape(s[3:])}(?![a-z0-9-])", d2)]
         if absent:
-            findings.append(f"group `{group}`: member id(s) absent from the diagram: {absent}")
+            findings.append(f"group `{group}`: member id(s) absent from the diagram "
+                            f"(neither the full id nor its `yf-`-stripped form): {absent}")
     return not findings, (f"{len(SKILL_GROUPS)} group(s) checked by name against frontmatter "
                           f"({sum(len(v) for v in census.values())} skills); "
                           + ("clean" if not findings else "; ".join(findings))), \
