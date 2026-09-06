@@ -23,15 +23,58 @@ duplicated across nodes produces equivalent results (e.g. an ID format, a URL, a
 stated in two places). Contracts: `value-equal`. Rationale: duplicated logic drifts when one
 copy is edited; this is the "same fact in two files" check.
 
-**REQ-CHECK-004: No orphaned components (`required-section` + Reachability).** Two halves:
-(a) every `required` node (§1 Reachability) has a live referencer per §4; (b) every
-`required-section` edge's §5 sections are present in the derived node. Contract:
-`section-present`. Rationale: an unreferenced required artifact, or a doc missing a mandated
-section, is drift even when every existing reference resolves.
+**REQ-CHECK-004: No orphaned components (`required-section` + Reachability).** Two halves,
+**and they are dispatched differently** — see REQ-CHECK-005 and REQ-CHECK-008:
 
-**REQ-CHECK-005: The verifier runs only the edges scoped by the changed path (§6).** Rationale:
-on-edit checks must be cheap and local; a full-graph sweep is reserved for explicit invocation.
-Verification: the dispatch passes the matched edge/node IDs; the verifier checks no others.
+- **(a) Reachability — a NODE-LEVEL, WHOLE-CORPUS check.** Every `required` node (§1
+  Reachability) has a live referencer per §4. Its operator is a **set difference** over two
+  whole globs, so it is not an edge check and has no edge to be scoped by.
+- **(b) Required sections — an EDGE check.** Every `required-section` edge's §5 sections are
+  present in the derived node. Contract: `section-present`.
+
+Rationale: an unreferenced required artifact, or a doc missing a mandated section, is drift even
+when every existing reference resolves.
+
+**AMENDED (plan-066).** The two halves were previously stated as one undifferentiated
+requirement, which put (a) in direct contradiction with REQ-CHECK-005: §6 maps changed-path
+globs to **edges**, so a node-level check with no edge to be scoped by had **no firing surface
+at all**. Measured (plan-066 EXP-002): `skill-page` is a `required`-class artifact whose absence
+— `skills/yf-okf-hygiene/` shipping with no `web/content/skills/yf-okf-hygiene.md` — was
+detected by nothing in this engine. Edge pairing computes the **intersection** of the two globs,
+which is structurally why it can never see a set difference. The remedy already existed in the
+repository, in the wrong artifact: `web/plugins/skill_pages.py` implements exactly this
+predicate, but its verdict is a Pelican **build crash** rather than a drift FAIL.
+
+**REQ-CHECK-005: The verifier runs only the EDGE checks scoped by the changed path (§6).**
+Scope: REQ-CHECK-001, -002, -003 and **-004(b)**. Rationale: on-edit checks must be cheap and
+local; a full-graph sweep is reserved for explicit invocation. Verification: the dispatch passes
+the matched edge IDs; the verifier checks no others.
+
+**AMENDED (plan-066).** The words "the edges scoped by" were read as covering *every* check the
+engine performs, which silently swallowed REQ-CHECK-004(a). This requirement now names the
+checks it governs, and REQ-CHECK-008 governs the one it does not.
+
+**REQ-CHECK-008: Node-level Reachability checks are dispatched by a NODE-KEYED §6 row, and
+where the predicate is mechanically decidable they shall be realized as a runnable checker.**
+Three obligations:
+
+- **(a) Dispatch.** A §6 row MAY name a **node ID** in its *Scopes To* cell in addition to edge
+  IDs. A changed path matching that row dispatches REQ-CHECK-004(a) over the named node's whole
+  glob. Without this, a node-level check is unreachable by construction.
+- **(b) The source-side trigger is MANDATORY, not advisory.** A node-level existence check MUST
+  be reachable from a §6 row matching the **source** side of the predicate, not only the derived
+  side. Rationale, measured: **an absent file is never edited and can never fire its own on-edit
+  check.** A derived-side-only trigger cannot fire on the commit that creates the gap — plan-066
+  measured commit `75a5796`, which added a twentieth skill and broke the site build while
+  touching **zero** files on the derived side.
+- **(c) Mechanical realization.** Where the predicate is a set difference or another decidable
+  comparison, the check SHALL be realized as a **runnable checker** registered in the repository's
+  validation recipe, and the manifest edge SHALL declare that it is so realized. An
+  LLM-prose-judged edge is permitted only where the predicate is not mechanically decidable.
+  Rationale, measured: a well-specified prose edge that is never dispatched has a catch rate
+  indistinguishable from having no edge at all — plan-066 EXP-002 measured `e-skill-page-desc`
+  at **4 firing opportunities, 0 catches**, and the edge was *fully capable* when dispatched by
+  hand (3 FAILs with quoted evidence). Coverage is not detection.
 
 ## Evidence standard (verbatim from the original CONSISTENCY rule — REQ-CHECK-006)
 

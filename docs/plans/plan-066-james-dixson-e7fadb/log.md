@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-05
+- executing: start gate resolved
+- intake: epic yf-mol-a927 poured
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-4 red-team APPROVE + audit pass
 - review-pass: pass-4 red-team APPROVE (6 concerns, none high; C1 caught two pass-3 remedies cancelling each other)

@@ -39,7 +39,16 @@ structurally silent on that axis.
 - **REQ-DRIFT-004** *(testable)* on an approved manifest, the engine shall match the changed
   path(s) against §6 Trigger Scope globs, collect the scoped edge/node IDs (a source-node edit
   fans out to every derived edge it feeds), and dispatch the verifier over **only those edges**
-  (REQ-ENGINE-005, REQ-CHECK-005).
+  (REQ-ENGINE-005, REQ-CHECK-005). **Amended (plan-066):** "only those edges" governs the EDGE
+  checks alone. A §6 row that names a **node ID** additionally dispatches the node-level
+  Reachability check of REQ-CHECK-004(a) over that node's whole glob (REQ-CHECK-008(a)).
+- **REQ-DRIFT-007** *(testable)* **(added, plan-066)** a node-level Reachability check shall be
+  reachable from a §6 row matching the **source** side of its predicate, not the derived side
+  alone (REQ-CHECK-008(b)); and where its predicate is mechanically decidable it shall be
+  realized as a **runnable checker** registered in the repository's validation recipe, with the
+  manifest declaring that realization (REQ-CHECK-008(c)). Rationale, measured: an absent file is
+  never edited and can never fire its own on-edit check, and a capable-but-never-dispatched prose
+  edge has a catch rate indistinguishable from no edge at all.
 - **REQ-DRIFT-005** *(testable)* the dispatched verifier shall be an **isolated, report-only**
   sub-agent (`agents/drift-verifier.md`) that writes nothing; only the main session mutates files
   (REQ-ENGINE-005).
@@ -54,7 +63,10 @@ structurally silent on that axis.
   Referencers, Required-Section Contracts, Trigger Scope, Fixed-Authority Conflict Policy
   (REQ-SCHEMA-001).
 - **REQ-DRIFT-011** *(testable)* the manifest shall be **referentially closed** — every edge names
-  §1 nodes that exist; every §3/§6 row names a §2 edge that exists (REQ-SCHEMA-002).
+  §1 nodes that exist; every §3 row names a §2 edge that exists; every §6 *Scopes To* entry names
+  a §2 edge **or** a §1 node that exists (REQ-SCHEMA-002). **Amended (plan-066):** the §6 clause
+  admitted edge IDs only, which made REQ-CHECK-008(a)'s node-keyed dispatch unrepresentable.
+  Closure is widened, not relaxed — an entry naming neither is still a violation.
 - **REQ-DRIFT-012** *(testable)* every §3 `Contract` value shall be one of the fixed six-term
   vocabulary (`path-resolves`, `identifier-matches`, `value-equal`, `field-set-subset`,
   `field-set-equal`, `section-present`); no manifest introduces a new term (REQ-SCHEMA-003).
@@ -64,8 +76,10 @@ structurally silent on that axis.
 ### 2.3 Check categories & evidence (see `spec/checks.md`)
 
 - **REQ-DRIFT-020** *(testable)* each edge's §2 Check Category shall select exactly one of four
-  engines — `cross-ref`, `contract`, `behavioral`, `required-section` (+ reachability) — and the
-  §3 Contract term shall be the test (REQ-CHECK-001..004).
+  engines — `cross-ref`, `contract`, `behavioral`, `required-section` — and the §3 Contract term
+  shall be the test (REQ-CHECK-001..004). **Amended (plan-066):** reachability is no longer folded
+  into this edge-level selection. It is a **node-level** check (REQ-CHECK-004(a)) dispatched per
+  REQ-CHECK-008, not a Check Category any edge can carry.
 - **REQ-DRIFT-021** *(testable)* every check item shall be backed by **direct evidence** (a file
   read, identifier comparison, contract listing, content quote, or command output) before it is
   marked PASS or FAIL; "I believe this is correct" is not evidence (REQ-CHECK-006). A check needing

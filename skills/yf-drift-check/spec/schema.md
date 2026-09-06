@@ -31,9 +31,16 @@ The seven sections:
    engine applies when a derived node conflicts with a fixed one (the fixed node wins; the
    engine reports the derivative as drifted and never proposes editing the authority).
 
-**REQ-SCHEMA-002: Every Edge references node IDs that exist in §1; every §3/§6 row references
-an Edge ID that exists in §2.** Rationale: the manifest is itself an artifact graph and must
-be internally referentially closed. Verification: cross-check IDs across sections.
+**REQ-SCHEMA-002: Every Edge references node IDs that exist in §1; every §3 row references an
+Edge ID that exists in §2; every §6 *Scopes To* entry references an Edge ID that exists in §2
+**or** a Node ID that exists in §1.** Rationale: the manifest is itself an artifact graph and
+must be internally referentially closed. Verification: cross-check IDs across sections.
+
+**AMENDED (plan-066).** The §6 clause previously admitted **edge IDs only**, which made
+`REQ-CHECK-008(a)`'s node-keyed dispatch unrepresentable — the mechanism that gives the
+node-level Reachability check of `REQ-CHECK-004(a)` a firing surface would itself have failed
+referential closure. Closure is *widened*, not relaxed: a §6 entry naming neither an existing
+edge nor an existing node is still a violation, so a typo is caught exactly as before.
 
 **REQ-SCHEMA-003: The `Contract` column draws from a fixed six-term vocabulary; no manifest
 introduces a new term.** Rationale: a bounded assertion set gives the verifier a stable

@@ -1029,6 +1029,62 @@
 >   **`#316` is re-dispositioned from `include` to `partial` on measured evidence**, and `#298` is
 >   excluded on the reasoning above. Implementation lands in Epics 1-5; this entry records the
 >   SPEC-first Epic 0 amendment.
+>
+> - **plan-066 (2026-09-05, #317 / #104 / #127 / #363 / #322 / #247-partial / #263-partial):**
+>   regenerate the user-facing website/docs — unbreak the Pelican build, repair the Class-A content
+>   defects at every site, and close the Class-B harvest/generation-pipeline defects. The Epic-0
+>   amendment resolves a **contradiction inside the drift engine's own spec** that made one of its
+>   four checks unreachable by construction.
+>
+>   **Amended `REQ-CHECK-004`.** Its two halves were stated as one undifferentiated requirement.
+>   They are now split and their dispatch is named: **(a) Reachability** ("every `required` node has
+>   a live §4 referencer") is a **node-level, whole-corpus** check whose operator is a **set
+>   difference** over two globs; **(b) required sections** is an ordinary **edge** check. Conflating
+>   them is what hid (a) — measured, plan-066 EXP-002: `skill-page` is a `required`-class artifact
+>   and `skills/yf-okf-hygiene/` shipped with no `web/content/skills/yf-okf-hygiene.md`, detected by
+>   nothing in this engine. Edge pairing computes the **intersection** of two globs, which is
+>   structurally why it can never see a set difference.
+>
+>   **Amended `REQ-CHECK-005`.** "The verifier runs only the edges scoped by §6" was read as
+>   governing *every* check the engine performs, which silently swallowed `REQ-CHECK-004(a)`: §6
+>   maps changed-path globs to **edges**, so a node-level check had **no firing surface at all**.
+>   The requirement now names the checks it governs — `REQ-CHECK-001`, `-002`, `-003` and
+>   **`-004(b)`** — and cedes the one it does not.
+>
+>   **Added `REQ-CHECK-008`**, the mechanism the amendment authorizes, in three obligations:
+>   **(a)** a §6 row MAY name a **node ID**, and a path matching that row dispatches
+>   `REQ-CHECK-004(a)` over that node's whole glob; **(b)** the **source-side trigger is
+>   mandatory**, because *an absent file is never edited and can never fire its own on-edit check*
+>   — measured, commit `75a5796` added a twentieth skill and broke the site build while touching
+>   **zero** files on the derived side, so a derived-side-only trigger cannot fire on the very
+>   commit that creates the gap; **(c)** where the predicate is mechanically decidable the check
+>   **shall** be a **runnable checker** registered in the repository's validation recipe, with an
+>   LLM-prose judge permitted only where it is not. Measured rationale for (c): `e-skill-page-desc`
+>   is a fully capable edge — dispatched by hand it returned **3 FAILs with quoted evidence** — that
+>   scored **4 firing opportunities, 0 catches**, because `CHANGE-VALIDATION.md` excludes the engine
+>   as "not a runnable command". **Coverage is not detection**, and a manifest edit cannot fix a
+>   dispatch gap.
+>
+>   **Dual-homed, and the split is deliberate.** The normative `REQ-CHECK-*` text lands in
+>   `skills/yf-drift-check/spec/checks.md`; the citing `REQ-DRIFT-*` contract is amended in
+>   `skills/yf-drift-check/SPEC.md` (**`REQ-DRIFT-004`** scoped to edge checks, **`REQ-DRIFT-020`**
+>   no longer folding reachability into the four-way Check Category selection, and **added
+>   **Amended `REQ-SCHEMA-002` and `REQ-DRIFT-011` in the same change-set, because the amendment
+>   above would otherwise be unrepresentable.** Referential closure admitted **edge IDs only** in a
+>   §6 *Scopes To* cell, so a node-keyed row — the very mechanism `REQ-CHECK-008(a)` authorizes —
+>   would have failed the manifest's own schema check. A §6 entry may now name a §2 **edge** or a §1
+>   **node**. Closure is **widened, not relaxed**: an entry naming neither is still a violation, so
+>   a typo is caught exactly as before. Verified by the tagged test
+>   `scripts/checks/check_drift_manifest_closure.py`, which ships in this same change-set **ahead of
+>   the Epic-3 manifest edits it governs**, and carries a **two-sided negative control** — it must
+>   FAIL on a fabricated dangling entry and PASS on a legitimate node-keyed one.
+>
+>   `REQ-DRIFT-007`** carrying `REQ-CHECK-008`(b)/(c) into the skill's own numbered contract). This
+>   entry is the **root record**: `check_amendment_log.py` reads root `SPEC.md` only, and before
+>   this entry root `SPEC.md` contained **zero** `REQ-CHECK-*` ids — the namespace reconciliation
+>   plan-066 Issue 0.1 was commissioned to perform.
+>
+>   Implementation lands in Epics 1-8; this entry records the SPEC-first Epic 0 amendment.
 
 ## 1. Purpose & scope
 

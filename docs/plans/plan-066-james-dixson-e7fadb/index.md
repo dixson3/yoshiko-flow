@@ -30,3 +30,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2: REVISE, 15 concerns (5 high), five introduced by the pass-1 remediation. All resolved.
 - [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3: REVISE, 11 concerns. Caught two PHANTOM RESOLUTIONS from pass 2 — edits asserted by four documents but never made.
 - [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4: APPROVE with one medium-high must-fix. Phantom streak broken; all 11 pass-3 resolutions verified in the artifact.
+- [escalations.md](escalations.md) - Open questions raised to the upstream controller during execution (`## ESC-NNN` entries), each with its alternatives, its recommended default, and what happens if no answer arrives. PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding of any severity (REQ-PORT-ACT-ESCALATION).
