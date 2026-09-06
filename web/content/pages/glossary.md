@@ -236,3 +236,63 @@ auto-closes anything: no reliable signal separates disposable scratch from real
 *(5 files)* To deliberately remove work from a plan's scope — recording the decision and its
 reason — rather than silently dropping it or quietly leaving it unfinished. A descoped item is
 still a decision with an owner: it is either filed upstream or explicitly declared a non-goal.
+
+### escalation
+
+A question raised **to** the controlling operator when something exceeds the running session's
+authority — a finding that refutes a scoping decision, a needed outward-facing write, or an issue
+that turns out to be unexecutable as written. Recorded as a `## ESC-NNN` entry in the plan
+bundle's `escalations.md`, each carrying its alternatives, a recommended default, and **what
+happens if no answer arrives**.
+
+The contract is **write-then-notify, never ask-and-await**: the artifact *is* the escalation, and
+the session keeps working on everything the answer does not block. So an unanswered question has
+a defined outcome rather than a stalled run. It is a `yf-plan` mechanism — there is no separate
+judgement skill.
+
+### autonomy level
+
+How often an execution run stops to consult. **Autonomous** is the default: the coordinator moves
+to the next ready bead without asking, and an epic boundary is a **report, not a stop**.
+**Checkpointed** consults at those points instead. `/yf-plan execute --autonomous` and
+`--checkpoint` override the configured level for one run.
+
+Autonomy never widens **authority**. Under either level the run halts on the same declared stop
+classes, and a `human` gate is never auto-resolved however green its test — a green test
+establishes that a *condition holds*, never that a *person authorized* something.
+
+### negative control
+
+A deliberate check that an instrument can **fail**. You construct a state in which a checker
+*should* report a problem and confirm that it does; a checker never observed to fail is not
+evidence, because a checker that has silently stopped looking is indistinguishable from one that
+has found nothing.
+
+The strong form is a **code-side** control: mutate the **source of truth** underneath docs that
+currently pass, and require the checker to go red. A doc-side control — breaking a doc and
+watching the checker complain — cannot catch a checker that was already silent while the docs
+were already wrong.
+
+### vacuity floor
+
+A minimum-input assertion that turns *"I inspected nothing"* into a loud failure. A check over an
+empty set passes trivially, so without a floor **"clean" and "never read" are the same
+observation**. Flags like `--min-skills` or `--min-checkers` name the floor; falling below it is
+reported as **inconclusive**, never as a pass.
+
+### aspect
+
+A formula that **weaves into another formula's steps at cook time** rather than being poured as a
+molecule of its own. It declares no steps to run on its own and is attached by the consumer,
+through the consumer's own `[compose] aspects`. `verify-artifact` is the shipped example — which
+is why it appears in the shipped-formula count while never producing a molecule.
+
+### closable
+
+The propose-only report of which upstream issues have all their mapped beads closed. It emits
+`gh issue close` commands for confirmation and **never closes anything**, because closing an
+upstream issue is an outward-facing write.
+
+Its signal is **per-bead**, resolved through the `external_ref` recorded at push time — so a
+hand-filed coarse tracker, which carries no bead mapping, is invisible to it. A clean run
+therefore does not mean nothing needs closing.

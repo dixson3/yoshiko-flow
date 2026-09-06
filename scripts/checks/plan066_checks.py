@@ -133,7 +133,20 @@ P0_HTML = "output/skills/yf-okf-hygiene/index.html"
 EPIC6_PAGES = [
     ("web/content/skills/yf-plan.md", "output/skills/yf-plan/index.html"),
     ("web/content/skills/yf-beads-upstream.md", "output/skills/yf-beads-upstream/index.html"),
+    # Issue 6.4 / #127's deliverable. It landed in the EXISTING `glossary.md` rather than a new
+    # `concepts/` page: measured, the glossary already defined every term #127 names (pouring
+    # beads, landing the plane, red-team, molecules, wisps, gates), so a second page would have
+    # been a duplicate competing with it. Epic 6 extended it with the terms genuinely missing.
+    #
+    # Authoring under `pages/` is also what makes it RENDER. `pelicanconf.py` sets no
+    # `PAGE_PATHS`, so Pelican's default `["pages"]` SILENTLY EXCLUDES any other content
+    # directory — measured: a page under `web/content/concepts/` yields exit 0, an unchanged
+    # page count, zero warnings, and NO OUTPUT.
+    ("web/content/pages/glossary.md", "output/glossary/index.html"),
 ]
+# Terms #127 names explicitly. SC15 asserts the glossary DEFINES them, not merely that it
+# rendered — a page that renders empty would otherwise satisfy the criterion.
+GLOSSARY_TERMS = ["pour", "wisp", "molecule", "gate", "land", "red-team", "escalation"]
 
 # SC5/SC20/SC25 — the four Epic-2 checkers, BY NAME. `check_skill_page_contract.py` does not
 # match a `check_web_*` glob (pass-3 C4), which is exactly why these are enumerated.
@@ -178,7 +191,11 @@ def read_opt(root: Path, rel: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 NEGATION_RE = re.compile(
-    r"\b(not|never|no longer|isn't|is not|are not|rather than|instead of|"
+    # `no` and `nor` as BARE words, not only in `no longer`. Measured: the correcting sentence
+    # "There is no `yf-judgement` skill; no such skill ships" read as an AFFIRMATION, because
+    # the vocabulary carried `no longer` but not `no`. That is the very trap the carve-out
+    # exists to avoid — punishing the sentence that does the correcting.
+    r"\b(not|never|no|nor|none|isn't|is not|are not|rather than|instead of|"
     r"does not|do not|doesn't|don't|NOT|without)\b", re.I)
 
 
@@ -257,7 +274,7 @@ def pelican_build(root: Path, outdir: str | None = None) -> tuple[int, str, str]
     return proc.returncode, proc.stdout, proc.stderr
 
 
-def html_is_substantial(text: str) -> tuple[bool, dict]:
+def html_is_substantial(text: str, require_hr: bool | None = None) -> tuple[bool, dict]:
     """SC2's shape: >= 1 `<hr>` and >= 2 `<h2>`, with a non-trivial body after the `<hr>`.
 
     Measured (EXP-003 Result B): a ZERO-BYTE authored page satisfies the plugin's
@@ -266,11 +283,20 @@ def html_is_substantial(text: str) -> tuple[bool, dict]:
     """
     hrs = len(re.findall(r"<hr\b", text, re.I))
     h2s = len(re.findall(r"<h2\b", text, re.I))
-    body = text.split("<hr", 1)[1] if hrs else ""
-    body_text = re.sub(r"<[^>]+>", " ", body)
+    # SHAPE-AWARE, because the `<hr>` means something ONLY on a skill page. There the plugin
+    # emits it between the GENERATED "At a glance" block and the AUTHORED body, so it is
+    # precisely the boundary that separates "a file exists" from "someone wrote something" —
+    # which is what SC2 needs, since a ZERO-BYTE page builds green with a generated block and
+    # no `<hr>` at all. An ordinary content page has no such boundary and no `<hr>`; requiring
+    # one there would fail every well-written page in the site.
+    if require_hr is None:
+        require_hr = hrs >= 1
+    body = text.split("<hr", 1)[1] if hrs else text
+    body_text = re.sub(r"(?s)<(script|style)\b.*?</\1>", " ", body)
+    body_text = re.sub(r"<[^>]+>", " ", body_text)
     body_words = len(body_text.split())
-    ok = hrs >= 1 and h2s >= 2 and body_words >= 100
-    return ok, {"hr": hrs, "h2": h2s, "body_words": body_words}
+    ok = (hrs >= 1 or not require_hr) and h2s >= 2 and body_words >= 100
+    return ok, {"hr": hrs, "h2": h2s, "body_words": body_words, "require_hr": require_hr}
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +321,7 @@ def sc_page_content(root: Path, a) -> tuple[bool, str, dict]:
     html = root / "web" / P0_HTML
     if not html.is_file():
         return False, f"{P0_HTML} was not emitted", {}
-    ok, detail = html_is_substantial(html.read_text(encoding="utf-8"))
+    ok, detail = html_is_substantial(html.read_text(encoding="utf-8"), require_hr=True)
     return ok, (f"{P0_HTML}: {detail['hr']} <hr>, {detail['h2']} <h2>, "
                 f"{detail['body_words']} body words (need >=1, >=2, >=100)"), detail
 
@@ -600,11 +626,14 @@ def sc_epic6_renders(root: Path, a) -> tuple[bool, str, dict]:
     rc, _, _ = pelican_build(root)
     if rc != 0:
         raise Inconclusive(f"pelican exited {rc}; cannot inspect rendered pages")
-    glossary = root / "web/content/pages/concepts.md"
     pages = list(EPIC6_PAGES)
-    if glossary.is_file():
-        pages.append((str(glossary.relative_to(root)), "output/concepts/index.html"))
     findings = []
+    # The glossary must DEFINE #127's terms, not merely exist.
+    gloss = read_opt(root, "web/content/pages/glossary.md") or ""
+    headings = " ".join(re.findall(r"^###\s+(.+)$", gloss, re.M)).lower()
+    missing_terms = [w for w in GLOSSARY_TERMS if w not in headings]
+    if missing_terms:
+        findings.append(f"glossary defines no heading for: {missing_terms}")
     for src, out in pages:
         if not (root / src).is_file():
             raise Inconclusive(f"input absent: {src}")
@@ -612,7 +641,8 @@ def sc_epic6_renders(root: Path, a) -> tuple[bool, str, dict]:
         if not html.is_file():
             findings.append(f"{src} -> {out} WAS NOT EMITTED")
             continue
-        ok, d = html_is_substantial(html.read_text(encoding="utf-8"))
+        ok, d = html_is_substantial(html.read_text(encoding="utf-8"),
+                                    require_hr="/skills/" in out)
         if not ok:
             findings.append(f"{out} is trivial ({d})")
     return not findings, (f"{len(pages)} Epic-6 page(s) checked; "
