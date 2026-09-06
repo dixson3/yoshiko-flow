@@ -1,3 +1,8 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: reconcile policy granularity upstream hygiene'
+---
 # Upstream Issue Triage: reconcile policy granularity upstream hygiene
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

@@ -1,0 +1,69 @@
+{
+ "schema_version": 1,
+ "check": "okf-hygiene",
+ "apply": true,
+ "mixed_run": false,
+ "mutated": 1,
+ "halted": 0,
+ "bundles": [
+  {
+   "bundle": "docs/plans/plan-030-james-dixson-65526e",
+   "before": {
+    "verdict": "fail"
+   },
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/README.md",
+     "kind": "deleted",
+     "sha256_before": "d003116ab547281f88c3c80103e7504a5ed8cfb08bbc8cbe631928834a8a8f79",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/context.md",
+     "kind": "modified",
+     "sha256_before": "10aafa65057622bca52e6784908e6e989d20c018770330bf9d7a4a9c89f308f3",
+     "sha256_after": "2777b178b989bb78f16ea6c093370552c79e8492f1f998d02cedc67d9dfabef2"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "6e64ae918161f7a22d9ef76c0a2d97cbefd6aeea18f30a6c750719e7fc9c641e"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/plan.md",
+     "kind": "modified",
+     "sha256_before": "b6ba4c9460670c94c18cd7d67816278342c48d98e250efee74e9d844aa21c2d1",
+     "sha256_after": "4665740e001e5b404b3a184fc2b5b85c93247ecb626389c56821255115b78484"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/references/upstream-89.md",
+     "kind": "modified",
+     "sha256_before": "064fbcead6f3443d69cf661470940fa2f4ad040bf43ea8324b0ae3477596f4ec",
+     "sha256_after": "5ba98e0640d3db022ce9aba64e54d7abc3ad943c5661e22d66c41ef939b212c1"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "b2897812c75b47b58154b4d03142e6b4bb4b22f1d432742caf10dd0b6ed76a7a",
+     "sha256_after": "493056450843b672a367415973d9128a97c02b18aaf9a632aa7e285e3fabb2b5"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "0023488a45343a5ff386f9822aab236345e77bece252c47fa069e7b6d1f87812",
+     "sha256_after": "345950ac7c1d60b42da0864db6eba8efa68a1653a3c5ee1415029fbc2fd0973c"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "e0d76a83d1bacf895202250cfeac98378d3da238bc7f460b26413041bdbbfaf3",
+     "sha256_after": "8e435da1e9ed53c5fbd56a1f49653e9c77b24e6c11f9cd9261023f265f3ad1b8"
+    }
+   ]
+  }
+ ]
+}

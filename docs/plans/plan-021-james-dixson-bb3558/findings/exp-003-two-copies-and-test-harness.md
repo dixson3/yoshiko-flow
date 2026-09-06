@@ -1,3 +1,10 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+trigger: operator correction — this plan edits the **repo source** `skills/yf-plan/`,
+  not the
+description: EXP-3 — repo-source vs installed skill; scratch-project test harness
+---
 # EXP-3 — repo-source vs installed skill; scratch-project test harness
 
 **Trigger:** operator correction — this plan edits the **repo source** `skills/yf-plan/`, not the

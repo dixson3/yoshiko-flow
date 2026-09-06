@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+context: operator-requested full, fresh, whole-plan adversarial review (not delta-scoped)
+  of
+description: 'Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 4 (full whole-plan
+  review)'
+---
 # Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 4 (full whole-plan review)
 
 **Context:** operator-requested full, fresh, whole-plan adversarial review (not delta-scoped) of

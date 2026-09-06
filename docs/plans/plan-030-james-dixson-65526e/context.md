@@ -1,3 +1,7 @@
+---
+type: Environment
+okf_spec: OKF-PLAN
+---
 # Project Environment Context
 
 _Snapshot taken at plan-authoring time. Cold readers: verify these values

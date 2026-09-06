@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #81: yf-markdown-lint ML003 folds image "title" into the link
+  target — mis-flags GFM `![alt](path "title")`'
+---
 # Upstream #81: yf-markdown-lint ML003 folds image "title" into the link target — mis-flags GFM `![alt](path "title")`
 
 - **Number:** 81

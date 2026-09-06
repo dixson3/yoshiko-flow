@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+context: plan-026 was approved (pass-2 APPROVE), then reopened to fold upstream issue
+  **#85**
+description: 'Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 3 (post-approval
+  #85 delta)'
+---
 # Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 3 (post-approval #85 delta)
 
 **Context:** plan-026 was approved (pass-2 APPROVE), then reopened to fold upstream issue **#85**

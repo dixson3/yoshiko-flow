@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'Finding exp-003: IP / naming check for `yf` + final name decision'
+---
 # Finding exp-003: IP / naming check for `yf` + final name decision
 
 Date: 2026-06-14. Follow-up to exp-002 (which checked `yflow` and found an active same-domain

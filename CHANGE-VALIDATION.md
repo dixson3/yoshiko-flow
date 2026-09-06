@@ -231,6 +231,8 @@ approved: yes
 | `skill-readme-contract` | `uv run scripts/checks/check_skill_readme_contract.py --min-skills 20` |  |  |
 |  | `uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q` |  |  |
 |  | `uv run scripts/gen_skill_readme_fence.py --check` |  |  |
+| `gate-plan065-audit` | `uv run scripts/checks/plan065_checks.py audit-strict` |  |  |
+| `gate-plan065-shape` | `uv run scripts/checks/plan065_checks.py bundle-shape` |  |  |
 
 ## 2. Signal Fingerprint
 

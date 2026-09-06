@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-004 — Fold map: `~/.claude/rules/BEADS.md` → `BEADS_INIT.md` (Epic
+  E.1, DEC-2 artifact)'
+---
 # exp-004 — Fold map: `~/.claude/rules/BEADS.md` → `BEADS_INIT.md` (Epic E.1, DEC-2 artifact)
 
 Section-by-section audit of the orphan, unowned user-scoped rule

@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-001: yf-beads-upstream & yf-beads-hygiene current architecture'
+---
 # exp-001: yf-beads-upstream & yf-beads-hygiene current architecture
 
 ## yf-beads-upstream

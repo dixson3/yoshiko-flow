@@ -1,3 +1,12 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+trigger: operator correction — the plan edits the **repo source** `skills/yf-plan/`,
+  which is
+red-team_verdict: REVISE → all concerns resolved in-place; ready to re-present for
+  approval.
+description: Review Pass 2 — plan-021-james-dixson-bb3558
+---
 # Review Pass 2 — plan-021-james-dixson-bb3558
 
 **Trigger:** operator correction — the plan edits the **repo source** `skills/yf-plan/`, which is

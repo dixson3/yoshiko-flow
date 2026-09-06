@@ -1,3 +1,14 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-021-james-dixson-bb3558
+author: james-dixson
+created: '2026-07-02'
+status: complete
+epic: yf-mol-al2
+description: yf-plan lifecycle rework — intake-at-execute branch model, auto-commit,
+  content-bound re-review gate
+---
 # Plan: yf-plan lifecycle rework — intake-at-execute branch model, auto-commit, content-bound re-review gate
 
 **ID:** plan-021-james-dixson-bb3558
@@ -5,19 +16,6 @@
 **Created:** 2026-07-02
 **Status:** complete
 **Epic:** yf-mol-al2
-**Phase log:**
-- 2026-07-02 scoping: initial scope captured; #62 deferred, #47 full-model chosen
-- 2026-07-02 investigating: 4 experiments (EXP-1..4) dispatched; #47 full-model + #63 + #64
-- 2026-07-02 drafting: approach + 6 epics synthesized from exp-001/002
-- 2026-07-02 review: pass-1 conformance INCOMPLETE (stub dup) + red-team REVISE → 2 high/3 med/1 low + 2 conf resolved in-place
-- 2026-07-02 resolved: pass-1 concerns closed; audit pass
-- 2026-07-02 revised: operator correction — repo-source≠installed; Epic 0 → scratch-project test harness; self-hosting risk corrected (triggers pass-2)
-- 2026-07-02 review: pass-2 red-team REVISE → 1 high (resolver-shadow) + 1 med (promotion) + 1 low resolved in-place
-- 2026-07-02 approved: operator approved (pass-2)
-- 2026-07-02 intake: epic yf-mol-al2 poured
-- 2026-07-02 executing: start gate resolved
-- 2026-07-03 reconciling: merge-back landed to main locally + merged-state validated; push/promote/upstream pending operator authorization
-- 2026-07-03 complete: plan complete: merged + pushed + promoted + upstream reconciled (#47/#63/#64 closed)
 
 ## Objective
 Rework the yf-plan lifecycle for a **predictable, worktree-default** git model with **intake deferred

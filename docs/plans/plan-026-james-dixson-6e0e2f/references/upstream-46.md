@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #46: markdown-lint + markdown-pdf: support alt-text (a11y)
+  / title (print caption) image convention'
+---
 # Upstream #46: markdown-lint + markdown-pdf: support alt-text (a11y) / title (print caption) image convention
 
 - **Number:** 46

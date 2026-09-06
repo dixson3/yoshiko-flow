@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #60: yf-beads-upstream: support mutually-exclusive requires:<platform>
+  labels in worklist filtering + hoist'
+---
 # Upstream #60: yf-beads-upstream: support mutually-exclusive requires:<platform> labels in worklist filtering + hoist
 
 - **Number:** 60

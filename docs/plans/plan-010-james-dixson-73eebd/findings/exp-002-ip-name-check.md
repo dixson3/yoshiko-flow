@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'Finding exp-002: IP / naming-conflict check for `yflow`'
+---
 # Finding exp-002: IP / naming-conflict check for `yflow`
 
 Date: 2026-06-14. Method: web search across Homebrew, OS binaries, package registries

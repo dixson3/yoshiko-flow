@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #38: Reconcile policy: local beads = active work only; non-active
+  work lives upstream (hygiene + upstream skills)'
+---
 # Upstream #38: Reconcile policy: local beads = active work only; non-active work lives upstream (hygiene + upstream skills)
 
 - **Number:** 38

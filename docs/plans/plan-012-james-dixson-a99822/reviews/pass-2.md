@@ -1,3 +1,12 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+date: '2026-06-23'
+scope: Epics E (fold BEADS.md → BEADS_INIT.md) and F (upstream default-none + preflight
+  offer), plus their integration. Epics A–D were reviewed in `pass-1.md` and are not
+  re-litigated here.
+description: Plan-012 Review — Pass 2 (Epics E & F scope addition)
+---
 # Plan-012 Review — Pass 2 (Epics E & F scope addition)
 **Date:** 2026-06-23
 **Scope:** Epics E (fold BEADS.md → BEADS_INIT.md) and F (upstream default-none + preflight offer), plus their integration. Epics A–D were reviewed in `pass-1.md` and are not re-litigated here.

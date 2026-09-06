@@ -1,3 +1,12 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: Do the three filter/detection approaches plan-026 depends on actually work
+  against
+verdict: All three viable. Two need a specific reader-extension incantation the issues
+description: 'exp-001: Validate CriticMarkup + caption pandoc Lua filters (pandoc
+  3.10)'
+---
 # exp-001: Validate CriticMarkup + caption pandoc Lua filters (pandoc 3.10)
 
 **Question:** Do the three filter/detection approaches plan-026 depends on actually work against

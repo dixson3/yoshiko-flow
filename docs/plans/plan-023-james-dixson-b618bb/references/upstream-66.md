@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #66: yf-beads-init: gitignore .beads/interactions.jsonl in
+  repair''s gitignore top-up (canonicalization #39 gap)'
+---
 # Upstream #66: yf-beads-init: gitignore .beads/interactions.jsonl in repair's gitignore top-up (canonicalization #39 gap)
 
 - **Number:** 66

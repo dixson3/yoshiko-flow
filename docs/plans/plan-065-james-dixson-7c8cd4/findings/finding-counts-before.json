@@ -1,0 +1,83 @@
+{
+ "artifact": "finding-counts-before",
+ "captured": "2026-09-05",
+ "method": "uv run skills/yf-okf/scripts/okf.py check <bundle> --json ; len(findings)",
+ "why": "D6 \u2014 the audit verdict is a SATURATING label (warn for one finding or fifty). Per-bundle finding counts are the evidence. This datum is DESTROYED by the transform and cannot be recaptured after Epics 1-2 land.",
+ "diff_base": "543355e892ca29607e64a2db459ab6087454978e",
+ "counts": {
+  "docs/plans/plan-010-james-dixson-73eebd": 12,
+  "docs/plans/plan-012-james-dixson-a99822": 16,
+  "docs/plans/plan-013-james-dixson-0af2f8": 12,
+  "docs/plans/plan-014-james-dixson-916de2": 14,
+  "docs/plans/plan-021-james-dixson-bb3558": 15,
+  "docs/plans/plan-023-james-dixson-b618bb": 15,
+  "docs/plans/plan-026-james-dixson-6e0e2f": 21,
+  "docs/plans/plan-030-james-dixson-65526e": 9
+ },
+ "detail": {
+  "docs/plans/plan-010-james-dixson-73eebd": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-012-james-dixson-a99822": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-013-james-dixson-0af2f8": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-014-james-dixson-916de2": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-021-james-dixson-bb3558": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-023-james-dixson-b618bb": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-026-james-dixson-6e0e2f": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-002",
+    "REQ-OKF-003"
+   ]
+  },
+  "docs/plans/plan-030-james-dixson-65526e": {
+   "ok": false,
+   "reqs": [
+    "REQ-OKF-001",
+    "REQ-OKF-003",
+    "REQ-OKF-030"
+   ]
+  }
+ }
+}

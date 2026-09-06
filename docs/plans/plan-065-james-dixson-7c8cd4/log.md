@@ -1,6 +1,10 @@
 # Log
 
 ## 2026-09-05
+- reconciling: post-execution reconciliation
+- executing: AMENDMENT (ESC-001, operator-directed, mid-execution): SC10 and Issue 6.1 changed FOUR -> SIX engine defects. Two were found during the corpus apply — (5) backfill --apply generates a non-conformant index.md with no member listing, (6) reindex's dry run reports verdict clean while proposing 9 changes. SC10 as written would have PASSED while dropping both. Fingerprint re-stamped fa4cae6f -> the amended content; the amendment STRENGTHENS a criterion and is recorded here, in ESC-001, and inline in plan.md
+- executing: start gate resolved
+- intake: epic yf-mol-e7k4 poured
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-4 APPROVE + audit pass
 - review-pass: pass-4 red-team APPROVE (10 concerns, none high; all resolved)

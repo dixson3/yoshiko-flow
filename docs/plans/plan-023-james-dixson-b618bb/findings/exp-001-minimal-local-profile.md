@@ -1,3 +1,12 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+plan: plan-023-james-dixson-b618bb · **Date:** 2026-07-05 · **bd:** 1.1.0 (Homebrew)
+method: read-only source inspection of `yf/src/` + `skills/yf-*/` + a throwaway `bd
+  init` /
+description: EXP-001 — Minimal-local beads profile surface (#58) + config-resolution/migration
+  facts (#67)
+---
 # EXP-001 — Minimal-local beads profile surface (#58) + config-resolution/migration facts (#67)
 
 **Plan:** plan-023-james-dixson-b618bb · **Date:** 2026-07-05 · **bd:** 1.1.0 (Homebrew)

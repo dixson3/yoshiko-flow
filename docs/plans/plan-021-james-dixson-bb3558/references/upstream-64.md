@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #64: yf-plan: re-review gate — modifying a reviewed/approved
+  plan must re-trigger red-team + conformance + portability audit before re-approval'
+---
 # Upstream #64: yf-plan: re-review gate — modifying a reviewed/approved plan must re-trigger red-team + conformance + portability audit before re-approval
 
 - **Number:** 64

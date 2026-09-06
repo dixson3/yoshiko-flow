@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'Finding exp-001: Reference recon (naba, homebrew-tap, install.py, rename
+  surface)'
+---
 # Finding exp-001: Reference recon (naba, homebrew-tap, install.py, rename surface)
 
 Date: 2026-06-14. Sources: `~/workspace/dixson3/naba`, `~/workspace/dixson3/homebrew-tap`,

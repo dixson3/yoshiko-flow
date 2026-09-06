@@ -1,3 +1,8 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: shared package active-set classifier duplication'
+---
 # Upstream Issue Triage: shared package active-set classifier duplication
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

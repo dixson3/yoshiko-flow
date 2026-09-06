@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+issue: 4.2 (Epic 4) · **Date:** 2026-07-15 · **Method:** code read of `yf/src/`
+description: exp-002 — yf preflight/doctor per-skill dependency axis
+---
 # exp-002 — yf preflight/doctor per-skill dependency axis
 
 **Issue:** 4.2 (Epic 4) · **Date:** 2026-07-15 · **Method:** code read of `yf/src/`

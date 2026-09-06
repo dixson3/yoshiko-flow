@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+conformance: INCOMPLETE → resolved. The draft left duplicate template stub sections
+red-team_verdict: REVISE → all concerns resolved in-place; ready to re-present for
+  approval.
+description: Review Pass 1 — plan-021-james-dixson-bb3558
+---
 # Review Pass 1 — plan-021-james-dixson-bb3558
 
 **Conformance:** INCOMPLETE → resolved. The draft left duplicate template stub sections

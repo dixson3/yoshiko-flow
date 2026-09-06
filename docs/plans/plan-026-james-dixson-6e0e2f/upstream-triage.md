@@ -1,3 +1,8 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: Markdown tooling improvements bundle'
+---
 # Upstream Issue Triage: Markdown tooling improvements bundle
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

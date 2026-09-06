@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+verdict: APPROVE
+date: '2026-06-24'
+reviewer: red-team (adversarial), re-review after v2 revisions
+description: Review pass-2 — plan-013 (re-review, cycle 2)
+---
 # Review pass-2 — plan-013 (re-review, cycle 2)
 
 **Verdict:** APPROVE

@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream issue #15: Consolidate duplicated Python helpers across skills
+  (PEP 723 shared package route)'
+---
 # Upstream issue #15: Consolidate duplicated Python helpers across skills (PEP 723 shared package route)
 
 - **URL:** https://github.com/dixson3/yoshiko-flow/issues/15

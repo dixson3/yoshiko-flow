@@ -1,3 +1,8 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+description: 'Plan Red-Team: plan-030-james-dixson-65526e — pass 1'
+---
 # Plan Red-Team: plan-030-james-dixson-65526e — pass 1
 
 ## Verdict: REVISE

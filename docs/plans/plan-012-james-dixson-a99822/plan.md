@@ -1,3 +1,15 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-012-james-dixson-a99822
+author: james-dixson
+created: '2026-06-23'
+status: complete
+epic: yf-e2e24239
+description: 'yf/beads health, hygiene & rule consolidation: yf doctor (#32), suppress
+  bd-init cruft (#31), yf-beads-hygiene skill (#29), settings docs (#30), fold orphan
+  BEADS.md rule (E), upstream default-none + preflight offer (F)'
+---
 # Plan: yf/beads health, hygiene & rule consolidation: yf doctor (#32), suppress bd-init cruft (#31), yf-beads-hygiene skill (#29), settings docs (#30), fold orphan BEADS.md rule (E), upstream default-none + preflight offer (F)
 
 **ID:** plan-012-james-dixson-a99822
@@ -5,17 +17,6 @@
 **Created:** 2026-06-23
 **Status:** complete
 **Epic:** yf-e2e24239
-**Phase log:**
-- 2026-06-23 scoping: initial scope captured
-- 2026-06-23 investigating: 3 experiments identified (INV-1 yf CLI, INV-2 bd-init cruft, INV-3 hygiene vs sweep)
-- 2026-06-23 drafting: 3 findings synthesized; drafting plan v1
-- 2026-06-23 review: plan v1 presented
-- 2026-06-23 review: operator added two beads-init/upstream-surface scope items — Epic E (fold orphan `~/.claude/rules/BEADS.md` into skill-owned `BEADS_INIT.md`) and Epic F (yf-beads-upstream default `none` + preflight detect-and-offer); re-review pending
-- 2026-06-23 approved: operator approved
-- 2026-06-23 intake: epic yf-e2e24239 poured
-- 2026-06-23 executing: start gate resolved
-- 2026-06-23 reconciling: all 6 epics complete; branch green; entering merge-back
-- 2026-06-23 complete: plan complete
 
 ## Objective
 A coherent "yf/beads health, hygiene, and operator-alignment" plan delivering four

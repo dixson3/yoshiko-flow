@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #31: yf-beads-init: suppress bd-init instruction/hook cruft
+  (AGENTS.md/CLAUDE.md beads boilerplate, .agents/.codex, git hooks)'
+---
 # Upstream #31: yf-beads-init: suppress bd-init instruction/hook cruft (AGENTS.md/CLAUDE.md beads boilerplate, .agents/.codex, git hooks)
 
 - **Number:** 31

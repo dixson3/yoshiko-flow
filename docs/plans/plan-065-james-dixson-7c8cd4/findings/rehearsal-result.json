@@ -1,0 +1,67 @@
+{
+ "legacy_before": 8,
+ "transformed": 8,
+ "halted": 0,
+ "roundtrip_identical": true,
+ "evidence": {
+  "sandbox": "/private/tmp/claude-501/-Users-james-workspace-dixson3-yoshiko-flow/787f30fd-3a90-44ae-aea8-fb6527e792a8/scratchpad/sandbox",
+  "base_commit": "805faf1",
+  "bundles_checked": 8,
+  "mutated": 8,
+  "mixed_run": false,
+  "exit": 0,
+  "actions": {
+   "backfilled": 8
+  },
+  "roundtrip": {
+   "post_reversal_eq_pre_backfill": 8,
+   "post_reapply_eq_post_backfill": 8,
+   "post_reversal_eq_post_backfill": 0,
+   "n": 8,
+   "note": "the third figure MUST be 0 \u2014 equality there is the NO-OP restore signature"
+  },
+  "scope_limit": "the sandbox holds only the 8, so it never exercises the classify-and-skip path across the 62 conformant bundles the real apply walks. mixed_run does NOT cover that gap (it is bool(mutated) and bool(halted), redundant with halted == 0). Issue 4.3b covers it."
+ },
+ "hashes": {
+  "pre_backfill": {
+   "plan-010-james-dixson-73eebd": "e8bb0c5d04443a09daea6c3e4a759e76066262bdcab11a6008dd1cd8ea520b8f",
+   "plan-012-james-dixson-a99822": "cdf50ceefb888ee40cde3a16ec240a0601b725118e0fdf110c55d6d904d8fd32",
+   "plan-013-james-dixson-0af2f8": "a573ef0b65d96728af2acb0058f39c3fb6d2ab55434ea1f867227f8174a516b6",
+   "plan-014-james-dixson-916de2": "cf6c1df754f18a158420e3d4483eb7b27db25f4a2c44585995531b3c0c80651c",
+   "plan-021-james-dixson-bb3558": "34ce671a1f403ea402de56af9379aa5457e71ba7dea5cee96bf150ac163efc26",
+   "plan-023-james-dixson-b618bb": "1ca275e2f4f65182d459083441cd51f1b25a723d285361af5f0dd5579f9578d8",
+   "plan-026-james-dixson-6e0e2f": "15e3c6e108a0b83484d88dfe2a5e1d9d0641b749b52189553618f33f565df51d",
+   "plan-030-james-dixson-65526e": "c02fdbd4bd7d621204c01c2145234d3a656c85ba7cdf6ddc4b410c601266d57c"
+  },
+  "post_backfill": {
+   "plan-010-james-dixson-73eebd": "1f1ae6296e2ae259baf8d956397180571f3716814b00d26a9a1333db67cf5f3f",
+   "plan-012-james-dixson-a99822": "e8f31f4aacba479264b31ae255b0e419d4a4b4b00473c3fc7a720dd1d239a8f7",
+   "plan-013-james-dixson-0af2f8": "f0f0d8bf65d9ca5256f820a25d7cc884e3cb3cd0c2fcf1cfb73e260c2498a2d8",
+   "plan-014-james-dixson-916de2": "0eb6aededc103ba807f195539bf2e34ef3b41c069fe334b7ae58c6881a69fa27",
+   "plan-021-james-dixson-bb3558": "55d5bd883dbc06eefddaca3f4a3a41155e4ff158f1ab3b4d6b2f47e3279350d2",
+   "plan-023-james-dixson-b618bb": "cd04e988bc8ebd2db5120e63fd762b657c9e2a536e18bd191a840ba1047b194d",
+   "plan-026-james-dixson-6e0e2f": "305cda54bf1429ad0dcd9031dc5d3ac6b8ff6c17afa22d1a18bf07d2d1f3ccaf",
+   "plan-030-james-dixson-65526e": "481cf1ce8edf148f931025f02c58c606cc480b765a19b35045ba90ba1b6f1a39"
+  },
+  "post_reversal": {
+   "plan-010-james-dixson-73eebd": "e8bb0c5d04443a09daea6c3e4a759e76066262bdcab11a6008dd1cd8ea520b8f",
+   "plan-012-james-dixson-a99822": "cdf50ceefb888ee40cde3a16ec240a0601b725118e0fdf110c55d6d904d8fd32",
+   "plan-013-james-dixson-0af2f8": "a573ef0b65d96728af2acb0058f39c3fb6d2ab55434ea1f867227f8174a516b6",
+   "plan-014-james-dixson-916de2": "cf6c1df754f18a158420e3d4483eb7b27db25f4a2c44585995531b3c0c80651c",
+   "plan-021-james-dixson-bb3558": "34ce671a1f403ea402de56af9379aa5457e71ba7dea5cee96bf150ac163efc26",
+   "plan-023-james-dixson-b618bb": "1ca275e2f4f65182d459083441cd51f1b25a723d285361af5f0dd5579f9578d8",
+   "plan-026-james-dixson-6e0e2f": "15e3c6e108a0b83484d88dfe2a5e1d9d0641b749b52189553618f33f565df51d",
+   "plan-030-james-dixson-65526e": "c02fdbd4bd7d621204c01c2145234d3a656c85ba7cdf6ddc4b410c601266d57c"
+  },
+  "post_reapply": {
+   "plan-010-james-dixson-73eebd": "1f1ae6296e2ae259baf8d956397180571f3716814b00d26a9a1333db67cf5f3f",
+   "plan-012-james-dixson-a99822": "e8f31f4aacba479264b31ae255b0e419d4a4b4b00473c3fc7a720dd1d239a8f7",
+   "plan-013-james-dixson-0af2f8": "f0f0d8bf65d9ca5256f820a25d7cc884e3cb3cd0c2fcf1cfb73e260c2498a2d8",
+   "plan-014-james-dixson-916de2": "0eb6aededc103ba807f195539bf2e34ef3b41c069fe334b7ae58c6881a69fa27",
+   "plan-021-james-dixson-bb3558": "55d5bd883dbc06eefddaca3f4a3a41155e4ff158f1ab3b4d6b2f47e3279350d2",
+   "plan-023-james-dixson-b618bb": "cd04e988bc8ebd2db5120e63fd762b657c9e2a536e18bd191a840ba1047b194d",
+   "plan-026-james-dixson-6e0e2f": "305cda54bf1429ad0dcd9031dc5d3ac6b8ff6c17afa22d1a18bf07d2d1f3ccaf",
+   "plan-030-james-dixson-65526e": "481cf1ce8edf148f931025f02c58c606cc480b765a19b35045ba90ba1b6f1a39"
+  }
+ }
+}

@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-003 — yf-beads-hygiene: reuse vs standalone (feeds #29)'
+---
 # exp-003 — yf-beads-hygiene: reuse vs standalone (feeds #29)
 
 **VERDICT: STANDALONE skill.** No reusable classifier exists in yf-plan's coordinator sweep;

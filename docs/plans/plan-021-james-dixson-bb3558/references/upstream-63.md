@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #63: yf-plan: always commit intake state before offering the
+  plan for execution'
+---
 # Upstream #63: yf-plan: always commit intake state before offering the plan for execution
 
 - **Number:** 63

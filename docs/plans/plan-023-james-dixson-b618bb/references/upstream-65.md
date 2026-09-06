@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #65: plan-019: Preflight yf self-update offer + preflight cache
+  version-invalidation'
+---
 # Upstream #65: plan-019: Preflight yf self-update offer + preflight cache version-invalidation
 
 - **Number:** 65

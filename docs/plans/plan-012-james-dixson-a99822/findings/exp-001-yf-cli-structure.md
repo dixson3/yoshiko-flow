@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+verdict: '#32 is a **refactor of an existing command**, not greenfield. `yf doctor`'
+description: 'exp-001 — yf CLI structure for an extensible `yf doctor` (feeds #32)'
+---
 # exp-001 — yf CLI structure for an extensible `yf doctor` (feeds #32)
 
 **Verdict:** #32 is a **refactor of an existing command**, not greenfield. `yf doctor`

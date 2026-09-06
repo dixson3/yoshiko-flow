@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #57: yf-beads-upstream: close-time Safety invariant reads as
+  a hand-CLI recipe, inviting raw bd github push over /yf-beads-upstream'
+---
 # Upstream #57: yf-beads-upstream: close-time Safety invariant reads as a hand-CLI recipe, inviting raw bd github push over /yf-beads-upstream
 
 - **Number:** 57

@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: yf doctor, suppress bd-init cruft, yf-beads-hygiene
+  skill, recommended settings.json baseline docs'
+---
 # Upstream Issue Triage: yf doctor, suppress bd-init cruft, yf-beads-hygiene skill, recommended settings.json baseline docs
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

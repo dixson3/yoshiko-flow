@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+context: 'focused re-verification that the pass-6 REVISE concern (C1: incomplete `convert_wikilinks`'
+description: 'Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 7 (verify pass-6
+  C1 fix)'
+---
 # Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 7 (verify pass-6 C1 fix)
 
 **Context:** focused re-verification that the pass-6 REVISE concern (C1: incomplete `convert_wikilinks`

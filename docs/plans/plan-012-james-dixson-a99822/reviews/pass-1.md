@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial), after conformance PASS
+date: '2026-06-23'
+verdict: REVISE
+description: Review pass-1 — plan-012
+---
 # Review pass-1 — plan-012
 
 **Reviewer:** red-team (adversarial), after conformance PASS

@@ -1,3 +1,12 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+reviewer: red-team (adversarial, cycle 2 — post-revision verification)
+date: '2026-07-05'
+verdict: REVISE (narrow/textual) → **APPROVE** on re-verification (both concerns fixed
+  in-pass; sole residual was a cosmetic leftover phrase, since trimmed)
+description: Review pass 2 — plan-023
+---
 # Review pass 2 — plan-023
 
 **Reviewer:** red-team (adversarial, cycle 2 — post-revision verification)

@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-001: `_shared/` package + vendoring mechanics (#15)'
+---
 # exp-001: `_shared/` package + vendoring mechanics (#15)
 
 ## Critical correction: no `install.py`/`install.sh`

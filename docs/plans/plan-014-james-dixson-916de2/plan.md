@@ -1,3 +1,13 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-014-james-dixson-916de2
+author: james-dixson
+created: '2026-06-24'
+status: complete
+epic: yf-23173bc0
+description: '`_shared/` package — retire the duplicated active-set classifier (#15)'
+---
 # Plan: `_shared/` package — retire the duplicated active-set classifier (#15)
 
 **ID:** plan-014-james-dixson-916de2
@@ -5,19 +15,6 @@
 **Created:** 2026-06-24
 **Status:** complete
 **Epic:** yf-23173bc0
-**Phase log:**
-- 2026-06-24 scoping: initial scope captured
-- 2026-06-24 investigating: 3 experiments (shared vendoring, yf-plan delegation, drift-check shape)
-- 2026-06-24 drafting: plan v1 presented (#27+#25+#15)
-- 2026-06-24 review: red-team REVISE
-- 2026-06-24 drafting: v2 — re-scoped to #15 only (split per operator); #27+#25 → follow-on plan
-- 2026-06-24 review: red-team REVISE (cycle 2) — pin vendoring shape
-- 2026-06-24 drafting: v3 — pinned shape (b) regenerate-fenced-block; folded N2/N3/Missing
-- 2026-06-24 approved: operator approved
-- 2026-06-24 intake: epic yf-23173bc0 poured
-- 2026-06-24 executing: start gate resolved
-- 2026-06-24 reconciling: execution complete; entering merge-back
-- 2026-06-24 complete: plan complete
 
 ## Objective
 
