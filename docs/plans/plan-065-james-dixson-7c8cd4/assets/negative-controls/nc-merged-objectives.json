@@ -1,0 +1,6 @@
+{
+ "root": "docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/tree",
+ "expected": {
+  "nc-010": "Rename skills to `yf-` prefix and build the `yf` Rust CLI \u2014 skill install/upgrade lifecycle, Homebrew distribution, replacing `install.{sh,py}`"
+ }
+}

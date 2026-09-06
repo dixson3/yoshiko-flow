@@ -1,0 +1,3 @@
+{"check":"okf-hygiene","command":"audit","bundles_checked":70,
+ "counts":{"conformant":69,"legacy-readme":0,"legacy-underscore-index":0,"hybrid-partial":0,"unclassifiable":1},
+ "legacy":0,"verdict":"pass","exit":0,"rows":[]}

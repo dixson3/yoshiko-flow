@@ -1,0 +1,1045 @@
+{
+ "check": "okf-hygiene",
+ "command": "backfill",
+ "apply": false,
+ "bundles_checked": 70,
+ "transformed": 7,
+ "mutated": 0,
+ "halted": 1,
+ "reconciled_objectives": [
+  {
+   "bundle": "docs/plans/plan-010-james-dixson-73eebd",
+   "from": "Rename all skills to yf- prefix and build a Rust 'yflow' CLI to manage skill install/upgrade lifecycle, distributed via homebrew, replacing install.{sh,py}",
+   "to": "Rename skills to `yf-` prefix and build the `yf` Rust CLI \u2014 skill install/upgrade lifecycle, Homebrew distribution, replacing `install.{sh,py}`",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-012-james-dixson-a99822",
+   "from": "yf/beads health & hygiene: yf doctor subcommand (#32), suppress bd-init cruft in yf-beads-init (#31), and new yf-beads-hygiene skill (#29)",
+   "to": "yf/beads health, hygiene & rule consolidation: yf doctor (#32), suppress bd-init cruft (#31), yf-beads-hygiene skill (#29), settings docs (#30), fold orphan BEADS.md rule (E), upstream default-none + preflight offer (F)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-013-james-dixson-0af2f8",
+   "from": "Implement reconcile policy: local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+   "to": "Reconcile policy \u2014 local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-014-james-dixson-916de2",
+   "from": "Build yf-change-validation: self-maintaining per-repo change-set validation engine + manifest + triggers, on a shared PEP 723 package",
+   "to": "`_shared/` package \u2014 retire the duplicated active-set classifier (#15)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-021-james-dixson-bb3558",
+   "from": "Cluster A \u2014 yf-plan lifecycle rework (intake-at-execute, auto-commit, re-review gate) + yf-spec skill",
+   "to": "yf-plan lifecycle rework \u2014 intake-at-execute branch model, auto-commit, content-bound re-review gate",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-023-james-dixson-b618bb",
+   "from": "Beads infra / local-only hardening (#58, #67, #66, #57, #60, #65)",
+   "to": "Beads infra / local-only hardening (#58, #67, #66, #57)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-026-james-dixson-6e0e2f",
+   "from": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), and add a new markdown-html skill (#50)",
+   "to": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill \u2014 the autofix side of the linter \u2014 absorbing the strict GFM table aligner (#85) and the existing Obsidian\u2192GFM wiki-link migrator",
+   "authority": "plan.md H1"
+  }
+ ],
+ "bundles": [
+  {
+   "bundle": "docs/plans/plan-001-james-dixson-c88e7a",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-002-james-dixson-b8b610",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-003-james-dixson-adacc7",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-004-james-dixson-56f494",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-005-james-dixson-44b200",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-006-james-dixson-bf6e21",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-007-james-dixson-84da0d",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-008-james-dixson-382e8a",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-009-james-dixson-996e44",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-010-james-dixson-73eebd",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Rename all skills to yf- prefix and build a Rust 'yflow' CLI to manage skill install/upgrade lifecycle, distributed via homebrew, replacing install.{sh,py}",
+    "to": "Rename skills to `yf-` prefix and build the `yf` Rust CLI \u2014 skill install/upgrade lifecycle, Homebrew distribution, replacing `install.{sh,py}`",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-reference-recon.md",
+    "findings/exp-002-ip-name-check.md",
+    "findings/exp-003-ip-name-check-yf.md",
+    "plan.md",
+    "references/upstream-14.md",
+    "references/upstream-15.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-011-james-dixson-dd21e3",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-012-james-dixson-a99822",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "yf/beads health & hygiene: yf doctor subcommand (#32), suppress bd-init cruft in yf-beads-init (#31), and new yf-beads-hygiene skill (#29)",
+    "to": "yf/beads health, hygiene & rule consolidation: yf doctor (#32), suppress bd-init cruft (#31), yf-beads-hygiene skill (#29), settings docs (#30), fold orphan BEADS.md rule (E), upstream default-none + preflight offer (F)",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-yf-cli-structure.md",
+    "findings/exp-002-bd-init-cruft.md",
+    "findings/exp-003-hygiene-vs-sweep.md",
+    "findings/exp-004-beads-md-fold-map.md",
+    "plan.md",
+    "references/upstream-29.md",
+    "references/upstream-30.md",
+    "references/upstream-31.md",
+    "references/upstream-32.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-013-james-dixson-0af2f8",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Implement reconcile policy: local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+    "to": "Reconcile policy \u2014 local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-skill-architecture.md",
+    "findings/exp-002-bd-reconcile-mechanisms.md",
+    "plan.md",
+    "references/upstream-17.md",
+    "references/upstream-38.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-014-james-dixson-916de2",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Build yf-change-validation: self-maintaining per-repo change-set validation engine + manifest + triggers, on a shared PEP 723 package",
+    "to": "`_shared/` package \u2014 retire the duplicated active-set classifier (#15)",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-shared-vendoring.md",
+    "findings/exp-002-yfplan-delegation.md",
+    "findings/exp-003-driftcheck-shape.md",
+    "plan.md",
+    "references/upstream-15.md",
+    "references/upstream-25.md",
+    "references/upstream-27.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-015-james-dixson-cb2ef4",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-016-james-dixson-041b2f",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-017-james-dixson-9ac898",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-018-james-dixson-1d39eb",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-019-james-dixson-eea8e7",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-020-james-dixson-81785d",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-021-james-dixson-bb3558",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Cluster A \u2014 yf-plan lifecycle rework (intake-at-execute, auto-commit, re-review gate) + yf-spec skill",
+    "to": "yf-plan lifecycle rework \u2014 intake-at-execute branch model, auto-commit, content-bound re-review gate",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-lifecycle-mechanics.md",
+    "findings/exp-002-fingerprint-spec-gitauth.md",
+    "findings/exp-003-two-copies-and-test-harness.md",
+    "plan.md",
+    "references/upstream-47.md",
+    "references/upstream-62.md",
+    "references/upstream-63.md",
+    "references/upstream-64.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-022-james-dixson-14b3dd",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-023-james-dixson-b618bb",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Beads infra / local-only hardening (#58, #67, #66, #57, #60, #65)",
+    "to": "Beads infra / local-only hardening (#58, #67, #66, #57)",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-minimal-local-profile.md",
+    "plan.md",
+    "references/upstream-57.md",
+    "references/upstream-58.md",
+    "references/upstream-60.md",
+    "references/upstream-65.md",
+    "references/upstream-66.md",
+    "references/upstream-67.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-024-james-dixson-76cee9",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-025-james-dixson-0183e8",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-026-james-dixson-6e0e2f",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), and add a new markdown-html skill (#50)",
+    "to": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill \u2014 the autofix side of the linter \u2014 absorbing the strict GFM table aligner (#85) and the existing Obsidian\u2192GFM wiki-link migrator",
+    "authority": "plan.md H1"
+   },
+   "action": "would-backfill",
+   "steps": [
+    "migrate",
+    "delete-renamed-README.md-prose",
+    "stamp-descriptions",
+    "regenerate-listing"
+   ],
+   "would_stamp_descriptions": [
+    "findings/exp-001-pandoc-lua-filters.md",
+    "findings/exp-002-yf-doctor-preflight-dep-axis.md",
+    "plan.md",
+    "references/upstream-46.md",
+    "references/upstream-48.md",
+    "references/upstream-49.md",
+    "references/upstream-50.md",
+    "references/upstream-81.md",
+    "references/upstream-85.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "reviews/pass-3.md",
+    "reviews/pass-4.md",
+    "reviews/pass-5.md",
+    "reviews/pass-6.md",
+    "reviews/pass-7.md",
+    "upstream-triage.md"
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-027-james-dixson-a59656",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-028-james-dixson-a9738b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-029-james-dixson-75fd34",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-030-james-dixson-65526e",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "fail"
+   },
+   "action": "halt",
+   "halts": [
+    {
+     "kind": "phase-log-loss",
+     "detail": "1 phase-log date(s) would be lost",
+     "dates": [
+      "2026-07-19"
+     ]
+    }
+   ]
+  },
+  {
+   "bundle": "docs/plans/plan-031-james-dixson-62a375",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-032-james-dixson-6cb87b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-033-james-dixson-46aca2",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-034-james-dixson-ac6633",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-035-james-dixson-74d7ae",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-036-james-dixson-461061",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-037-james-dixson-cab694",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-038-james-dixson-1ce25a",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-039-james-dixson-150f79",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-040-james-dixson-1cabe4",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-041-james-dixson-a9d837",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-042-james-dixson-98631b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-043-james-dixson-a8afe8",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-044-james-dixson-f6fdbd",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-045-james-dixson-9899e1",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-046-james-dixson-aabefa",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-047-james-dixson-dec9ff",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-048-james-dixson-ed68a5",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-049-james-dixson-725bc0",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-050-james-dixson-d0414b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-051-james-dixson-2f499f",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-052-james-dixson-fa8056",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-053-james-dixson-4015d3",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-054-james-dixson-535968",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-055-james-dixson-5f1c40",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-056-james-dixson-473dba",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-057-james-dixson-9ecf1c",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-058-james-dixson-0e36fd",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-059-james-dixson-55137e",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-060-james-dixson-6a6ac9",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-061-james-dixson-6d8c97",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-062-james-dixson-c3e98f",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-063-james-dixson-3f74c1",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-064-james-dixson-a0b7fa",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-065-james-dixson-7c8cd4",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/001-okf-compliance-delta",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/002-harness-global-rule-minimization",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/003-graph-engineering-hypothesis",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/004-plan-process-defect-mining",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/005-thrash-detection-and-operator-judgement",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  }
+ ],
+ "verdict": "fail",
+ "exit": 1,
+ "mixed_run": false
+}

@@ -6,18 +6,20 @@ description: Run the yf-okf-hygiene corpus backfill on the repaired engine - 8 l
 id: plan-065-james-dixson-7c8cd4
 author: james-dixson
 created: '2026-09-05'
-status: approved
+status: executing
 deliverable_class: standard
-fingerprint: fa4cae6f0dd743ed02bc936a58a3ffa57792423bd2999f967760da817d472754
+fingerprint: e457c90986407e17bee7c3473494ca381e7b20874ce35e5b00279dcfc94dda67
+epic: yf-mol-e7k4
 ---
 # Plan: Run the yf-okf-hygiene corpus backfill on the repaired engine — 8 legacy-readme bundles to the reserved index.md + log.md model
 
 **ID:** plan-065-james-dixson-7c8cd4
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
-**Fingerprint:** fa4cae6f0dd743ed02bc936a58a3ffa57792423bd2999f967760da817d472754
+**Epic:** yf-mol-e7k4
+**Fingerprint:** e457c90986407e17bee7c3473494ca381e7b20874ce35e5b00279dcfc94dda67
 
 ## Objective
 Run the yf-okf-hygiene corpus backfill on the repaired engine — 8 legacy-readme bundles to the reserved index.md + log.md model
@@ -252,7 +254,7 @@ block the very rehearsal that earns that authorization. The corpus `--apply` —
   - depends-on: 5.5
 
 ### Epic 6: Scope closure
-- Issue 6.1: File the FOUR engine defects upstream — `restore --root` absolute-path (D3); the one-sided phase-log guard including the dead `src_bul`/`dst_bul`; migrate's skip-if-exists log reconciliation (D4); and **`restore`'s unchecked `git checkout` return code (`okf_hygiene.py:1371-1372`), which makes the post-commit total-loss path SILENT** — measured this session, reproduction in `findings/exp-003-post-commit-restore-loss.md`
+- Issue 6.1: File the SIX engine defects upstream (**AMENDED from FOUR during execution — ESC-001**): `restore --root` absolute-path (D3); the one-sided phase-log guard including the dead `src_bul`/`dst_bul`; migrate's skip-if-exists log reconciliation (D4); **`restore`'s unchecked `git checkout` return code (`okf_hygiene.py:1371-1372`), which makes the post-commit total-loss path SILENT** — measured this session, reproduction in `findings/exp-003-post-commit-restore-loss.md`; **`backfill --apply`'s non-conformant generated `index.md`** (no member listing, so every transformed bundle immediately fails `check_okf_index_drift.py` — measured on all 8); and **`reindex`'s dry run reporting `verdict: clean` while proposing 9 changes**
   - depends-on: 5.6
 - Issue 6.2: Reconcile the upstream dispositions — close #359 and #316, and update #295 for the SC19 half only, leaving it open for SC24
   - depends-on: 6.1
@@ -313,7 +315,7 @@ block the very rehearsal that earns that authorization. The corpus `--apply` —
 | SC7 | All ten of plan-030's phase-log bullets survive into `log.md` | `uv run python3 scripts/checks/plan065_checks.py phaselog-bullets` → exit 0 | 2.3 |
 | SC8 | plan-010's and plan-013's `index.md` carry the merged objectives verbatim | `uv run python3 scripts/checks/plan065_checks.py merged-objectives` → exit 0 | 5.4 |
 | SC9 | The FULL change-validation tier is green on the merged tree | `uv run "$(yf skill-dir yf-change-validation)/scripts/change_validation.py" run --tier full --json` → exit 0 | 5.5 |
-| SC10 | **All FOUR** engine defects are filed upstream with reproductions — including `restore`'s unchecked `git checkout` return code (`okf_hygiene.py:1371-1372`), the silent total-loss path this plan discovered | `manual: filing is an outward-facing write requiring operator authorization; evidence is the four issue URLs recorded in log.md` | 6.1 |
+| SC10 | **All SIX** engine defects are filed upstream with reproductions. **AMENDED DURING EXECUTION from FOUR (ESC-001).** The four scoped at drafting: (1) `restore --root`'s absolute-path refusal (D3); (2) the one-sided phase-log guard including the dead `src_bul`/`dst_bul`; (3) migrate's skip-if-exists log reconciliation (D4); (4) `restore`'s unchecked `git checkout` return code (`okf_hygiene.py:1371-1372`), the silent total-loss path this plan discovered. Two found DURING the corpus apply: (5) `backfill --apply` generates a NON-CONFORMANT `index.md` — header and objective only, no member listing — so every freshly transformed bundle immediately fails `check_okf_index_drift.py`; measured on all 8, and the generated prose asserts “the files below” with no files below; (6) `reindex`'s dry run reports `verdict: clean`, `exit: 0` while proposing 9 `add-missing` changes — a verdict that contradicts its own change list. **The pre-amendment text said “All FOUR” and named the fourth explicitly, so it would have PASSED while silently dropping (5) and (6)** — the same undercount shape pass-3 caught in the other direction | `manual: filing is an outward-facing write requiring operator authorization; evidence is the six issue URLs recorded in log.md` | 6.1 |
 | SC11 | #359 and #316 are closed; #295 updated for SC19 and left open for SC24 | `manual: verified by reading the issues back with gh issue view, never by trusting an exit 0` | 6.2 |
 | SC12 | No engine source file is modified by this plan | `uv run python3 scripts/checks/plan065_checks.py no-engine-edits` → exit 0 | 5.5 |
 | SC13 | Each of the **ten** subcommands was OBSERVED exiting non-zero on a mutated input | `uv run python3 scripts/checks/plan065_checks.py negative-controls` → exit 0 | 0.4 |

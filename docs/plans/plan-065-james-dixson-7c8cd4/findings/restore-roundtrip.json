@@ -1,0 +1,75 @@
+{
+ "pre_backfill": "c02fdbd4bd7d621204c01c2145234d3a656c85ba7cdf6ddc4b410c601266d57c",
+ "post_backfill": "78499f5f5b73039a7472ef9aed65b7f9feb376beb306e666b78e6155b7e6f412",
+ "post_reversal": "c02fdbd4bd7d621204c01c2145234d3a656c85ba7cdf6ddc4b410c601266d57c",
+ "post_reapply": "78499f5f5b73039a7472ef9aed65b7f9feb376beb306e666b78e6155b7e6f412",
+ "bundle": "docs/plans/plan-030-james-dixson-65526e",
+ "detail": {
+  "pre_backfill": {
+   "sha256": "c02fdbd4bd7d621204c01c2145234d3a656c85ba7cdf6ddc4b410c601266d57c",
+   "files": 8,
+   "names": [
+    "README.md",
+    "context.md",
+    "log.md",
+    "plan.md",
+    "references",
+    "reviews",
+    "upstream-triage.md"
+   ]
+  },
+  "post_backfill": {
+   "sha256": "78499f5f5b73039a7472ef9aed65b7f9feb376beb306e666b78e6155b7e6f412",
+   "files": 8,
+   "names": [
+    "context.md",
+    "index.md",
+    "log.md",
+    "plan.md",
+    "references",
+    "reviews",
+    "upstream-triage.md"
+   ]
+  },
+  "post_reversal": {
+   "sha256": "c02fdbd4bd7d621204c01c2145234d3a656c85ba7cdf6ddc4b410c601266d57c",
+   "files": 8,
+   "names": [
+    "README.md",
+    "context.md",
+    "log.md",
+    "plan.md",
+    "references",
+    "reviews",
+    "upstream-triage.md"
+   ]
+  },
+  "post_reapply": {
+   "sha256": "78499f5f5b73039a7472ef9aed65b7f9feb376beb306e666b78e6155b7e6f412",
+   "files": 8,
+   "names": [
+    "context.md",
+    "index.md",
+    "log.md",
+    "plan.md",
+    "references",
+    "reviews",
+    "upstream-triage.md"
+   ]
+  }
+ },
+ "method": {
+  "hash": "sha256 over (relpath, bytes) of every file in the bundle, sorted \u2014 an EFFECT, not an exit code. restore reported verdict pass / exit 0 in the measured total-loss case too (exp-003), so the exit code proves nothing.",
+  "pre_backfill": "git archive HEAD (17a9445 \u2014 already carries the Epic-2 repair)",
+  "reverse": "restore --record findings/backfill-record.json --bundle docs/plans/plan-030-james-dixson-65526e --apply  (RELATIVE path; an absolute path is refused. NO --root \u2014 D3)",
+  "reapply": "backfill --reconcile-objective --apply --record findings/reapply-record.json \u2014 a SECOND record path, because backfill has no per-bundle selector and overwriting 4.2's record would leave the other 7 with no record-driven reversal",
+  "ordering": "run on the UNCOMMITTED post-apply tree, BEFORE Issue 4.5 commits. Post-commit restore --apply is a measured silent total-loss path (exp-003); the reversal verb after 4.5 is git revert."
+ },
+ "reapply_run": {
+  "transformed": 1,
+  "halted": 0,
+  "bundles_checked": 70,
+  "exit": 0,
+  "note": "transformed 1 \u2014 only plan-030 was legacy again; the other 7 were already conformant and correctly skipped"
+ }
+}

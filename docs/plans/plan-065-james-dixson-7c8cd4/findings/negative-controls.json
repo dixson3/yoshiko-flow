@@ -1,0 +1,266 @@
+{
+ "artifact": "negative-controls",
+ "captured": "2026-09-05",
+ "contract": "exit 0 = PASS, 1 = FALSE (condition checked and does not hold), 2 = INCONCLUSIVE (could not run). A control is only valid at exit != 0, and a tree-property FALSE report is only valid at exit == 1.",
+ "no_repository_mutation": true,
+ "rows": [
+  {
+   "subcommand": "audit-strict",
+   "mutation": "synthesized audit JSON with legacy:0, verdict:pass, exit:0 \u2014 but counts.unclassifiable:1. This is the MEASURED blindness: `legacy` sums only legacy-readme + legacy-underscore-index + hybrid-partial (okf_hygiene.py:977-978), so a bundle wrecked into `unclassifiable` yields a green audit.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "unclassifiable=1 (want 0)",
+   "argv": "uv run scripts/checks/plan065_checks.py audit-strict --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-audit-strict.json"
+  },
+  {
+   "subcommand": "bundle-shape",
+   "mutation": "fixture target `nc-bundle-bad` carrying README.md and neither index.md nor log.md, driven through --root at the fixture tree.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "1 bundle(s) wrong shape: ['nc-bundle-bad']",
+   "argv": "uv run scripts/checks/plan065_checks.py bundle-shape --root docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/tree --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-bundle-shape.json"
+  },
+  {
+   "subcommand": "phaselog-bullets",
+   "mutation": "a synthesized log.md carrying NINE of plan-030's ten bullets \u2014 the tenth ('reconciling: post-execution reconciliation') dropped. Its DATE (2026-07-19) still appears on surviving bullets, so the engine's own date-comparing guard would NOT catch it (R2).",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "1 bullet(s) missing from log.md: ['reconciling: post-execution reconciliation']",
+   "argv": "uv run scripts/checks/plan065_checks.py phaselog-bullets --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-phaselog.md"
+  },
+  {
+   "subcommand": "merged-objectives",
+   "mutation": "fixture bundle `nc-010/index.md` whose `> ` line is present but is NOT the exp-001 merged text \u2014 proving the check reads CONTENT, not mere presence.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "1 objective(s) differ: ['nc-010']",
+   "argv": "uv run scripts/checks/plan065_checks.py merged-objectives --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-merged-objectives.json"
+  },
+  {
+   "subcommand": "no-engine-edits",
+   "mutation": "diff base re-pinned to bcd1511 (plan-064 intake, BEFORE that plan's engine repair). No file was modified: the control moves the BASE, so 7 real skills/**/*.py changes fall inside the diff. Mutating an engine source to make this red would itself breach SC12.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "9 engine source(s) modified: ['_shared/okf.py', '_shared/test_okf.py', 'skills/yf-incubator/scripts/okf.py', 'skills/yf-okf-hygiene/scripts/okf.py', 'skills/yf-okf-hygiene/scripts/okf_hygiene.py', 'skills/yf-okf-hygiene/scripts/test_okf_hygiene.py', 'skills/yf-okf/scripts/okf.py', 'skills/yf-plan/scripts/okf.py', 'skills/yf-research/scripts/okf.py']",
+   "argv": "uv run scripts/checks/plan065_checks.py no-engine-edits --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-diff-base.txt"
+  },
+  {
+   "subcommand": "index-drift-strict",
+   "mutation": "synthesized drift JSON with exit:0, verdict:clean and no_index:8 \u2014 the exact shape measured at drafting, where the bare check passes while 8 bundles carry no index at all.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "no_index=8 (want 0)",
+   "argv": "uv run scripts/checks/plan065_checks.py index-drift-strict --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-index-drift.json"
+  },
+  {
+   "subcommand": "apply-result",
+   "mutation": "synthesized run JSON with correct headline counts (transformed:8, halted:0, bundles_checked:70) but only SEVEN rows carrying action=='backfilled'.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "rows with action=backfilled: 7 (want exactly 8)",
+   "argv": "uv run scripts/checks/plan065_checks.py apply-result --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-apply-result.json"
+  },
+  {
+   "subcommand": "restore-roundtrip",
+   "mutation": "the NO-OP signature: pre_backfill == post_backfill == post_reversal == post_reapply. An earlier draft asserted only pre==post_reversal, which this fixture satisfies \u2014 it is the silent total-loss shape that draft would have called green.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "post_reversal == post_backfill \u2014 restore was a NO-OP, not a reversal",
+   "argv": "uv run scripts/checks/plan065_checks.py restore-roundtrip --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-restore-roundtrip.json"
+  },
+  {
+   "subcommand": "finding-counts",
+   "mutation": "before/after fixture pair where plan-010 REGRESSES 12 -> 13.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "docs/plans/plan-010-james-dixson-73eebd: 12 -> 13 (REGRESSED); no bundle strictly decreased \u2014 the transform improved nothing",
+   "argv": "uv run scripts/checks/plan065_checks.py finding-counts --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-finding-counts-before.json --after docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-finding-counts-after.json"
+  },
+  {
+   "subcommand": "negative-controls",
+   "mutation": "synthesized controls file with TWO defects: one row recording exit 0, and a tree-property entry whose reason is 'input absent' \u2014 which Issue 0.5 must reject as a FALSE report.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "1 control(s) did NOT report non-zero: ['negative-controls']; tree-property `audit-strict` recorded exit 2 \u2014 only exit 1 is a FALSE report; tree-property `audit-strict` recorded `input absent` \u2014 an absent input is NOT evidence the condition is false",
+   "argv": "uv run scripts/checks/plan065_checks.py negative-controls --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-negative-controls.json"
+  },
+  {
+   "subcommand": "registered",
+   "mutation": "synthesized CHANGE-VALIDATION.md naming plan065_checks.py ONLY in a \u00a71 blockquote and in a FAST-tier row. A substring grep would pass; the structural \u00a71/### full table parse must not.",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "no FULL-tier row invokes scripts/checks/plan065_checks.py",
+   "argv": "uv run scripts/checks/plan065_checks.py registered --input docs/plans/plan-065-james-dixson-7c8cd4/assets/negative-controls/nc-CHANGE-VALIDATION.md"
+  }
+ ],
+ "tree_property_false": [
+  {
+   "subcommand": "audit-strict",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "legacy=8 (want 0)",
+   "evidence": {
+    "legacy": 8,
+    "bundles_checked": 70,
+    "counts": {
+     "conformant": 62,
+     "legacy-readme": 8,
+     "legacy-underscore-index": 0,
+     "hybrid-partial": 0,
+     "unclassifiable": 0
+    },
+    "verdict_reported_by_audit": "pass"
+   }
+  },
+  {
+   "subcommand": "bundle-shape",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "8 bundle(s) wrong shape: ['docs/plans/plan-010-james-dixson-73eebd', 'docs/plans/plan-012-james-dixson-a99822', 'docs/plans/plan-013-james-dixson-0af2f8', 'docs/plans/plan-014-james-dixson-916de2', 'docs/plans/plan-021-james-dixson-bb3558', 'docs/plans/plan-023-james-dixson-b618bb', 'docs/plans/plan-026-james-dixson-6e0e2f', 'docs/plans/plan-030-james-dixson-65526e']",
+   "evidence": {
+    "targets": [
+     "docs/plans/plan-010-james-dixson-73eebd",
+     "docs/plans/plan-012-james-dixson-a99822",
+     "docs/plans/plan-013-james-dixson-0af2f8",
+     "docs/plans/plan-014-james-dixson-916de2",
+     "docs/plans/plan-021-james-dixson-bb3558",
+     "docs/plans/plan-023-james-dixson-b618bb",
+     "docs/plans/plan-026-james-dixson-6e0e2f",
+     "docs/plans/plan-030-james-dixson-65526e"
+    ],
+    "rows": [
+     {
+      "bundle": "docs/plans/plan-010-james-dixson-73eebd",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-012-james-dixson-a99822",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-013-james-dixson-0af2f8",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-014-james-dixson-916de2",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-021-james-dixson-bb3558",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-023-james-dixson-b618bb",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-026-james-dixson-6e0e2f",
+      "index.md": false,
+      "log.md": false,
+      "README.md": true
+     },
+     {
+      "bundle": "docs/plans/plan-030-james-dixson-65526e",
+      "index.md": false,
+      "log.md": true,
+      "README.md": true
+     }
+    ]
+   }
+  },
+  {
+   "subcommand": "phaselog-bullets",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "10 bullet(s) missing from log.md: ['scoping: initial scope captured', 'scoping: upstream #89 triaged (include); 3 scope decisions resolved (detection / enforcement / evidence)', 'drafting: plan v1 presented', 'review: plan v1 presented', 'review: pass-1 REVISE resolved (C1-C4); re-review', 'ready-for-approval: ready-check green \u2014 last red-team APPROVE (pass-2) + audit pass', 'approved: operator approved', 'intake: epic yf-mol-tmm poured', 'executing: start gate resolved', 'reconciling: post-execution reconciliation']",
+   "evidence": {
+    "log": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-030-james-dixson-65526e/log.md",
+    "expected": 10,
+    "missing": [
+     "scoping: initial scope captured",
+     "scoping: upstream #89 triaged (include); 3 scope decisions resolved (detection / enforcement / evidence)",
+     "drafting: plan v1 presented",
+     "review: plan v1 presented",
+     "review: pass-1 REVISE resolved (C1-C4); re-review",
+     "ready-for-approval: ready-check green \u2014 last red-team APPROVE (pass-2) + audit pass",
+     "approved: operator approved",
+     "intake: epic yf-mol-tmm poured",
+     "executing: start gate resolved",
+     "reconciling: post-execution reconciliation"
+    ]
+   }
+  },
+  {
+   "subcommand": "index-drift-strict",
+   "exit": 1,
+   "verdict": "FALSE",
+   "reason": "check exit=1 verdict=drift (1 bundle(s) have root-index drift); no_index=8 (want 0)",
+   "evidence": {
+    "exit": 1,
+    "no_index": 8,
+    "drifting": 1,
+    "bundles_checked": 70
+   }
+  }
+ ],
+ "tree_property_rejected": [],
+ "excluded_from_issue_0_5": {
+  "why": "These read artifacts this plan CREATES. Pre-transform they can only report 'input absent' (exit 2) or, where they read a not-yet-written tree artifact, a FALSE that is really an absence. An absent input is NOT evidence the condition is false, so none of them is admissible as SC14 evidence. Recorded for completeness only.",
+  "rows": [
+   {
+    "subcommand": "merged-objectives",
+    "exit": 1,
+    "verdict": "FALSE",
+    "reason": "2 objective(s) differ: ['docs/plans/plan-010-james-dixson-73eebd', 'docs/plans/plan-013-james-dixson-0af2f8']"
+   },
+   {
+    "subcommand": "no-engine-edits",
+    "exit": 0,
+    "verdict": "PASS",
+    "reason": "no engine source touched across 21 changed path(s)"
+   },
+   {
+    "subcommand": "apply-result",
+    "exit": 2,
+    "verdict": "INCONCLUSIVE",
+    "reason": "input absent: /Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-065-james-dixson-7c8cd4/findings/apply-result.json"
+   },
+   {
+    "subcommand": "restore-roundtrip",
+    "exit": 2,
+    "verdict": "INCONCLUSIVE",
+    "reason": "input absent: /Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-065-james-dixson-7c8cd4/findings/restore-roundtrip.json"
+   },
+   {
+    "subcommand": "finding-counts",
+    "exit": 1,
+    "verdict": "FALSE",
+    "reason": "no bundle strictly decreased \u2014 the transform improved nothing"
+   },
+   {
+    "subcommand": "negative-controls",
+    "exit": 1,
+    "verdict": "FALSE",
+    "reason": "no `tree_property_false` list (Issue 0.5 evidence, SC14)"
+   },
+   {
+    "subcommand": "registered",
+    "exit": 1,
+    "verdict": "FALSE",
+    "reason": "no FULL-tier row invokes scripts/checks/plan065_checks.py"
+   }
+  ]
+ }
+}

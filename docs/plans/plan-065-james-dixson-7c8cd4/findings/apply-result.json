@@ -1,0 +1,1720 @@
+{
+ "check": "okf-hygiene",
+ "command": "backfill",
+ "apply": true,
+ "bundles_checked": 70,
+ "transformed": 8,
+ "mutated": 8,
+ "halted": 0,
+ "reconciled_objectives": [
+  {
+   "bundle": "docs/plans/plan-010-james-dixson-73eebd",
+   "from": "Rename all skills to yf- prefix and build a Rust 'yflow' CLI to manage skill install/upgrade lifecycle, distributed via homebrew, replacing install.{sh,py}",
+   "to": "Rename skills to `yf-` prefix and build the `yf` Rust CLI \u2014 skill install/upgrade lifecycle, Homebrew distribution, replacing `install.{sh,py}`",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-012-james-dixson-a99822",
+   "from": "yf/beads health & hygiene: yf doctor subcommand (#32), suppress bd-init cruft in yf-beads-init (#31), and new yf-beads-hygiene skill (#29)",
+   "to": "yf/beads health, hygiene & rule consolidation: yf doctor (#32), suppress bd-init cruft (#31), yf-beads-hygiene skill (#29), settings docs (#30), fold orphan BEADS.md rule (E), upstream default-none + preflight offer (F)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-013-james-dixson-0af2f8",
+   "from": "Implement reconcile policy: local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+   "to": "Reconcile policy \u2014 local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-014-james-dixson-916de2",
+   "from": "Build yf-change-validation: self-maintaining per-repo change-set validation engine + manifest + triggers, on a shared PEP 723 package",
+   "to": "`_shared/` package \u2014 retire the duplicated active-set classifier (#15)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-021-james-dixson-bb3558",
+   "from": "Cluster A \u2014 yf-plan lifecycle rework (intake-at-execute, auto-commit, re-review gate) + yf-spec skill",
+   "to": "yf-plan lifecycle rework \u2014 intake-at-execute branch model, auto-commit, content-bound re-review gate",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-023-james-dixson-b618bb",
+   "from": "Beads infra / local-only hardening (#58, #67, #66, #57, #60, #65)",
+   "to": "Beads infra / local-only hardening (#58, #67, #66, #57)",
+   "authority": "plan.md H1"
+  },
+  {
+   "bundle": "docs/plans/plan-026-james-dixson-6e0e2f",
+   "from": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), and add a new markdown-html skill (#50)",
+   "to": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill \u2014 the autofix side of the linter \u2014 absorbing the strict GFM table aligner (#85) and the existing Obsidian\u2192GFM wiki-link migrator",
+   "authority": "plan.md H1"
+  }
+ ],
+ "bundles": [
+  {
+   "bundle": "docs/plans/plan-001-james-dixson-c88e7a",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-002-james-dixson-b8b610",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-003-james-dixson-adacc7",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-004-james-dixson-56f494",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-005-james-dixson-44b200",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-006-james-dixson-bf6e21",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-007-james-dixson-84da0d",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-008-james-dixson-382e8a",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-009-james-dixson-996e44",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-010-james-dixson-73eebd",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Rename all skills to yf- prefix and build a Rust 'yflow' CLI to manage skill install/upgrade lifecycle, distributed via homebrew, replacing install.{sh,py}",
+    "to": "Rename skills to `yf-` prefix and build the `yf` Rust CLI \u2014 skill install/upgrade lifecycle, Homebrew distribution, replacing `install.{sh,py}`",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-reference-recon.md",
+    "findings/exp-002-ip-name-check.md",
+    "findings/exp-003-ip-name-check-yf.md",
+    "plan.md",
+    "references/upstream-14.md",
+    "references/upstream-15.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/README.md",
+     "kind": "deleted",
+     "sha256_before": "4b5bf25cf1acd8e0fe595258d1c4c0c05d0999063304551ef4c6c157b4c61fb1",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/context.md",
+     "kind": "modified",
+     "sha256_before": "fcefeca953d7cad82583235e8e8b507bb21d623c56f3d817e42d680d0f565a8d",
+     "sha256_after": "acc8e8506df2fcf5469681f6a7f0f5e759e1cb88df932e0d930ca712f2297a4f"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/findings/exp-001-reference-recon.md",
+     "kind": "modified",
+     "sha256_before": "e57f2ff8b8da5a4506e3d8d01452e4f210f3326a73f5dccaea3d768596c0e448",
+     "sha256_after": "5d7a61f18e3b26989e85d57412187833ee7b3c9b646ad80f468878a6b2fda348"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/findings/exp-002-ip-name-check.md",
+     "kind": "modified",
+     "sha256_before": "eb4fa5ddbce9c4358a450ccff872bd8114150732b77b4837eb5e66b2045ead83",
+     "sha256_after": "4f9bcb18b5031cff99fd0b5b9a9052fc45c22e8feb35f0c4ab86738ab27e3f80"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/findings/exp-003-ip-name-check-yf.md",
+     "kind": "modified",
+     "sha256_before": "7141b280e3bc67f0136034dbfade15c89615bae4406ba90de658136a50cfa946",
+     "sha256_after": "b1ba9c267ab335fb0fbebff1539dfea21944bc63b4140e4a3d970a7458e8f6c2"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "d0714d6ec9939a07adb405960a46c935fbddbeb941b02b56ddc61becc38b2e6a"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "5e833bb60163dfd04883c590a2f4efc3fa89261d0cbb66507ee243626a625794"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/plan.md",
+     "kind": "modified",
+     "sha256_before": "779d385baf872a0a9ba38ba158542446ab39ae38b32f880e24263618ba36352b",
+     "sha256_after": "a1002fdd94d0aadc4cacf339b74a15a5e0641be5bcd843f1bfd54cd3c5b11b15"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/references/upstream-14.md",
+     "kind": "modified",
+     "sha256_before": "4d62531bbea703535f3c4ba7f9eeab9f2d005b6d698231a474bd3cb6621de1e5",
+     "sha256_after": "64f205e5d906b8e50e4008438a75a38c85754427b1ab576cacbf31e7c492ab34"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/references/upstream-15.md",
+     "kind": "modified",
+     "sha256_before": "6ef9d7a0f5e93973f7ccce58a18cc5ab747fcf4348cb4b83612276ea47855cf1",
+     "sha256_after": "0ec44620833589e7b05992edb5f6f6014930f995c6c2d7e7081cbd827b7a8aec"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "b84dd4357068610098b32b028aa93acbc42109f1d72c627afbfde6d7204f29dd",
+     "sha256_after": "c2885cfe4729b7ecefe9d14cc2046385bd25dd4a50795c8d540e090fa1a6ba75"
+    },
+    {
+     "path": "docs/plans/plan-010-james-dixson-73eebd/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "83d587a86261b10cef5a1eda84f0b78dbac02a39e1175f922ed706f30c2773c3",
+     "sha256_after": "68f949592dd70cf1ed0f15e034bb5d515411208fc407c944fed7c3d26819ee10"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-011-james-dixson-dd21e3",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-012-james-dixson-a99822",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "yf/beads health & hygiene: yf doctor subcommand (#32), suppress bd-init cruft in yf-beads-init (#31), and new yf-beads-hygiene skill (#29)",
+    "to": "yf/beads health, hygiene & rule consolidation: yf doctor (#32), suppress bd-init cruft (#31), yf-beads-hygiene skill (#29), settings docs (#30), fold orphan BEADS.md rule (E), upstream default-none + preflight offer (F)",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-yf-cli-structure.md",
+    "findings/exp-002-bd-init-cruft.md",
+    "findings/exp-003-hygiene-vs-sweep.md",
+    "findings/exp-004-beads-md-fold-map.md",
+    "plan.md",
+    "references/upstream-29.md",
+    "references/upstream-30.md",
+    "references/upstream-31.md",
+    "references/upstream-32.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/README.md",
+     "kind": "deleted",
+     "sha256_before": "9fbf892b7e6fd8c5244296b75c736379f303f06e0991a2ecfbb16d9ec8ee4305",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/context.md",
+     "kind": "modified",
+     "sha256_before": "72ab72a7c9db52fb64eed9c9e5c8d09b3f6fc4dd34f812a083d0062231cf7329",
+     "sha256_after": "72774033afd676239ffd2ae5f7fb8bfa452890837f3f131c9a4ab13b5dd55f51"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/findings/exp-001-yf-cli-structure.md",
+     "kind": "modified",
+     "sha256_before": "f5b70e41835e480a70b10ea22b5306053c8edbdf6614a825e652c6fcac2bf4c7",
+     "sha256_after": "7921472e82b450c0d166106acb8aa012e5a2a41420e9a4ee03793aa14c81796d"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/findings/exp-002-bd-init-cruft.md",
+     "kind": "modified",
+     "sha256_before": "563009f30f6b768c235ef515b44bffc01e704cd7471870c7a228ba2ce7b0ddee",
+     "sha256_after": "02e9ce4cd425b56b2d261d4f7ee8cc7a071e56469c2e4d3820ea40eedaa82bde"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/findings/exp-003-hygiene-vs-sweep.md",
+     "kind": "modified",
+     "sha256_before": "5ec5d18900e72367817a5213bf5f769fe97de757174b1cd34f631e6b8b1cd8a0",
+     "sha256_after": "ad7d7f1dbec2ec95dd2a9f36febd48ddfd5eed1ef9855018cc99f708290cb6c2"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/findings/exp-004-beads-md-fold-map.md",
+     "kind": "modified",
+     "sha256_before": "8e3634ab77b80d8d55cf139a31159edef96c13c41139845db9b11946b00f149f",
+     "sha256_after": "20ad43f5de0df76b7e0c941ec0b644c8e4276572449c72a17c4288b7704c973f"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "ba44250129ae5629e2c2e82ea86f5d7d200307798bc54c97f080b30688b860c6"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "b0ad01807dee9ed0c991ea0e30bb77f06ec31297d4d2635c2ad3c2df9800e6c9"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/plan.md",
+     "kind": "modified",
+     "sha256_before": "53f6d0290dd9e4335102b59209ddd01199c01746ab0bc61f0f7ca4b96257edc5",
+     "sha256_after": "5d8501e1658e9d00f9dadac43a138a7102d816ccc1c204480a10024c48476103"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/references/upstream-29.md",
+     "kind": "modified",
+     "sha256_before": "f99984fb8bf34e0f302be1ddb4522a41076cb4fc09a4372933f570cf66be42ca",
+     "sha256_after": "0af0d031e4a5b9905bd66f9bd2309e32e22d0e8da7e7c3e3bbd8663dd558c46b"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/references/upstream-30.md",
+     "kind": "modified",
+     "sha256_before": "bfc5649f6f18958c9d998ca78924d240e0ca1bf4019667e66c1bea01ba1db37c",
+     "sha256_after": "164196bb1569974271d349f85a44fab028fb193fdb4aa987a7522dc09366f9ff"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/references/upstream-31.md",
+     "kind": "modified",
+     "sha256_before": "2c49d33f2950cd9c6e762da3b388f509b535ff0ba4df6490c4ad0def031168c0",
+     "sha256_after": "a09b9c40ba3d8b983ec7650905ba73eafd4b44bbb07b4c3a55bddc7d6520308b"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/references/upstream-32.md",
+     "kind": "modified",
+     "sha256_before": "eb07b461f00c469ebeaf88aca6ff97fdf1a8431fd8155d2a9a3cd49ccbe302c3",
+     "sha256_after": "1743169620eff737ad93edc35a8b0cfc9d0085bb812775d61c04443e90a498f0"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "376bc347526926ab6bb82e1c577c02cfb4f14f94d39a188fd0ef0c74b90c93ed",
+     "sha256_after": "77e03a387733f52ab9949ebcf70c8f605c7f0c0c868c150207aa673cf76fcac6"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "b54d0b2ba5a93f99326f20b81879ea980fd1378fc56aab50861edef98a9195a0",
+     "sha256_after": "7ed0cd732e08ce18bd765c07c70271e8ecc989c1a460e8429f7fd60e85113ace"
+    },
+    {
+     "path": "docs/plans/plan-012-james-dixson-a99822/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "2a8463e37412d084c07b14c57664861b2f9a06c1f260c5a52980222f6a130061",
+     "sha256_after": "5a144c02af8816896c5e8c577dff8f7b48fc71e4afc98fdf553a0799b6cb7ebf"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-013-james-dixson-0af2f8",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Implement reconcile policy: local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+    "to": "Reconcile policy \u2014 local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-skill-architecture.md",
+    "findings/exp-002-bd-reconcile-mechanisms.md",
+    "plan.md",
+    "references/upstream-17.md",
+    "references/upstream-38.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/README.md",
+     "kind": "deleted",
+     "sha256_before": "51385a83a7317140b8d02947208b8b17039f7cacd6122dcbfbb41347844e1b28",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/context.md",
+     "kind": "modified",
+     "sha256_before": "bca24cb6aa8ffc9ad44da64228548c2ae2101cf72cee6bf0d2c425670bab7ba6",
+     "sha256_after": "c7856bf04f11c55c243187049f1a051d6a4c11e49794009ba2c4de1c7136831d"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/findings/exp-001-skill-architecture.md",
+     "kind": "modified",
+     "sha256_before": "b2d94f9593472c6d889678447af5db0480061912b658e02c06483a7462f482e0",
+     "sha256_after": "afa25fdadc947cb07d8791b180b20a9e70ebdabf24997c5d94da667daeb10b56"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/findings/exp-002-bd-reconcile-mechanisms.md",
+     "kind": "modified",
+     "sha256_before": "bcaeed2bb3737b665033a8797a7ba930e1badef4e1a9ea998da5baaca0aa9218",
+     "sha256_after": "3c9f4ae65d8f3c452927514b7d2162c7959b85110ec02ba4826ebca4fe70fd34"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "585d5181f2a7b7afe8236c496ef3a19c8005778ce79887d3eeaf988e482b7892"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "66e365eaeaae5dfdf003e80cbc79c0c1f8e80a754f12c7c9765141f184941990"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/plan.md",
+     "kind": "modified",
+     "sha256_before": "ef5767e923896af080c43969e2f36ac5f20ebb71d86fba0d62de6152b4673f07",
+     "sha256_after": "4b2bd9dff9359553ae2224684999b305faa260f46214ba7b7835a029800bfbab"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/references/upstream-17.md",
+     "kind": "modified",
+     "sha256_before": "7fa5cfdcf150e97597eb29eb47f7a0c7d25adc50ef038a9a367bd5b670c5f7d6",
+     "sha256_after": "ab946157a2cc971f04463e64cb5ba7972c9527ea8dcfd627dcf5536c4d3b98e0"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/references/upstream-38.md",
+     "kind": "modified",
+     "sha256_before": "19d876b9ae318be3966779ffdb5419fb811bb63d3abea4588f7ad286538f4b51",
+     "sha256_after": "6cc0ee1b39011874a18882946056b820749a6c5066b51cb5ae007e93556563a8"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "0ca113f0f864725bf8a67a0e97fd4b25e09ebddcec9c4f19f4ba953134306229",
+     "sha256_after": "1b710aa8943382429420173b4f9f53a9f1a79da86b49b1f142b188332a0a1216"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "5ba01d1def1ab7dc615dccd5b0236cbe0dabe25e1077d4af0f1a4b70e9154687",
+     "sha256_after": "f9f9ac34d95a49511d85a4eaf605036d886088a6d9b6aaecb4163b041be56236"
+    },
+    {
+     "path": "docs/plans/plan-013-james-dixson-0af2f8/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "8553881e0488622e8018c86f2c241a234a1062c8b8f32cbf9d4de242d5077489",
+     "sha256_after": "87cfee800af79b10a82ce618fe982cd422f963ac4529d2d64b635838aaaffd0e"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-014-james-dixson-916de2",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Build yf-change-validation: self-maintaining per-repo change-set validation engine + manifest + triggers, on a shared PEP 723 package",
+    "to": "`_shared/` package \u2014 retire the duplicated active-set classifier (#15)",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-shared-vendoring.md",
+    "findings/exp-002-yfplan-delegation.md",
+    "findings/exp-003-driftcheck-shape.md",
+    "plan.md",
+    "references/upstream-15.md",
+    "references/upstream-25.md",
+    "references/upstream-27.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/README.md",
+     "kind": "deleted",
+     "sha256_before": "b17266ca8eb51e28e84aefde5b52db0741c8a5f0a638d377e1dd14df82f6902f",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/context.md",
+     "kind": "modified",
+     "sha256_before": "8950f4b78ed5f059a7d203b2854d72a6e8ef37c9d9b6e183b62b475ccb69450a",
+     "sha256_after": "232b938ea25f3e97b48cbebdbd66d9e5c013adfd82d887eb676a27c282466651"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/findings/exp-001-shared-vendoring.md",
+     "kind": "modified",
+     "sha256_before": "5d8ad9f421558d26baf632285537d10c03fa009acb79e10218b9d59fed1913cb",
+     "sha256_after": "0f5b6b493e346e24870e38cef48786602929c83941c9a79f076cc60af7986b0e"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/findings/exp-002-yfplan-delegation.md",
+     "kind": "modified",
+     "sha256_before": "a58e02a001cf9ce3366881e57d1a0dfd500d8f1491db523b6c7b69b848b5eb35",
+     "sha256_after": "ea8833d79db25986e3d9a5f12f2924993979658577d318c41821bae26f78bb2e"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/findings/exp-003-driftcheck-shape.md",
+     "kind": "modified",
+     "sha256_before": "c065a652d2679a2243e39b91c7e7e28c56145d0991c581cad1ed47fe51917554",
+     "sha256_after": "c57c039ce2fc384a080619aea24b4c37639c58c4d160a89ed26c5644a8c52c99"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "19944ec656d2fc38e2e85fdfc46b4a58e1a8f1ee6ea34000007467c6184e3717"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "784fa46e779b230db7a2e1aa7949373bd6d008f4a9e5ae8efbb6f18002ff10e2"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/plan.md",
+     "kind": "modified",
+     "sha256_before": "aa5f56a28d7acf0b3a6f2227b80d67b94917c403ba846115bdfa506bc54cd628",
+     "sha256_after": "b5b947f36a624ce311d9f9e088c1b5f6da1b414b3e951c8d8b5929e941c42d92"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/references/upstream-15.md",
+     "kind": "modified",
+     "sha256_before": "daecac8ee314c176daa6e4ba51cbc62743f4ace0541d3a43d0579411cf370a73",
+     "sha256_after": "60064783ab3879ec66c97b61bda26600bf9b06e276d4ccdabe054867a1f13df1"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/references/upstream-25.md",
+     "kind": "modified",
+     "sha256_before": "08bf7e3be4830fbf650f577fa950a3249f4a1a3910a5dc1e9b540fe3e2fb9e44",
+     "sha256_after": "f044ba037bd6f4c856221020743da46d2a76cdd0ab7983766382785cf5c16ae8"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/references/upstream-27.md",
+     "kind": "modified",
+     "sha256_before": "898b543cc0e02ea5144b51fa63d2ec61640f62f34b9052ddc34a453e0d0e6310",
+     "sha256_after": "4bed3aee795888b3d3660ed5e3312357cae4e768b57627cecfaf1a62935ba310"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "b98ee2064ebfc432af6e574bedef5cbba2496e0535d20d2e652989d22231cb0f",
+     "sha256_after": "1547d8e949d27ddee9852a23644842a14b51ed33a344d242b28c526400d66122"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "ff80ffd2296f583dee3bccd9771430e1d082c7b2815ab0ebc59316949e183a71",
+     "sha256_after": "0387f81ed69e8a2818657d76930e1b94f10017dc5d0df0e1e44a2ac42ec2d97f"
+    },
+    {
+     "path": "docs/plans/plan-014-james-dixson-916de2/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "d95b1dcb16c4d07b6f477b25abc862935fbb5e1da6b185145e47632c8a272b87",
+     "sha256_after": "f29a703500dd9d99b6553eeb42d237c9e3a7c32cd82d323fae1f1ea6572efbd8"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-015-james-dixson-cb2ef4",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-016-james-dixson-041b2f",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-017-james-dixson-9ac898",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-018-james-dixson-1d39eb",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-019-james-dixson-eea8e7",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-020-james-dixson-81785d",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-021-james-dixson-bb3558",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Cluster A \u2014 yf-plan lifecycle rework (intake-at-execute, auto-commit, re-review gate) + yf-spec skill",
+    "to": "yf-plan lifecycle rework \u2014 intake-at-execute branch model, auto-commit, content-bound re-review gate",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-lifecycle-mechanics.md",
+    "findings/exp-002-fingerprint-spec-gitauth.md",
+    "findings/exp-003-two-copies-and-test-harness.md",
+    "plan.md",
+    "references/upstream-47.md",
+    "references/upstream-62.md",
+    "references/upstream-63.md",
+    "references/upstream-64.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/README.md",
+     "kind": "deleted",
+     "sha256_before": "878767f74d99488328d88c59d2d3964557df891628f142f770412862468cd36a",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/context.md",
+     "kind": "modified",
+     "sha256_before": "941b5031e085c217887a2ba87245d549926a1b6db503a5f372fc38135057dc0f",
+     "sha256_after": "8e0cc8d669c4a32e55ff33066e63779a25e4d683ef95a55cb1ef955abd373a96"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/findings/exp-001-lifecycle-mechanics.md",
+     "kind": "modified",
+     "sha256_before": "371bd5b0126701811a3e039894529994af4bb81ae64b0b2d9806af15e1b08ed1",
+     "sha256_after": "5826ab7364145148cf92ccac406e4c1ca3e518af58f0863277888099fcc20c82"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/findings/exp-002-fingerprint-spec-gitauth.md",
+     "kind": "modified",
+     "sha256_before": "f60967a50b2847af4239cb82faa043f541135277c37843ad9b1811d7ff17ea98",
+     "sha256_after": "8c28f8a71f50d2143a39a393e6890da6e20672868085fd1acf81874b5522654c"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/findings/exp-003-two-copies-and-test-harness.md",
+     "kind": "modified",
+     "sha256_before": "32a361ad68224a7f1f829279e49cf59f5565e24b90d7ef15a568a060d080082f",
+     "sha256_after": "6efbacbb6b27884b24420790fa69d1daa17dec1f52962af8b6b935732f242e62"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "0c58edeee3b0bc3ac51bcc6c5330e88c49748be36080f889ef531459615928db"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "d01bbebbe3e9fd9ae618fb929f60c4fdb375769f7242c9f4efb1bf184f7c8985"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/plan.md",
+     "kind": "modified",
+     "sha256_before": "e3c4fbaa9d0d4ce5de14a2faddd42e46f1e40b75935ff807ba93faeb1e8419d9",
+     "sha256_after": "ceefe33baba58ff19c1d26c20981eb4f87e9f6f10683f03336dbe53b053dfdfc"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/references/upstream-47.md",
+     "kind": "modified",
+     "sha256_before": "2a876b3e3290da07f72b59a6edf6ef349d083480d1793b78f09e5a9c7ccdf5c6",
+     "sha256_after": "8daad23dc3accdfe39c5b1ea86a8dfa267b9c0b520860211b12832ea29874cc9"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/references/upstream-62.md",
+     "kind": "modified",
+     "sha256_before": "2592df19a29c8994bb9fd78490d8c5d20c58212c4f6cf0dc1285f7434cf577e3",
+     "sha256_after": "71cfec88b93c928aeb9b8f3a8d01a9a095869c7451d22105dc8fc6a216ac21be"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/references/upstream-63.md",
+     "kind": "modified",
+     "sha256_before": "09d892a816a13bb9d4a0869917daeb3f8abb69984ac67bed0b39e0fc10f9c0fd",
+     "sha256_after": "69f0bfae323765c5c521933a249f381c3dec5e9e58c90b4c324a091b19fec03c"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/references/upstream-64.md",
+     "kind": "modified",
+     "sha256_before": "6ba5994092f08da6f24e150b9d6a8585354e2a7e487b43a07724b2e239a200ce",
+     "sha256_after": "9d062f0345b2c717ebdfcbbfb76b338e40f760e6f62669968b3df89f07a12fe8"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "3f1e18803abbf6d7f40c03e224e9702f3203dcd521969cdb3ad76e7ff2261969",
+     "sha256_after": "92a71635035c3baa4bea0d3c2e08d5f14b41ececaa9e236d5629c7c1c9235b34"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "646316ab99f6f536fb10878e3aa14ec260871544b45f91951e4afeef95a9258b",
+     "sha256_after": "4c6afa5323e27689e1b84a96b5b01538de4d963f559a61c0177221e0647bccd2"
+    },
+    {
+     "path": "docs/plans/plan-021-james-dixson-bb3558/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "640fb2c8e20d7980aafc1e17380382b5c84bf90bf5d8511985fad2405988d478",
+     "sha256_after": "85f8594e48e50f4bd9aaae8b3c7cb039755db14c368dc3814eff818add967bbc"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-022-james-dixson-14b3dd",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-023-james-dixson-b618bb",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Beads infra / local-only hardening (#58, #67, #66, #57, #60, #65)",
+    "to": "Beads infra / local-only hardening (#58, #67, #66, #57)",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-minimal-local-profile.md",
+    "plan.md",
+    "references/upstream-57.md",
+    "references/upstream-58.md",
+    "references/upstream-60.md",
+    "references/upstream-65.md",
+    "references/upstream-66.md",
+    "references/upstream-67.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/README.md",
+     "kind": "deleted",
+     "sha256_before": "af3b6dbe5329a982a642a317e0d37ed44c83ae40a5e3a6d16ea75b313bcb9478",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/context.md",
+     "kind": "modified",
+     "sha256_before": "621079edabacbd1237403d46855e4209f355673e9259a152af36759ad57fd79b",
+     "sha256_after": "5500dc5cf074aa802a1668f3c6e0d443a7d07267b239c95b98e4876ce88ff09b"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/findings/exp-001-minimal-local-profile.md",
+     "kind": "modified",
+     "sha256_before": "948329226cca8e24a055a784312fff2020043fa929177a3881461c81ec1b2423",
+     "sha256_after": "7b292702183b6edf18ff5a0d6c3b8832e01727028593f42d8a6632331a9a3a80"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "52a417d5f2293d8fb6654a9b99de96ff6e171ae6e1754ce0577e7fee39ddf75b"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "a937dd95f82192d1a904458befd18e335b4f38320fda349406d846f89da1125c"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/plan.md",
+     "kind": "modified",
+     "sha256_before": "b4233c9bf34327400ca5505cca70136725ce5c9bed41d031b119fac71198f6be",
+     "sha256_after": "b1865633b529bdd97633eb51f1108ae104ef7a779b9ef71a38f54f4d202b20eb"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/references/upstream-57.md",
+     "kind": "modified",
+     "sha256_before": "610106b15fcc74c84f9eb81d0f5272aa163577e890141e414ec669ef757bdf8e",
+     "sha256_after": "172ce4d8c9d5b3a31b6b16385876c4570e99aa471443e69089cb459690e201d8"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/references/upstream-58.md",
+     "kind": "modified",
+     "sha256_before": "a82c54feec760af49d4ece8ca40b1d6d9e6db4b63ac2cf9f6d3049082f4e8727",
+     "sha256_after": "02c9f80b550a401dcfbead264020df0374686cb7c9f58f85977f3d223049dbb3"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/references/upstream-60.md",
+     "kind": "modified",
+     "sha256_before": "7323dbab2002168481928922fc812875d2b6dc4ad2a25c33554baeb116bc3cb7",
+     "sha256_after": "d2d3d992ed5d5a559e9a07d257c8acd4f7acf9ca6a0eefbb4752d591c5ec921e"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/references/upstream-65.md",
+     "kind": "modified",
+     "sha256_before": "35a73e4caaaada03813483ca5f14c762dc7cb719cec8fd1bd07e2416949c34eb",
+     "sha256_after": "fe83c5a445d329e4f58cda977290dbd7ec8271b722c9fb94f5c04a17449738fa"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/references/upstream-66.md",
+     "kind": "modified",
+     "sha256_before": "c44d6326436709738c0bbb518f6f7d33efbfdf9ef26f0c6565b603f7f416a978",
+     "sha256_after": "f176d258224dc0ed6e3a234e1713bd9a6aa258118016baa30cba1d066abc8bf2"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/references/upstream-67.md",
+     "kind": "modified",
+     "sha256_before": "24cbbe7f958fb9c330656a575d982e376d948941db052f54db39127defa66273",
+     "sha256_after": "245dbc650a57f0e68d8b4857ab3c96e233b44a9f9823dfc7a98407cdaab54de0"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "6331da80425e2d24cdfc360cd15a5ab6124167aee03c42f770b45cfc810d08c1",
+     "sha256_after": "5eae89df190131c70d5c861475728af628c9e68b9040ee2ee377b6ff8b29afcc"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "7f8d25d972045055f8e5e4d76942e3b783f895f0b6475e81dfddc295af054298",
+     "sha256_after": "b16063346a3307f0cd65adba8ff097dea0a75b6c8fa5afcdf0a5e747c13f6f92"
+    },
+    {
+     "path": "docs/plans/plan-023-james-dixson-b618bb/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "efaf4f0974adcfb794d85f5590ac0c4b7e712d174087cb8e406cf2a9021664ea",
+     "sha256_after": "5714cb0423987905927f7a824254f7c91669344112c7e4c32e0a90754f92a60f"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-024-james-dixson-76cee9",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-025-james-dixson-0183e8",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-026-james-dixson-6e0e2f",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "warn"
+   },
+   "reconciled_objective": {
+    "from": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), and add a new markdown-html skill (#50)",
+    "to": "Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill \u2014 the autofix side of the linter \u2014 absorbing the strict GFM table aligner (#85) and the existing Obsidian\u2192GFM wiki-link migrator",
+    "authority": "plan.md H1"
+   },
+   "stamped_descriptions": [
+    "findings/exp-001-pandoc-lua-filters.md",
+    "findings/exp-002-yf-doctor-preflight-dep-axis.md",
+    "plan.md",
+    "references/upstream-46.md",
+    "references/upstream-48.md",
+    "references/upstream-49.md",
+    "references/upstream-50.md",
+    "references/upstream-81.md",
+    "references/upstream-85.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "reviews/pass-3.md",
+    "reviews/pass-4.md",
+    "reviews/pass-5.md",
+    "reviews/pass-6.md",
+    "reviews/pass-7.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/README.md",
+     "kind": "deleted",
+     "sha256_before": "0a2c9d4907320bd1476ba47cce304d10f858c1408b4a4d6fe5c60bf39a29566c",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/context.md",
+     "kind": "modified",
+     "sha256_before": "b45f10b41edce9489d8ab31ee9e9d7677d51dc2211d16204e3c007538e7dbf36",
+     "sha256_after": "976dbd744a760b2c770af58bb301371527c5ed21f5f32d7f9454b20e485b672b"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/findings/exp-001-pandoc-lua-filters.md",
+     "kind": "modified",
+     "sha256_before": "0b7f47a8ab4240ae34ae15390ab94af84aaa7d39edf7525a39f2097558af8b68",
+     "sha256_after": "1a9cbe358f8a392461f3b5de92ed29f002ea7abca7b42681521b6edd77112d60"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/findings/exp-002-yf-doctor-preflight-dep-axis.md",
+     "kind": "modified",
+     "sha256_before": "3bbb1841350a54d3e14fa936ebb77506da0e28f4d51c1a0653578c46eaf8540e",
+     "sha256_after": "153b456a0f59b45095d3bcbf4d6dc5d400f3e291358f86718ae9dae33ce41c97"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "78d345c3e609873c1e468785db6801798308a9a1df48fe804fd06130182cdfdd"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/log.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "26d557c95f018725620d66efcba654c5c54af7d0680efa09dff4246b4669e9b7"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/plan.md",
+     "kind": "modified",
+     "sha256_before": "9ae7e55f81f3f4097a70d56d9cd561846366b92a3133213ab3f9ccb509e301ee",
+     "sha256_after": "86eb6ab40bb9cd5bb08cb33fc6932ed0ba2ee5b573556e3a524fd98f9551870b"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/references/upstream-46.md",
+     "kind": "modified",
+     "sha256_before": "2c1e6cee6f92be8ea83dd75bfd86f776398d6307e8716737e577ffbfdc65271a",
+     "sha256_after": "006a009574babe8966b59bdd743c62ef192ca22d34d430e512e102785f6b1e75"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/references/upstream-48.md",
+     "kind": "modified",
+     "sha256_before": "e6c35ded6369ee7f875a98ebc564fcb47750c6f5d878f6befef4ef2cbd0eccf6",
+     "sha256_after": "b00a6b4670eee6063552b322c4c15c2b3526c25da58aa2283689403246ec0881"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/references/upstream-49.md",
+     "kind": "modified",
+     "sha256_before": "6c12dbc7fc2cb59f755938165056dbb4671a821553cf836762e11c526ee6075f",
+     "sha256_after": "0943c2b8f6c9c2a07037f252d1117a074169adcbbf4880e7488fe97ec8b5d4b6"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/references/upstream-50.md",
+     "kind": "modified",
+     "sha256_before": "94f6d871b06f3344065469a742ec5d06be64b39ea438f7651fb931b60811443b",
+     "sha256_after": "02fbe19cf436ccc83efe9522ec6e160e9167933b5f90954d959063ca3a39be4e"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/references/upstream-81.md",
+     "kind": "modified",
+     "sha256_before": "23754cfc146c410d77485a02396be15bc16397bc1064952128f585d79f9ea15c",
+     "sha256_after": "610b85747766e401e3f6abf4d3659b4e6b4c391205f01d3a46fdce93002fe137"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/references/upstream-85.md",
+     "kind": "modified",
+     "sha256_before": "75cc82fbcdbb9bea1451722492bd40b4eee4af72d803eeb6de1c10b8973fe682",
+     "sha256_after": "afc8a1f389396dcc5543615e9262f9e3b5564984bdae94641f671034ff7f55ae"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "013dad573654232bfbb24922e1ae8c708a862f33c05d55ec271cc574932bca36",
+     "sha256_after": "6b5f4ccf382b9659225d8b28afca0ca2ea76cecf33d26cd1d1174f0eb88a9c84"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "b719552712a130d72f1707eeb773664d2f0eb4f1f639010652bd0d6280c756cc",
+     "sha256_after": "e375403eab0f6ca2ae0de7d7d0ba232345acbb2f83b4ea8705fd45dac6f9c9ab"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-3.md",
+     "kind": "modified",
+     "sha256_before": "ccdf3ba452bf1d1707f38d9bff57b8938c7453b5c724cf1ed69c31f5f9c6691f",
+     "sha256_after": "7336ac00f7b2288f2b158c35faac19033d785ce78275947a58d7391c1ef81c18"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-4.md",
+     "kind": "modified",
+     "sha256_before": "551b11620643d26db5c0381e81868d49e7faf68aa64921f31f555dfb837f734d",
+     "sha256_after": "bb88192cfa1bba8522554716350a6c58fbfa390558594cefb99a4ba862f81e39"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-5.md",
+     "kind": "modified",
+     "sha256_before": "041b5eec27e0b11c1d3a53fe02aecbf1afed093bd41804435e4dca94c5664bee",
+     "sha256_after": "8cd93a369407957e7028cc4a5d221cbebd5c37f09b8a5aef06f9b00c11fa11c7"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-6.md",
+     "kind": "modified",
+     "sha256_before": "fc65baece2105419e474d153a61296b883508ce80f95efc69f14d6494f0f07f5",
+     "sha256_after": "343558b15fd58ec1dd6c6acbc515b0d5410a5408a50582930496a9190526db7f"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/reviews/pass-7.md",
+     "kind": "modified",
+     "sha256_before": "5a47efc3f52388c579da49ad03c05941d09a2828926ff7e48aba2f4b98bf37d5",
+     "sha256_after": "224e49fed4ebd9c32fea5baec44768038d5c2ad3a9df020e49b05cae60d278c6"
+    },
+    {
+     "path": "docs/plans/plan-026-james-dixson-6e0e2f/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "980c1e433e94e007da42e4efc2516e17d97ce28dc94f2e01dfca9c61ec831c29",
+     "sha256_after": "9f572faea5e9917a59f32b116116745448d78a4f6bb8ce94c320ccf7850cc30e"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-027-james-dixson-a59656",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-028-james-dixson-a9738b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-029-james-dixson-75fd34",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-030-james-dixson-65526e",
+   "class": "legacy-readme",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [
+     "README.md"
+    ],
+    "has_index": false
+   },
+   "member_skill": "yf-plan",
+   "before": {
+    "verdict": "fail"
+   },
+   "stamped_descriptions": [
+    "plan.md",
+    "references/upstream-89.md",
+    "reviews/pass-1.md",
+    "reviews/pass-2.md",
+    "upstream-triage.md"
+   ],
+   "after": {
+    "verdict": "fail"
+   },
+   "operations": [
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/README.md",
+     "kind": "deleted",
+     "sha256_before": "d003116ab547281f88c3c80103e7504a5ed8cfb08bbc8cbe631928834a8a8f79",
+     "sha256_after": null
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/context.md",
+     "kind": "modified",
+     "sha256_before": "10aafa65057622bca52e6784908e6e989d20c018770330bf9d7a4a9c89f308f3",
+     "sha256_after": "2777b178b989bb78f16ea6c093370552c79e8492f1f998d02cedc67d9dfabef2"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/index.md",
+     "kind": "created",
+     "sha256_before": null,
+     "sha256_after": "6e64ae918161f7a22d9ef76c0a2d97cbefd6aeea18f30a6c750719e7fc9c641e"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/plan.md",
+     "kind": "modified",
+     "sha256_before": "b6ba4c9460670c94c18cd7d67816278342c48d98e250efee74e9d844aa21c2d1",
+     "sha256_after": "4665740e001e5b404b3a184fc2b5b85c93247ecb626389c56821255115b78484"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/references/upstream-89.md",
+     "kind": "modified",
+     "sha256_before": "064fbcead6f3443d69cf661470940fa2f4ad040bf43ea8324b0ae3477596f4ec",
+     "sha256_after": "5ba98e0640d3db022ce9aba64e54d7abc3ad943c5661e22d66c41ef939b212c1"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/reviews/pass-1.md",
+     "kind": "modified",
+     "sha256_before": "b2897812c75b47b58154b4d03142e6b4bb4b22f1d432742caf10dd0b6ed76a7a",
+     "sha256_after": "493056450843b672a367415973d9128a97c02b18aaf9a632aa7e285e3fabb2b5"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/reviews/pass-2.md",
+     "kind": "modified",
+     "sha256_before": "0023488a45343a5ff386f9822aab236345e77bece252c47fa069e7b6d1f87812",
+     "sha256_after": "345950ac7c1d60b42da0864db6eba8efa68a1653a3c5ee1415029fbc2fd0973c"
+    },
+    {
+     "path": "docs/plans/plan-030-james-dixson-65526e/upstream-triage.md",
+     "kind": "modified",
+     "sha256_before": "e0d76a83d1bacf895202250cfeac98378d3da238bc7f460b26413041bdbbfaf3",
+     "sha256_after": "8e435da1e9ed53c5fbd56a1f49653e9c77b24e6c11f9cd9261023f265f3ad1b8"
+    }
+   ],
+   "action": "backfilled"
+  },
+  {
+   "bundle": "docs/plans/plan-031-james-dixson-62a375",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-032-james-dixson-6cb87b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-033-james-dixson-46aca2",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-034-james-dixson-ac6633",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-035-james-dixson-74d7ae",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-036-james-dixson-461061",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-037-james-dixson-cab694",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-038-james-dixson-1ce25a",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-039-james-dixson-150f79",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-040-james-dixson-1cabe4",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-041-james-dixson-a9d837",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-042-james-dixson-98631b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-043-james-dixson-a8afe8",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-044-james-dixson-f6fdbd",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-045-james-dixson-9899e1",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-046-james-dixson-aabefa",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-047-james-dixson-dec9ff",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-048-james-dixson-ed68a5",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-049-james-dixson-725bc0",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-050-james-dixson-d0414b",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-051-james-dixson-2f499f",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-052-james-dixson-fa8056",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-053-james-dixson-4015d3",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-054-james-dixson-535968",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-055-james-dixson-5f1c40",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-056-james-dixson-473dba",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-057-james-dixson-9ecf1c",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-058-james-dixson-0e36fd",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-059-james-dixson-55137e",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-060-james-dixson-6a6ac9",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-061-james-dixson-6d8c97",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-062-james-dixson-c3e98f",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-063-james-dixson-3f74c1",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-064-james-dixson-a0b7fa",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/plans/plan-065-james-dixson-7c8cd4",
+   "class": "conformant",
+   "detail": {
+    "member": "plan.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/001-okf-compliance-delta",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/002-harness-global-rule-minimization",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/003-graph-engineering-hypothesis",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/004-plan-process-defect-mining",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  },
+  {
+   "bundle": "docs/research/005-thrash-detection-and-operator-judgement",
+   "class": "conformant",
+   "detail": {
+    "member": "Summary.md",
+    "legacy_index": [],
+    "has_index": true
+   },
+   "action": "skip",
+   "reason": "already conformant"
+  }
+ ],
+ "verdict": "pass",
+ "exit": 0,
+ "mixed_run": false,
+ "record": "/Users/james/workspace/dixson3/yoshiko-flow/findings/backfill-record.json"
+}
