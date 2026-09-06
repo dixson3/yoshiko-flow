@@ -35,3 +35,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/class-a-inventory.md](findings/class-a-inventory.md) - The Class-A defect inventory, DERIVED MECHANICALLY by running the four Epic-2 checkers: 40 findings across 10 files. This, not #317's table, is what Epic 4 repairs.
 - [findings/negative-control-evidence.md](findings/negative-control-evidence.md) - Evidence for the code-side negative-control convention: two measured instances where a control caught a false green that reasoning missed.
 - [findings/diagram-reads.md](findings/diagram-reads.md) - One dated read per regenerated PNG for the semantic residue no extractor catches. Six read; five clean, one recorded shorthand.
+- [findings/classb-disposition.md](findings/classb-disposition.md) - Explicit per-item disposition for all six Class-B defects — each CLOSED with the artifact that closes it, plus three follow-ons FILED under D5.
