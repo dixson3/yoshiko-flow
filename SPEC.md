@@ -1079,6 +1079,31 @@
 >   the Epic-3 manifest edits it governs**, and carries a **two-sided negative control** — it must
 >   FAIL on a fabricated dangling entry and PASS on a legitimate node-keyed one.
 >
+>   **Added `REQ-ENGINE-008` and `REQ-DRIFT-008`** — the *dispatch* half, so the amendment names a
+>   mechanism rather than only a permission. A node-keyed §6 row resolves *Set A* from §4 and
+>   *Set B* from §1 **at dispatch time**, applies **set difference** (`A \ B` FAILs; `B \ A` is
+>   advisory orphans), routes to the runnable checker's **exit code** where one is declared, and
+>   carries a **vacuity floor** that yields INCONCLUSIVE rather than PASS. A node named in §6 with
+>   **no §4 Referencers row** is INCONCLUSIVE naming the missing row — the two sections are halves
+>   of one mechanism, and a half-configured node must fail loudly rather than certify nothing.
+>   **The operator is stated normatively because the familiar one is wrong**: edge pairing computes
+>   the **intersection**, which is structurally why no edge could ever see this drift class —
+>   measured at sets of 20 and 19 with the intersection at 19, the one-element difference reported
+>   by nothing.
+>
+>   **Added `REQ-CHECK-009` and `REQ-DRIFT-023`** — a mechanical gate SHALL DECLARE what it does
+>   not cover. Where a runnable checker realizes part of a manifest's coverage, it names its
+>   exclusions by edge or claim class in a `not_checked` field and in its documented contract; an
+>   excluded item **keeps its prose route** rather than being retired; and **silence about the
+>   remainder is a violation**. Rationale: a green with an undeclared boundary is indistinguishable
+>   from a green with none, and the reader cannot tell which they hold. Generalized from
+>   `check_skill_readme_contract.py`, which emits `"not_checked": ["e-readme-desc"]` because that
+>   edge's predicate is *intent* match. The split is declared normatively: decidable (counts, path
+>   and identifier strings, existence, set membership, hash equality under a recorded pin) versus
+>   prose-judged (**semantic mis-assignment** — right count, wrong membership — missing qualifiers,
+>   intent match, and editorial omission, the last of which is frequently CORRECT rather than
+>   merely unfalsifiable).
+>
 >   `REQ-DRIFT-007`** carrying `REQ-CHECK-008`(b)/(c) into the skill's own numbered contract). This
 >   entry is the **root record**: `check_amendment_log.py` reads root `SPEC.md` only, and before
 >   this entry root `SPEC.md` contained **zero** `REQ-CHECK-*` ids — the namespace reconciliation

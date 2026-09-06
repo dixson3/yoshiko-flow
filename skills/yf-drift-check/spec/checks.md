@@ -76,6 +76,33 @@ Three obligations:
   at **4 firing opportunities, 0 catches**, and the edge was *fully capable* when dispatched by
   hand (3 FAILs with quoted evidence). Coverage is not detection.
 
+**REQ-CHECK-009: A mechanical gate SHALL DECLARE what it does not cover — the split is stated,
+never implied.** Where `REQ-CHECK-008(c)` realizes part of a manifest's coverage as a runnable
+checker, the mechanical and the prose-judged halves shall both be named:
+
+- **(a) The checker declares its own exclusions**, by edge or claim class, in its machine-readable
+  output — a `not_checked` field — and in its documented contract. An excluded item shall name the
+  requirement or rationale that excludes it.
+- **(b) An excluded item keeps its route.** Declaring an edge unchecked does not retire it; it
+  remains a prose-judged edge and the manifest continues to carry it. Declaring is a statement
+  about *this instrument*, not about the edge.
+- **(c) Silence is forbidden.** A checker that covers a proper subset of a manifest's edges and
+  says nothing about the remainder reports a green that a reader will attribute to the whole.
+
+**Why this is a requirement and not a style note.** A green with an undeclared boundary is
+indistinguishable from a green with no boundary, and the reader has no way to tell which they are
+holding. The precedent this generalizes is `check_skill_readme_contract.py`, which implements the
+mechanical subset of four README edges and emits `"not_checked": ["e-readme-desc"]` — that edge's
+predicate is *intent* match, which tolerates paraphrase and is not mechanically decidable, so
+claiming it would be exactly the vacuous check the instrument exists to close.
+
+**What belongs on each side of the split.** Decidable, and therefore mechanical: counts, path and
+identifier strings, artifact existence, set membership, byte or hash equality under a recorded
+pin. Not decidable, and therefore prose-judged: **semantic mis-assignment** (a group whose count
+is right and whose membership is wrong), missing qualifiers, intent match, and editorial omission.
+The third is not merely undecidable but often **correct** — a doc that curates or omits detail is
+not thereby in drift, and only an affirmative contradiction is.
+
 ## Evidence standard (verbatim from the original CONSISTENCY rule — REQ-CHECK-006)
 
 Every check item must be backed by direct evidence before it is marked PASS or FAIL:

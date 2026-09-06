@@ -52,6 +52,13 @@ structurally silent on that axis.
 - **REQ-DRIFT-005** *(testable)* the dispatched verifier shall be an **isolated, report-only**
   sub-agent (`agents/drift-verifier.md`) that writes nothing; only the main session mutates files
   (REQ-ENGINE-005).
+- **REQ-DRIFT-008** *(testable)* **(added, plan-066)** on a §6 row naming a **node ID**, the
+  engine shall perform the node-level Reachability check by **set difference** — `A \ B` FAILs,
+  `B \ A` is advisory orphans — with both sets resolved from §4 and §1 at dispatch time, a
+  declared **vacuity floor** yielding INCONCLUSIVE rather than PASS, and a node-keyed §6 row whose
+  node has **no §4 Referencers row** yielding INCONCLUSIVE naming the missing row (REQ-ENGINE-008).
+  Where the manifest declares a runnable checker for that node, its **exit code is the verdict**
+  and the report-only sub-agent is not dispatched for this check (REQ-CHECK-008(c)).
 - **REQ-DRIFT-006** the engine shall carry **no repo vocabulary** — no repo-specific node IDs,
   edge IDs, globs, tool names, or paths as load-bearing references in `SKILL.md`, `spec/`, or
   `agents/` (REQ-ENGINE-006); illustrative prose examples are permitted if labelled as examples.
@@ -86,6 +93,12 @@ structurally silent on that axis.
   unavailable runtime execution shall be marked INCONCLUSIVE.
 - **REQ-DRIFT-022** *(testable)* the verifier shall return one of four per-item verdicts —
   PASS / FAIL / INCONCLUSIVE / CONFLICT — and shall never fix (REQ-CHECK-007).
+- **REQ-DRIFT-023** *(testable)* **(added, plan-066)** a runnable checker realizing part of a
+  manifest's coverage shall **declare its exclusions** — by edge or claim class, in a
+  `not_checked` field of its machine-readable output and in its documented contract, each naming
+  the requirement or rationale that excludes it. A declared exclusion **keeps its prose route**
+  and is not retired from the manifest. Silence about the remainder is a violation: a green with
+  an undeclared boundary is indistinguishable from a green with none (REQ-CHECK-009).
 
 ### 2.4 Acting on findings (main session)
 
