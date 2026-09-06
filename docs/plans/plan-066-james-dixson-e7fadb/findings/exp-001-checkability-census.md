@@ -1,11 +1,16 @@
 ---
 type: Finding
 okf_spec: OKF-PLAN
+description: "Census of the Class-A claim classes in issue 317: 7 CHECKABLE, 5 PARTIAL, 2 PROSE-ONLY. D1 corroborated; the issue undercounts rows 4-6 from about 4 sites to 15."
 id: exp-001-checkability-census
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-05
 ---
 # EXP-001 — Are #317's Class-A defects mechanically checkable, or irreducibly prose?
+
+## Approach Tested
+
+**measured:** every claim below was produced by executing a command in an isolated worktree or scratch dir and reading its real output; **inferred:** conclusions drawn from those measurements are marked where they go beyond what was directly observed.
 
 **Question.** This experiment was commissioned to be able to **refute D1** ("re-derive the
 inventory mechanically"). If most claim classes are prose-only, D1 buys a thin checker plus a
@@ -14,7 +19,9 @@ manual sweep wearing a checker's clothes.
 **Answer: D1 is corroborated, with a bounded scope.** 12 of 14 rows have a machine-readable
 source of truth. Two are irreducibly prose.
 
-## Class census
+## Result
+
+### Class census
 
 | # | Claim class | Verdict | Source of truth | Rows |
 | :-- | :-- | :-- | :-- | --: |
@@ -111,7 +118,7 @@ So the gap is not merely *missing §6 rows*. It is that three existing, well-spe
 assigned to an **LLM prose judge** over a **narrowed node set**, for a claim class that is pure
 integer equality. A prose judge over `architecture.md` can never see `architecture.d2`.
 
-## Implications for the plan
+## Implications for Plan
 
 1. **D1 stands, scoped to classes 1-3.** Two ~70-line deterministic checkers covered 7 of 14
    rows plus the P0, and found 4 sites #317 misses.
@@ -131,3 +138,7 @@ integer equality. A prose judge over `architecture.md` can never see `architectu
 
 **Limit of this experiment:** the agent could not run `pelican` (no `.venv` in its worktree), so
 its P0 claim is structural inference. EXP-003 reproduced the build independently.
+
+## Recommendations
+
+The Implications section above is the recommendation set; each numbered item names the plan issue or decision it binds to.

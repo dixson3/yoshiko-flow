@@ -1,11 +1,16 @@
 ---
 type: Finding
 okf_spec: OKF-PLAN
+description: "All six Class-B defects reproduce; three diagnoses in issue 317 are wrong and two remedies are no-ops. Defect 5 is a DISPATCH gap, not a manifest gap."
 id: exp-002-classb-reproduction
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-05
 ---
 # EXP-002 — Do the six Class-B defects reproduce, and do #317's remedies close them?
+
+## Approach Tested
+
+**measured:** every claim below was produced by executing a command and reading its real output; **inferred:** conclusions beyond direct observation are marked as such.
 
 **Method.** `skills/yf-drift-check` contains **nine files and zero scripts** — the engine is prose
 plus one LLM sub-agent. There was nothing to execute, so the agent **built a mechanical simulator**
@@ -158,7 +163,7 @@ exit=1
 2. `yf-okf.md:56`'s "migration is the only write path" also appears at `skills/yf-okf/SKILL.md:213`,
    making it an `e-skillspec-skillmd` finding too — fixing the page alone leaves that edge unexamined.
 
-## Implications for the plan
+## Implications for Plan
 
 1. **Defect 5 is a different KIND of thing and is the payload.** 1-4 and 6 are manifest gaps fixed by
    editing `DRIFT-CHECK.md`; **5 is a dispatch gap** — a prose-only engine with no mechanical gate,
@@ -170,3 +175,7 @@ exit=1
    manifest change that depends on node-level checks firing.
 5. **Item 5b (the yf-plan omissions) should be withdrawn or re-filed** — omission-PASS is the
    documented semantics, so those were never enforcement misses.
+
+## Recommendations
+
+The Implications section above is the recommendation set; each numbered item names the plan issue or decision it binds to.

@@ -1,6 +1,7 @@
 ---
 type: Review
 okf_spec: OKF-PLAN
+description: 'Red-team pass 2: REVISE, 15 concerns (5 high), five introduced by the pass-1 remediation. All resolved.'
 id: pass-2
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-05

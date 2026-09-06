@@ -1,11 +1,16 @@
 ---
 type: Finding
 okf_spec: OKF-PLAN
+description: "Diagram repair is achievable and no committed PNG is content-stale. Byte comparison works within a pinned d2 version, not across versions."
 id: exp-004-diagram-pipeline
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-05
 ---
 # EXP-004 — Is the `.d2` → `.png` repair loop achievable, and how is it verified?
+
+## Approach Tested
+
+**measured:** every claim below was produced by executing a command in an isolated worktree or scratch dir and reading its real output; **inferred:** conclusions drawn from those measurements are marked where they go beyond what was directly observed.
 
 **Question.** #317 requires repairs "at all sites together, re-rendering affected PNGs". Is
 regeneration reproducible, is it verifiable, and can anything check a `.d2` against code?
@@ -102,7 +107,7 @@ as a prose edge.
 
 **Coverage is not detection.** These sit on *required* edges and are still wrong.
 
-## Implications for the plan
+## Implications for Plan
 
 1. **The repair is achievable** — corrected sources compile in under 2 s each.
 2. **Do not write a byte-equality criterion.** The honest post-condition is three-part: the
@@ -120,3 +125,7 @@ as a prose edge.
 6. **Add `architecture.md`'s harness table to `e-web-cli-surface`'s node set.** It carries the
    same matrix as `install.md` but is guarded only for counts, which is why its harness rows
    drifted undetected.
+
+## Recommendations
+
+The Implications section above is the recommendation set; each numbered item names the plan issue or decision it binds to.

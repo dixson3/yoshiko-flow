@@ -1,11 +1,16 @@
 ---
 type: Finding
 okf_spec: OKF-PLAN
+description: "Nothing is behind the first build error, so the P0 is one file. But the guard is existence-only (an empty file passes) and piping through tail masks the pelican exit code."
 id: exp-003-build-reality
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-05
 ---
 # EXP-003 — What the fail-closed build is hiding, the authored-page contract, #104, and the exit-code contract
+
+## Approach Tested
+
+**measured:** every claim below was produced by executing a command in an isolated worktree or scratch dir and reading its real output; **inferred:** conclusions drawn from those measurements are marked where they go beyond what was directly observed.
 
 **Question.** The build fails fail-closed on the first error, so exactly one failure is
 observable. What else fails behind it? What shape must the missing page take? Does #104 bite a
@@ -118,7 +123,7 @@ runs only in `web-deploy.yml`, on `workflow_dispatch` or a successful Release.
 So this defect has been latent since `yf-okf-hygiene` landed, **no CI surface would ever have
 caught it**, and whatever verification this plan writes *is* the only verification.
 
-## Implications for the plan
+## Implications for Plan
 
 1. The P0 is **one prose page** (~60–120 lines), not a cascade. Budget accordingly.
 2. **"Build passes" must not be a Success Criterion on its own** — an empty file satisfies it.
@@ -135,3 +140,7 @@ caught it**, and whatever verification this plan writes *is* the only verificati
 
 The fail-closed guard should reject a zero-byte authored page rather than passing it. Filing
 candidate — it is the same class as Result B and outside the four Class-B items in scope.
+
+## Recommendations
+
+The Implications section above is the recommendation set; each numbered item names the plan issue or decision it binds to.
