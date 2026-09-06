@@ -77,7 +77,7 @@ precondition #317 declares is satisfied.
 | D3 | **Fold in #104, #127, #363, #322** alongside #317. | #104 (devserver teardown) will bite: this plan runs pelican repeatedly. #127 (concepts glossary) is content this regeneration would otherwise leave undone. #363 and #322 are the same content-defect class on the `docs/` and `skills/` surfaces. |
 | D4 | **Acceptance is a local clean build plus green checkers.** No deploy. | Matches #317's stated acceptance and keeps this a `standard` plan with no outward-facing write. Exercising `web-deploy.yml` publishes to yoshikoflow.sh and would need its own consent gate. |
 | D5 | **The plan authors no engine fix for defects it merely finds.** A pipeline defect outside the four Class-B items in scope is filed, not fixed. | Bounds a plan whose subject is drift detection and would otherwise absorb every defect the new checkers surface. |
-| D6 | **Class B ships a MECHANICAL GATE plus the manifest fixes.** Runnable checkers for the decidable edges become `CHANGE-VALIDATION.md` recipe rows; genuinely-LLM edges stay on the prose trigger with an explicit `not_checked` declaration. | EXP-002 measured the engine at **4 firing opportunities, 0 catches** — a *dispatch* gap. Manifest edits cannot fix dispatch, so #317's remedy alone would produce more edges that also never run. Precedent: `check_skill_readme_contract.py` already does exactly this. |
+| D6 | **Class B ships a MECHANICAL GATE plus the manifest fixes.** Runnable checkers for the decidable edges become `CHANGE-VALIDATION.md` recipe rows; genuinely-LLM edges stay on the prose trigger with an explicit `not_checked` declaration. | EXP-002 measured the engine at **4 firing opportunities, 0 catches** — a *dispatch* gap. Manifest edits cannot fix dispatch, so #317's remedy alone would produce more edges that also never run. Precedent: `check_skill_readme_contract.py` already does exactly this (plan-061 shipped the mechanical subset of the README edges as a checker gated in BOTH tiers, while `e-readme-desc` kept its LLM route and is DECLARED unchecked). **AMENDED after pass-1 C12 — the bet's boundary, stated:** CV's FULL tier IS mechanically enforced (`_validate_merged` returns fail/exit 3), a real difference from the prose-only trigger. But **CI runs no tier** (`grep change_validation .github/workflows/*` → nothing) and the FAST on-edit trigger is itself an always-loaded prose rule — the same class that produced 4-opportunities/0-catches. So the new coverage binds on the yf-plan land path only; a direct non-plan commit to `web/content/` still gets nothing. Issue 2.8 closes that residual with a CI job. |
 | D7 | **Re-render ALL SIX diagrams under one pinned d2, in one commit**, with the version recorded in the message. | EXP-004: all six differ from a fresh render because of d2 **version drift**, not staleness. Repairing three would leave a visible layout/encoding split (RGBA/old-engine vs RGB/v0.8.2) across the set. |
 | D8 | **Author the "missing coverage" items as EDITORIAL content**, verified against code rather than #317's phrasing. | EXP-002: these are pure omissions, which `DRIFT-CHECK.md:53-54` says **PASS by design** — they were never enforcement misses. They are still worth writing for a reader. **`land` is not a `/yf-plan` slash verb** (`SKILL.md:137-143`); documenting it as a command would manufacture a false claim — the trap #317 itself flags for `yf-judgement`. |
 | D9 | **The engine-spec contradiction is repaired FIRST, in Epic 0.** | SPEC-first (AGENTS.md). `spec/checks.md` REQ-CHECK-004(a) mandates a node-level whole-corpus check while REQ-CHECK-005 confines the verifier to §6-scoped **edges**, and §6 maps globs→edges only — so a node-level check has **no firing surface**. Epic 3's §4 half depends on this being resolved. |
@@ -145,40 +145,47 @@ mis-assignment (EXP-004's `beads group` membership bug), missing qualifiers, or 
 — those are declared `not_checked` and discharged by a human read, following the precedent
 `check_skill_readme_contract.py` already sets.
 
+**The checker corpus is a PARAMETER, not `web/content/**`.** Pass-1 C4 measured the plan repeating #317's own undercount one level up: `README.md:105-106` and `AGENTS.md:78` carry the identical drifted harness matrix, and a `web/content/**`-scoped checker cannot reach either. The corpus is therefore `web/content/** + README.md + AGENTS.md`.
+
 **#317 is followed on intent and overridden on fact.** Six of its specifics are wrong (see
 Corrections above); the implementation follows the measurements in `findings/`.
 
 ## Epics
 
 ### Epic 0: SPEC-first — repair the drift engine's own contradiction
-- Issue 0.1: Amend `skills/yf-drift-check/spec/checks.md` to resolve REQ-CHECK-004(a) vs REQ-CHECK-005 — a node-level whole-corpus check has no firing surface when §6 maps globs to edges only. Add the new/revised `REQ-*` id and a living-amendment-log entry.
+- Issue 0.1: Amend `skills/yf-drift-check/spec/checks.md` to resolve REQ-CHECK-004(a) vs REQ-CHECK-005 — a node-level whole-corpus check has no firing surface when §6 maps globs to edges only. Add the new/revised `REQ-*` id. **The amendment-log entry goes in the ROOT `SPEC.md`** — pass-1 C8 measured that neither `spec/checks.md` nor `yf-drift-check/SPEC.md` has a living amendment log, and that root `SPEC.md` currently contains zero `REQ-CHECK-*` ids. Reconcile the id namespace with `check_amendment_log.py`'s root-`SPEC.md` assumption in the same issue.
 - Issue 0.2: Declare in the spec how a node-level existence check is dispatched — the mechanism the amendment authorizes, so Epic 3's §4 row has something to bind to.
   - depends-on: 0.1
 - Issue 0.3: Record the `not_checked` declaration convention in the spec: which claim classes a mechanical gate covers, which remain prose-judged, and that the split must be stated rather than implied.
   - depends-on: 0.1
+- Issue 0.4: Author `scripts/checks/plan066_checks.py` — one named subcommand per Success Criterion, each exiting 0/1, following the `plan065_checks.py` precedent. This is what makes the criteria EXECUTABLE rather than prose (pass-1 C1: `doc_lint` scored 17/17 non-conformant).
+- Issue 0.5: Add the `gate-plan066-amendment` and req-coverage rows to `CHANGE-VALIDATION.md` (§1 recipe + §3 globs for `docs/plans/plan-066-*/**` and `skills/yf-drift-check/spec/**`), restoring the four-plan precedent (060, 062, 063, 064) that pass-1 C7 found broken.
+  - depends-on: 0.1
 
 ### Epic 1: P0 — unbreak the Pelican build
 - Issue 1.1: Author `web/content/skills/yf-okf-hygiene.md` — prose only, no frontmatter, first heading `##`, sourced from the skill's `SKILL.md`, `README.md` and `SPEC.md` so the three `e-skill-page-*` edges pass by construction. Model on `web/content/skills/yf-okf.md`.
-- Issue 1.2: Verify the build with the no-pipe, `--fatal warnings` form, plus content assertions on the emitted HTML (an `<hr>` with a non-trivial body, >= 1 `<h2>` beyond "At a glance") — because an EMPTY file satisfies the existence-only guard.
+- Issue 1.2: Bootstrap a reproducible build environment FIRST — `web/.venv` is untracked and exists only in the primary checkout, so the gate Test would exit 127 in an execute worktree (pass-1 C10). Use `uv run --with-requirements web/requirements.txt pelican …`, or create the venv as an explicit step. Then verify with the no-pipe, `--fatal warnings` form, plus content assertions on `output/skills/yf-okf-hygiene/index.html` (an `<hr>` with a non-trivial body, >= 2 `<h2>`) — because an EMPTY file satisfies the existence-only guard.
   - depends-on: 1.1
   - resolves-upstream: #317 (partial)
 
 ### Epic 2: Class-B — the mechanical gate
-- Issue 2.1: Build `scripts/checks/check_web_counts.py` — counted-set claims over `web/content/**/*.{md,d2}` against `skills/*/SKILL.md` frontmatter and `skills/*/formulas/*.formula.toml` (excluding staged `.beads/formulas/`).
-- Issue 2.2: Build `scripts/checks/check_web_harness_paths.py` — path/identifier claims against `yf/src/harness_desc.rs` `DESCRIPTORS`. Must strip path tokens before attributing a line to a harness id, or it false-greens on `.agents/skills`.
+- Issue 2.1: Build `scripts/checks/check_web_counts.py` — counted-set claims against `skills/*/SKILL.md` frontmatter and `skills/*/formulas/*.formula.toml` (excluding staged `.beads/formulas/`). **The corpus is a PARAMETER** defaulting to `web/content/**/*.{md,d2}` + `README.md` + `AGENTS.md` (pass-1 C4). It must also parse the enumerated GROUP-MEMBER NAMES at `architecture.md:65`, not only the integer — those names are machine-readable, unlike a rendered PNG (pass-1 C13).
+- Issue 2.2: Build `scripts/checks/check_web_harness_paths.py` — path/identifier claims against `yf/src/harness_desc.rs` `DESCRIPTORS`, over the same parameterised corpus. Must strip path tokens before attributing a line to a harness id, or it false-greens on `.agents/skills` (measured, EXP-001).
 - Issue 2.3: Build `scripts/checks/check_skill_page_contract.py` — the set-difference existence check. Set A = dirnames of `skills/*/SKILL.md`; Set B = stems of `web/content/skills/*.md`; assert `A \ B == {}`, report `B \ A` as orphans, carry a `--min-skills` vacuity floor.
   - depends-on: 0.2
 - Issue 2.4: Build `scripts/checks/check_web_backend_claim.py` — the upstream-backend denylist with a legitimate-mention allowlist, covering all five known sites including `images/architecture.d2:36`.
-- Issue 2.5: Give every checker a CODE-SIDE negative control test: mutate the source of truth under passing docs, assert the checker exits non-zero. A checker without one is not merged.
+- Issue 2.5: Build `scripts/checks/test_negative_controls.py` — one CODE-SIDE control per checker: mutate the SOURCE OF TRUTH under passing docs, assert the checker exits non-zero. It must PRINT AND ASSERT a per-checker observed-failure count and carry a `--min-checkers N` vacuity floor, so a harness that silently skips a checker cannot exit 0 (pass-1 C9 — EXP-001's checker-B failure mode, one level up).
   - depends-on: 2.1, 2.2, 2.3, 2.4
-- Issue 2.6: Wire the checkers as `CHANGE-VALIDATION.md` §1 recipe rows with §3 trigger globs. The `check_skill_page_contract` trigger MUST include the source side (`skills/*/SKILL.md`, skill-dir creation) — an absent file is never edited and can never fire its own on-edit check.
-  - depends-on: 2.5
-- Issue 2.7: Record the `not_checked` declaration alongside the rows: semantic mis-assignment, missing qualifiers and editorial omission are out of mechanical scope and discharged by human read.
+- Issue 2.6: Wire the checkers as `CHANGE-VALIDATION.md` §1 recipe rows with §3 trigger globs. **`grep 'web/' CHANGE-VALIDATION.md` currently returns NOTHING** — there is no web trigger scope at all, so the §3 globs are as load-bearing as the §1 rows. The `check_skill_page_contract` trigger MUST include the source side (`skills/*/SKILL.md`, skill-dir creation) — an absent file is never edited and can never fire its own on-edit check. **Sequenced after the repairs** (pass-1 C11): landing red rows earlier would make `_validate_merged` return fail/exit 3 and block every intermediate land.
+  - depends-on: 2.5, 4.9, 5.3
+- Issue 2.7: Record the `not_checked` declaration alongside the rows: semantic mis-assignment, missing qualifiers and editorial omission are out of mechanical scope and discharged by human read. Follow `check_skill_readme_contract.py`'s precedent of declaring an edge unchecked rather than implying it passed.
   - depends-on: 2.6, 0.3
+- Issue 2.8: Add a CI job running the four `check_web_*` rows. Measured (pass-1 C12): CI runs NO CHANGE-VALIDATION tier, so without this the new coverage binds on the yf-plan land path only and a direct non-plan commit to `web/content/` is still unguarded.
+  - depends-on: 2.6
 
 ### Epic 3: Class-B — the manifest repair
 - Issue 3.1: Add a `web-diagram-src` node (`web/content/images/*.d2`) to `DRIFT-CHECK.md` §1 with edges to the frontmatter contract, `harness_desc.rs` and the formula set, then a §6 trigger row. Node → edge → §6 row, in that order: a §6 row can only name edges that exist.
-- Issue 3.2: Widen `e-web-cli-surface` — all THREE edits: add `yf/src/harness_desc.rs` to the source node; add a §6 trigger row for that path; rewrite the §3 contract from `path-resolves` to `value-equal`. Add `web/content/pages/architecture.md`'s harness table to the node set.
+- Issue 3.2: Widen `e-web-cli-surface` — all THREE edits: add `yf/src/harness_desc.rs` to the source node; add a §6 trigger row for that path; rewrite the §3 contract from `path-resolves` to `value-equal`. Add `web/content/pages/architecture.md`'s harness table AND `README.md`'s to the node set — `README.md`'s existing §6 row covers seven edges, none touching the harness matrix (pass-1 C4).
 - Issue 3.3: Add a node/edge for the upstream-backend claim naming the four wrong sites including the `.d2`.
 - Issue 3.4: Add a §4 Referencers row for `skill-page`, and at least one `required-section`-category inbound edge, so the existence check has a manifest binding.
   - depends-on: 0.2, 2.3
@@ -193,7 +200,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 4.1
 - Issue 4.3: Repair the counted-set sites: `pages/architecture.md:59,65` (19→20 skills, utility 7→8, and name `yf-okf-hygiene` in the utility list).
   - depends-on: 4.2
-- Issue 4.4: Repair all 15 path/identifier sites across `pages/install.md`, `pages/architecture.md` and `images/install-matrix.d2` — both user AND project columns, plus the prose bullet at `install.md:204-207`.
+- Issue 4.4: Repair every path/identifier site the checker reports — across `pages/install.md`, `pages/architecture.md`, `images/install-matrix.d2`, **and `README.md:105-106` + `AGENTS.md:78`** (pass-1 C4) — both user AND project columns, plus the prose bullet at `install.md:204-207`. Ground truth: `prune_private.rs:487` classifies the two retired roots as legacy private roots to PRUNE, and `harness_desc.rs:381` asserts no shipped row may carry a `name_transform`.
   - depends-on: 4.2
 - Issue 4.5: Repair the five upstream-backend sites: `pages/architecture.md:98`, `pages/glossary.md:151`, `pages/beads-concepts.md:131`, `images/architecture.d2:36`, `skills/yf-plan.md:90`.
   - depends-on: 4.2
@@ -215,7 +222,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 5.1, 5.2, 4.4
 - Issue 5.4: HUMAN READ of each regenerated PNG for the residue no extractor catches — semantic mis-assignment, group membership, label placement. Record the read per diagram.
   - depends-on: 5.3
-- Issue 5.5: Confirm `render.py check-dir web/content/images` is clean. Do NOT assert byte-equality against the committed PNGs — measured, all six differ from a fresh render for reasons unrelated to correctness.
+- Issue 5.5: Run `render.py check-dir web/content/images` for ORPHAN DETECTION ONLY — a `.d2` with no sibling `.png`. Pass-1 C6 measured that it returns `{"status":"ok"}` exit 0 over the very diagrams this plan calls wrong: `render.py:154-169` exits non-zero only on orphans, and staleness never affects the exit code. Do NOT cite it as a staleness check and do NOT assert byte-equality against the committed PNGs.
   - depends-on: 5.3
 
 ### Epic 6: Editorial coverage and the concepts glossary
@@ -225,9 +232,11 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 1.2
 - Issue 6.3: Document the `closable` verb on `web/content/skills/yf-beads-upstream.md`.
   - depends-on: 1.2
-- Issue 6.4: Author the `web/concepts` idiomatic-terms glossary — pouring beads, landing, molecules, wisps, gates.
+- Issue 6.4: Author the idiomatic-terms glossary — pouring beads, landing, molecules, wisps, gates. **It MUST render.** Pass-1 C5 measured that a page under `web/content/concepts/` produces exit 0, 32 pages (unchanged), zero warnings and NO OUTPUT — `pelicanconf.py` sets no `PAGE_PATHS`, so Pelican's default `["pages"]` silently excludes any new directory. Author under `web/content/pages/`, or add the directory to `PAGE_PATHS` in this same issue.
   - depends-on: 1.2
   - resolves-upstream: #127 (include)
+- Issue 6.5: Assert every page Epic 6 authored actually RENDERED — the emitted `index.html` exists and is non-trivial, reusing SC2's shape. A page that silently never renders is this plan's own thesis firing inside the plan.
+  - depends-on: 6.1, 6.2, 6.3, 6.4
 
 ### Epic 7: Adjacent surfaces
 - Issue 7.1: Remediate `OKF-EXTENSION.md` — 3 stale DRAFT banners, 2 dangling symbols, 2 shipped-but-open decisions.
@@ -246,8 +255,9 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 8.1, 8.2
 - Issue 8.4: File follow-on issues tagged by class — the zero-byte-page guard hole, the `e-okf-version-pin` category defect if not fixed here, and any pipeline defect found outside the four in-scope Class-B items (D5).
   - depends-on: 8.3
-- Issue 8.5: Reconcile upstream — update #317, #104, #127, #363, #322 per disposition; leave #247 and #263 open as partials.
+- Issue 8.5: Reconcile upstream — update #317, #104, #127, #363, #322 per disposition; leave #247 and #263 open as partials. Fill the `Resolved By` column for all five `include` rows before close (pass-1 C14: R2a promotes an empty cell to `E` severity at `reconciling`).
   - depends-on: 8.4
+  - resolves-upstream: #317 (include)
 
 ## Gates
 
@@ -258,23 +268,23 @@ Corrections above); the implementation follows the measurements in `findings/`.
 ### Capability Gate: Build green
 - Type: auto
 - Condition: Pelican builds with zero errors AND zero warnings, and the new page has real content
-- Test: cd web && .venv/bin/pelican content -s pelicanconf.py -o "$(mktemp -d)" --fatal warnings
+- Test: uv run scripts/checks/plan066_checks.py build-clean
 - Blocks: epic:4, epic:5, epic:6
-- Instructions: Author the missing skill page (Issue 1.1). Never pipe this command — `| tail` masks pelican's exit 1, and `${PIPESTATUS[@]}` is a bash-ism that expands to nothing under this repo's zsh.
+- Instructions: Author the missing skill page (Issue 1.1). The verb wraps `pelican … --fatal warnings` with NO PIPE and asserts the emitted page has real content — an empty file satisfies the existence-only guard. It must not hardcode `web/.venv`, which is untracked and absent from an execute worktree (exit 127). Never pipe pelican: `| tail` masks its exit 1, and `${PIPESTATUS[@]}` is a bash-ism that expands to nothing under this repo's zsh.
 
 ### Capability Gate: Checkers are fail-capable
 - Type: auto
 - Condition: every Epic-2 checker has been OBSERVED to fail against a code-side mutation
-- Test: uv run scripts/checks/test_negative_controls.py --all
+- Test: uv run scripts/checks/test_negative_controls.py --all --min-checkers 4
 - Blocks: epic:4, epic:5
-- Instructions: Each checker needs a control that mutates the SOURCE OF TRUTH under passing docs. Doc-side controls are insufficient — measured, checker B false-greened on 15 real defects and only a code-side control exposed it.
+- Instructions: Each checker needs a control that mutates the SOURCE OF TRUTH under passing docs. Doc-side controls are insufficient — measured, checker B false-greened on 15 real defects and only a code-side control exposed it. The `--min-checkers` floor and the per-checker observed-failure count are IN THE TEST, not only in SC4: a harness that silently skips a checker would otherwise exit 0 and open this gate — the same failure mode, one level up.
 
 ### Capability Gate: Diagram human read
 - Type: human
 - Condition: each of the six regenerated PNGs has been read by a human for semantic residue
 - Test: manual
-- Blocks: 5.5, 8.1
-- Instructions: No text extractor catches semantic mis-assignment. Measured: the corrected `beads group (5)` box still listed the workflows skills — count right, membership wrong. Read each PNG and record the read.
+- Blocks: 8.1
+- Instructions: No text extractor catches semantic mis-assignment. Measured: the corrected `beads group (5)` box still listed the workflows skills — count right, membership wrong. Read each PNG and record the read to `findings/diagram-reads.md`. Pass-1 C6 removed `5.5` from this Blocks set: `render.py check-dir` passes today with no work done, so gating it behind a human gate spent operator attention to unblock a vacuous check.
 
 ### Capability Gate: Upstream write authorization
 - Type: human
@@ -295,7 +305,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
 | R2 | "The build passes" is satisfied by an **empty file** — the guard is existence-only. | high | Issue 1.2's criterion is conjunctive: exit 0 under `--fatal warnings` PLUS content assertions on the emitted HTML. |
 | R3 | A verification snippet pipes pelican through `tail` and reports green on a broken build; the reflexive `${PIPESTATUS[@]}` fix is **silently empty under zsh**. | high | No-pipe form mandated in the gate Test and in every criterion. `${pipestatus[@]}` is the zsh spelling; `set -o pipefail` the portable one. |
 | R4 | The plan repairs #317's stale table and misses the ~4 sites and 11 extra path cells it does not list. | high | D1: the inventory is checker-derived (4.1); #317's table is the negative control (4.2), never the work list. |
-| R5 | Manifest edits land but the engine still never dispatches, so new edges inherit the measured 0-catch rate. | high | D6: the mechanical gate (Epic 2) is the primary deliverable and is wired into CHANGE-VALIDATION, which does run. |
+| R5 | Manifest edits land but the engine still never dispatches, so new edges inherit the measured 0-catch rate. | high | D6: the mechanical gate (Epic 2) is the primary deliverable, wired into CHANGE-VALIDATION's FULL tier, which IS mechanically enforced by `_validate_merged` (fail/exit 3). **AMENDED after pass-1 C12:** that binds the yf-plan LAND PATH ONLY — CI runs no tier and the FAST trigger is itself prose. Issue 2.8 adds the CI job that covers direct non-plan commits. |
 | R6 | A §6 row is added naming an edge that does not exist, and silently covers nothing. | med | Issue 3.1 enforces node → edge → §6 row ordering explicitly. |
 | R7 | The three widened-`e-web-cli-surface` edits are done partially, leaving the node unable to fire on its own source edit. | med | Issue 3.2 enumerates all three as one issue rather than three separable ones. |
 | R8 | Re-rendering diagrams produces a byte diff on all six and is misread as failure or as staleness. | med | D7 re-renders all six under one pinned version; Issue 5.5 forbids a byte-equality assertion and states why. |
@@ -304,26 +314,46 @@ Corrections above); the implementation follows the measurements in `findings/`.
 | R11 | Epic 7's #104 fix couples an unrelated Makefile/process-group change to the P0 and blocks it. | low | Measured orthogonal to one-shot builds (EXP-003); Issue 7.3 carries no dependency into Epics 1-5. |
 | R12 | The spec amendment lands after the manifest change that depends on it, violating SPEC-first. | low | D9: Epic 0 is first, and Issues 2.3 / 3.4 depend on 0.2. |
 | R13 | Scope creep — the new checkers surface pipeline defects beyond the four Class-B items. | med | D5: file, do not fix. Issue 8.4 is the filing route. |
+| R14 | The plan repeats #317's undercount one level up — a `web/content/**`-scoped checker cannot reach `README.md` or `AGENTS.md`, which carry the identical drifted matrix, so SC7 certifies "all sites repaired" while the most-read document stays wrong. **Measured, pass-1 C4.** | high | The checker corpus is a parameter covering `web/content/** + README.md + AGENTS.md` (Issues 2.1, 2.2, 4.4), and `README.md`'s harness table joins the `harness_desc.rs`-sourced node (3.2). |
+| R15 | An authored page silently never renders — measured, a file under a directory absent from `PAGE_PATHS` yields exit 0, unchanged page count, zero warnings and no output. **The plan's own thesis firing inside the plan.** | high | Issue 6.4 authors under a rendered path or amends `PAGE_PATHS`; Issue 6.5 asserts every Epic-6 page actually emitted a non-trivial `index.html`. |
 
 ## Success Criteria
 
+Every Verification cell is an **executable clause** discharged by `scripts/checks/plan066_checks.py`
+(authored in Issue 0.4, `plan065_checks.py` precedent). Pass-1 C1 measured the previous prose table
+at 17/17 non-conformant under `doc_lint`. The one irreducibly manual row says so explicitly.
+
 | # | Criterion | Verification | Discharged-by |
 | :-- | :-- | :-- | :-- |
-| SC1 | The plan authored `web/content/skills/yf-okf-hygiene.md`, and Pelican builds with zero errors and zero warnings | `cd web && .venv/bin/pelican content -s pelicanconf.py -o "$(mktemp -d)" --fatal warnings` exits 0, no pipe | 1.1, 1.2 |
-| SC2 | The authored page has real content, not merely a file that satisfies an existence-only guard | emitted `index.html` contains `<hr>` and >= 2 `<h2>` | 1.2 |
-| SC3 | The plan amended `skills/yf-drift-check/spec/checks.md` with a new/revised `REQ-*` id and a living-amendment-log entry, BEFORE any manifest edit that depends on it | git log order: Epic 0 commits precede Issues 2.3 and 3.4 | 0.1, 0.2 |
-| SC4 | Every checker the plan shipped has been OBSERVED to fail against a code-side mutation | `uv run scripts/checks/test_negative_controls.py --all` exits 0 and reports one observed failure per checker | 2.5 |
-| SC5 | Every checker the plan shipped exits 0 over the repaired tree | each `scripts/checks/check_web_*.py` and `check_skill_page_contract.py` exits 0 | 4.9, 8.1 |
-| SC6 | The checker-derived inventory contains every row #317 names — no #317 row is absent from it | Issue 4.2's assertion passes; any absence is recorded as an instrument defect, not an absent defect | 4.2 |
-| SC7 | The plan repaired all 15 path/identifier sites, not the ~4 #317 lists | `check_web_harness_paths.py` exits 0; the inventory records 15 sites repaired | 4.4 |
-| SC8 | The plan repaired all five upstream-backend sites including the `.d2` | `check_web_backend_claim.py` exits 0 | 4.5 |
-| SC9 | The plan added the `workflows` group to `architecture.d2`, which previously omitted it entirely | `check_web_counts.py` exits 0 over `images/architecture.d2` | 5.1 |
-| SC10 | All six diagrams were re-rendered from one pinned d2 version in one commit, with the version recorded | the commit message names the d2 version; all six PNGs are in that commit | 5.3 |
-| SC11 | Each regenerated PNG was read by a human and the read recorded | six per-diagram read records exist | 5.4 |
-| SC12 | The plan asserted NO byte-equality between regenerated and committed PNGs | no criterion or check compares PNG bytes | 5.5 |
-| SC13 | The plan documented `land` as a `plan_manager.py` verb and NOT as a `/yf-plan` slash command | `grep '/yf-plan land' web/content/` returns nothing | 6.1 |
-| SC14 | The plan documented the escalation surface as a yf-plan mechanism, not as a `yf-judgement` skill | `grep -r 'yf-judgement' web/content/` returns nothing | 6.2 |
-| SC15 | Every Class-B defect is explicitly CLOSED or FILED WITH AN OWNER, enumerated by name — never implied by a green build | Issue 8.2's enumeration lists all six with a disposition each | 8.2 |
-| SC16 | The retrospective distinguishes content defects from process defects, with counts | `plan-retrospective.md` carries both counts | 8.3 |
-| SC17 | The plan declared which claim classes the mechanical gate does NOT cover | the `not_checked` declaration exists alongside the CHANGE-VALIDATION rows | 2.7 |
+| SC1 | The plan authored `web/content/skills/yf-okf-hygiene.md` and Pelican builds with zero errors and zero warnings | `uv run scripts/checks/plan066_checks.py build-clean` → exit 0 | 1.1, 1.2 |
+| SC2 | The authored page has real content, not merely a file satisfying an existence-only guard — Asserts `output/skills/yf-okf-hygiene/index.html` has >= 1 `<hr>` and >= 2 `<h2>` | `uv run scripts/checks/plan066_checks.py page-content` → exit 0 | 1.2 |
+| SC3 | The plan amended the drift-engine spec with a new/revised `REQ-*` id and a root-`SPEC.md` amendment-log entry | `uv run scripts/check_amendment_log.py --plan plan-066-james-dixson-e7fadb` → exit 0 | 0.1, 0.5 |
+| SC4 | Every checker the plan shipped was OBSERVED to fail against a code-side mutation | `uv run scripts/checks/test_negative_controls.py --all --min-checkers 4` → exit 0 | 2.5 |
+| SC5 | Every checker the plan shipped exits 0 over the repaired tree | `uv run scripts/checks/plan066_checks.py checkers-green` → exit 0 | 4.9, 8.1 |
+| SC6 | The checker-derived inventory contains every row #317 names — no #317 row is absent from it | `uv run scripts/checks/plan066_checks.py inventory-control` → exit 0 | 4.2 |
+| SC7 | The plan repaired every path/identifier site the checker reports, across `web/content/**`, `README.md` AND `AGENTS.md` — not the ~4 #317 lists | `uv run scripts/checks/plan066_checks.py harness-sites` → exit 0 | 4.4 |
+| SC8 | The plan repaired all five upstream-backend sites including the `.d2` | `uv run scripts/checks/plan066_checks.py backend-sites` → exit 0 | 4.5 |
+| SC9 | The plan added the `workflows` group to `architecture.d2`, which previously omitted it entirely, and the group-member NAME lists agree with frontmatter | `uv run scripts/checks/plan066_checks.py group-membership` → exit 0 | 5.1, 4.3 |
+| SC10 | All six diagrams were re-rendered from one pinned d2 version, and all six PNGs carry that version's encoding signature — Compares PNG colortype/`sRGB`/IDAT signature across all six — NOT commit topology, which a squash land destroys | `uv run scripts/checks/plan066_checks.py render-uniform` → exit 0 | 5.3 |
+| SC11 | Each regenerated PNG was read by a human and the read recorded | **manual**: `findings/diagram-reads.md` carries one dated record per diagram; asserted structurally by `plan066_checks.py diagram-reads` → exit 0 | 5.4 |
+| SC12 | The plan added the DRIFT-CHECK nodes, edges and §6 rows Class-B requires, and every §6 row names an edge that exists | `uv run scripts/checks/plan066_checks.py manifest-rows` → exit 0 | 3.1, 3.2, 3.3, 3.4, 3.5, 3.6 |
+| SC13 | The plan documented `land` as a `plan_manager.py` verb — the page makes the correct POSITIVE claim, and no page calls it a slash command — Conjunctive: the authored file exists AND states the verb form AND `grep -r '/yf-plan land' web/content/` exits 1 | `uv run scripts/checks/plan066_checks.py land-documented` → exit 0 | 6.1 |
+| SC14 | The plan documented the escalation surface as a yf-plan mechanism — positively stated, and no page invents a `yf-judgement` skill — Same conjunctive shape, with `-r` and an asserted exit 1 | `uv run scripts/checks/plan066_checks.py escalation-documented` → exit 0 | 6.2 |
+| SC15 | Every page Epic 6 authored actually RENDERED — a non-trivial emitted `index.html` per page | `uv run scripts/checks/plan066_checks.py epic6-renders` → exit 0 | 6.1, 6.2, 6.3, 6.4, 6.5 |
+| SC16 | Every Class-B defect is explicitly CLOSED or FILED WITH AN OWNER, enumerated by name — never implied by a green build — Asserts six named dispositions | `uv run scripts/checks/plan066_checks.py classb-disposition` → exit 0 | 8.2 |
+| SC17 | The retrospective distinguishes content defects from process defects, with counts | `uv run scripts/checks/plan066_checks.py retro-classes` → exit 0 | 8.3 |
+| SC18 | The plan declared which claim classes the mechanical gate does NOT cover | `uv run scripts/checks/plan066_checks.py notchecked-declared` → exit 0 | 2.7 |
+| SC19 | The plan repaired the three adjacent surfaces it took on (#363, #322, #104) | `uv run scripts/checks/plan066_checks.py adjacent-surfaces` → exit 0 | 7.1, 7.2, 7.3 |
+| SC20 | The new coverage fires OUTSIDE the yf-plan land path — a CI job runs the web checkers | `uv run scripts/checks/plan066_checks.py ci-wired` → exit 0 | 2.8 |
+| SC21 | The plan repaired the removed-feature claims at every site, INCLUDING the `SKILL.md` copy — fixing the page alone would leave `e-skillspec-skillmd` unexamined — Asserts `assess <corpus>` absent from `skills/yf-okf.md`, and the "migration is the only write path" claim corrected at BOTH `yf-okf.md:56` and `skills/yf-okf/SKILL.md:213` | `uv run scripts/checks/plan066_checks.py removed-features` → exit 0 | 4.6 |
+| SC22 | The plan repaired the two PROSE-ONLY rows by hand and FLAGGED rather than "fixed" the unverifiable ones — Asserts the `harness-tune.md` sha256 qualifier present, the lint-subset count reads 7 incl. `ML010`, and `why.md`'s competitor table carries an explicit unverifiable marker | `uv run scripts/checks/plan066_checks.py prose-rows` → exit 0 | 4.7, 4.8 |
+| SC23 | `formulas.d2` states five shipped formulas and depicts all five | `uv run scripts/checks/plan066_checks.py formulas-diagram` → exit 0 | 5.2 |
+| SC24 | No `.d2` lacks a sibling `.png` after the re-render — Orphan detection ONLY — `render.py check-dir` cannot detect staleness, measured | `uv run scripts/checks/plan066_checks.py diagram-orphans` → exit 0 | 5.5 |
+
+**Deliberately uncovered issues.** The instrument-building steps (0.2, 0.3, 0.4, 2.1-2.4, 2.6, 4.1)
+carry no criterion of their own **by design** — every criterion above executes the instruments they
+build, so a broken instrument fails the criteria that run it rather than passing a criterion written
+about itself. Naming them would be a criterion asserting that a checker exists, which is weaker than
+one asserting the checker WORKS. 8.4 and 8.5 are discharged by the reconcile gate and the §6.4
+`verify-reconcile` chain, not by a plan criterion.
 
