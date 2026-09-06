@@ -1,15 +1,24 @@
 ---
 type: Asset
 okf_spec: OKF-PLAN
-description: "Drafted upstream bodies for Issues 8.4/8.5, awaiting operator confirmation. NOTHING HAS BEEN POSTED — the Upstream write authorization gate is unresolved."
+description: "The 13 authorized upstream writes for Issues 8.4/8.5. AUTHORIZED 2026-09-06 but NOT YET POSTED — transitively blocked behind the held Diagram human-read gate."
 id: upstream-drafts
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-06
 ---
 # Drafted upstream writes — NOT YET POSTED
 
-The *Upstream write authorization* capability gate (`gate_type: human`, `test_class: consent`) is
-**unresolved**. Every body below is a draft; **no `gh` command has been run**.
+The *Upstream write authorization* capability gate is **RESOLVED — the operator authorized these
+writes on 2026-09-06.** They are nonetheless **NOT YET POSTED**, and the reason is ordering rather
+than consent:
+
+> The writes are **transitively blocked** behind the still-held *Diagram human read* gate.
+> That gate blocks `8.1`; `8.3` (the retrospective) depends on `8.1`; and `8.4`/`8.5` depend on
+> `8.3`. **The reconcile bodies below assert what the plan DID, and `8.3` is what establishes it**
+> — posting first would publish claims the verification sweep has not yet confirmed. `SC17` is
+> `FALSE` right now precisely because `8.3` has not run.
+
+**No `gh` command has been run.**
 
 ## The planned writes
 
@@ -25,6 +34,7 @@ The *Upstream write authorization* capability gate (`gate_type: human`, `test_cl
 | new | file follow-on | `followon-1-zero-byte-guard.md` | D5 — filed, not fixed |
 | new | file follow-on | `followon-2-lifecycle-shorthand.md` | D5 — filed, not fixed |
 | new | file follow-on | `followon-3-notchecked-membership.md` | D5 — filed, not fixed |
+| **#372** | **comment, then close — LAST** | `372-comment.md` | **tracker** — this plan's own coarse tracker |
 
 ## The command form, and why it is not negotiable
 
@@ -46,3 +56,28 @@ looks harmless but **records no `external_ref`**, leaving an issue nothing can m
 
 This repository's granularity is **coarse**: one tracking issue per plan-scale effort, not one per
 execution bead.
+
+## #372 goes LAST, and it was MISSING from this table
+
+**#372 is this plan's own coarse tracker, and an earlier revision of this file omitted it** — the
+operator caught it by reading the table and noticing an absent row. A coarse tracker left open
+after completion is the documented failure mode in this repository: **five** have gone stale and
+been closed by hand (#103, #95, #96, #98, #134).
+
+It is sequenced **last**, after every other write has landed *and been read back*, so its
+completion comment cannot claim a reconcile that did not happen.
+
+**Why the omission was possible at all, and it is not carelessness alone.** `stamp-tracker` runs
+at pour to record the tracker URL as the epic's `external_ref`, which is what makes a tracker
+visible to `upstream.py closable`. On this plan it returned:
+
+```
+skipped — no coarse tracker found in plan.md Upstream Issues (no row with disposition `tracker`)
+```
+
+This plan's Upstream Issues table carries no `tracker`-disposition row, so #372 was never stamped
+and is invisible to `closable` — which reports per-bead via `external_ref` and therefore cannot
+see a hand-filed tracker at all. That is exactly the caveat the `yf-beads-upstream` page now
+documents: *a clean `closable` run does not mean nothing needs closing.* The stamp is repaired
+locally as part of Issue 8.5 (`bd update --external-ref`, a local bead write, not an upstream
+one).
