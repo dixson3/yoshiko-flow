@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+context: pass-4 (full whole-plan review) returned REVISE with 5 concerns; the plan
+  was revised
+description: 'Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 5 (delta verification
+  of the pass-4 REVISE)'
+---
 # Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 5 (delta verification of the pass-4 REVISE)
 
 **Context:** pass-4 (full whole-plan review) returned REVISE with 5 concerns; the plan was revised

@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-003: yf-drift-check shape reusable for yf-change-validation'
+---
 # exp-003: yf-drift-check shape reusable for yf-change-validation
 
 ## drift-check structure (the shape to mirror)

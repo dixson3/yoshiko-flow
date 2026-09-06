@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+plan: plan-026-james-dixson-6e0e2f
+date: '2026-07-11'
+description: Red-Team Review — Pass 2
+---
 # Red-Team Review — Pass 2
 
 **Plan:** plan-026-james-dixson-6e0e2f

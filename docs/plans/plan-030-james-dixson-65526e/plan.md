@@ -5,6 +5,10 @@ created: '2026-07-19'
 status: complete
 epic: yf-mol-tmm
 fingerprint: 4c58c5563ba3c9b0116993e63d62570a707dc8000c7fb2748ace325b37cd88fd
+type: Plan
+okf_spec: OKF-PLAN
+description: 'yf-plan CI/infra/release completion criterion: gate ''complete'' on
+  one green execution or a deferred-validation bead (REQ-PLAN-069)'
 ---
 # Plan: yf-plan CI/infra/release completion criterion: gate 'complete' on one green execution or a deferred-validation bead (REQ-PLAN-069)
 

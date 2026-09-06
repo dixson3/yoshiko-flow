@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #67: Migrate legacy root-level skill configs (.<skill>.local.json)
+  into the .yf/ namespace'
+---
 # Upstream #67: Migrate legacy root-level skill configs (.<skill>.local.json) into the .yf/ namespace
 
 - **Number:** 67

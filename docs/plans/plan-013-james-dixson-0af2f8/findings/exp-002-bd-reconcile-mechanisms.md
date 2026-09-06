@@ -1,3 +1,9 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-002: bd mechanisms for reconcile (active-set, follow-on detection,
+  granularity, removal)'
+---
 # exp-002: bd mechanisms for reconcile (active-set, follow-on detection, granularity, removal)
 
 bd 1.0.5.

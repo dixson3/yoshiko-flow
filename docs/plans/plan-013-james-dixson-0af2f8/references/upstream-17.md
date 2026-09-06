@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #17: beads-upstream: machine-enforced upstream granularity
+  config (coarse|granular)'
+---
 # Upstream #17: beads-upstream: machine-enforced upstream granularity config (coarse|granular)
 
 - **Number:** 17

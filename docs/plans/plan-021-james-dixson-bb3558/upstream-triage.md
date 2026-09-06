@@ -1,3 +1,8 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: yf-plan lifecycle rework + yf-spec'
+---
 # Upstream Issue Triage: yf-plan lifecycle rework + yf-spec
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #30: Document recommended Claude settings.json baseline for
+  yoshiko-flow skills'
+---
 # Upstream #30: Document recommended Claude settings.json baseline for yoshiko-flow skills
 
 - **Number:** 30

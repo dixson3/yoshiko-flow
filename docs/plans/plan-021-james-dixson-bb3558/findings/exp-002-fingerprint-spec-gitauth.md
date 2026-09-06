@@ -1,3 +1,11 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+method: read-only map of `~/.claude/skills/yf-plan/` (`SKILL.md`, `plan_manager.py`,
+  `SPEC.md`,
+description: EXP-2/3/4 — re-review fingerprint (#64), git-authority/auto-commit (#63),
+  SPEC surface
+---
 # EXP-2/3/4 — re-review fingerprint (#64), git-authority/auto-commit (#63), SPEC surface
 
 **Method:** read-only map of `~/.claude/skills/yf-plan/` (`SKILL.md`, `plan_manager.py`, `SPEC.md`,

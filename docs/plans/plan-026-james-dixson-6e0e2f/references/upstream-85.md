@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #85 — yf-markdown-lint: absorb md_table_align.py (strict GFM
+  table alignment)'
+---
 # Upstream #85 — yf-markdown-lint: absorb md_table_align.py (strict GFM table alignment)
 
 - **URL:** https://github.com/dixson3/yoshiko-flow/issues/85

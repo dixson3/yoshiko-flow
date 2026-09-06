@@ -1,3 +1,12 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+question: How do intake (the `bd mol pour`) and the worktree/branch lifecycle work
+  today, and how
+method: read-only map of `~/.claude/skills/yf-plan/` — `scripts/plan_manager.py` (Click
+  CLI),
+description: EXP-1 — yf-plan lifecycle mechanics (#47 crux)
+---
 # EXP-1 — yf-plan lifecycle mechanics (#47 crux)
 
 **Question:** How do intake (the `bd mol pour`) and the worktree/branch lifecycle work today, and how

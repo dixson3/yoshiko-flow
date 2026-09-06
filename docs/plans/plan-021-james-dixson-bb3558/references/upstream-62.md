@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #62: Propose yf-spec skill: build & manage specifications;
+  yf-plan SPEC-first integration'
+---
 # Upstream #62: Propose yf-spec skill: build & manage specifications; yf-plan SPEC-first integration
 
 - **Number:** 62

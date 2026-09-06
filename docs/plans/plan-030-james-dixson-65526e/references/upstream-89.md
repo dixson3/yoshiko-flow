@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #89: yf-plan: for CI/infra/release plans, require one green
+  end-to-end execution before ''complete'''
+---
 # Upstream #89: yf-plan: for CI/infra/release plans, require one green end-to-end execution before 'complete'
 
 - **Number:** 89

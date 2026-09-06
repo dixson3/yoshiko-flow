@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #58: Define + enforce a canonical ''minimal local'' beads profile
+  (embedded/local-server, per-project, local-only, worktree-shared) via yf preflight'
+---
 # Upstream #58: Define + enforce a canonical 'minimal local' beads profile (embedded/local-server, per-project, local-only, worktree-shared) via yf preflight
 
 - **Number:** 58

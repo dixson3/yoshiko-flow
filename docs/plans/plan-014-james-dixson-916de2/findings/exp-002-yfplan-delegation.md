@@ -1,3 +1,8 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+description: 'exp-002: yf-plan §6.1.5 delegation + validate-cmd migration'
+---
 # exp-002: yf-plan §6.1.5 delegation + validate-cmd migration
 
 ## `validate-merged` verb (`skills/yf-plan/scripts/plan_manager.py`)

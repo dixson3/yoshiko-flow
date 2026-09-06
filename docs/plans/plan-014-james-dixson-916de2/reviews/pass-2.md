@@ -1,3 +1,11 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+verdict: REVISE (conditional APPROVE — "pin the shape and this is APPROVE")
+date: '2026-06-24'
+reviewer: 'red-team (adversarial), after the #15-only re-scope'
+description: Review pass-2 — plan-014 (re-review, cycle 2)
+---
 # Review pass-2 — plan-014 (re-review, cycle 2)
 
 **Verdict:** REVISE (conditional APPROVE — "pin the shape and this is APPROVE")

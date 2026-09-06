@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream issue #14: Install groups: split beads vs utility skills via
+  frontmatter contract + dependency-aware installer'
+---
 # Upstream issue #14: Install groups: split beads vs utility skills via frontmatter contract + dependency-aware installer
 
 - **URL:** https://github.com/dixson3/yoshiko-flow/issues/14

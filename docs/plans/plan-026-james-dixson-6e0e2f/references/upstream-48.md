@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #48: markdown-lint: flag un-escaped inline markup constructs
+  (CriticMarkup et al.) in prose'
+---
 # Upstream #48: markdown-lint: flag un-escaped inline markup constructs (CriticMarkup et al.) in prose
 
 - **Number:** 48

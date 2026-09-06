@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #50: New skill: markdown-html — render Markdown to standalone
+  HTML via pandoc (CriticMarkup-aware option)'
+---
 # Upstream #50: New skill: markdown-html — render Markdown to standalone HTML via pandoc (CriticMarkup-aware option)
 
 - **Number:** 50

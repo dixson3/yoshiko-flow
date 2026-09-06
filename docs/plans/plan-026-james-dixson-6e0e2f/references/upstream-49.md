@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #49: markdown-pdf: un-escaped CriticMarkup / strikeout-colliding
+  constructs render unexpectedly in PDF'
+---
 # Upstream #49: markdown-pdf: un-escaped CriticMarkup / strikeout-colliding constructs render unexpectedly in PDF
 
 - **Number:** 49

@@ -1,3 +1,10 @@
+---
+type: Finding
+okf_spec: OKF-PLAN
+verdict: '`bd init --skip-hooks --skip-agents` suppresses **all four cruft classes**
+  at'
+description: 'exp-002 — bd-init cruft surface (feeds #31)'
+---
 # exp-002 — bd-init cruft surface (feeds #31)
 
 **Verdict:** `bd init --skip-hooks --skip-agents` suppresses **all four cruft classes** at

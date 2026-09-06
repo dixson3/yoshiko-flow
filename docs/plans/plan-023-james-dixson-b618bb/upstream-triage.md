@@ -1,3 +1,8 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: beads infra local-only hardening'
+---
 # Upstream Issue Triage: beads infra local-only hardening
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.

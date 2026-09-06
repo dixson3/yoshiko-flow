@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #32: Add `yf doctor` subcommand to validate presence of `beads`
+  and `uv`'
+---
 # Upstream #32: Add `yf doctor` subcommand to validate presence of `beads` and `uv`
 
 - **Number:** 32

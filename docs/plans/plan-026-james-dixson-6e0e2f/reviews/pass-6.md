@@ -1,3 +1,10 @@
+---
+type: Review
+okf_spec: OKF-PLAN
+context: delta review of the one change since pass-5 APPROVE — moving `convert_wikilinks.py`
+description: 'Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 6 (delta: convert_wikilinks
+  lint→format move)'
+---
 # Plan Red-Team: plan-026-james-dixson-6e0e2f — pass 6 (delta: convert_wikilinks lint→format move)
 
 **Context:** delta review of the one change since pass-5 APPROVE — moving `convert_wikilinks.py`

@@ -1,3 +1,15 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-013-james-dixson-0af2f8
+author: james-dixson
+created: '2026-06-24'
+status: complete
+epic: yf-909569c3
+description: Reconcile policy — local beads = active work only; non-active work lives
+  upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream
+  land-the-plane hoist-and-remove)
+---
 # Plan: Reconcile policy — local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)
 
 **ID:** plan-013-james-dixson-0af2f8
@@ -5,18 +17,6 @@
 **Created:** 2026-06-24
 **Status:** complete
 **Epic:** yf-909569c3
-**Phase log:**
-- 2026-06-24 scoping: initial scope captured
-- 2026-06-24 investigating: 2 experiments (skill architecture, bd mechanisms)
-- 2026-06-24 drafting: plan v1 presented
-- 2026-06-24 review: plan v1 presented (red-team REVISE)
-- 2026-06-24 drafting: v2 — addressed red-team C1–C6 + missing items
-- 2026-06-24 review: v2 red-team APPROVE (2 low polish notes folded into C.7/D.1)
-- 2026-06-24 approved: operator approved
-- 2026-06-24 intake: epic yf-909569c3 poured
-- 2026-06-24 executing: start gate resolved
-- 2026-06-24 reconciling: post-execution reconciliation
-- 2026-06-24 complete: plan complete
 
 ## Objective
 

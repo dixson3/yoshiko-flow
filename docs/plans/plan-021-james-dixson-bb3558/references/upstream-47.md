@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #47: yf-plan: consistent, predictable branch/worktree model
+  (no branch-of-a-branch, intake at execute)'
+---
 # Upstream #47: yf-plan: consistent, predictable branch/worktree model (no branch-of-a-branch, intake at execute)
 
 - **Number:** 47

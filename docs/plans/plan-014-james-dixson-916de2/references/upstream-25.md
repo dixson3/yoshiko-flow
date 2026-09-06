@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #25: Doc guidance: use ''env -u VIRTUAL_ENV uv run …'' when
+  running uv inside a git worktree'
+---
 # Upstream #25: Doc guidance: use 'env -u VIRTUAL_ENV uv run …' when running uv inside a git worktree
 
 - **Number:** 25

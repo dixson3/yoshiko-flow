@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream #29: Add yf-beads-hygiene skill: safe orphan/dangling-edge
+  cleanup for beads'
+---
 # Upstream #29: Add yf-beads-hygiene skill: safe orphan/dangling-edge cleanup for beads
 
 - **Number:** 29

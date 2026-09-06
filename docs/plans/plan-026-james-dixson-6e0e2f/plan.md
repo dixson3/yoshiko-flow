@@ -1,3 +1,18 @@
+---
+type: Plan
+okf_spec: OKF-PLAN
+id: plan-026-james-dixson-6e0e2f
+author: james-dixson
+created: '2026-07-11'
+status: complete
+epic: yf-mol-a1f
+fingerprint: 686a7f8f8c9380f2f44bd319360fa08f424fdea27c9ba9525fa217a55c938510
+description: 'Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup
+  lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise
+  CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new
+  yf-markdown-format skill — the autofix side of the linter — absorbing the strict
+  GFM table aligner (#85) and the existing Obsidian→GFM wiki-link migrator'
+---
 # Plan: Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new yf-markdown-format skill — the autofix side of the linter — absorbing the strict GFM table aligner (#85) and the existing Obsidian→GFM wiki-link migrator
 
 **ID:** plan-026-james-dixson-6e0e2f
@@ -6,35 +21,6 @@
 **Status:** complete
 **Epic:** yf-mol-a1f
 **Fingerprint:** 686a7f8f8c9380f2f44bd319360fa08f424fdea27c9ba9525fa217a55c938510
-**Phase log:**
-- 2026-07-11 scoping: initial scope captured
-- 2026-07-11 scoping: 4 scope decisions resolved (full CriticMarkup filter, ML010 in authoring subset, caption filter default-on, add ML011)
-- 2026-07-11 investigating: 1 experiment: validate CriticMarkup pandoc Lua filter
-- 2026-07-11 drafting: plan v1 synthesized: 4 epics
-- 2026-07-11 review: pass-1 red-team REVISE (6 concerns, 2 missing) — see reviews/pass-1.md
-- 2026-07-11 review: pass-2 red-team APPROVE (2 low, self-resolving) — see reviews/pass-2.md
-- 2026-07-11 ready-for-approval: ready-check green — last red-team APPROVE + audit pass
-- 2026-07-11 approved: operator approved
-- 2026-07-12 drafting: reopened: integrating #85 (absorb md_table_align.py → ML012) into scope
-- 2026-07-12 review: pass-3 red-team APPROVE (3 concerns, all low/low-med, non-blocking) — see reviews/pass-3.md
-- 2026-07-12 ready-for-approval: ready-check green — pass-3 red-team APPROVE + audit pass (#85 folded in)
-- 2026-07-12 approved: operator approved (re-scope: #85 folded in)
-- 2026-07-12 review: pass-4 red-team REVISE (full whole-plan review; 2 med, 2 low, 1 accept) — see reviews/pass-4.md
-- 2026-07-12 drafting: pass-4 full red-team REVISE — returned to PLAN; approval superseded pending revisions
-- 2026-07-12 drafting: revised — #85 → new Epic 5 (yf-markdown-format skill), keeps lint validate-only (C1); C2/C3/C4 fixed
-- 2026-07-12 review: pass-5 red-team APPROVE (C1-C5 resolved+verified; 1 low-med C6 folded in) — see reviews/pass-5.md
-- 2026-07-12 ready-for-approval: ready-check green — pass-5 red-team APPROVE + audit pass (#85→Epic 5 restructure)
-- 2026-07-12 approved: operator approved (pass-5: #85→yf-markdown-format Epic 5)
-- 2026-07-13 drafting: reopened: fold convert_wikilinks refactor (lint→yf-markdown-format) into Epic 5 — clean flag-side/fix-side split
-- 2026-07-13 review: pass-6 red-team REVISE (1 med blocking: incomplete de-list list; 1 low accept) — see reviews/pass-6.md
-- 2026-07-13 drafting: revised — de-list list now grep-complete (lint README/root README/skill-authoring) per pass-6 C1
-- 2026-07-13 review: pass-7 red-team APPROVE (C1 resolved+verified grep-complete; 1 low folded in) — see reviews/pass-7.md
-- 2026-07-13 ready-for-approval: ready-check green — pass-7 APPROVE + audit pass (convert_wikilinks→format refactor)
-- 2026-07-13 approved: operator approved (pass-7: convert_wikilinks→yf-markdown-format; lint now truly validate-only)
-- 2026-07-15 intake: epic yf-mol-a1f poured
-- 2026-07-15 executing: start gate resolved
-- 2026-07-15 reconciling: post-execution reconciliation; bead DAG drained (22/22 issues closed)
-- 2026-07-15 complete: plan complete — 22 issues, 6 upstream issues reconciled, merged + pushed
 
 ## Objective
 Markdown tooling improvements: fix ML003 title parsing (#81), add un-escaped-markup lint rule (#48), bless alt/title image convention across lint+pdf (#46), document+advise CriticMarkup PDF hazard (#49), add a new markdown-html skill (#50), and add a new `yf-markdown-format` skill — **the autofix side of `yf-markdown-lint`** — that absorbs the strict GFM table aligner (`md_table_align.py`, #85) **and** the existing Obsidian→GFM wiki-link migrator (`convert_wikilinks.py`), keeping `yf-markdown-lint` genuinely validate-only

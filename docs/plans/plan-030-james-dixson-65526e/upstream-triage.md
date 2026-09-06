@@ -1,3 +1,9 @@
+---
+type: Reference
+okf_spec: OKF-PLAN
+description: 'Upstream Issue Triage: yf-plan CI/infra/release completion criterion
+  REQ-PLAN-069'
+---
 # Upstream Issue Triage: yf-plan CI/infra/release completion criterion REQ-PLAN-069
 
 Instructions: For each issue, set disposition to: include, exclude, partial, supersede.
