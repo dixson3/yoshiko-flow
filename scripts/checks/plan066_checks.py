@@ -502,7 +502,11 @@ def sc_diagram_reads(root: Path, a) -> tuple[bool, str, dict]:
         if not block:
             missing.append(f"{slug}: no entry")
             continue
-        after = text[block.end():block.end() + 1200]
+        # INCLUDE THE HEADING ITSELF. The entries date themselves in the heading
+        # ("### `x.png` — 2026-09-05 — CLEAN"), which is the natural place to put it; a window
+        # starting AFTER the heading cannot see it, and reported the last section as undated
+        # while every section was dated.
+        after = text[block.start():block.end() + 1200]
         if not re.search(r"\b20\d\d-\d\d-\d\d\b", after):
             missing.append(f"{slug}: entry carries no date")
     return not missing, (f"{len(srcs)} diagram(s); "
