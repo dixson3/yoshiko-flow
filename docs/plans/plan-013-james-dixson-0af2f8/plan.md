@@ -1,4 +1,4 @@
-# Plan: Reconcile policy — local beads = active work only
+# Plan: Reconcile policy — local beads = active work only; non-active work lives upstream until pulled via a plan (yf-beads-hygiene reconcile pass + yf-beads-upstream land-the-plane hoist-and-remove)
 
 **ID:** plan-013-james-dixson-0af2f8
 **Author:** james-dixson

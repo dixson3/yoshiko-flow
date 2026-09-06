@@ -14,17 +14,6 @@ fingerprint: 4c58c5563ba3c9b0116993e63d62570a707dc8000c7fb2748ace325b37cd88fd
 **Status:** complete
 **Epic:** yf-mol-tmm
 **Fingerprint:** 4c58c5563ba3c9b0116993e63d62570a707dc8000c7fb2748ace325b37cd88fd
-**Phase log:**
-- 2026-07-19 scoping: initial scope captured
-- 2026-07-19 scoping: upstream #89 triaged (include); 3 scope decisions resolved (detection / enforcement / evidence)
-- 2026-07-19 drafting: plan v1 presented
-- 2026-07-19 review: plan v1 presented
-- 2026-07-19 review: pass-1 REVISE resolved (C1-C4); re-review
-- 2026-07-19 ready-for-approval: ready-check green — last red-team APPROVE (pass-2) + audit pass
-- 2026-07-19 approved: operator approved
-- 2026-07-19 intake: epic yf-mol-tmm poured
-- 2026-07-20 executing: start gate resolved
-- 2026-07-20 reconciling: post-execution reconciliation
 
 ## Objective
 

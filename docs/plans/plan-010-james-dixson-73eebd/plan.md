@@ -1,4 +1,4 @@
-# Plan: Rename skills to `yf-` prefix and build the `yf` Rust CLI
+# Plan: Rename skills to `yf-` prefix and build the `yf` Rust CLI — skill install/upgrade lifecycle, Homebrew distribution, replacing `install.{sh,py}`
 
 **ID:** plan-010-james-dixson-73eebd
 **Author:** James Dixson
