@@ -47,6 +47,13 @@ build and drifted the 19→20 count while touching **zero** `web/` files.
 ### Acceptance
 
 Local clean build, no deploy, per the issue's own acceptance. FULL validation tier: **79 rows, 0
-failing**. 23 of 24 plan criteria green at the time of writing.
+failing**. Success criteria: **27 total — 25 hold, 1 manual (the diagram human read), 1 pending
+the retrospective** at the time of writing.
+
+*(An earlier draft of this paragraph said "23 of 24". That was a count of the criteria **script's
+subcommands**, not of the **criteria** — two different sets, since three criteria do not route
+through that script. Correcting it here rather than quietly is the point: a counted-set claim
+drifting from its source of truth is the exact defect class this plan exists to close, and it
+recurred inside the plan that closes it.)*
 
 Plan bundle: `docs/plans/plan-066-james-dixson-e7fadb/`.
