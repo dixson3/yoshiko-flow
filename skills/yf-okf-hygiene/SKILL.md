@@ -189,10 +189,23 @@ the renamed README's File-map prose in `index.md`, which `reindex --write` canno
 **Two halt classes** (`hybrid-partial`, objective divergence), plus a phase-log-loss guard.
 Objective divergence **is** auto-resolvable, opt-in, via `--reconcile-objective`.
 
-**Read the rate against the population that remains.** The **31 legacy bundles / 7 divergent**
-figure is historical: the easy bundles were transformed long ago, and what is left is precisely
-the residue the guard fires on. Measured on the current population (plan-064 EXP-001): **8**
-legacy bundles, of which **7** halt on objective divergence — a rate of 7/8, not 7/31.
+**EVERY FIGURE BELOW IS A PROPERTY OF ONE CORPUS, NOT OF THIS TOOL. Do not size your own run
+from it.** The halt rate depends entirely on how the bundles you are transforming were authored,
+so a number measured elsewhere predicts nothing about your repository. Measured, `#322`: this
+paragraph once read *"measured over this repo"* without naming the repo, and an operator working
+in a different one mis-sized a real plan by **3.5x**.
+
+The numbers, each with its corpus named:
+
+| Corpus | Legacy bundles | Halt on objective divergence | Rate |
+| :-- | --: | --: | :-- |
+| `dixson3/yoshiko-flow`, historical (plan-029 era) | 31 | 7 | 7/31 |
+| `dixson3/yoshiko-flow`, current (plan-064 EXP-001) | 8 | 7 | **7/8** |
+
+**Read the rate against the population that remains.** The historical figure is not the current
+one: the easy bundles were transformed long ago, and what is left is precisely the residue the
+guard fires on — which is why the rate rose from 7/31 to 7/8 while the *count* of halts did not
+move. **Run `audit` against your own corpus and size from that.**
 
 **Crash-recoverable by MECHANISM, and NOT atomic.** `os.rename` onto a non-empty directory
 raises `OSError` (`ENOTEMPTY` — errno 66 on macOS, 39 on Linux), so the swap is **two renames

@@ -35,6 +35,7 @@ help:
 	@echo '   make html               (re)generate the site into output/         '
 	@echo '   make clean              remove the generated files                  '
 	@echo '   make devserver [PORT=8000]  serve + regenerate on change (local)    '
+	@echo '   make stopserver            stop it (kills the whole process group)  '
 	@echo '   make validate           production build into a throwaway dir       '
 	@echo '   make publish            generate using production settings          '
 	@echo '   make sync_installer     stage + upload install.sh (short TTL)       '
@@ -51,8 +52,34 @@ clean:
 	[ ! -d "$(VALIDATEDIR)" ] || rm -rf "$(VALIDATEDIR)"
 	[ ! -d "__pycache__" ] || rm -rf "__pycache__"
 
+# `set -m` puts pelican in ITS OWN process group, and .devserver.pgid records that group so
+# `stopserver` can kill the whole tree. This is #104, and the shape is forced by a measurement:
+# killing the `pelican -lr` PARENT leaves THREE children reparented to ppid=1, one still holding
+# the port. None of them carries "pelican" in argv, so `pkill pelican` misses every one.
+#
+# WITHOUT `set -m` THE PGID IS THE CALLING SHELL'S, and `kill -- -$PGID` would kill the
+# operator's own shell. The new-process-group step is the whole safety property, not a detail.
 devserver:
-	"$(PELICAN)" -lr "$(INPUTDIR)" -o "$(OUTPUTDIR)" -s "$(CONFFILE)" $(PELICANOPTS)
+	@set -m; \
+	"$(PELICAN)" -lr "$(INPUTDIR)" -o "$(OUTPUTDIR)" -s "$(CONFFILE)" $(PELICANOPTS) & \
+	echo $$! > "$(BASEDIR)/.devserver.pgid"; \
+	echo "devserver pgid $$(cat "$(BASEDIR)/.devserver.pgid") -> make stopserver"; \
+	wait $$!
+
+# Idempotent: a missing or stale pgid file is a no-op, not an error, so `stopserver` is safe to
+# run twice or after the server has already exited. Never `pkill pelican` — see above.
+stopserver:
+	@if [ -f "$(BASEDIR)/.devserver.pgid" ]; then \
+		PGID=$$(cat "$(BASEDIR)/.devserver.pgid"); \
+		if kill -0 -- -$$PGID 2>/dev/null; then \
+			kill -- -$$PGID && echo "stopped devserver process group $$PGID"; \
+		else \
+			echo "no live process group $$PGID (already stopped)"; \
+		fi; \
+		rm -f "$(BASEDIR)/.devserver.pgid"; \
+	else \
+		echo "no .devserver.pgid — devserver not running"; \
+	fi
 
 # Production build. Depends on stage_installer so install.sh is always in output/ before
 # the build — a phony target runs only ONCE per make invocation, so staging must precede
@@ -109,5 +136,5 @@ deploy: s3_upload sync_installer
 provision:
 	./scripts/provision_aws.sh
 
-.PHONY: help html clean devserver publish validate stage_installer sync_installer \
+.PHONY: help html clean devserver stopserver publish validate stage_installer sync_installer \
 	s3_upload invalidate deploy provision require-bucket
