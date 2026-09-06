@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-05
+- ready-for-approval: ready-check green — pass-4 red-team APPROVE + audit pass
+- review-pass: pass-4 red-team APPROVE (6 concerns, none high; C1 caught two pass-3 remedies cancelling each other)
 - judgement: not-fired — review-loop-check: 3/5 cycle(s), converging
 - review-pass: pass-3 red-team REVISE (11 concerns; 2 PHANTOM RESOLUTIONS from pass-2 — SC10 and R3 asserted fixed by four documents, never edited)
 - judgement: not-fired — review-loop-check: 2/5 cycle(s), converging

@@ -7,14 +7,14 @@ description: 'Regenerate user-facing website/docs (#317): unbreak the pelican bu
 id: plan-066-james-dixson-e7fadb
 author: james-dixson
 created: '2026-09-05'
-status: drafting
+status: ready-for-approval
 ---
 # Plan: Regenerate user-facing website/docs (#317): unbreak the pelican build, repair Class-A content defects at every site, and close the Class-B harvest/generation-pipeline defects
 
 **ID:** plan-066-james-dixson-e7fadb
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** drafting
+**Status:** ready-for-approval
 
 ## Objective
 Regenerate user-facing website/docs (#317): unbreak the pelican build, repair Class-A content defects at every site, and close the Class-B harvest/generation-pipeline defects
@@ -158,8 +158,8 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 0.1
 - Issue 0.3: Record the `not_checked` declaration convention in the spec: which claim classes a mechanical gate covers, which remain prose-judged, and that the split must be stated rather than implied.
   - depends-on: 0.1
-- Issue 0.4: Author `scripts/checks/plan066_checks.py` — one named subcommand per Success Criterion, each exiting 0/1, following the `plan065_checks.py` precedent. This is what makes the criteria EXECUTABLE rather than prose (pass-1 C1: `doc_lint` scored 17/17 non-conformant). Three implementation mandates, each from a measured failure: (a) `argparse(..., choices=sorted(SUBCOMMANDS))` so an unknown verb exits **2** (verified precedent) — a permissive dispatcher exits 0 and produces #364's silent false PASS; (b) **never pipe pelican** — `| tail` masks exit 1 and `${PIPESTATUS[@]}` is empty under zsh; use no pipe, or `set -o pipefail`; (c) the build verb must not hardcode `web/.venv`, which is absent from an execute worktree.
-- Issue 0.4b: Author a `verbs-match` subcommand asserting `set(plan.md Verification verbs) == set(SUBCOMMANDS) - {'verbs-match'}`. **The carve-out is required, not cosmetic** (pass-3 C3): `verbs-match` is itself a subcommand, so a bare equality can never hold. Discharged by SC26 — the guard must be RUN, not merely written.
+- Issue 0.4: Author `scripts/checks/plan066_checks.py` — one named subcommand per Success Criterion, each exiting 0/1, following the `plan065_checks.py` precedent. This is what makes the criteria EXECUTABLE rather than prose (pass-1 C1: `doc_lint` scored 17/17 non-conformant). Three implementation mandates, each from a measured failure: (a) `argparse(..., choices=sorted(SUBCOMMANDS))` so an unknown verb exits **2** (verified precedent) — a permissive dispatcher exits 0 and produces #364's silent false PASS; (b) **never pipe pelican** — `| tail` masks exit 1 and `${PIPESTATUS[@]}` is empty under zsh; use no pipe, or `set -o pipefail`; (c) the build verb must not hardcode `web/.venv`, which is absent from an execute worktree; (d) **the site-specific verbs (`harness-sites`, `backend-sites`, `group-membership`, `formulas-diagram`) must assert their ENUMERATED SITES AND LITERALS BY NAME** — `README.md:417`, the workflows group, the five formula names — **not merely re-invoke the Epic-2 checker** (pass-4 C6). A verb that delegates asserts nothing beyond SC5, and the site language in SC7/SC8/SC9/SC23 becomes prose no criterion checks.
+- Issue 0.4b: Author a `verbs-match` subcommand asserting `set(plan.md Verification verbs) == set(SUBCOMMANDS)` — **the bare equality, with NO carve-out** (pass-4 C1). Pass-3 added a `- {'verbs-match'}` carve-out on the reasoning that `verbs-match` is a subcommand appearing in no criterion; the *same* remediation added **SC26**, whose Verification cell invokes it. The two remedies cancel: with SC26 present the verb IS in the table, so the carved-out equality is unsatisfiable by construction and would surface only at completion, blocking close. The bare equality is exactly right **because** SC26 runs the verb — the invariant holds only while a criterion executes it, which is what SC26 guarantees.
   - depends-on: 0.4
 - Issue 0.5: Add the `gate-plan066-amendment` and req-coverage rows to `CHANGE-VALIDATION.md` (§1 recipe + §3 globs for `docs/plans/plan-066-*/**` and `skills/yf-drift-check/spec/**`), restoring the four-plan precedent (060, 062, 063, 064) that pass-1 C7 found broken. **Issue 0.5 DRAFTS these rows; Issue 8.4b LANDS them at land time, post-merge on `main`.** Pass-2 C8: `CHANGE-VALIDATION.md`'s own §1 banner declares a row reading `docs/plans/<in-flight-plan>/` **structurally unsatisfiable** from an execute worktree, and the existing `gate-plan049-*` rows are satisfiable only because those plans have LANDED. Adding them earlier would be the unsatisfiable-row class this repo already removed once.
   - depends-on: 0.1
@@ -228,9 +228,9 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 5.3
 
 ### Epic 6: Editorial coverage and the concepts glossary
-- Issue 6.1: Document the real `land` mechanism accurately — a `plan_manager.py` verb and a lander agent, NOT a `/yf-plan` slash command. Verify against `SKILL.md:137-143` before writing. **You MAY name the wrong form in order to correct it** — SC13's checker ignores negated mentions (pass-3 C6). What must not appear is an AFFIRMATIVE claim that the slash form exists.
+- Issue 6.1: In **`web/content/skills/yf-plan.md`** (the site #317 cites at `:96-102`), document the real `land` mechanism accurately — a `plan_manager.py` verb and a lander agent, NOT a `/yf-plan` slash command. Verify against `SKILL.md:137-143` before writing. **You MAY name the wrong form in order to correct it** — SC13's checker ignores negated mentions (pass-3 C6). What must not appear is an AFFIRMATIVE claim that the slash form exists.
   - depends-on: 1.2
-- Issue 6.2: Document retrospectives, the escalation surface (a yf-plan mechanism, NOT a `yf-judgement` skill — no such skill ships) and the autonomy levels (`--checkpoint`, `--autonomous`, `--sweep-gates`).
+- Issue 6.2: In **`web/content/skills/yf-plan.md`**, document retrospectives, the escalation surface (a yf-plan mechanism, NOT a `yf-judgement` skill — no such skill ships) and the autonomy levels (`--checkpoint`, `--autonomous`, `--sweep-gates`).
   - depends-on: 1.2
 - Issue 6.3: Document the `closable` verb on `web/content/skills/yf-beads-upstream.md`.
   - depends-on: 1.2
@@ -257,7 +257,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 8.1, 8.2
 - Issue 8.4: File follow-on issues tagged by class — the zero-byte-page guard hole, the `e-okf-version-pin` category defect if not fixed here, and any pipeline defect found outside the four in-scope Class-B items (D5).
   - depends-on: 8.3
-- Issue 8.4b: **AT LAND, post-merge on `main`**, add the `gate-plan066-amendment` and req-coverage rows Issue 0.5 drafted. Pass-3 C5: 0.5 is an Epic-0 bead a coordinator dispatches immediately, but its rows are structurally unsatisfiable from an execute worktree — so 0.5 DRAFTS them and this issue LANDS them. Closing 0.5 alone would be a no-op.
+- Issue 8.4b: **AT LAND, post-merge on `main`**, add the `gate-plan066-amendment` and req-coverage rows Issue 0.5 drafted. **HARD GUARD (pass-4 C2): halt unless `git rev-parse --abbrev-ref HEAD` is `main` AND the plan branch is merged.** Nothing else enforces the timing — this is an ordinary DAG bead a coordinator dispatches inside the execute worktree once 8.3 closes, and running it there adds rows naming `docs/plans/plan-066-*/`, which `CHANGE-VALIDATION.md:63-74` declares structurally unsatisfiable from a worktree (plan-060's `gate-plan060-figures` is the measured case FULL tier caught mid-execution). The issue is on the deliberately-uncovered list, so no criterion would detect a mis-timed run. Pass-3 C5: 0.5 is an Epic-0 bead a coordinator dispatches immediately, but its rows are structurally unsatisfiable from an execute worktree — so 0.5 DRAFTS them and this issue LANDS them. Closing 0.5 alone would be a no-op.
   - depends-on: 0.5, 8.3
 - Issue 8.5: Reconcile upstream — update #317, #104, #127, #363, #322 per disposition; leave #247 and #263 open as partials. Fill the `Resolved By` column for all five `include` rows before close (pass-1 C14: R2a promotes an empty cell to `E` severity at `reconciling`).
   - depends-on: 8.4
@@ -307,7 +307,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
 | :-- | :-- | :-- | :-- |
 | R1 | A checker returns a **false green** and the plan reports coverage it never had. **Measured, not hypothetical** — EXP-001's checker B did exactly this against 15 real defects. | high | Code-side negative control per checker, gated (Capability Gate: Checkers are fail-capable). Issue 4.2 additionally asserts every #317 row appears in the produced inventory. |
 | R2 | "The build passes" is satisfied by an **empty file** — the guard is existence-only. | high | Issue 1.2's criterion is conjunctive: exit 0 under `--fatal warnings` PLUS content assertions on the emitted HTML. |
-| R3 | A verification snippet pipes pelican through `tail` and reports green on a broken build; the reflexive `${PIPESTATUS[@]}` fix is **silently empty under zsh**. | high | **AMENDED after pass-3 C7 — the old cell claimed enforcement "in every criterion", which was FALSE: 0 of 26 criteria mention pelican or a pipe, since every Verification cell delegates to `plan066_checks.py`.** What actually enforces it: Issue 0.4 mandate (b) (no pipe in the script; `set -o pipefail` if unavoidable) and the Build-green gate's Instructions. `${pipestatus[@]}` is the zsh spelling. |
+| R3 | A verification snippet pipes pelican through `tail` and reports green on a broken build; the reflexive `${PIPESTATUS[@]}` fix is **silently empty under zsh**. | high | **AMENDED after pass-3 C7 — the old cell claimed enforcement "in every criterion", which was FALSE: no criterion embeds a piped pelican invocation, because every Verification cell delegates to `plan066_checks.py`.** What actually enforces it: Issue 0.4 mandate (b) (no pipe in the script; `set -o pipefail` if unavoidable) and the Build-green gate's Instructions. `${pipestatus[@]}` is the zsh spelling. |
 | R4 | The plan repairs #317's stale table and misses the ~4 sites and 11 extra path cells it does not list. | high | D1: the inventory is checker-derived (4.1); #317's table is the negative control (4.2), never the work list. |
 | R5 | Manifest edits land but the engine still never dispatches, so new edges inherit the measured 0-catch rate. | high | D6: the mechanical gate (Epic 2) is the primary deliverable, wired into CHANGE-VALIDATION's FULL tier, which IS mechanically enforced by `_validate_merged` (fail/exit 3). **AMENDED after pass-1 C12:** that binds the yf-plan LAND PATH ONLY — CI runs no tier and the FAST trigger is itself prose. Issue 2.8 adds the CI job that covers direct non-plan commits. |
 | R6 | A §6 row is added naming an edge that does not exist, and silently covers nothing. | med | Issue 3.1 enforces node → edge → §6 row ordering explicitly. |
@@ -350,7 +350,7 @@ at 17/17 non-conformant under `doc_lint`. The one irreducibly manual row says so
 | SC18 | The plan declared which claim classes the mechanical gate does NOT cover | `uv run scripts/checks/plan066_checks.py notchecked-declared` → exit 0 | 2.7 |
 | SC19 | The plan repaired the three adjacent surfaces it took on (#363, #322, #104) | `uv run scripts/checks/plan066_checks.py adjacent-surfaces` → exit 0 | 7.1, 7.2, 7.3 |
 | SC20 | The new coverage fires OUTSIDE the yf-plan land path — a CI job invokes all four checker scripts BY NAME and is REACHED on every PR and every push to `main`. **Do NOT add a `paths:` filter** (pass-3 C2): `ci.yml` runs unfiltered today, so a filtered job would give strictly LESS coverage. The criterion asserts the job is not gated behind `if: false` or a filter excluding the source side | `uv run scripts/checks/plan066_checks.py ci-wired` → exit 0 | 2.8 |
-| SC26 | The criteria table's verb set agrees with the script's subcommands — the guard over the 22 criteria routing through one script is itself EXECUTED, not merely authored (pass-3 C3: 0.4b landed the subcommand but no criterion ran it) | `uv run scripts/checks/plan066_checks.py verbs-match` → exit 0 | 0.4, 0.4b |
+| SC26 | The criteria table's verb set agrees with the script's subcommands — the guard over every criterion routing through one script is itself EXECUTED, not merely authored (pass-3 C3: 0.4b landed the subcommand but no criterion ran it). The count is deliberately not written as a numeral — pass-4 C3 found two hardcoded ones already stale, in a plan that ships a count-drift checker | `uv run scripts/checks/plan066_checks.py verbs-match` → exit 0 | 0.4, 0.4b |
 | SC25 | `CHANGE-VALIDATION.md` gained §1 recipe rows for all FOUR checkers NAMED EXPLICITLY — `check_web_counts.py`, `check_web_harness_paths.py`, `check_skill_page_contract.py`, `check_web_backend_claim.py` (not a `check_web_*` glob: the third lacks that prefix, so a glob silently drops it — pass-3 C4) — AND §3 globs covering BOTH the doc side (`web/content/**`, `README.md`, `AGENTS.md`) and the SOURCE side (`skills/*/SKILL.md`, `skills/*/formulas/**`, `yf/src/harness_desc.rs`). Measured at ZERO `web/` rows before this plan | `uv run scripts/checks/plan066_checks.py cv-rows` → exit 0 | 2.6, 2.7 |
 | SC21 | The plan repaired the removed-feature claims at every site, INCLUDING the `SKILL.md` copy — fixing the page alone would leave `e-skillspec-skillmd` unexamined — Asserts `assess <corpus>` absent from `skills/yf-okf.md`, and the "migration is the only write path" claim corrected at BOTH `yf-okf.md:56` and `skills/yf-okf/SKILL.md:213` | `uv run scripts/checks/plan066_checks.py removed-features` → exit 0 | 4.6 |
 | SC22 | The plan repaired the two PROSE-ONLY rows by hand and FLAGGED rather than "fixed" the unverifiable ones — Asserts the `harness-tune.md` sha256 qualifier present, the lint-subset count reads 7 incl. `ML010`, and `why.md`'s competitor table carries an explicit unverifiable marker | `uv run scripts/checks/plan066_checks.py prose-rows` → exit 0 | 4.7, 4.8 |
@@ -371,11 +371,10 @@ where no plan criterion can observe it.
 **Issues 0.4 and 0.4b were on this list and have been REMOVED (pass-3 C3/C8).** The old note claimed
 0.4 was "covered by SC-verb agreement via 0.4b" — false: 0.4b landed the `verbs-match` subcommand but
 **no criterion ever ran it**, so the guard over the 22 criteria routing through one script was itself
-unexecuted. **SC26** now discharges both.
+unexecuted. **SC26** now discharges both. (Counts are stated as derived, not as numerals — see pass-4 C3.)
 
 **Issue 2.6 was on this list and has been REMOVED (pass-2 C6).** It is the plan's *primary*
 deliverable — the CHANGE-VALIDATION wiring D6 names — not an instrument-building step. The pass-1
 C3 and C11 resolutions interacted to hide it: C11 resequenced it to the end, C3's uncovered-list
-swept it up, and no criterion asserted the rows landed. SC25 now does. Issue 0.4 is likewise
-covered, by SC-verb agreement via 0.4b.
+swept it up, and no criterion asserted the rows landed. SC25 now does.
 
