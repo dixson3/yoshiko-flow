@@ -74,8 +74,11 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `web-skill-pages-plugin` | `web/plugins/skill_pages.py` (the `GROUP_ORDER` / `GROUP_LABELS` / `GROUP_BLURBS` group registry) | source | derived | required |
 | `skill-page` | `web/content/skills/*.md` (the authored per-skill web-page prose body) | doc | derived | optional |
 | `web-formulas` | `web/content/pages/formulas.md` (the shipped-formula table and its count claim) | doc | derived | required |
-| `web-cli-surface` | `web/content/pages/install.md`, `web/content/pages/harness-tune.md` (the flags and harness ids these pages teach) | doc | derived | required |
-| `cli-surface` | `yf/src/cli.rs` (the clap-declared verbs and flags), `yf/profiles/*.json` | source | derived | required |
+| `web-cli-surface` | `web/content/pages/install.md`, `web/content/pages/harness-tune.md`, `web/content/pages/architecture.md` (its harness matrix), `README.md` (its harness matrix), `AGENTS.md` (its resolver-roots prose) (the flags, harness ids and install roots these documents teach) | doc | derived | required |
+| `cli-surface` | `yf/src/cli.rs` (the clap-declared verbs and flags), `yf/profiles/*.json`, `yf/src/harness_desc.rs` (the `DESCRIPTORS` install-root + `name_transform` table) | source | derived | required |
+| `web-diagram-src` | `web/content/images/*.d2` (the authored diagram SOURCES the published `.png` files are rendered from) | doc | derived | required |
+| `web-content-prose` | `web/content/pages/*.md`, `web/content/skills/*.md`, `web/content/cards/*.md`, `web/content/home/*.md` (the authored site prose) | doc | derived | required |
+| `upstream-backend-truth` | `skills/yf-beads-upstream/protocols/UPSTREAM_TRACKING.md`, `skills/yf-beads-upstream/scripts/upstream.py` (which upstream backends are actually implemented, and by which mechanism) | source | fixed | required |
 
 ## 2. Source-of-Truth Edges
 
@@ -122,12 +125,19 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-manifest-update-copy-plan` | `manifest-update-canonical` | `manifest-update-copy-plan` | contract |
 | `e-manifest-update-copy-research` | `manifest-update-canonical` | `manifest-update-copy-research` | contract |
 | `e-manifest-update-copy-skill-authoring` | `manifest-update-canonical` | `manifest-update-copy-skill-authoring` | contract |
-| `e-okf-version-pin` | `okf-baseline-spec` | `okf-canonical` | value-equal |
+| `e-okf-version-pin` | `okf-baseline-spec` | `okf-canonical` | contract |
 | `e-okf-copy-plan` | `okf-canonical` | `okf-copy-plan` | contract |
 | `e-okf-copy-research` | `okf-canonical` | `okf-copy-research` | contract |
 | `e-okf-copy-incubator` | `okf-canonical` | `okf-copy-incubator` | contract |
 | `e-okf-copy-okf` | `okf-canonical` | `okf-copy-okf` | contract |
 | `e-web-skill-counts` | `frontmatter-contract` | `web-skill-facts` | contract |
+| `e-web-diagram-counts` | `frontmatter-contract` | `web-diagram-src` | contract |
+| `e-web-diagram-cli` | `cli-surface` | `web-diagram-src` | cross-ref |
+| `e-web-diagram-formulas` | `formula` | `web-diagram-src` | contract |
+| `e-web-backend-claim` | `upstream-backend-truth` | `web-content-prose` | contract |
+| `e-web-backend-diagram` | `upstream-backend-truth` | `web-diagram-src` | contract |
+| `e-web-prose-status` | `frontmatter-contract` | `web-content-prose` | contract |
+| `e-skill-page-sections` | `skill-md` | `skill-page` | required-section |
 | `e-web-skill-groups` | `frontmatter-contract` | `web-skill-pages-plugin` | contract |
 | `e-skill-page-desc` | `skill-md` | `skill-page` | behavioral |
 | `e-skill-page-readme` | `skill-readme` | `skill-page` | behavioral |
@@ -181,11 +191,17 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `e-manifest-update-copy-plan` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-plan/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-plan`. |
 | `e-manifest-update-copy-research` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-research/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-research`. |
 | `e-manifest-update-copy-skill-authoring` | `value-equal` | as `e-manifest-update-copy-beads-upstream`, for `skills/yf-skill-authoring/scripts/manifest_update.py`: byte-identical to `_shared/manifest_update.py`. FAIL on `manifest-update-copy-skill-authoring`. |
-| `e-okf-version-pin` | `value-equal` | the OKF baseline version is a single fact with **two surfaces**, and they must agree: the version `spec/OKF-BASELINE.md` declares (its `# OKF-BASELINE — upstream Open Knowledge Format vX.Y` heading and its `Pinned to `okf_version: X.Y`` status line) must equal the `okf_version = "X.Y"` constant in `_shared/okf.py` (and therefore, via the `e-okf-copy-*` edges, in all four vendored copies). **The baseline is fixed authority** (SPEC `REQ-OKF-FAM-005`): on a mismatch the **engine constant** is the drifted node (FAIL on `okf-canonical`), unless the baseline document itself is stale against the vendored upstream spec, which is a CONFLICT under §7. **Why this edge exists (plan-046 Issue 2.8):** `OKF-BASELINE.md` already *declared* a coupling to the baked-in ruleset (SPEC `REQ-OKF-FAM-002`), and **no edge encoded it** — a v0.1→v0.2 edit to the baseline fired `e-spec-compliance` against `SKILL.md` but nothing that inspected `okf_version` at all. |
+| `e-okf-version-pin` | `value-equal` | *(§2 Check Category corrected to `contract` by plan-066 Issue 3.6 — it previously read `value-equal`, a §3 CONTRACT term outside the §2 vocabulary `{cross-ref, contract, behavioral, required-section}`, so the edge selected NO check engine and was vacuous. `value-equal` is correct HERE, in the Contract column.)* the OKF baseline version is a single fact with **two surfaces**, and they must agree: the version `spec/OKF-BASELINE.md` declares (its `# OKF-BASELINE — upstream Open Knowledge Format vX.Y` heading and its `Pinned to `okf_version: X.Y`` status line) must equal the `okf_version = "X.Y"` constant in `_shared/okf.py` (and therefore, via the `e-okf-copy-*` edges, in all four vendored copies). **The baseline is fixed authority** (SPEC `REQ-OKF-FAM-005`): on a mismatch the **engine constant** is the drifted node (FAIL on `okf-canonical`), unless the baseline document itself is stale against the vendored upstream spec, which is a CONFLICT under §7. **Why this edge exists (plan-046 Issue 2.8):** `OKF-BASELINE.md` already *declared* a coupling to the baked-in ruleset (SPEC `REQ-OKF-FAM-002`), and **no edge encoded it** — a v0.1→v0.2 edit to the baseline fired `e-spec-compliance` against `SKILL.md` but nothing that inspected `okf_version` at all. |
 | `e-okf-copy-plan` | `value-equal` | `okf.py` is authored once as `_shared/okf.py` (canonical, fixed authority) and **vendored whole-file** — regenerated verbatim by `_shared/sync.py` — to `skills/yf-plan/scripts/okf.py`. The copy must be **byte-identical** to canonical (a 100%-shared file carries no in-band markers). A divergent copy is the copy drifting (FAIL on `okf-copy-plan`), never the canonical. `_shared/sync.py --check` is the CI/manual backstop. |
 | `e-okf-copy-research` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-research/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-research`. |
 | `e-okf-copy-incubator` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-incubator/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-incubator`. |
 | `e-okf-copy-okf` | `value-equal` | as `e-okf-copy-plan`, for `skills/yf-okf/scripts/okf.py`: byte-identical to `_shared/okf.py`. FAIL on `okf-copy-okf`. |
+| `e-web-diagram-counts` | `value-equal` | the counted-set claims in `web/content/images/*.d2` — the total `embedded skills (N)`, each `<group> group (N)`, AND the enumerated MEMBER IDS inside each group's label — equal the tallies from `skills/*/SKILL.md` `skill-group` frontmatter. **The membership half is not optional:** a box whose count is right and whose membership is wrong is the measured defect this edge exists for — `architecture.d2`'s `beads group` carried the count 8 and listed the three *workflows* skills. **MECHANICALLY REALIZED** by `scripts/checks/check_web_counts.py` (REQ-CHECK-008(c)); its exit code is the verdict. `frontmatter-contract` is the source of truth: a mismatch is the **diagram** drifting. |
+| `e-web-diagram-cli` | `value-equal` | the install-root path cells and `name_transform` assertions in `web/content/images/*.d2` equal the `(scope, field)` values `yf/src/harness_desc.rs` `DESCRIPTORS` declares — `user_skills_subpath` for a `~/`-anchored cell, `project_skills_subpath` for a `<root>/`-anchored one. **`surface_dir` values are NOT skills subpaths** and must not be flagged: `.config/opencode` and `.pi/agent` are correct surface dirs, and only their `/skills` forms are retired. **MECHANICALLY REALIZED** by `scripts/checks/check_web_harness_paths.py`. `cli-surface` is the source of truth: a mismatch is the **diagram** drifting. |
+| `e-web-diagram-formulas` | `field-set-equal` | the shipped-formula count and the formula names depicted in `web/content/images/*.d2` equal the set of `skills/*/formulas/*.formula.toml` (staged copies under `.beads/formulas/` **excluded**). This edge exists because `formulas.d2` asserted **three** shipped formulas at two lines while **five** shipped — and the page beside it already said five, so the two surfaces of one fact disagreed with each other. **MECHANICALLY REALIZED** by `scripts/checks/check_web_counts.py`. `formula` is the source of truth. |
+| `e-web-backend-claim` | `value-equal` | no document in `web-content-prose` offers a CHOICE of upstream tracking backends. **GitHub is the only implemented backend**, writes are gh-direct, and `UPSTREAM_TRACKING.md` states that no `bd <backend>` write command is issued at all — so `(GitHub, GitLab, or Jira)`, a `github \| gitlab \| jira` enum, or a `bd <backend> push` verb are all affirmative claims of a capability that does not exist. A mention of the `gh` / `glab` **CLI tools** is NOT a backend claim and must not be flagged. **MECHANICALLY REALIZED** by `scripts/checks/check_web_backend_claim.py`. `upstream-backend-truth` is fixed authority: a mismatch is the **prose** drifting. |
+| `e-web-backend-diagram` | `value-equal` | as `e-web-backend-claim`, for `web/content/images/*.d2`. Split from it because the two derived nodes are different artifact kinds with different repair actions — repairing a `.d2` additionally requires a re-render under the pinned d2 version, which prose does not. Measured: `architecture.d2` was the 4th of five wrong sites, and it was invisible to every `.md`-scoped edge. |
+| `e-web-prose-status` | `value-equal` | the counted-set and path/identifier claims in `web-content-prose` — skill totals, per-group counts and members, harness install roots, `name_transform` assertions — equal the same sources of truth `e-web-skill-counts` and `e-web-cli-surface` use, over the WIDER node set (`cards/`, `home/`, and every `pages/` and `skills/` document, not only the two `web-cli-surface` names). This is the merge of Class-B items 1 and 3: `web/content/**` previously fanned out to `e-status-values` ALONE — a plan-status-literal subset check — so `lifecycle.md`, `workflows.md`, `usage.md`, `glossary.md`, `managed-files.md`, `beads-concepts.md` and `why.md` had no content coverage at all. **MECHANICALLY REALIZED** by `check_web_counts.py` + `check_web_harness_paths.py`, whose corpus is a PARAMETER covering exactly this node set plus `README.md` and `AGENTS.md`. |
 | `e-web-skill-counts` | `value-equal` | the skill-count claims in `web/content/pages/architecture.md` equal the real tallies from `skills/*/SKILL.md`, counted by each skill's `skill-group` frontmatter. The total "**N skills**" equals the number of `skills/*/` dirs carrying a `SKILL.md`, and each per-group count (`workflows (N)` / `beads (N)` / `utility (N)` / `markdown (N)`) equals the number of skills whose `skill-group` is that group. The grouped `/skills/` index, the per-skill "At a glance" block, the skill count, and the `SKILL_NAV` sidebar stay auto-derived from the same frontmatter and never drift; the per-skill page **prose** is authored (`web/content/skills/*.md`) and guarded separately by the `e-skill-page-*` edges. `frontmatter-contract` is the source of truth: a mismatch is the **web page** drifting (FAIL on `web-skill-facts`), never the skills. |
 | `e-web-skill-groups` | `field-set-subset` | every `skill-group` value present across `skills/*/SKILL.md` (currently `workflows`, `beads`, `utility`, `markdown`) is represented in the `web/plugins/skill_pages.py` group registry (`GROUP_ORDER`, `GROUP_LABELS`, and `GROUP_BLURBS`), so every group renders on the generated `/skills/` index and left-nav with a defined order + label + blurb rather than being silently appended unlabeled. A `skill-group` value missing from that registry is the **plugin** drifting (FAIL on `web-skill-pages-plugin`), never the skills. |
 | `e-skill-page-desc` | `field-set-subset` | the authored `web/content/skills/<name>.md` prose does not **contradict** the `skills/<name>/SKILL.md` (name-paired by the shared `*`): its factual claims about the skill — invocation, when-it-fires / when-to-skip triggers, dependencies, and behavior — must agree with the `SKILL.md` `description` and body. Read the authored page and the SKILL.md, compare only affirmative factual claims. Subset semantics: a page that **curates or omits** repo-dev detail PASSes — only an affirmative contradiction FAILs. The mechanical "At a glance" block, `/skills/` index, and `SKILL_NAV` are generated by `skill_pages.py` from frontmatter and are explicitly **out of scope** (they cannot drift). `skill-md` is the source of truth: a contradiction is the **authored page** drifting (FAIL on `skill-page`), never the SKILL.md. Report-only and INCONCLUSIVE-tolerant. |
@@ -206,6 +222,8 @@ The graph this manifest declares — nodes, source-of-truth edges, and the four 
 | `template` | referenced by the skill's SKILL.md or a script |
 | `protocol-rule` | referenced by the skill's SKILL.md (the SKILL points to its companion rule; the rule points back to the SKILL procedure) |
 | `skill-readme` | every `skills/*/` dir must contain one `README.md` |
+| `skill-page` | every `skills/*/` dir must have one authored `web/content/skills/<name>.md`. **Checked by SET DIFFERENCE, not edge pairing** (`REQ-CHECK-004(a)` / `REQ-ENGINE-008`): Set A = dirnames of `skills/*/SKILL.md`, Set B = stems of `web/content/skills/*.md`, `A \\ B` FAILs and `B \\ A` is advisory orphans. Edge pairing computes the INTERSECTION and structurally cannot see this. **MECHANICALLY REALIZED** by `scripts/checks/check_skill_page_contract.py`, whose exit code is the verdict; `--min-skills` is the vacuity floor. |
+| `web-diagram-src` | every `web/content/images/*.d2` must have a sibling rendered `*.png`; the render is pinned to the d2 version recorded in the commit that produced it |
 
 ## 5. Required-Section Contracts
 
@@ -220,6 +238,7 @@ source that makes each mandatory.
 | Usage | `skill-readme` | SKILL.md invocation list |
 | Phase/Behavior model | `skill-readme` | SKILL.md Phase Model / behavior section |
 | File layout | `skill-readme` | actual `find skills/<skill> -type f` listing |
+| Authored prose body | `skill-page` | the page's content BELOW the generated `<hr>`. `skill_pages.py`'s guard is EXISTENCE-ONLY — a zero-byte page satisfies it and builds green, rendering the generated "At a glance" block with no body and no `<hr>` at all. So existence is not the contract; a non-trivial authored body is. |
 | Skills index table | `project-readme` | one row per skill |
 | Prerequisites table | `project-readme` | union of all skill prerequisites |
 | Install instructions | `project-readme` | the actual `yf harness skills install` / `yf self install` flags in `yf/src/cli.rs` |
@@ -233,19 +252,27 @@ content-agreement axis).
 
 | Changed-Path Glob | Scopes To |
 |:------------------|:----------|
-| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd`, `e-protocol-rule`, `e-web-skill-counts`, `e-web-skill-groups`, `e-skill-page-desc` |
+| `skills/*/SKILL.md` | `e-spec-compliance`, `e-skill-script-cli`, `e-formula-name`, `e-agent-ref`, `e-template-ref`, `e-json-contract`, `e-status-values`, `e-formula-vars`, `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-frontmatter`, `e-skillspec-skillmd`, `e-protocol-rule`, `e-web-skill-counts`, `e-web-skill-groups`, `e-skill-page-desc`, `e-skill-page-sections`, `e-web-diagram-counts`, `e-web-prose-status`, `skill-page` |
 | `skills/*/spec/*.md` | `e-spec-compliance`, `e-spec-agent`, `e-status-values` |
 | `skills/*/agents/*.md` | `e-agent-ref`, `e-spec-agent` |
 | `skills/yf-plan/scripts/plan_manager.py` | `e-status-values` |
-| `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars`, `e-web-formula-set` |
+| `skills/*/formulas/*.toml` | `e-formula-name`, `e-formula-vars`, `e-web-formula-set`, `e-web-diagram-formulas` |
 | `web/content/pages/formulas.md` | `e-web-formula-set` |
 | `yf/src/cli.rs` | `e-web-cli-surface` |
+| `yf/src/harness_desc.rs` | `e-web-cli-surface`, `e-web-diagram-cli`, `e-web-prose-status` |
 | `yf/profiles/*.json` | `e-web-cli-surface` |
 | `web/content/pages/install.md` | `e-web-cli-surface` |
 | `web/content/pages/harness-tune.md` | `e-web-cli-surface` |
 | `_shared/doc_lint.py` | `e-status-values` |
 | `skills/yf-herdr/**` | `e-status-values` |
-| `web/content/**` | `e-status-values` |
+| `web/content/**` | `e-status-values`, `e-web-prose-status`, `e-web-backend-claim` |
+| `web/content/images/*.d2` | `e-web-diagram-counts`, `e-web-diagram-cli`, `e-web-diagram-formulas`, `e-web-backend-diagram`, `web-diagram-src` |
+| `web/content/pages/*.md` | `e-web-prose-status`, `e-web-backend-claim`, `e-web-cli-surface` |
+| `web/content/cards/*.md` | `e-web-prose-status` |
+| `web/content/home/*.md` | `e-web-prose-status` |
+| `AGENTS.md` | `e-web-cli-surface` |
+| `skills/yf-beads-upstream/protocols/UPSTREAM_TRACKING.md` | `e-web-backend-claim`, `e-web-backend-diagram` |
+| `skills/yf-beads-upstream/scripts/upstream.py` | `e-web-backend-claim`, `e-web-backend-diagram` |
 | `skills/*/scripts/*.{sh,py}` | `e-skill-script-cli`, `e-json-contract` |
 | `_shared/active_set.py` | `e-active-set-copy-hygiene`, `e-active-set-copy-upstream` |
 | `_shared/json_extract.py` | `e-json-extract-copy-plan`, `e-json-extract-copy-research` |
@@ -274,7 +301,7 @@ content-agreement axis).
 | `skills/*/templates/*` | `e-template-ref` |
 | `skills/*/protocols/*.md` | `e-protocol-rule` |
 | `skills/*/README.md` | `e-install-url`, `e-readme-layout`, `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table`, `e-index-desc`, `e-prereqs-union`, `e-skill-diagram-ref`, `e-skill-page-readme` |
-| `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref`, `e-spec-readme`, `e-guardrails-readme` |
+| `README.md` | `e-index-table`, `e-index-desc`, `e-frontmatter`, `e-prereqs-union`, `e-docs-diagram-ref`, `e-spec-readme`, `e-guardrails-readme`, `e-web-cli-surface`, `e-web-prose-status`, `e-web-backend-claim` |
 | `yf/Cargo.toml` | `e-changelog-version` |
 | `CHANGELOG.md` | `e-changelog-version` |
 | `SPEC.md` | `e-spec-guardrails`, `e-spec-readme` |
@@ -287,7 +314,7 @@ content-agreement axis).
 | `docs/diagrams/*.png` | `e-docs-diagram-ref`, `e-docs-diagram-fresh` |
 | `web/content/pages/architecture.md` | `e-web-skill-counts` |
 | `web/plugins/skill_pages.py` | `e-web-skill-groups` |
-| `web/content/skills/*.md` | `e-skill-page-desc`, `e-skill-page-readme`, `e-skill-page-spec` |
+| `web/content/skills/*.md` | `e-skill-page-desc`, `e-skill-page-readme`, `e-skill-page-spec`, `e-skill-page-sections`, `e-web-backend-claim`, `e-web-prose-status` |
 
 ## 7. Fixed-Authority Conflict Policy
 
