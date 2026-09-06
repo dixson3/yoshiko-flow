@@ -107,17 +107,26 @@ def sub_file(path: Path, pairs: list[tuple[str, str]], *, required=True) -> int:
 # ---------------------------------------------------------------------------
 
 def ctl_counts(tree: Path) -> tuple[str, str]:
-    """Repair every counted-set claim; then ADD A SKILL and A FORMULA code-side."""
-    arch_md = tree / "web/content/pages/architecture.md"
-    arch_d2 = tree / "web/content/images/architecture.d2"
-    form_d2 = tree / "web/content/images/formulas.d2"
-    sub_file(arch_md, [("**19 skills**", "**20 skills**"), ("**utility (7)**", "**utility (8)**")])
-    sub_file(arch_d2, [("embedded skills (18)", "embedded skills (20)"),
-                       ("beads group (8)\\nplan · research · incubator",
-                        "beads group (5)\\nbeads-init · beads-extra · beads-authoring"),
-                       ("utility group (6)", "utility group (8)")])
-    sub_file(form_d2, [("three shipped standard formulas", "five shipped standard formulas")])
-    return ("counted-set claims repaired",
+    """Bring the docs to green, then ADD A SKILL and A FORMULA code-side.
+
+    THE REPAIRS ARE BEST-EFFORT AND THE PRECONDITION IS `pre == 0`, not "these edits applied".
+    Measured: this function originally hard-asserted the pre-repair strings (`**19 skills**`),
+    and once Epic 4 repaired the live docs the control ERRORED — its "make the docs green" step
+    could not find text that was already green. A control whose setup is pinned to one broken
+    revision expires the moment the defect is fixed, which is precisely when you still need it.
+    """
+    sub_file(tree / "web/content/pages/architecture.md",
+             [("**19 skills**", "**20 skills**"), ("**utility (7)**", "**utility (8)**")],
+             required=False)
+    sub_file(tree / "web/content/images/architecture.d2",
+             [("embedded skills (18)", "embedded skills (20)"),
+              ("beads group (8)\\nplan · research · incubator",
+               "beads group (5)\\nbeads-init · beads-extra · beads-authoring"),
+              ("utility group (6)", "utility group (8)")], required=False)
+    sub_file(tree / "web/content/images/formulas.d2",
+             [("three shipped standard formulas", "five shipped standard formulas")],
+             required=False)
+    return ("counted-set claims green (repaired where still needed)",
             "a 21st skill and a 6th formula added to the SOURCE OF TRUTH")
 
 
@@ -235,16 +244,24 @@ def main() -> int:
                 results[name] = {"error": f"{type(exc).__name__}: {exc}"}
                 print(f"  {name}: ERROR — {exc}")
                 continue
-        ok = pre.returncode == 0 and post.returncode == 1
+        # TWO CONDITIONS, REPORTED SEPARATELY, because they fail for opposite reasons.
+        # `pre != 0` means the SETUP is broken — the docs were never brought to green, so the
+        # mutation proves nothing. `post != 1` means the CHECKER is blind. Collapsing them would
+        # hide which half went wrong.
+        setup_ok = pre.returncode == 0
+        ok = setup_ok and post.returncode == 1
         results[name] = {"repaired": repaired, "mutation": mutation,
                          "pre_exit": pre.returncode, "post_exit": post.returncode,
-                         "observed_failure": ok}
+                         "setup_ok": setup_ok, "observed_failure": ok}
         if ok:
             observed_failures += 1
         status = "OBSERVED-FAIL" if ok else "NOT OBSERVED"
         print(f"  {name}: pre={pre.returncode} (want 0, docs repaired) "
               f"post={post.returncode} (want 1, code mutated) -> {status}")
         if not ok:
+            print("      SETUP FAILED — docs were not green before the mutation, so the "
+                  "observation proves nothing" if not setup_ok
+                  else "      CHECKER IS BLIND — docs green, source of truth mutated, still exit 0")
             print(f"      repaired: {repaired}")
             print(f"      mutation: {mutation}")
             for label, proc in (("pre", pre), ("post", post)):
