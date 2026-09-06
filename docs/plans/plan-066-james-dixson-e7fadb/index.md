@@ -36,3 +36,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [findings/negative-control-evidence.md](findings/negative-control-evidence.md) - Evidence for the code-side negative-control convention: two measured instances where a control caught a false green that reasoning missed.
 - [findings/diagram-reads.md](findings/diagram-reads.md) - One dated read per regenerated PNG for the semantic residue no extractor catches. Six read; five clean, one recorded shorthand.
 - [findings/classb-disposition.md](findings/classb-disposition.md) - Explicit per-item disposition for all six Class-B defects — each CLOSED with the artifact that closes it, plus three follow-ons FILED under D5.
+- [assets/upstream-drafts/README-plan.md](assets/upstream-drafts/README-plan.md) - Drafted upstream bodies for Issues 8.4/8.5 awaiting operator confirmation — nothing posted; the write-authorization gate is unresolved.
