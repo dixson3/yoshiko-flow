@@ -153,27 +153,29 @@ Corrections above); the implementation follows the measurements in `findings/`.
 ## Epics
 
 ### Epic 0: SPEC-first — repair the drift engine's own contradiction
-- Issue 0.1: Amend `skills/yf-drift-check/spec/checks.md` to resolve REQ-CHECK-004(a) vs REQ-CHECK-005 — a node-level whole-corpus check has no firing surface when §6 maps globs to edges only. Add the new/revised `REQ-*` id. **The amendment-log entry goes in the ROOT `SPEC.md`** — pass-1 C8 measured that neither `spec/checks.md` nor `yf-drift-check/SPEC.md` has a living amendment log, and that root `SPEC.md` currently contains zero `REQ-CHECK-*` ids. Reconcile the id namespace with `check_amendment_log.py`'s root-`SPEC.md` assumption in the same issue.
+- Issue 0.1: Amend `skills/yf-drift-check/spec/checks.md` to resolve REQ-CHECK-004(a) vs REQ-CHECK-005 — a node-level whole-corpus check has no firing surface when §6 maps globs to edges only. Add the new/revised `REQ-*` id. **The amendment-log entry goes in the ROOT `SPEC.md`** — pass-1 C8 measured that neither `spec/checks.md` nor `yf-drift-check/SPEC.md` has a living amendment log, and that root `SPEC.md` currently contains zero `REQ-CHECK-*` ids. Reconcile the id namespace with `check_amendment_log.py`'s root-`SPEC.md` assumption in the same issue. **Write the tagged test for the new `REQ-CHECK-*` id in this same change-set, ahead of any code** — AGENTS.md SPEC-first, and it is what `check-req-coverage.py` looks for (pass-2 C8).
 - Issue 0.2: Declare in the spec how a node-level existence check is dispatched — the mechanism the amendment authorizes, so Epic 3's §4 row has something to bind to.
   - depends-on: 0.1
 - Issue 0.3: Record the `not_checked` declaration convention in the spec: which claim classes a mechanical gate covers, which remain prose-judged, and that the split must be stated rather than implied.
   - depends-on: 0.1
-- Issue 0.4: Author `scripts/checks/plan066_checks.py` — one named subcommand per Success Criterion, each exiting 0/1, following the `plan065_checks.py` precedent. This is what makes the criteria EXECUTABLE rather than prose (pass-1 C1: `doc_lint` scored 17/17 non-conformant).
-- Issue 0.5: Add the `gate-plan066-amendment` and req-coverage rows to `CHANGE-VALIDATION.md` (§1 recipe + §3 globs for `docs/plans/plan-066-*/**` and `skills/yf-drift-check/spec/**`), restoring the four-plan precedent (060, 062, 063, 064) that pass-1 C7 found broken.
+- Issue 0.4: Author `scripts/checks/plan066_checks.py` — one named subcommand per Success Criterion, each exiting 0/1, following the `plan065_checks.py` precedent. This is what makes the criteria EXECUTABLE rather than prose (pass-1 C1: `doc_lint` scored 17/17 non-conformant). Three implementation mandates, each from a measured failure: (a) `argparse(..., choices=sorted(SUBCOMMANDS))` so an unknown verb exits **2** (verified precedent) — a permissive dispatcher exits 0 and produces #364's silent false PASS; (b) **never pipe pelican** — `| tail` masks exit 1 and `${PIPESTATUS[@]}` is empty under zsh; use no pipe, or `set -o pipefail`; (c) the build verb must not hardcode `web/.venv`, which is absent from an execute worktree.
+- Issue 0.4b: Author a `verbs-match` subcommand asserting `set(plan.md Verification verbs) == set(SUBCOMMANDS)`. Pass-2 C9: 22 of 24 criteria route through this one script and nothing checks the verb set agrees with the table.
+  - depends-on: 0.4
+- Issue 0.5: Add the `gate-plan066-amendment` and req-coverage rows to `CHANGE-VALIDATION.md` (§1 recipe + §3 globs for `docs/plans/plan-066-*/**` and `skills/yf-drift-check/spec/**`), restoring the four-plan precedent (060, 062, 063, 064) that pass-1 C7 found broken. **These rows are added AT LAND ONLY — post-merge, on `main`.** Pass-2 C8: `CHANGE-VALIDATION.md`'s own §1 banner declares a row reading `docs/plans/<in-flight-plan>/` **structurally unsatisfiable** from an execute worktree, and the existing `gate-plan049-*` rows are satisfiable only because those plans have LANDED. Adding them earlier would be the unsatisfiable-row class this repo already removed once.
   - depends-on: 0.1
 
 ### Epic 1: P0 — unbreak the Pelican build
 - Issue 1.1: Author `web/content/skills/yf-okf-hygiene.md` — prose only, no frontmatter, first heading `##`, sourced from the skill's `SKILL.md`, `README.md` and `SPEC.md` so the three `e-skill-page-*` edges pass by construction. Model on `web/content/skills/yf-okf.md`.
 - Issue 1.2: Bootstrap a reproducible build environment FIRST — `web/.venv` is untracked and exists only in the primary checkout, so the gate Test would exit 127 in an execute worktree (pass-1 C10). Use `uv run --with-requirements web/requirements.txt pelican …`, or create the venv as an explicit step. Then verify with the no-pipe, `--fatal warnings` form, plus content assertions on `output/skills/yf-okf-hygiene/index.html` (an `<hr>` with a non-trivial body, >= 2 `<h2>`) — because an EMPTY file satisfies the existence-only guard.
-  - depends-on: 1.1
+  - depends-on: 1.1, 0.4
   - resolves-upstream: #317 (partial)
 
 ### Epic 2: Class-B — the mechanical gate
-- Issue 2.1: Build `scripts/checks/check_web_counts.py` — counted-set claims against `skills/*/SKILL.md` frontmatter and `skills/*/formulas/*.formula.toml` (excluding staged `.beads/formulas/`). **The corpus is a PARAMETER** defaulting to `web/content/**/*.{md,d2}` + `README.md` + `AGENTS.md` (pass-1 C4). It must also parse the enumerated GROUP-MEMBER NAMES at `architecture.md:65`, not only the integer — those names are machine-readable, unlike a rendered PNG (pass-1 C13).
-- Issue 2.2: Build `scripts/checks/check_web_harness_paths.py` — path/identifier claims against `yf/src/harness_desc.rs` `DESCRIPTORS`, over the same parameterised corpus. Must strip path tokens before attributing a line to a harness id, or it false-greens on `.agents/skills` (measured, EXP-001).
+- Issue 2.1: Build `scripts/checks/check_web_counts.py` — counted-set claims against `skills/*/SKILL.md` frontmatter and `skills/*/formulas/*.formula.toml` (excluding staged `.beads/formulas/`). **The corpus is a PARAMETER** defaulting to `web/content/**/*.{md,d2}` + `README.md` + `AGENTS.md` (pass-1 C4). It must also parse the enumerated GROUP-MEMBER IDS in the `architecture.md` group bullets, not only the integer (pass-1 C13). This depends on Issue 4.3 making the `utility`/`markdown` bullets carry backticked ids; until then those two are declared `not_checked` under 2.7 (pass-2 C7).
+- Issue 2.2: Build `scripts/checks/check_web_harness_paths.py` — path/identifier claims against `yf/src/harness_desc.rs` `DESCRIPTORS`, over the same parameterised corpus. Must strip path tokens before attributing a line to a harness id, or it false-greens on `.agents/skills` (measured, EXP-001). **Compare against the `(scope, field)` TUPLE — `user_skills_subpath` / `project_skills_subpath` vs `surface_dir` — never a flat string denylist** (pass-2 C12): `.config/opencode` and `.pi/agent` are the CORRECT `surface_dir` values; only their `/skills` subpaths are retired, so a bare-string denylist matches the real defects for the wrong reason and false-positives on any correct surface-dir mention.
 - Issue 2.3: Build `scripts/checks/check_skill_page_contract.py` — the set-difference existence check. Set A = dirnames of `skills/*/SKILL.md`; Set B = stems of `web/content/skills/*.md`; assert `A \ B == {}`, report `B \ A` as orphans, carry a `--min-skills` vacuity floor.
   - depends-on: 0.2
-- Issue 2.4: Build `scripts/checks/check_web_backend_claim.py` — the upstream-backend denylist with a legitimate-mention allowlist, covering all five known sites including `images/architecture.d2:36`.
+- Issue 2.4: Build `scripts/checks/check_web_backend_claim.py` over **the same parameterised corpus as 2.1/2.2** (pass-2 C11 — it was the only checker whose corpus was unstated). Denylist plus a legitimate-mention allowlist: `README.md:25`'s `` `gh` / `glab` — GitHub / GitLab CLI `` is a correct mention of a CLI tool, not a backend claim, and must not false-positive.
 - Issue 2.5: Build `scripts/checks/test_negative_controls.py` — one CODE-SIDE control per checker: mutate the SOURCE OF TRUTH under passing docs, assert the checker exits non-zero. It must PRINT AND ASSERT a per-checker observed-failure count and carry a `--min-checkers N` vacuity floor, so a harness that silently skips a checker cannot exit 0 (pass-1 C9 — EXP-001's checker-B failure mode, one level up).
   - depends-on: 2.1, 2.2, 2.3, 2.4
 - Issue 2.6: Wire the checkers as `CHANGE-VALIDATION.md` §1 recipe rows with §3 trigger globs. **`grep 'web/' CHANGE-VALIDATION.md` currently returns NOTHING** — there is no web trigger scope at all, so the §3 globs are as load-bearing as the §1 rows. The `check_skill_page_contract` trigger MUST include the source side (`skills/*/SKILL.md`, skill-dir creation) — an absent file is never edited and can never fire its own on-edit check. **Sequenced after the repairs** (pass-1 C11): landing red rows earlier would make `_validate_merged` return fail/exit 3 and block every intermediate land.
@@ -198,11 +200,11 @@ Corrections above); the implementation follows the measurements in `findings/`.
   - depends-on: 2.5
 - Issue 4.2: NEGATIVE CONTROL on the inventory — assert every row #317 names appears in it. A row #317 lists that the checkers miss means a checker is blind, and is a defect in the instrument, not an absent defect.
   - depends-on: 4.1
-- Issue 4.3: Repair the counted-set sites: `pages/architecture.md:59,65` (19→20 skills, utility 7→8, and name `yf-okf-hygiene` in the utility list).
+- Issue 4.3: Repair the counted-set sites: `pages/architecture.md:59,65` (19→20 skills, utility 7→8, and name `yf-okf-hygiene` in the utility list). **Rewrite the `utility` and `markdown` bullets to enumerate BACKTICKED SKILL IDS** — pass-2 C7 measured that both currently carry English descriptions ("skill authoring, drift checking, OKF folders"), not ids, so there is nothing on line 65 a checker can compare to `skill-group` frontmatter without a hand-maintained translation table. The `workflows` and `beads` bullets already use ids; this makes all four uniform and checkable.
   - depends-on: 4.2
-- Issue 4.4: Repair every path/identifier site the checker reports — across `pages/install.md`, `pages/architecture.md`, `images/install-matrix.d2`, **and `README.md:105-106` + `AGENTS.md:78`** (pass-1 C4) — both user AND project columns, plus the prose bullet at `install.md:204-207`. Ground truth: `prune_private.rs:487` classifies the two retired roots as legacy private roots to PRUNE, and `harness_desc.rs:381` asserts no shipped row may carry a `name_transform`.
+- Issue 4.4: Repair every path/identifier site the checker reports — across `pages/install.md`, `pages/architecture.md`, `images/install-matrix.d2`, **and `README.md:105-106` + `AGENTS.md:78`** (pass-1 C4) — both user AND project columns, plus the prose bullet at `install.md:204-207`. Ground truth: `yf/src/cmd/harness/prune_private.rs:487-488` (User/Project arms) classifies the two retired roots as legacy private roots to PRUNE, and `harness_desc.rs:381` asserts no shipped row may carry a `name_transform`.
   - depends-on: 4.2
-- Issue 4.5: Repair the five upstream-backend sites: `pages/architecture.md:98`, `pages/glossary.md:151`, `pages/beads-concepts.md:131`, `images/architecture.d2:36`, `skills/yf-plan.md:90`.
+- Issue 4.5: Repair the SIX upstream-backend sites: `pages/architecture.md:98`, `pages/glossary.md:151`, `pages/beads-concepts.md:131`, `images/architecture.d2:36`, `skills/yf-plan.md:90`, and **`README.md:417`** — which the corpus widening exposed (pass-2 C11): it states backend `github | gitlab | jira | none`, calls GitLab/Jira config-only stubs, and teaches the pre-gh-direct verb `bd github push <ids>`, contradicting `UPSTREAM_TRACKING.md`'s "no `bd <backend>` write command is issued at all".
   - depends-on: 4.2
 - Issue 4.6: Repair the removed-feature claims: `skills/yf-okf.md:11,54` (`assess <corpus>`), and `skills/yf-okf.md:56` / `skills/yf-okf/SKILL.md:213` ("migration is the only write path" — an `e-skillspec-skillmd` finding too, so fixing the page alone leaves that edge unexamined).
   - depends-on: 4.2
@@ -219,8 +221,8 @@ Corrections above); the implementation follows the measurements in `findings/`.
 - Issue 5.2: Repair `images/formulas.d2` — "three shipped" → five, and depict the undepicted `plan-review` and `verify-artifact`.
   - depends-on: 4.2
 - Issue 5.3: Re-render ALL SIX diagrams with one pinned d2 version, in one commit, recording the version in the commit message. Per D7 — the version is the only reproducibility anchor.
-  - depends-on: 5.1, 5.2, 4.4
-- Issue 5.4: HUMAN READ of each regenerated PNG for the residue no extractor catches — semantic mis-assignment, group membership, label placement. Record the read per diagram.
+  - depends-on: 5.1, 5.2, 4.4, 4.5
+- Issue 5.4: HUMAN READ of each regenerated PNG for the residue no extractor catches — semantic mis-assignment, group membership, label placement. Record one dated entry per diagram in **`findings/diagram-reads.md`**.
   - depends-on: 5.3
 - Issue 5.5: Run `render.py check-dir web/content/images` for ORPHAN DETECTION ONLY — a `.d2` with no sibling `.png`. Pass-1 C6 measured that it returns `{"status":"ok"}` exit 0 over the very diagrams this plan calls wrong: `render.py:154-169` exits non-zero only on orphans, and staleness never affects the exit code. Do NOT cite it as a staleness check and do NOT assert byte-equality against the committed PNGs.
   - depends-on: 5.3
@@ -248,7 +250,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
 
 ### Epic 8: Verification, retrospective, and closure
 - Issue 8.1: Full verification sweep — every checker exits 0, `pelican` builds clean under `--fatal warnings` with no pipe, `render.py check-dir` clean.
-  - depends-on: 4.9, 5.5, 6.4, 7.1, 7.2, 7.3
+  - depends-on: 4.9, 5.5, 6.5, 7.1, 7.2, 7.3, 2.8, 3.5
 - Issue 8.2: Assert each Class-B defect is CLOSED or FILED WITH AN OWNER, enumerated explicitly — never implied by a green build.
   - depends-on: 3.6, 2.7
 - Issue 8.3: Write `plan-retrospective.md` distinguishing content defects from process defects, with counts, per #317's acceptance.
@@ -308,7 +310,7 @@ Corrections above); the implementation follows the measurements in `findings/`.
 | R5 | Manifest edits land but the engine still never dispatches, so new edges inherit the measured 0-catch rate. | high | D6: the mechanical gate (Epic 2) is the primary deliverable, wired into CHANGE-VALIDATION's FULL tier, which IS mechanically enforced by `_validate_merged` (fail/exit 3). **AMENDED after pass-1 C12:** that binds the yf-plan LAND PATH ONLY — CI runs no tier and the FAST trigger is itself prose. Issue 2.8 adds the CI job that covers direct non-plan commits. |
 | R6 | A §6 row is added naming an edge that does not exist, and silently covers nothing. | med | Issue 3.1 enforces node → edge → §6 row ordering explicitly. |
 | R7 | The three widened-`e-web-cli-surface` edits are done partially, leaving the node unable to fire on its own source edit. | med | Issue 3.2 enumerates all three as one issue rather than three separable ones. |
-| R8 | Re-rendering diagrams produces a byte diff on all six and is misread as failure or as staleness. | med | D7 re-renders all six under one pinned version; Issue 5.5 forbids a byte-equality assertion and states why. |
+| R8 | Re-rendering diagrams produces a byte diff on all six and is misread as failure or as staleness. | med | D7 re-renders all six under one pinned version. **AMENDED after pass-2 C4:** byte equality is NOT forbidden — it is the strongest available check, and is decidable *within* a pinned version (measured: identical sha256 across two renders). EXP-004's "byte-verification is not achievable" is true only ACROSS d2 versions. SC10 asserts sha256 equality against a fresh render plus `d2 --version` equal to the recorded pin. |
 | R9 | A diagram is mechanically correct and semantically wrong (right count, wrong membership). | med | Capability Gate: Diagram human read; Issue 5.4 records a per-diagram read. |
 | R10 | Documenting `land` as a slash command manufactures a **new** false claim while fixing old ones. | med | D8 and Issue 6.1 both state the constraint; the page must be verified against `SKILL.md:137-143`. Same for the non-existent `yf-judgement` skill. |
 | R11 | Epic 7's #104 fix couples an unrelated Makefile/process-group change to the P0 and blocks it. | low | Measured orthogonal to one-shot builds (EXP-003); Issue 7.3 carries no dependency into Epics 1-5. |
@@ -332,10 +334,11 @@ at 17/17 non-conformant under `doc_lint`. The one irreducibly manual row says so
 | SC5 | Every checker the plan shipped exits 0 over the repaired tree | `uv run scripts/checks/plan066_checks.py checkers-green` → exit 0 | 4.9, 8.1 |
 | SC6 | The checker-derived inventory contains every row #317 names — no #317 row is absent from it | `uv run scripts/checks/plan066_checks.py inventory-control` → exit 0 | 4.2 |
 | SC7 | The plan repaired every path/identifier site the checker reports, across `web/content/**`, `README.md` AND `AGENTS.md` — not the ~4 #317 lists | `uv run scripts/checks/plan066_checks.py harness-sites` → exit 0 | 4.4 |
-| SC8 | The plan repaired all five upstream-backend sites including the `.d2` | `uv run scripts/checks/plan066_checks.py backend-sites` → exit 0 | 4.5 |
+| SC8 | The plan repaired all SIX upstream-backend sites including the `.d2` and `README.md:417` | `uv run scripts/checks/plan066_checks.py backend-sites` → exit 0 | 4.5 |
 | SC9 | The plan added the `workflows` group to `architecture.d2`, which previously omitted it entirely, and the group-member NAME lists agree with frontmatter | `uv run scripts/checks/plan066_checks.py group-membership` → exit 0 | 5.1, 4.3 |
 | SC10 | All six diagrams were re-rendered from one pinned d2 version, and all six PNGs carry that version's encoding signature — Compares PNG colortype/`sRGB`/IDAT signature across all six — NOT commit topology, which a squash land destroys | `uv run scripts/checks/plan066_checks.py render-uniform` → exit 0 | 5.3 |
-| SC11 | Each regenerated PNG was read by a human and the read recorded | **manual**: `findings/diagram-reads.md` carries one dated record per diagram; asserted structurally by `plan066_checks.py diagram-reads` → exit 0 | 5.4 |
+| SC11 | Each regenerated PNG was read by a human for the semantic residue no extractor catches | manual: a human must look at a rendered image; no command can decide it | 5.4 |
+| SC11b | The human reads were RECORDED — `findings/diagram-reads.md` carries one dated entry per diagram | `uv run scripts/checks/plan066_checks.py diagram-reads` → exit 0 | 5.4 |
 | SC12 | The plan added the DRIFT-CHECK nodes, edges and §6 rows Class-B requires, and every §6 row names an edge that exists | `uv run scripts/checks/plan066_checks.py manifest-rows` → exit 0 | 3.1, 3.2, 3.3, 3.4, 3.5, 3.6 |
 | SC13 | The plan documented `land` as a `plan_manager.py` verb — the page makes the correct POSITIVE claim, and no page calls it a slash command — Conjunctive: the authored file exists AND states the verb form AND `grep -r '/yf-plan land' web/content/` exits 1 | `uv run scripts/checks/plan066_checks.py land-documented` → exit 0 | 6.1 |
 | SC14 | The plan documented the escalation surface as a yf-plan mechanism — positively stated, and no page invents a `yf-judgement` skill — Same conjunctive shape, with `-r` and an asserted exit 1 | `uv run scripts/checks/plan066_checks.py escalation-documented` → exit 0 | 6.2 |
@@ -344,16 +347,23 @@ at 17/17 non-conformant under `doc_lint`. The one irreducibly manual row says so
 | SC17 | The retrospective distinguishes content defects from process defects, with counts | `uv run scripts/checks/plan066_checks.py retro-classes` → exit 0 | 8.3 |
 | SC18 | The plan declared which claim classes the mechanical gate does NOT cover | `uv run scripts/checks/plan066_checks.py notchecked-declared` → exit 0 | 2.7 |
 | SC19 | The plan repaired the three adjacent surfaces it took on (#363, #322, #104) | `uv run scripts/checks/plan066_checks.py adjacent-surfaces` → exit 0 | 7.1, 7.2, 7.3 |
-| SC20 | The new coverage fires OUTSIDE the yf-plan land path — a CI job runs the web checkers | `uv run scripts/checks/plan066_checks.py ci-wired` → exit 0 | 2.8 |
+| SC20 | The new coverage fires OUTSIDE the yf-plan land path — a CI job runs the web checkers, is actually triggered by the paths that matter, and invokes all four scripts by name | `uv run scripts/checks/plan066_checks.py ci-wired` → exit 0 | 2.8 |
+| SC25 | `CHANGE-VALIDATION.md` gained the four `check_web_*` §1 recipe rows AND §3 trigger globs selecting `web/content/**`, `README.md` and `AGENTS.md` — the plan's headline Class-B deliverable, which `grep 'web/' CHANGE-VALIDATION.md` measured at ZERO rows before this plan | `uv run scripts/checks/plan066_checks.py cv-rows` → exit 0 | 2.6, 2.7 |
 | SC21 | The plan repaired the removed-feature claims at every site, INCLUDING the `SKILL.md` copy — fixing the page alone would leave `e-skillspec-skillmd` unexamined — Asserts `assess <corpus>` absent from `skills/yf-okf.md`, and the "migration is the only write path" claim corrected at BOTH `yf-okf.md:56` and `skills/yf-okf/SKILL.md:213` | `uv run scripts/checks/plan066_checks.py removed-features` → exit 0 | 4.6 |
 | SC22 | The plan repaired the two PROSE-ONLY rows by hand and FLAGGED rather than "fixed" the unverifiable ones — Asserts the `harness-tune.md` sha256 qualifier present, the lint-subset count reads 7 incl. `ML010`, and `why.md`'s competitor table carries an explicit unverifiable marker | `uv run scripts/checks/plan066_checks.py prose-rows` → exit 0 | 4.7, 4.8 |
 | SC23 | `formulas.d2` states five shipped formulas and depicts all five | `uv run scripts/checks/plan066_checks.py formulas-diagram` → exit 0 | 5.2 |
 | SC24 | No `.d2` lacks a sibling `.png` after the re-render — Orphan detection ONLY — `render.py check-dir` cannot detect staleness, measured | `uv run scripts/checks/plan066_checks.py diagram-orphans` → exit 0 | 5.5 |
 
-**Deliberately uncovered issues.** The instrument-building steps (0.2, 0.3, 0.4, 2.1-2.4, 2.6, 4.1)
+**Deliberately uncovered issues.** The instrument-building steps (0.2, 0.3, 2.1-2.4, 4.1)
 carry no criterion of their own **by design** — every criterion above executes the instruments they
 build, so a broken instrument fails the criteria that run it rather than passing a criterion written
 about itself. Naming them would be a criterion asserting that a checker exists, which is weaker than
 one asserting the checker WORKS. 8.4 and 8.5 are discharged by the reconcile gate and the §6.4
 `verify-reconcile` chain, not by a plan criterion.
+
+**Issue 2.6 was on this list and has been REMOVED (pass-2 C6).** It is the plan's *primary*
+deliverable — the CHANGE-VALIDATION wiring D6 names — not an instrument-building step. The pass-1
+C3 and C11 resolutions interacted to hide it: C11 resequenced it to the end, C3's uncovered-list
+swept it up, and no criterion asserted the rows landed. SC25 now does. Issue 0.4 is likewise
+covered, by SC-verb agreement via 0.4b.
 

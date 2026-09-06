@@ -46,8 +46,17 @@ tune-matrix:    fresh 94904ddd (252242 B)  commit 01af826b (451719 B)   DIFFERS
 **So every committed render faithfully depicts its source.** The one thing a byte comparison
 would have been for — catching a diagram that disagrees with its own `.d2` — reports nothing here.
 
-**A byte-equality acceptance criterion is therefore NOT viable.** Any bead saying "re-render and
-confirm the PNG matches" fails on all six for a reason unrelated to correctness.
+**A byte-equality acceptance criterion is therefore not viable ACROSS d2 versions.** Any bead
+saying "re-render with a *different* d2 and confirm the PNG matches" fails on all six for a reason
+unrelated to correctness.
+
+> **AMENDED after red-team pass-2 C4 — this conclusion was stated too broadly.** Byte equality IS
+> decidable **within** a pinned version. Re-measured independently: two renders of one source under
+> d2 v0.8.2 produce **identical sha256** (`lifecycle` → `8ce43d48…` twice, `architecture` →
+> `86ea2fff…` twice). So the honest criterion is sha256 equality against a fresh render under the
+> recorded pin — **stronger** than the encoding-signature check that briefly replaced it, which was
+> measured non-discriminating: all six fresh renders share one signature, and committed
+> `lifecycle.png` already matches it while differing in sha256. SC10 now asserts sha256 equality.
 
 ## Result C — a `.d2` ↔ code checker IS buildable (~110 lines), with a limit
 
