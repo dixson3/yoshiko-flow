@@ -7,14 +7,18 @@ description: 'Regenerate user-facing website/docs (#317): unbreak the pelican bu
 id: plan-066-james-dixson-e7fadb
 author: james-dixson
 created: '2026-09-05'
-status: ready-for-approval
+status: approved
+deliverable_class: standard
+fingerprint: 457263f90c7c8f93d859fb068cbdcb81378e93b3f64d3da258f75d9c9a619d8a
 ---
 # Plan: Regenerate user-facing website/docs (#317): unbreak the pelican build, repair Class-A content defects at every site, and close the Class-B harvest/generation-pipeline defects
 
 **ID:** plan-066-james-dixson-e7fadb
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** ready-for-approval
+**Status:** approved
+**Deliverable-class:** standard
+**Fingerprint:** 457263f90c7c8f93d859fb068cbdcb81378e93b3f64d3da258f75d9c9a619d8a
 
 ## Objective
 Regenerate user-facing website/docs (#317): unbreak the pelican build, repair Class-A content defects at every site, and close the Class-B harvest/generation-pipeline defects
