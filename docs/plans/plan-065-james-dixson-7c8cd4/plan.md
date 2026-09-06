@@ -6,7 +6,7 @@ description: Run the yf-okf-hygiene corpus backfill on the repaired engine - 8 l
 id: plan-065-james-dixson-7c8cd4
 author: james-dixson
 created: '2026-09-05'
-status: executing
+status: reconciling
 deliverable_class: standard
 fingerprint: e457c90986407e17bee7c3473494ca381e7b20874ce35e5b00279dcfc94dda67
 epic: yf-mol-e7k4
@@ -16,7 +16,7 @@ epic: yf-mol-e7k4
 **ID:** plan-065-james-dixson-7c8cd4
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** executing
+**Status:** reconciling
 **Deliverable-class:** standard
 **Epic:** yf-mol-e7k4
 **Fingerprint:** e457c90986407e17bee7c3473494ca381e7b20874ce35e5b00279dcfc94dda67
