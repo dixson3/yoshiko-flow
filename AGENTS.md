@@ -74,9 +74,13 @@ separate artifacts and they move independently:
 | **Session-installed skill** | what the running session resolved at invocation | on deploy, then next invocation |
 
 The `SKILL_DIR` resolver is `yf skill-dir <name>` with a pure-bash fallback, and it searches
-**every harness destination `yf` installs to** — `.claude/skills`, `.agents/skills`
-(codex + agents), `.config/opencode/skills` and `.pi/agent/skills` under `$HOME`, their
-project-scope equivalents under `$GIT_ROOT`, and the cwd-relative roots. **The repo's `skills/`
+a **superset** of every harness destination `yf` installs to. `yf` installs to exactly two
+roots today — `.claude/skills` (claude-code) and `.agents/skills` (codex, opencode, pi, agents,
+per `harness_desc.rs`) — in both scopes. The resolver additionally searches the **retired**
+`.config/opencode/skills`, `.pi/agent/skills`, `.opencode/skills` and `.pi/skills` roots, and
+the cwd-relative ones, so a machine still carrying a pre-collapse layout resolves rather than
+failing. Searching a root is not the same as installing to one, and only the two above are
+install destinations. **The repo's `skills/`
 directory matches none of them** — it is unreachable by the resolver, not merely stale.
 
 **The safety invariant that follows:** a plan or research project may freely rework the skill

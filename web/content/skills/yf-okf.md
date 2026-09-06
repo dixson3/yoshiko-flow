@@ -8,7 +8,9 @@ The shape it enforces makes yf artifacts **compatible with** the Open Knowledge 
 
 - check whether an artifact folder conforms to the OKF model;
 - migrate a legacy plan, research, or incubator folder to the reserved-file-plus-frontmatter model;
-- assess a whole corpus before adopting OKF across it.
+- scaffold a new bundle skeleton, or repair an existing bundle's index listing.
+
+Assessing a whole **corpus** is [yf-okf-hygiene](/skills/yf-okf-hygiene/)'s `audit` — `/yf-okf` owns one bundle at a time.
 
 Skip it for a repo's build, test, or lint recipe — that is [yf-change-validation](/skills/yf-change-validation/) — and for checking that already-written docs agree across declared edges, which is [yf-drift-check](/skills/yf-drift-check/). Those are orthogonal axes `/yf-okf` never invokes. `/yf-okf` owns the *shape* of a bundle; the others check its behavior and its cross-edge agreement.
 
@@ -51,8 +53,9 @@ The engine runs over real, messy corpora — including a copy of a live Obsidian
 | `init` | Consent-only setup; the skill installs automatically. |
 | `check [<dir>]` | Composed-ruleset conformance self-check over a bundle. Report-only — it never mutates the corpus. Exits non-zero when the bundle is not conformant. |
 | `migrate <dir> [--dry-run]` | Opt-in, per-folder, in-place migration to the OKF model. `--dry-run` first emits the change plan without touching the folder. |
-| `assess <corpus>` | Discover bundles under a root, run `check` and `migrate --dry-run` over each, and produce an aggregate impact report. |
+| `reindex <dir> [--write]` | Repair a bundle's reserved `index.md` listing. Refuses a legacy prose index — that is a backfill's job. |
+| `scaffold <dir>` | Create an OKF bundle skeleton. |
 
-Migration is the only write path, and it is opt-in and per-folder — existing completed folders are grandfathered, never bulk-rewritten. It is also careful about what it preserves. It keeps the content fingerprint stable, carries the first `scoping:` date forward into `log.md` so a downstream grandfather clause still resolves, and assigns each file a `type` from the member's role-to-type map rather than a blanket default — recording any fallback in the change plan so nothing is silently mislabeled.
+Migration is **one of three** write paths — alongside `reindex --write` and `scaffold` — and it is the only one that rewrites an existing bundle's structure. It is opt-in and per-folder; existing completed folders are grandfathered, never bulk-rewritten. It is also careful about what it preserves. It keeps the content fingerprint stable, carries the first `scoping:` date forward into `log.md` so a downstream grandfather clause still resolves, and assigns each file a `type` from the member's role-to-type map rather than a blanket default — recording any fallback in the change plan so nothing is silently mislabeled.
 
 `/yf-okf` is a beads-free utility skill. It ships no `yf` subcommand of its own; it routes as a skill, on the kernel-versus-skill boundary.

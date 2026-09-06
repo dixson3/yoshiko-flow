@@ -87,7 +87,7 @@ The audit is the last step of `PLAN`, before the approval prompt — so approval
 
 ## Work rejoins the team
 
-`/yf-plan` scans GitHub or GitLab for issues related to the objective and lets you triage each one — include, exclude, partial, or supersede. The dispositions are wired into the plan's epics. After execution, the reconciler updates or closes those upstream issues with references to what was actually done, so solo output flows back to collaborators without manual bookkeeping. Upstream tracking is coarse by default: one issue per plan, filed at intake — see [yf-beads-upstream](/skills/yf-beads-upstream/).
+`/yf-plan` scans GitHub for issues related to the objective and lets you triage each one — include, exclude, partial, or supersede. The dispositions are wired into the plan's epics. After execution, the reconciler updates or closes those upstream issues with references to what was actually done, so solo output flows back to collaborators without manual bookkeeping. Upstream tracking is coarse by default: one issue per plan, filed at intake — see [yf-beads-upstream](/skills/yf-beads-upstream/).
 
 ## Usage
 

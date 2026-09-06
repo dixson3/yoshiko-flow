@@ -63,6 +63,18 @@ SCOPE_OF_ANCHOR = {"~": "user", "$HOME": "user", "<git-root>": "project", "<root
 SCOPE_FIELD = {"user": "user_skills_subpath", "project": "project_skills_subpath"}
 NAME_TRANSFORM_RE = re.compile(r"\b(lowercase-hyphen|max64)\b")
 
+# A line may NAME A RETIRED ROOT IN ORDER TO SAY IT IS RETIRED, and that is correct prose the
+# checker must not punish. Measured: `AGENTS.md` documents the `SKILL_DIR` resolver, whose
+# fallback loop genuinely still searches `.config/opencode/skills` and `.pi/agent/skills` so a
+# machine on a pre-collapse layout still resolves — searching a root is not installing to one.
+# Forbidding the mention would forbid documenting the truth.
+#
+# This is the same carve-out SC13/SC14 apply to `/yf-plan land` and `yf-judgement`: naming the
+# wrong form in order to correct it is the RIGHT way to do the work. Hits are reported in
+# `allowlisted`, so the exemption is DECLARED rather than silent (REQ-CHECK-009).
+RETIREMENT_RE = re.compile(
+    r"\b(retired|legacy|formerly|no longer|deprecated|pre-collapse|used to|historical)\b", re.I)
+
 
 def inconclusive(msg: str) -> int:
     print(f"{CHECK}: INCONCLUSIVE — {msg}", file=sys.stderr)
@@ -128,13 +140,36 @@ def main() -> int:
         return inconclusive(f"corpus expanded to {len(files)} file(s), below the floor "
                             f"{a.min_files}")
 
-    findings, claims, ambiguous = [], 0, []
+    findings, claims, ambiguous, allowed = [], 0, [], []
     for path in files:
         rel = str(path.relative_to(root))
-        for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        all_lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        # PARAGRAPH-SCOPED retirement markers. PROSE WRAPS: `AGENTS.md` writes "the **retired**"
+        # at the end of one line and the four root names at the start of the next, so a per-line
+        # carve-out suppresses nothing and the checker punishes correct prose anyway. The scope
+        # is the contiguous non-blank run — a paragraph — which is the unit the claim is made in.
+        para_of: dict[int, int] = {}
+        para_text: list[str] = []
+        cur: list[str] = []
+        for idx, ln in enumerate(all_lines):
+            if not ln.strip():
+                if cur:
+                    para_text.append("\n".join(cur)); cur = []
+                continue
+            if not cur:
+                pass
+            para_of[idx] = len(para_text)
+            cur.append(ln)
+        if cur:
+            para_text.append("\n".join(cur))
+        for n, line in enumerate(all_lines, 1):
             paths = {(anchor, claimed) for anchor, claimed in PATH_CLAIM_RE.findall(line)}
             transforms = set(NAME_TRANSFORM_RE.findall(line))
             if not paths and not transforms:
+                continue
+            para = para_text[para_of[n - 1]] if (n - 1) in para_of else line
+            if RETIREMENT_RE.search(para):
+                allowed.append(f"{rel}:{n}: names a retired root/transform AS retired")
                 continue
             about = attribute(line, ids)
             # ATTRIBUTED COMPARISON FIRST. When the line names exactly the harnesses it is
@@ -191,12 +226,15 @@ def main() -> int:
            "files_scanned": len(files), "claims": claims,
            "descriptors": desc, "live_skills_paths": sorted(live_skills_paths),
            "findings": findings, "unattributed_lines": ambiguous,
+           "allowlisted": allowed,
            "not_checked": ["prose ABOUT a harness that states no path or transform literal"]}
     if a.json:
         print(json.dumps(out, indent=1))
     else:
         for f in findings:
             print(f"FAIL {f}")
+        for al in allowed:
+            print(f"ALLOWED {al}")
         print(f"{CHECK}: {len(desc)} harness(es) from {DESC_RS}; scanned {len(files)} file(s), "
               f"{claims} claim(s); {len(findings)} mismatch(es)")
     return 1 if findings else 0

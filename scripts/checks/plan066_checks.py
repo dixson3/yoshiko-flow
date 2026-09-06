@@ -194,6 +194,31 @@ def affirms(line: str, token: str) -> bool:
     return token in line and not NEGATION_RE.search(line)
 
 
+RETIREMENT_RE = re.compile(
+    r"\b(retired|legacy|formerly|no longer|deprecated|pre-collapse|used to|historical)\b", re.I)
+
+
+def paragraphs(text: str):
+    """Yield `(lineno, paragraph_text, line)` — the paragraph being the contiguous non-blank run.
+
+    The paragraph is the unit a prose claim is made in; a per-line view splits a sentence in
+    half and reads each half as if it stood alone.
+    """
+    lines = text.splitlines()
+    start = 0
+    while start < len(lines):
+        if not lines[start].strip():
+            start += 1
+            continue
+        end = start
+        while end < len(lines) and lines[end].strip():
+            end += 1
+        para = "\n".join(lines[start:end])
+        for i in range(start, end):
+            yield i + 1, para, lines[i]
+        start = end
+
+
 def skill_group_census(root: Path) -> dict[str, list[str]]:
     """Group -> sorted skill ids, from `skills/*/SKILL.md` frontmatter. The SOURCE OF TRUTH."""
     census: dict[str, list[str]] = {}
@@ -312,23 +337,44 @@ def sc_harness_sites(root: Path, a) -> tuple[bool, str, dict]:
     checker, which would assert nothing beyond SC5.
     """
     findings: dict[str, list[str]] = {}
+    allowed: dict[str, list[str]] = {}
     for site in HARNESS_SITES:
         text = read_opt(root, site)
         if text is None:
             raise Inconclusive(f"input absent: {site}")
-        hits = []
-        for n, line in enumerate(text.splitlines(), 1):
+        hits, ok = [], []
+        for n, para, line in paragraphs(text):
+            # SAME CARVE-OUT AS SC13/SC14, and for the same reason: a document may NAME a
+            # retired root IN ORDER TO SAY IT IS RETIRED, and that is correct prose. Measured:
+            # AGENTS.md documents the SKILL_DIR resolver, whose fallback loop genuinely still
+            # searches the pre-collapse roots so an old layout still resolves — searching a root
+            # is not installing to one. install.md says `pi` "formerly applied" a transform.
+            # Flagging either would forbid documenting the truth.
+            #
+            # PARAGRAPH-SCOPED, because prose WRAPS: AGENTS.md puts "**retired**" at the end of
+            # one line and the four root names at the start of the next, so a per-line carve-out
+            # would suppress nothing and punish the correct text anyway.
+            retired_ctx = RETIREMENT_RE.search(para)
             for tok in RETIRED_SKILLS_SUBPATHS:
                 if tok in line:
-                    hits.append(f"{n}: retired skills subpath `{tok}`")
+                    (ok if retired_ctx else hits).append(
+                        f"{n}: retired skills subpath `{tok}`"
+                        + (" (named AS retired — allowed)" if retired_ctx else ""))
             for tok in RETIRED_NAME_TRANSFORMS:
                 if tok in line:
-                    hits.append(f"{n}: retired name_transform `{tok}`")
+                    (ok if retired_ctx else hits).append(
+                        f"{n}: retired name_transform `{tok}`"
+                        + (" (named AS retired — allowed)" if retired_ctx else ""))
         if hits:
             findings[site] = hits
+        if ok:
+            allowed[site] = ok
+    n_ok = sum(len(v) for v in allowed.values())
     return not findings, (f"{len(HARNESS_SITES)} enumerated site(s) checked by name; "
                           + ("clean" if not findings
-                             else f"{sum(len(v) for v in findings.values())} finding(s)")), findings
+                             else f"{sum(len(v) for v in findings.values())} finding(s)")
+                          + f"; {n_ok} retirement mention(s) allowed"), \
+        {"findings": findings, "allowed": allowed}
 
 
 def sc_backend_sites(root: Path, a) -> tuple[bool, str, dict]:

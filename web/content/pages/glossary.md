@@ -148,8 +148,8 @@ forwarding pointer, not a deletion.
 
 ### hoist
 
-Moving a bead's tracking from the local beads database up to the issue tracker (GitHub, GitLab,
-or Jira) as an upstream issue, then closing the local bead with a tombstone. At land-the-plane,
+Moving a bead's tracking from the local beads database up to the GitHub issue tracker as an
+upstream issue, then closing the local bead with a tombstone. At land-the-plane,
 follow-on beads created during a session can be hoisted so the durable worklist lives upstream;
 by default this is propose-with-confirm, and only a narrow, opt-in signal is ever hoisted
 unattended.

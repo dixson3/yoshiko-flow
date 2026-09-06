@@ -5,7 +5,13 @@ you write or debug a script that calls `bd create`, `bd dep`, or `bd update`, wh
 parse `bd … --json`, when you wire gates or dependency graphs, or when you recover a
 malformed graph. If you are only running the routine loop, you do not need it.
 
-Every gotcha here is verified against `bd` 1.0.5 and re-certified against `bd` 1.1.0.
+Every gotcha here was verified against `bd` 1.0.5 and re-certified against `bd` 1.1.0.
+
+> **Version currency is environment-dependent and is NOT asserted here.** These findings are
+> pinned to the versions named above; `bd` has since moved on (1.2.2 at the time of writing).
+> A gotcha that was true on 1.1.0 may have been fixed, or may have changed shape. Check your
+> own `bd --version` and re-verify before relying on any single item — this page cannot know
+> which version you are running, so the claim is flagged rather than silently generalized.
 The behaviors are structurally unchanged across those versions; where a fact is
 version-sensitive it says so. Re-verify against your installed `bd version` if it is
 newer.

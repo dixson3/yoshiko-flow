@@ -44,27 +44,31 @@ markdown — those are the skills themselves. Its jobs:
 | :-- | :-- | :-- |
 | `claude-code` | `~/.claude/skills` | `<git-root>/.claude/skills` |
 | `codex` | `~/.agents/skills` | `<git-root>/.agents/skills` |
-| `opencode` | `~/.config/opencode/skills` | `<git-root>/.opencode/skills` |
-| `pi` | `~/.pi/agent/skills` | `<git-root>/.pi/skills` |
+| `opencode` | `~/.agents/skills` | `<git-root>/.agents/skills` |
+| `pi` | `~/.agents/skills` | `<git-root>/.agents/skills` |
 | `agents` | `~/.agents/skills` | `<git-root>/.agents/skills` |
 
-`codex` and `agents` share a directory deliberately. **pi** applies a lowercase-hyphen name
-transform to the on-disk skill directory, and its **config** tuning is deferred — `--harness pi`
-deploys skills and rules only.
+`codex`, `agents`, `opencode` and `pi` all share `.agents/skills` deliberately — only
+`claude-code` keeps its own root. **No harness applies a name transform**: every shipped
+descriptor declares `name_transform: None`, so a skill's directory name is its `SKILL.md` `name`
+on every harness. `pi`'s **config** tuning is still deferred — `--harness pi` deploys skills and
+rules only.
 
 ## Embedded skills
 
 The **entire skill tree is embedded in the `yf` binary at build time**, so installing skills
 needs no network access and no repo clone — the skills you get always match the binary you
-already have. `yf` ships **19 skills**. Grouped by what they do:
+already have. `yf` ships **20 skills**. Grouped by what they do:
 
 - **workflows (3)** — the end-to-end, beads-tracked skills you invoke to get work done:
   `yf-plan`, `yf-research`, `yf-incubator`.
 - **beads (5)** — the `bd` (beads) support layer the workflows build on: `yf-beads-init`,
   `yf-beads-extra`, `yf-beads-authoring`, `yf-beads-hygiene`, `yf-beads-upstream`.
-- **utility (7)** — beads-free helpers: skill authoring, drift checking, diagram authoring,
-  OKF folders, optimal instructions, change validation, herdr delegation.
-- **markdown (4)** — standalone GFM tooling: lint, format, PDF, HTML.
+- **utility (8)** — beads-free helpers: `yf-skill-authoring`, `yf-drift-check`,
+  `yf-diagram-authoring`, `yf-okf`, `yf-okf-hygiene`, `yf-optimal-instructions`,
+  `yf-change-validation`, `yf-herdr`.
+- **markdown (4)** — standalone GFM tooling: `yf-markdown-lint`, `yf-markdown-format`,
+  `yf-markdown-pdf`, `yf-markdown-html`.
 
 Those four are the **install groups** — each skill's `skill-group` frontmatter — so
 `yf harness skills install --group <name>` selects one. Installing a group pulls the **transitive
@@ -94,8 +98,8 @@ recover cleanly.
 
 ## Upstream tracking
 
-At land-the-plane, open and deferred beads are pushed **upstream** to an issue tracker
-(GitHub, GitLab, or Jira) so work that outlives the local clone is visible to the team. This
+At land-the-plane, open and deferred beads are pushed **upstream** to GitHub — the only
+implemented backend — so work that outlives the local clone is visible to the team. This
 is orthogonal to Dolt replication (`bd dolt push`): upstream tracking mirrors *issues* to a
 tracker, while Dolt push replicates the *database*. See the
 [yf-beads-upstream](/skills/yf-beads-upstream/) skill.

@@ -153,7 +153,15 @@ profile engine, and undoes **only** yf's own additions:
   never clobbering.
 - **set unions** remove only the elements yf recorded as added, leaving every operator entry.
 - **rule blocks** remove exactly the `BEGIN`..`END` managed span (preserving surrounding
-  prose); an `aggregate` rule removes the yf-authored aggregate file.
+  prose). An `aggregate` rule removes the yf-authored aggregate file **only under the same
+  sha256 touched-since-tune guard the config half uses** — it is not unconditional. `yf`
+  compares the file's on-disk sha256 against the sha it recorded when writing, and there are
+  three keep-and-report outcomes:
+    - **sha mismatch** — you hand-edited it since the tune; kept, not deleted.
+    - **no recorded sha** — the manifest predates `REQ-YF-TUNE-029`, so nothing proves the file
+      is yf's own output; kept, not deleted.
+    - **the path is a symlink** — even on a matching sha, unlinking would remove *your pointer*
+      and strand the content in the real file while reporting success; kept, not deleted.
 
 Revert is **fail-safe** (a malformed target is refused, never corrupted) and **idempotent** (a
 consumed surface is cleared, so a second `--revert` is a no-op). Because revert only ever
