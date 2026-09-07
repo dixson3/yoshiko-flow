@@ -74,6 +74,8 @@ retrospective that is gated behind that read. This plan owns the handoff that un
 | D4b | **Add the missing CLI→page DIRECTION to `e-web-cli-surface`, with a set-difference realizer.** | EXP-003: both of that edge's declared failure directions are page→CLI, so **no check anywhere can see a shipped command that no page documents**. Measured consequence: `yf harness skills prune-private` — live and destructive — is documented nowhere. One new direction catches `prune-private` and `--prune-formulas`. ~~and both `--force` flags~~ — **struck (pass-2 C12)**: `--force` is already documented (`install.md:132`, `README.md:75`), so a corpus-wide token predicate cannot flag it, and a pair-level predicate would contradict the corpus-wide rule. SC8 disowns the claim; this row now agrees with it. |
 | D6 | **WITHDRAWN. The `elk` pin STAYS.** Epic 3 instead trials **archify** on the architecture diagram and reports, per the operator's redirect. | *(Originally: re-pin `elk`→`dagre`, gated on an operator read.)* **Pass-1 C1 refuted it by measurement** — all six rendered under both engines gave hard text-on-text collisions on **2 of 6**, larger output on **6 of 6** (+4% to +25%, independently re-measured), semantic ordering discarded on **3**, and dagre **worse on `architecture`**, the diagram the objection was about. EXP-001's recommendation came from **one** sample, `lifecycle` — the single case where the engines are equivalent. **The lesson, recorded because it generalises: a layout judgement needs the whole corpus, not a representative.** The dagre render is kept at `assets/spikes/exp001-dagre-sample.png` as a negative artifact so the sampling error stays inspectable. |
 | D7 | **One plan; the mechanical PROSE epics are sequenced AHEAD of the diagram redesign.** | EXP-003: the diagram half's "omissions" are largely design decisions (which of 7 `yf` verbs belongs on a canvas); the prose half is ~52 mechanical repairs against enumerable sets. Holding them in one epic would let the judgement-heavy half block the clean wins. |
+| D8 | **DIAGRAM STYLE SPEC, supplied by the operator at the rejected Diagram human-read gate.** Bare-name boxes, one per member, tiled into width-proportional bands; **no edges on the architecture diagram** — layering carries the relationship; **no sublabels, descriptions, versions or parenthetical counts** anywhere; and **state enumerations HOISTED out of node labels into real nodes with transitions**. The two reference images at `assets/style-reference/` **are** the specification; this row is their prose restatement, and where they disagree **the images win**. | The first 20-diagram set passed **every mechanical check** — 20/20 byte-identical renders, 4/4 checkers exit 0, `not_checked == 0` — and was still rejected. **No check can see that a diagram is unreadable.** `red-team-chain.png` shows the two defects concretely: metadata crammed into a label (`step:`, `type:`, `needs:`, an instruction), and a state enumeration (`APPROVE \| REVISE \| INVESTIGATE-MORE`) buried in a node where it should be a flow. This is the **second time in this plan pair** that a fully-green artifact set failed a human read, which is the strongest available argument for keeping that gate human-typed. |
+| D9 | **The restyle is folded into plan-067 as Epic 7, NOT split into a new plan.** | This is Epic 4/5's deliverable rejected by its gate — that is the gate working, and rework belongs with the deliverable. Splitting would make **three** plans parked in a chain (plan-066 → plan-067 → plan-068) and push #317 further behind each. The cost is accepted knowingly: amending an `executing` plan invalidates the approval fingerprint and requires re-approval. |
 | D5 | **This plan unblocks plan-066 at the end.** A dedicated issue hands off: redesigned diagrams land → operator reads → plan-066's gate opens → its 8.1/8.3 run → plan-066 completes and #317 closes. | Leaving plan-066 parked with no declared route to closure is the shape that produced five stale trackers in this repo (#103, #95, #96, #98, #134). |
 
 ## Investigation Findings
@@ -240,6 +242,27 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 - Issue 5.6: Grid-nest sub-boxes in the emitter — `yf-plan` at 13 scripts currently renders 3104×4532, a single-column stack that reads as a bulleted list rather than a graph.
   - depends-on: 5.2
 
+### Epic 7: The diagram restyle
+> **The Diagram human-read gate REJECTED the first 20-diagram set.** Not for a false claim — the
+> set was fully green — but because the nodes are too wordy and `architecture.d2` does not read as
+> a layered stack. The operator supplied two reference images, preserved at
+> `assets/style-reference/`, which **are** the spec (D8).
+- Issue 7.1: Restyle `architecture.d2` to the reference's **layered stack**: bands bottom-to-top (external tools → runtimes → beads → utility/markdown → workflows → incubator), **one bare-name box per member**, width-proportional tiling, **no edges**. Delete every sublabel — the current file carries `"d2\nthe pinned diagram renderer (v0.8.2, ...)"` and `"workflows (3)\nyf-incubator · yf-plan · yf-research"`, both of which the reference forbids.
+- Issue 7.2: **Teach `check_web_counts` to extract membership from TILED CHILD BOXES, not from a group label's `·`-joined list.** Without this the restyle silently lapses the membership guarantee: members become sibling boxes, `group_members()` returns `None`, the group falls to `not_checked`, and that is exactly the #376 evasion Issue 1.1b closed. **The reference style is MORE checkable once taught** — a box label is a cleaner token than a joined string. Same single-shape assumption as the locally-filed `yf-w57p`.
+  - depends-on: 7.1
+- Issue 7.3: Give 7.2's new extraction a **code-side negative control** and register it by name, so the restyle cannot pass by making membership unenumerable.
+  - depends-on: 7.2
+- Issue 7.4: Strip sublabels, descriptions, versions and parenthetical counts from **every** hand-authored diagram — `lifecycle`, `install-matrix`, `formulas-map`, and the five per-formula diagrams.
+  - depends-on: 7.1
+- Issue 7.5: **Hoist state enumerations into real flow.** Wherever a node label carries a set of states (the `APPROVE | REVISE | INVESTIGATE-MORE` shape `red-team-chain.png` illustrates), replace it with nodes and transitions. Highest concentration is the combined `lifecycle.d2` and the per-formula diagrams.
+  - depends-on: 7.4
+- Issue 7.6: Update the generator's `to_d2()` so the **11 generated per-skill diagrams** emit the new style, then regenerate. The generator is the reason this is cheap for 11 of the 20 — they restyle by re-running, not by editing.
+  - depends-on: 7.1
+- Issue 7.7: Re-render every diagram under the unchanged `elk` pin; assert all PNGs byte-identical to a fresh render, all checkers exit 0, `not_checked == 0`, and generator `--check` clean.
+  - depends-on: 7.3, 7.5, 7.6
+- Issue 7.8: Re-present the restyled set for the Diagram human-read gate — a fresh `findings/diagram-presentation.md` naming what changed per diagram against the two reference images.
+  - depends-on: 7.7
+
 ### Epic 6: Verification, retrospective, and the plan-066 handoff
 - Issue 6.0: Re-run plan-066's `recheck-criteria` against the post-plan-067 tree and repair whatever this plan's restructuring broke - amending plan-066's criterion PROSE in the same change-set where the change is legitimate (its SC23/SC24 reference `formulas.d2`, which Issue 4.4b removes). Pass-1 C13: no issue asserted plan-066's criteria survive.
   - depends-on: 4.1, 4.2, 4.4b, 5.5, 5.6, 5.7
@@ -249,7 +272,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
   - depends-on: 6.1
 - Issue 6.3: Write `plan-retrospective.md` distinguishing content defects from process defects, with counts, and recording the two instrument false-greens this plan's own experiments produced.
   - depends-on: 6.2
-- Issue 6.4: **THE plan-066 HANDOFF.** Present the redesigned diagrams to the operator for the plan-066 Diagram human-read gate. On acceptance plan-066's gate opens, its 8.1/8.3 run, it reaches `complete`, and #317 closes. This issue does NOT resolve that gate — only the operator can.
+- Issue 6.4: **THE plan-066 HANDOFF.** Presents the RESTYLED set (Epic 7), not the rejected one. Present the redesigned diagrams to the operator for the plan-066 Diagram human-read gate. On acceptance plan-066's gate opens, its 8.1/8.3 run, it reaches `complete`, and #317 closes. This issue does NOT resolve that gate — only the operator can.
   - depends-on: 6.1
 - Issue 6.5: Reconcile upstream — **#373, #374, #375, #376** per disposition; leave **#247, #263, #317** open as partials (#317 closes only when plan-066 completes, via the Issue 6.4 handoff).
   - depends-on: 6.3, 6.4
@@ -347,6 +370,12 @@ Every Verification cell is an executable clause discharged by `scripts/checks/pl
 | SC26 | The retrospective distinguishes content from process defects, with counts, and records the instrument false-greens | `uv run scripts/checks/plan067_checks.py retro-classes` → exit 0 | 6.3 |
 | SC25b | The bundle's `index.md` lists every artifact a cold reader needs — findings, references, reviews and spikes — not just the four scaffold files | `uv run scripts/checks/plan067_checks.py index-complete` → exit 0 | 6.3 |
 | SC26b | **plan-066's criteria still hold on the post-plan-067 tree.** Epic 4 rebuilds `architecture.d2` (plan-066 SC9) and removes `formulas.d2` (its SC23), and plan-066 re-runs all 26 criteria at close-out | `uv run scripts/checks/plan067_checks.py plan066-still-green` → exit 0 | 6.0 |
+| SC28 | `architecture.d2` is a layered stack in the reference style — **no edges**, one bare-name box per member, tiled bands — and carries **no sublabel, description, version or parenthetical count** on any node | `uv run scripts/checks/plan067_checks.py architecture-style` → exit 0 | 7.1 |
+| SC29 | Membership is still mechanically extracted after the restyle — the checker reads **tiled child boxes**, and `not_checked == 0` across the corpus. The restyle cannot pass by making membership unenumerable (the #376 evasion) | `uv run scripts/checks/plan067_checks.py membership-after-restyle` → exit 0 | 7.2, 7.3 |
+| SC30 | **No node label anywhere carries a state enumeration.** The `APPROVE \| REVISE \| INVESTIGATE-MORE` shape is hoisted into real nodes with transitions | `uv run scripts/checks/plan067_checks.py no-states-in-labels` → exit 0 | 7.5 |
+| SC31 | Every diagram — hand-authored and generated — is free of sublabels and descriptions, and the 11 generated ones emit the new style **by regeneration, not by editing** | `uv run scripts/checks/plan067_checks.py restyle-complete` → exit 0 | 7.4, 7.6 |
+| SC32 | After the restyle everything is still green: all PNGs byte-identical to a fresh render under the unchanged `elk` pin, all checkers exit 0, generator `--check` clean | `uv run scripts/checks/plan067_checks.py restyle-verified` → exit 0 | 7.7 |
+| SC33 | The restyled set was re-presented for the Diagram human-read gate, with a per-diagram statement of what changed against the two reference images | manual: the gate that rejected the first set is the gate that must accept the second; no command can decide it | 7.8 |
 | SC27 | The redesigned diagrams were presented to the operator for plan-066's gate | manual: the handoff is an act of presentation, and only the operator can resolve that gate | 6.4 |
 
 **Declared `no-req-required` set — {3.1, 3.2, 3.3}, the whole of Epic 3.** This is the MUTABLE
@@ -359,7 +388,7 @@ reachability check would be exactly the false green this plan exists to close. E
 issues carries its reason inline.
 
 **Deliberately uncovered issues — MECHANICALLY DERIVED, and must match the extractor.** Currently
-exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. plan-066's pass-3 C8 caught a list that disagreed with the
+exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. (Re-derived after Epic 7; the eight 7.x issues are all covered by SC28-SC33.) plan-066's pass-3 C8 caught a list that disagreed with the
 extractor by two while asserting coverage that did not exist, so this list is checked rather than
 written — and pass-1 of THIS plan grew it to seven before the missing criteria were added, which is
 the same drift caught one cycle earlier. `0.7` (record the band) and `5.1` (factor out the shared

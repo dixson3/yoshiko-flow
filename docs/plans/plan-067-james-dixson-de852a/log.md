@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-07
+- executing: AMENDED mid-execution: Epic 7 (diagram restyle) added after the Diagram human-read gate REJECTED the first set; D8 style spec + D9 fold-in decision recorded; fingerprint now stale pending re-approval
 - executing: HELD (not crashed): operator holds BOTH remaining human gates — Diagram human read (yf-mol-gtcy.10, blocks 6.4) and Upstream write authorization (yf-mol-gtcy.11, blocks 6.5, sequenced AFTER gate 2 because the reconcile bodies assert what gate 2 has not yet accepted). 42/44 issues closed; 29 of 32 criteria hold, 1 FALSE (SC26b, the declared handoff), 2 manual. Nothing written upstream. See findings/parked-state.md.
 - executing: Epics 0-5 complete; Epic 6 at 4/6. Halted on the two remaining HUMAN gates (Diagram human read -> 6.4, Upstream write authorization -> 6.5). CORRECTED: this entry originally read '27/28 criteria PASS', which reported plan067_checks.py's SUBCOMMAND count as the plan's CRITERIA count. The criteria table has 32 rows (28 verbs + SC4 + SC10 + 2 manual): 29 hold, 1 FALSE (SC26b), 2 manual not-evaluated. Two facts, one signal — the defect class this plan exists to close, committed in a report about it.
 - executing: start gate resolved
