@@ -86,6 +86,15 @@ committed, checked source of truth, and adoption stays open as a separate upstre
 foreclosed. The reasoning and the four things such a plan would have to carry are in
 [findings/archify-trial.md](findings/archify-trial.md).
 
+## Style reference
+
+[assets/style-reference/](assets/style-reference/) — the two operator-supplied images that define
+D8, preserved so a cold reader can act on the spec rather than infer it.
+`architecture-reference.png` is the positive example (layered stack, bare-name boxes, no edges);
+`red-team-chain.png` is the negative one (metadata crammed into a label, and a state enumeration
+buried where a flow belongs). **Normative for LAYOUT only** — the skill census governs content,
+because the sketch uses wildcards, shows 13 boxes for 20 skills, and carries a typo.
+
 ## Spikes
 
 [assets/spikes/](assets/spikes/) — the surviving executable artifacts, and an explicit record of
