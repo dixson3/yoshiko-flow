@@ -1,7 +1,9 @@
-## plan-066 complete — closing this tracker
+## plan-066 PARTIALLY landed — this tracker STAYS OPEN
 
-`plan-066-james-dixson-e7fadb` is executed and landed. This is the coarse tracker for that
-effort; the substantive write-ups are on the individual issues.
+`plan-066-james-dixson-e7fadb` merged to `main` as a **deliberate partial land**. The plan remains
+in `executing`; it has **not** reached `complete`. This is the coarse tracker for that effort, and
+it stays open until the plan does complete — the substantive write-ups are on the individual
+issues.
 
 ### What landed
 
@@ -19,15 +21,29 @@ effort; the substantive write-ups are on the individual issues.
 ### Verification
 
 - FULL `CHANGE-VALIDATION` tier: **79 rows, 0 failing**
-- Success criteria: **27 total — 25 hold, 1 manual (the diagram human read), 1 remaining**
+- Success criteria: **27 total — 25 hold, 1 FALSE (the ungated retrospective), 1 not-evaluated
+  (the manual diagram read)**
 - All four checkers **observed to FAIL** against code-side mutations (4/4)
+
+### What is NOT done
+
+The **diagram human-read gate was not accepted** — a redesign is pending in a follow-on plan
+(layered marketecture, per-skill and per-formula diagrams, combined phase/lifecycle and
+install/tune matrices, plus a `DRIFT-CHECK.md` amendment making omissions FAIL). The diagrams as
+they stand are factually correct and mechanically checked; the outstanding work is design, not
+correction.
+
+Gated behind it: the retrospective, the verification sweep, and the remaining reconcile
+bookkeeping.
 
 ### Issues reconciled
 
-Closed: **#317**, **#104**, **#127**, **#363**, **#322**.
-Left **open** as partials: **#247**, **#263** — this plan closed the four Class-B coverage gaps
-#317 enumerates, not the whole of #247's manifest gap, and the `optional`/`required` token defect
-is one instance of #263's META class rather than the class itself.
+Closed: **#104**, **#127**, **#363**, **#322** — their scope is complete and unaffected by the
+diagram work.
+Left **open**: **#317** (its acceptance requires the ungated retrospective), **#247** and **#263**
+(partials — this plan closed the four Class-B coverage gaps #317 enumerates, not the whole of
+#247's manifest gap, and the `optional`/`required` token defect is one instance of #263's META
+class rather than the class itself), and **this tracker**.
 Filed: three follow-ons under D5 (file, do not fix).
 
 ### One process note worth keeping

@@ -1,40 +1,50 @@
 ---
 type: Asset
 okf_spec: OKF-PLAN
-description: "The 13 authorized upstream writes for Issues 8.4/8.5. AUTHORIZED 2026-09-06 but NOT YET POSTED — transitively blocked behind the held Diagram human-read gate."
+description: "The authorized upstream writes for Issues 8.4/8.5, AMENDED for the partial land: only #104, #127, #363 and #322 close. #317, #247, #263 and the #372 tracker stay OPEN."
 id: upstream-drafts
 plan: plan-066-james-dixson-e7fadb
 created: 2026-09-06
 ---
 # Drafted upstream writes — NOT YET POSTED
 
-The *Upstream write authorization* capability gate is **RESOLVED — the operator authorized these
-writes on 2026-09-06.** They are nonetheless **NOT YET POSTED**, and the reason is ordering rather
-than consent:
+The *Upstream write authorization* capability gate is **RESOLVED** — the operator authorized these
+writes on 2026-09-06.
 
-> The writes are **transitively blocked** behind the still-held *Diagram human read* gate.
-> That gate blocks `8.1`; `8.3` (the retrospective) depends on `8.1`; and `8.4`/`8.5` depend on
-> `8.3`. **The reconcile bodies below assert what the plan DID, and `8.3` is what establishes it**
-> — posting first would publish claims the verification sweep has not yet confirmed. `SC17` is
-> `FALSE` right now precisely because `8.3` has not run.
+**THE DISPOSITIONS WERE AMENDED ON 2026-09-07**, after the operator declined the diagram
+human-read gate. The bodies as originally drafted asserted a completion that is **no longer
+true**, so four issues that were queued to close now stay open.
 
-**No `gh` command has been run.**
+## The planned writes — AMENDED
 
-## The planned writes
-
-| # | Action | Body | Disposition |
+| # | Action | Body | Why |
 | :-- | :-- | :-- | :-- |
-| #317 | comment, then close | `317-comment.md` | include — the plan of record |
-| #104 | comment, then close | `104-comment.md` | include |
-| #127 | comment, then close | `127-comment.md` | include |
-| #363 | comment, then close | `363-comment.md` | include |
-| #322 | comment, then close | `322-comment.md` | include |
-| #247 | comment only, **leave OPEN** | *(partial — this plan closed the four Class-B coverage gaps #317 enumerates, not all of #247's manifest gap)* | partial |
-| #263 | comment only, **leave OPEN** | *(partial — the `optional`/`required` token defect is one instance of the META class; the class stays open)* | partial |
+| #104 | comment + **CLOSE** | `104-comment.md` | scope complete, unaffected by the diagram work |
+| #127 | comment + **CLOSE** | `127-comment.md` | scope complete, unaffected by the diagram work |
+| #363 | comment + **CLOSE** | `363-comment.md` | scope complete, unaffected by the diagram work |
+| #322 | comment + **CLOSE** | `322-comment.md` | scope complete, unaffected by the diagram work |
+| **#317** | comment only, **STAYS OPEN** | `317-comment.md` | its own acceptance requires the retrospective, which is gated behind the declined diagram read |
+| **#247** | comment only, **STAYS OPEN** | `247-comment.md` | partial — four Class-B gaps closed, not the whole manifest gap |
+| **#263** | comment only, **STAYS OPEN** | `263-comment.md` | partial — one instance closed, not the META class |
 | new | file follow-on | `followon-1-zero-byte-guard.md` | D5 — filed, not fixed |
 | new | file follow-on | `followon-2-lifecycle-shorthand.md` | D5 — filed, not fixed |
 | new | file follow-on | `followon-3-notchecked-membership.md` | D5 — filed, not fixed |
-| **#372** | **comment, then close — LAST** | `372-comment.md` | **tracker** — this plan's own coarse tracker |
+| **#372** | comment only, **STAYS OPEN** — post LAST | `372-comment.md` | the plan is not complete; do not close its tracker |
+
+**Four closes, seven comment-only.** The rule applied throughout: **do not close a partial, and do
+not close anything whose acceptance depends on work that has not happened.**
+
+## What no body may claim
+
+**No body asserts the diagrams are finished.** Each says what is true and separable: they are
+**factually correct and mechanically checked** — counts, group membership, harness paths and
+backend claims verified against their sources, all six re-rendered byte-identically under a pinned
+`d2 v0.8.2` — **and** a redesign is pending in a follow-on plan (layered marketecture, per-skill
+and per-formula diagrams, combined phase/lifecycle and install/tune matrices, plus a
+`DRIFT-CHECK.md` amendment making **omissions** FAIL).
+
+Correct-but-not-final is the honest description, and collapsing it in either direction would be a
+false claim.
 
 ## The command form, and why it is not negotiable
 

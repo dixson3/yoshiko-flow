@@ -1,7 +1,22 @@
-## plan-066 landed — the site builds again, and the Class-B dispatch gap is closed
+## plan-066 PARTIALLY landed — the site builds again. This issue STAYS OPEN.
 
-Executed as `plan-066-james-dixson-e7fadb`. **The issue is right on intent and wrong in six
-places on fact**; the implementation followed the measurements in the plan's `findings/`.
+Executed as `plan-066-james-dixson-e7fadb`, merged to `main` as a **deliberate partial land**.
+**The issue is right on intent and wrong in six places on fact**; the implementation followed the
+measurements in the plan's `findings/`.
+
+> ### Why this is not closed
+>
+> **This issue's own acceptance requires a retrospective distinguishing content defects from
+> process defects, with counts. That has not been written.** It is gated behind a diagram
+> human-read gate the operator has **not accepted** (see *What is still open*, below).
+>
+> Closing now would publish a completion claim that is not true — which is the exact defect class
+> this issue commissioned a plan to close. So it stays open, and this comment records what landed
+> and what did not.
+>
+> The **P0 was landed early on purpose**: the build fix existed only on the execute branch while
+> `main` still shipped 19 skill pages and still failed to build. The site should stop being broken
+> today rather than when the remaining work lands.
 
 ### The P0
 
@@ -44,11 +59,30 @@ build and drifted the 19→20 count while touching **zero** `web/` files.
 6. "no mention of `land` … is a coverage gap" — omissions **PASS by design**; these were never
    enforcement misses. Done as editorial work instead.
 
-### Acceptance
+### What is still open
 
-Local clean build, no deploy, per the issue's own acceptance. FULL validation tier: **79 rows, 0
-failing**. Success criteria: **27 total — 25 hold, 1 manual (the diagram human read), 1 pending
-the retrospective** at the time of writing.
+- **The diagram human-read gate was NOT accepted.** The six diagrams are **factually correct and
+  mechanically checked** — counts, group membership, harness paths and backend claims all verified
+  against their sources, and all six re-rendered byte-identically under a pinned `d2 v0.8.2`. What
+  is outstanding is a **redesign**, not a correction: a layered marketecture with tool
+  dependencies, per-skill and per-formula diagrams, a combined phase-model/lifecycle, and a
+  combined install/tune matrix — together with a `DRIFT-CHECK.md` amendment making **omissions**
+  FAIL rather than pass by design. That is a follow-on plan, filed separately.
+- **The retrospective** (content vs process defects, with counts) — gated behind the above.
+- The remaining verification-sweep, upstream-reconcile and `CHANGE-VALIDATION`-row bookkeeping
+  that depend on it.
+
+### Acceptance status
+
+Local clean build, no deploy, per this issue's own acceptance. FULL validation tier: **79 rows, 0
+failing**. Success criteria: **27 total — 25 hold, 1 FALSE (the ungated retrospective), 1
+not-evaluated (the manual diagram read)**.
+
+*(An earlier draft of this paragraph said "23 of 24". That was a count of the criteria **script's
+subcommands**, not of the **criteria** — two different sets, since three criteria do not route
+through that script. Correcting it rather than quietly is the point: a counted-set claim drifting
+from its source of truth is the exact defect class this plan exists to close, and it recurred
+inside the plan that closes it.)*
 
 *(An earlier draft of this paragraph said "23 of 24". That was a count of the criteria **script's
 subcommands**, not of the **criteria** — two different sets, since three criteria do not route
