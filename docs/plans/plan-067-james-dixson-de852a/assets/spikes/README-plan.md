@@ -35,7 +35,13 @@ sampling error inspectable rather than merely described.
 one. `findings/exp-004-per-skill-diagram-model.md` documents the approach in detail — the inputs
 (`SKILL.md` frontmatter, the reverse dependency graph, `skills/<n>/scripts/`, `_shared/sync.py`'s
 `REGION_ASSETS`/`WHOLE_FILE_ASSETS` tables), the measured hit rates, and the full 20-skill triviality
-census — so this is re-derivation from a specification, not speculation. But pass-1 noted that Epic 5
+census — so the *approach* is re-derivable. **But its NUMBERS are not** (pass-3 C4): an independent rebuild
+from that same finding got **9 trivial not 8**, **no zero-edge skill**, and `yf-plan` at **34 nodes
+/ 33 edges against the reported 26/6** — because the finding never defines what counts as a node or
+an edge, so its census is model-dependent and the model is gone. That is why **Issue 5.0** rebuilds
+the census and re-derives the threshold before Issue 5.5 fixes a constant, and why the plan now
+requires the node/edge definition to be stated. Epic 5's approach survives the artifact loss; its
+measured justification does not. But pass-1 noted that Epic 5
 is defensible as an epic *because* a prototype had been built and run, and that evidence is now
 prose rather than code.
 

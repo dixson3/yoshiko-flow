@@ -8,14 +8,14 @@ description: 'Diagram set redesign (#373): restack architecture as a layered mar
 id: plan-067-james-dixson-de852a
 author: james-dixson
 created: '2026-09-07'
-status: review
+status: ready-for-approval
 ---
 # Plan: Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL
 
 **ID:** plan-067-james-dixson-de852a
 **Author:** james-dixson
 **Created:** 2026-09-07
-**Status:** review
+**Status:** ready-for-approval
 
 ## Objective
 Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL
@@ -54,8 +54,8 @@ retrospective that is gated behind that read. This plan owns the handoff that un
 | #375 | lifecycle.d2 labels a preflight status `deps-missing` | include | Assigned to Issue 4.2, which merges `lifecycle.d2` — without this the wrong literal is carried forward into the combined diagram. | 4.2 |
 | #374 | skill_pages.py authored-page guard is EXISTENCE-only (a zero-byte page builds green) | include | Interacts directly with Epic 5's generated pages and with SC24; a generator emitting an empty page would build green. | 5.7 |
 | #317 | Plan 3/3: regenerate user-facing docs | partial | plan-066's tracker, parked behind its Diagram human-read gate. This plan does not close it — Issue 6.4 is the declared handoff that lets the operator open that gate. | — |
-| #247 | Drift findings no declared edge covers | partial | In scope: the CLI→page direction (D4b) and the `web-diagram-src` coverage. Out of scope: the remainder of #247's manifest gap. | _TBD_ |
-| #263 | META: "two facts, one signal" | partial | In scope: `not_checked` conflating "no ids enumerated" with "checked and clean" (1.1b). Out of scope: the META class. | _TBD_ |
+| #247 | Drift findings no declared edge covers | partial | In scope: the CLI→page direction (D4b) and the `web-diagram-src` coverage. Out of scope: the remainder of #247's manifest gap. | 1.3 (the in-scope half) |
+| #263 | META: "two facts, one signal" | partial | In scope: `not_checked` conflating "no ids enumerated" with "checked and clean" (1.1b). Out of scope: the META class. | 1.1b (the in-scope half) |
 
 ## Scoping Decisions
 
@@ -124,7 +124,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
   - depends-on: 0.1
 - Issue 0.3: Add `## Invocation` to every `user-invocable: true` skill lacking it. **The set is DERIVED (`user-invocable: true` ∖ has-`## Invocation`), not the six names** — pass-2 C10: those six were computed under the very coercion bug Issue 0.4 fixes, and if `yf-markdown-format` (key absent, no section) becomes `true` the set is **seven**. Currently six: `yf-beads-hygiene`, `yf-beads-init`, `yf-beads-upstream`, `yf-diagram-authoring`, `yf-herdr`, `yf-research`.
   - depends-on: 0.2, 0.4
-- Issue 0.4: Fix the `user-invocable` coercion defect, SPEC-first, under **`REQ-CHECK-012`**. `frontmatter.rs:61` types it `Option<bool>` (absent = unknown) while `skill_pages.py:133` coerces absent to `False`, so four markdown skills render as "auto (fires from its description conditions)" while their own descriptions read `TRIGGER when: /yf-markdown-lint invoked`. **This is a live false claim on the published site.** Either populate all 20 or make the reader fail-closed on absent.
+- Issue 0.4: Fix the `user-invocable` coercion defect, SPEC-first, under **`REQ-CHECK-012`**. `frontmatter.rs:61` types it `Option<bool>` (absent = unknown) while `skill_pages.py:133` coerces absent to `False`, so four markdown skills render as "auto (fires from its description conditions)" while their own descriptions read `TRIGGER when: /yf-markdown-lint invoked`. **This is a live false claim on the published site.** **Take the populate-all-20 branch** and state it: making the reader fail-closed would leave the frontmatter ambiguous, and Issue 0.3's set cardinality depends on which branch is taken (pass-3 C2) — populating flips `yf-markdown-format` to `true`, so 0.3's derived set becomes **seven**, not six.
 - Issue 0.5: Amend the drift-engine spec for the required-set semantics and the new CLI→page direction — **Name the ids explicitly - `REQ-CHECK-010` (declared required set: slash-sub-verb scope + vacuity floor) and `REQ-CHECK-011` (the CLI→page direction), `REQ-CHECK-013` (the omission rule itself — Epic 1's headline behavior change), `REQ-CHECK-014` (the `e-web-agents-set` edge)** - plus a root `SPEC.md` amendment-log entry and a tagged test in the same change-set, ahead of code. Pass-1 C10: `check_amendment_log` returns **INCONCLUSIVE - "the derived id set is empty"** when no id is named, making SC4 vacuous.
   - depends-on: 0.2
 - Issue 0.6: Author `scripts/checks/plan067_checks.py` — one subcommand per Success Criterion, `argparse(choices=sorted(SUBCOMMANDS))` so an unknown verb exits **2**, plus a `verbs-match` subcommand asserting the table's verb set equals the subcommand set. Never pipe pelican; do not hardcode `web/.venv`.
@@ -135,14 +135,14 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 - Issue 1.1: Add the omission check to `check_web_counts.py` (spec: `REQ-CHECK-013`) — `missing = [s for s in truth if s not in members]` beside the existing `wrong` at `:179`. EXP-001 measured the current pipeline exiting **0** on a two-member deletion with the count unchanged.
   - depends-on: 0.5
 - Issue 1.1b: Close the `members is None` path (**#376**). Pass-1 C6: `wrong` sits inside the `else` of `if members is None`, so the new check lands in the same branch and a group **enumerating no member ids** goes to `not_checked`, where the omission check never runs. Epic 4 rebuilds every diagram into a shape with *fewer* enumerated labels - the easiest possible way to evade the new rule.
-  - depends-on: 1.1
+  - depends-on: 1.1, 0.5
   - resolves-upstream: #376 (include)
   - depends-on: 0.5
-- Issue 1.2: Implement the slash-sub-verb required set as a mechanical realizer with a **vacuity floor**, so a shape change cannot silently zero it. Scope: every sub-verb a skill's normalised `## Invocation` declares must be named on its web page.
+- Issue 1.2: Implement the slash-sub-verb required set as `scripts/checks/check_required_set.py`, with a **vacuity floor**, so a shape change cannot silently zero it. Scope: every sub-verb a skill's normalised `## Invocation` declares must be named on its web page.
   - depends-on: 0.3, 0.5
-- Issue 1.3: Add the **CLI→page direction** to `e-web-cli-surface` with a set-difference realizer (`check_skill_page_contract.py`'s shape — an exit code, not a prose edge). **State the predicate explicitly as corpus-wide TOKEN presence**, and exclude **positional arguments**: pass-1 C5 built the realizer and measured clap deriving long flags from *field names*, so a naive extractor missed `--prune-formulas` and a corrected one returned 12 'missing' of which **5 were positionals** - a **~40% artifact rate**. Report that rate before Epic 1 lands.
+- Issue 1.3: Add the **CLI→page direction** to `e-web-cli-surface`, realized by `scripts/checks/check_cli_to_page.py` — a set-difference realizer (`check_skill_page_contract.py`'s shape — an exit code, not a prose edge). **State the predicate explicitly as corpus-wide TOKEN presence**, and exclude **positional arguments**: pass-1 C5 built the realizer and measured clap deriving long flags from *field names*, so a naive extractor missed `--prune-formulas` and a corrected one returned 12 'missing' of which **5 were positionals** - a **~40% artifact rate**. Report that rate before Epic 1 lands.
   - depends-on: 0.5
-- Issue 1.4: Add an `e-web-agents-set` edge — `ls skills/*/agents/*.md` vs `workflows.md`'s subagent table. Currently 7 of 8; `lander` is absent.
+- Issue 1.4: Add an `e-web-agents-set` edge realized by `scripts/checks/check_agents_set.py` — **scoped to `skills/{yf-plan,yf-research}/agents/*.md`**, which is what `workflows.md`'s own subtitle covers ("the yf-plan and yf-research pipelines and the subagents that run them"). **The scope is mandatory** (pass-3 C1): the unscoped `ls skills/*/agents/*.md` returns **23** files across 6 skills, and a name-based extractor over it surfaces 4 out-of-scope agents while a path-based one surfaces 7 — an **80-87% artifact rate** against 1 real finding. In-scope baseline is **15 of 16**, with `lander` the single absence.
   - depends-on: 0.5
 - Issue 1.5: Give every new checker a **code-side negative control** — mutate the source of truth under passing docs, assert non-zero. Register each under its own name in `CONTROLS` and expose a `--require <names>` mode, so the gate pins **specific checkers by name** rather than a count (pass-2 C3).
   - depends-on: 1.1, 1.2, 1.3, 1.4
@@ -216,7 +216,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 
 ### Epic 6: Verification, retrospective, and the plan-066 handoff
 - Issue 6.0: Re-run plan-066's `recheck-criteria` against the post-plan-067 tree and repair whatever this plan's restructuring broke - amending plan-066's criterion PROSE in the same change-set where the change is legitimate (its SC23/SC24 reference `formulas.d2`, which Issue 4.4b removes). Pass-1 C13: no issue asserted plan-066's criteria survive.
-  - depends-on: 4.1, 4.2, 4.4b
+  - depends-on: 4.1, 4.2, 4.4b, 5.5, 5.6, 5.7
 - Issue 6.1: Full verification sweep — every checker exits 0, pelican builds clean under `--fatal warnings` unpiped, `render.py check-dir` clean, generator `--check` clean.
   - depends-on: 2.6, 4.1, 4.2, 4.4, 4.5, 5.5, 5.6
 - Issue 6.2: Enumerate each Class-B item as CLOSED or FILED WITH AN OWNER, by name — never implied by a green build.
@@ -247,7 +247,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 - Condition: the operator has seen the archify and d2 builds of the same diagram side by side, and has decided whether archify is adopted, kept for exploration, or dropped
 - Test: manual
 - Blocks: 4.1
-- Instructions: Present both artifacts plus Issue 3.3's report — legibility, whether the enumerated member ids survive, and the checkability cost of committing an archify artifact. **State the known blocker plainly: archify has NO d2 input path**, so adopting it means either a second authored source or generating both from one model. **Never resolve this on the agent's own read** — the operator asked to try archify, and only they can judge whether the result is what they wanted. **Three outcomes, and the plan can act on all three (pass-2 C8).** The gate's evidence is produced entirely by Issues 3.1, 3.2 and 3.3 — none of which this gate blocks. *Drop* and *keep-for-exploration* both proceed with d2 unchanged. *Adopt* does **NOT** proceed inside this plan: every downstream artifact keys on `*.d2` (the `web-diagram-src` node, the CHANGE-VALIDATION §3 globs, the generator's `to_d2()`), and archify has no d2 input path — so adoption is a **toolchain migration to be filed upstream as its own plan**, and the redesign continues in d2 regardless of which of the three the operator picks. Issue 3.3 records the verdict. An inconclusive outcome is also legitimate: record it and proceed. **Never resolve this on the agent's own read** — the operator asked to try archify, and only they can judge the result.
+- Instructions: Present both artifacts plus Issue 3.3's report — legibility, whether the enumerated member ids survive, and the checkability cost of committing an archify artifact. **State the known blocker plainly: archify has NO d2 input path**, so adopting it means either a second authored source or generating both from one model. **Three outcomes, and the plan can act on all three (pass-2 C8).** The gate's evidence is produced entirely by Issues 3.1, 3.2 and 3.3 — none of which this gate blocks. *Drop* and *keep-for-exploration* both proceed with d2 unchanged. *Adopt* does **NOT** proceed inside this plan: every downstream artifact keys on `*.d2` (the `web-diagram-src` node, the CHANGE-VALIDATION §3 globs, the generator's `to_d2()`), and archify has no d2 input path — so adoption is a **toolchain migration to be filed upstream as its own plan**, and the redesign continues in d2 regardless of which of the three the operator picks. Issue 3.3 records the verdict. An inconclusive outcome is also legitimate: record it and proceed. **Never resolve this on the agent's own read** — the operator asked to try archify, and only they can judge the result.
 ### Capability Gate: Diagram human read
 - Type: human
 - Condition: each redesigned diagram has been read by a human for the semantic residue no extractor catches
@@ -271,9 +271,9 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 | # | Risk | Severity | Mitigation |
 | :-- | :-- | :-- | :-- |
 | R1 | The new rule produces a **false-positive burst** that discredits it on first run. **Measured:** a required set over derivable classes newly FAILs 17-18 of 20 pages, every failure an artifact. | high | D4 narrows v1 to slash sub-verbs only (0 generated-data artifacts). Issue 1.6 declares the excluded classes explicitly. |
-| R2 | The check is **silently vacuous** — keyed on a section 12 of 20 skills lack, in ≥4 shapes. | high | Issues 0.2/0.3 normalise the schema and add it to the 6 `user-invocable` skills that lack it, BEFORE the check lands (1.2 depends on 0.3). Vacuity floor in 1.2. |
+| R2 | The check is **silently vacuous** — keyed on a section 12 of 20 skills lack, in ≥4 shapes. | high | Issues 0.2/0.3 normalise the schema and add it to **every `user-invocable: true` skill lacking it**, BEFORE the check lands (1.2 depends on 0.3, which depends on 0.4). Vacuity floor in 1.2. |
 | R3 | An instrument returns green over input it cannot see. **Measured three times**: plan-066's checker B, and this plan's own EXP-003 slash-verb extractor. | high | Code-side negative controls (1.5), gated. Issue 2.2 asserts every EXP-003 item appears in the produced inventory. |
-| R4 | 20 hand-authored per-skill diagrams become 20 new drift surfaces. | high | Epic 5 GENERATES them; 5.4's `--check` is what makes it a guarantee rather than a convenience. |
+| R4 | 20 hand-authored per-skill diagrams become 20 new drift surfaces. **And the published-set SIZE is not fixed** — Issue 5.0 re-derives the threshold, so `nodes >= 5` is provisional and the publication set may be larger or smaller than the 12 EXP-004 implied. | high | Epic 5 GENERATES them; 5.4's `--check` is what makes it a guarantee rather than a convenience. |
 | R5 | **RETIRED - the dagre re-pin is removed (pass-1 C1).** Kept as a record: a one-diagram sample produced a recommendation a six-diagram measurement refuted. The generalisable lesson is that a layout judgement needs the whole corpus, not a representative. | - | Epic 3 now trials archify on one diagram and **reports**, rather than re-pinning anything. |
 | R6 | The inventory is unbounded — the predicate, not the corpus, sets the size (57 → 193). | med | Required set drawn from enumerable sources only; 0.7 records the band and names 193 as REJECTED. |
 | R7 | A per-page predicate manufactures ~30 false failures on `usage.md`/`workflows.md` alone. **Self-demonstrated in EXP-003.** | med | The predicate is corpus-wide: "documented somewhere on the site". |
@@ -291,7 +291,7 @@ Every Verification cell is an executable clause discharged by `scripts/checks/pl
 | # | Criterion | Verification | Discharged-by |
 | :-- | :-- | :-- | :-- |
 | SC1 | The two live contradictions are fixed — the lint subset reads seven at **every site the derived set-difference finds** (not a hardcoded four), and `yf-incubator.md` no longer calls a `workflows` skill "beads-free utility" | `uv run scripts/checks/plan067_checks.py contradictions` → exit 0 | 0.1 |
-| SC2 | `## Invocation` parses under ONE shape across every skill that declares it, and all 6 `user-invocable` skills that lacked it now have it | `uv run scripts/checks/plan067_checks.py invocation-schema` → exit 0 | 0.2, 0.3 |
+| SC2 | `## Invocation` parses under ONE shape across every skill that declares it, and **every `user-invocable: true` skill lacking it at Issue 0.4's resolution now has it** — stated in the derived form, not as a literal 6, because 0.4's branch can change the cardinality (pass-3 C2) | `uv run scripts/checks/plan067_checks.py invocation-schema` → exit 0 | 0.2, 0.3 |
 | SC3 | The `user-invocable` coercion defect is fixed — no skill renders "auto-fires" while its description declares a slash trigger | `uv run scripts/checks/plan067_checks.py user-invocable` → exit 0 | 0.4 |
 | SC4 | The drift-engine spec carries the new `REQ-*` ids, a root `SPEC.md` amendment-log entry, and a tagged test | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` → exit 0 | 0.5 |
 | SC5 | The criteria table's verb set equals the script's subcommand set | `uv run scripts/checks/plan067_checks.py verbs-match` → exit 0 | 0.6 |

@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-07
+- ready-for-approval: ready-check green — pass-3 red-team APPROVE + audit pass
+- review-pass: pass-3 red-team APPROVE (7 concerns, none high; no phantoms — all 15 pass-2 fixes verified in the file bytes)
 - review-pass: pass-2 red-team REVISE (15 concerns, 5 high; 2 phantom resolutions, and pass-1's --min-checkers 8 floor measured UNREACHABLE)
 - drafting: pass-2 remediation — 42→44 issues, 30→32 criteria; upstream-triage filled; floor pinned by name
 - drafting: pass-1 remediation — 38→42 issues, 27→30 criteria; dagre withdrawn, archify re-scoped to a trial
