@@ -17,6 +17,10 @@ depends-on-tool: [herdr, uv]
 ---
 
 # yf-herdr
+## Invocation
+
+- `/yf-herdr` — delegate an approved yf-plan or a gated yf-research project to a NEW herdr tab running a fresh session, then observe that subordinate session and mine its deviations. No sub-verbs: the target is inferred from what this session has just asserted is ready to execute
+
 
 Delegates execution to a subordinate session and keeps watching it. Two responsibilities, and the
 second is the one that pays: **launch** correctly, then **observe** honestly.

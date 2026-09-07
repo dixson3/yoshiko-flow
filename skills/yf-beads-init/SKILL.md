@@ -109,6 +109,10 @@ fi
 ```
 <!-- <<< END SKILL_DIR resolver -->
 
+## Invocation
+
+- `/yf-beads-init` — verify, initialize, or repair this repository's beads configuration (`beads_init.py verify`, then `repair`). No sub-verbs: the skill decides which of the three states the repo is in and acts accordingly
+
 ## The engine
 
 The verify/repair engine moved into the `yf` kernel (plan-010); invoke it via `yf`:

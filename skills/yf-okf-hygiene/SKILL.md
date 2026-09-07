@@ -123,6 +123,13 @@ fi
 
 ## Invocation
 
+- `/yf-okf-hygiene audit` — read-only corpus discovery + classification; writes NOTHING, on any path
+- `/yf-okf-hygiene assess` — declared ALIAS of `audit`
+- `/yf-okf-hygiene backfill` — the three-step legacy transform; **dry-run by default** (`--apply` to write)
+- `/yf-okf-hygiene reindex` — index repair for one bundle; REFUSES a legacy prose index
+- `/yf-okf-hygiene restore` — record-driven reversal, with a per-path operation kind
+- `/yf-okf-hygiene recover` — finish or roll back an INTERRUPTED backfill; **dry-run by default**
+
 ```
 /yf-okf-hygiene <subcommand>
 ```

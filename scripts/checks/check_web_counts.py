@@ -143,7 +143,7 @@ def main() -> int:
         return inconclusive("parsed zero skill-group values from skills/*/SKILL.md")
     known = {s for v in census["groups"].values() for s in v}
 
-    findings, not_checked, claims = [], [], 0
+    findings, unenumerated, claims = [], [], 0
     for path in files:
         rel = str(path.relative_to(root))
         is_d2 = path.suffix == ".d2"
@@ -172,14 +172,31 @@ def main() -> int:
                                     f"census {len(truth)}")
                 members = group_members(member_region(lines, i, is_d2), known)
                 if members is None:
-                    not_checked.append(f"{rel}:{n}: group `{group}` enumerates no member ids "
-                                       f"(count checked, MEMBERSHIP NOT CHECKED)")
+                    # ISSUE 1.1b / #376 — THE EVASION PATH, and it is a FINDING, not a note.
+                    # `wrong` used to sit inside this `else`, so the omission check would have
+                    # landed in the ONE BRANCH WHERE THE OMISSION CANNOT OCCUR. A group that
+                    # enumerates no member ids was routed to `not_checked` and joined the clean
+                    # population — which makes "state a count, list nothing" the cheapest
+                    # possible way to evade the rule, and a diagram redesigned with FEWER
+                    # enumerated labels does exactly that by accident. "No ids enumerated" and
+                    # "checked and clean" are TWO FACTS (#263); this reports them apart.
+                    unenumerated.append(f"{rel}:{n}: group `{group}` states a count but "
+                                        f"enumerates NO member ids — membership is unverifiable "
+                                        f"(#376). List the {len(truth)} member id(s).")
                 else:
                     claims += 1
                     wrong = [s for s in members if s not in truth]
+                    # ISSUE 1.1 / REQ-CHECK-013 — the OMISSION difference, beside the existing
+                    # `wrong`. Measured: deleting two members while leaving the count unchanged
+                    # exited 0 under the old rule.
+                    missing = [s for s in truth if s not in members]
                     if wrong:
                         findings.append(f"{rel}:{n}: group `{group}` lists non-member(s) "
                                         f"{wrong} — count may be right while membership is wrong")
+                    if missing:
+                        findings.append(f"{rel}:{n}: group `{group}` OMITS member(s) {missing} "
+                                        f"— an omission FAILs (REQ-CHECK-013); the count alone "
+                                        f"cannot see it")
             for m in FORMULA_COUNT_RE.finditer(line):
                 claimed = as_int(m.group(1))
                 if claimed is None:
@@ -194,19 +211,36 @@ def main() -> int:
         return inconclusive(f"scanned {len(files)} file(s) and found ZERO counted-set claims — "
                             "the matcher, not the docs, is what to fix")
 
-    out = {"check": CHECK, "verdict": "FAIL" if findings else "PASS",
+    # An unenumerated group is a FINDING (1.1b), so it gates the exit code. It is ALSO
+    # reported under its own key and count, because SC6 asserts `not_checked_groups == 0` and
+    # a caller must be able to read that number without parsing prose.
+    all_findings = findings + unenumerated
+    out = {"check": CHECK, "verdict": "FAIL" if all_findings else "PASS",
            "files_scanned": len(files), "claims": claims, "census": census,
-           "findings": findings, "not_checked": not_checked}
+           "findings": all_findings,
+           "mismatches": findings,
+           "unenumerated": unenumerated,
+           "not_checked_groups": len(unenumerated),
+           # REQ-CHECK-009(a): the CLASSES this instrument does not cover, in its own output.
+           # This key names classes; per-site unchecked groups now live in `unenumerated`,
+           # because they are no longer tolerated — they FAIL.
+           "not_checked": [
+               "script-verb coverage — irreducibly editorial (40 registrations in "
+               "plan_manager.py, ZERO visibility metadata; no bit in the source to read)",
+               "editorial omission on a prose page, and missing qualifiers — prose judgements, "
+               "not integer or set-membership claims",
+               "semantic mis-assignment beyond the member-id sets compared here",
+           ]}
     if a.json:
         print(json.dumps(out, indent=1))
     else:
         for f in findings:
             print(f"FAIL {f}")
-        for nc in not_checked:
-            print(f"NOT-CHECKED {nc}")
+        for u in unenumerated:
+            print(f"FAIL(unenumerated) {u}")
         print(f"{CHECK}: scanned {len(files)} file(s), {claims} counted-set claim(s); "
-              f"{len(findings)} mismatch(es), {len(not_checked)} declared unchecked")
-    return 1 if findings else 0
+              f"{len(findings)} mismatch(es), {len(unenumerated)} unenumerated group(s)")
+    return 1 if all_findings else 0
 
 
 if __name__ == "__main__":

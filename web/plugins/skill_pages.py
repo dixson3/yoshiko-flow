@@ -44,6 +44,7 @@ generated pages are written through Pelican's normal page pipeline and theme.
 """
 
 import glob
+import logging
 import os
 import re
 
@@ -52,6 +53,8 @@ from markdown import Markdown
 
 from pelican import signals
 from pelican.contents import Page
+
+logger = logging.getLogger(__name__)
 
 # Install groups (the `skill-group` frontmatter). Display order + human labels; any group not
 # listed here is appended alphabetically, so a new skill-group never silently disappears.
@@ -117,6 +120,33 @@ def _split_description(description):
     return summary, trigger, skip
 
 
+def _read_user_invocable(fm, path):
+    """Read the TRI-STATE ``user-invocable:`` key (REQ-CHECK-012).
+
+    ``yf/src/frontmatter.rs`` types this ``Option<bool>``: absent means UNKNOWN, which is a
+    different fact from a declared ``false``. This function used to be ``bool(fm.get(...,
+    False))`` — a one-word default that collapsed the two and rendered four skills as
+    "auto (fires from its description conditions)" while their own descriptions read
+    ``TRIGGER when: /yf-markdown-lint invoked``. A live false claim on the published site,
+    produced by nothing but a default argument.
+
+    REQ-CHECK-012(a) fixes this at the PRODUCER: every ``SKILL.md`` now populates the key, and
+    ``scripts/checks/check_user_invocable.py`` asserts it mechanically (b). This reader carries
+    (c): where a consumer must nonetheless choose, it chooses the reading that FAILS LOUDLY.
+    The absent case warns — fatal under the ``--fatal warnings`` build the validation recipe
+    runs — instead of silently asserting the more plausible-looking falsehood.
+    """
+    raw = fm.get("user-invocable", None)
+    if raw is None:
+        logger.warning(
+            "skill_pages: %s omits the tri-state `user-invocable:` key (REQ-CHECK-012). "
+            "Absent is UNKNOWN, not False; populate it at the producer rather than "
+            "defaulting here.", path,
+        )
+        return False
+    return bool(raw)
+
+
 def _read_skills(repo_root):
     """Read every skills/*/SKILL.md; return a sorted list of skill dicts."""
     skills = []
@@ -130,7 +160,7 @@ def _read_skills(repo_root):
             {
                 "name": name,
                 "group": fm.get("skill-group", "other"),
-                "invocable": bool(fm.get("user-invocable", False)),
+                "invocable": _read_user_invocable(fm, path),
                 "summary": summary,
                 "trigger": trigger,
                 "skip": skip,

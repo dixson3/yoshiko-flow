@@ -145,6 +145,10 @@ an unapproved draft (`approved: no`) both count as **no approved manifest**.
 
 ## Invocation
 
+- `/yf-change-validation infer` — infer a draft `CHANGE-VALIDATION.md` from the toolchain and present it for approval (`--write` writes it to the repo root instead of stdout)
+- `/yf-change-validation run` — parse the **approved** manifest and execute a tier (`--tier fast|full`, affected-scoped when `--changed <paths>`), reporting PASS / FAIL / INCONCLUSIVE + the first failure
+- `/yf-change-validation check-drift` — re-read toolchain signals, diff against the recorded §2 fingerprint, and emit a JSON re-proposal; never rewrites the manifest
+
 ```
 /yf-change-validation <subcommand>
 ```

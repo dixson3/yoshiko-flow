@@ -1,5 +1,6 @@
 ---
 name: yf-markdown-html
+user-invocable: true
 skill-group: markdown
 depends-on-tool: [uv, pandoc]
 depends-on-skill: []
@@ -98,6 +99,8 @@ fi
 <!-- <<< END SKILL_DIR resolver -->
 
 ## Invocation
+
+- `/yf-markdown-html <input.md> ...` — render one or more Markdown files to self-contained HTML beside the source (`-o OUT.html` for a single input; `--criticmarkup`, `--css`, `--no-default-css`, and extra pandoc flags after `--`)
 
 ```bash
 uv run ${SKILL_DIR}/scripts/md2html.py <input.md>

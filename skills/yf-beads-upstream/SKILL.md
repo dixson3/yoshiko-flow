@@ -123,6 +123,13 @@ fi
 
 All skill-internal paths use `${SKILL_DIR}/` prefix.
 
+## Invocation
+
+- `/yf-beads-upstream init` — detect the remote, propose a backend, confirm with the operator, and write the `custom.upstream.*` config (including the `dolt.local-only` guard and the optional policy knobs)
+- `/yf-beads-upstream push` — the land-the-plane push: enumerate open + deferred beads, preview, then perform the scoped `gh`-direct write and record each `external_ref`
+- `/yf-beads-upstream status` — report the configured backend and the local↔upstream mapping state
+- `/yf-beads-upstream pull` — enumerate upstream issues as the authoritative worklist
+
 ## Trigger split (the load-bearing design)
 
 Two distinct trigger classes, deliberately routed to two different surfaces:

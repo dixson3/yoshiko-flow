@@ -103,6 +103,103 @@ is right and whose membership is wrong), missing qualifiers, intent match, and e
 The third is not merely undecidable but often **correct** — a doc that curates or omits detail is
 not thereby in drift, and only an affirmative contradiction is.
 
+**REQ-CHECK-010: A `required set` check shall DECLARE its scope and carry a VACUITY FLOOR.**
+Where an edge asserts that a derived node documents a set of surfaces the source node declares,
+the check shall name the **class** of surface it requires and shall refuse to certify an empty or
+implausibly small inspection:
+
+- **(a) Declared scope.** The v1 required-set class is **slash sub-verbs** — every sub-verb a
+  skill's normalised `## Invocation` declares must be named on its web page. Classes the check
+  does **not** require are named in its `not_checked` output per `REQ-CHECK-009`.
+- **(b) Vacuity floor.** The check shall fail INCONCLUSIVE when the required set it derived falls
+  below a declared floor. A shape change upstream must not be able to silently zero the set.
+- **(c) Corpus-wide, never per-page.** The predicate is "documented **somewhere** on the site",
+  not "documented on this page".
+
+Rationale, **measured** (plan-067 EXP-002/EXP-003): a required set drawn from the *derivable
+frontmatter* classes newly FAILed **17–18 of 20** currently-green pages and **every one of those
+failures was an artifact** — `skill-group` and `depends-on-tool` are emitted by the generator into
+a block this manifest already declares unable to drift, so requiring them of authored prose is a
+24-failure false-positive burst that discredits the check on its first run. Slash sub-verbs were
+the **one** class with a clean signal (0 generated-data artifacts; the negative control fires and
+names the removed verb). And a **per-page** predicate manufactures ~30 false failures on
+`usage.md` and `workflows.md` alone, since 15 of 20 skills go unmentioned in the first and 17 of
+20 in the second — EXP-003 generated exactly that false positive against itself. Script-verb
+coverage is **irreducibly editorial** and is excluded by name: 40 registrations, **zero**
+visibility metadata, no bit in the source to read.
+
+**REQ-CHECK-011: A one-directional edge over a two-directional obligation is HALF a check, and
+the missing half shall be declared or supplied.** Where an edge's declared failure directions all
+run derived→source, a fact that exists **only** on the source side is unreachable by construction.
+Such an edge shall carry the source→derived direction as well, realized mechanically per
+`REQ-CHECK-008(c)` where the predicate is a set difference.
+
+Rationale, **measured**: `e-web-cli-surface` is `path-resolves` and **both** its declared failure
+directions are page→CLI, so **no check anywhere could see a shipped command that no page
+documents**. `yf harness skills prune-private` — live and **destructive** — is documented nowhere,
+and grepping the whole published corpus for it returns no output. The predicate is corpus-wide
+**token presence**, and **positional arguments are excluded**: measured, clap derives long flags
+from field names, so a naive extractor missed `--prune-formulas` while a corrected one returned 12
+"missing" of which **5 were positionals** — a ~40% artifact rate that must be reported before the
+direction lands.
+
+**REQ-CHECK-013: A set-membership claim FAILs on a MISSING member, not only on a WRONG one.**
+Where a derived node enumerates the members of a set the source node declares, the check shall
+compute **both** differences — members present but wrong, **and** members declared but absent —
+and shall FAIL on either. A group that enumerates **no** member ids shall be reported as an
+explicit unchecked class, never folded into the clean population.
+
+Rationale, **measured**: the prior rule held that a page which "curates or omits repo-dev detail
+PASSes — only an affirmative contradiction FAILs", which makes an omission invisible *by
+construction*. Under it, deleting two members of an enumerated group while leaving its count
+unchanged exited **0**. The cost, on record: `land`, retrospectives, the escalation surface,
+autonomy levels and `closable` went undocumented across multiple releases and **nothing ever
+complained**; `architecture.d2` omitted an entire skill group while passing every check. The
+carve-out this requirement does **not** touch is genuine editorial curation on a prose page —
+which is why `REQ-CHECK-010(a)`'s declared scope, not this requirement, decides *what* is
+required.
+
+**The `members is None` branch is part of this requirement, not an implementation detail.** A
+membership check that runs only inside the `else` of "were any ids enumerated?" lands the new
+FAIL in the one branch where the omission cannot occur, and a diagram redesigned into a shape with
+*fewer* enumerated labels is then the easiest possible evasion. "No ids enumerated" and "checked
+and clean" are **two facts**; reporting them through one signal is the `#263` class.
+
+**REQ-CHECK-014: The agent-set edge (`e-web-agents-set`) shall be SCOPED to the pipelines its
+derived node claims to cover.** The edge asserts that every agent under the scoped source glob is
+named by the derived node. The scope is a **required part of the edge**, not a tuning parameter.
+
+Rationale, **measured**: the derived node's own subtitle covers "the yf-plan and yf-research
+pipelines and the subagents that run them", and scoped to `skills/{yf-plan,yf-research}/agents/*.md`
+the baseline is **15 of 16** with one genuine absence. Unscoped, `skills/*/agents/*.md` returns
+**23** files across 6 skills, and an extractor over it surfaces 4–7 out-of-scope agents against 1
+real finding — an **80–87% artifact rate**. An unscoped edge here does not catch more; it catches
+the same one thing and buries it.
+
+**REQ-CHECK-012: A key whose source of truth is THREE-VALUED shall not be read as two-valued.**
+Where a producing artifact types a field as tri-state — present-true, present-false, **absent
+meaning unknown** — a consumer that coerces absent into one of the two present values invents a
+fact the producer never stated, and does so silently:
+
+- **(a) Populate at the producer, do not default at the consumer.** A tri-state key shall be
+  explicitly populated at every producing site. A consumer-side default is a second, undeclared
+  source of truth for the same field, and the two disagree exactly on the case neither declares.
+- **(b) The population shall be mechanically asserted.** An absent key shall be a detectable
+  condition with an exit code, not a convention. Without this, the absent case returns on the next
+  artifact anyone adds.
+- **(c) Where a consumer must still choose, it chooses the LOUD reading.** A consumer that cannot
+  avoid a default shall pick the value that fails visibly over the one that renders a plausible
+  falsehood.
+
+Rationale, **measured**: `yf/src/frontmatter.rs:61` types `user_invocable: Option<bool>`;
+`web/plugins/skill_pages.py:133` read `bool(fm.get("user-invocable", False))`. Four `SKILL.md`
+files omitted the key, so the published site described them as **"auto (fires from its description
+conditions)"** while their own descriptions read `TRIGGER when: /yf-markdown-lint invoked`. No
+check anywhere could see it: both sides were internally consistent, and the disagreement lived
+entirely in a default argument. This is the tri-state instance of the "two facts, one signal"
+class (`#263`) — an absent key and a declared `false` are different facts, and collapsing them is
+what made the falsehood unreachable.
+
 ## Evidence standard (verbatim from the original CONSISTENCY rule — REQ-CHECK-006)
 
 Every check item must be backed by direct evidence before it is marked PASS or FAIL:

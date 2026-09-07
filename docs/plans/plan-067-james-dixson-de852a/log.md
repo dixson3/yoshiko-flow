@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-07
+- executing: start gate resolved
+- intake: epic yf-mol-gtcy poured
 - approved: operator approved
 - ready-for-approval: ready-check green — pass-3 red-team APPROVE + audit pass
 - review-pass: pass-3 red-team APPROVE (7 concerns, none high; no phantoms — all 15 pass-2 fixes verified in the file bytes)

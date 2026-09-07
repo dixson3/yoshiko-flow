@@ -8,17 +8,19 @@ description: 'Diagram set redesign (#373): restack architecture as a layered mar
 id: plan-067-james-dixson-de852a
 author: james-dixson
 created: '2026-09-07'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
+epic: yf-mol-gtcy
 ---
 # Plan: Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL
 
 **ID:** plan-067-james-dixson-de852a
 **Author:** james-dixson
 **Created:** 2026-09-07
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-gtcy
 **Fingerprint:** c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
 
 ## Objective
@@ -180,9 +182,12 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 > prescribes. Epic 3 has **no dependency on Epic 2** (pass-1 C12) - it reads nothing Epic 2
 > produces, so it runs early and the operator's answer arrives before the redesign commits to it.
 - Issue 3.1: Build the layered marketecture as an **archify `architecture` spec** — **at Issue 4.1's full declared content load**, not the sparse `exp001-architecture-stack.d2` draft (pass-2 C9): the tool layer, the 12 `yf` subcommand paths, the 10 `depends-on-skill` edges. A legibility verdict on a sparse draft would repeat D6's own sampling error one level up, and archify's `--quality` constraint solver is precisely what pressure-tests under density. Deliver to `assets/archify-trial/architecture.html` and produce a raster via `archify visual-check` — noting inline that this yields a **full-page viewer screenshot including the title bar and Export button**, not a clean render.
+  - no-req-required: Epic 3 is a TRIAL that reports a comparison; it amends no requirement. The gate's own text records that *adopt* does not proceed inside this plan — a toolchain migration is filed upstream as its own plan.
 - Issue 3.2: Build the **same** diagram in d2 under the current `elk` pin, at the same content load, to `assets/archify-trial/architecture.d2` + `.png`. **This output is the starting point for Issue 4.1**, not a throwaway.
+  - no-req-required: builds a comparison artifact under the UNCHANGED `elk` pin. It changes no pin and asserts no new requirement; SC18 asserts exactly that.
 - Issue 3.3: Report the comparison for the operator - legibility, whether the enumerated member ids survive, and what a committed archify artifact would cost in checkability. State plainly that archify has **no d2 input path**, so adopting it means either a second authored source or generating both from one model. Write the report to `findings/archify-trial.md`.
   - depends-on: 3.1, 3.2
+  - no-req-required: writes a findings report for a human gate. A report is evidence, not a behavior change.
 
 ### Epic 4: The diagram redesign
 - Issue 4.1: Rebuild `architecture.d2` as a layered marketecture — tool dependencies (`bd`, `gh`, `pandoc`, `d2`, `uv`, `git`, `xelatex`, `herdr`) at the bottom, beads + utility + markdown skills in the middle, workflow skills on top. Measured gaps to close: **5 of 8 declared tool deps absent**, **7 of 12 `yf` subcommand paths absent**, and **0 of 10 `depends-on-skill` edges drawn** — including the workflows→utility relationship #373 names.
@@ -326,6 +331,15 @@ Every Verification cell is an executable clause discharged by `scripts/checks/pl
 | SC25b | The bundle's `index.md` lists every artifact a cold reader needs — findings, references, reviews and spikes — not just the four scaffold files | `uv run scripts/checks/plan067_checks.py index-complete` → exit 0 | 6.3 |
 | SC26b | **plan-066's criteria still hold on the post-plan-067 tree.** Epic 4 rebuilds `architecture.d2` (plan-066 SC9) and removes `formulas.d2` (its SC23), and plan-066 re-runs all 26 criteria at close-out | `uv run scripts/checks/plan067_checks.py plan066-still-green` → exit 0 | 6.0 |
 | SC27 | The redesigned diagrams were presented to the operator for plan-066's gate | manual: the handoff is an act of presentation, and only the operator can resolve that gate | 6.4 |
+
+**Declared `no-req-required` set — {3.1, 3.2, 3.3}, the whole of Epic 3.** This is the MUTABLE
+half of `check_amendment_log.py`'s A2 exemption, and it is declared here (the reviewed artifact)
+rather than hardcoded in the instrument, so the comparison is not a constant against itself. Epic
+3 is an operator-facing **trial**: it builds two renders of one diagram and reports. The gate it
+feeds says in its own text that *adopt* does **not** proceed inside this plan, so there is no
+requirement for Epic 3 to amend, and manufacturing a `depends-on` into Epic 0 to satisfy a
+reachability check would be exactly the false green this plan exists to close. Each of the three
+issues carries its reason inline.
 
 **Deliberately uncovered issues — MECHANICALLY DERIVED, and must match the extractor.** Currently
 exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. plan-066's pass-3 C8 caught a list that disagreed with the

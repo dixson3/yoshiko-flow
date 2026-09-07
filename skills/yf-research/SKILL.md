@@ -130,6 +130,13 @@ fi
 
 All skill-internal paths use the `${SKILL_DIR}/` prefix.
 
+## Invocation
+
+- `/yf-research init` — initialize yf-research for this project (prereq check + install)
+- `/yf-research <topic>` — start a new research project
+- `/yf-research coordinate` — resolve the gate and run the coordinator loop (new session)
+- `/yf-research status` — show research status
+
 ## Reference skills
 
 yf-research relies on the shared beads skills rather than re-documenting `bd`:
@@ -515,4 +522,4 @@ Every markdown artifact this skill writes (`Summary.md`, `sources.md`, `artifact
 anchor) — see `agents/synthesizer.md` and `scripts/link_normalizer.py`. Use GFM tables with
 explicit alignment markers (`:--` left, `:-:` center, `--:` right) and variable, content-sized
 column widths (never fixed-width padding). Lint each generated `.md` with the `yf-markdown-lint`
-authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve any violation before handoff.
+authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008,ML010`) and resolve any violation before handoff.

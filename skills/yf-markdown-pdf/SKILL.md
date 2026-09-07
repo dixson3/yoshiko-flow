@@ -1,5 +1,6 @@
 ---
 name: yf-markdown-pdf
+user-invocable: true
 skill-group: markdown
 depends-on-tool: [uv, pandoc, xelatex]
 depends-on-skill: []
@@ -95,6 +96,8 @@ fi
 <!-- <<< END SKILL_DIR resolver -->
 
 ## Invocation
+
+- `/yf-markdown-pdf <input.md> ...` — render one or more Markdown files to PDF beside the source via pandoc + xelatex (`-o OUT.pdf` for a single input; `--mainfont`, `--table-font`, `--landscape-cols`, `--no-render-fences`, and extra pandoc flags after `--`)
 
 ```bash
 uv run ${SKILL_DIR}/scripts/md2pdf.py <input.md>

@@ -146,6 +146,29 @@ Adopt the whole contract or none of it. Full spec + worked example: [reference/S
 6. **Gitignore stewardship.** The `.gitignore` carries a single anchored `/.yf/` entry (no globs). **Preflight ensures this** (§7), not just init.
 7. **Preflight contract.** `<skill> preflight` both **checks** (deps, installed-rule hash, config readability, hooks) and **ensures** the idempotent scaffold (required dirs + the §6 `/.yf/` anchor — additive-only, reported, gated by a `scaffold-ensured` state version so it runs once and won't fight an operator who removes an anchor). Preflight scaffolds but does not migrate; `yf migrate` moves legacy `.state/<old>/` and root dotfiles into `.yf/<short>/`. Returns structured JSON; non-OK checks block verb execution (rule problems → re-run `yf harness skills install`; deps/consent problems → `<skill> init`). init shrinks to consent-only setup.
 
+### `## Invocation` — ONE shape, because a check keyed on four shapes is vacuous
+
+A `user-invocable: true` skill SHALL carry a `## Invocation` section, and its **first content
+SHALL be a bullet list** in exactly this shape — one line per operator surface:
+
+```markdown
+- `/<skill> <verb>` — <purpose>
+```
+
+Rules a parser can rely on: the bullet starts at column 0 with `- `; the first backtick span
+opens with `/` and names the skill; the token after the skill name is the sub-verb; ` — ` (an em
+dash) separates the surface from its purpose. A bracketed or angle-bracketed token
+(`<objective>`, `[<path> ...]`) is a **placeholder, not a verb**, and extractors skip it.
+Tables, fenced usage blocks and worked examples remain welcome — **below** the bullet list, as
+detail.
+
+**Why a shape is mandated rather than suggested.** Measured across the corpus (plan-067 EXP-002):
+`## Invocation` was absent from **12 of 20** skills, and the 8 that had it used **≥4 mutually
+incompatible shapes** — a bullet list, a fenced block plus a subcommand table, fenced free-form
+lines, and a bare `uv run` fence. A required-set check keyed on that section was therefore
+**silently vacuous for 60% of the corpus**: it read nothing and reported green. Normalising the
+section is what converts that check from a decoration into an instrument.
+
 ### Manifest helper
 
 `scripts/manifest_update.py` (shipped under yf-skill-authoring) recomputes sha256, bumps semver, appends to `previous_versions[]`. Each adopting skill **vendors** a copy into its own `scripts/`. Workflow:
@@ -297,7 +320,7 @@ Every markdown file a skill ships (`SKILL.md`, `agents/*.md`, `README.md`, `spec
 links (`[text](path)` / `[text](file.md#anchor)`); cross-doc references inside a skill are
 relative GFM links. Tables are GFM with explicit alignment markers (`:--`/`:-:`/`--:`) and
 variable, content-sized column widths. **Lint every authored/edited `.md` with the
-`yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve every
+`yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008,ML010`) and resolve every
 violation before the skill is considered done** — this is part of the review gate above, not
 optional. For a skill dir that still carries Obsidian wiki-links, run
 `yf-markdown-format`'s `scripts/convert_wikilinks.py` once to migrate them to GFM.

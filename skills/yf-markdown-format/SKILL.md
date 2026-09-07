@@ -1,5 +1,6 @@
 ---
 name: yf-markdown-format
+user-invocable: true
 skill-group: markdown
 depends-on-tool: [uv]
 depends-on-skill: []
@@ -102,6 +103,10 @@ fi
 [ -z "$SKILL_DIR" ] && { echo "ERROR: yf-markdown-format skill directory not found" >&2; exit 1; }
 ```
 <!-- <<< END SKILL_DIR resolver -->
+
+## Invocation
+
+- `/yf-markdown-format` — rewrite Markdown in place along the axes `yf-markdown-lint` flags: strict GFM table alignment (`--check` gate / `--write` idempotent autofix / bare stdout) and Obsidian-to-GFM wiki-link migration. No sub-verbs; opt-in per repo, never an always-on autofix
 
 ## Table alignment
 

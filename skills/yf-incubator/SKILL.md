@@ -93,6 +93,13 @@ Skill-internal paths use the `${SKILL_DIR}/` prefix.
 
 ## Invocation
 
+- `/yf-incubator new` — create an incubator from a name and optional seed notes, and set it active
+- `/yf-incubator fork` — fork the current sidequest into a new incubator, and set it active
+- `/yf-incubator bookmark` — rewrite the active incubator's `## Resume` and `last_reviewed`
+- `/yf-incubator resume` — load a bookmark and set that incubator active
+- `/yf-incubator list` — index all incubators by state and staleness
+- `/yf-incubator touch` — bump `last_reviewed` only
+
 ```
 /yf-incubator new <name> [seed notes]   create, set active
 /yf-incubator fork <name>               fork current sidequest into a new incubator, set active
@@ -247,5 +254,5 @@ Every markdown artifact this skill writes (incubator `README.md` notes, `INDEX.m
 **GFM** — never Obsidian `[[wikilinks]]` or `![[embeds]]`. Use GFM links (`[text](path)`) and,
 for any table, GFM with explicit alignment markers (`:--` left, `:-:` center, `--:` right) and
 variable, content-sized column widths (never fixed-width padding). Lint each generated `.md`
-with the `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve any
+with the `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008,ML010`) and resolve any
 violation before handoff.

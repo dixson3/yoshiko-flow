@@ -91,7 +91,7 @@ is `yf-drift-check`'s axis.
   `README.md`, `spec/*.md`, `reference/*.md`) shall be plain **GFM** — never Obsidian
   `[[wikilinks]]` or `![[embeds]]`, GFM links and tables (explicit alignment markers) only — and
   every authored/edited `.md` shall be linted with the `yf-markdown-lint` authoring subset
-  (`ML001,ML002,ML005,ML006,ML007,ML008`) with all violations resolved before the skill is
+  (`ML001,ML002,ML005,ML006,ML007,ML008,ML010`) with all violations resolved before the skill is
   considered done; this lint gate is part of the review sequence (REQ-SKAUTH-041), not optional.
 
 ### 2.6 Spec diagrams (conditional)
