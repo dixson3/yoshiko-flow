@@ -64,6 +64,13 @@ A 3.4× swing on prose judgment alone. **Draw the required set from enumerable s
 >   :10  invoking `/yf-change-validation`      <- the ONLY hit; names NO sub-verb
 > ```
 >
+> **CORRECTED AGAIN after pass-1 C15.** "names NO sub-verb" was itself an overstatement: the page
+> DOES backtick-name `check-drift`, `run`, `fast` and `full`. Only `infer` is absent as a token,
+> and it appears there as prose. The real gap on this page is **one verb of four** — exactly what
+> EXP-002 reported. The load-bearing example is instead **`yf-beads-upstream`**: zero verb coverage
+> on its page and **no `## Invocation` section at all**, which both instruments missed. Preserving
+> an overstated retraction of an overstated green does not improve the record.
+>
 > **EXP-002 is right; this experiment was wrong.** Its extractor searched for literal
 > `/<skill> <verb>` strings, but a subcommand **table** declares the verb as `` `infer` `` with no
 > slash prefix — so the extractor could not see that shape and returned green over an input it

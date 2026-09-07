@@ -1,0 +1,31 @@
+# yoshiko-flow marketecture stack — v2: no floating census node, edges are layer-local.
+direction: down
+
+tools: {
+  label: "bottom layer — CLI / tool dependencies"
+  bd: "bd"
+  gh: "gh"
+  uv: "uv"
+  pandoc: "pandoc"
+  d2: "d2"
+}
+
+mid: {
+  label: "middle layer — beads · utility · markdown"
+  beads: "beads group (5)\nbeads-init · beads-extra\nbeads-authoring · beads-hygiene\nbeads-upstream"
+  utility: "utility group (8)\nskill-authoring · drift-check\ndiagram-authoring · okf\nokf-hygiene · optimal-instructions\nchange-validation · herdr"
+  markdown: "markdown group (4)\nmarkdown-lint · markdown-format\nmarkdown-pdf · markdown-html"
+}
+
+wflayer: {
+  label: "top layer — embedded skills (20)"
+  wf: "workflows group (3)\nplan · research · incubator"
+}
+
+wflayer.wf -> mid.utility: "composes"
+wflayer.wf -> mid.beads: "tracks work"
+mid.beads -> tools.bd
+mid.beads -> tools.gh
+mid.utility -> tools.uv
+mid.utility -> tools.d2
+mid.markdown -> tools.pandoc

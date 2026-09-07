@@ -70,22 +70,25 @@ entire motivation.
 
 ## Resolutions
 
+All 17 resolved. C1 and C3 were **operator decisions** — both were put to the operator with the
+refuting measurements, and both were re-decided on the corrected information.
+
 | Concern | Severity | Resolution | Actor | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| C1 | high | *(pending — operator decision)* | `operator` | `unresolved` |
-| C2 | high | *(pending)* | `main-session` | `unresolved` |
-| C3 | high | *(pending — operator decision)* | `operator` | `unresolved` |
-| C4 | high | *(pending)* | `main-session` | `unresolved` |
-| C5 | high | *(pending)* | `main-session` | `unresolved` |
-| C6 | high | *(pending)* | `main-session` | `unresolved` |
-| C7 | high | *(pending)* | `main-session` | `unresolved` |
-| C8 | medium-high | *(pending)* | `main-session` | `unresolved` |
-| C9 | medium-high | *(pending)* | `main-session` | `unresolved` |
-| C10 | medium | *(pending)* | `main-session` | `unresolved` |
-| C11 | medium | *(pending)* | `main-session` | `unresolved` |
-| C12 | medium | *(pending)* | `main-session` | `unresolved` |
-| C13 | medium | *(pending)* | `main-session` | `unresolved` |
-| C14 | medium | *(pending)* | `main-session` | `unresolved` |
-| C15 | low-medium | *(pending)* | `main-session` | `unresolved` |
-| C16 | low-medium | *(pending)* | `main-session` | `unresolved` |
-| C17 | low | *(pending)* | `main-session` | `unresolved` |
+| C1 | high | **Accepted and independently re-measured.** I rendered all six under both engines myself: dagre is larger on **6/6** (+4% to +25%), worst on `architecture` (**+23%**) — the diagram the objection was about. **Epic 3 is replaced entirely**: the dagre re-pin is gone, the pin stays `elk`, and Epic 3 now trials **archify on one diagram** per the operator's redirect. R5 is retired with the sampling lesson recorded: a layout judgement needs the corpus, not a representative. | `main-session` | `resolved` |
+| C2 | high | **Accepted.** Every `depends-on: 3.2` re-pointed to `2.6`, so no issue depends on a gate that can be declined. Epic 3 is now a leaf that reports; nothing is stranded by its outcome. | `main-session` | `resolved` |
+| C3 | high | **Accepted, and the operator was told.** I verified all three refutations myself — `visual-check` exists, the package is MIT with **zero** runtime deps and no self-update call sites, and `standard` is the default. D1's rationale is rewritten to the **two surviving grounds** (checkability, orthogonality) with the three struck claims **retained struck-through** rather than deleted, because a plan rejecting an operator's ask must show which claims held. **The operator re-decided on the corrected information** and chose to trial archify on the architecture diagram; D1 now scopes archify to exploration rather than rejecting it. | `main-session` | `resolved` |
+| C4 | high | **Accepted.** Floor raised to `--min-checkers 8` (plan-066's four inherited + the four Issue 1.5 registers) in **both** the gate `Test:` and SC10, so registering zero new controls can no longer pass. | `main-session` | `resolved` |
+| C5 | high | **Accepted.** SC8 rewritten to claim only what a corpus-wide token predicate can reach (`prune-private`, `--prune-formulas`) and to state explicitly that it does **not** claim the `--force` flags, with the measurement (`install.md:132`, `README.md:75`). Issue 1.3 now states the predicate and requires a positional-argument exclusion with the measured ~40% artifact rate reported before Epic 1 lands. | `main-session` | `resolved` |
+| C6 | high | **Accepted.** New Issue 1.1b closes the `members is None` path, and **#376 is re-triaged from adjacent to `include`** — it is the stated limit in the exact function 1.1 modifies. SC6 and SC19 now assert `not_checked == 0`, so the redesign cannot pass by dropping enumerated ids. | `main-session` | `resolved` |
+| C7 | high | **Accepted.** The Upstream Issues table is populated with all seven rows and real dispositions: #373/#376/#375/#374 `include`, #317/#247/#263 `partial` with the in/out line drawn on each. #375 is assigned to Issue 4.2, #374 noted against Epic 5. | `main-session` | `resolved` |
+| C8 | medium-high | **Accepted.** Both dropped asks restored: new Issue 4.4b authors the **five per-formula diagrams** and REMOVES `formulas.d2` per #373's literal wording, and Issue 4.2 gains **execution** and **land-the-plane**. New SC21b covers 4.4b. `resolves-upstream: #373 (include)` is now earned rather than asserted. | `main-session` | `resolved` |
+| C9 | medium-high | **Accepted.** Issue 0.1 restated as *every site carrying the 6-element subset string, DERIVED by `grep -rl`*, with the fifth site (`yf-skill-authoring/SPEC.md:94`) named and the search-shape error recorded. SC1 now asserts the derived set-difference, not a hardcoded four. | `main-session` | `resolved` |
+| C10 | medium | **Accepted.** Concrete ids named in the plan text: `REQ-CHECK-010` (required set), `REQ-CHECK-011` (CLI→page direction), `REQ-CHECK-012` (the `user-invocable` coercion fix), with the INCONCLUSIVE-on-empty-set mechanism recorded inline. | `main-session` | `resolved` |
+| C11 | medium | **Moot, as the reviewer predicted.** C1 removed the re-pin, so the 13-site blast radius and the 21-pair archival question do not arise. Recorded rather than silently dropped: if a layout change is ever revisited, that scope is the starting point. | `main-session` | `resolved` |
+| C12 | medium | **Accepted.** Epic 3 has **no dependency on Epic 2** — the dependency is removed and the reason stated inline (it reads nothing Epic 2 produces). The operator's answer now arrives before the redesign commits to it. | `main-session` | `resolved` |
+| C13 | medium | **Accepted.** New Issue 6.0 re-runs plan-066's `recheck-criteria` against the post-plan-067 tree and amends plan-066's criterion prose where this plan legitimately invalidates it (its SC23/SC24 reference `formulas.d2`, which 4.4b removes). New SC26b asserts it. | `main-session` | `resolved` |
+| C14 | medium | **Partially accepted — and the gap is recorded rather than papered over.** Recovered and committed under `assets/spikes/`: EXP-001's marketecture `.d2` draft plus its elk and dagre renders (the dagre one kept deliberately as a **negative artifact** — it is the single sample that produced the refuted D6). **NOT recovered:** EXP-004's generator prototype, EXP-001's archify spec, and EXP-003's slash-verb extractor — their sub-agent scratch did not survive. `assets/spikes/README-plan.md` states this and its consequence: Issue 5.2 re-derives the generator from EXP-004's written specification, and 1.2's vacuity floor must be tested against a **reconstructed** known-blind input rather than the original failing instrument. | `main-session` | `resolved` |
+| C15 | low-medium | **Accepted.** The EXP-003 amendment overstated: the page does backtick-name `check-drift`, `run`, `fast` and `full`; only `infer` is absent as a token. Correcting to "named one of four sub-verbs" and citing `yf-beads-upstream` — zero verb coverage, no `## Invocation` at all — as the load-bearing example. Preserving an overstated retraction of an overstated green does not improve the record. | `main-session` | `resolved` |
+| C16 | low-medium | **Accepted.** `## Investigation Findings` now carries a four-row summary with each experiment's verdict and the result that changed the plan, linked into `findings/`, plus a note that two of this plan's own instruments returned false greens. | `main-session` | `resolved` |
+| C17 | low | **Accepted.** `epic:4` dropped from the fail-capable gate's Blocks (it was already transitively blocked). The findings-heading and epistemic-marker normalisation is folded into the C15 amendment pass. | `main-session` | `resolved` |
