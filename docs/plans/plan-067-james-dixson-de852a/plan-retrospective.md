@@ -198,3 +198,22 @@ one plan, that an instrument said PASS about something it had not read.
 | `prevention` |  |
 | `cost` |  |
 
+## RE-005
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-07 |
+| `stop_class` | 2 |
+| `asked` | Two capability gates remain — Diagram human read (blocks 6.4) and Upstream write authorization (blocks 6.5). Both are gate_type: human. |
+| `answered` | PENDING. Not resolved, and not resolvable by this session: an agent read is evidence, never a discharge, and an outward-facing write needs authorization a green test cannot supply. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | bd ready returns zero ready TASK beads; the only open tasks are 7.5 and 7.6, each behind a human gate. 27 of 28 criteria PASS; the one FALSE is plan-066's diagram-reads, reported as the DECLARED HANDOFF rather than a regression. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
