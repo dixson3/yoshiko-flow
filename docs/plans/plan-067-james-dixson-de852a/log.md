@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-07
+- approved: operator approved
 - ready-for-approval: ready-check green — pass-3 red-team APPROVE + audit pass
 - review-pass: pass-3 red-team APPROVE (7 concerns, none high; no phantoms — all 15 pass-2 fixes verified in the file bytes)
 - review-pass: pass-2 red-team REVISE (15 concerns, 5 high; 2 phantom resolutions, and pass-1's --min-checkers 8 floor measured UNREACHABLE)
