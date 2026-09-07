@@ -208,7 +208,7 @@ approved: yes
 | `cli-to-page` | `uv run scripts/checks/check_cli_to_page.py` |  |  |
 | `agents-set` | `uv run scripts/checks/check_agents_set.py` |  |  |
 | `user-invocable` | `uv run scripts/checks/check_user_invocable.py` |  |  |
-| `req-normative-home` | `uv run scripts/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
+| `req-normative-home` | `uv run scripts/checks/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
 | `gate-plan067-amendment` | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
 | `gate-plan067-controls` | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 | `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
@@ -301,7 +301,7 @@ approved: yes
 |  | `uv run scripts/checks/check_cli_to_page.py` |  |  |
 |  | `uv run scripts/checks/check_agents_set.py` |  |  |
 |  | `uv run scripts/checks/check_user_invocable.py` |  |  |
-|  | `uv run scripts/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
+|  | `uv run scripts/checks/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
 |  | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
 |  | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 |  | `uv run web/plugins/skill_diagrams.py --check` |  |  |

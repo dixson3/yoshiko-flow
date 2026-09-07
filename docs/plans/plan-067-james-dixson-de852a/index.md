@@ -16,6 +16,19 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/spikes/exp001-architecture-stack.d2](assets/spikes/exp001-architecture-stack.d2)
 - [assets/spikes/exp001-dagre-sample.png](assets/spikes/exp001-dagre-sample.png)
 - [assets/spikes/exp001-elk-sample.png](assets/spikes/exp001-elk-sample.png)
+- [findings/archify-trial.md](findings/archify-trial.md) - The Epic-3 archify-vs-d2 trial at the full content load, and the OPERATOR's 2026-09-07 verdict: KEEP FOR EXPLORATION.
+- [findings/omission-inventory.md](findings/omission-inventory.md) - The failure list the LANDED rule produced — 23 items in three populations. This, not EXP-003's table, is what Epic 2 repaired.
+- [findings/per-skill-census.md](findings/per-skill-census.md) - EXP-004's census REBUILT under a stated node/edge definition, and the re-derived publication threshold.
+- [assets/archify-trial/architecture.d2](assets/archify-trial/architecture.d2) - The d2 side of the trial, under the unchanged elk pin. Issue 3.2 declared it the starting point for Issue 4.1, and Issue 4.1 used it.
+- [assets/archify-trial/architecture.png](assets/archify-trial/architecture.png)
+- [assets/archify-trial/architecture.json](assets/archify-trial/architecture.json) - The archify spec. TRIAL EVIDENCE ONLY — deliberately NOT committed under web/content/.
+- [assets/archify-trial/architecture.html](assets/archify-trial/architecture.html) - The delivered archify viewer. Trial evidence only; never committed to the site and never checked.
+- [assets/archify-trial/architecture.visual-check.1440x900.light.png](assets/archify-trial/architecture.visual-check.1440x900.light.png)
+- [assets/archify-trial/architecture.visual-check.1440x900.dark.png](assets/archify-trial/architecture.visual-check.1440x900.dark.png)
+- [assets/archify-trial/architecture.visual-check.2048x1320.light.png](assets/archify-trial/architecture.visual-check.2048x1320.light.png)
+- [assets/archify-trial/architecture.visual-check.2048x1320.dark.png](assets/archify-trial/architecture.visual-check.2048x1320.dark.png)
+- [assets/archify-trial/architecture.visual-check.html](assets/archify-trial/architecture.visual-check.html)
+- [assets/archify-trial/architecture.visual-check.json](assets/archify-trial/architecture.visual-check.json) - archify's own visual-check verdict: exit 1 on viewport overflow and 2.35px projected text.
 - [findings/exp-001-archify-vs-d2.md](findings/exp-001-archify-vs-d2.md) - Keep d2. archify has no headless raster export, a non-self-contained artifact, an unvendorable dev-channel dependency, and a quality gate that penalises the very member ids the repo checks.
 - [findings/exp-002-required-set-derivability.md](findings/exp-002-required-set-derivability.md) - D4 refuted as scoped. A declared required set over derivable classes newly FAILs 17-18 of 20 pages and EVERY failure is an artifact. Exactly one class has a clean signal.
 - [findings/exp-003-omission-inventory.md](findings/exp-003-omission-inventory.md) - 73 real omissions (band 57-114; rejected upper bound 193). Ratio 53% real / 17% curation / 30% artifact. The required set must be corpus-wide, not per-page.
@@ -39,6 +52,9 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 | [exp-002-required-set-derivability.md](findings/exp-002-required-set-derivability.md) | A required set over derivable classes newly FAILs 17-18 of 20 pages, **every failure an artifact**. Only slash sub-verbs give a clean signal. |
 | [exp-003-omission-inventory.md](findings/exp-003-omission-inventory.md) | **73** real omissions (band 57-114; 193 rejected). Carries an amendment retracting its own false green, itself corrected once more. |
 | [exp-004-per-skill-diagram-model.md](findings/exp-004-per-skill-diagram-model.md) | Generate, do not hand-author: 20 authored diagrams would be 20 new drift surfaces. Found a live false claim on the published site. |
+| [omission-inventory.md](findings/omission-inventory.md) | **Execution-time.** What the landed rule actually FOUND: 15 mechanical omissions, 6 one-page-deep partials, and 2 that no checker reaches — the last recorded as a stated limit rather than repaired into invisibility. |
+| [archify-trial.md](findings/archify-trial.md) | **Execution-time.** Both builds of one diagram at the full content load, with the real checker's exit code per artifact — and the OPERATOR's verdict: KEEP FOR EXPLORATION, d2 stays the committed source of truth, adoption stays open as a separate plan. |
+| [per-skill-census.md](findings/per-skill-census.md) | **Execution-time.** EXP-004's census rebuilt under a definition that is now written down. Finds `edges == nodes-1` everywhere (these are stars, not graphs) and no zero-edge skill. |
 
 ## Reviews
 
@@ -46,12 +62,25 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 | :-- | :-- |
 | [pass-1.md](reviews/pass-1.md) | REVISE — 17 concerns. Refuted D6 by measurement and three of D1's four archify grounds. |
 | [pass-2.md](reviews/pass-2.md) | REVISE — 15 concerns, including two phantom resolutions and an unreachable vacuity floor. |
+| [pass-3.md](reviews/pass-3.md) | APPROVE — 7 concerns, none high. No phantoms: all 15 pass-2 resolutions verified in the file bytes. |
 
 ## Upstream references
 
 `references/upstream-{373,376,375,374,317,247,263}.md` — full issue bodies as fetched at triage.
 Dispositions live in [upstream-triage.md](upstream-triage.md) and are restated in `plan.md`'s
 Upstream Issues table.
+
+## The archify trial (Epic 3)
+
+[assets/archify-trial/](assets/archify-trial/) — the SAME architecture diagram built twice at the
+full declared content load, plus archify's own `visual-check` rasters and verdict. The `.html` and
+`.json` are **trial evidence only** and are deliberately NOT committed under `web/content/`: two
+sources of one fact is the defect `e-web-diagram-formulas` exists to catch.
+
+The operator resolved the gate on **2026-09-07** as **KEEP FOR EXPLORATION** — d2 remains the
+committed, checked source of truth, and adoption stays open as a separate upstream plan rather than
+foreclosed. The reasoning and the four things such a plan would have to carry are in
+[findings/archify-trial.md](findings/archify-trial.md).
 
 ## Spikes
 

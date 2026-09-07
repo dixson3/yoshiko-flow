@@ -904,14 +904,31 @@ def sc_plan066_still_green(root: Path, a) -> tuple[bool, str, dict]:
     verbs = sorted(set(re.findall(r"plan066_checks\.py\s+([a-z0-9][a-z0-9-]*)", txt)))
     if not verbs:
         raise Inconclusive("parsed zero plan-066 verbs")
-    red = {}
+    # THE DECLARED HANDOFF ITEM, separated from a regression because they are DIFFERENT FACTS.
+    # plan-066's `diagram-reads` requires one dated human-read entry per diagram. plan-067
+    # restructured the diagram set, so it is FALSE — and that is CORRECT, not a regression: the
+    # new set has not been human-read. It is discharged by the operator at plan-067's own
+    # Diagram human read gate (Issue 6.4, the declared plan-066 handoff), never by an agent.
+    # Writing entries for diagrams no human has looked at would satisfy the check while
+    # destroying the thing it checks.
+    HANDOFF = {"diagram-reads"}
+    red, handoff = {}, {}
     for v in verbs:
         r = run_cmd(root, ["uv", "run", str(p066), v])
         if r.returncode == 1:
-            red[v] = r.stdout.strip()[:160] or r.stderr.strip()[:160]
-    return (not red, f"{len(verbs)} plan-066 criterion verb(s) re-run; none FALSE"
-            if not red else f"plan-066 criteria now FALSE: {sorted(red)}",
-            {"false": red, "verbs": verbs})
+            (handoff if v in HANDOFF else red)[v] = (r.stdout.strip()[:160]
+                                                     or r.stderr.strip()[:160])
+    ok = not red and not handoff
+    if red:
+        reason = f"plan-066 criteria REGRESSED: {sorted(red)}"
+    elif handoff:
+        reason = (f"{len(verbs)} plan-066 criterion verb(s) re-run; no regression. PENDING THE "
+                  f"DECLARED HANDOFF: {sorted(handoff)} — the restructured diagram set awaits "
+                  f"the operator's read at plan-067's Diagram human read gate (Issue 6.4). An "
+                  f"agent read is evidence, never a discharge.")
+    else:
+        reason = f"{len(verbs)} plan-066 criterion verb(s) re-run; none FALSE"
+    return ok, reason, {"regressed": red, "pending_handoff": handoff, "verbs": verbs}
 
 
 SUBCOMMANDS = {
