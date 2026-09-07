@@ -47,10 +47,34 @@ the rule needs a per-edge exclusion list **on day one**, not as a follow-up.
 
 A 3.4× swing on prose judgment alone. **Draw the required set from enumerable sources only.**
 
-### Slash verbs are 100% covered — plan-066 closed that class completely
+### ~~Slash verbs are 100% covered~~ — **RETRACTED. This was a FALSE GREEN.**
 
-`MISSING_SLASH=[]` for all 20 skills. The inventory lives entirely in script verbs, named
-behaviors, and diagram set-membership.
+> **AMENDED by main-session adjudication.** This experiment reported `MISSING_SLASH=[]` for all 20
+> skills and concluded plan-066 "closed that class completely". **EXP-002 contradicted it**, naming
+> `yf-change-validation infer` as a real omission. Adjudicated directly against the artifacts:
+>
+> ```
+> skills/yf-change-validation/SKILL.md  ## Invocation
+>   | Subcommand | Purpose |
+>   | `infer` (bootstrap) | ... |
+>   | `run --tier fast\|full` | ... |
+>   | `check-drift` | ... |
+>
+> web/content/skills/yf-change-validation.md
+>   :10  invoking `/yf-change-validation`      <- the ONLY hit; names NO sub-verb
+> ```
+>
+> **EXP-002 is right; this experiment was wrong.** Its extractor searched for literal
+> `/<skill> <verb>` strings, but a subcommand **table** declares the verb as `` `infer` `` with no
+> slash prefix — so the extractor could not see that shape and returned green over an input it
+> never examined. That is the same defect class this plan exists to close, committed by one of its
+> own instruments, and it is why EXP-002's finding that `## Invocation` has **≥4 incompatible
+> shapes** is load-bearing rather than cosmetic.
+>
+> **Consequence for the plan:** slash sub-verbs are NOT 100% covered, and the class EXP-002
+> identifies as the one clean, derivable signal stays in scope.
+
+The remainder of the inventory lives in script verbs, named behaviors, and diagram set-membership.
 
 ### The structural reason omissions are invisible
 
