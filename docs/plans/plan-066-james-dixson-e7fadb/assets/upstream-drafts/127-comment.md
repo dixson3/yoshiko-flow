@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted reconcile comment for upstream #127 (idiomatic-terms glossary) — POSTED and issue CLOSED 2026-09-07."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #127 closed. -->
+
 ## Largely already satisfied — closing with the delta, not a duplicate
 
 Measured during plan-066: **`web/content/pages/glossary.md` already defined every term this issue

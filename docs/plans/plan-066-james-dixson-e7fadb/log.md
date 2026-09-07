@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-07
+
+- executing: PARKED at the Diagram human-read gate — operator declined it 2026-09-07; successor #373; unmet SC11 (manual, gate held) + SC17 (retrospective, gated behind it). Epics 0-7 landed and pushed to main as a deliberate PARTIAL LAND. NOT crashed, NOT abandoned.
+
 ## 2026-09-05
 - executing: start gate resolved
 - intake: epic yf-mol-a927 poured

@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted reconcile comment for upstream #322 (the repo-agnostic figure) — POSTED and issue CLOSED 2026-09-07."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #322 closed. -->
+
 ## Fixed in plan-066 — at BOTH sites
 
 The figure now **names its corpus**, which is the whole defect: a ratio measured in one repository

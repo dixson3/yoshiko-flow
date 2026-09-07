@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted comment for upstream #247 (manifest gap) — POSTED 2026-09-07; issue LEFT OPEN as a partial."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #247 stays open. -->
+
 ## Partially addressed by plan-066 — this issue STAYS OPEN
 
 `plan-066-james-dixson-e7fadb` closed the **four Class-B coverage gaps #317 enumerates**, which

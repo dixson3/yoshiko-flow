@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted comment for upstream #372, this plan's coarse tracker — POSTED LAST 2026-09-07; issue LEFT OPEN, the plan is not complete."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #372 stays open. -->
+
 ## plan-066 PARTIALLY landed — this tracker STAYS OPEN
 
 `plan-066-james-dixson-e7fadb` merged to `main` as a **deliberate partial land**. The plan remains

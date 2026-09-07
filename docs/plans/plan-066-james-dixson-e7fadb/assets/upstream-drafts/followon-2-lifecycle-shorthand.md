@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Body for the follow-on filed as #375 — lifecycle.d2's deps-missing label shorthand."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     filed as #375. -->
+
 `web/content/images/lifecycle.d2` labels the preflight outcomes
 `ok / ignored / deps-missing / rule-drift`. The actual status literal is **`system_deps_missing`**,
 not `deps-missing`.

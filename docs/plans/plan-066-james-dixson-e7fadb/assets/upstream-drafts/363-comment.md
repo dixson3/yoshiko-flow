@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted reconcile comment for upstream #363 (OKF-EXTENSION remediation) — POSTED and issue CLOSED 2026-09-07."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #363 closed. -->
+
 ## Fixed in plan-066 — all three defect classes, across all three files
 
 The root cause is one fact: **`OKF-EXTENSION.md` describes a migration that has since shipped**,

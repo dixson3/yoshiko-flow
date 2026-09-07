@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted comment for upstream #263 (two-facts-one-signal META) — POSTED 2026-09-07; issue LEFT OPEN as a partial."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #263 stays open. -->
+
 ## One instance closed by plan-066 — the META class STAYS OPEN
 
 `plan-066-james-dixson-e7fadb` closed one instance of this class and, in passing, produced two

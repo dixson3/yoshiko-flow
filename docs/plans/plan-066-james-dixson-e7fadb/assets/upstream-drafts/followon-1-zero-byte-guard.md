@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Body for the follow-on filed as #374 — the existence-only zero-byte skill-page guard."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     filed as #374. -->
+
 The authored-skill-page guard in `web/plugins/skill_pages.py` calls itself **fail-closed**, but it
 only checks `os.path.isfile`. A **zero-byte** `web/content/skills/<name>.md` satisfies it: the
 build exits **0**, and the page renders with the generated "At a glance" block, no body, and no

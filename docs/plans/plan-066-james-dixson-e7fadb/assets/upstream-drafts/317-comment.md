@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted comment for upstream #317 (the plan of record) — POSTED 2026-09-07; issue LEFT OPEN, its acceptance needs the ungated retrospective."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #317 stays open. -->
+
 ## plan-066 PARTIALLY landed — the site builds again. This issue STAYS OPEN.
 
 Executed as `plan-066-james-dixson-e7fadb`, merged to `main` as a **deliberate partial land**.

@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Body for the follow-on filed as #376 — check_web_counts's declared membership limit."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     filed as #376. -->
+
 `scripts/checks/check_web_counts.py` verifies a group's **count** always, but its **membership**
 only when the group's label or bullet actually enumerates member ids. Where none are enumerated it
 emits:

@@ -1,3 +1,12 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Posted reconcile comment for upstream #104 (devserver teardown) — POSTED and issue CLOSED 2026-09-07."
+---
+<!-- THE POSTED BODY IS EVERYTHING BELOW THIS COMMENT. The frontmatter above is
+     bundle metadata (OKF REQ-OKF-003) and was NOT part of the upstream write:
+     posted; #104 closed. -->
+
 ## Fixed in plan-066
 
 Three parts, and the shape is forced by a measurement rather than chosen:
