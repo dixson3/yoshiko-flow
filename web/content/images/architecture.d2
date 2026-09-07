@@ -1,47 +1,166 @@
-# yoshiko-flow architecture — the yf kernel, embedded skills, beads, upstream tracking.
-direction: right
+# yoshiko-flow architecture — the LAYERED MARKETECTURE (plan-067 Issue 4.1, #373).
+#
+# Rebuilt from `docs/plans/plan-067-james-dixson-de852a/assets/archify-trial/architecture.d2`,
+# which Issue 3.2 declared the starting point for this diagram rather than a throwaway. The
+# operator resolved the archify trial as KEEP FOR EXPLORATION on 2026-09-07: d2 stays the
+# committed, checked source of truth, so this diagram is d2 under the UNCHANGED `elk` pin.
+#
+# THREE LAYERS, bottom to top:
+#   1  external tools          — the `depends-on-tool` frontmatter
+#   2  the 20 embedded skills  — grouped by `skill-group`, with the `depends-on-skill` edges
+#   3  the `yf` CLI            — every subcommand path that reaches the tree
+#
+# NODE IDS ARE THE FULL SKILL NAMES ON PURPOSE. Short ids (`extra`, `authoring`) make the edge
+# list unreadable and — measured — make it unverifiable: a checker deriving the declared
+# `depends-on-skill` set from frontmatter cannot match an edge written in an alias it has never
+# seen. Self-documenting ids are what let the edge list below be CHECKED rather than trusted.
+#
+# The 12 skill->skill edges are MEASURED from frontmatter, not transcribed. The plan drafted
+# this count as 10; the two it missed are `yf-okf-hygiene -> yf-okf` and
+# `yf-optimal-instructions -> yf-skill-authoring`.
+direction: down
 
-user: {
-  label: "operator\n(Claude Code / agent harness)"
-  shape: person
-}
+tools: {
+  label: "LAYER 1 — external tools (8), from `depends-on-tool`"
+  style.stroke-dash: 3
+  style.fill: "#f8fafc"
 
-yf: {
-  label: "yf CLI\n(single Rust binary)"
-  shape: rectangle
-  install: "skills install / upgrade / remove"
-  preflight: "preflight <skill>\n(shared kernel gate)"
-  doctor: "doctor\n(env + install health)"
+  bd: {label: "bd\nDolt-backed issue DB"; shape: cylinder}
+  gh: {label: "gh\nGitHub CLI — the ONLY upstream write path"}
+  git: {label: "git"}
+  pandoc: {label: "pandoc"}
+  xelatex: {label: "xelatex"}
+  d2: {label: "d2\nthe pinned diagram renderer (v0.8.2, --theme 0 --layout elk)"}
+  herdr: {label: "herdr\nterminal multiplexer"}
+  uv: {label: "uv\nshared Python substrate for 16 of the 20 skills\n(all except yf-beads-authoring, yf-beads-extra,\nyf-diagram-authoring, yf-drift-check)"; style.stroke-dash: 4}
 }
 
 skills: {
-  label: "embedded skills (20)\ncompiled into the binary"
-  shape: rectangle
-  workflows: "workflows group (3)\nplan · research · incubator"
-  beads: "beads group (5)\nbeads-init · beads-extra\nbeads-authoring · beads-hygiene\nbeads-upstream"
-  utility: "utility group (8)\nskill-authoring · drift-check\ndiagram-authoring · okf\nokf-hygiene · optimal-instructions\nchange-validation · herdr"
-  markdown: "markdown group (4)\nmarkdown-lint · markdown-format\nmarkdown-pdf · markdown-html"
+  label: "LAYER 2 — embedded skills (20), grouped by `skill-group`"
+  style.fill: "#fdfdfe"
+
+  workflows: {
+    label: "workflows (3)\nyf-incubator · yf-plan · yf-research"
+    style.fill: "#eef2ff"
+    yf-incubator: "yf-incubator"
+    yf-plan: "yf-plan"
+    yf-research: "yf-research"
+  }
+
+  beads: {
+    label: "beads (5)\nyf-beads-authoring · yf-beads-extra · yf-beads-hygiene · yf-beads-init · yf-beads-upstream"
+    style.fill: "#f0fdf4"
+    yf-beads-authoring: "yf-beads-authoring"
+    yf-beads-extra: "yf-beads-extra"
+    yf-beads-hygiene: "yf-beads-hygiene"
+    yf-beads-init: "yf-beads-init"
+    yf-beads-upstream: "yf-beads-upstream"
+  }
+
+  utility: {
+    label: "utility (8)\nyf-change-validation · yf-diagram-authoring · yf-drift-check · yf-herdr · yf-okf · yf-okf-hygiene · yf-optimal-instructions · yf-skill-authoring"
+    style.fill: "#f8fafc"
+    yf-change-validation: "yf-change-validation"
+    yf-diagram-authoring: "yf-diagram-authoring"
+    yf-drift-check: "yf-drift-check"
+    yf-herdr: "yf-herdr"
+    yf-okf: "yf-okf"
+    yf-okf-hygiene: "yf-okf-hygiene"
+    yf-optimal-instructions: "yf-optimal-instructions"
+    yf-skill-authoring: "yf-skill-authoring"
+  }
+
+  markdown: {
+    label: "markdown (4)\nyf-markdown-format · yf-markdown-html · yf-markdown-lint · yf-markdown-pdf"
+    style.fill: "#fff7ed"
+    yf-markdown-format: "yf-markdown-format"
+    yf-markdown-html: "yf-markdown-html"
+    yf-markdown-lint: "yf-markdown-lint"
+    yf-markdown-pdf: "yf-markdown-pdf"
+  }
 }
 
-harness: {
-  label: "harness surface\n~/.claude or ~/.agents\n(user or project scope)"
-  shape: rectangle
+cli: {
+  label: "LAYER 3 — the `yf` CLI"
+  style.fill: "#ecfeff"
+
+  verbs: {
+    label: "top-level"
+    doctor: "yf doctor\n(--repair · --prune-formulas)"
+    preflight: "yf preflight"
+    migrate: "yf migrate"
+    skilldir: "yf skill-dir"
+    version: "yf version"
+  }
+
+  self: {
+    label: "yf self — the BINARY lifecycle"
+    update: "update"
+    install: "install"
+    uninstall: "uninstall"
+  }
+
+  harness: {
+    label: "yf harness — PROVISIONING"
+    tune: "tune\n(config + rules; --rules-only)"
+    hskills: {
+      label: "skills"
+      hinstall: "install"
+      hupgrade: "upgrade"
+      hremove: "remove"
+      hstatus: "status"
+      hprune: "prune-private\n(dry-run by DEFAULT)"
+    }
+  }
+
+  deprecated: {
+    label: "yf skills\n(deprecated alias)"
+    style.stroke-dash: 5
+  }
 }
 
-bd: {
-  label: "beads (bd)\nDolt-backed issue DB"
-  shape: cylinder
-}
+# --- LAYER 1 -> LAYER 2 : depends-on-tool --------------------------------------------
+tools.bd -> skills.beads.yf-beads-authoring
+tools.bd -> skills.beads.yf-beads-extra
+tools.bd -> skills.beads.yf-beads-hygiene
+tools.bd -> skills.beads.yf-beads-init
+tools.bd -> skills.beads.yf-beads-upstream
+tools.bd -> skills.workflows.yf-plan
+tools.bd -> skills.workflows.yf-research
 
-upstream: {
-  label: "upstream tracker\nGitHub Issues (via gh)"
-  shape: rectangle
-}
+tools.git -> skills.beads.yf-beads-hygiene
+tools.git -> skills.beads.yf-beads-init
+tools.git -> skills.utility.yf-okf-hygiene
+tools.git -> skills.workflows.yf-plan
+tools.git -> skills.workflows.yf-research
 
-user -> yf: "invoke"
-yf.install -> skills: "embeds"
-yf.install -> harness: "deploys skills + rules"
-user -> harness: "/yf-plan, /yf-research, ..."
-harness -> yf.preflight: "gate before run"
-skills.beads -> bd: "track work"
-bd -> upstream: "land-the-plane push\n(open + deferred beads)"
+tools.gh -> skills.beads.yf-beads-upstream
+tools.herdr -> skills.utility.yf-herdr
+tools.d2 -> skills.utility.yf-diagram-authoring
+
+tools.pandoc -> skills.markdown.yf-markdown-html
+tools.pandoc -> skills.markdown.yf-markdown-pdf
+tools.xelatex -> skills.markdown.yf-markdown-pdf
+
+tools.uv -> skills: {style.stroke-dash: 4; label: "shared substrate (16 of 20)"}
+
+# --- LAYER 2 -> LAYER 2 : depends-on-skill (TWELVE edges, measured from frontmatter) --
+skills.beads.yf-beads-authoring -> skills.beads.yf-beads-extra
+skills.beads.yf-beads-hygiene -> skills.beads.yf-beads-extra
+skills.beads.yf-beads-hygiene -> skills.beads.yf-beads-init
+skills.beads.yf-beads-init -> skills.beads.yf-beads-extra
+skills.beads.yf-beads-upstream -> skills.beads.yf-beads-extra
+skills.workflows.yf-incubator -> skills.beads.yf-beads-extra
+skills.workflows.yf-plan -> skills.beads.yf-beads-extra
+skills.workflows.yf-plan -> skills.beads.yf-beads-authoring
+skills.workflows.yf-research -> skills.beads.yf-beads-extra
+skills.workflows.yf-research -> skills.beads.yf-beads-authoring
+skills.utility.yf-okf-hygiene -> skills.utility.yf-okf
+skills.utility.yf-optimal-instructions -> skills.utility.yf-skill-authoring
+
+# --- LAYER 3 -> the rest --------------------------------------------------------------
+cli.harness.hskills -> skills: "deploys the embedded tree"
+cli.harness.tune -> skills: "deploys the always-loaded rules"
+cli.deprecated -> cli.harness.hskills: {style.stroke-dash: 5; label: "alias"}
+cli.verbs.preflight -> tools: "gates on tool presence"
+cli.self.install -> cli.harness.hskills: "--from-build runs the install-time SYNC"

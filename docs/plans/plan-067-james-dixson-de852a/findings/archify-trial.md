@@ -1,7 +1,7 @@
 ---
 type: Finding
 okf_spec: OKF-PLAN
-description: "Operator-requested trial: the SAME full-content-load architecture diagram built twice, once in archify and once in d2. Both artifacts exist; the real checker passes the .d2 (exit 0) and FAILs the archify .json (exit 1) and .html (exit 1). Verdict is PENDING OPERATOR."
+description: "Operator-requested trial: the SAME full-content-load architecture diagram built twice, once in archify and once in d2. Both artifacts exist; the real checker passes the .d2 (exit 0) and FAILs the archify .json (exit 1) and .html (exit 1). OPERATOR VERDICT 2026-09-07: KEEP FOR EXPLORATION — d2 stays the committed, checked source of truth; adoption stays open as a separate upstream plan."
 id: archify-trial
 plan: plan-067-james-dixson-de852a
 created: 2026-09-07
@@ -13,7 +13,7 @@ created: 2026-09-07
 An **operator-requested trial**, not a decision. Epic 3 was commissioned to build one diagram
 twice — once as an archify `architecture` spec, once as `.d2` — at the **full declared content
 load**, and to report the comparison. **This document resolves no gate.** Section "Verdict:
-PENDING OPERATOR" lays the three options out neutrally.
+PENDING OPERATOR" laid the three options out neutrally; the operator resolved it as KEEP FOR EXPLORATION on 2026-09-07.
 
 It also is not a re-run of `exp-001-archify-vs-d2.md`. That experiment recorded four
 disqualifiers, and **three of the four were later refuted** — headless raster export
@@ -250,10 +250,49 @@ Consequently **all three operator outcomes leave plan-067 continuing in d2**:
 | **keep-for-exploration** | plan-067 continues in d2 unchanged; archify stays an ad-hoc, uncommitted, unchecked tool |
 | **drop** | plan-067 continues in d2 unchanged |
 
-## 5. Verdict: PENDING OPERATOR
+## 5. Verdict: KEEP FOR EXPLORATION — resolved by the OPERATOR, 2026-09-07
 
-**No recommendation is made here.** The operator commissioned the trial and the operator judges
-it. The evidence for each option, neutrally:
+> **RESOLVED 2026-09-07. The verdict is Option B — KEEP FOR EXPLORATION — and the OPERATOR made
+> it.** Not this document, not the agent that built the trial, and not the session that executed
+> the plan. The agent's reads and the checker's exit codes below are **evidence**; they were
+> never a discharge.
+>
+> **The decision:** `d2` remains the committed, checked source of truth. archify stays available
+> for ad-hoc, shareable, interactive HTML that is **never committed and never checked**.
+>
+> **The reasoning that carried it, in the operator's terms:** archify's group-legibility edge is
+> **real** — that is not a consolation, it is the measured result, and it is the one dimension
+> where archify won outright. But it costs the **checkability** that the whole Class-B half of
+> this plan depends on: the `.d2` passes the real checker at exit 0 while the `.json` and `.html`
+> do not scan cleanly, and six declared surfaces are keyed to `*.d2`. And reaching a clean render
+> took **four rounds plus a programmatic lane allocator over 32 edges** — routing that `elk`
+> performs for free from 145 lines of source. A better picture that costs the instrument is not a
+> better picture *for this repository*.
+>
+> **Adoption stays OPEN, and is not foreclosed.** It is a separate upstream plan, not a decision
+> this one has made against. Such a plan would have to carry four things, named here so they are
+> not rediscovered:
+>
+> 1. **The checker's `is_d2` switch.** Its single-shape assumption is what produced the `.json`
+>    and `.html` false positives — the Markdown continuation-region rule applied to formats that
+>    do not wrap. **That is OUR defect, not archify's**, and stating it the other way round would
+>    let a real weakness in our instrument hide behind a verdict about someone else's tool.
+> 2. **The manifest re-keying** — every `web-diagram-src`-derived edge, the `CHANGE-VALIDATION` §3
+>    globs, and the per-skill generator's `to_d2()`.
+> 3. **An `SC10`-equivalent** — a byte or hash criterion under a recorded pin. archify emits a
+>    `specification.sha256` natively, so this is buildable; it is simply not built.
+> 4. **The `d2`-input-path gap** — archify has **no d2 input path**, so adoption means either a
+>    second authored source or generating both from one model.
+>
+> **What this plan does next, unchanged:** Issue 4.1 rebuilds `architecture.d2` in d2 under the
+> UNCHANGED `elk` pin, starting from `assets/archify-trial/architecture.d2` — which Issue 3.2
+> declared the starting point for 4.1 rather than a throwaway. The archify `.html` and `.json`
+> stay in this plan bundle as **trial evidence only**; they are deliberately NOT committed under
+> `web/content/`, because two sources of one fact is exactly the defect `e-web-diagram-formulas`
+> exists to catch.
+
+**The evidence, as it was presented for the decision** — recorded unchanged so the verdict can be
+audited against what was actually in front of the operator:
 
 ### Option A — adopt archify (as a future upstream migration)
 
@@ -293,7 +332,8 @@ format problem.
 and discards a working interactive explorer. Dropping is irreversible only in attention, not in
 code.
 
-**The gate is not resolved by this document.**
+**The gate was resolved by the OPERATOR on 2026-09-07, not by this document and not by any
+agent read.** The three options above are preserved verbatim as they were presented.
 
 ## Provenance / caveats
 

@@ -7,7 +7,7 @@ Subtitle: the yf kernel, embedded skills, beads, and upstream tracking
 preflights those skills and the toolchain they depend on. The product is *yoshiko-flow*; the
 binary you install and run is `yf`.
 
-![yoshiko-flow architecture](/images/architecture.png)
+![The yoshiko-flow architecture as a layered marketecture: eight external tools at the bottom with their depends-on-tool edges, the twenty embedded skills in their four skill-group clusters with all twelve depends-on-skill edges drawn, and the yf CLI's subcommand paths above — yf doctor, preflight, migrate, skill-dir, version, yf self update/install/uninstall, yf harness tune, and yf harness skills install/upgrade/remove/status/prune-private](/images/architecture.png)
 
 ## The `yf` kernel
 
