@@ -17,6 +17,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/spikes/exp001-dagre-sample.png](assets/spikes/exp001-dagre-sample.png)
 - [assets/spikes/exp001-elk-sample.png](assets/spikes/exp001-elk-sample.png)
 - [plan-retrospective.md](plan-retrospective.md) - 14 content defects and 11 process defects counted separately, plus the three instrument false-greens — including one this plan committed inside its own verification.
+- [findings/parked-state.md](findings/parked-state.md) - READ FIRST if you found this bundle in `executing`: it is HELD behind two human gates the operator chose to hold, not crashed. Carries the do-not-do list.
 - [findings/diagram-presentation.md](findings/diagram-presentation.md) - The MATERIAL for the Diagram human-read gate: what changed, what the checks established, and what no check can see. Not a read.
 - [findings/classb-disposition.md](findings/classb-disposition.md) - All fourteen Class-B (instrument) items dispositioned BY NAME: thirteen CLOSED, one FILED with an owner.
 - [findings/archify-trial.md](findings/archify-trial.md) - The Epic-3 archify-vs-d2 trial at the full content load, and the OPERATOR's 2026-09-07 verdict: KEEP FOR EXPLORATION.
