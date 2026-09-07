@@ -210,7 +210,9 @@ malformed, or missing input yields a finding and continues, never a stack trace.
 ```
 
 Exit code is **1 when `ok` is false** (or the dir is missing), **0 when conformant**. Report the
-findings grouped by `req`; do not auto-fix (migration is the write path, and it is opt-in).
+findings grouped by `req`; do not auto-fix. Repair is a **separate, opt-in verb** — `migrate`
+for structure, `reindex --write` for the index listing, `scaffold` for a new skeleton — never a
+side effect of `check`.
 
 ## migrate
 

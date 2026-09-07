@@ -17,3 +17,7 @@ __pycache__/
 # The hosted install.sh is STAGED at deploy time from a cargo-dist release by
 # scripts/sync_installer.sh — it is a generated artifact, not source.
 content/extra/install.sh
+
+
+# devserver process-group id (#104) — runtime state, never committed
+.devserver.pgid

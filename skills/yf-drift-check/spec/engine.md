@@ -49,6 +49,40 @@ the skill portable. Verification: grep the engine for repo-specific tokens (`bd`
 a node, `skills/<skill>/`, `install.sh`, formula names) → none as load-bearing references
 (illustrative examples in prose are permitted but must be labelled as examples).
 
+**REQ-ENGINE-008: Dispatching a node-level Reachability check (the mechanism REQ-CHECK-008
+authorizes).** A §6 *Scopes To* entry may name a **node ID**. When a changed path matches such a
+row, the engine performs `REQ-CHECK-004(a)` over that node, in four declared steps:
+
+1. **Resolve the two sets from the manifest, never from a hand-list.** *Set A* is every artifact
+   the §4 Referencers row declares must exist (expanded from the referencer's own glob). *Set B*
+   is the node's §1 glob, expanded. Both are computed at dispatch time; neither is enumerated in
+   the manifest, because a hand-maintained list is a second source of truth that drifts.
+2. **Apply SET DIFFERENCE, not intersection.** `A \ B` is the finding set — the required
+   artifacts with no live counterpart. `B \ A` is reported separately as **orphans** and is
+   advisory, not a FAIL: an extra derived artifact is not an unreferenced required one.
+3. **Route by decidability (REQ-CHECK-008(c)).** If the manifest declares a runnable checker for
+   this node, the engine **runs it and takes its exit code as the verdict**; the report-only
+   sub-agent of REQ-ENGINE-005 is not dispatched for this check. Only where the predicate is not
+   mechanically decidable does the node-level check fall to the prose verifier.
+4. **Carry a vacuity floor.** A run in which *Set A* or *Set B* expands to fewer members than the
+   node declares as its floor is **INCONCLUSIVE**, never PASS. A set-difference check over an
+   empty set is vacuously green, which is the failure mode this whole requirement exists to
+   remove.
+
+**Why the set operator is stated normatively rather than left to the implementation.** Edge
+pairing — the operator every other check in this engine uses — computes the **intersection** of
+two globs. That is structurally why no edge could ever have seen this class of drift: an artifact
+missing from one side simply drops out of the pairing, taking its own absence with it. Measured
+(plan-066 EXP-002): with `skill-page` reachability unenforced, the two sets stood at 20 and 19,
+the intersection at 19, and the one-element difference — the skill shipping with no page — was
+reported by nothing. Naming the operator is what prevents an implementer from reaching for the
+familiar one.
+
+**§4 is what a node-keyed §6 row BINDS TO.** A node named in §6 with no §4 Referencers row has
+nothing to compute *Set A* from, so the engine reports **INCONCLUSIVE** and names the missing
+row — it does not silently pass. Rationale: the two sections are halves of one mechanism, and a
+half-configured node must fail loudly rather than certify nothing.
+
 ## Out of scope (honest limits — REQ-ENGINE-007)
 
 - **Spec authoring.** The engine keeps only the *enforce-when-a-fixed-authority-node-exists*

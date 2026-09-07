@@ -101,6 +101,18 @@ MARKDOWN = {
     "output_format": "html5",
 }
 
+# Files the content walker must never pick up (#104). The autoreload devserver (`pelican -lr`)
+# re-scans `content/` on every change, so an editor swap file or a `.d2` source landing there
+# triggers a rebuild — and, with `--fatal warnings`, can fail one. `.d2` sources are listed
+# because they live BESIDE their rendered `.png` under `content/images/`, which is a
+# STATIC_PATH: without this they would be copied to the site root as dead weight.
+IGNORE_FILES = [
+    ".*",           # dotfiles, incl. editor state and .DS_Store
+    "*.d2",         # diagram SOURCES; only the rendered .png is published
+    "*~", "*.swp", "*.swo", "#*#",
+    "__pycache__",
+]
+
 # Static assets. `extra/` files are copied to the site root (robots, install.sh)
 # via EXTRA_PATH_METADATA below.
 STATIC_PATHS = ["images", "extra"]

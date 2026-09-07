@@ -1,8 +1,11 @@
 # OKF-PLAN — yf-plan per-skill OKF extension
 
-> **Status: DRAFT (plan-029, Epic 1, Issue 1.3).** Proposal only. Epic 2's impact assessment
-> stress-tests this member; the human ratification gate approves it before any implementation
-> (Epics 3/6) applies it. Composed by the engine as
+> **Status: RATIFIED AND SHIPPED (plan-029, 2026-07-18; banner corrected by plan-066 / #363).**
+> This is no longer a proposal. The ratification gate approved it, the implementation landed, and
+> the model it describes — reserved `index.md` + `log.md`, frontmatter with a non-empty `type` —
+> is what the engine enforces today. Read the sections below as **shipped behaviour**, not as a
+> plan. Where a section still frames something as a decision to be taken, the decision has been
+> taken; the outcome is recorded inline. Composed by the engine as
 > **OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ OKF-PLAN** (SPEC REQ-OKF-FAM-001). Discovered by
 > `resolve_extension("yf-plan")` at `skills/yf-plan/OKF-EXTENSION.md`, `__file__`-relative to the
 > vendored `okf.py` (SPEC REQ-OKF-FAM-003). Terminology and REQ ids match `skills/yf-okf/SPEC.md`.
@@ -172,8 +175,9 @@ Deltas Epic 2's impact assessment quantifies and the ratification gate confirms:
 - **`plan.md` carries no YAML frontmatter today** — metadata is `**Field:**` prose only. Adopting
   OKF-PLAN adds a dual frontmatter block above the first `## ` (the largest single delta;
   hash-neutral by REQ-OKF-010).
-- **`README.md` → `index.md`** rename (SPEC REQ-OKF-001). Every consumer of the seeded `README.md`
-  (`seed_readme`, the audit, docs) must repoint.
+- **`README.md` → `index.md`** rename (SPEC REQ-OKF-001). **DONE.** Every consumer repointed:
+  the seeder is now **`seed_index`** (`seed_readme` no longer exists), and the audit and docs
+  follow it.
 - **`**Phase log:**` (in-`plan.md`) → `log.md`** extraction (SPEC REQ-OKF-002). The migrate op is
   **`extract-log`** (renamed from the ambiguous `move-phase-log`, I-3) and carries `source_kept:
   true`: `plan.md` is **not** renamed — only its `**Phase log:**` block is lifted into `log.md`, and

@@ -102,8 +102,8 @@ never disagree.
 | :-- | :-- | :-- | :-- |
 | `claude-code` | `~/.claude/skills` | `<git-root>/.claude/skills` | rules land in the sibling `rules/` dir |
 | `codex` | `~/.agents/skills` | `<git-root>/.agents/skills` | rules go into `AGENTS.md` as a managed block |
-| `opencode` | `~/.config/opencode/skills` | `<git-root>/.opencode/skills` | reads `opencode.jsonc` **ahead of** `opencode.json` |
-| `pi` | `~/.pi/agent/skills` | `<git-root>/.pi/skills` | applies a lowercase-hyphen name transform; **config tuning is deferred** — `--harness pi` tunes rules and skills only |
+| `opencode` | `~/.agents/skills` | `<git-root>/.agents/skills` | reads `opencode.jsonc` **ahead of** `opencode.json`; surface dir stays `~/.config/opencode` |
+| `pi` | `~/.agents/skills` | `<git-root>/.agents/skills` | **config tuning is deferred** — `--harness pi` tunes rules and skills only; surface dir stays `~/.pi/agent` |
 | `agents` | `~/.agents/skills` | `<git-root>/.agents/skills` | shares codex's path deliberately |
 
 `codex` and `agents` resolve to the **same** directory. That is intentional, not a duplicate row.
@@ -414,7 +414,7 @@ See [skills/yf-optimal-instructions/README.md](skills/yf-optimal-instructions/RE
 
 ### yf-beads-upstream
 
-Configurable, GitHub-first upstream-tracking utility skill (no formula/coordinator). Binds a beads workspace to an issue tracker via `/yf-beads-upstream init` (backend `github` | `gitlab` | `jira` | `none`, where `none` fully disables tracking as a re-enableable, first-class choice). Its **push step** is a land-the-plane action — push open/deferred beads upstream, dry-run-first and scoped (`bd github push <ids>`), never a bare `bd <backend> sync`; re-push is idempotent via the recorded `External:` mapping (verified live on bd 1.0.5). Its **status/pull** step treats upstream issues as the authoritative worklist when enabled, or falls back to local `bd ready`/`bd list` when disabled. GitHub is implemented and tested; GitLab/Jira are config-only stubs. Ships an always-loaded companion rule (`protocols/UPSTREAM_TRACKING.md`) carrying the close-time push trigger (silent no-op when disabled) and the never-bare-sync invariant. Prereqs: `bd` >= 1.0.5, `uv`, `git`, and `gh` (for the GitHub backend).
+Configurable, GitHub-first upstream-tracking utility skill (no formula/coordinator). Binds a beads workspace to the GitHub issue tracker via `/yf-beads-upstream init` (backend `github`, or `none` to fully disable tracking as a re-enableable, first-class choice). Its **push step** is a land-the-plane action — push open/deferred beads upstream, dry-run-first and scoped, via `uv run upstream.py push --issues <csv> [--apply]`. The writes are **gh-direct**: `bd` is read-only on the write path, `gh` performs every upstream mutation, and `bd update --external-ref` records the mapping — no `bd <backend>` write command is issued at all. Re-push is idempotent via that recorded mapping. Its **status/pull** step treats upstream issues as the authoritative worklist when enabled, or falls back to local `bd ready`/`bd list` when disabled. GitHub is the only supported backend. Ships an always-loaded companion rule (`protocols/UPSTREAM_TRACKING.md`) carrying the close-time push trigger (silent no-op when disabled) and the never-bare-sync invariant. Prereqs: `bd` >= 1.0.5, `uv`, `git`, and `gh` (for the GitHub backend).
 
 See [skills/yf-beads-upstream/README.md](skills/yf-beads-upstream/README.md).
 

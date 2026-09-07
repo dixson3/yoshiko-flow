@@ -128,7 +128,7 @@ unused: yf configures every repo local-only with no Dolt remote.
 ### Follow-on work goes upstream, coarsely
 
 If the DB is local, how does work that outlives a clone become visible to the team? It is
-**captured upstream in the issue tracker** (GitHub, GitLab, or Jira) at
+**captured upstream in the GitHub issue tracker** at
 [land-the-plane](/glossary/). Crucially, yf does this at **coarse granularity**: one tracking
 issue per plan-scale effort (e.g. per `/yf-plan` plan), linking the plan and its epic — **not**
 one issue per execution bead. The granular sub-beads stay local; only the plan-scale summary is

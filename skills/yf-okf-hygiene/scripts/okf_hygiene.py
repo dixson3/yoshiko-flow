@@ -569,10 +569,13 @@ def _objective(plan_md: Path) -> str:
     bundles that half of the corpus consists of, `## Objective` opens with a
     motivation-style paragraph rather than a one-line objective, so comparing it against the
     legacy index's `>` line reports a divergence on nearly every bundle. Measured both ways
-    over the 31 legacy bundles: the section-body reading flags **22**, the H1 reading flags
-    **7** — and 7 is the figure D-5 recorded independently. A halt class that fires on 22 of
-    31 is not a halt class; it is an outage, and it would have trained the operator to wave
-    the gate through, which is the exact failure the gate exists to prevent.
+    over the 31 legacy bundles **of `dixson3/yoshiko-flow` as it stood in the plan-029 era**
+    (the corpus is named because the ratio is a property of IT, not of this engine — #322):
+    the section-body reading flags **22**, the H1 reading flags **7**, and 7 is the figure D-5
+    recorded independently. A halt class that fires on 22 of 31 is not a halt class; it is an
+    outage, and it would have trained the operator to wave the gate through, which is the exact
+    failure the gate exists to prevent. **Do not size another repository's run from these
+    numbers** — run `audit` against that corpus instead.
     """
     try:
         text = plan_md.read_text(encoding="utf-8")

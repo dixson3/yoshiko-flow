@@ -188,8 +188,8 @@ harnesses and their resolved skills directories:
 |:------------|:----------------------------|:--------------------------------|:---------------------|
 | `claude-code` (default) | `~/.claude/skills/` | `<git-root>/.claude/skills/` | — |
 | `codex` | `~/.agents/skills/` | `<git-root>/.agents/skills/` | — |
-| `opencode` | `~/.config/opencode/skills/` | `<git-root>/.opencode/skills/` | — |
-| `pi` | `~/.pi/agent/skills/` | `<git-root>/.pi/skills/` | `lowercase-hyphen,max64` |
+| `opencode` | `~/.agents/skills/` | `<git-root>/.agents/skills/` | — |
+| `pi` | `~/.agents/skills/` | `<git-root>/.agents/skills/` | — |
 | `agents` | `~/.agents/skills/` | `<git-root>/.agents/skills/` | — |
 
 Companion rules land in the sibling `rules/` directory of each skills dir (e.g.
@@ -201,10 +201,10 @@ Notes on the matrix:
 - **`--harness` is repeatable** — `--harness codex --harness pi` installs into both in one run.
 - **`codex` and `agents` both resolve to `.agents/skills`.** When both are selected they
   **dedupe to a single write** — the tree is deployed once, not twice.
-- **`pi` applies a `lowercase-hyphen,max64` transform** to each skill's on-disk directory name
-  (lowercase, every non-`[a-z0-9]` character → `-`, truncated to 64 chars). The `yf-*` skill
-  names are already lowercase-hyphenated and under 64 chars, so the transform is the identity on
-  them; it only matters for names that would otherwise violate pi's constraint.
+- **No harness applies a skill-name transform.** Every shipped descriptor in
+  `yf/src/harness_desc.rs` declares `name_transform: None`, and the file asserts that no shipped
+  row may carry one — so a skill's on-disk directory name is its `SKILL.md` `name`, unchanged, on
+  every harness. (`pi` formerly applied a `lowercase-hyphen,max64` transform; it no longer does.)
 
 ### Auto-detection (no `--harness`)
 

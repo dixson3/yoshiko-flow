@@ -98,6 +98,25 @@ and priority, and treats local beads as a convenience view over that list. When
 tracking is disabled it falls back to the local worklist — `bd ready`, then
 `bd list --status open` — with no upstream calls.
 
+## `closable` — proposing, never closing
+
+At land-the-plane, after the push step, `closable` reports which upstream issues have **all**
+their mapped beads closed:
+
+```bash
+uv run "$SKILL_DIR/scripts/upstream.py" closable --json
+```
+
+It **proposes** `gh issue close` commands and stops. It never closes anything, because closing an
+upstream issue is an outward-facing write and gets the same confirm contract a push does — a
+green signal is evidence a condition holds, not authorization to act on it.
+
+**A clean run does not mean nothing needs closing**, and the reason is structural. The signal is
+**per-bead**: `closable` groups beads by the `external_ref` that `bd update --external-ref`
+records at push time. A hand-filed coarse plan tracker carries **no bead mapping at all**, so it
+is invisible to this verb and still needs a human sweep. Reading a clean `closable` as "nothing
+is outstanding" would be reading the absence of a mapping as the absence of work.
+
 ## Safety invariants
 
 - **Route every upstream write through the skill — never hand-run the underlying

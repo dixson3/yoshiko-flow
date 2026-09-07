@@ -106,7 +106,7 @@ For Python helpers, also run `reviewer-python` for a toolchain and design critiq
 Every markdown file a skill ships — `SKILL.md`, `agents/*.md`, `README.md`, `spec/*.md`,
 `reference/*.md` — is plain **GFM**: no Obsidian `[[wikilinks]]` or `![[embeds]]`, GFM links and
 tables with explicit alignment markers only. Every authored or edited `.md` is linted with the
-[`yf-markdown-lint`](/skills/yf-markdown-lint/) authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`)
+[`yf-markdown-lint`](/skills/yf-markdown-lint/) authoring subset — seven rules (`ML001,ML002,ML005,ML006,ML007,ML008,ML010`)
 and every violation resolved before the skill is done. That lint gate is part of the review
 sequence, not optional.
 

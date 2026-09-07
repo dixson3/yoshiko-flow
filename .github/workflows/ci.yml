@@ -82,3 +82,52 @@ jobs:
 
       - name: Test against the baked embed tree
         run: cargo test --workspace --features yf/embed-in-debug
+
+  web-doc-checks:
+    # THE COVERAGE THAT BINDS OUTSIDE THE yf-plan LAND PATH (plan-066, #317).
+    #
+    # CHANGE-VALIDATION.md's FULL tier IS mechanically enforced — `_validate_merged` returns
+    # fail/exit 3 — but it binds on the yf-plan LAND PATH ONLY, and the FAST on-edit trigger is
+    # itself an always-loaded prose rule. Measured (plan-066 EXP-002), that is the class that
+    # produced 4 firing opportunities and 0 catches. Without this job a direct, non-plan commit
+    # to `web/content/`, `README.md` or `yf/src/harness_desc.rs` gets nothing at all — which is
+    # exactly how commit 75a5796 shipped a twentieth skill, broke the site build, and drifted
+    # the 19->20 skill count with no CI surface that would ever have noticed.
+    #
+    # NO `paths:` FILTER, DELIBERATELY. `ci.yml` runs unfiltered on every PR and every push to
+    # `main`, so a filtered job would give strictly LESS coverage than the file it lives in. The
+    # source side matters as much as the doc side here: an absent skill page is never edited and
+    # can never fire its own on-edit check.
+    #
+    # The four checkers are invoked BY NAME rather than by a `check_web_*` glob, because
+    # `check_skill_page_contract.py` does not carry that prefix and a glob would silently drop
+    # it — the third of four, and the one that guards the defect that broke the build.
+    name: web/doc drift checkers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Counted-set claims (skills, groups, formulas)
+        run: uv run scripts/checks/check_web_counts.py
+
+      - name: Harness path / name_transform claims
+        run: uv run scripts/checks/check_web_harness_paths.py
+
+      - name: Skill-page existence (set difference)
+        run: uv run scripts/checks/check_skill_page_contract.py
+
+      - name: Upstream-backend claims
+        run: uv run scripts/checks/check_web_backend_claim.py
+
+      # A checker never observed to fail is not evidence. This runs the code-side controls, so
+      # CI would catch a checker that has quietly stopped attributing anything — the failure
+      # mode measured twice in this plan, both times in the direction that looks like success.
+      - name: Negative controls (every checker must be observed to FAIL)
+        run: uv run scripts/checks/test_negative_controls.py --all --min-checkers 4
+
+      - name: DRIFT-CHECK.md referential closure
+        run: uv run scripts/checks/check_drift_manifest_closure.py

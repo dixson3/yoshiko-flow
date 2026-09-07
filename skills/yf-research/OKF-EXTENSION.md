@@ -1,8 +1,11 @@
 # OKF-RESEARCH — yf-research per-skill OKF extension
 
-> **Status: DRAFT (plan-029, Epic 1, Issue 1.3).** Proposal only. Epic 2's impact assessment
-> stress-tests this member; the human ratification gate approves it before any implementation
-> (Epics 4/6) applies it. Composed by the engine as
+> **Status: RATIFIED AND SHIPPED (plan-029, 2026-07-18; banner corrected by plan-066 / #363).**
+> This is no longer a proposal. The ratification gate approved it, the implementation landed, and
+> the model it describes — reserved `index.md` + `log.md`, frontmatter with a non-empty `type` —
+> is what the engine enforces today. Read the sections below as **shipped behaviour**, not as a
+> plan. Where a section still frames something as a decision to be taken, the decision has been
+> taken; the outcome is recorded inline. Composed by the engine as
 > **OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ OKF-RESEARCH** (SPEC REQ-OKF-FAM-001). Discovered by
 > `resolve_extension("yf-research")` at `skills/yf-research/OKF-EXTENSION.md`, `__file__`-relative
 > to the vendored `okf.py` (SPEC REQ-OKF-FAM-003). Terminology and REQ ids match
@@ -112,26 +115,27 @@ retained) sit **above the first `## ` heading** (`## Executive summary`).
 
 ## 5. Index-body convention — decision to lock (SPEC REQ-OKF-001; plan R6)
 
-yf-research's legacy `_index.md` is a **timestamped GFM table** — `| Timestamp | Phase | Artifact |
-Description |` (`index_manager.py` `HEADER_TEMPLATE`) — that doubles as both the artifact manifest
-**and** the update ledger. OKF splits those two roles:
+yf-research's legacy `_index.md` **was** a timestamped GFM table — `| Timestamp | Phase |
+Artifact | Description |`, emitted by a since-removed `HEADER_TEMPLATE` constant in
+`index_manager.py` — that doubled as both the artifact manifest **and** the update ledger. OKF
+splits those two roles:
 
 - The **update-ledger** role (timestamps, newest-first) becomes reserved **`log.md`** (SPEC
   REQ-OKF-002).
 - The **listing** role becomes reserved **`index.md`** — the OKF progressive-disclosure body
   (`#` heading + `- [artifact](path) - description` bullets).
 
-**This is the reconciliation decision to lock in Issue 4.1.** Open sub-decisions the ratification
-gate must confirm:
+**This decision was locked and has SHIPPED.** All three sub-decisions the ratification gate was
+asked to confirm are settled, and the outcomes are what the engine does today:
 
-1. Whether `index.md` keeps a table shape (Artifact | Description) or converts to the OKF bullet
-   listing.
-2. Where the per-entry `Phase` column lands (drop from `index.md`, keep as a bullet annotation, or
-   carry only in `log.md`).
-3. The rename fan-out: `index_manager.py` (`INDEX_FILENAME`, `HEADER_TEMPLATE`, `_parse_rows`),
-   `link_normalizer.py`, the packager, the formula, `spec/`, and tests all reference `_index.md` —
-   a partial rename silently breaks link-normalization (plan R6, Issue 4.3 enumerates targets;
-   Issue 6.2 drives link-normalization against the renamed `index.md`).
+1. **Table vs bullets — resolved: the OKF bullet listing.** `index.md` is a `#` heading followed by
+   `- [artifact](path) - description` bullets, not a table.
+2. **The `Phase` column — resolved: it carries only in `log.md`.** `index.md` lists artifacts;
+   `log.md` is the newest-first ledger.
+3. **The rename fan-out — resolved: complete.** `index_manager.py` now declares
+   `INDEX_FILENAME = "index.md"` and `LOG_FILENAME = "log.md"`; `HEADER_TEMPLATE` was removed with
+   the table it templated. The partial-rename hazard this item warned about did not materialise —
+   link-normalization runs against `index.md`.
 
 ## 6. Deltas from the OKF baseline / decisions to lock (for the coordinator)
 

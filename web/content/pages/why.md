@@ -151,10 +151,17 @@ The rest of the differences are combinations the field has in parts but not toge
 | Portable / cross-harness state | Agent-agnostic | No (IDE) | Web bundles | Editor-agnostic | No | No | — | Files | No (CC hooks) | OKF bundle + audit |
 | Approval bound to reviewed content | — | — | — | — | — | — | — | — | — | Yes (fingerprint hard-gate) |
 
-The table is a directional read of each project's primary documentation as of 2026-07, and its
-cells compress nuance. Spec Kit's `analyze`/`converge` gates and Kiro's reasoning checks are real
-consistency checks, for instance, but neither binds approval to a content hash. yf-plan's own cells
-are verified against its `SKILL.md`.
+> **The other projects' columns are UNVERIFIABLE from this repository, and are flagged rather
+> than asserted.** There is **no in-repo source of truth** for any column but the last: nothing
+> here can be checked by a script, and nothing re-checks them when those projects change. They are
+> a directional read of each project's primary documentation **as of 2026-07** and their cells
+> compress nuance — Spec Kit's `analyze`/`converge` gates and Kiro's reasoning checks are real
+> consistency checks, for instance, though neither binds approval to a content hash. Treat every
+> non-`yf-plan` cell as a dated impression, not a measurement, and verify against the upstream
+> project before relying on one.
+>
+> **The `yf-plan` column is the exception** — those cells are verified against its `SKILL.md` and
+> are covered by this repository's drift checks.
 
 ## A shared kernel that gates every skill
 

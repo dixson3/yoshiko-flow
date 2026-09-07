@@ -87,7 +87,7 @@ The audit is the last step of `PLAN`, before the approval prompt — so approval
 
 ## Work rejoins the team
 
-`/yf-plan` scans GitHub or GitLab for issues related to the objective and lets you triage each one — include, exclude, partial, or supersede. The dispositions are wired into the plan's epics. After execution, the reconciler updates or closes those upstream issues with references to what was actually done, so solo output flows back to collaborators without manual bookkeeping. Upstream tracking is coarse by default: one issue per plan, filed at intake — see [yf-beads-upstream](/skills/yf-beads-upstream/).
+`/yf-plan` scans GitHub for issues related to the objective and lets you triage each one — include, exclude, partial, or supersede. The dispositions are wired into the plan's epics. After execution, the reconciler updates or closes those upstream issues with references to what was actually done, so solo output flows back to collaborators without manual bookkeeping. Upstream tracking is coarse by default: one issue per plan, filed at intake — see [yf-beads-upstream](/skills/yf-beads-upstream/).
 
 ## Usage
 
@@ -100,6 +100,68 @@ The audit is the last step of `PLAN`, before the approval prompt — so approval
 | `/yf-plan execute [<plan-id>]` | Begin execution — requires a new session. |
 | `/yf-plan status [<plan-id>]` | Show progress, including any stale or parked flags. |
 | `/yf-plan list` | List all plans. |
+
+### Autonomy is a per-invocation override
+
+`execute` takes two more tokens, and they change how often the run stops:
+
+| Token | Effect |
+| :--- | :--- |
+| `--autonomous` | The default. The coordinator moves to the next ready bead without asking, and **an epic boundary is a report, not a stop**. |
+| `--checkpoint` | Consult at the points autonomy would pass through. |
+| `--sweep-gates=probe\|all` | Widen the execute-start gate sweep. `probe` (default) runs only the cheap, self-cleaning gates; `all` adds the `build` class. |
+
+Autonomy never widens *authority*. Even under `--autonomous` the run halts on a declared stop
+class: an outward-facing or irreversible write, a capability gate whose test exits non-zero, a
+destructive local operation, a counter threshold, or a declared mechanical check that fails.
+Every one of those is an exit code or a counter — none is reachable by judgement alone. And a
+**human** gate is never auto-resolved however green its test, because a green test establishes
+that a condition holds, never that a person authorized something.
+
+## Landing, escalations, and retrospectives
+
+Three mechanisms sit at the end of a plan's life, and each is a **verb or an artifact** rather
+than a slash command.
+
+### Landing
+
+**`land` is not a `/yf-plan land` slash command** — the slash surface is exactly the seven
+commands above. Landing is a `plan_manager.py` verb, driven by a `lander` agent:
+
+```bash
+uv run "$SKILL_DIR/scripts/plan_manager.py" land <plan-dir> --dry-run
+uv run "$SKILL_DIR/scripts/plan_manager.py" land <plan-dir> --apply <decision.json>
+```
+
+The three modes are mutually exclusive and **only `--apply` writes**. `--dry-run` emits a
+manifest of facts and touches nothing; `--validate-decision` reports on a decision file without
+executing it. Landing merges the execute branch, re-validates the **merged** tree, pushes,
+reconciles upstream, closes the bead chain, prunes the worktree, and redeploys — in that order,
+because validating before the merge would certify a tree that is never shipped.
+
+### Escalations
+
+When something arises that exceeds the running session's authority — a finding that refutes a
+scoping decision, a needed outward-facing write, an issue that is unexecutable as written — the
+session **writes an escalation artifact and continues**, rather than blocking on an answer:
+
+```bash
+uv run "$SKILL_DIR/scripts/plan_manager.py" escalation-raise <plan-dir> \
+    --question "…" --alternative "…" --recommended "…" --on-no-answer "…"
+uv run "$SKILL_DIR/scripts/plan_manager.py" escalation-resolve <plan-dir> ESC-001 --answer "…"
+```
+
+Escalations land in the bundle's `escalations.md` as `## ESC-NNN` entries, each carrying its
+alternatives, a recommended default, and **what happens if no answer arrives** — so an
+unanswered question has a defined outcome instead of a stalled run. This is a `yf-plan`
+mechanism. There is no `yf-judgement` skill; no such skill ships.
+
+### Retrospectives
+
+Deviations and stops observed during execution are recorded as `## RE-NNN` entries in the
+bundle's `plan-retrospective.md`. `/yf-plan capture --retro` additionally mines the current
+session for them. The file is **presence-optional** — its absence is never an audit finding —
+which keeps it an honest record rather than a box to tick.
 
 Plans land under `docs/plans/<plan-id>/` by default, or under `Incubator/<slug>/plans/<plan-id>/` when scoped to a specific [incubator](/skills/yf-incubator/) (auto-detected from the working directory, confirmed during scoping). Plan-id numbering is global across both roots.
 

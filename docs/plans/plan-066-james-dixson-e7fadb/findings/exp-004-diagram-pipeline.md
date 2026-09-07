@@ -90,6 +90,50 @@ render, the `beads group (5)` box still lists `plan · research · incubator` �
 irreducibly a human read, and it is exactly why `DRIFT-CHECK.md:191` classes `e-skill-page-desc`
 as a prose edge.
 
+> **AMENDED A SECOND TIME, at execution (plan-066 Issue 4.1) — the claim above is FALSIFIED as
+> written.** `scripts/checks/check_web_counts.py` catches **exactly this case** mechanically. It
+> reports:
+>
+> ```
+> FAIL web/content/images/architecture.d2:20: group `beads` lists non-member(s)
+>      ['yf-incubator', 'yf-plan', 'yf-research'] — count may be right while membership is wrong
+> ```
+>
+> Two things made it decidable, neither of them exotic. The checker asserts the enumerated
+> **member ids** alongside the integer (so count and membership are two facts, not one); and the
+> `.d2` literal `\n` escape is normalized to a separator before tokenizing, without which
+> `"(8)\nplan"` tokenizes as `nplan` and the real member is never seen. The membership set is
+> compared against `skill-group` frontmatter — a machine-readable source of truth that was
+> available the whole time.
+>
+> **THE PATTERN IS NOW TWO-FOR-TWO, AND THAT IS THE REASON THIS NOTE IS EMPHATIC.** This finding
+> has overstated a limit twice, in the same direction:
+>
+> | # | Claim as written | What was actually true |
+> | --: | :-- | :-- |
+> | 1 | "byte-verification is NOT achievable" | unachievable only **ACROSS** d2 versions; decidable **within** a pin (pass-2 C4) |
+> | 2 | "semantic mis-assignment is irreducibly a human read" | decidable wherever the members are **enumerated** and a machine-readable source of truth exists |
+>
+> A finding that repeatedly understates what is mechanizable is not a harmless conservatism: it
+> is a standing argument for leaving future checks unbuilt. Both corrections were found by
+> *building the thing* rather than by re-reading the prose.
+>
+> **WHAT REMAINS HUMAN — narrowed, not withdrawn.** The falsified claim was about *enumerated
+> membership*. Everything that requires **looking at the rendered image** stands unchanged and is
+> still discharged by SC11 and the Diagram-human-read gate:
+>
+> - **label placement, overlap, and truncation** — a correct member list can still render
+>   illegibly, or off its box;
+> - **visual grouping** — which box a node appears *inside* is a layout fact the `.d2` source text
+>   does not settle;
+> - **membership the source does NOT enumerate.** `check_web_counts` reports
+>   `architecture.d2:22 group markdown enumerates no member ids (count checked, MEMBERSHIP NOT
+>   CHECKED)` — an explicit `not_checked` declaration under `REQ-CHECK-009`, not a pass;
+> - **whether the diagram communicates** at all, which no exit code decides.
+>
+> So the boundary moved; it did not disappear. Do **not** read this amendment as license to weaken
+> SC11 or the human-read gate.
+
 ## Result D — re-verification of all six
 
 | File | #317 said | Verdict now | Defects |

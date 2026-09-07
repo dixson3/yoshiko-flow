@@ -13,6 +13,32 @@
 > `e-readme-prereqs`, `e-readme-usage` and README existence — now ships as
 > `scripts/checks/check_skill_readme_contract.py` and IS gated here, in both tiers.
 >
+> plan-066 (#317) — **the same pattern, on the web surface.** `grep 'web/' CHANGE-VALIDATION.md`
+> returned NOTHING before that plan: the site had no trigger scope at all, so the drift engine
+> scored **4 firing opportunities and 0 catches** on an edge that was fully capable when
+> dispatched by hand. Four checkers now ship the mechanical subset and are gated here in BOTH
+> tiers, and their §3 globs name the **SOURCE side as well as the doc side** — measured, commit
+> `75a5796` added the twentieth skill, broke the build and drifted the 19→20 count while touching
+> **zero** `web/` files, so a doc-side-only trigger would not have fired on the very commit that
+> caused the outage.
+>
+> **WHAT THE MECHANICAL GATE DOES NOT COVER, declared rather than implied** (`REQ-CHECK-009`,
+> added by plan-066's Epic 0 — a green with an undeclared boundary is indistinguishable from a
+> green with none):
+>
+> - **semantic mis-assignment** beyond the enumerated member-id sets `check_web_counts` compares;
+> - **missing qualifiers** — prose that is true but incomplete, such as an unconditional statement
+>   of a behaviour that is actually guarded;
+> - **editorial omission** — and note this one is frequently *correct*: `DRIFT-CHECK.md` holds
+>   that a document which curates or omits detail PASSes, and only an affirmative contradiction
+>   FAILs, so an omission is not drift;
+> - **intent match** — whether authored prose agrees with a `SKILL.md` *in spirit*
+>   (`e-skill-page-desc`), which tolerates paraphrase and is not mechanically decidable.
+>
+> Each of those keeps its prose/LLM route and stays in `DRIFT-CHECK.md`; declaring an edge
+> unchecked here does not retire it. The checkers emit the same list in a `not_checked` field, so
+> the boundary is machine-readable as well as written down.
+>
 > The fourth edge, `e-readme-desc`, is deliberately NOT in that subset: its predicate is
 > that the README one-liner matches the SKILL.md `description` **intent**, which tolerates
 > paraphrase and is not mechanically decidable. It keeps its LLM route, and the checker
@@ -125,6 +151,12 @@ approved: yes
 | `uv-okf` | `uv run --with pytest --with pyyaml python3 -m pytest _shared/test_okf.py -q` |  |  |
 | `okf-hygiene-tests` | `uv run skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` |  |  |
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
+| `web-counts` | `uv run scripts/checks/check_web_counts.py` |  |  |
+| `web-harness-paths` | `uv run scripts/checks/check_web_harness_paths.py` |  |  |
+| `skill-page-contract` | `uv run scripts/checks/check_skill_page_contract.py` |  |  |
+| `web-backend-claim` | `uv run scripts/checks/check_web_backend_claim.py` |  |  |
+| `web-negative-controls` | `uv run scripts/checks/test_negative_controls.py --all --min-checkers 4` |  |  |
+| `drift-manifest-closure` | `uv run scripts/checks/check_drift_manifest_closure.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
 | `dag-guard` | `uv run _shared/test_dag_guard.py` |  |  |
@@ -204,6 +236,12 @@ approved: yes
 | `okf-hygiene-tests` | `uv run skills/yf-okf-hygiene/scripts/test_okf_hygiene.py` |  |  |
 | `baseline-pin-drift` | `bash scripts/baseline-pin-drift.sh` |  |  |
 | `doclint` | `uv run _shared/doc_lint.py` |  |  |
+| `web-counts` | `uv run scripts/checks/check_web_counts.py` |  |  |
+| `web-harness-paths` | `uv run scripts/checks/check_web_harness_paths.py` |  |  |
+| `skill-page-contract` | `uv run scripts/checks/check_skill_page_contract.py` |  |  |
+| `web-backend-claim` | `uv run scripts/checks/check_web_backend_claim.py` |  |  |
+| `web-negative-controls` | `uv run scripts/checks/test_negative_controls.py --all --min-checkers 4` |  |  |
+| `drift-manifest-closure` | `uv run scripts/checks/check_drift_manifest_closure.py` |  |  |
 | `doclint-tests` | `uv run _shared/test_doc_lint.py` |  |  |
 | `plan-extract` | `uv run _shared/test_plan_extract.py` |  |  |
 | `dag-guard` | `uv run _shared/test_dag_guard.py` |  |  |
@@ -260,6 +298,22 @@ approved: yes
 | `_shared/**` | `uv`, `uv-_shared` |
 | `_shared/test_sync.py` | `uv` |
 | `_shared/okf.py` | `uv-okf`, `uv-_shared` |
+| `web/content/**` | `web-counts`, `web-harness-paths`, `web-backend-claim` |
+| `web/content/images/*.d2` | `web-counts`, `web-harness-paths`, `web-backend-claim` |
+| `web/content/skills/*.md` | `skill-page-contract`, `web-backend-claim` |
+| `web/pelicanconf.py` | `skill-page-contract` |
+| `README.md` | `web-counts`, `web-harness-paths`, `web-backend-claim` |
+| `AGENTS.md` | `web-harness-paths` |
+| `skills/*/SKILL.md` | `web-counts`, `skill-page-contract`, `web-negative-controls` |
+| `skills/*/formulas/**` | `web-counts` |
+| `yf/src/harness_desc.rs` | `web-harness-paths`, `web-negative-controls` |
+| `scripts/checks/check_web_counts.py` | `web-counts`, `web-negative-controls` |
+| `scripts/checks/check_web_harness_paths.py` | `web-harness-paths`, `web-negative-controls` |
+| `scripts/checks/check_skill_page_contract.py` | `skill-page-contract`, `web-negative-controls` |
+| `scripts/checks/check_web_backend_claim.py` | `web-backend-claim`, `web-negative-controls` |
+| `scripts/checks/_web_corpus.py` | `web-counts`, `web-harness-paths`, `web-backend-claim`, `web-negative-controls` |
+| `DRIFT-CHECK.md` | `drift-manifest-closure` |
+| `skills/yf-drift-check/spec/**` | `drift-manifest-closure` |
 | `docs/plans/**` | `okf-index-drift` |
 | `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage` |
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |

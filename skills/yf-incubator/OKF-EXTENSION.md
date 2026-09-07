@@ -1,8 +1,11 @@
 # OKF-INCUBATOR — yf-incubator per-skill OKF extension
 
-> **Status: DRAFT (plan-029, Epic 1, Issue 1.3).** Proposal only. Epic 2's impact assessment
-> stress-tests this member; the human ratification gate approves it before any implementation
-> (Epics 5/6) applies it. Composed by the engine as
+> **Status: RATIFIED AND SHIPPED (plan-029, 2026-07-18; banner corrected by plan-066 / #363).**
+> This is no longer a proposal. The ratification gate approved it, the implementation landed, and
+> the model it describes — reserved `index.md` + `log.md`, frontmatter with a non-empty `type` —
+> is what the engine enforces today. Read the sections below as **shipped behaviour**, not as a
+> plan. Where a section still frames something as a decision to be taken, the decision has been
+> taken; the outcome is recorded inline. Composed by the engine as
 > **OKF-BASELINE ∪ OKF-YF-EXTENSIONS ∪ OKF-INCUBATOR** (SPEC REQ-OKF-FAM-001). Discovered by
 > `resolve_extension("yf-incubator")` at `skills/yf-incubator/OKF-EXTENSION.md`, `__file__`-relative
 > to the vendored `okf.py` (SPEC REQ-OKF-FAM-003). Terminology and REQ ids match
