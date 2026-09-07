@@ -44,7 +44,9 @@ Left **open**: **#317** (its acceptance requires the ungated retrospective), **#
 (partials — this plan closed the four Class-B coverage gaps #317 enumerates, not the whole of
 #247's manifest gap, and the `optional`/`required` token defect is one instance of #263's META
 class rather than the class itself), and **this tracker**.
-Filed: three follow-ons under D5 (file, do not fix).
+Filed: three follow-ons under D5 (file, do not fix) — **#374** (the existence-only zero-byte page
+guard), **#375** (`lifecycle.d2`'s `deps-missing` shorthand), **#376** (`check_web_counts`'s
+declared membership limit).
 
 ### One process note worth keeping
 

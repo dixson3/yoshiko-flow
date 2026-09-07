@@ -46,6 +46,30 @@ and per-formula diagrams, combined phase/lifecycle and install/tune matrices, pl
 Correct-but-not-final is the honest description, and collapsing it in either direction would be a
 false claim.
 
+## POSTED 2026-09-07 — verified by read-back
+
+Every body below was posted with `--body-file` fed from these files and **verified by reading it
+back**, never by trusting exit 0. The read-back mattered: the `--json comments --jq` form returned
+**empty** on this `gh` version, so the plain `gh issue view N --comments` form is what actually
+confirms a body. Special characters survived intact — `kill -- -$PGID` rendered literally rather
+than shell-expanded, and #322's GFM table came back well-formed.
+
+| # | Final state | Comment |
+| :-- | :-- | :-- |
+| #104 | **CLOSED** | `issuecomment-5571930317` |
+| #127 | **CLOSED** | `issuecomment-5571930564` |
+| #363 | **CLOSED** | `issuecomment-5571930837` |
+| #322 | **CLOSED** | `issuecomment-5571931093` |
+| #317 | **OPEN** | `issuecomment-5571939529` |
+| #247 | **OPEN** | `issuecomment-5571939800` |
+| #263 | **OPEN** | `issuecomment-5571940064` |
+| #372 | **OPEN** | `issuecomment-5571948723` — posted **last**, after every other write was verified |
+| #374 | **OPEN** | filed — the existence-only zero-byte page guard |
+| #375 | **OPEN** | filed — `lifecycle.d2`'s `deps-missing` shorthand |
+| #376 | **OPEN** | filed — `check_web_counts`'s declared membership limit |
+
+Four closed, seven open. No partial was closed, and no tracker was closed on an incomplete plan.
+
 ## The command form, and why it is not negotiable
 
 Every body is composed with `--body-file -` fed by a **quoted** heredoc — for example
