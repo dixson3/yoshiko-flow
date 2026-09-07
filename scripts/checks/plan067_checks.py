@@ -141,10 +141,15 @@ def read_opt(root: Path, rel: str) -> str | None:
 
 def run_cmd(root: Path, argv: list[str], **kw) -> subprocess.CompletedProcess:
     """subprocess.run with NO SHELL and NO PIPE — mandate (b). The returned `returncode` is the
-    process's own, so there is no `tail` to mask it and no `PIPESTATUS` to misspell."""
+    process's own, so there is no `tail` to mask it and no `PIPESTATUS` to misspell.
+
+    `cwd` is a DEFAULT, not a fixture: a caller that needs to run inside `web/` passes its own,
+    and passing it positionally here made that a TypeError rather than an override.
+    """
     env = dict(os.environ)
     env.pop("VIRTUAL_ENV", None)  # a worktree must resolve its own environment
-    return subprocess.run(argv, cwd=root, capture_output=True, text=True, env=env, **kw)
+    kw.setdefault("cwd", root)
+    return subprocess.run(argv, capture_output=True, text=True, env=env, **kw)
 
 
 def web_corpus(root: Path) -> str:
@@ -753,7 +758,7 @@ def sc_publication_threshold(root: Path, a) -> tuple[bool, str, dict]:
         findings.append("the generator names no publication threshold")
     if re.search(r"PUBLISH\s*=\s*\[|PUBLISHED_SKILLS\s*=\s*\[", src):
         findings.append("publication is gated on a hand-maintained LIST, not a threshold")
-    if not re.search(r"node/edge definition|what counts as a node", plan, re.I):
+    if not re.search(r"node/edge definition|what counts as a node|A \*\*NODE\*\* is", plan, re.I):
         findings.append("plan.md does not state the node/edge definition the threshold uses")
     if census is None:
         findings.append("Issue 5.0's re-derived census is absent — the threshold is inherited, "
@@ -807,9 +812,14 @@ def sc_page_guard(root: Path, a) -> tuple[bool, str, dict]:
     A zero-byte page built green with zero warnings. Existence is not content.
     """
     src = read(root, "web/plugins/skill_pages.py")
-    if not re.search(r"os\.path\.exists|\.is_file\(\)|\.exists\(\)", src):
+    # `os.path.isfile` is the spelling the guard actually uses. The earlier predicate looked
+    # for `os.path.exists` / `.is_file()` and matched NEITHER — so this criterion reported
+    # INCONCLUSIVE against a guard that was right there. A checker that cannot find its own
+    # subject is the instrument failing, not the code.
+    if not re.search(r"os\.path\.isfile|os\.path\.exists|\.is_file\(\)|\.exists\(\)", src):
         raise Inconclusive("no authored-page guard found in skill_pages.py")
-    ok = bool(re.search(r"(len\(|strip\(\)|getsize|st_size|MIN_[A-Z_]*(LEN|BYTES|CHARS))", src))
+    ok = bool(re.search(r"MIN_AUTHORED_PAGE_CHARS|getsize|st_size|MIN_[A-Z_]*(LEN|BYTES|CHARS)",
+                        src))
     return ok, ("the authored-page guard measures content, not just existence" if ok
                 else "the guard is EXISTENCE-only — a zero-byte page still builds green (#374)"), {}
 

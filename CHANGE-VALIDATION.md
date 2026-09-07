@@ -212,6 +212,7 @@ approved: yes
 | `gate-plan067-amendment` | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
 | `gate-plan067-controls` | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 | `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
+| `skill-diagrams` | `uv run web/plugins/skill_diagrams.py --check` |  |  |
 
 ### full
 
@@ -303,6 +304,7 @@ approved: yes
 |  | `uv run scripts/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
 |  | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
 |  | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
+|  | `uv run web/plugins/skill_diagrams.py --check` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -336,7 +338,7 @@ approved: yes
 | `web/pelicanconf.py` | `skill-page-contract` |
 | `README.md` | `web-counts`, `web-harness-paths`, `web-backend-claim` |
 | `AGENTS.md` | `web-harness-paths` |
-| `skills/*/SKILL.md` | `web-counts`, `skill-page-contract`, `web-negative-controls`, `required-set`, `user-invocable` |
+| `skills/*/SKILL.md` | `web-counts`, `skill-page-contract`, `web-negative-controls`, `required-set`, `user-invocable`, `skill-diagrams` |
 | `skills/*/formulas/**` | `web-counts` |
 | `yf/src/harness_desc.rs` | `web-harness-paths`, `web-negative-controls`, `cli-to-page` |
 | `yf/src/cli.rs` | `cli-to-page`, `gate-plan067-controls` |
@@ -348,6 +350,9 @@ approved: yes
 | `scripts/checks/check_agents_set.py` | `agents-set`, `gate-plan067-controls` |
 | `scripts/checks/check_user_invocable.py` | `user-invocable` |
 | `scripts/checks/plan067_checks.py` | `plan067-verbs` |
+| `web/plugins/skill_model.py` | `skill-diagrams` |
+| `web/plugins/skill_diagrams.py` | `skill-diagrams` |
+| `web/content/images/skills/*.d2` | `skill-diagrams` |
 | `docs/plans/plan-067-james-dixson-de852a/**` | `okf-index-drift`, `gate-plan067-amendment`, `req-normative-home`, `plan067-verbs` |
 | `scripts/checks/check_web_counts.py` | `web-counts`, `web-negative-controls` |
 | `scripts/checks/check_web_harness_paths.py` | `web-harness-paths`, `web-negative-controls` |

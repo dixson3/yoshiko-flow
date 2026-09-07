@@ -63,6 +63,12 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
+# #374 — the non-trivial-content floor for an authored skill page, measured in RENDERABLE PROSE
+# (frontmatter and headings stripped). Low on purpose: it is a floor against a ZERO-BYTE or
+# title-only page, not an editorial standard. The smallest real page in the corpus is far above
+# it, so this cannot fire on legitimate prose.
+MIN_AUTHORED_PAGE_CHARS = 200
+
 # Install groups (the `skill-group` frontmatter). Display order + human labels; any group not
 # listed here is appended alphabetically, so a new skill-group never silently disappears.
 GROUP_ORDER = ["workflows", "beads", "utility", "markdown"]
@@ -177,8 +183,26 @@ def _skill_page_html(settings, skill, known):
             f' &middot; <a href="{rdme}"><code>README.md</code></a></li>'
         )
     parts.append("</ul>")
+    # The GENERATED per-skill diagram, embedded only where one was published.
+    #
+    # Publication is a COMPUTED THRESHOLD in `skill_diagrams.py`, not a list here — so this
+    # block must ask the FILESYSTEM whether a diagram exists rather than re-deciding. Two
+    # copies of the threshold is two sources of truth for one fact, which is the defect class
+    # this whole plan is about.
+    diagram = os.path.join(settings["PATH"], "images", "skills", name + ".png")
+    if os.path.isfile(diagram):
+        parts.append(
+            f'<h2>Structure</h2>\n<p><img src="/images/skills/{name}.png" '
+            f'alt="Generated structure diagram for {name}: its skill-group and invocation, '
+            f'its declared tool and skill dependencies, the skills that depend on it, and the '
+            f'scripts, agents, formulas and protocols it ships"></p>\n'
+            f'<p><em>Generated from frontmatter and directory listings by '
+            f'<code>web/plugins/skill_diagrams.py</code> — it cannot drift from the skill it '
+            f'describes, and <code>--check</code> in the validation recipe is what makes that a '
+            f'guarantee rather than a convenience.</em></p>'
+        )
     # Prose body: the authored content/skills/<name>.md (the fail-closed guard guarantees it
-    # exists; an intentionally empty file simply renders no body below the quick reference).
+    # exists and carries non-trivial content).
     authored = _authored_page_html(settings, name)
     if authored:
         parts.append("<hr>")
@@ -246,18 +270,45 @@ def add_skill_pages(generator):
     if not skills:
         return
 
-    # Fail-closed: every skill MUST have an authored content/skills/<name>.md. A skill without
-    # one would otherwise ship an ungoverned, drift-check-less page, so the build stops here and
-    # names the offenders. The signal is also recorded on the context for tests / diagnostics.
-    missing = sorted(
-        s["name"] for s in skills if not os.path.isfile(_authored_page_path(settings, s["name"]))
-    )
+    # Fail-closed: every skill MUST have an authored content/skills/<name>.md, AND that page
+    # must carry NON-TRIVIAL CONTENT.
+    #
+    # #374: this guard used to be EXISTENCE-ONLY (`os.path.isfile`), so a ZERO-BYTE page built
+    # green with zero warnings. Existence is not content — `touch` satisfied a check whose whole
+    # purpose is that a governed page exists to be checked. That gap matters more now than when
+    # it was written: the per-skill diagrams are GENERATED, and a generated artifact is exactly
+    # the kind that can be emitted empty and still pass a presence test.
+    #
+    # The floor is deliberately LOW and measured in RENDERABLE PROSE, not bytes: the frontmatter
+    # block, whitespace and a lone heading are stripped before counting, so a page consisting of
+    # a title and nothing else does not pass by virtue of its title.
+    missing, trivial = [], []
+    for s in skills:
+        path = _authored_page_path(settings, s["name"])
+        if not os.path.isfile(path):
+            missing.append(s["name"])
+            continue
+        with open(path, encoding="utf-8") as fh:
+            body = _FRONTMATTER.sub("", fh.read())
+        prose = "\n".join(ln for ln in body.splitlines() if not ln.lstrip().startswith("#"))
+        if len(prose.strip()) < MIN_AUTHORED_PAGE_CHARS:
+            trivial.append(f"{s['name']} ({len(prose.strip())} chars)")
+    missing, trivial = sorted(missing), sorted(trivial)
     generator.context["missing_authored_page"] = missing
+    generator.context["trivial_authored_page"] = trivial
     if missing:
         raise RuntimeError(
             "skill_pages: no authored web/content/skills/<name>.md for: "
             + ", ".join(missing)
             + ". Every skill needs an authored page (add one under web/content/skills/)."
+        )
+    if trivial:
+        raise RuntimeError(
+            "skill_pages: authored page(s) below the "
+            f"{MIN_AUTHORED_PAGE_CHARS}-char non-trivial-content floor (#374): "
+            + ", ".join(trivial)
+            + ". A page that EXISTS but says nothing is not a governed page — existence is not "
+              "content."
         )
 
     # Reverse the depends-on-skill graph so each skill page can show what depends on IT.

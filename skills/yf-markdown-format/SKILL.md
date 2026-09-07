@@ -1,6 +1,7 @@
 ---
 name: yf-markdown-format
 user-invocable: true
+engine: md_table_align.py
 skill-group: markdown
 depends-on-tool: [uv]
 depends-on-skill: []

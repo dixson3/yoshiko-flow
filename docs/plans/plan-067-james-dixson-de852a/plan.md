@@ -215,6 +215,23 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
   - depends-on: 5.3
 - Issue 5.0: **Rebuild EXP-004's census and re-derive the threshold before any constant is fixed** (pass-2 C11). The prototype is lost, and an independent rebuild from the written finding got **9 trivial not 8**, **no zero-edge skill**, and `yf-plan` at **34/33 against the reported 26/6** — the finding never defines what counts as a node or an edge, so its numbers are model-dependent and the model is gone. **State the node/edge definition in the plan**, then re-derive. `nodes >= 5` currently sits on a **three-way tie** (`yf-change-validation`, `yf-incubator`, `yf-markdown-pdf`), so a one-node definitional difference reclassifies three skills.
   - depends-on: 5.1
+
+**THE NODE/EDGE DEFINITION, stated in the plan (Issue 5.0, pass-2 C11).** EXP-004's census is
+unreproducible because the finding never says what counts, so its numbers are model-dependent
+and the model is gone. This is the definition the re-derived census and the publication
+threshold both use:
+
+- A **NODE** is a distinct drawn box: the skill itself (1), plus one per distinct
+  `depends-on-tool`, one per distinct `depends-on-skill`, one per distinct **reverse**
+  dependent, and one CONTAINER box each for a non-empty `scripts/` (non-`test_` `.py`),
+  `agents/`, `formulas/` and `protocols/` listing.
+- An **EDGE** is one drawn arrow per external referent and one per non-empty container. Items
+  *inside* a container are rows, not nodes — otherwise a script-heavy skill's node count
+  measures its file count rather than its graph.
+
+Under it, `edges == nodes - 1` for every skill, which is itself the finding: these are **stars,
+not graphs**, and the node count alone carries the information.
+
 - Issue 5.5: Gate publication on a **computed** threshold (re-derived by 5.0, provisionally `nodes >= 5`) so the threshold itself cannot drift and a skill that grows past it gains a diagram automatically. Measured: 8 of 20 are a box plus ≤2 arrows; `yf-drift-check` has zero edges.
   - depends-on: 5.4, 5.0
 - Issue 5.7: Fix #374 — `skill_pages.py`'s authored-page guard is **existence-only**, so a zero-byte page builds green with zero warnings. Epic 5's GENERATED pages are exactly the artifacts that could be emitted empty and pass. Make the guard assert non-trivial content.
