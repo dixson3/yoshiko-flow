@@ -2,6 +2,19 @@
 
 Every single-bundle verdict reported here is the engine's own verdict, surfaced at population scale. If the two ever disagree about one bundle, `yf-okf` is right and this is a defect here.
 
+## Sub-verbs
+
+The operator surface `/yf-okf-hygiene` declares, verbatim from its `## Invocation`:
+
+| Invocation | Purpose |
+| :-- | :-- |
+| `/yf-okf-hygiene audit` | read-only corpus discovery + classification; writes NOTHING, on any path |
+| `/yf-okf-hygiene assess` | declared ALIAS of `audit` |
+| `/yf-okf-hygiene backfill` | the three-step legacy transform; **dry-run by default** (`--apply` to write) |
+| `/yf-okf-hygiene reindex` | index repair for one bundle; REFUSES a legacy prose index |
+| `/yf-okf-hygiene restore` | record-driven reversal, with a per-path operation kind |
+| `/yf-okf-hygiene recover` | finish or roll back an INTERRUPTED backfill; **dry-run by default** |
+
 ## When it fires
 
 `/yf-okf-hygiene` is **operator-invoked**. It never fires on an ordinary file edit — there is no hook and no companion rule. Invoke it to:

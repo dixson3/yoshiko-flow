@@ -2,6 +2,16 @@
 
 The shape it enforces makes yf artifacts **compatible with** the Open Knowledge Format (OKF v0.2). It is a producer and manager plus a conformance self-check — not a third-party OKF validator. The ecosystem already ships linters and MCP servers; the value here is a shared construction engine and an owned spec family, not another validator.
 
+## Sub-verbs
+
+The operator surface `/yf-okf` declares, verbatim from its `## Invocation`:
+
+| Invocation | Purpose |
+| :-- | :-- |
+| `/yf-okf init` | initialize yf-okf for a project (prereq check + install; § Init) |
+| `/yf-okf check` | run the composed-ruleset conformance self-check over a bundle; report-only |
+| `/yf-okf migrate` | opt-in, per-folder, in-place migration of one bundle to the OKF model (`--dry-run`) |
+
 ## When it fires
 
 `/yf-okf` is operator-invoked. It never fires on an ordinary file edit — there is no hook and no companion rule. Invoke it to:

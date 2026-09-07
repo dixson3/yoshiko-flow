@@ -189,6 +189,84 @@ the main session acts on their verdicts.
 | **coordinator** (`coordinator.md`) | Orchestrates EXECUTE. On a resume, first sweeps stuck beads (resetting `in_progress`/claimed beads to open, never auto-closing); then loops `bd ready` → resolve gates by running their test commands → claim → dispatch (spawning the metadata-named subagent, or executing directly) → close. Routes code edits to the worktree, bead/plan bookkeeping primary-side. Triggers reconcile when all execution beads close, then hands back — it does **not** close the epic, merge, or push. | The poured bead DAG | A drained bead DAG on the execute branch | No |
 | **reconciler** (`reconciler.md`) | Updates upstream issues after execution completes and changes are pushed. Verifies each resolving bead is actually closed (flags mismatches rather than guessing), then closes `include` issues, comments on `partial`, and closes `supersede` with rationale — always referencing the plan ID and commit. | `plan.md`'s Upstream Issues table | Updated upstream issues; a closed/commented/skipped/flagged summary | No |
 | **captor** (`captor.md`) | Drafts missing portability-contract files for a plan folder (invoked by `/yf-plan capture`, not part of the linear phase flow). Drafts absent `index.md`, `context.md`, a `## Motivation`, `references/upstream-<N>.md`, `reviews/pass-<N>.md`. Never invents reviewer verdicts or tool versions. | Current plan state (and, under `--retro`, the live session's conversation) | Drafted files for operator review; **never writes files** itself (the main session does) | Yes |
+| **lander** (`lander.md`) | Reads the `land --dry-run` manifest and returns a **decision document — never a command** (`REQ-AGENT-065`): what the landing will do, what it refuses, and what it skips. Dispatched at the start of RECONCILE, mirroring the INVESTIGATE dispatch form. | The `land --dry-run` JSON manifest and `plan.md` | A decision document the **main session** writes to disk and presents; the agent runs nothing and authorizes nothing | Yes |
+
+### Landing: `land --dry-run` → operator STOP → `--apply`
+
+The whole of RECONCILE — merge-back, merged-state validation, push, the reconcile writes, the
+close chain, pruning and redeploy — is **one operation with one informed-consent grant**. Landing
+a plan by hand took eleven separate operator instructions, each asked for one at a time, *after*
+the plan was already verified green; the design premise is that **authorizing the merge IS the
+authorization**, and re-soliciting consent per step buys nothing except the attrition under which
+an operator starts rubber-stamping.
+
+It runs in three steps, and the middle one is a hard stop:
+
+1. **`land --dry-run`** computes the manifest. It is a pure read and mutates nothing.
+2. **The `lander` subagent** reads that manifest and returns a decision document. The main
+   session validates it (`land --validate-decision`) and writes it to disk.
+3. **The session PRINTS the `apply_command` AND STOPS.** The operator runs `land --apply` **in
+   their own shell**.
+
+**Step 3 is the one genuinely structural row of the consent model: the session does not get the
+verb.** `land --apply` additionally refuses without a controlling terminal — but that gate is
+**detection, not prevention**, and it says so: a terminal multiplexer can produce a real pty in
+one sanctioned call, which is a *named known bypass*. Using it to self-authorize is not a clever
+loophole; it is an unmistakable act, and making it unmistakable is the entire thing the gate buys.
+
+### Autonomy: `autonomous` (default) and `checkpointed`
+
+Execution is **autonomous by default**: the coordinator continues to the next ready bead without
+operator input, and **an epic boundary is a report, not a stop**. It halts only on five declared
+stop classes — an outward-facing or irreversible write, a capability gate whose `Test:` exits
+non-zero, a declared destructive local operation, a mechanical counter threshold, and a declared
+mechanical check that fails. Every one is an exit code or a counter; none is reachable by prose
+judgement alone.
+
+`--checkpointed` consults the operator at the points autonomy would pass through; `--autonomous`
+forces the default even where config sets `checkpointed`. Both are **per-invocation overrides** of
+the configured level, and the resolved value is echoed into the plan's `log.md` — so a
+misdetection is auditable after the fact, because the echo records what the script *resolved*,
+not what the prose *thought it saw*.
+
+### `--sweep-gates=probe|all`, and the frontloaded gate prompt
+
+At execute start, before any coding work begins, every gate in the poured DAG is enumerated and
+classified, and everything that cannot be run unattended is batched into **one** prompt. That
+single prompt is the frontloading: the operator answers once, up front, instead of being
+interrupted at the point each gate happens to sit in the DAG.
+
+`--sweep-gates` sets which classes run unattended:
+
+- **`probe` (default)** — only the cheap, self-cleaning class. A probe **may** create and remove
+  its own scratch state and must leave none behind on either exit path; anything that mutates
+  *shared or operator* state is `consent`, however cheap. Execute start stays in seconds.
+- **`all`** — additionally runs the `build` class, the multi-minute suite otherwise reserved for
+  once per land.
+
+`consent` and `manual` are **never** run by either setting. Neither is a cost question, and no flag
+value turns a green test into authorization: **a `human` gate is never auto-resolved, however
+green its test.** A green test establishes that a *condition holds*; it can never establish that a
+*human authorized* something.
+
+### Retrospectives — `plan-retrospective.md` and its `RE-NNN` entries
+
+Every stop and every deviation is recorded **as the work happens**, into the plan bundle's
+`plan-retrospective.md`, so the corpus a later analysis reads is built rather than reconstructed.
+Each entry is an `RE-NNN` row carrying what was asked, what was answered, whether it was
+frontloadable, **who detected it** (`self-report` / `operator` / `mechanical-check`) and the
+**evidence** behind any state claim. `evidence` defaults to the literal `unverified` rather than to
+blank, so an unsubstantiated entry is self-identifying instead of merely quiet.
+
+Two things the design gets deliberately right:
+
+- **A `deviation` is not a stop.** It records a defect that did not halt the run — a wrong claim,
+  a missed check, a resolution that overstated what it verified.
+- **Consent gates are excluded by construction, not by omission.** The outward-facing writes — the
+  push handoff, filing a tracking issue, proposing an issue closure — are stops *by design*.
+  Recording them would pollute the corpus with exactly the interactions that must never be
+  optimised away, and a later consumer mining for "stops to frontload" would dutifully propose
+  removing them.
 
 ## yf-research
 

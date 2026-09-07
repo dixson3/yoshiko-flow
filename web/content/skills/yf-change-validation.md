@@ -11,6 +11,16 @@ invoking `/yf-change-validation`, or let it fire automatically: on edit of a fil
 manifest scopes, and at pre-push or land-the-plane. If a repo has no approved manifest
 the skill is a **silent no-op** — no check, no nag, no bootstrap on every edit.
 
+## Sub-verbs
+
+The operator surface `/yf-change-validation` declares, verbatim from its `## Invocation`:
+
+| Invocation | Purpose |
+| :-- | :-- |
+| `/yf-change-validation infer` | infer a draft `CHANGE-VALIDATION.md` from the toolchain and present it for approval (`--write` writes it to the repo root instead of stdout) |
+| `/yf-change-validation run` | parse the **approved** manifest and execute a tier (`--tier fast\|full`, affected-scoped when `--changed <paths>`), reporting PASS / FAIL / INCONCLUSIVE + the first failure |
+| `/yf-change-validation check-drift` | re-read toolchain signals, diff against the recorded §2 fingerprint, and emit a JSON re-proposal; never rewrites the manifest |
+
 ## What it is not
 
 This skill proves a change-set is *behaviorally* valid by running commands. Proving

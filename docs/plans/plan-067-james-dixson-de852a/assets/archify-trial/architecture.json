@@ -1,0 +1,844 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "yoshiko-flow — external tools, the 20 embedded skills, and the yf CLI",
+    "output": "architecture.html",
+    "quality_profile": "standard",
+    "viewBox": [
+      3000,
+      1750
+    ]
+  },
+  "components": [
+    {
+      "id": "t_bd",
+      "type": "database",
+      "label": "bd",
+      "pos": [
+        180,
+        140
+      ],
+      "size": [
+        230,
+        66
+      ],
+      "sublabel": "Dolt issue DB"
+    },
+    {
+      "id": "t_git",
+      "type": "external",
+      "label": "git",
+      "pos": [
+        510,
+        250
+      ],
+      "size": [
+        230,
+        66
+      ]
+    },
+    {
+      "id": "t_gh",
+      "type": "external",
+      "label": "gh",
+      "pos": [
+        840,
+        140
+      ],
+      "size": [
+        230,
+        66
+      ],
+      "sublabel": "GitHub CLI"
+    },
+    {
+      "id": "t_uv",
+      "type": "external",
+      "label": "uv",
+      "pos": [
+        1170,
+        250
+      ],
+      "size": [
+        230,
+        66
+      ],
+      "sublabel": "Python substrate"
+    },
+    {
+      "id": "t_d2",
+      "type": "external",
+      "label": "d2",
+      "pos": [
+        1500,
+        140
+      ],
+      "size": [
+        230,
+        66
+      ],
+      "sublabel": "diagram renderer"
+    },
+    {
+      "id": "t_pandoc",
+      "type": "external",
+      "label": "pandoc",
+      "pos": [
+        1830,
+        250
+      ],
+      "size": [
+        230,
+        66
+      ]
+    },
+    {
+      "id": "t_xelatex",
+      "type": "external",
+      "label": "xelatex",
+      "pos": [
+        2160,
+        140
+      ],
+      "size": [
+        230,
+        66
+      ]
+    },
+    {
+      "id": "t_herdr",
+      "type": "external",
+      "label": "herdr",
+      "pos": [
+        2490,
+        250
+      ],
+      "size": [
+        230,
+        66
+      ],
+      "sublabel": "multiplexer"
+    },
+    {
+      "id": "s_yf_incubator",
+      "type": "backend",
+      "label": "yf-incubator",
+      "pos": [
+        220,
+        560
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_plan",
+      "type": "backend",
+      "label": "yf-plan",
+      "pos": [
+        220,
+        675
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_research",
+      "type": "backend",
+      "label": "yf-research",
+      "pos": [
+        220,
+        790
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_beads_hygiene",
+      "type": "backend",
+      "label": "yf-beads-hygiene",
+      "pos": [
+        640,
+        560
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_beads_init",
+      "type": "backend",
+      "label": "yf-beads-init",
+      "pos": [
+        640,
+        675
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_beads_authoring",
+      "type": "backend",
+      "label": "yf-beads-authoring",
+      "pos": [
+        640,
+        790
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_beads_upstream",
+      "type": "backend",
+      "label": "yf-beads-upstream",
+      "pos": [
+        640,
+        905
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_beads_extra",
+      "type": "backend",
+      "label": "yf-beads-extra",
+      "pos": [
+        640,
+        1020
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_change_validation",
+      "type": "backend",
+      "label": "yf-change-validation",
+      "pos": [
+        1080,
+        560
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_diagram_authoring",
+      "type": "backend",
+      "label": "yf-diagram-authoring",
+      "pos": [
+        1080,
+        675
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_drift_check",
+      "type": "backend",
+      "label": "yf-drift-check",
+      "pos": [
+        1080,
+        790
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_herdr",
+      "type": "backend",
+      "label": "yf-herdr",
+      "pos": [
+        1080,
+        905
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_okf",
+      "type": "backend",
+      "label": "yf-okf",
+      "pos": [
+        1080,
+        1020
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_okf_hygiene",
+      "type": "backend",
+      "label": "yf-okf-hygiene",
+      "pos": [
+        1080,
+        1135
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_optimal_instructions",
+      "type": "backend",
+      "label": "yf-optimal-instructions",
+      "pos": [
+        1080,
+        1250
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_skill_authoring",
+      "type": "backend",
+      "label": "yf-skill-authoring",
+      "pos": [
+        1080,
+        1365
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_markdown_format",
+      "type": "backend",
+      "label": "yf-markdown-format",
+      "pos": [
+        1520,
+        560
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_markdown_html",
+      "type": "backend",
+      "label": "yf-markdown-html",
+      "pos": [
+        1520,
+        675
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_markdown_lint",
+      "type": "backend",
+      "label": "yf-markdown-lint",
+      "pos": [
+        1520,
+        790
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "s_yf_markdown_pdf",
+      "type": "backend",
+      "label": "yf-markdown-pdf",
+      "pos": [
+        1520,
+        905
+      ],
+      "size": [
+        250,
+        56
+      ]
+    },
+    {
+      "id": "c_doctor",
+      "type": "cloud",
+      "label": "yf doctor",
+      "pos": [
+        1980,
+        560
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_preflight",
+      "type": "cloud",
+      "label": "yf preflight",
+      "pos": [
+        1980,
+        675
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_migrate",
+      "type": "cloud",
+      "label": "yf migrate",
+      "pos": [
+        1980,
+        790
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_skilldir",
+      "type": "cloud",
+      "label": "yf skill-dir",
+      "pos": [
+        1980,
+        905
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_version",
+      "type": "cloud",
+      "label": "yf version",
+      "pos": [
+        1980,
+        1020
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_self_update",
+      "type": "cloud",
+      "label": "yf self update",
+      "pos": [
+        1980,
+        1135
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_self_install",
+      "type": "cloud",
+      "label": "yf self install",
+      "pos": [
+        1980,
+        1250
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_self_uninstall",
+      "type": "cloud",
+      "label": "yf self uninstall",
+      "pos": [
+        1980,
+        1365
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_harness_tune",
+      "type": "cloud",
+      "label": "yf harness tune",
+      "pos": [
+        2320,
+        560
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_hs_install",
+      "type": "cloud",
+      "label": "yf harness skills install",
+      "pos": [
+        2320,
+        675
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_hs_upgrade",
+      "type": "cloud",
+      "label": "yf harness skills upgrade",
+      "pos": [
+        2320,
+        790
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_hs_remove",
+      "type": "cloud",
+      "label": "yf harness skills remove",
+      "pos": [
+        2320,
+        905
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_hs_status",
+      "type": "cloud",
+      "label": "yf harness skills status",
+      "pos": [
+        2320,
+        1020
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_hs_prune",
+      "type": "cloud",
+      "label": "yf harness skills prune-private",
+      "pos": [
+        2320,
+        1135
+      ],
+      "size": [
+        300,
+        56
+      ]
+    },
+    {
+      "id": "c_skills_alias",
+      "type": "cloud",
+      "label": "yf skills",
+      "pos": [
+        2320,
+        1250
+      ],
+      "size": [
+        300,
+        56
+      ],
+      "sublabel": "deprecated alias"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Layer 1 — external tools (8)",
+      "wraps": [
+        "t_bd",
+        "t_git",
+        "t_gh",
+        "t_uv",
+        "t_d2",
+        "t_pandoc",
+        "t_xelatex",
+        "t_herdr"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "workflows (3)",
+      "wraps": [
+        "s_yf_incubator",
+        "s_yf_plan",
+        "s_yf_research"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "beads (5)",
+      "wraps": [
+        "s_yf_beads_hygiene",
+        "s_yf_beads_init",
+        "s_yf_beads_authoring",
+        "s_yf_beads_upstream",
+        "s_yf_beads_extra"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "utility (8)",
+      "wraps": [
+        "s_yf_change_validation",
+        "s_yf_diagram_authoring",
+        "s_yf_drift_check",
+        "s_yf_herdr",
+        "s_yf_okf",
+        "s_yf_okf_hygiene",
+        "s_yf_optimal_instructions",
+        "s_yf_skill_authoring"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "markdown (4)",
+      "wraps": [
+        "s_yf_markdown_format",
+        "s_yf_markdown_html",
+        "s_yf_markdown_lint",
+        "s_yf_markdown_pdf"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Layer 3 — the yf CLI",
+      "wraps": [
+        "c_doctor",
+        "c_preflight",
+        "c_migrate",
+        "c_skilldir",
+        "c_version",
+        "c_self_update",
+        "c_self_install",
+        "c_self_uninstall",
+        "c_harness_tune",
+        "c_hs_install",
+        "c_hs_upgrade",
+        "c_hs_remove",
+        "c_hs_status",
+        "c_hs_prune",
+        "c_skills_alias"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "t_bd",
+      "to": "s_yf_beads_authoring"
+    },
+    {
+      "from": "t_bd",
+      "to": "s_yf_beads_extra"
+    },
+    {
+      "from": "t_bd",
+      "to": "s_yf_beads_hygiene"
+    },
+    {
+      "from": "t_bd",
+      "to": "s_yf_beads_init"
+    },
+    {
+      "from": "t_bd",
+      "to": "s_yf_beads_upstream"
+    },
+    {
+      "from": "t_bd",
+      "to": "s_yf_plan"
+    },
+    {
+      "from": "t_bd",
+      "to": "s_yf_research"
+    },
+    {
+      "from": "t_d2",
+      "to": "s_yf_diagram_authoring"
+    },
+    {
+      "from": "t_gh",
+      "to": "s_yf_beads_upstream"
+    },
+    {
+      "from": "t_git",
+      "to": "s_yf_beads_hygiene"
+    },
+    {
+      "from": "t_git",
+      "to": "s_yf_beads_init"
+    },
+    {
+      "from": "t_git",
+      "to": "s_yf_okf_hygiene"
+    },
+    {
+      "from": "t_git",
+      "to": "s_yf_plan"
+    },
+    {
+      "from": "t_git",
+      "to": "s_yf_research"
+    },
+    {
+      "from": "t_herdr",
+      "to": "s_yf_herdr"
+    },
+    {
+      "from": "t_pandoc",
+      "to": "s_yf_markdown_html"
+    },
+    {
+      "from": "t_pandoc",
+      "to": "s_yf_markdown_pdf"
+    },
+    {
+      "from": "t_xelatex",
+      "to": "s_yf_markdown_pdf"
+    },
+    {
+      "from": "t_uv",
+      "to": "s_yf_plan",
+      "label": "substrate: 16 of 20 skills",
+      "variant": "dashed"
+    },
+    {
+      "from": "s_yf_beads_authoring",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_beads_hygiene",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_beads_hygiene",
+      "to": "s_yf_beads_init",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_beads_init",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_beads_upstream",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_incubator",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_okf_hygiene",
+      "to": "s_yf_okf",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_optimal_instructions",
+      "to": "s_yf_skill_authoring",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_plan",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_plan",
+      "to": "s_yf_beads_authoring",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_research",
+      "to": "s_yf_beads_extra",
+      "variant": "emphasis"
+    },
+    {
+      "from": "s_yf_research",
+      "to": "s_yf_beads_authoring",
+      "variant": "emphasis"
+    },
+    {
+      "from": "c_hs_install",
+      "to": "s_yf_plan",
+      "label": "deploys embedded tree"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Layer 1 — external tools (8)",
+      "items": [
+        "bd · gh · pandoc · d2 · uv · git · xelatex · herdr",
+        "uv is drawn as ONE SHARED SUBSTRATE edge, not 16 separate arrows: it is a dependency of 16 of the 20 skills (all except yf-beads-authoring, yf-beads-extra, yf-diagram-authoring, yf-drift-check)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Layer 2 — embedded skills (20)",
+      "items": [
+        "workflows (3): yf-incubator · yf-plan · yf-research",
+        "beads (5): yf-beads-authoring · yf-beads-extra · yf-beads-hygiene · yf-beads-init · yf-beads-upstream",
+        "utility (8): yf-change-validation · yf-diagram-authoring · yf-drift-check · yf-herdr · yf-okf · yf-okf-hygiene · yf-optimal-instructions · yf-skill-authoring",
+        "markdown (4): yf-markdown-format · yf-markdown-html · yf-markdown-lint · yf-markdown-pdf"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Layer 3 — the yf CLI",
+      "items": [
+        "yf doctor · yf preflight · yf migrate · yf skill-dir · yf version",
+        "yf self {update, install, uninstall}",
+        "yf harness tune · yf harness skills {install, upgrade, remove, status, prune-private}",
+        "yf skills (deprecated alias)"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Edges",
+      "items": [
+        "18 depends-on-tool edges plus one uv substrate edge",
+        "12 depends-on-skill edges (measured from frontmatter; the plan text said ten)"
+      ]
+    }
+  ]
+}
