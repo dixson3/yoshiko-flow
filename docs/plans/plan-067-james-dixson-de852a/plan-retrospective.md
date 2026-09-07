@@ -6,7 +6,7 @@ id: plan-retrospective
 plan: plan-067-james-dixson-de852a
 created: 2026-09-07
 ---
-# plan-067 retrospective
+# Plan retrospective — plan-067-james-dixson-de852a
 
 ## Why the two classes are counted separately
 

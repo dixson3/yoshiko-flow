@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-07
+- executing: operator RE-APPROVED the Epic 7 amendment after pass-5 APPROVE; fingerprint rewritten, execution resumes
 - ready-for-approval: ready-check green after the Epic 7 amendment — pass-5 red-team APPROVE + audit pass
 - review-pass: pass-5 red-team APPROVE (6 concerns, none high; a spike empirically verified the group-detection fix)
 - judgement: not-fired — review-loop-check: 4/5 cycle(s), converging

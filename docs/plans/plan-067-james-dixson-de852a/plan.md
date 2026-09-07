@@ -8,9 +8,9 @@ description: 'Diagram set redesign (#373): restack architecture as a layered mar
 id: plan-067-james-dixson-de852a
 author: james-dixson
 created: '2026-09-07'
-status: ready-for-approval
+status: executing
 deliverable_class: standard
-fingerprint: c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
+fingerprint: 3edf041317beafda18f6ed19c8d78ae1b68411718fb59c844dd6f805d2a848f7
 epic: yf-mol-gtcy
 ---
 # Plan: Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL
@@ -18,10 +18,10 @@ epic: yf-mol-gtcy
 **ID:** plan-067-james-dixson-de852a
 **Author:** james-dixson
 **Created:** 2026-09-07
-**Status:** ready-for-approval
+**Status:** executing
 **Deliverable-class:** standard
 **Epic:** yf-mol-gtcy
-**Fingerprint:** c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
+**Fingerprint:** 3edf041317beafda18f6ed19c8d78ae1b68411718fb59c844dd6f805d2a848f7
 
 ## Objective
 Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL

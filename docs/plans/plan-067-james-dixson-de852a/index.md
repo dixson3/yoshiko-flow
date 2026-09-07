@@ -47,6 +47,8 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1: REVISE, 17 concerns (7 high). D6 refuted by a six-diagram measurement; three of D1's four archify grounds refuted.
 - [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2: REVISE, 15 concerns. Two phantom resolutions, and pass-1's --min-checkers 8 floor measured UNREACHABLE — an always-passing criterion replaced by a never-passing one.
 - [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3: APPROVE. No phantoms — all 15 pass-2 resolutions verified in the file bytes. Seven concerns, none high, none blocking.
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 (amendment re-approval): REVISE, 11 concerns. The restyle silently lapses the membership guarantee through group DETECTION, and the no-edges style reverses one of #373's named asks.
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 (final cycle): APPROVE, 6 concerns, none high. A spike empirically verified Issue 7.2's group-detection fix; three landed criteria were FALSE with no issue owning them.
 
 ## Findings
 
