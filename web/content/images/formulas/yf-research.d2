@@ -1,0 +1,67 @@
+# FORMULA `yf-research` — the research pipeline pour.
+# Source of truth: skills/yf-research/formulas/yf-research.formula.toml
+# type: workflow · phase: LIQUID (a pour — durable and resumable across sessions)
+direction: right
+
+meta: {
+  label: "yf-research\ntype: workflow · phase: liquid\nvar: topic\nowner: skills/yf-research/formulas/"
+  shape: rectangle
+  style.fill: "#eef2ff"
+}
+
+pipeline: {
+  label: "THE DECLARED CHAIN — every step `needs` the one before it"
+  style.fill: "#f9fafb"
+  style.stroke: "#9ca3af"
+
+  gate: {
+    label: "step: gate\ntype: GATE · gate.type: human\n\"Begin research: {{topic}}\"\nresolvable only in a NEW session"
+    shape: hexagon
+    style.fill: "#fef9c3"
+  }
+  tooling: {
+    label: "step: tooling\nneeds: [gate]\nagents/toolsmith.md"
+    shape: rectangle
+  }
+  triangulate: {
+    label: "step: triangulate\nneeds: [tooling]\nagents/triangulator.md"
+    shape: rectangle
+  }
+  synthesize: {
+    label: "step: synthesize\nneeds: [triangulate]\nagents/synthesizer.md"
+    shape: rectangle
+  }
+  critique: {
+    label: "step: critique\nneeds: [synthesize]\nagents/red-team.md"
+    shape: rectangle
+    style.fill: "#ede9fe"
+  }
+  refine: {
+    label: "step: refine\nneeds: [critique]\nagents/refiner.md"
+    shape: rectangle
+  }
+  package: {
+    label: "step: package\nneeds: [refine]\nagents/packager.md"
+    shape: rectangle
+    style.fill: "#dcfce7"
+  }
+  gate -> tooling -> triangulate -> synthesize -> critique -> refine -> package
+}
+
+retrieve: {
+  label: "INJECTED: retrieval beads\none per decomposed subtask,\ndispatched to agents/retriever.md"
+  shape: rectangle
+  style.fill: "#f5f3ff"
+  style.stroke-dash: 2
+}
+
+out: {
+  label: "docs/research/<NNN>-<slug>/\nor Incubator/<slug>/research/<NNN>-<slug>/\ncited, credibility-scored, RESUMABLE"
+  shape: document
+  style.fill: "#f0fdf4"
+}
+
+meta -> pipeline: "bd mol pour yf-research --var topic"
+pipeline.tooling -> retrieve: "fan-out"
+retrieve -> pipeline.triangulate: "fan-in"
+pipeline.package -> out

@@ -1,0 +1,80 @@
+# FORMULA `plan-execute` — yf-plan's Phase-5 pour.
+# Source of truth: skills/yf-plan/formulas/plan-execute.formula.toml
+# type: workflow · phase: LIQUID (a pour — durable, resumable, never burned)
+direction: down
+
+meta: {
+  label: "plan-execute\ntype: workflow · phase: liquid\nvars: objective, plan_dir\nowner: skills/yf-plan/formulas/"
+  shape: rectangle
+  style.fill: "#eef2ff"
+  near: top-left
+}
+
+declared: {
+  label: "DECLARED IN THE .formula.toml — one step"
+  style.fill: "#f8fafc"
+  style.stroke: "#64748b"
+
+  gatestep: {
+    label: "step id: start-gate\ntype: GATE · gate.type: human\napprovers: [operator]"
+    shape: hexagon
+    style.fill: "#fef9c3"
+  }
+  wrapper: {
+    label: "plan-execute.start-gate\na TASK wrapper\n← what downstream --deps reference"
+    shape: rectangle
+    style.fill: "#e0f2fe"
+  }
+  gate: {
+    label: "plan-execute.gate-start-gate\nthe REAL gate\n← what `bd gate resolve` targets"
+    shape: hexagon
+    style.fill: "#fef9c3"
+  }
+  gatestep -> wrapper: "a gate step yields TWO beads"
+  gatestep -> gate: "a gate step yields TWO beads"
+}
+
+injected: {
+  label: "INJECTED AT EXECUTE START, from plan.md\n(NOT declared in the formula — this is why the file is short)"
+  style.fill: "#f9fafb"
+  style.stroke: "#9ca3af"
+  style.stroke-dash: 2
+
+  epics: {
+    label: "child EPICS\n--parent only, NEVER --deps on the wrapper\n(bd rejects a task blocking an epic)"
+    shape: rectangle
+  }
+  entry: {
+    label: "ENTRY issues\nno intra-plan predecessor\n--deps <start-gate wrapper>"
+    shape: rectangle
+  }
+  down: {
+    label: "DOWNSTREAM issues\n--deps <predecessors> only;\nthe gate is inherited TRANSITIVELY"
+    shape: rectangle
+  }
+  capgates: {
+    label: "CAPABILITY GATES\n-t gate · metadata carries\ngate_type / test / test_class / cwd"
+    shape: hexagon
+    style.fill: "#fef9c3"
+  }
+  recon: {
+    label: "RECONCILE gate + step\nonly when an upstream issue\nis incorporated"
+    shape: rectangle
+  }
+  epics -> entry: "parent"
+  entry -> down: "predecessor"
+  down -> recon: "all execution beads closed"
+  capgates -> down: "blocks" { style.stroke-dash: 3 }
+}
+
+resolve: {
+  label: "resolve-start-gate\nONE step: resolves the gate AND closes the wrapper,\nwith a GENERATED close_reason.\nHand-running `bd gate resolve` leaves the wrapper open —\nthe state close_cascade.py correctly fail-louds on."
+  shape: rectangle
+  style.fill: "#dcfce7"
+  style.stroke: "#15803d"
+}
+
+meta -> declared: "bd mol pour plan-execute"
+declared.wrapper -> injected.entry: "--deps"
+declared.gate -> resolve: "new session only"
+resolve -> injected.epics: "status: executing"

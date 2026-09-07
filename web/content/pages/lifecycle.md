@@ -6,7 +6,7 @@ A yoshiko-flow skill moves through the same five stages every time, whether it i
 markdown linter or a multi-session planning run. The shared `yf` kernel gates each skill
 before it does any work.
 
-![yoshiko-flow skill lifecycle](/images/lifecycle.png)
+![The combined yoshiko-flow lifecycle: five stages — install, preflight, invoke, coordinate/execute, land the plane — with yf-plan's seven-phase model nested inside the stages it decomposes](/images/lifecycle.png)
 
 ## 1. Install
 

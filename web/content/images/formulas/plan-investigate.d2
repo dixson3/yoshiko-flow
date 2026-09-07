@@ -1,0 +1,55 @@
+# FORMULA `plan-investigate` — yf-plan's Phase-2 wisp.
+# Source of truth: skills/yf-plan/formulas/plan-investigate.formula.toml
+# type: workflow · phase: VAPOR (a wisp — EPHEMERAL, and burned when done)
+direction: right
+
+meta: {
+  label: "plan-investigate\ntype: workflow · phase: VAPOR\nvars: objective, plan_dir"
+  shape: rectangle
+  style.fill: "#eef2ff"
+}
+
+declared: {
+  label: "DECLARED STEPS: NONE"
+  shape: rectangle
+  style.fill: "#f8fafc"
+  style.stroke-dash: 3
+}
+
+wisp: {
+  label: "1. CREATE\nbd mol wisp plan-investigate\n--var objective --var plan_dir"
+  shape: rectangle
+  style.fill: "#f5f3ff"
+}
+
+inject: {
+  label: "2. INJECT — one task bead per EXPERIMENT\nidentified during scoping"
+  shape: rectangle
+  style.fill: "#f5f3ff"
+}
+
+run: {
+  label: "3. EXECUTE\none investigator subagent per experiment,\nisolation=\"worktree\" · independent ones in PARALLEL\nNo worktree code lands in the project."
+  shape: rectangle
+  style.fill: "#ede9fe"
+}
+
+capture: {
+  label: "findings/exp-NNN-<slug>.md\nwritten by the MAIN SESSION\nbefore the next subagent spawns"
+  shape: document
+  style.fill: "#f0fdf4"
+}
+
+burn: {
+  label: "4. BURN\nbd mol burn <id> --force\n\n--force IS REQUIRED: without it the burn prompts [y/N]\nand defaults to NO in a non-interactive context,\nSILENTLY ORPHANING the wisp.\nCHECK THE OUTPUT, NOT THE EXIT CODE — a cancelled burn exits 0."
+  shape: rectangle
+  style.fill: "#fee2e2"
+  style.stroke: "#b91c1c"
+}
+
+meta -> declared: "the file declares vars only"
+declared -> wisp
+wisp -> inject
+inject -> run
+run -> capture: "returns findings; never writes them"
+capture -> burn: "findings captured"

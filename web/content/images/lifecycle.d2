@@ -1,35 +1,222 @@
-# yoshiko-flow skill lifecycle — install -> preflight -> invoke -> coordinate/execute.
-direction: right
+# yoshiko-flow lifecycle — the FIVE-STAGE skill lifecycle with yf-plan's SEVEN-PHASE
+# model nested inside the stages it decomposes.
+#
+# COMBINED from the former `lifecycle.d2` + `phase-model.d2` (plan-067 Issue 4.2). They were
+# two views of one thing: the phase model IS a finer decomposition of stages 3-5, and holding
+# them apart made a reader reconstruct the join themselves.
+#
+# COMPLETE is RECONCILE's terminal STATUS, not an 8th phase. UPSTREAM is a once-per-project
+# preamble. Phases surface only via status, log.md, and gate prompts.
+direction: down
 
 install: {
-  label: "1. install\nyf harness skills install"
+  label: "1. INSTALL\nyf harness skills install [--tune]\nskills + always-loaded rules + config"
   shape: rectangle
+  style.fill: "#f1f5f9"
 }
 
 preflight: {
-  label: "2. preflight\nyf preflight <skill>\nok / ignored / deps-missing / rule-drift"
+  label: "2. PREFLIGHT\nyf preflight <skill> --json\nok / ignored / system_deps_missing /\nbd_not_initialized / rule_drift"
   shape: rectangle
+  style.fill: "#f1f5f9"
 }
 
 invoke: {
-  label: "3. invoke\n/yf-<skill> or auto-trigger"
+  label: "3. INVOKE\n/yf-<skill>, or an always-loaded rule fires"
   shape: rectangle
+  style.fill: "#f1f5f9"
 }
 
-coordinate: {
-  label: "4. coordinate / execute\nbeads DAG -> worktree\n-> merge-back -> validate"
-  shape: rectangle
+plan_seq: {
+  label: "3-4. yf-plan's SEVEN-PHASE MODEL\n(the finer decomposition of invoke + coordinate)"
+  direction: right
+  style.stroke: "#9ca3af"
+  style.stroke-dash: 2
+  style.fill: "#f9fafb"
+
+  upstream: {
+    label: "PHASE 0 · UPSTREAM DISCOVERY\nonce per project · re-validated per plan"
+    shape: rectangle
+    style.stroke-dash: 4
+    style.stroke: "#6b7280"
+    style.font-color: "#374151"
+  }
+
+  scope: {
+    label: "PHASE 1 · SCOPE"
+    status: {
+      label: "status:\nscoping (seeded by init)\n→ investigating"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+  }
+
+  investigate: {
+    label: "PHASE 2 · INVESTIGATE"
+    status: {
+      label: "status:\ninvestigating"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+  }
+
+  plan: {
+    label: "PHASE 3 · PLAN"
+    status: {
+      label: "status:\ndrafting → review\n→ ready-for-approval"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+    review_cycle: {
+      label: "RED-TEAM REVIEW CYCLE\nconformance PASS → red-team →\nAPPROVE / REVISE / INVESTIGATE-MORE\none reviews/pass-N.md per cycle\nbounded by max_review_cycles"
+      shape: rectangle
+      style.fill: "#ede9fe"
+      style.stroke: "#7c3aed"
+    }
+    capture: {
+      label: "capture [--retro]\nre-entrant · audits portability,\ndrafts missing contract files\nNEVER advances status"
+      shape: rectangle
+      style.fill: "#f5f3ff"
+      style.stroke-dash: 3
+    }
+    gate: {
+      label: "gate: ready-for-approval\nnon-execute-eligible\n(ready-check green =\nLAST red-team APPROVE + audit pass)"
+      shape: hexagon
+      style.fill: "#fef9c3"
+    }
+    status -> review_cycle: "present"
+    review_cycle -> status: "REVISE → resolve,\nre-dispatch (new pass file)" {
+      style.stroke-dash: 3
+      style.stroke: "#b45309"
+    }
+    review_cycle -> gate: "APPROVE (the LAST verdict)"
+    status -> capture: "any pre-intake phase" { style.stroke-dash: 3; style.stroke: "#7c3aed" }
+    capture -> status: "files drafted" { style.stroke-dash: 3; style.stroke: "#7c3aed" }
+  }
+
+  intake: {
+    label: "PHASE 4 · INTAKE"
+    status: {
+      label: "status:\napproved\n(re-run ready-check\nadjacent to the flip)"
+      shape: hexagon
+      style.fill: "#fef9c3"
+    }
+    stale: {
+      label: "⚠ stale-approved\nfingerprint drift → blocks EXECUTE"
+      shape: rectangle
+      style.fill: "#fee2e2"
+      style.stroke: "#b91c1c"
+    }
+    parked: {
+      label: "⏸ parked\napproved · fresh fingerprint · never executed"
+      shape: rectangle
+      style.fill: "#f3f4f6"
+    }
+    status -> stale: "overlay" { style.stroke-dash: 3; style.stroke: "#b91c1c" }
+    status -> parked: "overlay" { style.stroke-dash: 3; style.stroke: "#6b7280" }
+  }
+
+  boundary: {
+    label: "║\nSESSION BOUNDARY\nhuman start gate\n(execute eligibility carried\nby the fingerprint, not a poured epic)"
+    shape: diamond
+    style.fill: "#e0f2fe"
+    style.stroke: "#0369a1"
+  }
+
+  execute: {
+    label: "PHASE 5 · EXECUTE"
+    status: {
+      label: "status:\nexecuting\n(after resolve-start-gate)"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+    autonomy: {
+      label: "AUTONOMY (per-invocation override)\nautonomous (default) · checkpointed\n--sweep-gates=probe|all\nresolved value echoed to log.md"
+      shape: rectangle
+      style.fill: "#ecfeff"
+      style.stroke: "#0e7490"
+    }
+    gates: {
+      label: "CAPABILITY GATES\nswept ONCE at execute start, frontloaded\nprobe: run unattended · build: opt-in\nconsent / manual: NEVER auto-run\nhuman gate never auto-resolved,\nhowever green its Test:"
+      shape: hexagon
+      style.fill: "#fef9c3"
+      style.stroke: "#a16207"
+    }
+    escalation: {
+      label: "ESCALATION\nraised when a returned finding exceeds\nthis session's authority\nwrite-then-notify · NOT a stop\non_no_answer default is REQUIRED"
+      shape: rectangle
+      style.fill: "#fff7ed"
+      style.stroke: "#c2410c"
+    }
+    status -> autonomy: "resolved at start"
+    status -> gates: "drain, route around a blocked gate"
+    status -> escalation: "an Agent returns a finding" { style.stroke-dash: 3; style.stroke: "#c2410c" }
+    escalation -> status: "take on_no_answer, continue" { style.stroke-dash: 3; style.stroke: "#c2410c" }
+  }
+
+  reconcile: {
+    label: "PHASE 6 · RECONCILE"
+    status: {
+      label: "status:\nreconciling"
+      shape: rectangle
+      style.fill: "#eef2ff"
+    }
+    land: {
+      label: "LAND THE PLANE\nland --dry-run → lander decision doc →\nSESSION PRINTS apply_command AND STOPS →\noperator runs land --apply in their own shell"
+      shape: rectangle
+      style.fill: "#e0f2fe"
+      style.stroke: "#0369a1"
+      style.bold: true
+    }
+    retro: {
+      label: "RETROSPECTIVE\nplan-retrospective.md · RE-NNN entries\nstop | deviation · detected-by · evidence\nconsent gates excluded BY CONSTRUCTION"
+      shape: rectangle
+      style.fill: "#f0fdf4"
+      style.stroke: "#15803d"
+    }
+    complete: {
+      label: "COMPLETE\nterminal STATUS (§6.4 close chain)\nnot a phase"
+      shape: oval
+      style.fill: "#dcfce7"
+      style.stroke: "#15803d"
+      style.bold: true
+    }
+    status -> land: "merge-back → validate merged state"
+    land -> retro: "advisory, at close"
+    retro -> complete: "cascade-close → complete-gate → set complete"
+  }
+
+  abandoned: {
+    label: "ABANDONED\nterminal STATUS\ndeliberately stopped"
+    shape: oval
+    style.fill: "#fef2f2"
+    style.stroke: "#b91c1c"
+    style.bold: true
+  }
+
+  upstream -> scope.status: "start / re-validate"
+  scope.status <-> investigate.status: "findings ⇄ scope"
+  investigate.status -> plan.status: "draft"
+  plan.gate -> intake.status: "approval prompt"
+  intake.status -> boundary: "consent"
+  boundary -> execute.status: "NEW SESSION"
+  execute.status -> reconcile.status: "DAG drained"
+
+  # backtracks (dashed) — there is NO execute→plan edge
+  plan.status -> investigate.status: "gaps → re-investigate" { style.stroke-dash: 4; style.stroke: "#7c3aed" }
+  plan.status -> scope.status: "gaps → re-scope" { style.stroke-dash: 4; style.stroke: "#7c3aed" }
 }
 
-land: {
-  label: "5. land the plane\npush upstream + reconcile"
+land_stage: {
+  label: "5. LAND THE PLANE\npush open + deferred beads upstream ·\nreconcile incorporated issues · redeploy"
   shape: rectangle
+  style.fill: "#f1f5f9"
 }
 
 install -> preflight: "deploys skill + companion rule"
 preflight -> invoke: "green"
-preflight -> install: "deps missing / rule drift\n(repair, re-run)" {
+preflight -> install: "system_deps_missing / rule_drift\n(repair, re-run)" {
   style.stroke-dash: 4
 }
-invoke -> coordinate: "beads-backed skills"
-coordinate -> land: "DAG drained"
+invoke -> plan_seq.upstream: "beads-backed skills decompose here"
+plan_seq.reconcile.complete -> land_stage: "plan complete"

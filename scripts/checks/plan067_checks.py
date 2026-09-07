@@ -677,7 +677,9 @@ def sc_combined_diagrams(root: Path, a) -> tuple[bool, str, dict]:
         if lit not in inst:
             findings.append(f"the combined install matrix lost the {lit!r} distinction")
     # 4.5: SkillsCommand's five verbs
-    for verb in ("install", "uninstall", "list", "prune-private"):
+    # The REAL SkillsCommand variants, read from yf/src/cli.rs — not a guessed set.
+    # Issue 4.5: five are declared and only `install` was shown.
+    for verb in ("install", "upgrade", "remove", "status", "prune-private"):
         if verb not in inst:
             findings.append(f"install-matrix does not show the `{verb}` skills verb")
     return (not findings, "both combinations landed with their required content"

@@ -33,7 +33,7 @@ three surfaces:
 The phases are genuinely present in the machinery — each has a distinct responsibility and a
 distinct status footprint. They are simply never announced as discrete events.
 
-![The yf-plan phase model: seven phases with their status footprints, backtrack edges, the session boundary, and the terminal complete status](/images/phase-model.png)
+![The combined yoshiko-flow lifecycle: the five-stage skill lifecycle with yf-plan's seven-phase model nested inside the stages it decomposes — the red-team review cycle, capture, the ready-for-approval gate, the session boundary, autonomy levels, the execute-start capability-gate sweep, escalations, the land-the-plane consent stop, retrospectives, and the terminal complete status](/images/lifecycle.png)
 
 *The yf-plan phase model. UPSTREAM discovery runs once per project. The six per-plan phases each
 own one or more status values. `complete` is the terminal status of RECONCILE, not an eighth

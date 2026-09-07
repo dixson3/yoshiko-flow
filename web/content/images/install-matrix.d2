@@ -1,31 +1,94 @@
-# yf harness skills install — where the embedded skill tree lands per harness x scope.
-# Source of truth: yf/src/harness_desc.rs (DESCRIPTORS) + dest.rs scope anchors.
+# yf harness — the COMBINED provision matrix: `skills` (where the skill tree lands) and
+# `tune` (which config file and which rule target yf writes).
+#
+# COMBINED from the former `install-matrix.d2` + `tune-matrix.d2` (plan-067 Issue 4.3). They are
+# the two halves of one command family — `yf harness skills` and `yf harness tune` — and a reader
+# choosing between them had to hold two pictures at once.
+#
+# `tune-matrix` was measured at ZERO omissions. It is being MERGED, not repaired: every fact
+# below came across unchanged, including the distinction a naive pass would have flattened.
+#
+# THE DISTINCTION THAT MUST NOT BE FLATTENED:
+#   skills_subpath  — where the SKILL TREE lands            (harness_desc.rs DESCRIPTORS)
+#   surface_dir     — where the harness's CONFIG SURFACE is (profiles/*.json)
+# They are different fields with different values. `.config/opencode` and `.pi/agent` are correct
+# surface_dir values; only their `/skills` forms are retired skills_subpaths. A pass that
+# "repaired" the surface_dir values would break a diagram that is already right.
 direction: right
 
-cmd: {
-  label: "yf harness skills install\n(skills-only; --tune adds rules+config)"
+cmd_skills: {
+  label: "yf harness skills <verb>\n(deprecated alias: yf skills <verb>)"
   shape: rectangle
+  style.fill: "#eef2ff"
+
+  install: "install — deploy the embedded tree (--tune adds rules+config)"
+  upgrade: "upgrade — re-deploy to the embedded version"
+  remove: "remove — name-keyed removal of installed skills"
+  status: "status — install / up-to-date / completeness, per skill"
+  prune: "prune-private — marker-gated sweep of PRIVATE roots;\ndry-run by DEFAULT, --apply MOVES to quarantine"
 }
 
-user_scope: {
-  label: "user scope\nanchor = HOME (~)"
+cmd_tune: {
+  label: "yf harness tune\n(config align + rule managed-block;\n--revert reverses it, --rules-only skips config)"
   shape: rectangle
-  cc: "claude-code -> ~/.claude/skills/"
-  codex: "codex -> ~/.agents/skills/"
-  oc: "opencode -> ~/.agents/skills/"
-  pi: "pi -> ~/.agents/skills/"
-  agents: "agents -> ~/.agents/skills/"
+  style.fill: "#ecfeff"
 }
 
-project_scope: {
-  label: "project scope\nanchor = git root"
+skills_dest: {
+  label: "skills_subpath — where the TREE lands\n(harness_desc.rs DESCRIPTORS + dest.rs scope anchors)"
   shape: rectangle
-  cc: "claude-code -> <root>/.claude/skills/"
-  codex: "codex -> <root>/.agents/skills/"
-  oc: "opencode -> <root>/.agents/skills/"
-  pi: "pi -> <root>/.agents/skills/"
-  agents: "agents -> <root>/.agents/skills/"
+  user: {
+    label: "user scope · anchor = HOME (~)"
+    cc: "claude-code -> ~/.claude/skills/"
+    codex: "codex -> ~/.agents/skills/"
+    oc: "opencode -> ~/.agents/skills/"
+    pi: "pi -> ~/.agents/skills/"
+    agents: "agents -> ~/.agents/skills/"
+  }
+  project: {
+    label: "project scope · anchor = git root"
+    cc: "claude-code -> <root>/.claude/skills/"
+    codex: "codex -> <root>/.agents/skills/"
+    oc: "opencode -> <root>/.agents/skills/"
+    pi: "pi -> <root>/.agents/skills/"
+    agents: "agents -> <root>/.agents/skills/"
+  }
 }
 
-cmd -> user_scope: "--scope user (default)"
-cmd -> project_scope: "--scope project"
+config_dest: {
+  label: "surface_dir — the harness's CONFIG SURFACE\n(profiles/*.json) · NOT a skills_subpath"
+  shape: rectangle
+  cc: "claude-code\n~/.claude/settings.json\n(local: settings.local.json)"
+  codex: "codex\n~/.codex/config.toml (TOML)"
+  oc: "opencode\n~/.config/opencode/opencode.json"
+  pi: "pi -> DEFERRED\n(no config profile ships)"
+}
+
+rules_dest: {
+  label: "rule managed-block target\n(managed_block.rs RULE_TARGETS — exactly four;\n`agents` has none, and that is correct)"
+  shape: rectangle
+  cc: "claude-code\n~/.claude/rules/ (full aggregate)"
+  codex: "codex -> ~/.codex/AGENTS.md"
+  oc: "opencode -> ~/.config/opencode/AGENTS.md"
+  pi: "pi -> ~/.pi/agent/AGENTS.md\n(--pi-rule-target override)"
+}
+
+manifest: {
+  label: ".yf/ ownership manifest\nrecords the keys + markers yf wrote\n(--revert honors the touched-since-tune guard)"
+  shape: cylinder
+}
+
+consent: {
+  label: "CONSENT GATE\nno config write without\n--allow-permissions-write\n(distinct from --yes)"
+  shape: hexagon
+  style.fill: "#fef9c3"
+  style.stroke: "#a16207"
+}
+
+cmd_skills -> skills_dest: "--scope user (default) | --scope project"
+cmd_skills -> cmd_tune: "--tune"
+cmd_tune -> consent: "profile declares consent_required"
+consent -> config_dest: "1. align config (authorized)"
+cmd_tune -> rules_dest: "2. deploy the rules block"
+config_dest -> manifest: "record"
+rules_dest -> manifest: "record"

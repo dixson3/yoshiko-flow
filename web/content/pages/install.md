@@ -187,7 +187,7 @@ yf harness skills remove --harness claude-code               # name-keyed remova
 yf harness skills status                                     # install / up-to-date / completeness, per skill
 yf harness skills prune-private                              # DRY RUN — report what a prune would move
 yf harness skills prune-private --apply                      # the only path that mutates
-yf harness skills prune-private --root ~/.pi/skills          # walk explicit root(s); repeatable
+yf harness skills prune-private --root <a retired root>      # walk explicit root(s); repeatable
 yf harness skills prune-private --shared-root ~/.agents/skills   # the tree a kept dir is compared against
 yf harness skills prune-private --quarantine-dir /tmp/yf-quarantine   # where moved trees land
 yf harness skills prune-private --also-quarantine            # widen what the prune sweeps

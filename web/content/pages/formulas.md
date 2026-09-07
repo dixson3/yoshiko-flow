@@ -165,7 +165,27 @@ injects the run-specific beads, and lets the [coordinator](/glossary/) drain the
 
 ## The formula lifecycle at a glance
 
-![Formula to molecule: a formula declares vars, steps, and gate specs; bd mol pour instantiates a molecule of an epic and concrete beads, with a gate step compiling to a task wrapper plus the actual gate, dynamic beads injected post-pour, and each bead dispatched to an agent](/images/formulas.png)
+![The skills and agents to formulas map: which skill owns each shipped formula, and which subagent each formula's steps dispatch](/images/formulas-map.png)
+
+### One diagram per shipped formula
+
+The map above answers *who owns what*. Each formula's own shape — its declared steps, what is
+injected rather than declared, and the traps specific to it — has its own diagram:
+
+![plan-execute: a single declared gate step yielding a task wrapper plus the real gate, with child epics, entry issues, downstream issues, capability gates and the reconcile pair all injected at execute start from plan.md](/images/formulas/plan-execute.png)
+
+![plan-investigate: an ephemeral wisp with no declared steps — create, inject one bead per experiment, dispatch investigator subagents in disposable worktrees, capture findings in the main session, then burn with --force](/images/formulas/plan-investigate.png)
+
+![plan-review: one review cycle as a chain of conformance, red-team, resolve and a human gate, with the verify-artifact aspect woven onto every step, and the two declared non-goals — no parallel lenses, and the cycle counter stays in files](/images/formulas/plan-review.png)
+
+![verify-artifact: the only shipped aspect, weaving a per-step verify task at cook time, with the compose-aspects attachment that works beside the top-level key that is silently ignored](/images/formulas/verify-artifact.png)
+
+![yf-research: the retrieve, triangulate, synthesize, critique, refine and package chain behind a human start gate, with retrieval beads fanned out and back in](/images/formulas/yf-research.png)
+
+**The generic formula-to-molecule ER diagram was removed** (`#373`). It explained what a formula
+*is* — which the prose above already does — and answered none of the questions a reader actually
+arrives with: who owns this one, what does it pour, and who runs each step. Those are what the six
+diagrams here answer.
 
 *Formula → Molecule: the yf beads lifecycle. A formula declares vars and steps; `bd mol pour`
 instantiates a molecule of concrete beads; a gate step compiles to two beads (wrapper + gate);
