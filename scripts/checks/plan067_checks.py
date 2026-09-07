@@ -572,7 +572,9 @@ def sc_render_bytes_match(root: Path, a) -> tuple[bool, str, dict]:
     ver = run_cmd(root, ["d2", "--version"]).stdout.strip()
     if D2_PIN not in ver:
         raise Inconclusive(f"d2 is {ver!r}, not the recorded pin {D2_PIN}")
-    srcs = sorted((root / DIAGRAM_DIR).glob("*.d2"))
+    # RGLOB, not glob: Issue 4.4b put the per-formula diagrams in a SUBDIRECTORY, and a
+    # top-level-only sweep would have re-rendered 4 of 9 while reporting "all identical".
+    srcs = sorted((root / DIAGRAM_DIR).rglob("*.d2"))
     if not srcs:
         raise Inconclusive(f"no .d2 sources under {DIAGRAM_DIR}")
     mismatched, detail = [], {}

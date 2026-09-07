@@ -54,6 +54,13 @@ from markdown import Markdown
 from pelican import signals
 from pelican.contents import Page
 
+try:  # pelican puts the plugin dir on sys.path; a direct import must still work in tests.
+    import skill_model
+except ImportError:  # pragma: no cover
+    import sys as _sys
+    _sys.path.insert(0, _os_dirname := __import__("os").path.dirname(__file__))
+    import skill_model
+
 logger = logging.getLogger(__name__)
 
 # Install groups (the `skill-group` frontmatter). Display order + human labels; any group not
@@ -79,97 +86,16 @@ def _fresh_md():
     return Markdown(extensions=["markdown.extensions.extra", "markdown.extensions.codehilite"])
 
 
-def _parse_frontmatter(text):
-    """Return the YAML frontmatter of a SKILL.md as a dict (empty dict if none/invalid)."""
-    match = _FRONTMATTER.match(text)
-    if not match:
-        return {}
-    try:
-        data = yaml.safe_load(match.group(1))
-    except yaml.YAMLError:
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _split_description(description):
-    """Split a skill ``description`` into (summary, trigger, skip) prose blocks.
-
-    The convention: free prose, then ``TRIGGER when: …`` then optional ``SKIP for: …``.
-    Whitespace/newlines from a folded YAML scalar are collapsed to single spaces.
-
-    Only ``summary`` reaches the rendered page (the title one-liner). ``trigger`` / ``skip``
-    are no longer surfaced as generated blocks — the authored prose folds trigger/skip
-    guidance into its own narrative — but are kept on the skill dict for the index/nav layer
-    and any future consumer.
-    """
-    text = " ".join((description or "").split())
-    trigger = skip = ""
-    skip_idx = text.find("SKIP for:")
-    trig_idx = text.find("TRIGGER when:")
-
-    if skip_idx != -1:
-        skip = text[skip_idx + len("SKIP for:") :].strip()
-        text = text[:skip_idx].strip()
-    if trig_idx != -1 and (skip_idx == -1 or trig_idx < skip_idx):
-        # trig_idx is relative to the original text; recompute against the (possibly
-        # skip-trimmed) text, which shares the same prefix up to trig_idx.
-        trigger = text[trig_idx + len("TRIGGER when:") :].strip()
-        summary = text[:trig_idx].strip()
-    else:
-        summary = text
-    return summary, trigger, skip
-
-
-def _read_user_invocable(fm, path):
-    """Read the TRI-STATE ``user-invocable:`` key (REQ-CHECK-012).
-
-    ``yf/src/frontmatter.rs`` types this ``Option<bool>``: absent means UNKNOWN, which is a
-    different fact from a declared ``false``. This function used to be ``bool(fm.get(...,
-    False))`` — a one-word default that collapsed the two and rendered four skills as
-    "auto (fires from its description conditions)" while their own descriptions read
-    ``TRIGGER when: /yf-markdown-lint invoked``. A live false claim on the published site,
-    produced by nothing but a default argument.
-
-    REQ-CHECK-012(a) fixes this at the PRODUCER: every ``SKILL.md`` now populates the key, and
-    ``scripts/checks/check_user_invocable.py`` asserts it mechanically (b). This reader carries
-    (c): where a consumer must nonetheless choose, it chooses the reading that FAILS LOUDLY.
-    The absent case warns — fatal under the ``--fatal warnings`` build the validation recipe
-    runs — instead of silently asserting the more plausible-looking falsehood.
-    """
-    raw = fm.get("user-invocable", None)
-    if raw is None:
-        logger.warning(
-            "skill_pages: %s omits the tri-state `user-invocable:` key (REQ-CHECK-012). "
-            "Absent is UNKNOWN, not False; populate it at the producer rather than "
-            "defaulting here.", path,
-        )
-        return False
-    return bool(raw)
-
-
-def _read_skills(repo_root):
-    """Read every skills/*/SKILL.md; return a sorted list of skill dicts."""
-    skills = []
-    pattern = os.path.join(repo_root, "skills", "*", "SKILL.md")
-    for path in sorted(glob.glob(pattern)):
-        with open(path, encoding="utf-8") as fh:
-            fm = _parse_frontmatter(fh.read())
-        name = fm.get("name") or os.path.basename(os.path.dirname(path))
-        summary, trigger, skip = _split_description(fm.get("description", ""))
-        skills.append(
-            {
-                "name": name,
-                "group": fm.get("skill-group", "other"),
-                "invocable": _read_user_invocable(fm, path),
-                "summary": summary,
-                "trigger": trigger,
-                "skip": skip,
-                "depends_on_tool": list(fm.get("depends-on-tool") or []),
-                "depends_on_skill": list(fm.get("depends-on-skill") or []),
-                "dependents": [],  # filled in by add_skill_pages (reverse of depends_on_skill)
-            }
-        )
-    return skills
+# ---------------------------------------------------------------------------
+# THE READER IS FACTORED OUT (plan-067 Issue 5.1). `skill_model.py` is the ONE reader of
+# `skills/*/SKILL.md`, so this page and the generated per-skill diagram provably read one
+# source. Two readers of one frontmatter is two grammars, and they disagree exactly where it
+# matters — which is what `REQ-CHECK-012` was written for.
+# ---------------------------------------------------------------------------
+_parse_frontmatter = skill_model.parse_frontmatter
+_split_description = skill_model.split_description
+_read_user_invocable = skill_model.read_user_invocable
+_read_skills = skill_model.read_skills
 
 
 def _ordered_groups(skills):
