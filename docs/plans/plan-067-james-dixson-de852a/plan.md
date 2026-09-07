@@ -8,7 +8,7 @@ description: 'Diagram set redesign (#373): restack architecture as a layered mar
 id: plan-067-james-dixson-de852a
 author: james-dixson
 created: '2026-09-07'
-status: executing
+status: ready-for-approval
 deliverable_class: standard
 fingerprint: c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
 epic: yf-mol-gtcy
@@ -18,7 +18,7 @@ epic: yf-mol-gtcy
 **ID:** plan-067-james-dixson-de852a
 **Author:** james-dixson
 **Created:** 2026-09-07
-**Status:** executing
+**Status:** ready-for-approval
 **Deliverable-class:** standard
 **Epic:** yf-mol-gtcy
 **Fingerprint:** c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
@@ -248,9 +248,10 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 > a layered stack. The operator supplied two reference images, preserved at
 > `assets/style-reference/`, which **are** the spec (D8).
 - Issue 7.0: Extend `scripts/checks/plan067_checks.py` with the five subcommands SC28-SC32 name — `architecture-style`, `membership-after-restyle`, `no-states-in-labels`, `restyle-complete`, `restyle-verified`. **The amendment BROKE a landed green criterion** (pass-4 C4): `verbs-match` is FALSE right now at *33 verbs in plan.md, 28 subcommands*. Restore it.
-- Issue 7.0b: **Split the architecture diagram in two** (pass-4 C2, operator decision). `architecture.d2` becomes the edge-free layered stack; a NEW `architecture-deps.d2` carries the dependency relations — the 8-token tool layer, the `yf` subcommand paths, and all twelve `depends-on-skill` edges **including the workflows→utility relationship #373 names by hand**. Without the split, Issue 7.1 would delete 41 edges and silently reverse one of #373's three named additions, while `resolves-upstream: #373 (include)` still claimed to deliver it. Amend SC19 in the same change-set to assert against `architecture-deps.d2`.
+  - depends-on: 0.5
+- Issue 7.0b: **Split the architecture diagram in two** (pass-4 C2, operator decision). `architecture.d2` becomes the edge-free layered stack; a NEW `architecture-deps.d2` carries the dependency relations — the 8-token tool layer, the `yf` subcommand paths, and all twelve `depends-on-skill` edges **including the workflows→utility relationship #373 names by hand**. Without the split, Issue 7.1 would delete 41 edges and silently reverse one of #373's three named additions, while `resolves-upstream: #373 (include)` still claimed to deliver it. Amend SC19 in the same change-set to assert against `architecture-deps.d2`. **Retarget the INSTRUMENT in the same change-set, not only SC19's prose** (pass-5 C2): `sc_architecture_complete` at `plan067_checks.py:617` hardcodes `_d2_src(root, "architecture.d2")`, so SC27c passes RIGHT NOW with `architecture-deps.d2` nonexistent and would stay green even if the file were never created. Point it at `architecture-deps.d2` **and assert the file exists** — an absent file must be INCONCLUSIVE, never a silent empty-string pass. Confirm SC27c reads FALSE before 7.0b runs.
   - depends-on: 7.0
-- Issue 7.1: Restyle `architecture.d2` to the reference's **layered stack**: bands bottom-to-top (external tools → runtimes → beads → utility/markdown → workflows → incubator), **one bare-name box per member**, width-proportional tiling, **no edges** — the relations now live in `architecture-deps.d2` (7.0b). Delete every sublabel — the current file carries `"d2\nthe pinned diagram renderer (v0.8.2, ...)"` and `"workflows (3)\nyf-incubator · yf-plan · yf-research"`, both of which the reference forbids. All 20 skills appear, named from frontmatter — not the reference's 13 boxes or its wildcards.
+- Issue 7.1: Restyle `architecture.d2` to the reference's **layered stack**: bands bottom-to-top (external tools → runtimes → beads → utility/markdown → workflows → incubator), **one bare-name box per member**, width-proportional tiling, **no edges** — the relations now live in `architecture-deps.d2` (7.0b). Delete every sublabel — the current file carries `"d2\nthe pinned diagram renderer (v0.8.2, ...)"` and `"workflows (3)\nyf-incubator · yf-plan · yf-research"`, both of which the reference forbids. All 20 skills appear, named from frontmatter — not the reference's 13 boxes or its wildcards. **All 20 skills appear, spelled from frontmatter — not the reference's 13 boxes or its wildcards. The four `skill-group` d2 CONTAINERS (`beads`, `markdown`, `utility`, `workflows`) are PRESERVED with their existing ids and full census membership** (pass-5 C3): bands are *visual*, containers are *structural*, and `yf-incubator` stays inside `workflows` regardless of which band it is drawn in. The reference image has **no containers at all** and merges markdown with utility, so an executor obeying "images normative for LAYOUT" could otherwise satisfy SC28 and D8 while making SC29 unsatisfiable. This is D8's content-vs-layout line applied to the band list.
   - depends-on: 7.0b, 6.1
 - Issue 7.2: **Fix group DETECTION, not just extraction** (pass-4 C1 — the measured door 7.2 was not watching). `GROUP_RE` at `check_web_counts.py:58` requires a **parenthetical count** `\((\d+)\)` to even *find* a group — and D8/SC28 forbid parenthetical counts. **Measured in a spike:** restyling the four group labels to bare names drops **8 of 19 counted-set claims silently**, with `not_checked` still **0**; deleting two member boxes then still PASSes — Issue 1.1's exact two-member-deletion defect, reintroduced. Key group identification on the **d2 container id/label alone, count-free**, add a **d2-scoped claim floor** (each of the four census groups must be locatable in `architecture.d2` or the checker returns INCONCLUSIVE), and teach membership extraction to read TILED CHILD BOXES rather than a `·`-joined list. Without this the restyle silently lapses the membership guarantee: members become sibling boxes, `group_members()` returns `None`, the group falls to `not_checked`, and that is exactly the #376 evasion Issue 1.1b closed. **The reference style is MORE checkable once taught** — a box label is a cleaner token than a joined string. Same single-shape assumption as the locally-filed `yf-w57p`.
   - depends-on: 7.1
@@ -264,7 +265,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
   - depends-on: 7.1
 - Issue 7.7: Re-render every diagram under the unchanged `elk` pin; assert all PNGs byte-identical to a fresh render, all checkers exit 0, and generator `--check` clean — **and re-run the FULL `recheck-criteria` over the post-restyle tree, naming `plan066-still-green` and `build-and-render` explicitly** (pass-4 C7). Those two are criterion verbs, not "checkers", so the old wording did not reach them; 7.6 regenerates all 11 per-skill diagrams through a changed `to_d2()`, which is precisely what Issue 5.6's grid-nesting tuned.
   - depends-on: 7.3, 7.5, 7.6
-- Issue 7.8: Re-present the restyled set to **plan-067's** Diagram human-read gate — a fresh `findings/diagram-presentation.md` naming what changed per diagram against the two reference images. **This is a different gate from Issue 6.4's** (pass-4 C11): 7.8 satisfies plan-067's own gate; 6.4 then presents to **plan-066's**. Also append the gate rejection and the Epic 7 fold-in to `plan-retrospective.md` (pass-4 C9) — a second fully-green artifact set failing a human read is the plan's highest-value process finding and is currently unrecorded.
+- Issue 7.8: Re-present the restyled set to **plan-067's** Diagram human-read gate — a fresh `findings/diagram-presentation.md` naming what changed per diagram against the two reference images. **This is a different gate from Issue 6.4's** (pass-4 C11): 7.8 satisfies plan-067's own gate; 6.4 then presents to **plan-066's**. **Refresh `index.md`'s reviews list** — 7.8 is the last issue to write bundle artifacts, so it owns keeping `index-complete` green (pass-5 C4). Also append the gate rejection and the Epic 7 fold-in to `plan-retrospective.md` (pass-4 C9) — a second fully-green artifact set failing a human read is the plan's highest-value process finding and is currently unrecorded.
   - depends-on: 7.7
 
 ### Epic 6: Verification, retrospective, and the plan-066 handoff
@@ -394,7 +395,7 @@ reachability check would be exactly the false green this plan exists to close. E
 issues carries its reason inline.
 
 **Deliberately uncovered issues — MECHANICALLY DERIVED, and must match the extractor.** Currently
-exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. (Re-derived after Epic 7; the eight 7.x issues are all covered by SC28-SC33.) plan-066's pass-3 C8 caught a list that disagreed with the
+exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. (Re-derived after Epic 7; the ten 7.x issues are all covered by SC27b-SC33.) plan-066's pass-3 C8 caught a list that disagreed with the
 extractor by two while asserting coverage that did not exist, so this list is checked rather than
 written — and pass-1 of THIS plan grew it to seven before the missing criteria were added, which is
 the same drift caught one cycle earlier. `0.7` (record the band) and `5.1` (factor out the shared

@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-09-07
+- ready-for-approval: ready-check green after the Epic 7 amendment — pass-5 red-team APPROVE + audit pass
+- review-pass: pass-5 red-team APPROVE (6 concerns, none high; a spike empirically verified the group-detection fix)
+- judgement: not-fired — review-loop-check: 4/5 cycle(s), converging
 - review-pass: pass-4 red-team REVISE (11 concerns, 2 high; the restyle lapses membership via group DETECTION, and no-edges reverses one of #373's named asks)
 - executing: AMENDED mid-execution: Epic 7 (diagram restyle) added after the Diagram human-read gate REJECTED the first set; D8 style spec + D9 fold-in decision recorded; fingerprint now stale pending re-approval
 - executing: HELD (not crashed): operator holds BOTH remaining human gates — Diagram human read (yf-mol-gtcy.10, blocks 6.4) and Upstream write authorization (yf-mol-gtcy.11, blocks 6.5, sequenced AFTER gate 2 because the reconcile bodies assert what gate 2 has not yet accepted). 42/44 issues closed; 29 of 32 criteria hold, 1 FALSE (SC26b, the declared handoff), 2 manual. Nothing written upstream. See findings/parked-state.md.

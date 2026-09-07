@@ -9,8 +9,24 @@ created: 2026-09-07
 # Diagram style references
 
 Supplied by the operator at the Diagram human-read gate, which **rejected** the first
-20-diagram set. These two images ARE the specification; D8 is their prose restatement, and
-where the two disagree **the images win**.
+20-diagram set.
+
+**PRECEDENCE — read this before transcribing anything.** These images are **normative for LAYOUT**
+— tiling, typography, band structure, edge policy. The **skill census is normative for CONTENT** —
+which boxes exist and what they are called. An earlier draft of this file said "where the two
+disagree the images win"; that was struck (pass-4 C5, restated pass-5 C5) because taken literally it
+mandates transcribing the sketch's own gaps:
+
+| The image shows | The corpus has |
+| :-- | :-- |
+| `yf-markdown-*`, `yf-okf-*` **wildcards** | 6 individual skills — unextractable as globs |
+| **13 boxes** | **20 skills** — 6 absent entirely |
+| `bash` | not a declared dependency |
+| — | `d2` and `git`, two of SC19's eight tool tokens |
+| `yf-beads-hygeine` | `yf-beads-hygiene` |
+
+Transcribing a six-skill omission is exactly the defect Epic 1 exists to make FAIL. **Three files
+state this rule — D8, `index.md` and this one — and they must state it identically.**
 
 ## `architecture-reference.png` — the positive example
 

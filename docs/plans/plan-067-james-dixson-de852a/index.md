@@ -66,6 +66,9 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 | :-- | :-- |
 | [pass-1.md](reviews/pass-1.md) | REVISE — 17 concerns. Refuted D6 by measurement and three of D1's four archify grounds. |
 | [pass-2.md](reviews/pass-2.md) | REVISE — 15 concerns, including two phantom resolutions and an unreachable vacuity floor. |
+| [pass-3.md](reviews/pass-3.md) | APPROVE — 7 concerns, none high; no phantoms. |
+| [pass-4.md](reviews/pass-4.md) | REVISE — 11 concerns on the Epic 7 amendment; the restyle lapsed membership via group DETECTION. |
+| [pass-5.md](reviews/pass-5.md) | APPROVE — 6 concerns, none high; a spike verified the group-detection fix empirically. |
 | [pass-3.md](reviews/pass-3.md) | APPROVE — 7 concerns, none high. No phantoms: all 15 pass-2 resolutions verified in the file bytes. |
 
 ## Upstream references
