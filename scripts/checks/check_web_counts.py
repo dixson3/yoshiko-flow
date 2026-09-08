@@ -68,6 +68,57 @@ BARE_SKILL = re.compile(r"\b(yf-[a-z0-9-]+)\b")
 # box lists the WORKFLOWS skills — count right, membership wrong.
 SHORT_RUN = re.compile(r"[a-z][a-z0-9-]*(?:\s*(?:·|,)\s*[a-z][a-z0-9-]*)+")
 
+# ---------------------------------------------------------------------------
+# COUNT-FREE GROUP DETECTION (plan-067 Issue 7.2, pass-4 C1 / pass-5).
+#
+# `GROUP_RE` requires a parenthetical count `\((\d+)\)` to even FIND a group. D8's restyle
+# FORBIDS parenthetical counts — so after the restyle the four groups in `architecture.d2` were
+# not detected at all, and a group that is never DETECTED cannot be reported unchecked.
+# MEASURED: deleting a member box from the restyled stack left `check_web_counts` at exit 0 with
+# `not_checked_groups: 0`. That is Issue 1.1's exact two-member-deletion defect, reintroduced by
+# a change to the DOCUMENT rather than to the checker.
+#
+# The fix keys detection on the d2 CONTAINER ID alone, count-free, and reads membership from
+# TILED CHILD BOXES rather than a `·`-joined list. The reference style is MORE checkable once
+# taught: a box label is a cleaner token than a joined string.
+#
+# Same single-shape assumption as the locally-filed `yf-w57p`: one regex was standing in for
+# "what a group looks like", and the answer turned out to be shape-dependent.
+# ---------------------------------------------------------------------------
+# LEADING WHITESPACE IS ALLOWED: a group container is a container at any nesting depth.
+# Anchored at column 0 this missed `architecture-deps.d2`, where the four groups sit inside a
+# `skills: {` wrapper — five claims silently vanished and the CLAIM_FLOOR caught it.
+GROUP_CONTAINER_RE = re.compile(
+    r"^[ \t]*(beads|markdown|utility|workflows)\s*:\s*\{\s*$", re.M | re.I)
+CHILD_BOX_RE = re.compile(r'^\s+([\w.-]+)\s*:\s*"([^"]*)"\s*$')
+
+
+def container_groups(text: str, known: set[str]) -> dict[str, tuple[int, list[str]]]:
+    """-> {group: (line_no, members)} for every count-free d2 container.
+
+    A container is `<group>: {` at column 0; its members are the child `id: "label"` boxes whose
+    id or label is a known skill. Nested braces end the scan, so a container holding sub-blocks
+    contributes only its direct boxes.
+    """
+    out: dict[str, tuple[int, list[str]]] = {}
+    lines = text.splitlines()
+    for m in GROUP_CONTAINER_RE.finditer(text):
+        name = m.group(1).lower()
+        start = text[: m.start()].count("\n")
+        members, depth = [], 1
+        for ln in lines[start + 1:]:
+            depth += ln.count("{") - ln.count("}")
+            if depth <= 0:
+                break
+            cb = CHILD_BOX_RE.match(ln)
+            if not cb:
+                continue
+            for tok in (cb.group(1), cb.group(2)):
+                if tok in known and tok not in members:
+                    members.append(tok)
+        out[name] = (start + 1, sorted(members))
+    return out
+
 
 def inconclusive(msg: str) -> int:
     print(f"{CHECK}: INCONCLUSIVE — {msg}", file=sys.stderr)
@@ -144,6 +195,9 @@ def main() -> int:
     known = {s for v in census["groups"].values() for s in v}
 
     findings, unenumerated, claims = [], [], 0
+    groups_seen: set[str] = set()
+    group_claims = 0
+    d2_groups_seen: set[str] = set()
     for path in files:
         rel = str(path.relative_to(root))
         is_d2 = path.suffix == ".d2"
@@ -170,6 +224,8 @@ def main() -> int:
                 if claimed != len(truth):
                     findings.append(f"{rel}:{n}: group `{group}` claims {claimed}, "
                                     f"census {len(truth)}")
+                group_claims += 1
+                groups_seen.add(group)
                 members = group_members(member_region(lines, i, is_d2), known)
                 if members is None:
                     # ISSUE 1.1b / #376 — THE EVASION PATH, and it is a FINDING, not a note.
@@ -207,6 +263,68 @@ def main() -> int:
                                     f"census {len(census['formulas'])} "
                                     f"({', '.join(census['formulas'])})")
 
+        # COUNT-FREE CONTAINER FORM (Issue 7.2) — per FILE, and only for `.d2`, because the
+        # container shape is a d2 construct. This is DETECTION, not just extraction: the
+        # parenthetical-count form above cannot see a restyled group at all.
+        if is_d2:
+            for gname, (gline, members) in container_groups(raw, known).items():
+                truth = census["groups"].get(gname)
+                if truth is None:
+                    findings.append(f"{rel}:{gline}: container `{gname}` is absent from the census")
+                    continue
+                d2_groups_seen.add(gname)
+                groups_seen.add(gname)
+                group_claims += 1
+                claims += 1
+                if not members:
+                    unenumerated.append(
+                        f"{rel}:{gline}: container `{gname}` encloses NO recognizable member box "
+                        f"— membership is unverifiable. List the {len(truth)} member id(s).")
+                    continue
+                wrong = [x for x in members if x not in truth]
+                missing = [x for x in truth if x not in members]
+                if wrong:
+                    findings.append(f"{rel}:{gline}: container `{gname}` holds non-member(s) {wrong}")
+                if missing:
+                    findings.append(f"{rel}:{gline}: container `{gname}` OMITS member(s) {missing} "
+                                    f"— an omission FAILs (REQ-CHECK-013)")
+
+    # D2-SCOPED CLAIM FLOOR (Issue 7.2). Every census group must be LOCATABLE in a `.d2`, in
+    # either form. If a restyle makes one undetectable, that is the instrument losing its grip —
+    # INCONCLUSIVE, never a green.
+    stack = [f for f in files if f.name == "architecture.d2"]
+    if stack:
+        text = normalize_d2(stack[0].read_text(encoding="utf-8", errors="replace"))
+        # THE COUNT-FREE TOTAL. D8 forbids `embedded skills (20)`, so the stack can no longer
+        # state a total as an integer — and losing that claim IS a real coverage regression, the
+        # kind the CLAIM_FLOOR exists to catch (measured: 19 -> 18 the moment the count went).
+        # The union of the four containers is the same fact in a form the restyle permits, and it
+        # is STRONGER: it checks membership, not just an integer.
+        cg = container_groups(text, known)
+        if set(cg) == set(census["groups"]):
+            claims += 1
+            union = sorted({m for _, members in cg.values() for m in members})
+            all_skills = sorted({sk for v in census["groups"].values() for sk in v})
+            short = [x for x in all_skills if x not in union]
+            extra = [x for x in union if x not in all_skills]
+            if short:
+                findings.append(f"{stack[0].name}: the four containers together OMIT {short} — "
+                                f"the stack does not carry the whole census")
+            if extra:
+                findings.append(f"{stack[0].name}: the containers hold non-census member(s) "
+                                f"{extra}")
+        legacy = {g.lower() for g, _ in GROUP_RE.findall(text)}
+        container = set(container_groups(text, known))
+        located = (legacy | container) & set(census["groups"])
+        lost = sorted(set(census["groups"]) - located)
+        if lost:
+            return inconclusive(
+                f"{len(lost)} census group(s) are NOT LOCATABLE in architecture.d2 — {lost}. "
+                f"Neither the "
+                f"parenthetical-count form nor the container form found them, so their membership "
+                f"is unchecked rather than clean. A restyle that hides a group from the detector "
+                f"is an instrument failure, not a passing document.")
+
     if claims == 0:
         return inconclusive(f"scanned {len(files)} file(s) and found ZERO counted-set claims — "
                             "the matcher, not the docs, is what to fix")
@@ -221,6 +339,12 @@ def main() -> int:
            "mismatches": findings,
            "unenumerated": unenumerated,
            "not_checked_groups": len(unenumerated),
+           # SC29's POSITIVE clause. `not_checked == 0` is satisfied BY the failure mode — a
+           # claim that VANISHES cannot be reported unchecked — so the number that matters is
+           # how many groups were actually CHECKED.
+           "groups_checked": len(groups_seen),
+           "group_claims": group_claims,
+           "d2_groups_located": sorted(d2_groups_seen),
            # REQ-CHECK-009(a): the CLASSES this instrument does not cover, in its own output.
            # This key names classes; per-site unchecked groups now live in `unenumerated`,
            # because they are no longer tolerated — they FAIL.

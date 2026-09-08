@@ -4,7 +4,10 @@
 direction: down
 
 meta: {
-  label: "plan-execute\ntype: workflow · phase: liquid\nvars: objective, plan_dir\nowner: skills/yf-plan/formulas/"
+  label: "plan-execute"
+  type_workflow_phase_liquid: "type: workflow · phase: liquid"
+  vars_objective_plan_dir: "vars: objective, plan_dir"
+  owner_skills_yf_plan_formula: "owner: skills/yf-plan/formulas/"
   shape: rectangle
   style.fill: "#eef2ff"
   near: top-left
@@ -16,17 +19,23 @@ declared: {
   style.stroke: "#64748b"
 
   gatestep: {
-    label: "step id: start-gate\ntype: GATE · gate.type: human\napprovers: [operator]"
+    label: "step id: start-gate"
+    type_gate_gate_type_human: "type: GATE · gate.type: human"
+    approvers_operator: "approvers: [operator]"
     shape: hexagon
     style.fill: "#fef9c3"
   }
   wrapper: {
-    label: "plan-execute.start-gate\na TASK wrapper\n← what downstream --deps reference"
+    label: "plan-execute.start-gate"
+    a_task_wrapper: "a TASK wrapper"
+    what_downstream_deps_referen: "← what downstream --deps reference"
     shape: rectangle
     style.fill: "#e0f2fe"
   }
   gate: {
-    label: "plan-execute.gate-start-gate\nthe REAL gate\n← what `bd gate resolve` targets"
+    label: "plan-execute.gate-start-gate"
+    the_real_gate: "the REAL gate"
+    what_bd_gate_resolve_targets: "← what `bd gate resolve` targets"
     shape: hexagon
     style.fill: "#fef9c3"
   }
@@ -35,30 +44,41 @@ declared: {
 }
 
 injected: {
-  label: "INJECTED AT EXECUTE START, from plan.md\n(NOT declared in the formula — this is why the file is short)"
+  label: "INJECTED AT EXECUTE START, from plan.md"
+  not_declared_in_the_formula_: "(NOT declared in the formula — this is why the file is short)"
   style.fill: "#f9fafb"
   style.stroke: "#9ca3af"
   style.stroke-dash: 2
 
   epics: {
-    label: "child EPICS\n--parent only, NEVER --deps on the wrapper\n(bd rejects a task blocking an epic)"
+    label: "child EPICS"
+    parent_only_never_deps_on_th: "--parent only, NEVER --deps on the wrapper"
+    bd_rejects_a_task_blocking_a: "(bd rejects a task blocking an epic)"
     shape: rectangle
   }
   entry: {
-    label: "ENTRY issues\nno intra-plan predecessor\n--deps <start-gate wrapper>"
+    label: "ENTRY issues"
+    no_intra_plan_predecessor: "no intra-plan predecessor"
+    deps_start_gate_wrapper: "--deps <start-gate wrapper>"
     shape: rectangle
   }
   down: {
-    label: "DOWNSTREAM issues\n--deps <predecessors> only;\nthe gate is inherited TRANSITIVELY"
+    label: "DOWNSTREAM issues"
+    deps_predecessors_only: "--deps <predecessors> only;"
+    the_gate_is_inherited_transi: "the gate is inherited TRANSITIVELY"
     shape: rectangle
   }
   capgates: {
-    label: "CAPABILITY GATES\n-t gate · metadata carries\ngate_type / test / test_class / cwd"
+    label: "CAPABILITY GATES"
+    t_gate_metadata_carries: "-t gate · metadata carries"
+    gate_type_test_test_class_cw: "gate_type / test / test_class / cwd"
     shape: hexagon
     style.fill: "#fef9c3"
   }
   recon: {
-    label: "RECONCILE gate + step\nonly when an upstream issue\nis incorporated"
+    label: "RECONCILE gate + step"
+    only_when_an_upstream_issue: "only when an upstream issue"
+    is_incorporated: "is incorporated"
     shape: rectangle
   }
   epics -> entry: "parent"
@@ -68,7 +88,11 @@ injected: {
 }
 
 resolve: {
-  label: "resolve-start-gate\nONE step: resolves the gate AND closes the wrapper,\nwith a GENERATED close_reason.\nHand-running `bd gate resolve` leaves the wrapper open —\nthe state close_cascade.py correctly fail-louds on."
+  label: "resolve-start-gate"
+  one_step_resolves_the_gate_a: "ONE step: resolves the gate AND closes the wrapper,"
+  with_a_generated_close_reaso: "with a GENERATED close_reason."
+  hand_running_bd_gate_resolve: "Hand-running `bd gate resolve` leaves the wrapper open —"
+  the_state_close_cascade_py_c: "the state close_cascade.py correctly fail-louds on."
   shape: rectangle
   style.fill: "#dcfce7"
   style.stroke: "#15803d"

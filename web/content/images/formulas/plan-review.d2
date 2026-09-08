@@ -4,41 +4,71 @@
 direction: right
 
 meta: {
-  label: "plan-review\ntype: workflow · phase: VAPOR\nONE cycle: conformance → red-team → resolve → gate"
+  label: "plan-review"
+  type_workflow_phase_vapor: "type: workflow · phase: VAPOR"
+  one_cycle_conformance_red_te: "ONE cycle: conformance → red-team → resolve → gate"
   shape: rectangle
   style.fill: "#eef2ff"
 }
 
 chain: {
-  label: "THE CHAIN — and the order is not incidental.\nEach pass verifies the PREVIOUS pass's resolutions."
+  label: "THE CHAIN — and the order is not incidental."
+  each_pass_verifies_the_previ: "Each pass verifies the PREVIOUS pass's resolutions."
   style.fill: "#f9fafb"
   style.stroke: "#9ca3af"
 
   conformance: {
-    label: "step: conformance\ntype: task\ndispatch agents/reviewer.md\nPASS | INCOMPLETE\nproduces NO pass-N.md"
+    label: "step: conformance"
+    type_task: "type: task"
+    dispatch_agents_reviewer_md: "dispatch agents/reviewer.md"
+    produces_no_pass_n_md: "produces NO pass-N.md"
     shape: rectangle
   }
   redteam: {
-    label: "step: red-team\ntype: task · needs: [conformance]\nDISPATCH agents/red-team.md AS A SUB-AGENT\nnever in the main session\nAPPROVE | REVISE | INVESTIGATE-MORE"
+    label: "step: red-team"
+    type_task_needs_conformance: "type: task · needs: [conformance]"
+    dispatch_agents_red_team_md_: "DISPATCH agents/red-team.md AS A SUB-AGENT"
+    never_in_the_main_session: "never in the main session"
     shape: rectangle
     style.fill: "#ede9fe"
   }
   resolve: {
-    label: "step: resolve\ntype: task · needs: [red-team]\nthe MAIN SESSION resolves and writes\nreviews/pass-N.md + the log.md review-pass: bullet"
+    label: "step: resolve"
+    type_task_needs_red_team: "type: task · needs: [red-team]"
+    the_main_session_resolves_an: "the MAIN SESSION resolves and writes"
+    reviews_pass_n_md_the_log_md: "reviews/pass-N.md + the log.md review-pass: bullet"
     shape: rectangle
   }
   gate: {
-    label: "step: gate\ntype: GATE · gate.type: human\nneeds: [resolve]"
+    label: "step: gate"
+    type_gate_gate_type_human: "type: GATE · gate.type: human"
+    needs_resolve: "needs: [resolve]"
     shape: hexagon
     style.fill: "#fef9c3"
   }
+
+  v_pass: "PASS"
+  v_incomplete: "INCOMPLETE"
+  v_approve: "APPROVE"
+  v_revise: "REVISE"
+  v_investigate_more: "INVESTIGATE-MORE"
+
+  conformance -> v_pass
+  conformance -> v_incomplete
+  v_incomplete -> conformance: "resolve the listed gaps, re-run"
+  redteam -> v_approve
+  redteam -> v_revise
+  redteam -> v_investigate_more
+  v_revise -> resolve: "a NEW cycle: new pass-N.md"
   conformance -> redteam: "PASS"
   redteam -> resolve
   resolve -> gate
 }
 
 aspect: {
-  label: "ASPECT `verify-artifact`\nwoven at COOK time onto EVERY declared step\n→ <step.id>-verify"
+  label: "ASPECT `verify-artifact`"
+  woven_at_cook_time_onto_ever: "woven at COOK time onto EVERY declared step"
+  step_id_verify: "→ <step.id>-verify"
   shape: rectangle
   style.fill: "#ecfeff"
   style.stroke: "#0e7490"
@@ -46,7 +76,14 @@ aspect: {
 }
 
 nogoals: {
-  label: "DECLARED NON-GOALS, recorded so a later cycle does not 'simplify' them in:\n\n· NO PARALLEL LENSES. The fan-out is BUILDABLE (`needs` is an array, multi-parent\n  fan-in is first-class) and is DECLINED for lack of evidence: 29 review passes\n  across four plans, all sequential, one reviewer each.\n· THE CYCLE COUNTER STAYS IN FILES. A wisp is ephemeral and BURNABLE, so a counter\n  inside one would be RESETTABLE by `bd mol burn` — restoring exactly the unbounded\n  self-resolving loop the bound exists to forbid.\n  The bound is len(glob('reviews/pass-*.md')), monotonic."
+  label: "DECLARED NON-GOALS, recorded so a later cycle does not 'simplify' them in:"
+  no_parallel_lenses_the_fan_o: "· NO PARALLEL LENSES. The fan-out is BUILDABLE (`needs` is an array, multi-parent"
+  fan_in_is_first_class_and_is: "fan-in is first-class) and is DECLINED for lack of evidence: 29 review passes"
+  across_four_plans_all_sequen: "across four plans, all sequential, one reviewer each."
+  the_cycle_counter_stays_in_f: "· THE CYCLE COUNTER STAYS IN FILES. A wisp is ephemeral and BURNABLE, so a counter"
+  inside_one_would_be_resettab: "inside one would be RESETTABLE by `bd mol burn` — restoring exactly the unbounded"
+  self_resolving_loop_the_boun: "self-resolving loop the bound exists to forbid."
+  the_bound_is_len_glob_review: "The bound is len(glob('reviews/pass-*.md')), monotonic."
   shape: rectangle
   style.fill: "#fff7ed"
   style.stroke: "#c2410c"

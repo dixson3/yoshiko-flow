@@ -17,7 +17,8 @@
 direction: right
 
 cmd_skills: {
-  label: "yf harness skills <verb>\n(deprecated alias: yf skills <verb>)"
+  label: "yf harness skills <verb>"
+  deprecated_alias_yf_skills_v: "(deprecated alias: yf skills <verb>)"
   shape: rectangle
   style.fill: "#eef2ff"
 
@@ -25,17 +26,23 @@ cmd_skills: {
   upgrade: "upgrade — re-deploy to the embedded version"
   remove: "remove — name-keyed removal of installed skills"
   status: "status — install / up-to-date / completeness, per skill"
-  prune: "prune-private — marker-gated sweep of PRIVATE roots;\ndry-run by DEFAULT, --apply MOVES to quarantine"
+  prune: {
+    label: "prune-private — marker-gated sweep of PRIVATE roots;"
+    dry_run_by_default_apply_mov: "dry-run by DEFAULT, --apply MOVES to quarantine"
+  }
 }
 
 cmd_tune: {
-  label: "yf harness tune\n(config align + rule managed-block;\n--revert reverses it, --rules-only skips config)"
+  label: "yf harness tune"
+  config_align_rule_managed_bl: "(config align + rule managed-block;"
+  revert_reverses_it_rules_onl: "--revert reverses it, --rules-only skips config)"
   shape: rectangle
   style.fill: "#ecfeff"
 }
 
 skills_dest: {
-  label: "skills_subpath — where the TREE lands\n(harness_desc.rs DESCRIPTORS + dest.rs scope anchors)"
+  label: "skills_subpath — where the TREE lands"
+  harness_desc_rs_descriptors_: "(harness_desc.rs DESCRIPTORS + dest.rs scope anchors)"
   shape: rectangle
   user: {
     label: "user scope · anchor = HOME (~)"
@@ -56,30 +63,57 @@ skills_dest: {
 }
 
 config_dest: {
-  label: "surface_dir — the harness's CONFIG SURFACE\n(profiles/*.json) · NOT a skills_subpath"
+  label: "surface_dir — the harness's CONFIG SURFACE"
+  profiles_json_not_a_skills_s: "(profiles/*.json) · NOT a skills_subpath"
   shape: rectangle
-  cc: "claude-code\n~/.claude/settings.json\n(local: settings.local.json)"
-  codex: "codex\n~/.codex/config.toml (TOML)"
-  oc: "opencode\n~/.config/opencode/opencode.json"
-  pi: "pi -> DEFERRED\n(no config profile ships)"
+  cc: {
+    label: "claude-code"
+    claude_settings_json: "~/.claude/settings.json"
+    local_settings_local_json: "(local: settings.local.json)"
+  }
+  codex: {
+    label: "codex"
+    codex_config_toml_toml: "~/.codex/config.toml (TOML)"
+  }
+  oc: {
+    label: "opencode"
+    config_opencode_opencode_jso: "~/.config/opencode/opencode.json"
+  }
+  pi: {
+    label: "pi -> DEFERRED"
+    no_config_profile_ships: "(no config profile ships)"
+  }
 }
 
 rules_dest: {
-  label: "rule managed-block target\n(managed_block.rs RULE_TARGETS — exactly four;\n`agents` has none, and that is correct)"
+  label: "rule managed-block target"
+  managed_block_rs_rule_target: "(managed_block.rs RULE_TARGETS — exactly four;"
+  agents_has_none_and_that_is_: "`agents` has none, and that is correct)"
   shape: rectangle
-  cc: "claude-code\n~/.claude/rules/ (full aggregate)"
+  cc: {
+    label: "claude-code"
+    claude_rules_full_aggregate: "~/.claude/rules/ (full aggregate)"
+  }
   codex: "codex -> ~/.codex/AGENTS.md"
   oc: "opencode -> ~/.config/opencode/AGENTS.md"
-  pi: "pi -> ~/.pi/agent/AGENTS.md\n(--pi-rule-target override)"
+  pi: {
+    label: "pi -> ~/.pi/agent/AGENTS.md"
+    pi_rule_target_override: "(--pi-rule-target override)"
+  }
 }
 
 manifest: {
-  label: ".yf/ ownership manifest\nrecords the keys + markers yf wrote\n(--revert honors the touched-since-tune guard)"
+  label: ".yf/ ownership manifest"
+  records_the_keys_markers_yf_: "records the keys + markers yf wrote"
+  revert_honors_the_touched_si: "(--revert honors the touched-since-tune guard)"
   shape: cylinder
 }
 
 consent: {
-  label: "CONSENT GATE\nno config write without\n--allow-permissions-write\n(distinct from --yes)"
+  label: "CONSENT GATE"
+  no_config_write_without: "no config write without"
+  allow_permissions_write: "--allow-permissions-write"
+  distinct_from_yes: "(distinct from --yes)"
   shape: hexagon
   style.fill: "#fef9c3"
   style.stroke: "#a16207"

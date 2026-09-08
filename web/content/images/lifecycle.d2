@@ -10,32 +10,40 @@
 direction: down
 
 install: {
-  label: "1. INSTALL\nyf harness skills install [--tune]\nskills + always-loaded rules + config"
+  label: "1. INSTALL"
+  yf_harness_skills_install_tu: "yf harness skills install [--tune]"
+  skills_always_loaded_rules_c: "skills + always-loaded rules + config"
   shape: rectangle
   style.fill: "#f1f5f9"
 }
 
 preflight: {
-  label: "2. PREFLIGHT\nyf preflight <skill> --json\nok / ignored / system_deps_missing /\nbd_not_initialized / rule_drift"
+  label: "2. PREFLIGHT"
+  yf_preflight_skill_json: "yf preflight <skill> --json"
+  ok_ignored_system_deps_missi: "ok / ignored / system_deps_missing /"
+  bd_not_initialized_rule_drif: "bd_not_initialized / rule_drift"
   shape: rectangle
   style.fill: "#f1f5f9"
 }
 
 invoke: {
-  label: "3. INVOKE\n/yf-<skill>, or an always-loaded rule fires"
+  label: "3. INVOKE"
+  yf_skill_or_an_always_loaded: "/yf-<skill>, or an always-loaded rule fires"
   shape: rectangle
   style.fill: "#f1f5f9"
 }
 
 plan_seq: {
-  label: "3-4. yf-plan's SEVEN-PHASE MODEL\n(the finer decomposition of invoke + coordinate)"
+  label: "3-4. yf-plan's SEVEN-PHASE MODEL"
+  the_finer_decomposition_of_i: "(the finer decomposition of invoke + coordinate)"
   direction: right
   style.stroke: "#9ca3af"
   style.stroke-dash: 2
   style.fill: "#f9fafb"
 
   upstream: {
-    label: "PHASE 0 · UPSTREAM DISCOVERY\nonce per project · re-validated per plan"
+    label: "PHASE 0 · UPSTREAM DISCOVERY"
+    once_per_project_re_validate: "once per project · re-validated per plan"
     shape: rectangle
     style.stroke-dash: 4
     style.stroke: "#6b7280"
@@ -45,7 +53,9 @@ plan_seq: {
   scope: {
     label: "PHASE 1 · SCOPE"
     status: {
-      label: "status:\nscoping (seeded by init)\n→ investigating"
+      label: "status:"
+      scoping_seeded_by_init: "scoping (seeded by init)"
+      investigating: "→ investigating"
       shape: rectangle
       style.fill: "#eef2ff"
     }
@@ -54,7 +64,8 @@ plan_seq: {
   investigate: {
     label: "PHASE 2 · INVESTIGATE"
     status: {
-      label: "status:\ninvestigating"
+      label: "status:"
+      investigating: "investigating"
       shape: rectangle
       style.fill: "#eef2ff"
     }
@@ -63,24 +74,38 @@ plan_seq: {
   plan: {
     label: "PHASE 3 · PLAN"
     status: {
-      label: "status:\ndrafting → review\n→ ready-for-approval"
+      label: "status:"
+      drafting_review: "drafting → review"
+      ready_for_approval: "→ ready-for-approval"
       shape: rectangle
       style.fill: "#eef2ff"
     }
     review_cycle: {
-      label: "RED-TEAM REVIEW CYCLE\nconformance PASS → red-team →\nAPPROVE / REVISE / INVESTIGATE-MORE\none reviews/pass-N.md per cycle\nbounded by max_review_cycles"
+      label: "RED-TEAM REVIEW CYCLE"
+      conformance_pass_red_team: "conformance PASS → red-team →"
+      v_approve: "APPROVE"
+      v_revise: "REVISE"
+      v_investigate_more: "INVESTIGATE-MORE"
+      one_reviews_pass_n_md_per_cy: "one reviews/pass-N.md per cycle"
+      bounded_by_max_review_cycles: "bounded by max_review_cycles"
       shape: rectangle
       style.fill: "#ede9fe"
       style.stroke: "#7c3aed"
     }
     capture: {
-      label: "capture [--retro]\nre-entrant · audits portability,\ndrafts missing contract files\nNEVER advances status"
+      label: "capture [--retro]"
+      re_entrant_audits_portabilit: "re-entrant · audits portability,"
+      drafts_missing_contract_file: "drafts missing contract files"
+      never_advances_status: "NEVER advances status"
       shape: rectangle
       style.fill: "#f5f3ff"
       style.stroke-dash: 3
     }
     gate: {
-      label: "gate: ready-for-approval\nnon-execute-eligible\n(ready-check green =\nLAST red-team APPROVE + audit pass)"
+      label: "gate: ready-for-approval"
+      non_execute_eligible: "non-execute-eligible"
+      ready_check_green: "(ready-check green ="
+      last_red_team_approve_audit_: "LAST red-team APPROVE + audit pass)"
       shape: hexagon
       style.fill: "#fef9c3"
     }
@@ -97,18 +122,23 @@ plan_seq: {
   intake: {
     label: "PHASE 4 · INTAKE"
     status: {
-      label: "status:\napproved\n(re-run ready-check\nadjacent to the flip)"
+      label: "status:"
+      approved: "approved"
+      re_run_ready_check: "(re-run ready-check"
+      adjacent_to_the_flip: "adjacent to the flip)"
       shape: hexagon
       style.fill: "#fef9c3"
     }
     stale: {
-      label: "⚠ stale-approved\nfingerprint drift → blocks EXECUTE"
+      label: "⚠ stale-approved"
+      fingerprint_drift_blocks_exe: "fingerprint drift → blocks EXECUTE"
       shape: rectangle
       style.fill: "#fee2e2"
       style.stroke: "#b91c1c"
     }
     parked: {
-      label: "⏸ parked\napproved · fresh fingerprint · never executed"
+      label: "⏸ parked"
+      approved_fresh_fingerprint_n: "approved · fresh fingerprint · never executed"
       shape: rectangle
       style.fill: "#f3f4f6"
     }
@@ -117,7 +147,11 @@ plan_seq: {
   }
 
   boundary: {
-    label: "║\nSESSION BOUNDARY\nhuman start gate\n(execute eligibility carried\nby the fingerprint, not a poured epic)"
+    label: "║"
+    session_boundary: "SESSION BOUNDARY"
+    human_start_gate: "human start gate"
+    execute_eligibility_carried: "(execute eligibility carried"
+    by_the_fingerprint_not_a_pou: "by the fingerprint, not a poured epic)"
     shape: diamond
     style.fill: "#e0f2fe"
     style.stroke: "#0369a1"
@@ -126,24 +160,38 @@ plan_seq: {
   execute: {
     label: "PHASE 5 · EXECUTE"
     status: {
-      label: "status:\nexecuting\n(after resolve-start-gate)"
+      label: "status:"
+      executing: "executing"
+      after_resolve_start_gate: "(after resolve-start-gate)"
       shape: rectangle
       style.fill: "#eef2ff"
     }
     autonomy: {
-      label: "AUTONOMY (per-invocation override)\nautonomous (default) · checkpointed\n--sweep-gates=probe|all\nresolved value echoed to log.md"
+      label: "AUTONOMY (per-invocation override)"
+      autonomous_default_checkpoin: "autonomous (default) · checkpointed"
+      sweep_gates_probe_all: "--sweep-gates=probe|all"
+      resolved_value_echoed_to_log: "resolved value echoed to log.md"
       shape: rectangle
       style.fill: "#ecfeff"
       style.stroke: "#0e7490"
     }
     gates: {
-      label: "CAPABILITY GATES\nswept ONCE at execute start, frontloaded\nprobe: run unattended · build: opt-in\nconsent / manual: NEVER auto-run\nhuman gate never auto-resolved,\nhowever green its Test:"
+      label: "CAPABILITY GATES"
+      swept_once_at_execute_start_: "swept ONCE at execute start, frontloaded"
+      probe_run_unattended_build_o: "probe: run unattended · build: opt-in"
+      consent_manual_never_auto_ru: "consent / manual: NEVER auto-run"
+      human_gate_never_auto_resolv: "human gate never auto-resolved,"
+      however_green_its_test: "however green its Test:"
       shape: hexagon
       style.fill: "#fef9c3"
       style.stroke: "#a16207"
     }
     escalation: {
-      label: "ESCALATION\nraised when a returned finding exceeds\nthis session's authority\nwrite-then-notify · NOT a stop\non_no_answer default is REQUIRED"
+      label: "ESCALATION"
+      raised_when_a_returned_findi: "raised when a returned finding exceeds"
+      this_session_s_authority: "this session's authority"
+      write_then_notify_not_a_stop: "write-then-notify · NOT a stop"
+      on_no_answer_default_is_requ: "on_no_answer default is REQUIRED"
       shape: rectangle
       style.fill: "#fff7ed"
       style.stroke: "#c2410c"
@@ -157,25 +205,34 @@ plan_seq: {
   reconcile: {
     label: "PHASE 6 · RECONCILE"
     status: {
-      label: "status:\nreconciling"
+      label: "status:"
+      reconciling: "reconciling"
       shape: rectangle
       style.fill: "#eef2ff"
     }
     land: {
-      label: "LAND THE PLANE\nland --dry-run → lander decision doc →\nSESSION PRINTS apply_command AND STOPS →\noperator runs land --apply in their own shell"
+      label: "LAND THE PLANE"
+      land_dry_run_lander_decision: "land --dry-run → lander decision doc →"
+      session_prints_apply_command: "SESSION PRINTS apply_command AND STOPS →"
+      operator_runs_land_apply_in_: "operator runs land --apply in their own shell"
       shape: rectangle
       style.fill: "#e0f2fe"
       style.stroke: "#0369a1"
       style.bold: true
     }
     retro: {
-      label: "RETROSPECTIVE\nplan-retrospective.md · RE-NNN entries\nstop | deviation · detected-by · evidence\nconsent gates excluded BY CONSTRUCTION"
+      label: "RETROSPECTIVE"
+      plan_retrospective_md_re_nnn: "plan-retrospective.md · RE-NNN entries"
+      stop_deviation_detected_by_e: "stop | deviation · detected-by · evidence"
+      consent_gates_excluded_by_co: "consent gates excluded BY CONSTRUCTION"
       shape: rectangle
       style.fill: "#f0fdf4"
       style.stroke: "#15803d"
     }
     complete: {
-      label: "COMPLETE\nterminal STATUS (§6.4 close chain)\nnot a phase"
+      label: "COMPLETE"
+      terminal_status_6_4_close_ch: "terminal STATUS (§6.4 close chain)"
+      not_a_phase: "not a phase"
       shape: oval
       style.fill: "#dcfce7"
       style.stroke: "#15803d"
@@ -187,7 +244,9 @@ plan_seq: {
   }
 
   abandoned: {
-    label: "ABANDONED\nterminal STATUS\ndeliberately stopped"
+    label: "ABANDONED"
+    terminal_status: "terminal STATUS"
+    deliberately_stopped: "deliberately stopped"
     shape: oval
     style.fill: "#fef2f2"
     style.stroke: "#b91c1c"
@@ -208,7 +267,9 @@ plan_seq: {
 }
 
 land_stage: {
-  label: "5. LAND THE PLANE\npush open + deferred beads upstream ·\nreconcile incorporated issues · redeploy"
+  label: "5. LAND THE PLANE"
+  push_open_deferred_beads_ups: "push open + deferred beads upstream ·"
+  reconcile_incorporated_issue: "reconcile incorporated issues · redeploy"
   shape: rectangle
   style.fill: "#f1f5f9"
 }

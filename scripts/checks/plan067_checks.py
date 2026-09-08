@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pyyaml"]
 # ///
 """plan-067's verification instrument — ONE script, one subcommand per Success Criterion.
 
@@ -612,9 +612,25 @@ def _d2_src(root: Path, name: str) -> str:
 
 
 def sc_architecture_complete(root: Path, a) -> tuple[bool, str, dict]:
-    """SC19 — the layered marketecture carries the tool layer, the `yf` subcommand paths and
-    the `depends-on-skill` edges, WITH `not_checked == 0` so it cannot pass by dropping ids."""
-    src = _d2_src(root, "architecture.d2")
+    """SC19 / SC27c — the DEPENDENCY RELATIONS carry the tool layer, the `yf` subcommand paths
+    and all twelve `depends-on-skill` edges, WITH `not_checked == 0`.
+
+    RETARGETED to `architecture-deps.d2` by Issue 7.0b. The stack is edge-free by D8, so the
+    relations moved to a sibling diagram rather than being deleted.
+
+    **THE EXISTENCE ASSERTION IS THE POINT, not a formality** (pass-5 C2). This function
+    hardcoded `architecture.d2`, so it passed with `architecture-deps.d2` NONEXISTENT and would
+    have stayed green even if the file were never created — a criterion satisfied by the ABSENCE
+    of its subject. An absent target is now INCONCLUSIVE: the instrument could not look, which is
+    a different fact from the diagram being complete.
+    """
+    target = "architecture-deps.d2"
+    if not (root / DIAGRAM_DIR / target).is_file():
+        raise Inconclusive(
+            f"{DIAGRAM_DIR}/{target} does not exist. This is INCONCLUSIVE, never a pass: before "
+            f"Issue 7.0b this check read `architecture.d2` and went green while its real subject "
+            f"was absent.")
+    src = _d2_src(root, target)
     tools = ["bd", "gh", "pandoc", "d2", "uv", "git", "xelatex", "herdr"]
     missing_tools = [t for t in tools
                      if not re.search(rf"(?<![a-z-]){re.escape(t)}(?![a-z-])", src)]
@@ -931,8 +947,209 @@ def sc_plan066_still_green(root: Path, a) -> tuple[bool, str, dict]:
     return ok, reason, {"regressed": red, "pending_handoff": handoff, "verbs": verbs}
 
 
+# ---------------------------------------------------------------------------
+# Epic 7 — the restyle. SC28-SC32.
+#
+# THE STYLE REFERENCE IS NORMATIVE FOR **LAYOUT**, THE CENSUS FOR **CONTENT** (D8). The
+# reference image draws 13 boxes with wildcards (`yf-markdown-*`, `yf-okf-*`) and a typo
+# (`yf-beads-hygeine`); none of that is content. All 20 skills appear, spelled from frontmatter.
+# ---------------------------------------------------------------------------
+
+# SC29's non-regression baseline, captured on the PRE-restyle tree. A restyle that silently
+# drops `.d2` coverage would otherwise read as clean — pass-4 C6.
+CLAIM_FLOOR = {
+    "check_web_counts.py": 19,
+    "check_web_harness_paths.py": 44,
+}
+
+# SC30's predicate, STATED rather than guessed (pass-4 C8): a state enumeration is >= 2 ALL-CAPS
+# tokens joined by `|`, `/` or `·` inside ONE node label. `APPROVE | REVISE | INVESTIGATE-MORE`
+# is the shape `red-team-chain.png` illustrates.
+STATE_ENUM_RE = re.compile(
+    r"\b[A-Z][A-Z0-9-]{2,}\b(?:\s*[|/·]\s*\b[A-Z][A-Z0-9-]{2,}\b)+")
+
+# Tokens that are ALL-CAPS runs but are not STATE sets. Declared, never inferred.
+STATE_ENUM_ALLOW = re.compile(r"\b(?:AND|OR|NOT|THE|A|AN)\b")
+
+# SC28/SC31 — the sublabel predicate. A `\n` inside a quoted d2 label is a SUBLABEL: the
+# reference forbids them, and they are what made the first set "too wordy".
+LABEL_RE = re.compile(r'label:\s*"((?:[^"\\]|\\.)*)"')
+BARE_BOX_RE = re.compile(r'^\s*[\w.-]+:\s*"((?:[^"\\]|\\.)*)"\s*$', re.M)
+
+
+def _d2_files(root: Path) -> list[Path]:
+    return sorted((root / DIAGRAM_DIR).rglob("*.d2"))
+
+
+def _labels(src: str) -> list[str]:
+    """Every label string in a `.d2` source: explicit `label:` values and bare `id: "text"`."""
+    return LABEL_RE.findall(src) + BARE_BOX_RE.findall(src)
+
+
+def sc_architecture_style(root: Path, a) -> tuple[bool, str, dict]:
+    """SC28 — `architecture.d2` is the reference LAYERED STACK: no edges, bare-name boxes.
+
+    The reference is normative for layout only. Content stays the census: all 20 skills, spelled
+    from frontmatter — not the reference's 13 boxes, its wildcards, or its `yf-beads-hygeine`
+    typo.
+    """
+    src = _d2_src(root, "architecture.d2")
+    findings = []
+    edges = [ln for ln in src.splitlines()
+             if "->" in ln and not ln.lstrip().startswith("#")]
+    if edges:
+        findings.append(f"{len(edges)} edge(s) remain; the stack is edge-free by D8 "
+                        f"(relations live in architecture-deps.d2). First: {edges[0].strip()[:70]!r}")
+    for lab in _labels(src):
+        if "\\n" in lab:
+            findings.append(f"sublabel (embedded newline) in {lab[:56]!r}")
+        if re.search(r"\(\d+\)", lab):
+            findings.append(f"parenthetical count in {lab[:56]!r}")
+    # CONTENT, from the census — never from the reference image.
+    names = {s["name"] for s in _census_skills(root)}
+    absent = sorted(n for n in names
+                    if not re.search(rf"(?<![\w-]){re.escape(n)}(?![\w-])", src))
+    if absent:
+        findings.append(f"skills absent from the stack: {absent}")
+    # SCAN LABELS AND IDS, NOT COMMENTS. The header legitimately NAMES the reference's
+    # `yf-markdown-*` wildcard in order to say it is not used; a whole-file scan flagged that
+    # prose as the defect it warns against. A checker that cannot tell a diagram from a comment
+    # about the diagram is measuring its own text.
+    ids_and_labels = _labels(src) + re.findall(r"^\s*([\w.-]+):", src, re.M)
+    wild = [t for t in ids_and_labels if "*" in t]
+    if wild:
+        findings.append(f"wildcard(s) in node content: {wild[:3]} — the reference's "
+                        f"`yf-markdown-*` is LAYOUT, not content")
+    return (not findings,
+            f"edge-free layered stack, {len(names)} census skills all present, no sublabels or "
+            f"parenthetical counts" if not findings else "; ".join(findings[:6]),
+            {"edges": len(edges), "skills": len(names), "findings": findings})
+
+
+def _census_skills(root: Path):
+    import importlib.util
+    mp = root / "web" / "plugins" / "skill_model.py"
+    if not mp.is_file():
+        raise Inconclusive("web/plugins/skill_model.py absent — the census cannot be read")
+    spec = importlib.util.spec_from_file_location("skill_model_c", mp)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    sk = m.read_skills(str(root))
+    if not sk:
+        raise Inconclusive("the census is EMPTY — a check over it certifies vacuously")
+    return sk
+
+
+def sc_membership_after_restyle(root: Path, a) -> tuple[bool, str, dict]:
+    """SC29 — membership survives, asserted POSITIVELY, plus per-checker claim non-regression.
+
+    `not_checked == 0` is NOT the clause: pass-4 C1 measured it satisfied BY the failure mode,
+    because a claim that VANISHES cannot be reported unchecked. The positive form is
+    `groups_checked == len(census.groups)` with each extracted set equal to the census.
+    """
+    proc = checker(root, "check_web_counts.py", "--json")
+    if proc.returncode == 2:
+        raise Inconclusive(f"check_web_counts INCONCLUSIVE: {proc.stderr.strip()[:200]}")
+    try:
+        d = json.loads(proc.stdout)
+    except Exception:
+        raise Inconclusive("check_web_counts emitted unparseable JSON")
+    census_groups = d.get("census", {}).get("groups", {})
+    checked = d.get("groups_checked")
+    findings = []
+    if checked is None:
+        findings.append("check_web_counts reports no `groups_checked` — SC29's POSITIVE clause "
+                        "cannot be evaluated, and the negative clause is the one pass-4 C1 "
+                        "measured as satisfied by the failure mode")
+    elif checked != len(census_groups):
+        findings.append(f"groups_checked={checked} but the census has {len(census_groups)} "
+                        f"group(s) — a group went undetected by the restyle")
+    for name, floor in CLAIM_FLOOR.items():
+        pr = checker(root, name, "--json")
+        try:
+            got = json.loads(pr.stdout).get("claims")
+        except Exception:
+            raise Inconclusive(f"{name} emitted unparseable JSON")
+        if got is None:
+            findings.append(f"{name} reports no claim count")
+        elif got < floor:
+            findings.append(f"{name} claims REGRESSED {floor} -> {got}: the restyle cost it "
+                            f"coverage")
+    return (not findings,
+            f"groups_checked={checked} equals the census's {len(census_groups)}; no checker lost "
+            f"claim coverage" if not findings else "; ".join(findings),
+            {"groups_checked": checked, "census_groups": sorted(census_groups),
+             "claim_floor": CLAIM_FLOOR, "findings": findings})
+
+
+def sc_no_states_in_labels(root: Path, a) -> tuple[bool, str, dict]:
+    """SC30 — no node label carries a STATE ENUMERATION, with a vacuity floor."""
+    scanned, hits = 0, []
+    for f in _d2_files(root):
+        src = f.read_text(encoding="utf-8", errors="replace")
+        for lab in _labels(src):
+            scanned += 1
+            for m in STATE_ENUM_RE.finditer(lab):
+                frag = m.group(0)
+                if STATE_ENUM_ALLOW.search(frag):
+                    continue
+                hits.append(f"{f.relative_to(root / DIAGRAM_DIR)}: {frag[:60]!r}")
+    if scanned == 0:
+        raise Inconclusive("scanned ZERO labels — the extractor, not the diagrams, is what to fix")
+    return (not hits,
+            f"{scanned} label(s) scanned across {len(_d2_files(root))} diagram(s); no state "
+            f"enumeration" if not hits else
+            f"{len(hits)} state enumeration(s) still in labels: {hits[:5]}",
+            {"labels_scanned": scanned, "hits": hits})
+
+
+def sc_restyle_complete(root: Path, a) -> tuple[bool, str, dict]:
+    """SC31 — every diagram free of sublabels/descriptions, and the 11 generated ones emit the
+    new style BY REGENERATION, not by editing (so `--check` must be clean)."""
+    findings = []
+    for f in _d2_files(root):
+        rel = str(f.relative_to(root / DIAGRAM_DIR))
+        for lab in _labels(f.read_text(encoding="utf-8", errors="replace")):
+            if "\\n" in lab:
+                findings.append(f"{rel}: sublabel {lab[:50]!r}")
+    gen = _generator(root)
+    proc = run_cmd(root, ["uv", "run", str(gen), "--check"])
+    if proc.returncode == 2:
+        raise Inconclusive(f"generator --check INCONCLUSIVE: {proc.stderr.strip()[:160]}")
+    if proc.returncode != 0:
+        findings.append("generator --check is OUT OF SYNC — the generated diagrams were EDITED "
+                        "rather than regenerated, which is the half of SC31 that matters")
+    return (not findings,
+            f"{len(_d2_files(root))} diagram(s) carry no sublabel, and the generated set matches "
+            f"a fresh generation" if not findings else "; ".join(findings[:6]),
+            {"findings": findings})
+
+
+def sc_restyle_verified(root: Path, a) -> tuple[bool, str, dict]:
+    """SC32 — after the restyle everything is still green."""
+    parts = {}
+    ok_bytes, why_bytes, _ = sc_render_bytes_match(root, a)
+    parts["render-bytes-match"] = ok_bytes
+    ok_green, why_green, _ = sc_checkers_green(root, a)
+    parts["checkers-green"] = ok_green
+    gen = _generator(root)
+    rc = run_cmd(root, ["uv", "run", str(gen), "--check"]).returncode
+    parts["generator--check"] = (rc == 0)
+    bad = [k for k, v in parts.items() if not v]
+    return (not bad,
+            (f"all PNGs byte-identical under the unchanged pin; every checker exits 0; generator "
+             f"--check clean" if not bad
+             else f"FALSE on: {bad} — {why_bytes if not ok_bytes else why_green}"),
+            {"parts": parts})
+
+
 SUBCOMMANDS = {
     "agents-set": sc_agents_set,
+    "architecture-style": sc_architecture_style,
+    "membership-after-restyle": sc_membership_after_restyle,
+    "no-states-in-labels": sc_no_states_in_labels,
+    "restyle-complete": sc_restyle_complete,
+    "restyle-verified": sc_restyle_verified,
     "archify-trial": sc_archify_trial,
     "architecture-complete": sc_architecture_complete,
     "build-and-render": sc_build_and_render,

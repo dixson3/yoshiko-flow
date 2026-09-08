@@ -163,13 +163,19 @@ def to_d2(m: dict) -> str:
     L.append("direction: right")
     L.append("")
     fill = GROUP_FILL.get(m["group"], "#f8fafc")
-    inv = (f"/{m['name']}" if m["invocable"] else "auto (fires from its description conditions)")
-    verbs = ("\\nsub-verbs: " + " · ".join(m["verbs"])) if m["verbs"] else ""
+    # RESTYLED (Issue 7.6, D8). The skill node was ONE box carrying a three-line sublabel —
+    # name, skill-group, invocation and the sub-verb run all stacked inside a single label. The
+    # reference forbids sublabels, so each fact becomes its OWN bare box. The generator is why
+    # this is cheap for 11 of the 20: they restyle by RE-RUNNING, not by editing, and
+    # `--check` is what makes that a guarantee rather than a claim.
     L.append(f"{_id(m['name'])}: {{")
-    L.append(f'  label: "{m["name"]}\\nskill-group: {m["group"]}\\ninvocation: {inv}{verbs}"')
-    L.append("  shape: rectangle")
+    L.append(f'  label: "{m["name"]}"')
     L.append(f'  style.fill: "{fill}"')
     L.append("  style.bold: true")
+    L.append(f'  group: "skill-group: {m["group"]}"')
+    L.append(f'  invocation: "{"/" + m["name"] if m["invocable"] else "auto-fires"}"')
+    for v in m["verbs"]:
+        L.append(f'  verb_{_id(v)}: "/{m["name"]} {v}"')
     L.append("}")
     L.append("")
     if m["tools"]:
@@ -198,8 +204,9 @@ def to_d2(m: dict) -> str:
         L.append("")
     for key, label, members in m["containers"]:
         L.append(f"{key}: {{")
-        star = f" · engine: {m['engine']}" if (key == "scripts" and m["engine"]) else ""
-        L.append(f'  label: "{label}{star}"')
+        L.append(f'  label: "{label}"')
+        if key == "scripts" and m["engine"]:
+            L.append(f'  engine: "engine: {m["engine"]}"')
         g = _grid(members).rstrip("\n")
         if g:
             L.append(g)

@@ -7,10 +7,14 @@
 direction: right
 
 yf_research: {
-  label: "yf-research\nskill-group: workflows\ninvocation: /yf-research\nsub-verbs: init · coordinate · status"
-  shape: rectangle
+  label: "yf-research"
   style.fill: "#eef2ff"
   style.bold: true
+  group: "skill-group: workflows"
+  invocation: "/yf-research"
+  verb_init: "/yf-research init"
+  verb_coordinate: "/yf-research coordinate"
+  verb_status: "/yf-research status"
 }
 
 tools: {
@@ -29,7 +33,8 @@ deps: {
 }
 
 scripts: {
-  label: "scripts/ · engine: research_manager.py"
+  label: "scripts/"
+  engine: "engine: research_manager.py"
   grid-columns: 3
   credibility_scorer_py: "credibility_scorer.py"
   index_manager_py: "index_manager.py"

@@ -75,8 +75,28 @@ def sandbox(root: Path, tmp: Path) -> Path:
 
 
 def run(root: Path, script: str, extra: list[str] | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(["uv", "run", f"scripts/checks/{script}", "--root", str(root),
-                           *(extra or [])], cwd=root, capture_output=True, text=True)
+    """Run a registered checker against the sandbox tree.
+
+    A control name may carry a `::verb` suffix (`plan067_checks.py::no-states-in-labels`) when
+    the thing under test is ONE SUBCOMMAND rather than a whole script — two controls can then
+    guard two different doors in the same file, which is what Issue 7.3 needs. Splitting here
+    keeps the registry keyed on the DOOR, not on the filename.
+    """
+    # TWO SUFFIX FORMS, because they are TWO DIFFERENT FACTS and one spelling for both is how
+    # a label got passed to argparse as a subcommand:
+    #   `script.py::verb`  — the door is ONE SUBCOMMAND; pass `verb` as an argument.
+    #   `script.py#label`  — the door is a SECOND WAY INTO THE SAME SCRIPT; `label` distinguishes
+    #                        the registry entry and is NEVER passed to the process.
+    if "::" in script:
+        name, _, verb = script.partition("::")
+    else:
+        name, _, _label = script.partition("#")
+        verb = ""
+    argv = ["uv", "run", f"scripts/checks/{name}"]
+    if verb:
+        argv.append(verb)
+    argv += ["--root", str(root), *(extra or [])]
+    return subprocess.run(argv, cwd=root, capture_output=True, text=True)
 
 
 def sub_file(path: Path, pairs: list[tuple[str, str]], *, required=True) -> int:
@@ -312,6 +332,44 @@ def mut_agents_set(tree: Path) -> None:
     (d / "zz-control-agent.md").write_text("# zz-control-agent\n\nA control agent.\n")
 
 
+def ctl_restyled_membership(tree: Path) -> tuple[str, str]:
+    """Docs already pass; then DELETE A MEMBER BOX from the RESTYLED `architecture.d2`.
+
+    PASS-4 C1 MEASURED THE EXISTING CONTROL BLIND TO THIS PATH. `mut_counts` adds a skill to the
+    CENSUS, which the `.md` pages' totals catch regardless of the `.d2` shape — so Issue 7.3
+    would have inherited a green over the exact door it is meant to guard. This control mutates
+    the DOCUMENT in the one way the restyle made possible: a member box that simply is not there.
+    """
+    return ("the restyled stack already encloses every census member (checker is green)",
+            "one member BOX deleted from the restyled `architecture.d2` container")
+
+
+def mut_restyled_membership(tree: Path) -> None:
+    f = tree / "web/content/images/architecture.d2"
+    if not f.is_file():
+        raise RuntimeError("control target absent: web/content/images/architecture.d2")
+    import re as _re
+    text = f.read_text(encoding="utf-8")
+    m = _re.search(r'^\s+(yf-[\w-]+)\s*:\s*"\1"\s*$', text, _re.M)
+    if not m:
+        raise RuntimeError("control ANCHOR NOT FOUND: no `  yf-x: \"yf-x\"` member box")
+    f.write_text(text.replace(m.group(0) + "\n", "", 1), encoding="utf-8")
+
+
+def ctl_state_enum(tree: Path) -> tuple[str, str]:
+    """SC30's predicate (pass-4 C8): docs carry no state enumeration; then PLANT one."""
+    return ("no node label carries a state enumeration",
+            "an `APPROVE | REVISE | INVESTIGATE-MORE` label planted in a diagram")
+
+
+def mut_state_enum(tree: Path) -> None:
+    f = tree / "web/content/images/architecture.d2"
+    if not f.is_file():
+        raise RuntimeError("control target absent: architecture.d2")
+    f.write_text(f.read_text(encoding="utf-8")
+                 + '\nzz_control: "APPROVE | REVISE | INVESTIGATE-MORE"\n', encoding="utf-8")
+
+
 CONTROLS = {
     "check_web_counts.py": (ctl_counts, mut_counts),
     "check_web_harness_paths.py": (ctl_harness, mut_harness),
@@ -321,6 +379,10 @@ CONTROLS = {
     "check_required_set.py": (ctl_required_set, mut_required_set),
     "check_cli_to_page.py": (ctl_cli_to_page, mut_cli_to_page),
     "check_agents_set.py": (ctl_agents_set, mut_agents_set),
+    # plan-067 Issue 7.3 — the two doors the RESTYLE opened.
+    "check_web_counts.py#restyled-membership": (ctl_restyled_membership,
+                                                mut_restyled_membership),
+    "plan067_checks.py::no-states-in-labels": (ctl_state_enum, mut_state_enum),
 }
 
 

@@ -15,22 +15,26 @@ yfplan: {
   style.stroke: "#4f46e5"
 
   execute: {
-    label: "plan-execute\nworkflow · LIQUID (pour)"
+    label: "plan-execute"
+    workflow_liquid_pour: "workflow · LIQUID (pour)"
     shape: rectangle
     style.fill: "#e0e7ff"
   }
   investigate: {
-    label: "plan-investigate\nworkflow · VAPOR (wisp, burned)"
+    label: "plan-investigate"
+    workflow_vapor_wisp_burned: "workflow · VAPOR (wisp, burned)"
     shape: rectangle
     style.fill: "#ede9fe"
   }
   review: {
-    label: "plan-review\nworkflow · VAPOR (wisp)"
+    label: "plan-review"
+    workflow_vapor_wisp: "workflow · VAPOR (wisp)"
     shape: rectangle
     style.fill: "#ede9fe"
   }
   verify: {
-    label: "verify-artifact\nASPECT — attaches, never pours"
+    label: "verify-artifact"
+    aspect_attaches_never_pours: "ASPECT — attaches, never pours"
     shape: rectangle
     style.fill: "#ecfeff"
     style.stroke-dash: 3
@@ -43,7 +47,8 @@ yfresearch: {
   style.stroke: "#15803d"
 
   research: {
-    label: "yf-research\nworkflow · LIQUID (pour)"
+    label: "yf-research"
+    workflow_liquid_pour: "workflow · LIQUID (pour)"
     shape: rectangle
     style.fill: "#dcfce7"
   }
@@ -87,7 +92,9 @@ plan_agents.captor: {style.stroke-dash: 4}
 plan_agents.lander: {style.stroke-dash: 4}
 
 note: {
-  label: "planner · captor · lander are dispatched by SKILL.md PROSE,\nnot by a formula step — they have no formula edge, and that is\ncorrect rather than a gap."
+  label: "planner · captor · lander are dispatched by SKILL.md PROSE,"
+  not_by_a_formula_step_they_h: "not by a formula step — they have no formula edge, and that is"
+  correct_rather_than_a_gap: "correct rather than a gap."
   shape: text
   near: bottom-center
 }

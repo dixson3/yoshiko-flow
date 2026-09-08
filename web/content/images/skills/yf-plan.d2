@@ -7,10 +7,17 @@
 direction: right
 
 yf_plan: {
-  label: "yf-plan\nskill-group: workflows\ninvocation: /yf-plan\nsub-verbs: init · continue · capture · execute · status · list"
-  shape: rectangle
+  label: "yf-plan"
   style.fill: "#eef2ff"
   style.bold: true
+  group: "skill-group: workflows"
+  invocation: "/yf-plan"
+  verb_init: "/yf-plan init"
+  verb_continue: "/yf-plan continue"
+  verb_capture: "/yf-plan capture"
+  verb_execute: "/yf-plan execute"
+  verb_status: "/yf-plan status"
+  verb_list: "/yf-plan list"
 }
 
 tools: {
@@ -29,7 +36,8 @@ deps: {
 }
 
 scripts: {
-  label: "scripts/ · engine: plan_manager.py"
+  label: "scripts/"
+  engine: "engine: plan_manager.py"
   grid-columns: 4
   close_cascade_py: "close_cascade.py"
   doc_lint_py: "doc_lint.py"

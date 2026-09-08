@@ -4,13 +4,20 @@
 direction: down
 
 meta: {
-  label: "verify-artifact\ntype: ASPECT (the only one shipped)\n\nWhy it exists: a review step that REPORTS a verdict and a review\nstep that WROTE the file carrying it are DIFFERENT FACTS —\nand only the second is checkable after the session ends."
+  label: "verify-artifact"
+  type_aspect_the_only_one_shi: "type: ASPECT (the only one shipped)"
+  why_it_exists_a_review_step_: "Why it exists: a review step that REPORTS a verdict and a review"
+  step_that_wrote_the_file_car: "step that WROTE the file carrying it are DIFFERENT FACTS —"
+  and_only_the_second_is_check: "and only the second is checkable after the session ends."
   shape: rectangle
   style.fill: "#eef2ff"
 }
 
 template: {
-  label: "THE WOVEN STEP TEMPLATE\nid: {step.id}-verify\ntitle: \"Verify artifact: {step.id}\"\ntype: task"
+  label: "THE WOVEN STEP TEMPLATE"
+  id_step_id_verify: "id: {step.id}-verify"
+  title_verify_artifact_step_i: "title: \"Verify artifact: {step.id}\""
+  type_task: "type: task"
   shape: rectangle
   style.fill: "#ecfeff"
   style.stroke: "#0e7490"
@@ -22,13 +29,17 @@ attach: {
   style.stroke: "#9ca3af"
 
   right: {
-    label: "✓ [compose]\n  aspects = [\"verify-artifact\"]"
+    label: "✓ [compose]"
+    aspects_verify_artifact: "aspects = [\"verify-artifact\"]"
     shape: rectangle
     style.fill: "#dcfce7"
     style.stroke: "#15803d"
   }
   wrong: {
-    label: "✗ a TOP-LEVEL aspects = [...]\nIS SILENTLY IGNORED:\nit parses, it cooks, and it composes NOTHING —\nso the obligation looks attached and is not"
+    label: "✗ a TOP-LEVEL aspects = [...]"
+    is_silently_ignored: "IS SILENTLY IGNORED:"
+    it_parses_it_cooks_and_it_co: "it parses, it cooks, and it composes NOTHING —"
+    so_the_obligation_looks_atta: "so the obligation looks attached and is not"
     shape: rectangle
     style.fill: "#fee2e2"
     style.stroke: "#b91c1c"
@@ -36,20 +47,28 @@ attach: {
 }
 
 weave: {
-  label: "WEAVES AT **COOK** TIME,\nover FORMULA-DECLARED steps only\n(not over dynamically injected beads)"
+  label: "WEAVES AT **COOK** TIME,"
+  over_formula_declared_steps_: "over FORMULA-DECLARED steps only"
+  not_over_dynamically_injecte: "(not over dynamically injected beads)"
   shape: rectangle
   style.fill: "#f5f3ff"
 }
 
 observe: {
-  label: "WHERE TO OBSERVE IT — and where NOT to\n\n✓ bd cook <formula> --dry-run   → shows the WOVEN plan\n✗ bd formula show               → renders the RAW formula; NO woven steps, correctly\n✗ a pour of an UNCOOKED proto   → no woven steps, correctly\n\nMeasured on bd 1.1.2: checking either ✗ surface and concluding the aspect\ndoes not weave is a READING ERROR, not a bd defect."
+  label: "WHERE TO OBSERVE IT — and where NOT to"
+  bd_cook_formula_dry_run_show: "✓ bd cook <formula> --dry-run   → shows the WOVEN plan"
+  bd_formula_show_renders_the_: "✗ bd formula show               → renders the RAW formula; NO woven steps, correctly"
+  a_pour_of_an_uncooked_proto_: "✗ a pour of an UNCOOKED proto   → no woven steps, correctly"
+  measured_on_bd_1_1_2_checkin: "Measured on bd 1.1.2: checking either ✗ surface and concluding the aspect"
+  does_not_weave_is_a_reading_: "does not weave is a READING ERROR, not a bd defect."
   shape: rectangle
   style.fill: "#fff7ed"
   style.stroke: "#c2410c"
 }
 
 consumer: {
-  label: "CONSUMER: plan-review\n(conformance · red-team · resolve · gate)"
+  label: "CONSUMER: plan-review"
+  conformance_red_team_resolve: "(conformance · red-team · resolve · gate)"
   shape: rectangle
   style.fill: "#ede9fe"
 }

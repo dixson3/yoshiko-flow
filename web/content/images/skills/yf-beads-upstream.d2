@@ -7,10 +7,15 @@
 direction: right
 
 yf_beads_upstream: {
-  label: "yf-beads-upstream\nskill-group: beads\ninvocation: /yf-beads-upstream\nsub-verbs: init · push · status · pull"
-  shape: rectangle
+  label: "yf-beads-upstream"
   style.fill: "#f0fdf4"
   style.bold: true
+  group: "skill-group: beads"
+  invocation: "/yf-beads-upstream"
+  verb_init: "/yf-beads-upstream init"
+  verb_push: "/yf-beads-upstream push"
+  verb_status: "/yf-beads-upstream status"
+  verb_pull: "/yf-beads-upstream pull"
 }
 
 tools: {
