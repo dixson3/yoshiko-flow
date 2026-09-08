@@ -213,6 +213,7 @@ approved: yes
 | `gate-plan067-controls` | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 | `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
 | `skill-diagrams` | `uv run web/plugins/skill_diagrams.py --check` |  |  |
+| `diagrams-published` | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 
 ### full
 
@@ -305,6 +306,7 @@ approved: yes
 |  | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
 |  | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 |  | `uv run web/plugins/skill_diagrams.py --check` |  |  |
+|  | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -353,6 +355,8 @@ approved: yes
 | `web/plugins/skill_model.py` | `skill-diagrams` |
 | `web/plugins/skill_diagrams.py` | `skill-diagrams` |
 | `web/content/images/skills/*.d2` | `skill-diagrams` |
+| `web/content/images/**` | `diagrams-published` |
+| `web/plugins/skill_pages.py` | `diagrams-published`, `skill-page-contract` |
 | `docs/plans/plan-067-james-dixson-de852a/**` | `okf-index-drift`, `gate-plan067-amendment`, `req-normative-home`, `plan067-verbs` |
 | `scripts/checks/check_web_counts.py` | `web-counts`, `web-negative-controls` |
 | `scripts/checks/check_web_harness_paths.py` | `web-harness-paths`, `web-negative-controls` |

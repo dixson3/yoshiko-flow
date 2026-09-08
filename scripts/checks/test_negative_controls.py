@@ -60,6 +60,8 @@ def sandbox(root: Path, tmp: Path) -> Path:
     dst = tmp / "tree"
     dst.mkdir()
     for rel in ("skills", "web/content", "web/plugins", "yf/src", "scripts/checks",
+                "web/pelicanconf.py", "web/publishconf.py", "web/requirements.txt",
+                "web/themes", "web/Makefile",
                 "README.md", "AGENTS.md"):
         src = root / rel
         if not src.exists():
@@ -370,6 +372,35 @@ def mut_state_enum(tree: Path) -> None:
                  + '\nzz_control: "APPROVE | REVISE | INVESTIGATE-MORE"\n', encoding="utf-8")
 
 
+def ctl_diagrams_published(tree: Path) -> tuple[str, str]:
+    """Every published diagram is reachable; then DELETE THE EMBED BLOCK from the plugin.
+
+    THE MUTATION IS CODE-SIDE ON PURPOSE, and it is the exact scenario SC34 exists for: the
+    per-skill embeds come from `skill_pages.py`, not from authored markdown, so removing that one
+    block makes ELEVEN diagrams vanish from the site while every other checker stays green. The
+    files are all still on disk and byte-identical — which is why disk presence was never the
+    right predicate.
+    """
+    return ("every published diagram is referenced by a rendered page",
+            "the per-skill embed block deleted from `web/plugins/skill_pages.py`")
+
+
+def mut_diagrams_published(tree: Path) -> None:
+    f = tree / "web/plugins/skill_pages.py"
+    if not f.is_file():
+        raise RuntimeError("control target absent: web/plugins/skill_pages.py")
+    text = f.read_text(encoding="utf-8")
+    anchor = '    diagram = os.path.join(settings["PATH"], "images", "skills", name + ".png")\n'
+    if anchor not in text:
+        raise RuntimeError("control ANCHOR NOT FOUND: the per-skill diagram embed block")
+    head, _, tail = text.partition(anchor)
+    # drop the `if os.path.isfile(diagram):` block that follows
+    rest = tail.split("    # Prose body:", 1)
+    if len(rest) != 2:
+        raise RuntimeError("control ANCHOR NOT FOUND: the end of the embed block")
+    f.write_text(head + "    # Prose body:" + rest[1], encoding="utf-8")
+
+
 CONTROLS = {
     "check_web_counts.py": (ctl_counts, mut_counts),
     "check_web_harness_paths.py": (ctl_harness, mut_harness),
@@ -383,6 +414,9 @@ CONTROLS = {
     "check_web_counts.py#restyled-membership": (ctl_restyled_membership,
                                                 mut_restyled_membership),
     "plan067_checks.py::no-states-in-labels": (ctl_state_enum, mut_state_enum),
+    # plan-067 Issue 7.9 — publication, not just generation.
+    "plan067_checks.py::diagrams-published": (ctl_diagrams_published,
+                                             mut_diagrams_published),
 }
 
 

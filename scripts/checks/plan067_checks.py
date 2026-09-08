@@ -1143,6 +1143,70 @@ def sc_restyle_verified(root: Path, a) -> tuple[bool, str, dict]:
             {"parts": parts})
 
 
+def sc_diagrams_published(root: Path, a) -> tuple[bool, str, dict]:
+    """SC34 — every published diagram is REFERENCED BY A RENDERED PAGE.
+
+    `SC23` gated GENERATION on the computed threshold. **Nothing gated PUBLICATION**, so
+    "published" meant "written to disk" — a diagram could satisfy every check in this plan while
+    no reader ever saw it. That is this plan's own class, one level up: an artifact satisfying
+    its check while failing its purpose.
+
+    **THE PREDICATE IS THE BUILT SITE, NOT THE SOURCE MARKDOWN, and the difference is not
+    pedantry.** The per-skill embeds are emitted by `web/plugins/skill_pages.py`, so the literal
+    `/images/skills/yf-plan.png` appears in NO `.md` file. Measured: a source-only scan reports
+    **11 of 21** diagrams unreferenced, and all eleven are false — every one is embedded in the
+    rendered page. A checker that scanned the source would manufacture eleven findings and hide
+    the real question, which is whether a READER can reach the artifact.
+
+    So this builds the site if needed and reads the HTML. What it protects: delete the embed
+    block from `skill_pages.py` and eleven diagrams vanish from the site with every other check
+    still green.
+
+    VACUITY FLOOR: `--min-diagrams`. A check that finds no diagrams certifies nothing.
+    """
+    web = root / "web"
+    out = web / "output"
+    pngs = sorted((root / DIAGRAM_DIR).rglob("*.png"))
+    floor = getattr(a, "min_diagrams", None) or 15
+    if len(pngs) < floor:
+        raise Inconclusive(f"found {len(pngs)} diagram(s), below the floor of {floor} — a check "
+                           f"over such a set certifies vacuously")
+    reqs = web / "requirements.txt"
+    if not reqs.is_file():
+        raise Inconclusive("web/requirements.txt is absent — the site cannot be built to check")
+    proc = run_cmd(root, ["uv", "run", "--with-requirements", str(reqs), "pelican",
+                          "content", "-o", "output", "-s", "pelicanconf.py"], cwd=web)
+    if proc.returncode != 0:
+        raise Inconclusive(f"the site did not build, so 'referenced by a rendered page' cannot "
+                           f"be evaluated: {proc.stderr.strip()[-200:]}")
+    if not out.is_dir():
+        raise Inconclusive("web/output does not exist after a successful build")
+    html = "\n".join(p.read_text(encoding="utf-8", errors="replace")
+                     for p in out.rglob("*.html"))
+    if not html.strip():
+        raise Inconclusive("the built site contains no HTML — nothing to scan")
+    unreferenced = [str(p.relative_to(root / DIAGRAM_DIR))
+                    for p in pngs
+                    if f"/images/{p.relative_to(root / DIAGRAM_DIR).as_posix()}" not in html]
+    findings = []
+    if unreferenced:
+        findings.append(f"{len(unreferenced)} published diagram(s) reachable from NO rendered "
+                        f"page: {unreferenced[:8]}")
+    # The relations must be reachable FROM the overview, or the split hid them.
+    for page in out.rglob("*.html"):
+        t = page.read_text(encoding="utf-8", errors="replace")
+        if "/images/architecture.png" in t and "/images/architecture-deps.png" not in t:
+            findings.append(f"{page.relative_to(out)} embeds architecture.png but NOT "
+                            f"architecture-deps.png — the relations are unreachable from the "
+                            f"overview that sheds them")
+    return (not findings,
+            f"{len(pngs)} published diagram(s), all referenced by a rendered page; "
+            f"architecture-deps accompanies architecture everywhere it appears"
+            if not findings else "; ".join(findings),
+            {"diagrams": len(pngs), "floor": floor, "unreferenced": unreferenced,
+             "findings": findings})
+
+
 SUBCOMMANDS = {
     "agents-set": sc_agents_set,
     "architecture-style": sc_architecture_style,
@@ -1159,6 +1223,7 @@ SUBCOMMANDS = {
     "combined-diagrams": sc_combined_diagrams,
     "contradictions": sc_contradictions,
     "cv-rows": sc_cv_rows,
+    "diagrams-published": sc_diagrams_published,
     "formulas-map": sc_formulas_map,
     "generator-check": sc_generator_check,
     "high-value": sc_high_value,
@@ -1187,6 +1252,8 @@ def main(argv=None) -> int:
     # MANDATE (a): `choices` makes an unknown verb exit 2 (argparse's usage error), never 0.
     ap.add_argument("subcommand", choices=sorted(SUBCOMMANDS))
     ap.add_argument("--json", action="store_true", help="emit the JSON envelope")
+    ap.add_argument("--min-diagrams", type=int, default=15,
+                    help="vacuity floor for `diagrams-published`")
     ap.add_argument("--root", help="repository root (default: git toplevel)")
     a = ap.parse_args(argv)
 

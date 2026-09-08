@@ -8,7 +8,25 @@ created: 2026-09-07
 ---
 # The restyled diagram set — re-presented for the second read
 
-> **THIS DOCUMENT IS NOT A READ, AND IT DOES NOT DISCHARGE THE GATE.** It is the material the
+> ## ACCEPTED by the OPERATOR, 2026-09-07
+>
+> **The operator accepted this set.** Not this document, not the agent that built it, and not the
+> session that executed the plan. The reads recorded in this bundle were **evidence**; the
+> acceptance is theirs.
+>
+> **`lifecycle.png`'s height was accepted KNOWINGLY, as a recorded trade — not overlooked.**
+> It is **8556 x 13362**, grown from 11602px, because expanding 95 sublabels into child boxes
+> added **vertical structure**: the fix for wordiness worked against the aspect ratio. That
+> regression was flagged before the read, on the exact dimension the FIRST read had objected to,
+> and it was accepted anyway with the trade understood. A future reader should see a **decision**
+> here, not an oversight — and should not "fix" it without asking, because the shorter version is
+> the wordy one.
+>
+> The gate that rejected the first set is the gate that accepted this one.
+
+> **THIS DOCUMENT WAS NOT THE READ, AND DID NOT DISCHARGE THE GATE — the operator's
+> read did, on 2026-09-07.** What follows is the material as it was presented, preserved
+> unchanged so the acceptance can be audited against what was actually in front of them. It is the material the
 > gate needs. **The gate that rejected the first set is the gate that must accept the second**
 > — an agent read is evidence, never a discharge.
 >
@@ -106,9 +124,10 @@ with edges. **887 labels scanned across 21 diagrams; zero state enumerations rem
 3. **The wide per-formula diagrams** (`plan-investigate` at 0.16, `yf-research` at 0.17) are
    linear chains, so width is inherent. Whether they read well at that aspect is a judgement.
 
-## Outcome
+## Outcome — RESOLVED
 
-On acceptance this gate closes and Issue 6.4 presents to **plan-066's** gate; plan-066's
+**Accepted 2026-09-07 by the operator.** plan-067's Diagram human-read gate (`yf-mol-gtcy.10`)
+is resolved on their authority. Issue 6.4 then presents to **plan-066's** gate; plan-066's
 `diagram-reads` record is updated, its gate opens, its Issues 8.1/8.3 run, it reaches `complete`,
 and `#317` closes. On rejection, say what to change — the first rejection produced Epic 7, and a
 second would produce the same kind of thing. **Neither this document nor any agent resolves
