@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-07
+- executing: Epic 7 (the diagram restyle) COMPLETE, 10/10. The restyled set is re-presented at findings/diagram-presentation.md for plan-067's Diagram human-read gate. 39 of 40 criteria hold; the one FALSE is plan066-still-green, the DECLARED HANDOFF. Two gates still HELD by the operator; nothing written upstream.
 - executing: operator RE-APPROVED the Epic 7 amendment after pass-5 APPROVE; fingerprint rewritten, execution resumes
 - ready-for-approval: ready-check green after the Epic 7 amendment — pass-5 red-team APPROVE + audit pass
 - review-pass: pass-5 red-team APPROVE (6 concerns, none high; a spike empirically verified the group-detection fix)

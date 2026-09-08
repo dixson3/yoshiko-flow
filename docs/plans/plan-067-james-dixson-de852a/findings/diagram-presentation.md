@@ -1,86 +1,92 @@
 ---
 type: Finding
 okf_spec: OKF-PLAN
-description: "The MATERIAL for the Diagram human-read gate — the redesigned set inventoried, with what changed in each and what an extractor cannot see. This document is NOT a read and does not discharge the gate."
+description: "The RESTYLED set re-presented for plan-067's Diagram human-read gate — the gate that rejected the first set. Per-diagram, what changed against the two reference images. This document is NOT a read and does not discharge the gate."
 id: diagram-presentation
 plan: plan-067-james-dixson-de852a
 created: 2026-09-07
 ---
-# The redesigned diagram set — presented for the human read
+# The restyled diagram set — re-presented for the second read
 
 > **THIS DOCUMENT IS NOT A READ, AND IT DOES NOT DISCHARGE THE GATE.** It is the material the
-> gate needs: what exists, what changed, and where the mechanical checks stop. The
-> **Diagram human read** gate is `gate_type: human`, and an agent read is **evidence, never a
-> discharge** — plan-066 measured a corrected diagram whose count was right and whose
-> **membership was wrong**, which is precisely the residue no extractor catches.
+> gate needs. **The gate that rejected the first set is the gate that must accept the second**
+> — an agent read is evidence, never a discharge.
+>
+> **This is plan-067's own gate.** Issue 6.4 then presents to **plan-066's**, which is a
+> different gate and a later step (6.4 `depends-on` 7.8, so it structurally cannot present a
+> rejected set).
 
-## What changed, structurally
+## What was rejected, and what that told us
 
-The set went from **6 diagrams to 20**, and the change is a restructure, not an addition:
+The first 20-diagram set was **fully green** — every checker at 0, every PNG byte-identical to a
+fresh render. It was rejected anyway: **nodes too wordy**, and `architecture.d2` did not read as
+a layered stack. That is the plan's highest-value process finding and is recorded in
+[plan-retrospective.md](../plan-retrospective.md): *a second fully-green artifact set failing a
+human read*. Green is not the same as good, and no mechanical gate was ever going to say so.
 
-| Change | Before | After |
-| :-- | :-- | :-- |
-| combined | `phase-model.d2` + `lifecycle.d2` | one `lifecycle.d2` |
-| combined | `install-matrix.d2` + `tune-matrix.d2` | one `install-matrix.d2` |
-| removed | `formulas.d2` (generic ER meta-diagram) | — (per `#373`) |
-| replaced by | — | `formulas-map.d2` + 5 per-formula diagrams |
-| rebuilt | `architecture.d2` | a layered marketecture |
-| added | — | 11 GENERATED per-skill diagrams |
+The operator supplied two reference images, preserved at `assets/style-reference/`. Per D8 they
+are **normative for LAYOUT**; the **skill census stays normative for CONTENT**.
 
-## The inventory
+## What changed, per diagram
 
-| Diagram | px | h/w | What to look for |
+| Diagram | px | h/w | What changed |
 | :-- | :-- | --: | :-- |
-| `architecture.png` | 7036 x 7554 | 1.07 | the three layers reading AS layers; whether 12 skill→skill edges are followable or a hairball |
-| `lifecycle.png` | 4364 x 11602 | **2.66** | the tallest in the set. Does the nesting read, or does it become a column? |
-| `install-matrix.png` | 8948 x 3672 | 0.41 | whether `surface_dir` and `skills_subpath` read as DIFFERENT things |
-| `formulas-map.png` | 3986 x 3662 | 0.92 | whether "who owns what, who dispatches whom" is answerable at a glance |
-| `formulas/plan-execute.png` | 2992 x 4722 | 1.58 | the declared-vs-injected split |
-| `formulas/plan-investigate.png` | 7292 x 728 | 0.10 | very wide; does the burn warning survive the aspect ratio? |
-| `formulas/plan-review.png` | 5798 x 1634 | 0.28 | whether the non-goals box competes with the chain |
-| `formulas/verify-artifact.png` | 2710 x 2672 | 0.99 | whether the right/wrong attachment contrast lands |
-| `formulas/yf-research.png` | 7558 x 1092 | 0.14 | the fan-out/fan-in around a linear chain |
-| `skills/*.png` (11) | 2056-4380 wide | 0.30-1.21 | whether 11 near-identical generated diagrams are USEFUL or noise |
+| `architecture.png` | 2596 x 2968 | 1.14 | **Rebuilt as the reference stack.** Bands bottom-to-top (tools → runtimes → beads → utility → markdown → workflows), one bare-name box per member, **no edges**, no sublabels, no counts. Was 7036 x 7554 with 36 edges. |
+| `architecture-deps.png` | 3532 x 5080 | 1.44 | **NEW.** The relations the stack sheds — the 8-token tool layer, the `yf` subcommand paths, and all **twelve** `depends-on-skill` edges including the workflows→utility relation `#373` names by hand. |
+| `lifecycle.png` | 8556 x 13362 | 1.56 | 25 sublabels expanded into child boxes; the `APPROVE / REVISE / INVESTIGATE-MORE` verdict set hoisted into three real nodes. |
+| `install-matrix.png` | 8980 x 4472 | 0.50 | 14 sublabels expanded. |
+| `formulas-map.png` | 4386 x 3888 | 0.89 | 6 sublabels expanded. |
+| `formulas/plan-execute.png` | 6978 x 5690 | 0.82 | 11 sublabels expanded. |
+| `formulas/plan-investigate.png` | 8698 x 1424 | 0.16 | 6 sublabels expanded. |
+| `formulas/plan-review.png` | 9336 x 2342 | 0.25 | 8 sublabels expanded; **both** verdict sets hoisted — `conformance → PASS / INCOMPLETE` with INCOMPLETE looping back, `red-team → APPROVE / REVISE / INVESTIGATE-MORE` with REVISE routing to `resolve`. |
+| `formulas/verify-artifact.png` | 7766 x 3056 | 0.39 | 7 sublabels expanded. |
+| `formulas/yf-research.png` | 9450 x 1636 | 0.17 | 10 sublabels expanded. |
+| `skills/*.png` (11) | 2064-4074 wide | 0.32-1.19 | **Restyled by RE-RUNNING the generator, not by editing.** The three-line skill node became bare boxes: name, `skill-group`, invocation, one per sub-verb. |
 
-## What the mechanical checks DID establish
+## Against `red-team-chain.png` specifically
 
-So the read can concentrate on what they cannot:
+That image is the **anti-pattern**: a node carrying `step: red-team`, `type: task · needs:
+[conformance]`, two more prose lines, and the verdict set `APPROVE | REVISE | INVESTIGATE-MORE`
+— all in one label. Every one of those is now its own box, and the verdict set is three nodes
+with edges. **887 labels scanned across 21 diagrams; zero state enumerations remain.**
 
-- Every committed `.png` is **sha256-identical** to a fresh render under the pinned
-  `d2 v0.8.2 --theme 0 --layout elk` (`render-bytes-match`, 20 diagrams).
-- Counts and **enumerated member ids** agree with `skills/*/SKILL.md` frontmatter, with
-  `not_checked_groups == 0` — no group states a count while listing nothing (`check_web_counts`).
-- All 12 declared `depends-on-skill` edges are drawn in `architecture.d2`, and the 8-tool layer
-  and the `yf` subcommand paths are present (`architecture-complete`).
-- The combined lifecycle carries the red-team cycle, gates, escalations, retrospectives,
-  autonomy, `capture`, execution and land-the-plane, and uses the real literal
-  `system_deps_missing` (`combined-diagrams`, `#375`).
-- No `.d2` lacks a `.png`; no render is a single-column stack (`render.py check-dir`,
-  `build-and-render`).
-- The 11 per-skill diagrams byte-match a fresh generation (`skill_diagrams.py --check`).
+## What the checks establish, so the read can skip it
 
-## What NO check can see, and what the read is FOR
+- All **21** PNGs sha256-identical to a fresh render under the unchanged `d2 v0.8.2 --theme 0
+  --layout elk`. **No pin changed.**
+- `architecture.d2` is edge-free, carries all **20** census skills spelled from frontmatter, and
+  has no sublabel or parenthetical count.
+- Membership survives, asserted **positively**: `groups_checked == 4 == len(census.groups)`, and
+  no checker lost claim coverage.
+- Every checker exits 0; the generated set matches a fresh generation; the site builds clean
+  under `--fatal warnings`.
+- **Six** negative controls observed to fail against code-side mutations under passing docs,
+  including the two doors the restyle opened.
 
-- **Label placement, overlap and truncation.** Nothing above measures whether two labels collide.
-- **Whether the picture communicates.** `architecture.png` is 7036 x 7554 — mechanically complete
-  and possibly still too busy, which was the ORIGINAL objection that started this plan.
-- **Semantic mis-assignment beyond the id sets checked.** A box in the wrong cluster with the
-  right count is invisible to every check above. That is the plan-066 defect, by name.
-- **Whether 11 generated per-skill diagrams earn their place.** The threshold is computed and
-  defensible; whether the *reader* wants eleven is not a question a threshold answers.
+## What NO check can see — the read is for this
 
-## The two open questions this read should settle
+- **Whether the stack now reads as a stack.** That is the whole objection, and it is a
+  judgement.
+- **Whether the expanded child boxes are an improvement or merely a different shape.** 95
+  sublabels became child boxes; the content was preserved deliberately rather than deleted, and
+  that is a defensible call the reader may disagree with.
+- **Label placement, overlap, truncation.** Nothing above measures whether two labels collide.
 
-1. **`lifecycle.png` at 2.66:1 and 11602px tall.** Three layouts were measured; the all-`right`
-   variant was 23042px wide at 10:1 and worse. This is the best of the three, and it may still be
-   the wrong shape. **A judgement, not a measurement.**
-2. **The per-skill set at 11.** Publication is `nodes >= 5`, re-derived and sitting on a
-   three-way tie, so 11 is defensible but not inevitable — 8 or 16 are one definitional step
-   away, and the census records both.
+## Three things worth your attention, stated rather than buried
+
+1. **`lifecycle.png` GREW** — 4364 x 11602 → 8556 x 13362. Expanding sublabels into boxes costs
+   area. It is the largest diagram in the set and may still be the wrong shape; splitting it
+   further was not in Epic 7's scope.
+2. **`architecture-deps.png` at 1.44:1 is the best of three measured layouts** (`right` 3532 x
+   5080; `down` 14782 x 1188 at 10:1; a tightened-grid variant 9728 x 1612). It is dense by
+   nature — 35 edges — and dense is what the split bought the stack.
+3. **The wide per-formula diagrams** (`plan-investigate` at 0.16, `yf-research` at 0.17) are
+   linear chains, so width is inherent. Whether they read well at that aspect is a judgement.
 
 ## Outcome
 
-On acceptance, plan-066's `diagram-reads` record is updated for the new set, its gate opens, its
-Issues 8.1/8.3 run, it reaches `complete`, and `#317` closes. **This plan does not resolve that
-gate.** `plan066-still-green` currently reports exactly one FALSE criterion — `diagram-reads` —
-and reports it as the **declared handoff**, not a regression.
+On acceptance this gate closes and Issue 6.4 presents to **plan-066's** gate; plan-066's
+`diagram-reads` record is updated, its gate opens, its Issues 8.1/8.3 run, it reaches `complete`,
+and `#317` closes. On rejection, say what to change — the first rejection produced Epic 7, and a
+second would produce the same kind of thing. **Neither this document nor any agent resolves
+this gate.**

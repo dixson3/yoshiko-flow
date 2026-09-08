@@ -116,6 +116,60 @@ was caught by reading the *output* rather than the exit code — which is the sa
 - The prose that contradicted the new rule — "an omission is not drift" — was **amended at all
   four sites** rather than left standing beside it.
 
+## Epic 7 — a SECOND fully-green set failed a human read
+
+**This is the plan's highest-value process finding, and it was unrecorded until now** (pass-4 C9).
+
+The 20-diagram set that Epic 6 presented was green on every axis this plan built: every checker
+at 0, all 20 PNGs sha256-identical to a fresh render, 6 negative controls observed to fail, 29 of
+32 criteria holding. **The operator rejected it.** Not for a false claim — for being too wordy,
+and for `architecture.d2` not reading as a layered stack.
+
+### What that measures
+
+| | Claim | Verdict |
+| :-- | :-- | :-- |
+| First set | mechanically complete | **accurate, and rejected** |
+| plan-066's set | mechanically complete | **accurate, and rejected** |
+
+Two consecutive plans produced fully-green diagram sets that a human read turned down. **The
+mechanical gates were not wrong either time.** They were answering a different question from the
+one that decides acceptance, and no amount of additional checking would have closed the gap —
+which is exactly why the Diagram human-read gate is `gate_type: human` and why an agent read is
+declared evidence rather than a discharge.
+
+The generalisable finding: **"green" and "good" are different predicates, and this plan can now
+demonstrate that with two independent measurements rather than assert it.**
+
+### What the restyle then found
+
+Epic 7 was not only cosmetic. Changing the DOCUMENT reopened a defect in the CHECKER:
+
+- `GROUP_RE` required a parenthetical count to **find** a group at all, and D8 forbids
+  parenthetical counts. **Measured:** after the restyle, `architecture.d2` yielded **zero**
+  detected groups, and deleting a member box left `check_web_counts` at exit 0 with
+  `not_checked_groups: 0` — Issue 1.1's exact two-member-deletion defect, reintroduced without
+  touching the checker.
+- Three further instrument defects surfaced in Epic 7 and are counted in the process class
+  below: container detection anchored at column 0 (five claims vanished, caught by the claim
+  floor added hours earlier); the sublabel transform matching the literal id `label`; and a
+  control-registry suffix that passed a label to `argparse` as a subcommand.
+
+**A style change is a checker test.** That is the lesson worth carrying: the instruments were
+tuned to one document shape, and only a change of shape could reveal it.
+
+### Updated counts
+
+| Class | Was | Now | Added by Epic 7 |
+| :-- | --: | --: | :-- |
+| Content defects | 14 | **16** | the wordy node set; `architecture.d2` not reading as a stack |
+| Process defects | 11 | **15** | count-blind group detection; column-0 container anchor; the `label` collision; the `::` suffix collision |
+| Instrument false-greens | 3 | **4** | `sc_architecture_complete` passing while `architecture-deps.d2` did not exist — a criterion satisfied by the ABSENCE of its subject |
+
+The fourth false green is the sharpest of the four. `SC27c` reported PASS against a file that had
+never been created, because the function still read the old path. It was caught by *looking*
+before changing it, which is the only reason it is in this table rather than in the shipped plan.
+
 ## The rate to carry forward
 
 Fourteen content defects, eleven process defects, three false greens — and the corpus was green
