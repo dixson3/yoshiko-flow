@@ -43,6 +43,21 @@ are **normative for LAYOUT**; the **skill census stays normative for CONTENT**.
 | `formulas/yf-research.png` | 9450 x 1636 | 0.17 | 10 sublabels expanded. |
 | `skills/*.png` (11) | 2064-4074 wide | 0.32-1.19 | **Restyled by RE-RUNNING the generator, not by editing.** The three-line skill node became bare boxes: name, `skill-group`, invocation, one per sub-verb. |
 
+## What the split bought, in numbers
+
+The two figures worth putting side by side, because they are the trade Issue 7.0b made:
+
+| Diagram | px | h/w | Read as |
+| :-- | :-- | --: | :-- |
+| `architecture.png` | **2596 x 2968** | 1.14 | an **overview** — readable at one screen width |
+| `architecture-deps.png` | **3532 x 5080** | 1.44 | a **reference** — allowed to be tall, because nobody reads it as an overview |
+| *(the single diagram it replaced)* | *7036 x 7554* | *1.07* | *both at once, which is what was rejected* |
+
+**That is the whole argument for the split.** One canvas answering "what is there" and "what
+depends on what" has to be big enough for the second question while being read for the first. Two
+canvases let each be sized for its own job: the stack shrank to **13% of the original area**, and
+the relations moved somewhere that being dense is not a defect.
+
 ## Against `red-team-chain.png` specifically
 
 That image is the **anti-pattern**: a node carrying `step: red-team`, `type: task · needs:
@@ -74,9 +89,17 @@ with edges. **887 labels scanned across 21 diagrams; zero state enumerations rem
 
 ## Three things worth your attention, stated rather than buried
 
-1. **`lifecycle.png` GREW** — 4364 x 11602 → 8556 x 13362. Expanding sublabels into boxes costs
-   area. It is the largest diagram in the set and may still be the wrong shape; splitting it
-   further was not in Epic 7's scope.
+1. **`lifecycle.png` GOT WORSE, on a dimension you had already questioned.** 4364 x 11602 →
+   **8556 x 13362**. This is the one place the second set is worse than the first: expanding 95
+   sublabels into child boxes added **vertical structure**, so the fix for wordiness worked
+   *against* the aspect ratio. The nodes are no longer wordy; the diagram is taller than ever.
+   It is the largest artifact in the set by area.
+
+   **Two remedies are plausible and NEITHER has been started**, because which one is right
+   depends on what you object to: **split the combination back into two diagrams** (undoing
+   Issue 4.2, which merged `phase-model` and `lifecycle` — the merge was right on content and may
+   be wrong on scale), or **restructure it horizontally**. If your verdict is "everything except
+   lifecycle", say which and it becomes one issue.
 2. **`architecture-deps.png` at 1.44:1 is the best of three measured layouts** (`right` 3532 x
    5080; `down` 14782 x 1188 at 10:1; a tightened-grid variant 9728 x 1612). It is dense by
    nature — 35 edges — and dense is what the split bought the stack.

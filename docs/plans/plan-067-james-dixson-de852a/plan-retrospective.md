@@ -158,11 +158,32 @@ Epic 7 was not only cosmetic. Changing the DOCUMENT reopened a defect in the CHE
 **A style change is a checker test.** That is the lesson worth carrying: the instruments were
 tuned to one document shape, and only a change of shape could reveal it.
 
+### The one place the restyle made something WORSE
+
+**`lifecycle.png` went from 11602px tall to 13362px.** Recorded because it is a measured
+regression on the exact dimension the first read objected to, and because the mechanism
+generalises:
+
+> **The fix for wordiness worked against the aspect ratio.** Expanding 95 sublabels into child
+> boxes is what removed the wordiness — and child boxes are *vertical structure*, so the diagram
+> with the most sublabels got the most new height. The nodes are no longer wordy; the artifact is
+> taller than ever.
+
+Nothing in Epic 7 could have caught this, and that is the point: **`build-and-render`'s legibility
+check is a 3:1 single-column threshold, and 1.56:1 passes it comfortably.** The check is not
+wrong — it detects a *column masquerading as a graph*, which this is not. It simply does not
+measure "is this too big to take in", because no threshold does.
+
+The two plausible remedies — split the `phase-model` + `lifecycle` combination back apart, or
+restructure horizontally — are **deliberately not started**. Which is right depends on what a
+reader objects to, and guessing would repeat the error the whole Epic exists to correct: acting
+on a mechanical signal where the deciding question is a human one.
+
 ### Updated counts
 
 | Class | Was | Now | Added by Epic 7 |
 | :-- | --: | --: | :-- |
-| Content defects | 14 | **16** | the wordy node set; `architecture.d2` not reading as a stack |
+| Content defects | 14 | **17** | the wordy node set; `architecture.d2` not reading as a stack; `lifecycle.png` growing to 13362px under the fix for the first two |
 | Process defects | 11 | **15** | count-blind group detection; column-0 container anchor; the `label` collision; the `::` suffix collision |
 | Instrument false-greens | 3 | **4** | `sc_architecture_complete` passing while `architecture-deps.d2` did not exist — a criterion satisfied by the ABSENCE of its subject |
 
@@ -264,6 +285,44 @@ one plan, that an instrument said PASS about something it had not read.
 | `frontloadable` | no |
 | `detected_by` | mechanical-check |
 | `evidence` | bd ready returns zero ready TASK beads; the only open tasks are 7.5 and 7.6, each behind a human gate. 27 of 28 criteria PASS; the one FALSE is plan-066's diagram-reads, reported as the DECLARED HANDOFF rather than a regression. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-07 |
+| `stop_class` | 2 |
+| `asked` | The restyled set is presented. Does the Diagram human-read gate accept it? |
+| `answered` | HELD a SECOND time — the operator is reading it themselves. Gate 3 remains sequenced after it. |
+| `frontloadable` | no |
+| `detected_by` | mechanical-check |
+| `evidence` | bd ready returns zero ready TASK beads; the only open tasks are 6.4 and 6.5, each behind a human gate. 36 of 40 criteria hold; the one FALSE is the declared handoff. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-09-07 |
+| `stop_class` |  |
+| `asked` | Did the restyle make anything worse? |
+| `answered` | Yes, one thing: lifecycle.png grew from 11602px to 13362px tall — a regression on the exact dimension the first read objected to. Expanding 95 sublabels into child boxes removed the wordiness, and child boxes are vertical structure. No remedy started; which one is right is the operator's call. |
+| `frontloadable` | no |
+| `detected_by` | self-report |
+| `evidence` | PNG header read: 4364x11602 before, 8556x13362 after. build-and-render's 3:1 legibility threshold passes it at 1.56:1 and is not wrong to — it detects a column masquerading as a graph, not 'too big to take in'. |
 | `escape_class` |  |
 | `adjudication` |  |
 | `origin` |  |
