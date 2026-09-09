@@ -10,6 +10,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 
 - [plan.md](plan.md) - The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes.
 - [plan-retrospective.md](plan-retrospective.md) - 26 content defects and 9 process defects counted separately, plus the finding that outlasted the plan: three fully-green diagram sets, two declined by a human read.
+- [assets/upstream-drafts/HALT-2-plan066-8.4b.md](assets/upstream-drafts/HALT-2-plan066-8.4b.md) - SECOND halt: verify-reconcile now passes, but Issue 8.4b's hard guard requires HEAD on main. Two resolutions, neither taken.
 - [assets/upstream-drafts/HALT-plan066-close-chain.md](assets/upstream-drafts/HALT-plan066-close-chain.md) - The §6.4 close chain HALTS at verify-reconcile on 5 of 7 rows. What it needs, why, and the six unposted writes.
 - [assets/upstream-drafts/104-attribution.txt](assets/upstream-drafts/104-attribution.txt)
 - [assets/upstream-drafts/127-attribution.txt](assets/upstream-drafts/127-attribution.txt)

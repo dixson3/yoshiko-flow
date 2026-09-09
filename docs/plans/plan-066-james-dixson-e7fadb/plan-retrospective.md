@@ -130,3 +130,22 @@ sets it took before a human read accepted one.
 | `prevention` |  |
 | `cost` |  |
 
+## RE-002
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-09 |
+| `stop_class` | 5 |
+| `asked` | Can plan-066's §6.4 chain now reach complete, with verify-reconcile cleared? |
+| `answered` | NO. It clears verify-reconcile (7/7) and stops one step later at close-reconcile-step: the reconcile gate cannot resolve while Issue 8.4b is open, and 8.4b's HARD GUARD requires HEAD on main. plan-066 completes at LAND, by its own design. Not forced. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | close-reconcile-step exit 1: 'the reconcile gate [yf-mol-a927.14] is not resolved'. 8.4b guard: branch-merged TRUE (plan-066's execute branch is in git branch --merged main), HEAD==main FALSE (HEAD is plan-067-james-dixson-de852a-execute, 24 ahead / 0 behind). |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
