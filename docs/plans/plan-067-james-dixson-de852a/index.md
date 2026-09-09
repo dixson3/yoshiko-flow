@@ -21,6 +21,18 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/style-reference/architecture-reference.png](assets/style-reference/architecture-reference.png) - The layered-stack reference for `architecture.d2`. Its 13 boxes, wildcards and `yf-beads-hygeine` typo are LAYOUT, not content.
 - [assets/style-reference/red-team-chain.png](assets/style-reference/red-team-chain.png) - The ANTI-pattern: a wordy node whose label carries a whole verdict set.
 - `web/content/images/architecture-deps.d2` - NOT a bundle file; named here because Issue 7.0b created it and SC19/SC27c assert against it.
+- [assets/upstream-drafts/README-plan.md](assets/upstream-drafts/README-plan.md) - The full upstream write set for BOTH plans, DRAFTED AND UNPOSTED: ten actions, the ordering constraint, the exact commands, and the read-back verification.
+- [assets/upstream-drafts/247-comment.txt](assets/upstream-drafts/247-comment.txt)
+- [assets/upstream-drafts/263-comment.txt](assets/upstream-drafts/263-comment.txt)
+- [assets/upstream-drafts/317-comment.txt](assets/upstream-drafts/317-comment.txt)
+- [assets/upstream-drafts/372-comment.txt](assets/upstream-drafts/372-comment.txt)
+- [assets/upstream-drafts/373-comment.txt](assets/upstream-drafts/373-comment.txt)
+- [assets/upstream-drafts/374-comment.txt](assets/upstream-drafts/374-comment.txt)
+- [assets/upstream-drafts/375-comment.txt](assets/upstream-drafts/375-comment.txt)
+- [assets/upstream-drafts/376-comment.txt](assets/upstream-drafts/376-comment.txt)
+- [assets/upstream-drafts/379-comment.txt](assets/upstream-drafts/379-comment.txt)
+- [assets/upstream-drafts/w57p-body.txt](assets/upstream-drafts/w57p-body.txt) - Draft body for the yf-w57p follow-on, unposted.
+- [assets/upstream-drafts/w57p-title.txt](assets/upstream-drafts/w57p-title.txt)
 - [findings/plan066-handoff.md](findings/plan066-handoff.md) - Issue 6.4 executed: the restyled set presented to plan-066's gate, ACCEPTED by the operator 2026-09-08, unblocking its 8.1/8.3.
 - [findings/parked-state.md](findings/parked-state.md) - READ FIRST if you found this bundle in `executing`: it is HELD behind two human gates the operator chose to hold, not crashed. Carries the do-not-do list.
 - [findings/diagram-presentation.md](findings/diagram-presentation.md) - The MATERIAL for the Diagram human-read gate: what changed, what the checks established, and what no check can see. Not a read.

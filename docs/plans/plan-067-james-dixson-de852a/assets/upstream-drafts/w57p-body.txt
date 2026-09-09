@@ -1,0 +1,39 @@
+FILED ON ITS OWN MERITS, INDEPENDENT OF ARCHIFY. The operator resolved the archify trial as
+KEEP FOR EXPLORATION, so this is not a migration prerequisite — it is a latent defect in OUR
+instrument that the trial happened to expose.
+
+`check_web_counts.py` decides its region grammar with a single boolean: `is_d2 = suffix == ".d2"`.
+Markdown bullets WRAP, so a `.md` region extends to the next bullet/heading/blank line; `.d2`
+labels do NOT wrap, so a `.d2` region is exactly one line. Everything that is not `.d2` gets the
+markdown rule.
+
+TWICE OBSERVED, on two different third shapes:
+  * plan-066 EXP-001 recorded it as a latent hazard after the region logic broke on a third shape.
+  * plan-067 Epic 3 measured it directly: pointed at an archify `.json` the checker reports 7
+    mismatches, and at the delivered `.html` 63 mismatches and 12 unenumerated groups — ALL FALSE
+    POSITIVES, produced by applying the continuation-region rule to formats that do not wrap.
+
+WHY IT IS LATENT RATHER THAN LIVE: `DEFAULT_CORPUS` only expands `.md` and `.d2`, so nothing in
+the shipped recipe hits it today. It bites the moment anyone points `--corpus` at a third shape —
+and the failure is a burst of confident false FAILs, which is the shape most likely to get the
+checker distrusted and then disabled.
+
+SUGGESTED SHAPE: replace the boolean with a registry mapping suffix -> region strategy, and make
+an UNREGISTERED suffix INCONCLUSIVE (exit 2) rather than silently defaulting to the markdown rule.
+An unknown shape is a statement about the instrument, not about the document — the same
+three-valued discipline REQ-DATA-024 and `plan067_checks.py` already apply.
+
+NOT PUSHED UPSTREAM. Raised under D5 as a normal follow-on; the operator decides at the Upstream
+write authorization gate.
+
+---
+
+**Second, independent observation added 2026-09-08.** plan-067's own restyle hit the same
+single-shape assumption from the other direction: `GROUP_RE` required a parenthetical count to
+*find* a group at all, so removing counts per a style decision made four groups undetectable and
+deleting a member box went back to exiting **0**. Fixed there by keying detection on the container
+id. Two different shape assumptions, one root cause — the checker encodes "what a document looks
+like" in a single boolean.
+
+Filed from plan-067 (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`. Local bead
+`yf-w57p`.

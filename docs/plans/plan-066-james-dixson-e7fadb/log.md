@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-08
+
+- executing: Diagram human-read gate ACCEPTED by the operator 2026-09-08 via plan-067's Issue 6.4 handoff. 8.1 (sweep), 8.3 (retrospective) and 8.4 (follow-ons by class) CLOSED. Remaining: 8.4b (hard-guarded to post-merge on main) and 8.5 (upstream reconcile, behind Gate 3, drafted at plan-067's assets/upstream-drafts/). render-bytes-match INCONCLUSIVE on the d2 v0.9.0 upgrade; not re-rendered.
+
 ## 2026-09-07
 
 - executing: PARKED at the Diagram human-read gate — operator declined it 2026-09-07; successor #373; unmet SC11 (manual, gate held) + SC17 (retrospective, gated behind it). Epics 0-7 landed and pushed to main as a deliberate PARTIAL LAND. NOT crashed, NOT abandoned.

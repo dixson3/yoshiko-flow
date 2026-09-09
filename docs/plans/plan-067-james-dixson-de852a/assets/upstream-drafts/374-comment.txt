@@ -1,0 +1,18 @@
+Fixed by **plan-067** Issue 5.7 (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`.
+
+The guard was `os.path.isfile` only, so `touch` satisfied a check whose entire purpose is that a
+**governed** page exists to be checked. Existence is not content.
+
+It now measures **renderable prose** — frontmatter and headings stripped before counting — so a
+page that is a title and nothing else does not pass by virtue of its title. The floor is
+deliberately low: it guards against a zero-byte or title-only page, not editorial quality.
+
+**Control observed end to end:** truncating `web/content/skills/yf-herdr.md` to zero bytes makes
+the build exit **1** with `below the 200-char non-trivial-content floor (#374): yf-herdr (0
+chars)`; restoring it returns exit 0.
+
+This mattered more than when it was filed: plan-067 added **11 generated** per-skill pages and
+diagrams, and a generated artifact is exactly the kind that can be emitted empty and still pass a
+presence test.
+
+Closing.

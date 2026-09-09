@@ -1,0 +1,1 @@
+check_web_counts region logic is SHAPE-SPECIFIC — one is_d2 switch, silently wrong on any third shape

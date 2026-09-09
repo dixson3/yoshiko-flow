@@ -1,0 +1,52 @@
+Delivered by **plan-066** (`docs/plans/plan-066-james-dixson-e7fadb`), with its diagram half
+completed by **plan-067**. Commit `1112676`.
+
+## The site builds
+
+The P0 was a twentieth skill shipped with **no authored page**, and the reason nothing caught it
+is the more useful half: `skill-page` was a `required` node that **nothing enforced**. Coverage
+existed; detection did not. It is now a set difference with an exit code, and the §6 trigger fires
+from the **source** side — measured on commit `75a5796`, which added the skill and broke the build
+while touching **zero** files on the derived side.
+
+## Content and process defects, separated as this issue asked
+
+| Class | Count |
+| :-- | --: |
+| Content defects | **26** |
+| Process defects | **9** |
+| Instrument false-greens | **1** |
+
+**The content count was corrected upward during execution, from ~4 to 26** — by a checker-derived
+inventory rather than by re-reading this issue. This issue named roughly four sites; the inventory
+found 26, four of which it never listed. That correction is the whole argument for landing the
+rule *before* the repairs, and plan-067 inherited it.
+
+Full separation in `docs/plans/plan-066-james-dixson-e7fadb/plan-retrospective.md`.
+
+## The false green, because it changed the method
+
+EXP-001's checker B returned `PASS (0 mismatches), EXIT=0` against a tree carrying **15 real
+defects**: the shared root `.agents/skills` *contains* the harness id `agents`, so repaired rows
+scanned as ambiguous and were silently skipped. Wrong in exactly the direction that looks like
+success.
+
+That is why the negative-control convention here is **inverted** — repair the docs until the
+checker is green, *then* mutate the source of truth and require a FAIL. A doc-side control could
+never have caught it: the docs were already broken and the checker was already silent.
+
+## Why this closes only now
+
+The diagram half was gated on a **human read**, and the read declined — twice. plan-066's six
+diagrams were fully green and were turned down as a redesign request, producing #373 and
+plan-067; plan-067's first twenty were also fully green and also declined, producing its restyle.
+The restyled twenty-one were **accepted on 2026-09-08**, on one reading covering both plans.
+
+**No mechanical signal distinguished the accepted set from the two declined ones.** Three
+measurements, not an opinion.
+
+Follow-ons are filed and tagged by class in
+`docs/plans/plan-066-james-dixson-e7fadb/findings/followons.md`. #247 and #263 stay **open** as
+partials.
+
+Closing.

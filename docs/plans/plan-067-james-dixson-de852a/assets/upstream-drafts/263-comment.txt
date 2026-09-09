@@ -1,0 +1,40 @@
+**Partial progress from plan-067** (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`.
+**This issue stays OPEN** — the META class it names is not resolved.
+
+## One instance closed
+
+`check_web_counts`'s `not_checked` conflated **"no ids were enumerated"** with **"checked and
+clean"**. Two facts, one signal. Fixed by Issue 1.1b (#376): an unenumerated group is now a
+finding with its own key and count, reported apart from the clean population.
+
+## Five more instances met while doing it — which is this issue's own point
+
+plan-067 encountered the class **five further times**, and none was anticipated:
+
+1. `sc_architecture_complete` hardcoded `architecture.d2`, so it reported **PASS while its real
+   subject `architecture-deps.d2` did not exist** — a criterion satisfied by the *absence* of its
+   subject.
+2. `render-bytes-match` used `glob` where the artifacts had moved into a subdirectory, so it
+   re-rendered **4 of 9** while reporting *"all identical"*.
+3. A control-registry suffix spelled one way for two different facts, passing a **label** to
+   `argparse` as a **subcommand**.
+4. `plan066_checks`'s `FORMULAS_D2` served both *"the site plan-066 repaired"* (about the past)
+   and *"the current subject of the claim"* (about now); repointing it fixed one criterion and
+   broke another.
+5. A `.md`-scoped grep counting **plugin-generated** embeds — a surface that structurally
+   **cannot** hold them — returning a confident count of 11 that answered the wrong question.
+
+The last is the least guarded of the five: registered checkers have controls and vacuity floors; a
+one-off measurement has neither.
+
+## Why the META stays open
+
+Six instances in one plan, on top of the 11+ already catalogued here, is evidence **for** this
+issue's thesis, not against it. Fixing a seventh instance is not the same as investigating the
+class, and plan-067 did the former.
+
+**The transferable rule it did produce**, offered as input rather than as closure: *before trusting
+a count, ask whether the surface you scanned is capable of holding what you are counting.* A zero
+from a surface that cannot hold the thing is not a measurement.
+
+Left open deliberately.

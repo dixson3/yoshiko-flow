@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-08
+
+- executing: Issue 6.4 (the plan-066 handoff) CLOSED — the operator accepted the restyled set on 2026-09-08 and resolved BOTH diagram gates. plan-066's 8.1/8.3/8.4 run; its 8.4b correctly stays open behind its on-main guard, and its 8.5 behind Gate 3. Full upstream write set for both plans DRAFTED AND UNPOSTED at assets/upstream-drafts/ — 10 actions, ordering constraint, read-back verification. All nine issues verified still OPEN. NEW: d2 upgraded v0.8.2 -> v0.9.0 outside any session, so render-bytes-match / restyle-verified are INCONCLUSIVE in both plans; NOT re-rendered (bead yf-8g5x).
+
 ## 2026-09-07
 - executing: HELD a SECOND time (not crashed): Epic 7 complete 10/10, the restyled set presented, and the operator is reading it. Gate 2 (yf-mol-gtcy.10) and Gate 3 (yf-mol-gtcy.11) both HELD; gate 3 stays sequenced after gate 2. 52/54 issues closed; 36 of 40 criteria hold, 1 FALSE (SC26b, the declared handoff), 3 manual. Recorded: lifecycle.png regressed 11602px -> 13362px; no remedy started. Nothing written upstream. See findings/parked-state.md.
 - executing: Epic 7 (the diagram restyle) COMPLETE, 10/10. The restyled set is re-presented at findings/diagram-presentation.md for plan-067's Diagram human-read gate. 39 of 40 criteria hold; the one FALSE is plan066-still-green, the DECLARED HANDOFF. Two gates still HELD by the operator; nothing written upstream.

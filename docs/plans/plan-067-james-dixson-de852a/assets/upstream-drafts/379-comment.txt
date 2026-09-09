@@ -1,0 +1,37 @@
+**plan-067-james-dixson-de852a is complete.** Commit `1112676`.
+
+Eight epics. The plan had two halves and the order between them was the design decision: **land
+the omissions-FAIL rule first, then let its failure list be the work inventory.**
+
+## The rule
+
+`REQ-CHECK-010` through `REQ-CHECK-014`, SPEC-first. A set-membership claim now fails on a
+**missing** member (#376 closed the branch that would have hidden it); a declared slash sub-verb
+absent from the site fails; a shipped CLI surface no page documents fails — the direction that
+reached `yf harness skills prune-private`, live, destructive, and documented nowhere; an in-scope
+pipeline agent the workflows page does not name fails.
+
+Every new checker carries a **code-side** negative control, pinned **by name** rather than by a
+count — the count floor an earlier review proposed was measured **unreachable**.
+
+## The diagrams
+
+6 → 21. `architecture` split into a layered stack plus a relations diagram; two combinations;
+the formulas meta-diagram removed for a map plus one per shipped formula; **11 per-skill diagrams
+GENERATED** from a shared model on a computed threshold, with `--check` in the recipe.
+
+## The finding worth more than either half
+
+**Three fully-green diagram sets were presented to the human-read gate. Two were declined.** The
+checks were not wrong on any occasion — no mechanical signal distinguished the accepted set from
+the declined ones. Three measurements, not an opinion.
+
+And **five instrument false-greens** were caught inside this plan's own work, four in checkers and
+one in an ad-hoc measurement. The transferable rule: *before trusting a count, ask whether the
+surface you scanned is capable of holding what you are counting.*
+
+Retrospective: `docs/plans/plan-067-james-dixson-de852a/plan-retrospective.md`.
+
+Closes #373, #374, #375, #376. #247 and #263 remain **open** as partials.
+
+Closing.

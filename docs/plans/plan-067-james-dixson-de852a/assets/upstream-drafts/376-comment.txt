@@ -1,0 +1,24 @@
+Fixed by **plan-067** Issue 1.1b (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`.
+
+This was the sharper half of the omission work, and the reason is worth stating: `wrong` sat
+inside the `else` of `if members is None`, so `REQ-CHECK-013`'s new omission check **would have
+landed in the one branch where the omission cannot occur**. A group stating a count while
+enumerating nothing went to `not_checked` and joined the **clean** population — making "state a
+count, list nothing" the cheapest possible way to evade the new rule.
+
+An unenumerated group is now a **finding** that gates the exit code, reported under its own
+`unenumerated` key with a `not_checked_groups` integer a caller can read without parsing prose.
+
+**Control:** a fixture carrying `**beads (5)** — the bd support layer` with no ids exits **1** and
+names the 5 ids it should list.
+
+**It recurred, and the recurrence is the interesting part.** plan-067's own restyle later removed
+parenthetical counts from the diagrams per a style decision — and `GROUP_RE` needed a
+parenthetical count to *find* a group at all, so deleting a member box went back to exiting 0.
+Detection, not just extraction, is now count-free and keyed on the container id, with a claim
+floor that returns INCONCLUSIVE if a census group becomes unlocatable.
+
+**A style change is a checker test.** The instruments were tuned to one document shape, and only a
+change of shape revealed it.
+
+Closing.
