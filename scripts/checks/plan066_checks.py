@@ -141,7 +141,17 @@ SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "plan-review",
 SKILL_GROUPS = ["beads", "markdown", "utility", "workflows"]
 
 # SC10 — the D7 pin and its flags. sha256 equality is FLAG-SENSITIVE, hence both are pinned.
-D2_PIN = "v0.8.2"
+# RE-PINNED v0.8.2 -> v0.9.0 (2026-09-09, operator decision). The 21 committed PNGs
+# were re-rendered in one commit under the UNCHANGED flags `--theme 0 --layout elk`.
+#
+# WHAT THE UPGRADE ACTUALLY CHANGED, measured rather than assumed: GEOMETRY IS
+# IDENTICAL — 21/21 renders match the previous ones to the pixel in width and height —
+# but the PIXELS ARE NOT byte-identical: 0.36-1.02% of pixels differ, at deltas up to
+# 239/255. Reading the densest differing region at 2x shows why: the deltas are
+# ANTIALIASING ON GLYPH EDGES. Same text, same boxes, same colours, same positions.
+# So "only the encoding changed" is not quite right and "the layout moved" is wrong;
+# the accurate claim is that the RASTERISER changed and the PICTURE did not.
+D2_PIN = "v0.9.0"
 D2_FLAGS = ["--theme", "0", "--layout", "elk"]
 DIAGRAM_DIR = "web/content/images"
 

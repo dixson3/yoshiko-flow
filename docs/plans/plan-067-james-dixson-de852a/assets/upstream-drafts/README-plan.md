@@ -40,12 +40,15 @@ authorization gate (`yf-mol-gtcy.11`) is draft-then-confirm, per-issue.
 10    #379 — plan-067's TRACKER. Last of all.
 ```
 
-**Two things block steps 9-10 today and neither is an upstream question.** plan-066's Issue 8.4b
+**One thing blocks steps 9-10 today, and it is not an upstream question.** plan-066's Issue 8.4b
 has a hard guard requiring `HEAD` on `main` **and** the plan branch merged — it is a land-time
-bead, correctly still open on the execute branch. And `render-bytes-match` is INCONCLUSIVE in both
-plans because `d2` was upgraded **v0.8.2 → v0.9.0** on this machine outside any session (local bead
-`yf-8g5x`). Neither hard-blocks a close chain, but both are the operator's to decide before the
-trackers close.
+bead, correctly still open on the execute branch.
+
+*(The other blocker is resolved. `d2` was upgraded **v0.8.2 → v0.9.0** outside any session, which
+took `render-bytes-match` INCONCLUSIVE in both plans. On 2026-09-09 the operator chose re-render
+and re-pin; all 21 were re-rendered under v0.9.0 with unchanged flags in one commit, and both
+plans' criteria hold again. Bead `yf-8g5x` is closed. No third human read was needed: geometry is
+identical 21/21 and the pixel differences are glyph-edge antialiasing.)*
 
 ## Why these are `.txt` and not `.md`
 

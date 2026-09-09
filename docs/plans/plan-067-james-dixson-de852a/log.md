@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-09
+
+- executing: d2 RE-PINNED v0.8.2 -> v0.9.0 on operator decision; all 21 PNGs re-rendered in one commit with unchanged flags. One-shot expected mass diff, NOT drift. Measured before acting: geometry identical 21/21, but pixels NOT identical (0.36-1.02% differ, deltas to 239/255) — a 2x read of the densest region shows glyph-edge antialiasing, same text/boxes/colours/positions. So 'only the encoding changed' was corrected to 'the rasteriser changed, the picture did not'; no third read needed. All 34 plan-067 verbs PASS; recheck-criteria: all 38 evaluated criteria hold.
+
 ## 2026-09-08
 
 - executing: Issue 6.4 (the plan-066 handoff) CLOSED — the operator accepted the restyled set on 2026-09-08 and resolved BOTH diagram gates. plan-066's 8.1/8.3/8.4 run; its 8.4b correctly stays open behind its on-main guard, and its 8.5 behind Gate 3. Full upstream write set for both plans DRAFTED AND UNPOSTED at assets/upstream-drafts/ — 10 actions, ordering constraint, read-back verification. All nine issues verified still OPEN. NEW: d2 upgraded v0.8.2 -> v0.9.0 outside any session, so render-bytes-match / restyle-verified are INCONCLUSIVE in both plans; NOT re-rendered (bead yf-8g5x).

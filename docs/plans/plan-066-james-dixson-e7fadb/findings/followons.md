@@ -29,7 +29,7 @@ identical a year later.
 | Bead | Class | What |
 | :-- | :-- | :-- |
 | `yf-w57p` | pipeline | `check_web_counts`'s region logic is **shape-specific** — one `is_d2` switch stands in for "what a document looks like". Latent: `DEFAULT_CORPUS` expands only `.md` and `.d2`, so nothing in the shipped recipe reaches it. It bites the moment anyone points `--corpus` at a third shape, and the failure mode is a burst of confident false FAILs. **Twice observed** on two different third shapes |
-| `yf-8g5x` | environment | **`d2` was upgraded v0.8.2 → v0.9.0 on this machine, outside any session.** Both plans' `render-bytes-match` is now INCONCLUSIVE — correctly, since byte equality is decidable only *within* a version. The 21 committed PNGs are unchanged and correct for their pin. Two options, both the operator's, and one of them requires a fresh human read |
+| ~~`yf-8g5x`~~ | environment | **RESOLVED 2026-09-09.** `d2` was upgraded v0.8.2 → v0.9.0 outside any session, and both plans' `render-bytes-match` went INCONCLUSIVE — the criterion behaving correctly, since byte equality is decidable only *within* a version. The operator chose **re-render and re-pin**: all 21 re-rendered under v0.9.0 with unchanged flags, in one commit. **No third human read was needed, and the measurement is why** — geometry is identical 21/21 and the pixel differences are glyph-edge antialiasing, so the pictures are the ones already accepted |
 | `yf-2eyf` | pipeline | `plan_extract.py --strict` validates neither self-edges nor cycles in the plan DAG |
 | `yf-pvft` | pipeline | `yf-okf-hygiene`'s `_index.md` legacy-variant transform manufactures a hybrid state |
 

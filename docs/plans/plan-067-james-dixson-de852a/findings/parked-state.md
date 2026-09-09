@@ -130,7 +130,7 @@ this session's own reporting and corrected in `log.md`.
 Epics 0-5 (SPEC-first amendments, the omissions-FAIL rule with code-side controls, the inventory
 and its repairs, the archify trial, the diagram redesign, the generated per-skill set), Epic 6
 Issues 6.0-6.3, and **all ten** of Epic 7 (the restyle). 21 PNGs byte-identical to a fresh render
-under the unchanged `d2 v0.8.2 --theme 0 --layout elk`; every checker at 0; **six** negative
+under `d2 v0.9.0 --theme 0 --layout elk` (re-pinned **v0.8.2 → v0.9.0** on 2026-09-09; geometry measured identical 21/21, the differences being glyph-edge antialiasing, so the pictures are the accepted ones); every checker at 0; **six** negative
 controls observed to fail against code-side mutations under passing docs.
 
 ## The route to closure

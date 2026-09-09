@@ -85,8 +85,9 @@ with edges. **887 labels scanned across 21 diagrams; zero state enumerations rem
 
 ## What the checks establish, so the read can skip it
 
-- All **21** PNGs sha256-identical to a fresh render under the unchanged `d2 v0.8.2 --theme 0
-  --layout elk`. **No pin changed.**
+- All **21** PNGs sha256-identical to a fresh render under `d2 v0.9.0 --theme 0 --layout elk`.
+  **The pin moved AFTER this read, and the pictures did not** — re-pinned **v0.8.2 → v0.9.0** on 2026-09-09; geometry measured identical 21/21, the differences being glyph-edge antialiasing, so the pictures are the accepted ones. Re-pinned on the operator's
+  decision; no third read was required, and the measurement is why.
 - `architecture.d2` is edge-free, carries all **20** census skills spelled from frontmatter, and
   has no sublabel or parenthetical count.
 - Membership survives, asserted **positively**: `groups_checked == 4 == len(census.groups)`, and
