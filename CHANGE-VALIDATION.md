@@ -210,6 +210,8 @@ approved: yes
 | `user-invocable` | `uv run scripts/checks/check_user_invocable.py` |  |  |
 | `req-normative-home` | `uv run scripts/checks/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
 | `gate-plan067-amendment` | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
+| `gate-plan066-amendment` | `uv run scripts/check_amendment_log.py --plan plan-066-james-dixson-e7fadb` |  |  |
+| `gate-plan066-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-066-james-dixson-e7fadb` |  |  |
 | `gate-plan067-controls` | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 | `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
 | `skill-diagrams` | `uv run web/plugins/skill_diagrams.py --check` |  |  |
@@ -275,6 +277,8 @@ approved: yes
 | `gate-dagguard` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-dagguard.sh` |  |  |
 | `gate-cellcheck` | `bash docs/plans/plan-049-james-dixson-725bc0/scripts/gate-run.sh docs/plans/plan-049-james-dixson-725bc0/scripts/gate-cellcheck.sh` |  |  |
 | `gate-plan060-amendment` | `uv run scripts/check_amendment_log.py --plan plan-060-james-dixson-6a6ac9` |  |  |
+| `gate-plan066-amendment` | `uv run scripts/check_amendment_log.py --plan plan-066-james-dixson-e7fadb` |  |  |
+| `gate-plan066-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-066-james-dixson-e7fadb` |  |  |
 | `gate-plan062-amendment` | `uv run scripts/check_amendment_log.py --plan plan-062-james-dixson-c3e98f` |  |  |
 | `gate-plan060-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 30 docs/plans/plan-060-james-dixson-6a6ac9` |  |  |
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
@@ -364,13 +368,14 @@ approved: yes
 | `scripts/checks/check_web_backend_claim.py` | `web-backend-claim`, `web-negative-controls` |
 | `scripts/checks/_web_corpus.py` | `web-counts`, `web-harness-paths`, `web-backend-claim`, `web-negative-controls` |
 | `DRIFT-CHECK.md` | `drift-manifest-closure` |
-| `skills/yf-drift-check/spec/**` | `drift-manifest-closure`, `req-normative-home` |
+| `skills/yf-drift-check/spec/**` | `drift-manifest-closure`, `req-normative-home`, `gate-plan066-amendment` |
 | `docs/plans/**` | `okf-index-drift` |
 | `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage` |
+| `docs/plans/plan-066-james-dixson-e7fadb/**` | `okf-index-drift`, `gate-plan066-amendment`, `gate-plan066-reqcoverage` |
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `req-normative-home` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home` |
 | `skills/yf-okf/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-okf-hygiene/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |

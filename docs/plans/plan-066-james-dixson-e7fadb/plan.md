@@ -7,7 +7,7 @@ description: 'Regenerate user-facing website/docs (#317): unbreak the pelican bu
 id: plan-066-james-dixson-e7fadb
 author: james-dixson
 created: '2026-09-05'
-status: executing
+status: complete
 deliverable_class: standard
 fingerprint: 3d5c0fb594f9e4d30613ca1632a273e673d9b329a8dae7379b03627693dbe106
 epic: yf-mol-a927
@@ -17,7 +17,7 @@ epic: yf-mol-a927
 **ID:** plan-066-james-dixson-e7fadb
 **Author:** james-dixson
 **Created:** 2026-09-05
-**Status:** executing
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-a927
 **Fingerprint:** 3d5c0fb594f9e4d30613ca1632a273e673d9b329a8dae7379b03627693dbe106

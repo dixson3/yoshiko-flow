@@ -1,4 +1,4 @@
-**plan-066-james-dixson-e7fadb is complete.** Commit `1112676`.
+**plan-066-james-dixson-e7fadb is complete.** Commit `ea1bc4e` (merged to `main` at `ea1bc4e`).
 
 Nine epics: the SPEC-first repair of the drift engine's own contradiction, the P0 build unbreak,
 the two Class-B halves (the mechanical gate and the manifest repair), the Class-A prose and

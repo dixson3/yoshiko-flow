@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-09
+- complete: plan complete — §6.4 chain cleared end to end after two reported halts
 - executing: HALT 2 at §6.4 close-reconcile-step. First halt CLEARED — verify-reconcile PASS 7/7, Issue 8.5 closed, Resolved By filled. Chain now stops because the reconcile gate cannot resolve while Issue 8.4b is open, and 8.4b's HARD GUARD (pass-4 C2) requires HEAD on main: branch-merged is TRUE, HEAD==main is FALSE (we are on plan-067's execute branch, 24 ahead of main). plan-066 completes AT LAND by its own design. NOT forced, 8.4b NOT force-closed, nothing posted. Two resolutions in assets/upstream-drafts/HALT-2-plan066-8.4b.md — both the operator's.
 - executing: HALT at §6.4 verify-reconcile: 5 of 7 upstream rows fail. #317 is an ORDERING conflict (an include row must be CLOSED before the chain passes, but the authorized order put it after completion; #317 is a scope issue, not a tracker, so closing it first violates no stated constraint). #104/#127/#363/#322 are CLOSED with a real fix but carry only 'Fixed in plan-066', not the full plan id verify-reconcile matches on — four upstream comments that are in NEITHER the authorized set NOR the earlier drafts. All four drafted and UNPOSTED. Issue 8.5's local half is done: Resolved By filled for all 7 rows. Nothing posted; plan-066 NOT advanced. See assets/upstream-drafts/HALT-plan066-close-chain.md.
 
