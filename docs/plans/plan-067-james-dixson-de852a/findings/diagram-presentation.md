@@ -39,7 +39,7 @@ created: 2026-09-07
 The first 20-diagram set was **fully green** — every checker at 0, every PNG byte-identical to a
 fresh render. It was rejected anyway: **nodes too wordy**, and `architecture.d2` did not read as
 a layered stack. That is the plan's highest-value process finding and is recorded in
-[plan-retrospective.md](../plan-retrospective.md): *a second fully-green artifact set failing a
+[plan-retrospective.md](plan-retrospective.md): *a second fully-green artifact set failing a
 human read*. Green is not the same as good, and no mechanical gate was ever going to say so.
 
 The operator supplied two reference images, preserved at `assets/style-reference/`. Per D8 they

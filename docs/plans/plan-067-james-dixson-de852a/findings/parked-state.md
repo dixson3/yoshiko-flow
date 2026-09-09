@@ -25,7 +25,7 @@ Epics 0-5 and 7 are complete; Epic 6 is at 4 of 6. The two unfinished issues sit
 | Gate 3 | held, sequenced after Gate 2 | unchanged |
 
 **The first set was fully green when it was rejected**, and so was plan-066's before it. That is
-recorded in [../plan-retrospective.md](../plan-retrospective.md) as the plan's highest-value
+recorded in [plan-retrospective.md](plan-retrospective.md) as the plan's highest-value
 process finding: two independent measurements that *green* and *good* are different predicates.
 
 ## How to tell this apart from a crash

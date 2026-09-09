@@ -20,7 +20,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/style-reference/README-plan.md](assets/style-reference/README-plan.md) - The operator's two reference images and what they are normative FOR: layout, never content (D8).
 - [assets/style-reference/architecture-reference.png](assets/style-reference/architecture-reference.png) - The layered-stack reference for `architecture.d2`. Its 13 boxes, wildcards and `yf-beads-hygeine` typo are LAYOUT, not content.
 - [assets/style-reference/red-team-chain.png](assets/style-reference/red-team-chain.png) - The ANTI-pattern: a wordy node whose label carries a whole verdict set.
-- [web/content/images/architecture-deps.d2](../../../web/content/images/architecture-deps.d2) - NOT a bundle file; named here because Issue 7.0b created it and SC19/SC27c assert against it.
+- `web/content/images/architecture-deps.d2` - NOT a bundle file; named here because Issue 7.0b created it and SC19/SC27c assert against it.
 - [findings/parked-state.md](findings/parked-state.md) - READ FIRST if you found this bundle in `executing`: it is HELD behind two human gates the operator chose to hold, not crashed. Carries the do-not-do list.
 - [findings/diagram-presentation.md](findings/diagram-presentation.md) - The MATERIAL for the Diagram human-read gate: what changed, what the checks established, and what no check can see. Not a read.
 - [findings/classb-disposition.md](findings/classb-disposition.md) - All fourteen Class-B (instrument) items dispositioned BY NAME: thirteen CLOSED, one FILED with an owner.
