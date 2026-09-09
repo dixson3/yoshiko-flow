@@ -1,0 +1,70 @@
+# FORMULA `plan-investigate` — yf-plan's Phase-2 wisp.
+# Source of truth: skills/yf-plan/formulas/plan-investigate.formula.toml
+# type: workflow · phase: VAPOR (a wisp — EPHEMERAL, and burned when done)
+direction: right
+
+meta: {
+  label: "plan-investigate"
+  type_workflow_phase_vapor: "type: workflow · phase: VAPOR"
+  vars_objective_plan_dir: "vars: objective, plan_dir"
+  shape: rectangle
+  style.fill: "#eef2ff"
+}
+
+declared: {
+  label: "DECLARED STEPS: NONE"
+  shape: rectangle
+  style.fill: "#f8fafc"
+  style.stroke-dash: 3
+}
+
+wisp: {
+  label: "1. CREATE"
+  bd_mol_wisp_plan_investigate: "bd mol wisp plan-investigate"
+  var_objective_var_plan_dir: "--var objective --var plan_dir"
+  shape: rectangle
+  style.fill: "#f5f3ff"
+}
+
+inject: {
+  label: "2. INJECT — one task bead per EXPERIMENT"
+  identified_during_scoping: "identified during scoping"
+  shape: rectangle
+  style.fill: "#f5f3ff"
+}
+
+run: {
+  label: "3. EXECUTE"
+  one_investigator_subagent_pe: "one investigator subagent per experiment,"
+  isolation_worktree_independe: "isolation=\"worktree\" · independent ones in PARALLEL"
+  no_worktree_code_lands_in_th: "No worktree code lands in the project."
+  shape: rectangle
+  style.fill: "#ede9fe"
+}
+
+capture: {
+  label: "findings/exp-NNN-<slug>.md"
+  written_by_the_main_session: "written by the MAIN SESSION"
+  before_the_next_subagent_spa: "before the next subagent spawns"
+  shape: document
+  style.fill: "#f0fdf4"
+}
+
+burn: {
+  label: "4. BURN"
+  bd_mol_burn_id_force: "bd mol burn <id> --force"
+  force_is_required_without_it: "--force IS REQUIRED: without it the burn prompts [y/N]"
+  and_defaults_to_no_in_a_non_: "and defaults to NO in a non-interactive context,"
+  silently_orphaning_the_wisp: "SILENTLY ORPHANING the wisp."
+  check_the_output_not_the_exi: "CHECK THE OUTPUT, NOT THE EXIT CODE — a cancelled burn exits 0."
+  shape: rectangle
+  style.fill: "#fee2e2"
+  style.stroke: "#b91c1c"
+}
+
+meta -> declared: "the file declares vars only"
+declared -> wisp
+wisp -> inject
+inject -> run
+run -> capture: "returns findings; never writes them"
+capture -> burn: "findings captured"

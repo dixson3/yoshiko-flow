@@ -1,0 +1,89 @@
+# FORMULA `yf-research` — the research pipeline pour.
+# Source of truth: skills/yf-research/formulas/yf-research.formula.toml
+# type: workflow · phase: LIQUID (a pour — durable and resumable across sessions)
+direction: right
+
+meta: {
+  label: "yf-research"
+  type_workflow_phase_liquid: "type: workflow · phase: liquid"
+  var_topic: "var: topic"
+  owner_skills_yf_research_for: "owner: skills/yf-research/formulas/"
+  shape: rectangle
+  style.fill: "#eef2ff"
+}
+
+pipeline: {
+  label: "THE DECLARED CHAIN — every step `needs` the one before it"
+  style.fill: "#f9fafb"
+  style.stroke: "#9ca3af"
+
+  gate: {
+    label: "step: gate"
+    type_gate_gate_type_human: "type: GATE · gate.type: human"
+    begin_research_topic: "\"Begin research: {{topic}}\""
+    resolvable_only_in_a_new_ses: "resolvable only in a NEW session"
+    shape: hexagon
+    style.fill: "#fef9c3"
+  }
+  tooling: {
+    label: "step: tooling"
+    needs_gate: "needs: [gate]"
+    agents_toolsmith_md: "agents/toolsmith.md"
+    shape: rectangle
+  }
+  triangulate: {
+    label: "step: triangulate"
+    needs_tooling: "needs: [tooling]"
+    agents_triangulator_md: "agents/triangulator.md"
+    shape: rectangle
+  }
+  synthesize: {
+    label: "step: synthesize"
+    needs_triangulate: "needs: [triangulate]"
+    agents_synthesizer_md: "agents/synthesizer.md"
+    shape: rectangle
+  }
+  critique: {
+    label: "step: critique"
+    needs_synthesize: "needs: [synthesize]"
+    agents_red_team_md: "agents/red-team.md"
+    shape: rectangle
+    style.fill: "#ede9fe"
+  }
+  refine: {
+    label: "step: refine"
+    needs_critique: "needs: [critique]"
+    agents_refiner_md: "agents/refiner.md"
+    shape: rectangle
+  }
+  package: {
+    label: "step: package"
+    needs_refine: "needs: [refine]"
+    agents_packager_md: "agents/packager.md"
+    shape: rectangle
+    style.fill: "#dcfce7"
+  }
+  gate -> tooling -> triangulate -> synthesize -> critique -> refine -> package
+}
+
+retrieve: {
+  label: "INJECTED: retrieval beads"
+  one_per_decomposed_subtask: "one per decomposed subtask,"
+  dispatched_to_agents_retriev: "dispatched to agents/retriever.md"
+  shape: rectangle
+  style.fill: "#f5f3ff"
+  style.stroke-dash: 2
+}
+
+out: {
+  label: "docs/research/<NNN>-<slug>/"
+  or_incubator_slug_research_n: "or Incubator/<slug>/research/<NNN>-<slug>/"
+  cited_credibility_scored_res: "cited, credibility-scored, RESUMABLE"
+  shape: document
+  style.fill: "#f0fdf4"
+}
+
+meta -> pipeline: "bd mol pour yf-research --var topic"
+pipeline.tooling -> retrieve: "fan-out"
+retrieve -> pipeline.triangulate: "fan-in"
+pipeline.package -> out

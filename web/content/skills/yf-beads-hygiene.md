@@ -11,6 +11,16 @@ positive: **11 valid live-gate edges were flagged "dangling"** because `bd list`
 gate beads and truncates at 50 rows. A blind removal would have un-gated 7 live beads.
 The discipline below encodes the safe audit so that never happens again.
 
+## Sub-verbs
+
+The operator surface `/yf-beads-hygiene` declares, verbatim from its `## Invocation`:
+
+| Invocation | Purpose |
+| :-- | :-- |
+| `/yf-beads-hygiene audit` | read-only discovery of orphaned beads and dangling dependency edges, with gate-typed edges correctly classified so a live gate is never reported as dangling |
+| `/yf-beads-hygiene repair` | gated repair of the findings the audit produced; never runs before an audit |
+| `/yf-beads-hygiene restore` | round-trip reversal of a repair from its recorded journal |
+
 ## The one rule that matters most
 
 Resolve every dependency-edge target with `bd show <id>`, over the full universe —

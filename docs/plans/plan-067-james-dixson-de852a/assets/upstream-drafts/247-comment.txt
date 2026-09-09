@@ -1,0 +1,29 @@
+**Partial progress from plan-067** (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`.
+**This issue stays OPEN** — only one of its halves is addressed.
+
+## What is now closed
+
+**The CLI→page direction exists.** `e-web-cli-surface` had two declared failure directions and
+**both ran page→CLI**, so a command that ships and that no page documents was unreachable by
+construction. `REQ-CHECK-011` adds the source→derived direction, realized as a set difference with
+an exit code (`scripts/checks/check_cli_to_page.py`).
+
+Measured consequence, and the reason this mattered: `yf harness skills prune-private` — live and
+**destructive** — was documented nowhere, and grepping the whole published corpus for it returned
+no output. It is now documented, along with seven other shipped flags.
+
+The predicate is stated explicitly as **corpus-wide token presence**, and **positional arguments
+are excluded**: clap derives long flags from field names, so a naive extractor returned 13
+"missing" of which **5 were positionals** — a **38.5% artifact rate**, measured and reported by the
+checker itself.
+
+`web-diagram-src` coverage is also addressed: the diagram nodes and edges plan-066 added are live,
+and plan-067 extended membership checking to a count-free container form.
+
+## What remains open
+
+The **remainder of the manifest gap this issue describes** — the stale manifest diagram and the
+`install.sh`/`install.py` references to artifacts that do not exist. Neither was in plan-067's
+scope, and neither is fixed.
+
+Left open deliberately rather than closed on partial delivery.

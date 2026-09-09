@@ -6,7 +6,7 @@ A yoshiko-flow skill moves through the same five stages every time, whether it i
 markdown linter or a multi-session planning run. The shared `yf` kernel gates each skill
 before it does any work.
 
-![yoshiko-flow skill lifecycle](/images/lifecycle.png)
+![The combined yoshiko-flow lifecycle: five stages — install, preflight, invoke, coordinate/execute, land the plane — with yf-plan's seven-phase model nested inside the stages it decomposes](/images/lifecycle.png)
 
 ## 1. Install
 
@@ -78,6 +78,23 @@ to the issue tracker, so nothing tracked is lost when the local clone goes away.
 execution reconciles any incorporated upstream issues (closing or updating them per the plan's
 dispositions).
 
+### Landing is one operation, with one consent grant
+
+For `yf-plan`, stage 5 is not a sequence of separately-authorized steps. `land --dry-run` computes
+a manifest (a pure read), the `lander` subagent turns it into a decision document, and then the
+session **prints the apply command and stops** — the operator runs `land --apply` in their own
+shell. Merge-back, merged-state re-validation, the push, the reconcile writes, the close chain and
+the redeploy are all downstream of that single grant, because authorizing the merge *is* the
+authorization. See [workflows](/workflows/) for the full mechanic.
+
+### Autonomy is a per-invocation choice
+
+Execution runs `autonomous` by default and `checkpointed` on request. The default continues to the
+next ready bead without operator input and treats an epic boundary as a report rather than a stop;
+`checkpointed` consults at each of those points. Neither level changes what a **human** capability
+gate requires — a green test never becomes a human authorization.
+
+## The whole loop, once
 ## The whole loop, once
 
 ```bash

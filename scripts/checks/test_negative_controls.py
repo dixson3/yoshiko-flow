@@ -60,6 +60,8 @@ def sandbox(root: Path, tmp: Path) -> Path:
     dst = tmp / "tree"
     dst.mkdir()
     for rel in ("skills", "web/content", "web/plugins", "yf/src", "scripts/checks",
+                "web/pelicanconf.py", "web/publishconf.py", "web/requirements.txt",
+                "web/themes", "web/Makefile",
                 "README.md", "AGENTS.md"):
         src = root / rel
         if not src.exists():
@@ -75,8 +77,28 @@ def sandbox(root: Path, tmp: Path) -> Path:
 
 
 def run(root: Path, script: str, extra: list[str] | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(["uv", "run", f"scripts/checks/{script}", "--root", str(root),
-                           *(extra or [])], cwd=root, capture_output=True, text=True)
+    """Run a registered checker against the sandbox tree.
+
+    A control name may carry a `::verb` suffix (`plan067_checks.py::no-states-in-labels`) when
+    the thing under test is ONE SUBCOMMAND rather than a whole script — two controls can then
+    guard two different doors in the same file, which is what Issue 7.3 needs. Splitting here
+    keeps the registry keyed on the DOOR, not on the filename.
+    """
+    # TWO SUFFIX FORMS, because they are TWO DIFFERENT FACTS and one spelling for both is how
+    # a label got passed to argparse as a subcommand:
+    #   `script.py::verb`  — the door is ONE SUBCOMMAND; pass `verb` as an argument.
+    #   `script.py#label`  — the door is a SECOND WAY INTO THE SAME SCRIPT; `label` distinguishes
+    #                        the registry entry and is NEVER passed to the process.
+    if "::" in script:
+        name, _, verb = script.partition("::")
+    else:
+        name, _, _label = script.partition("#")
+        verb = ""
+    argv = ["uv", "run", f"scripts/checks/{name}"]
+    if verb:
+        argv.append(verb)
+    argv += ["--root", str(root), *(extra or [])]
+    return subprocess.run(argv, cwd=root, capture_output=True, text=True)
 
 
 def sub_file(path: Path, pairs: list[tuple[str, str]], *, required=True) -> int:
@@ -206,11 +228,195 @@ def mut_backend(tree: Path) -> None:
                  + "\n\nPush upstream with `bd gitlab push <ids>`.\n", encoding="utf-8")
 
 
+def ctl_required_set(tree: Path) -> tuple[str, str]:
+    """Bring every declared slash sub-verb to documented, then ADD A SUB-VERB code-side.
+
+    The repair is generated, not hand-listed: the sandbox appends a documented line per declared
+    sub-verb to that skill's own page. Hand-listing the six currently-missing verbs would pin the
+    control to one revision and expire it the moment Epic 2 repairs them — the same expiry
+    `ctl_counts` documents having suffered.
+    """
+    import re as _re
+    skills = sorted((tree / "skills").glob("*/SKILL.md"))
+    added = 0
+    for f in skills:
+        name = f.parent.name
+        text = f.read_text(encoding="utf-8", errors="replace")
+        m = _re.search(r"^## Invocation\s*$", text, _re.M)
+        if not m:
+            continue
+        tail = text[m.end():]
+        nxt = _re.search(r"^## ", tail, _re.M)
+        body = tail[: nxt.start()] if nxt else tail
+        verbs = []
+        for ln in body.splitlines():
+            bm = _re.match(r"^- `(/[a-z0-9-]+)([^`]*)`", ln)
+            if not bm:
+                continue
+            rest = bm.group(2).strip()
+            if not rest or rest[0] in "<[":
+                continue
+            verbs.append(rest.split()[0])
+        if not verbs:
+            continue
+        page = tree / "web/content/skills" / f"{name}.md"
+        if not page.is_file():
+            continue
+        page.write_text(page.read_text(encoding="utf-8", errors="replace")
+                        + "\n\n" + "\n".join(f"- `/{name} {v}`" for v in verbs) + "\n",
+                        encoding="utf-8")
+        added += len(verbs)
+    return (f"every declared slash sub-verb documented on its own page ({added} line(s))",
+            "a NEW sub-verb added to a SKILL.md `## Invocation` that no page documents")
+
+
+def mut_required_set(tree: Path) -> None:
+    f = tree / "skills/yf-plan/SKILL.md"
+    anchor = "- `/yf-plan list` — list all plans\n"
+    text = f.read_text(encoding="utf-8")
+    if anchor not in text:
+        raise RuntimeError("control ANCHOR NOT FOUND: /yf-plan list bullet")
+    f.write_text(text.replace(
+        anchor, anchor + "- `/yf-plan zzcontrol` — a sub-verb no page documents\n", 1),
+        encoding="utf-8")
+
+
+def ctl_cli_to_page(tree: Path) -> tuple[str, str]:
+    """Document every shipped surface, then ADD A FLAG to `cli.rs`."""
+    import subprocess as _sp
+    proc = _sp.run(["uv", "run", "scripts/checks/check_cli_to_page.py",
+                    "--root", str(tree), "--json"], cwd=tree, capture_output=True, text=True)
+    missing = []
+    try:
+        missing = json.loads(proc.stdout).get("missing", [])
+    except Exception:
+        pass
+    page = tree / "web/content/pages/install.md"
+    if missing and page.is_file():
+        page.write_text(page.read_text(encoding="utf-8", errors="replace")
+                        + "\n\n" + "\n".join(f"- `{m}`" for m in missing) + "\n",
+                        encoding="utf-8")
+    return (f"{len(missing)} shipped surface(s) documented in the sandbox",
+            "a new `--zz-control` long flag added to yf/src/cli.rs")
+
+
+def mut_cli_to_page(tree: Path) -> None:
+    f = tree / "yf/src/cli.rs"
+    text = f.read_text(encoding="utf-8")
+    anchor = "    #[arg(long)]\n    pub apply: bool,\n"
+    if anchor not in text:
+        raise RuntimeError("control ANCHOR NOT FOUND: an `#[arg(long)] pub apply: bool` field")
+    f.write_text(text.replace(
+        anchor, anchor + "\n    /// control\n    #[arg(long)]\n    pub zz_control: bool,\n", 1),
+        encoding="utf-8")
+
+
+def ctl_agents_set(tree: Path) -> tuple[str, str]:
+    """Name every in-scope agent on the page, then SHIP A NEW AGENT FILE code-side."""
+    page = tree / "web/content/pages/workflows.md"
+    if not page.is_file():
+        raise RuntimeError("control target absent: workflows.md")
+    text = page.read_text(encoding="utf-8", errors="replace")
+    names = sorted({p.stem for sk in ("yf-plan", "yf-research")
+                    for p in (tree / "skills" / sk / "agents").glob("*.md")})
+    add = [n for n in names if f"`{n}.md`" not in text and f"**{n}**" not in text]
+    if add:
+        page.write_text(text + "\n\n" + "\n".join(f"- **{n}** (`{n}.md`)" for n in add) + "\n",
+                        encoding="utf-8")
+    return (f"{len(add)} previously-unnamed in-scope agent(s) documented in the sandbox",
+            "a NEW agent file shipped under skills/yf-plan/agents/ that the page cannot name")
+
+
+def mut_agents_set(tree: Path) -> None:
+    d = tree / "skills/yf-plan/agents"
+    if not d.is_dir():
+        raise RuntimeError("control target absent: skills/yf-plan/agents/")
+    (d / "zz-control-agent.md").write_text("# zz-control-agent\n\nA control agent.\n")
+
+
+def ctl_restyled_membership(tree: Path) -> tuple[str, str]:
+    """Docs already pass; then DELETE A MEMBER BOX from the RESTYLED `architecture.d2`.
+
+    PASS-4 C1 MEASURED THE EXISTING CONTROL BLIND TO THIS PATH. `mut_counts` adds a skill to the
+    CENSUS, which the `.md` pages' totals catch regardless of the `.d2` shape — so Issue 7.3
+    would have inherited a green over the exact door it is meant to guard. This control mutates
+    the DOCUMENT in the one way the restyle made possible: a member box that simply is not there.
+    """
+    return ("the restyled stack already encloses every census member (checker is green)",
+            "one member BOX deleted from the restyled `architecture.d2` container")
+
+
+def mut_restyled_membership(tree: Path) -> None:
+    f = tree / "web/content/images/architecture.d2"
+    if not f.is_file():
+        raise RuntimeError("control target absent: web/content/images/architecture.d2")
+    import re as _re
+    text = f.read_text(encoding="utf-8")
+    m = _re.search(r'^\s+(yf-[\w-]+)\s*:\s*"\1"\s*$', text, _re.M)
+    if not m:
+        raise RuntimeError("control ANCHOR NOT FOUND: no `  yf-x: \"yf-x\"` member box")
+    f.write_text(text.replace(m.group(0) + "\n", "", 1), encoding="utf-8")
+
+
+def ctl_state_enum(tree: Path) -> tuple[str, str]:
+    """SC30's predicate (pass-4 C8): docs carry no state enumeration; then PLANT one."""
+    return ("no node label carries a state enumeration",
+            "an `APPROVE | REVISE | INVESTIGATE-MORE` label planted in a diagram")
+
+
+def mut_state_enum(tree: Path) -> None:
+    f = tree / "web/content/images/architecture.d2"
+    if not f.is_file():
+        raise RuntimeError("control target absent: architecture.d2")
+    f.write_text(f.read_text(encoding="utf-8")
+                 + '\nzz_control: "APPROVE | REVISE | INVESTIGATE-MORE"\n', encoding="utf-8")
+
+
+def ctl_diagrams_published(tree: Path) -> tuple[str, str]:
+    """Every published diagram is reachable; then DELETE THE EMBED BLOCK from the plugin.
+
+    THE MUTATION IS CODE-SIDE ON PURPOSE, and it is the exact scenario SC34 exists for: the
+    per-skill embeds come from `skill_pages.py`, not from authored markdown, so removing that one
+    block makes ELEVEN diagrams vanish from the site while every other checker stays green. The
+    files are all still on disk and byte-identical — which is why disk presence was never the
+    right predicate.
+    """
+    return ("every published diagram is referenced by a rendered page",
+            "the per-skill embed block deleted from `web/plugins/skill_pages.py`")
+
+
+def mut_diagrams_published(tree: Path) -> None:
+    f = tree / "web/plugins/skill_pages.py"
+    if not f.is_file():
+        raise RuntimeError("control target absent: web/plugins/skill_pages.py")
+    text = f.read_text(encoding="utf-8")
+    anchor = '    diagram = os.path.join(settings["PATH"], "images", "skills", name + ".png")\n'
+    if anchor not in text:
+        raise RuntimeError("control ANCHOR NOT FOUND: the per-skill diagram embed block")
+    head, _, tail = text.partition(anchor)
+    # drop the `if os.path.isfile(diagram):` block that follows
+    rest = tail.split("    # Prose body:", 1)
+    if len(rest) != 2:
+        raise RuntimeError("control ANCHOR NOT FOUND: the end of the embed block")
+    f.write_text(head + "    # Prose body:" + rest[1], encoding="utf-8")
+
+
 CONTROLS = {
     "check_web_counts.py": (ctl_counts, mut_counts),
     "check_web_harness_paths.py": (ctl_harness, mut_harness),
     "check_skill_page_contract.py": (ctl_pagecontract, mut_pagecontract),
     "check_web_backend_claim.py": (ctl_backend, mut_backend),
+    # plan-067 Issue 1.5 — the three checkers this plan ADDS, each with a CODE-SIDE control.
+    "check_required_set.py": (ctl_required_set, mut_required_set),
+    "check_cli_to_page.py": (ctl_cli_to_page, mut_cli_to_page),
+    "check_agents_set.py": (ctl_agents_set, mut_agents_set),
+    # plan-067 Issue 7.3 — the two doors the RESTYLE opened.
+    "check_web_counts.py#restyled-membership": (ctl_restyled_membership,
+                                                mut_restyled_membership),
+    "plan067_checks.py::no-states-in-labels": (ctl_state_enum, mut_state_enum),
+    # plan-067 Issue 7.9 — publication, not just generation.
+    "plan067_checks.py::diagrams-published": (ctl_diagrams_published,
+                                             mut_diagrams_published),
 }
 
 
@@ -222,11 +428,28 @@ def main() -> int:
     ap.add_argument("--min-checkers", type=int, default=4,
                     help="VACUITY FLOOR: fewer checkers exercised than this fails, so a harness "
                          "that silently skips one cannot exit 0")
+    ap.add_argument("--require", default=None,
+                    help="comma-separated checker names that MUST each have been OBSERVED to "
+                         "fail. PIN BY NAME, NEVER BY COUNT (plan-067 pass-2 C3): a "
+                         "`--min-checkers 8` floor was measured UNREACHABLE — CONTROLS held 4 "
+                         "registered scripts and the plan only MODIFIED one of them, so the "
+                         "maximum was 7 and the criterion could never pass. A count floor can "
+                         "be satisfied by inheritance (four unrelated controls open the gate) "
+                         "and broken by arithmetic; a name list can be neither.")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
     root = repo_root()
-    names = a.checker or sorted(CONTROLS)
+    required = [n.strip() for n in a.require.split(",") if n.strip()] if a.require else []
+    unknown = [n for n in required if n not in CONTROLS]
+    if unknown:
+        # A required name with no registered control must be INCONCLUSIVE, never a pass. Silently
+        # ignoring it is how a rename turns a name pin back into no pin at all.
+        return inconclusive(f"--require names checker(s) with no registered control: {unknown}. "
+                            f"Registered: {sorted(CONTROLS)}")
+    # `--require` SELECTS as well as asserts, so the pin is self-contained: naming four checkers
+    # runs exactly those four and requires all four to have been observed to fail.
+    names = a.checker or required or sorted(CONTROLS)
     results, observed_failures = {}, 0
 
     for name in names:
@@ -268,16 +491,34 @@ def main() -> int:
                 tail = (proc.stdout or proc.stderr).strip().splitlines()[-2:]
                 print(f"      {label}: {' / '.join(tail)}")
 
-    floor_ok = len(results) >= a.min_checkers
-    all_ok = floor_ok and observed_failures == len(names) and observed_failures >= a.min_checkers
+    # THE NAME PIN REPLACES THE COUNT FLOOR WHERE IT IS GIVEN. With `--require`, the floor is
+    # not consulted at all: the question is "was THIS checker observed to fail", which no
+    # arithmetic over an unrelated set can answer.
+    unmet = [n for n in required
+             if not results.get(n, {}).get("observed_failure")]
+    if required:
+        floor_ok = True
+        all_ok = not unmet and observed_failures == len(names)
+    else:
+        floor_ok = len(results) >= a.min_checkers
+        all_ok = (floor_ok and observed_failures == len(names)
+                  and observed_failures >= a.min_checkers)
 
-    print(f"{CHECK}: {observed_failures}/{len(names)} checker(s) OBSERVED TO FAIL against a "
-          f"CODE-SIDE mutation under passing docs; floor --min-checkers={a.min_checkers} "
-          f"{'met' if floor_ok else 'NOT MET'}")
+    if required:
+        print(f"{CHECK}: {observed_failures}/{len(names)} checker(s) OBSERVED TO FAIL against a "
+              f"CODE-SIDE mutation under passing docs; REQUIRED BY NAME: {required}"
+              + (f"; NOT OBSERVED: {unmet}" if unmet else "; all required names observed"))
+    else:
+        print(f"{CHECK}: {observed_failures}/{len(names)} checker(s) OBSERVED TO FAIL against a "
+              f"CODE-SIDE mutation under passing docs; floor --min-checkers={a.min_checkers} "
+              f"{'met' if floor_ok else 'NOT MET'}")
     if a.json:
         print(json.dumps({"check": CHECK, "verdict": "PASS" if all_ok else "FAIL",
                           "observed_failures": observed_failures, "checkers": len(names),
-                          "min_checkers": a.min_checkers, "results": results}, indent=1))
+                          "min_checkers": a.min_checkers,
+                          "required": required, "required_not_observed": unmet,
+                          "registered": sorted(CONTROLS),
+                          "results": results}, indent=1))
     return 0 if all_ok else 1
 
 

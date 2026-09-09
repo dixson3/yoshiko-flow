@@ -9,6 +9,14 @@ okf_version: 0.2
 This plan folder is **portable** — a cold reader understands its purpose, environment, reviewer history, and upstream context from the files below alone, without the drafting conversation.
 
 - [plan.md](plan.md) - The plan of record — status, objective, motivation, approach, epics, gates, risks, success criteria. Read first for why this plan exists and how it executes.
+- [plan-retrospective.md](plan-retrospective.md) - 26 content defects and 9 process defects counted separately, plus the finding that outlasted the plan: three fully-green diagram sets, two declined by a human read.
+- [assets/upstream-drafts/HALT-2-plan066-8.4b.md](assets/upstream-drafts/HALT-2-plan066-8.4b.md) - SECOND halt: verify-reconcile now passes, but Issue 8.4b's hard guard requires HEAD on main. Two resolutions, neither taken.
+- [assets/upstream-drafts/HALT-plan066-close-chain.md](assets/upstream-drafts/HALT-plan066-close-chain.md) - The §6.4 close chain HALTS at verify-reconcile on 5 of 7 rows. What it needs, why, and the six unposted writes.
+- [assets/upstream-drafts/104-attribution.txt](assets/upstream-drafts/104-attribution.txt)
+- [assets/upstream-drafts/127-attribution.txt](assets/upstream-drafts/127-attribution.txt)
+- [assets/upstream-drafts/322-attribution.txt](assets/upstream-drafts/322-attribution.txt)
+- [assets/upstream-drafts/363-attribution.txt](assets/upstream-drafts/363-attribution.txt)
+- [findings/followons.md](findings/followons.md) - Issue 8.4: every follow-on tagged by class — two closed by the successor plan, four open as local beads, none pushed.
 - [context.md](context.md) - Project environment snapshot — tool versions, paths, operator, runtime assumptions at authoring time. What environment the plan assumes.
 - [log.md](log.md) - Newest-first update history — scoping, review, and intake entries (the OKF-reserved phase log).
 - [upstream-triage.md](upstream-triage.md) - Disposition of each candidate upstream issue (include / exclude / partial / supersede / deferred) with the reasoning. The triage record behind plan.md's Upstream Issues table.

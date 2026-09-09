@@ -8,18 +8,20 @@ description: 'Diagram set redesign (#373): restack architecture as a layered mar
 id: plan-067-james-dixson-de852a
 author: james-dixson
 created: '2026-09-07'
-status: approved
+status: executing
 deliverable_class: standard
-fingerprint: c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
+fingerprint: 3edf041317beafda18f6ed19c8d78ae1b68411718fb59c844dd6f805d2a848f7
+epic: yf-mol-gtcy
 ---
 # Plan: Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL
 
 **ID:** plan-067-james-dixson-de852a
 **Author:** james-dixson
 **Created:** 2026-09-07
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
-**Fingerprint:** c89397ff5cb6cc27990db15cc85f81d584b15401b0fa091815902e4118a25754
+**Epic:** yf-mol-gtcy
+**Fingerprint:** 3edf041317beafda18f6ed19c8d78ae1b68411718fb59c844dd6f805d2a848f7
 
 ## Objective
 Diagram set redesign (#373): restack architecture as a layered marketecture with per-skill and per-formula diagrams, combine phase-model+lifecycle and install+tune, evaluate archify vs d2->png as the rendering toolchain, and amend DRIFT-CHECK so omissions FAIL
@@ -72,6 +74,8 @@ retrospective that is gated behind that read. This plan owns the handoff that un
 | D4b | **Add the missing CLI→page DIRECTION to `e-web-cli-surface`, with a set-difference realizer.** | EXP-003: both of that edge's declared failure directions are page→CLI, so **no check anywhere can see a shipped command that no page documents**. Measured consequence: `yf harness skills prune-private` — live and destructive — is documented nowhere. One new direction catches `prune-private` and `--prune-formulas`. ~~and both `--force` flags~~ — **struck (pass-2 C12)**: `--force` is already documented (`install.md:132`, `README.md:75`), so a corpus-wide token predicate cannot flag it, and a pair-level predicate would contradict the corpus-wide rule. SC8 disowns the claim; this row now agrees with it. |
 | D6 | **WITHDRAWN. The `elk` pin STAYS.** Epic 3 instead trials **archify** on the architecture diagram and reports, per the operator's redirect. | *(Originally: re-pin `elk`→`dagre`, gated on an operator read.)* **Pass-1 C1 refuted it by measurement** — all six rendered under both engines gave hard text-on-text collisions on **2 of 6**, larger output on **6 of 6** (+4% to +25%, independently re-measured), semantic ordering discarded on **3**, and dagre **worse on `architecture`**, the diagram the objection was about. EXP-001's recommendation came from **one** sample, `lifecycle` — the single case where the engines are equivalent. **The lesson, recorded because it generalises: a layout judgement needs the whole corpus, not a representative.** The dagre render is kept at `assets/spikes/exp001-dagre-sample.png` as a negative artifact so the sampling error stays inspectable. |
 | D7 | **One plan; the mechanical PROSE epics are sequenced AHEAD of the diagram redesign.** | EXP-003: the diagram half's "omissions" are largely design decisions (which of 7 `yf` verbs belongs on a canvas); the prose half is ~52 mechanical repairs against enumerable sets. Holding them in one epic would let the judgement-heavy half block the clean wins. |
+| D8 | **DIAGRAM STYLE SPEC, supplied by the operator at the rejected Diagram human-read gate.** Bare-name boxes, one per member, tiled into width-proportional bands; **no edges on the architecture diagram** — layering carries the relationship; **no sublabels, descriptions, versions or parenthetical counts** anywhere; and **state enumerations HOISTED out of node labels into real nodes with transitions**. **PRECEDENCE (amended after pass-4 C5): the images are normative for LAYOUT — tiling, typography, band structure and edge policy. The SKILL CENSUS is normative for CONTENT — which boxes exist and what they are called.** The original "images win" clause was an abdication: measured, `architecture-reference.png` uses **wildcards** (`yf-markdown-*`, `yf-okf-*`) that make 6 skills unextractable, shows **13 boxes for 20 skills**, includes `bash` (not a declared dependency), **omits `d2` and `git`** (two of the eight tokens SC19's tool layer requires), and misspells `yf-beads-hygeine`. Taken literally it would mandate transcribing a glob, a six-skill omission and a typo — the omission being exactly what Epic 1 exists to make FAIL. All 20 skills appear, spelled from frontmatter. | The first 20-diagram set passed **every mechanical check** — 20/20 byte-identical renders, 4/4 checkers exit 0, `not_checked == 0` — and was still rejected. **No check can see that a diagram is unreadable.** `red-team-chain.png` shows the two defects concretely: metadata crammed into a label (`step:`, `type:`, `needs:`, an instruction), and a state enumeration (`APPROVE \| REVISE \| INVESTIGATE-MORE`) buried in a node where it should be a flow. This is the **second time in this plan pair** that a fully-green artifact set failed a human read, which is the strongest available argument for keeping that gate human-typed. |
+| D9 | **The restyle is folded into plan-067 as Epic 7, NOT split into a new plan.** | This is Epic 4/5's deliverable rejected by its gate — that is the gate working, and rework belongs with the deliverable. Splitting would make **three** plans parked in a chain (plan-066 → plan-067 → plan-068) and push #317 further behind each. The cost is accepted knowingly: amending an `executing` plan invalidates the approval fingerprint and requires re-approval. |
 | D5 | **This plan unblocks plan-066 at the end.** A dedicated issue hands off: redesigned diagrams land → operator reads → plan-066's gate opens → its 8.1/8.3 run → plan-066 completes and #317 closes. | Leaving plan-066 parked with no declared route to closure is the shape that produced five stale trackers in this repo (#103, #95, #96, #98, #134). |
 
 ## Investigation Findings
@@ -115,6 +119,22 @@ it is not rediscovered mid-execution.
 this: a page-scoped agent reported `yf doctor --local-only` omitted when it sits at
 `yf-beads-init.md:30`. Mechanically, 15 of 20 skills go unmentioned in `usage.md` — a per-page set
 would manufacture ~30 false failures on two pages alone.
+
+**THE NODE/EDGE DEFINITION, stated in the plan (Issue 5.0, pass-2 C11).** EXP-004's census is
+unreproducible because the finding never says what counts, so its numbers are model-dependent
+and the model is gone. This is the definition the re-derived census and the publication
+threshold both use:
+
+- A **NODE** is a distinct drawn box: the skill itself (1), plus one per distinct
+  `depends-on-tool`, one per distinct `depends-on-skill`, one per distinct **reverse**
+  dependent, and one CONTAINER box each for a non-empty `scripts/` (non-`test_` `.py`),
+  `agents/`, `formulas/` and `protocols/` listing.
+- An **EDGE** is one drawn arrow per external referent and one per non-empty container. Items
+  *inside* a container are rows, not nodes — otherwise a script-heavy skill's node count
+  measures its file count rather than its graph.
+
+Under it, `edges == nodes - 1` for every skill, which is itself the finding: these are **stars,
+not graphs**, and the node count alone carries the information.
 
 **Diagrams are GENERATED where they can be.** EXP-004 measured that 20 hand-authored per-skill
 diagrams would be 20 new drift surfaces; generated from frontmatter they cannot drift at all, and
@@ -179,13 +199,16 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 > equivalent. **The pin stays `elk`.** Busyness is addressed by decomposition, which #373 already
 > prescribes. Epic 3 has **no dependency on Epic 2** (pass-1 C12) - it reads nothing Epic 2
 > produces, so it runs early and the operator's answer arrives before the redesign commits to it.
-- Issue 3.1: Build the layered marketecture as an **archify `architecture` spec** — **at Issue 4.1's full declared content load**, not the sparse `exp001-architecture-stack.d2` draft (pass-2 C9): the tool layer, the 12 `yf` subcommand paths, the 10 `depends-on-skill` edges. A legibility verdict on a sparse draft would repeat D6's own sampling error one level up, and archify's `--quality` constraint solver is precisely what pressure-tests under density. Deliver to `assets/archify-trial/architecture.html` and produce a raster via `archify visual-check` — noting inline that this yields a **full-page viewer screenshot including the title bar and Export button**, not a clean render.
+- Issue 3.1: Build the layered marketecture as an **archify `architecture` spec** — **at Issue 4.1's full declared content load**, not the sparse `exp001-architecture-stack.d2` draft (pass-2 C9): the tool layer, the 12 `yf` subcommand paths, the 12 `depends-on-skill` edges. A legibility verdict on a sparse draft would repeat D6's own sampling error one level up, and archify's `--quality` constraint solver is precisely what pressure-tests under density. Deliver to `assets/archify-trial/architecture.html` and produce a raster via `archify visual-check` — noting inline that this yields a **full-page viewer screenshot including the title bar and Export button**, not a clean render.
+  - no-req-required: Epic 3 is a TRIAL that reports a comparison; it amends no requirement. The gate's own text records that *adopt* does not proceed inside this plan — a toolchain migration is filed upstream as its own plan.
 - Issue 3.2: Build the **same** diagram in d2 under the current `elk` pin, at the same content load, to `assets/archify-trial/architecture.d2` + `.png`. **This output is the starting point for Issue 4.1**, not a throwaway.
+  - no-req-required: builds a comparison artifact under the UNCHANGED `elk` pin. It changes no pin and asserts no new requirement; SC18 asserts exactly that.
 - Issue 3.3: Report the comparison for the operator - legibility, whether the enumerated member ids survive, and what a committed archify artifact would cost in checkability. State plainly that archify has **no d2 input path**, so adopting it means either a second authored source or generating both from one model. Write the report to `findings/archify-trial.md`.
   - depends-on: 3.1, 3.2
+  - no-req-required: writes a findings report for a human gate. A report is evidence, not a behavior change.
 
 ### Epic 4: The diagram redesign
-- Issue 4.1: Rebuild `architecture.d2` as a layered marketecture — tool dependencies (`bd`, `gh`, `pandoc`, `d2`, `uv`, `git`, `xelatex`, `herdr`) at the bottom, beads + utility + markdown skills in the middle, workflow skills on top. Measured gaps to close: **5 of 8 declared tool deps absent**, **7 of 12 `yf` subcommand paths absent**, and **0 of 10 `depends-on-skill` edges drawn** — including the workflows→utility relationship #373 names.
+- Issue 4.1: Rebuild `architecture.d2` as a layered marketecture — tool dependencies (`bd`, `gh`, `pandoc`, `d2`, `uv`, `git`, `xelatex`, `herdr`) at the bottom, beads + utility + markdown skills in the middle, workflow skills on top. Measured gaps to close: **5 of 8 declared tool deps absent**, **7 of 12 `yf` subcommand paths absent**, and **0 of 12 `depends-on-skill` edges drawn** *(the plan drafted this as 10; re-measured from frontmatter during Epic 3 it is **12** — the two the count missed are `yf-okf-hygiene → yf-okf` and `yf-optimal-instructions → yf-skill-authoring`. The checker derives the set mechanically, so the criterion was never at risk; the prose was) — including the workflows→utility relationship #373 names.
   - depends-on: 2.6
 - Issue 4.2: Combine `phase-model.d2` + `lifecycle.d2` into one. **Fix #375's literal in the same pass** — `lifecycle.d2` labels a preflight status `deps-missing` where the real literal is `system_deps_missing`; merging without fixing carries the wrong literal into the combined diagram. Add adding the red-team review **cycle**, capability gates during EXECUTE, escalations, retrospectives, autonomy tokens, `capture`, **execution**, and **land-the-plane** - the last measured by pass-1 C8 as having **zero hits** anywhere in the draft despite being one of #373's three named additions.
   - depends-on: 2.6
@@ -210,6 +233,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
   - depends-on: 5.3
 - Issue 5.0: **Rebuild EXP-004's census and re-derive the threshold before any constant is fixed** (pass-2 C11). The prototype is lost, and an independent rebuild from the written finding got **9 trivial not 8**, **no zero-edge skill**, and `yf-plan` at **34/33 against the reported 26/6** — the finding never defines what counts as a node or an edge, so its numbers are model-dependent and the model is gone. **State the node/edge definition in the plan**, then re-derive. `nodes >= 5` currently sits on a **three-way tie** (`yf-change-validation`, `yf-incubator`, `yf-markdown-pdf`), so a one-node definitional difference reclassifies three skills.
   - depends-on: 5.1
+
 - Issue 5.5: Gate publication on a **computed** threshold (re-derived by 5.0, provisionally `nodes >= 5`) so the threshold itself cannot drift and a skill that grows past it gains a diagram automatically. Measured: 8 of 20 are a box plus ≤2 arrows; `yf-drift-check` has zero edges.
   - depends-on: 5.4, 5.0
 - Issue 5.7: Fix #374 — `skill_pages.py`'s authored-page guard is **existence-only**, so a zero-byte page builds green with zero warnings. Epic 5's GENERATED pages are exactly the artifacts that could be emitted empty and pass. Make the guard assert non-trivial content.
@@ -218,6 +242,34 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 - Issue 5.6: Grid-nest sub-boxes in the emitter — `yf-plan` at 13 scripts currently renders 3104×4532, a single-column stack that reads as a bulleted list rather than a graph.
   - depends-on: 5.2
 
+### Epic 7: The diagram restyle
+> **The Diagram human-read gate REJECTED the first 20-diagram set.** Not for a false claim — the
+> set was fully green — but because the nodes are too wordy and `architecture.d2` does not read as
+> a layered stack. The operator supplied two reference images, preserved at
+> `assets/style-reference/`, which **are** the spec (D8).
+- Issue 7.0: Extend `scripts/checks/plan067_checks.py` with the five subcommands SC28-SC32 name — `architecture-style`, `membership-after-restyle`, `no-states-in-labels`, `restyle-complete`, `restyle-verified`. **The amendment BROKE a landed green criterion** (pass-4 C4): `verbs-match` is FALSE right now at *33 verbs in plan.md, 28 subcommands*. Restore it.
+  - depends-on: 0.5
+- Issue 7.0b: **Split the architecture diagram in two** (pass-4 C2, operator decision). `architecture.d2` becomes the edge-free layered stack; a NEW `architecture-deps.d2` carries the dependency relations — the 8-token tool layer, the `yf` subcommand paths, and all twelve `depends-on-skill` edges **including the workflows→utility relationship #373 names by hand**. Without the split, Issue 7.1 would delete 41 edges and silently reverse one of #373's three named additions, while `resolves-upstream: #373 (include)` still claimed to deliver it. Amend SC19 in the same change-set to assert against `architecture-deps.d2`. **Retarget the INSTRUMENT in the same change-set, not only SC19's prose** (pass-5 C2): `sc_architecture_complete` at `plan067_checks.py:617` hardcodes `_d2_src(root, "architecture.d2")`, so SC27c passes RIGHT NOW with `architecture-deps.d2` nonexistent and would stay green even if the file were never created. Point it at `architecture-deps.d2` **and assert the file exists** — an absent file must be INCONCLUSIVE, never a silent empty-string pass. Confirm SC27c reads FALSE before 7.0b runs.
+  - depends-on: 7.0
+- Issue 7.1: Restyle `architecture.d2` to the reference's **layered stack**: bands bottom-to-top (external tools → runtimes → beads → utility/markdown → workflows → incubator), **one bare-name box per member**, width-proportional tiling, **no edges** — the relations now live in `architecture-deps.d2` (7.0b). Delete every sublabel — the current file carries `"d2\nthe pinned diagram renderer (v0.8.2, ...)"` and `"workflows (3)\nyf-incubator · yf-plan · yf-research"`, both of which the reference forbids. All 20 skills appear, named from frontmatter — not the reference's 13 boxes or its wildcards. **All 20 skills appear, spelled from frontmatter — not the reference's 13 boxes or its wildcards. The four `skill-group` d2 CONTAINERS (`beads`, `markdown`, `utility`, `workflows`) are PRESERVED with their existing ids and full census membership** (pass-5 C3): bands are *visual*, containers are *structural*, and `yf-incubator` stays inside `workflows` regardless of which band it is drawn in. The reference image has **no containers at all** and merges markdown with utility, so an executor obeying "images normative for LAYOUT" could otherwise satisfy SC28 and D8 while making SC29 unsatisfiable. This is D8's content-vs-layout line applied to the band list.
+  - depends-on: 7.0b, 6.1
+- Issue 7.2: **Fix group DETECTION, not just extraction** (pass-4 C1 — the measured door 7.2 was not watching). `GROUP_RE` at `check_web_counts.py:58` requires a **parenthetical count** `\((\d+)\)` to even *find* a group — and D8/SC28 forbid parenthetical counts. **Measured in a spike:** restyling the four group labels to bare names drops **8 of 19 counted-set claims silently**, with `not_checked` still **0**; deleting two member boxes then still PASSes — Issue 1.1's exact two-member-deletion defect, reintroduced. Key group identification on the **d2 container id/label alone, count-free**, add a **d2-scoped claim floor** (each of the four census groups must be locatable in `architecture.d2` or the checker returns INCONCLUSIVE), and teach membership extraction to read TILED CHILD BOXES rather than a `·`-joined list. Without this the restyle silently lapses the membership guarantee: members become sibling boxes, `group_members()` returns `None`, the group falls to `not_checked`, and that is exactly the #376 evasion Issue 1.1b closed. **The reference style is MORE checkable once taught** — a box label is a cleaner token than a joined string. Same single-shape assumption as the locally-filed `yf-w57p`.
+  - depends-on: 7.1
+- Issue 7.3: Give 7.2's detection AND extraction a **code-side negative control** that mutates the **restyled `architecture.d2`** — delete one member box and assert non-zero. Pass-4 C1 measured the existing control blind to this: `mut_counts` adds a skill to the census, which the `.md` pages' totals catch regardless of the `.d2` shape, so 7.3 would otherwise inherit a green over the exact path it is meant to guard. Register by name. Also register a control for SC30's predicate (pass-4 C8).
+  - depends-on: 7.2
+- Issue 7.4: Strip sublabels, descriptions, versions and parenthetical counts from **every** hand-authored diagram — `lifecycle`, `install-matrix`, `formulas-map`, and the five per-formula diagrams.
+  - depends-on: 7.1
+- Issue 7.5: **Hoist state enumerations into real flow.** State the predicate explicitly so the checker is not a guess (pass-4 C8): a state enumeration is **≥2 all-caps tokens joined by `|`, `/` or `·` inside a single node label**. Carry a vacuity floor (labels scanned > 0). Wherever a node label carries a set of states (the `APPROVE | REVISE | INVESTIGATE-MORE` shape `red-team-chain.png` illustrates), replace it with nodes and transitions. Highest concentration is the combined `lifecycle.d2` and the per-formula diagrams.
+  - depends-on: 7.4
+- Issue 7.6: Update the generator's `to_d2()` so the **11 generated per-skill diagrams** emit the new style, then regenerate. The generator is the reason this is cheap for 11 of the 20 — they restyle by re-running, not by editing.
+  - depends-on: 7.1
+- Issue 7.7: Re-render every diagram under the unchanged `elk` pin; assert all PNGs byte-identical to a fresh render, all checkers exit 0, and generator `--check` clean — **and re-run the FULL `recheck-criteria` over the post-restyle tree, naming `plan066-still-green` and `build-and-render` explicitly** (pass-4 C7). Those two are criterion verbs, not "checkers", so the old wording did not reach them; 7.6 regenerates all 11 per-skill diagrams through a changed `to_d2()`, which is precisely what Issue 5.6's grid-nesting tuned.
+  - depends-on: 7.3, 7.5, 7.6
+- Issue 7.8: Re-present the restyled set to **plan-067's** Diagram human-read gate — a fresh `findings/diagram-presentation.md` naming what changed per diagram against the two reference images. **This is a different gate from Issue 6.4's** (pass-4 C11): 7.8 satisfies plan-067's own gate; 6.4 then presents to **plan-066's**. **Refresh `index.md`'s reviews list** — 7.8 is the last issue to write bundle artifacts, so it owns keeping `index-complete` green (pass-5 C4). Also append the gate rejection and the Epic 7 fold-in to `plan-retrospective.md` (pass-4 C9) — a second fully-green artifact set failing a human read is the plan's highest-value process finding and is currently unrecorded.
+  - depends-on: 7.7
+
+- Issue 7.9: **Assert PUBLICATION, not just generation.** `SC23` gated GENERATION on the computed threshold; **nothing gated PUBLICATION**, so "published" has meant "written to disk". Measured at the operator's prompt: in the **source** markdown, 11 of 21 PNGs are referenced by no `.md` at all — every generated per-skill diagram. Measured in the **built site**, all 21 are reachable, because `skill_pages.py` emits the per-skill embed from a plugin rather than from authored markdown. **So the artifacts are reachable and the GUARANTEE is absent**: delete that one block and 11 diagrams vanish from the site while every checker stays green. That is this plan's own class — an artifact satisfying its check while failing its purpose — one level up, in the check itself. Add a `diagrams-published` verb asserting every published diagram is referenced by at least one **rendered page**, with a vacuity floor, plus a code-side control that unreferences one and requires a FAIL. Also confirm `architecture-deps.png` is embedded wherever `architecture.png` is.
+  - depends-on: 7.8
 ### Epic 6: Verification, retrospective, and the plan-066 handoff
 - Issue 6.0: Re-run plan-066's `recheck-criteria` against the post-plan-067 tree and repair whatever this plan's restructuring broke - amending plan-066's criterion PROSE in the same change-set where the change is legitimate (its SC23/SC24 reference `formulas.d2`, which Issue 4.4b removes). Pass-1 C13: no issue asserted plan-066's criteria survive.
   - depends-on: 4.1, 4.2, 4.4b, 5.5, 5.6, 5.7
@@ -227,8 +279,8 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
   - depends-on: 6.1
 - Issue 6.3: Write `plan-retrospective.md` distinguishing content defects from process defects, with counts, and recording the two instrument false-greens this plan's own experiments produced.
   - depends-on: 6.2
-- Issue 6.4: **THE plan-066 HANDOFF.** Present the redesigned diagrams to the operator for the plan-066 Diagram human-read gate. On acceptance plan-066's gate opens, its 8.1/8.3 run, it reaches `complete`, and #317 closes. This issue does NOT resolve that gate — only the operator can.
-  - depends-on: 6.1
+- Issue 6.4: **THE plan-066 HANDOFF.** Presents the RESTYLED set (Epic 7), not the rejected one. Present the redesigned diagrams to the operator for the plan-066 Diagram human-read gate. On acceptance plan-066's gate opens, its 8.1/8.3 run, it reaches `complete`, and #317 closes. This issue does NOT resolve that gate — only the operator can.
+  - depends-on: 6.1, 7.8
 - Issue 6.5: Reconcile upstream — **#373, #374, #375, #376** per disposition; leave **#247, #263, #317** open as partials (#317 closes only when plan-066 completes, via the Issue 6.4 handoff).
   - depends-on: 6.3, 6.4
   - resolves-upstream: #373 (include)
@@ -290,7 +342,7 @@ diagrams would be 20 new drift surfaces; generated from frontmatter they cannot 
 
 ## Success Criteria
 
-Every Verification cell is an executable clause discharged by `scripts/checks/plan067_checks.py` (Issue 0.6), except the two marked `manual:` which no command can decide.
+Every Verification cell is an executable clause discharged by `scripts/checks/plan067_checks.py` (Issue 0.6), except the **three** marked `manual:` (SC17, SC27, SC33) which no command can decide.
 
 | # | Criterion | Verification | Discharged-by |
 | :-- | :-- | :-- | :-- |
@@ -312,7 +364,7 @@ Every Verification cell is an executable clause discharged by `scripts/checks/pl
 | SC16 | Every checker exits 0 over the repaired prose | `uv run scripts/checks/plan067_checks.py checkers-green` → exit 0 | 2.5, 2.6 |
 | SC17 | The operator was shown both builds of the same diagram and returned a decision on archify — adopt, keep for exploration, or drop | manual: a human must look at two rendered artifacts and judge which communicates better; no command can decide it | 3.3 |
 | SC18 | The d2 side of the archify comparison was built under the **unchanged `elk` pin**, and every committed PNG remains byte-identical to a fresh render under it — i.e. the trial changed no pin and left the corpus renderable | `uv run scripts/checks/plan067_checks.py render-bytes-match` → exit 0 | 3.2 |
-| SC19 | `architecture.d2` shows the tool layer, the `yf` subcommand paths, and the `depends-on-skill` edges including workflows→utility - **with `not_checked == 0`**, so the redesign cannot pass by dropping enumerated ids | `uv run scripts/checks/plan067_checks.py architecture-complete` → exit 0 | 4.1 |
+| SC19 | **`architecture-deps.d2`** shows the tool layer, the `yf` subcommand paths, and the `depends-on-skill` edges including workflows→utility - **with `not_checked == 0`**, so the redesign cannot pass by dropping enumerated ids. *(Retargeted from `architecture.d2` by pass-4 C2: the stack is edge-free by D8, so the relations moved to a sibling diagram rather than being deleted.)* | `uv run scripts/checks/plan067_checks.py architecture-complete` → exit 0 | 4.1 |
 | SC20 | The two combinations landed; the combined lifecycle carries red-team cycles, gates, escalations, retrospectives, autonomy, `capture`, execution and land-the-plane; **and it uses the real literal `system_deps_missing`, not `deps-missing`** (#375) | `uv run scripts/checks/plan067_checks.py combined-diagrams` → exit 0 | 4.2, 4.3, 4.5 |
 | SC21 | The skills/agents → formulas map exists | `uv run scripts/checks/plan067_checks.py formulas-map` → exit 0 | 4.4 |
 | SC21b | One diagram per shipped formula exists and the meta-diagram `formulas.d2` is REMOVED, per #373's literal ask | `uv run scripts/checks/plan067_checks.py per-formula-diagrams` → exit 0 | 4.4b |
@@ -325,10 +377,28 @@ Every Verification cell is an executable clause discharged by `scripts/checks/pl
 | SC26 | The retrospective distinguishes content from process defects, with counts, and records the instrument false-greens | `uv run scripts/checks/plan067_checks.py retro-classes` → exit 0 | 6.3 |
 | SC25b | The bundle's `index.md` lists every artifact a cold reader needs — findings, references, reviews and spikes — not just the four scaffold files | `uv run scripts/checks/plan067_checks.py index-complete` → exit 0 | 6.3 |
 | SC26b | **plan-066's criteria still hold on the post-plan-067 tree.** Epic 4 rebuilds `architecture.d2` (plan-066 SC9) and removes `formulas.d2` (its SC23), and plan-066 re-runs all 26 criteria at close-out | `uv run scripts/checks/plan067_checks.py plan066-still-green` → exit 0 | 6.0 |
+| SC27b | The criteria table's verb set still equals the script's subcommands AFTER the amendment — the five new verbs are authored, not merely named | `uv run scripts/checks/plan067_checks.py verbs-match` → exit 0 | 7.0 |
+| SC27c | The dependency relations SURVIVE the restyle in `architecture-deps.d2` — the 8-token tool layer, the `yf` subcommand paths, and all twelve `depends-on-skill` edges **including workflows→utility**, which #373 names by hand | `uv run scripts/checks/plan067_checks.py architecture-complete` → exit 0 | 7.0b |
+| SC28 | `architecture.d2` is a layered stack in the reference style — **no edges**, one bare-name box per member, tiled bands — and carries **no sublabel, description, version or parenthetical count** on any node | `uv run scripts/checks/plan067_checks.py architecture-style` → exit 0 | 7.1 |
+| SC29 | Membership survives the restyle, asserted **POSITIVELY**: `groups_checked == len(census.groups)` and each extracted membership set equals the census. **Not `not_checked == 0`** — pass-4 C1 measured that clause satisfied BY the failure mode, since a claim that vanishes cannot be unchecked. Plus a per-checker **claim-count non-regression** across `check_web_counts`, `check_web_harness_paths` and `check_web_backend_claim`, none of which may lose `.d2` coverage to the restyle (pass-4 C6) | `uv run scripts/checks/plan067_checks.py membership-after-restyle` → exit 0 | 7.2, 7.3 |
+| SC30 | **No node label anywhere carries a state enumeration.** The `APPROVE \| REVISE \| INVESTIGATE-MORE` shape is hoisted into real nodes with transitions | `uv run scripts/checks/plan067_checks.py no-states-in-labels` → exit 0 | 7.5 |
+| SC31 | Every diagram — hand-authored and generated — is free of sublabels and descriptions, and the 11 generated ones emit the new style **by regeneration, not by editing** | `uv run scripts/checks/plan067_checks.py restyle-complete` → exit 0 | 7.4, 7.6 |
+| SC32 | After the restyle everything is still green: all PNGs byte-identical to a fresh render under the unchanged `elk` pin, all checkers exit 0, generator `--check` clean | `uv run scripts/checks/plan067_checks.py restyle-verified` → exit 0 | 7.7 |
+| SC33 | The restyled set was re-presented for the Diagram human-read gate, with a per-diagram statement of what changed against the two reference images | manual: the gate that rejected the first set is the gate that must accept the second; no command can decide it | 7.8 |
+| SC34 | **Every published diagram is REFERENCED BY A RENDERED PAGE.** Generation was gated by `SC23`; publication was not, so a diagram could satisfy every check while no reader ever saw it. The predicate is the BUILT site, not the source markdown — the per-skill embeds come from `skill_pages.py`, so a source-only scan reports 11 false absences. Carries a vacuity floor and a code-side control | `uv run scripts/checks/plan067_checks.py diagrams-published` → exit 0 | 7.9 |
 | SC27 | The redesigned diagrams were presented to the operator for plan-066's gate | manual: the handoff is an act of presentation, and only the operator can resolve that gate | 6.4 |
 
+**Declared `no-req-required` set — {3.1, 3.2, 3.3}, the whole of Epic 3.** This is the MUTABLE
+half of `check_amendment_log.py`'s A2 exemption, and it is declared here (the reviewed artifact)
+rather than hardcoded in the instrument, so the comparison is not a constant against itself. Epic
+3 is an operator-facing **trial**: it builds two renders of one diagram and reports. The gate it
+feeds says in its own text that *adopt* does **not** proceed inside this plan, so there is no
+requirement for Epic 3 to amend, and manufacturing a `depends-on` into Epic 0 to satisfy a
+reachability check would be exactly the false green this plan exists to close. Each of the three
+issues carries its reason inline.
+
 **Deliberately uncovered issues — MECHANICALLY DERIVED, and must match the extractor.** Currently
-exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. plan-066's pass-3 C8 caught a list that disagreed with the
+exactly five: `0.7, 5.0, 5.1, 5.3, 6.5`. (Re-derived after Epic 7; the ten 7.x issues are all covered by SC27b-SC33.) plan-066's pass-3 C8 caught a list that disagreed with the
 extractor by two while asserting coverage that did not exist, so this list is checked rather than
 written — and pass-1 of THIS plan grew it to seven before the missing criteria were added, which is
 the same drift caught one cycle earlier. `0.7` (record the band) and `5.1` (factor out the shared

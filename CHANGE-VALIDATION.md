@@ -29,9 +29,26 @@
 > - **semantic mis-assignment** beyond the enumerated member-id sets `check_web_counts` compares;
 > - **missing qualifiers** — prose that is true but incomplete, such as an unconditional statement
 >   of a behaviour that is actually guarded;
-> - **editorial omission** — and note this one is frequently *correct*: `DRIFT-CHECK.md` holds
->   that a document which curates or omits detail PASSes, and only an affirmative contradiction
->   FAILs, so an omission is not drift;
+> - **editorial omission ON A PROSE PAGE** — frequently *correct*: a document that curates or
+>   omits repo-dev detail is not thereby in drift. **AMENDED by plan-067 (`REQ-CHECK-013`), and
+>   the amendment is the point rather than a footnote:** the blanket form of this bullet —
+>   "an omission is not drift" — was **false for set-membership claims** and made an omission
+>   invisible *by construction*. Measured: deleting two members of an enumerated group while
+>   leaving its count unchanged exited **0**, and `land`, retrospectives, the escalation surface,
+>   autonomy levels and `closable` went undocumented across multiple releases with **nothing ever
+>   complaining**. A group that enumerates members must now enumerate ALL of them, and a group
+>   that states a count while enumerating NONE now FAILs rather than joining the clean population
+>   (`#376`). Three classes of omission are likewise now MECHANICAL and are no longer excluded
+>   here: a declared slash sub-verb absent from the whole site (`check_required_set.py`,
+>   `REQ-CHECK-010`), a shipped CLI surface no page documents (`check_cli_to_page.py`,
+>   `REQ-CHECK-011`), and an in-scope pipeline agent the workflows page does not name
+>   (`check_agents_set.py`, `REQ-CHECK-014`). What remains excluded is narrower and is stated
+>   narrowly: **prose that chooses not to explain something it never enumerated**;
+> - **script-verb coverage** — irreducibly editorial, and declared so on measurement rather than
+>   asserted: `plan_manager.py` carries 40 flat `@cli.command` registrations with **zero**
+>   visibility metadata (`hidden=`, `deprecated=`, `short_help=` all absent), and `spec/cli.md`
+>   `REQ-CLI-006` frames the entire set as internal delegation. There is no bit in the source to
+>   read, so the rule makes this class **visible in review**; it does not mechanise it;
 > - **intent match** — whether authored prose agrees with a `SKILL.md` *in spirit*
 >   (`e-skill-page-desc`), which tolerates paraphrase and is not mechanically decidable.
 >
@@ -187,6 +204,16 @@ approved: yes
 | `skill-readme-contract` | `uv run scripts/checks/check_skill_readme_contract.py --min-skills 20` |  |  |
 | `skill-readme-tests` | `uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q` |  |  |
 | `skill-readme-fence` | `uv run scripts/gen_skill_readme_fence.py --check` |  |  |
+| `required-set` | `uv run scripts/checks/check_required_set.py` |  |  |
+| `cli-to-page` | `uv run scripts/checks/check_cli_to_page.py` |  |  |
+| `agents-set` | `uv run scripts/checks/check_agents_set.py` |  |  |
+| `user-invocable` | `uv run scripts/checks/check_user_invocable.py` |  |  |
+| `req-normative-home` | `uv run scripts/checks/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
+| `gate-plan067-amendment` | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
+| `gate-plan067-controls` | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
+| `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
+| `skill-diagrams` | `uv run web/plugins/skill_diagrams.py --check` |  |  |
+| `diagrams-published` | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 
 ### full
 
@@ -271,6 +298,15 @@ approved: yes
 |  | `uv run scripts/gen_skill_readme_fence.py --check` |  |  |
 | `gate-plan065-audit` | `uv run scripts/checks/plan065_checks.py audit-strict` |  |  |
 | `gate-plan065-shape` | `uv run scripts/checks/plan065_checks.py bundle-shape` |  |  |
+|  | `uv run scripts/checks/check_required_set.py` |  |  |
+|  | `uv run scripts/checks/check_cli_to_page.py` |  |  |
+|  | `uv run scripts/checks/check_agents_set.py` |  |  |
+|  | `uv run scripts/checks/check_user_invocable.py` |  |  |
+|  | `uv run scripts/checks/check_req_normative_home.py --plan plan-067-james-dixson-de852a` |  |  |
+|  | `uv run scripts/check_amendment_log.py --plan plan-067-james-dixson-de852a` |  |  |
+|  | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
+|  | `uv run web/plugins/skill_diagrams.py --check` |  |  |
+|  | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -304,22 +340,37 @@ approved: yes
 | `web/pelicanconf.py` | `skill-page-contract` |
 | `README.md` | `web-counts`, `web-harness-paths`, `web-backend-claim` |
 | `AGENTS.md` | `web-harness-paths` |
-| `skills/*/SKILL.md` | `web-counts`, `skill-page-contract`, `web-negative-controls` |
+| `skills/*/SKILL.md` | `web-counts`, `skill-page-contract`, `web-negative-controls`, `required-set`, `user-invocable`, `skill-diagrams` |
 | `skills/*/formulas/**` | `web-counts` |
-| `yf/src/harness_desc.rs` | `web-harness-paths`, `web-negative-controls` |
+| `yf/src/harness_desc.rs` | `web-harness-paths`, `web-negative-controls`, `cli-to-page` |
+| `yf/src/cli.rs` | `cli-to-page`, `gate-plan067-controls` |
+| `skills/yf-plan/agents/*.md` | `agents-set` |
+| `skills/yf-research/agents/*.md` | `agents-set` |
+| `web/content/pages/workflows.md` | `agents-set` |
+| `scripts/checks/check_required_set.py` | `required-set`, `gate-plan067-controls` |
+| `scripts/checks/check_cli_to_page.py` | `cli-to-page`, `gate-plan067-controls` |
+| `scripts/checks/check_agents_set.py` | `agents-set`, `gate-plan067-controls` |
+| `scripts/checks/check_user_invocable.py` | `user-invocable` |
+| `scripts/checks/plan067_checks.py` | `plan067-verbs` |
+| `web/plugins/skill_model.py` | `skill-diagrams` |
+| `web/plugins/skill_diagrams.py` | `skill-diagrams` |
+| `web/content/images/skills/*.d2` | `skill-diagrams` |
+| `web/content/images/**` | `diagrams-published` |
+| `web/plugins/skill_pages.py` | `diagrams-published`, `skill-page-contract` |
+| `docs/plans/plan-067-james-dixson-de852a/**` | `okf-index-drift`, `gate-plan067-amendment`, `req-normative-home`, `plan067-verbs` |
 | `scripts/checks/check_web_counts.py` | `web-counts`, `web-negative-controls` |
 | `scripts/checks/check_web_harness_paths.py` | `web-harness-paths`, `web-negative-controls` |
 | `scripts/checks/check_skill_page_contract.py` | `skill-page-contract`, `web-negative-controls` |
 | `scripts/checks/check_web_backend_claim.py` | `web-backend-claim`, `web-negative-controls` |
 | `scripts/checks/_web_corpus.py` | `web-counts`, `web-harness-paths`, `web-backend-claim`, `web-negative-controls` |
 | `DRIFT-CHECK.md` | `drift-manifest-closure` |
-| `skills/yf-drift-check/spec/**` | `drift-manifest-closure` |
+| `skills/yf-drift-check/spec/**` | `drift-manifest-closure`, `req-normative-home` |
 | `docs/plans/**` | `okf-index-drift` |
 | `docs/plans/plan-060-james-dixson-6a6ac9/**` | `okf-index-drift`, `gate-plan060-amendment`, `gate-plan060-reqcoverage` |
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `req-normative-home` |
 | `skills/yf-okf/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-okf-hygiene/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |

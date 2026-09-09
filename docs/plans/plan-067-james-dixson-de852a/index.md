@@ -16,6 +16,40 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/spikes/exp001-architecture-stack.d2](assets/spikes/exp001-architecture-stack.d2)
 - [assets/spikes/exp001-dagre-sample.png](assets/spikes/exp001-dagre-sample.png)
 - [assets/spikes/exp001-elk-sample.png](assets/spikes/exp001-elk-sample.png)
+- [plan-retrospective.md](plan-retrospective.md) - 14 content defects and 11 process defects counted separately, plus the three instrument false-greens — including one this plan committed inside its own verification.
+- [assets/style-reference/README-plan.md](assets/style-reference/README-plan.md) - The operator's two reference images and what they are normative FOR: layout, never content (D8).
+- [assets/style-reference/architecture-reference.png](assets/style-reference/architecture-reference.png) - The layered-stack reference for `architecture.d2`. Its 13 boxes, wildcards and `yf-beads-hygeine` typo are LAYOUT, not content.
+- [assets/style-reference/red-team-chain.png](assets/style-reference/red-team-chain.png) - The ANTI-pattern: a wordy node whose label carries a whole verdict set.
+- `web/content/images/architecture-deps.d2` - NOT a bundle file; named here because Issue 7.0b created it and SC19/SC27c assert against it.
+- [assets/upstream-drafts/README-plan.md](assets/upstream-drafts/README-plan.md) - The full upstream write set for BOTH plans, DRAFTED AND UNPOSTED: ten actions, the ordering constraint, the exact commands, and the read-back verification.
+- [assets/upstream-drafts/247-comment.txt](assets/upstream-drafts/247-comment.txt)
+- [assets/upstream-drafts/263-comment.txt](assets/upstream-drafts/263-comment.txt)
+- [assets/upstream-drafts/317-comment.txt](assets/upstream-drafts/317-comment.txt)
+- [assets/upstream-drafts/372-comment.txt](assets/upstream-drafts/372-comment.txt)
+- [assets/upstream-drafts/373-comment.txt](assets/upstream-drafts/373-comment.txt)
+- [assets/upstream-drafts/374-comment.txt](assets/upstream-drafts/374-comment.txt)
+- [assets/upstream-drafts/375-comment.txt](assets/upstream-drafts/375-comment.txt)
+- [assets/upstream-drafts/376-comment.txt](assets/upstream-drafts/376-comment.txt)
+- [assets/upstream-drafts/379-comment.txt](assets/upstream-drafts/379-comment.txt)
+- [assets/upstream-drafts/w57p-body.txt](assets/upstream-drafts/w57p-body.txt) - Draft body for the yf-w57p follow-on, unposted.
+- [assets/upstream-drafts/w57p-title.txt](assets/upstream-drafts/w57p-title.txt)
+- [findings/plan066-handoff.md](findings/plan066-handoff.md) - Issue 6.4 executed: the restyled set presented to plan-066's gate, ACCEPTED by the operator 2026-09-08, unblocking its 8.1/8.3.
+- [findings/parked-state.md](findings/parked-state.md) - READ FIRST if you found this bundle in `executing`: it is HELD behind two human gates the operator chose to hold, not crashed. Carries the do-not-do list.
+- [findings/diagram-presentation.md](findings/diagram-presentation.md) - The MATERIAL for the Diagram human-read gate: what changed, what the checks established, and what no check can see. Not a read.
+- [findings/classb-disposition.md](findings/classb-disposition.md) - All fourteen Class-B (instrument) items dispositioned BY NAME: thirteen CLOSED, one FILED with an owner.
+- [findings/archify-trial.md](findings/archify-trial.md) - The Epic-3 archify-vs-d2 trial at the full content load, and the OPERATOR's 2026-09-07 verdict: KEEP FOR EXPLORATION.
+- [findings/omission-inventory.md](findings/omission-inventory.md) - The failure list the LANDED rule produced — 23 items in three populations. This, not EXP-003's table, is what Epic 2 repaired.
+- [findings/per-skill-census.md](findings/per-skill-census.md) - EXP-004's census REBUILT under a stated node/edge definition, and the re-derived publication threshold.
+- [assets/archify-trial/architecture.d2](assets/archify-trial/architecture.d2) - The d2 side of the trial, under the unchanged elk pin. Issue 3.2 declared it the starting point for Issue 4.1, and Issue 4.1 used it.
+- [assets/archify-trial/architecture.png](assets/archify-trial/architecture.png)
+- [assets/archify-trial/architecture.json](assets/archify-trial/architecture.json) - The archify spec. TRIAL EVIDENCE ONLY — deliberately NOT committed under web/content/.
+- [assets/archify-trial/architecture.html](assets/archify-trial/architecture.html) - The delivered archify viewer. Trial evidence only; never committed to the site and never checked.
+- [assets/archify-trial/architecture.visual-check.1440x900.light.png](assets/archify-trial/architecture.visual-check.1440x900.light.png)
+- [assets/archify-trial/architecture.visual-check.1440x900.dark.png](assets/archify-trial/architecture.visual-check.1440x900.dark.png)
+- [assets/archify-trial/architecture.visual-check.2048x1320.light.png](assets/archify-trial/architecture.visual-check.2048x1320.light.png)
+- [assets/archify-trial/architecture.visual-check.2048x1320.dark.png](assets/archify-trial/architecture.visual-check.2048x1320.dark.png)
+- [assets/archify-trial/architecture.visual-check.html](assets/archify-trial/architecture.visual-check.html)
+- [assets/archify-trial/architecture.visual-check.json](assets/archify-trial/architecture.visual-check.json) - archify's own visual-check verdict: exit 1 on viewport overflow and 2.35px projected text.
 - [findings/exp-001-archify-vs-d2.md](findings/exp-001-archify-vs-d2.md) - Keep d2. archify has no headless raster export, a non-self-contained artifact, an unvendorable dev-channel dependency, and a quality gate that penalises the very member ids the repo checks.
 - [findings/exp-002-required-set-derivability.md](findings/exp-002-required-set-derivability.md) - D4 refuted as scoped. A declared required set over derivable classes newly FAILs 17-18 of 20 pages and EVERY failure is an artifact. Exactly one class has a clean signal.
 - [findings/exp-003-omission-inventory.md](findings/exp-003-omission-inventory.md) - 73 real omissions (band 57-114; rejected upper bound 193). Ratio 53% real / 17% curation / 30% artifact. The required set must be corpus-wide, not per-page.
@@ -30,6 +64,8 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-1.md](reviews/pass-1.md) - Red-team pass 1: REVISE, 17 concerns (7 high). D6 refuted by a six-diagram measurement; three of D1's four archify grounds refuted.
 - [reviews/pass-2.md](reviews/pass-2.md) - Red-team pass 2: REVISE, 15 concerns. Two phantom resolutions, and pass-1's --min-checkers 8 floor measured UNREACHABLE — an always-passing criterion replaced by a never-passing one.
 - [reviews/pass-3.md](reviews/pass-3.md) - Red-team pass 3: APPROVE. No phantoms — all 15 pass-2 resolutions verified in the file bytes. Seven concerns, none high, none blocking.
+- [reviews/pass-4.md](reviews/pass-4.md) - Red-team pass 4 (amendment re-approval): REVISE, 11 concerns. The restyle silently lapses the membership guarantee through group DETECTION, and the no-edges style reverses one of #373's named asks.
+- [reviews/pass-5.md](reviews/pass-5.md) - Red-team pass 5 (final cycle): APPROVE, 6 concerns, none high. A spike empirically verified Issue 7.2's group-detection fix; three landed criteria were FALSE with no issue owning them.
 
 ## Findings
 
@@ -39,6 +75,9 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 | [exp-002-required-set-derivability.md](findings/exp-002-required-set-derivability.md) | A required set over derivable classes newly FAILs 17-18 of 20 pages, **every failure an artifact**. Only slash sub-verbs give a clean signal. |
 | [exp-003-omission-inventory.md](findings/exp-003-omission-inventory.md) | **73** real omissions (band 57-114; 193 rejected). Carries an amendment retracting its own false green, itself corrected once more. |
 | [exp-004-per-skill-diagram-model.md](findings/exp-004-per-skill-diagram-model.md) | Generate, do not hand-author: 20 authored diagrams would be 20 new drift surfaces. Found a live false claim on the published site. |
+| [omission-inventory.md](findings/omission-inventory.md) | **Execution-time.** What the landed rule actually FOUND: 15 mechanical omissions, 6 one-page-deep partials, and 2 that no checker reaches — the last recorded as a stated limit rather than repaired into invisibility. |
+| [archify-trial.md](findings/archify-trial.md) | **Execution-time.** Both builds of one diagram at the full content load, with the real checker's exit code per artifact — and the OPERATOR's verdict: KEEP FOR EXPLORATION, d2 stays the committed source of truth, adoption stays open as a separate plan. |
+| [per-skill-census.md](findings/per-skill-census.md) | **Execution-time.** EXP-004's census rebuilt under a definition that is now written down. Finds `edges == nodes-1` everywhere (these are stars, not graphs) and no zero-edge skill. |
 
 ## Reviews
 
@@ -46,12 +85,37 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 | :-- | :-- |
 | [pass-1.md](reviews/pass-1.md) | REVISE — 17 concerns. Refuted D6 by measurement and three of D1's four archify grounds. |
 | [pass-2.md](reviews/pass-2.md) | REVISE — 15 concerns, including two phantom resolutions and an unreachable vacuity floor. |
+| [pass-3.md](reviews/pass-3.md) | APPROVE — 7 concerns, none high; no phantoms. |
+| [pass-4.md](reviews/pass-4.md) | REVISE — 11 concerns on the Epic 7 amendment; the restyle lapsed membership via group DETECTION. |
+| [pass-5.md](reviews/pass-5.md) | APPROVE — 6 concerns, none high; a spike verified the group-detection fix empirically. |
+| [pass-3.md](reviews/pass-3.md) | APPROVE — 7 concerns, none high. No phantoms: all 15 pass-2 resolutions verified in the file bytes. |
 
 ## Upstream references
 
 `references/upstream-{373,376,375,374,317,247,263}.md` — full issue bodies as fetched at triage.
 Dispositions live in [upstream-triage.md](upstream-triage.md) and are restated in `plan.md`'s
 Upstream Issues table.
+
+## The archify trial (Epic 3)
+
+[assets/archify-trial/](assets/archify-trial/) — the SAME architecture diagram built twice at the
+full declared content load, plus archify's own `visual-check` rasters and verdict. The `.html` and
+`.json` are **trial evidence only** and are deliberately NOT committed under `web/content/`: two
+sources of one fact is the defect `e-web-diagram-formulas` exists to catch.
+
+The operator resolved the gate on **2026-09-07** as **KEEP FOR EXPLORATION** — d2 remains the
+committed, checked source of truth, and adoption stays open as a separate upstream plan rather than
+foreclosed. The reasoning and the four things such a plan would have to carry are in
+[findings/archify-trial.md](findings/archify-trial.md).
+
+## Style reference
+
+[assets/style-reference/](assets/style-reference/) — the two operator-supplied images that define
+D8, preserved so a cold reader can act on the spec rather than infer it.
+`architecture-reference.png` is the positive example (layered stack, bare-name boxes, no edges);
+`red-team-chain.png` is the negative one (metadata crammed into a label, and a state enumeration
+buried where a flow belongs). **Normative for LAYOUT only** — the skill census governs content,
+because the sketch uses wildcards, shows 13 boxes for 20 skills, and carries a typo.
 
 ## Spikes
 

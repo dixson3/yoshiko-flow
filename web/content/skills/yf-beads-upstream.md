@@ -12,6 +12,17 @@ for project status and tracking is configured. Routine local `bd` operations use
 canonical `beads` skill; direct-CLI scripting gotchas use
 [`yf-beads-extra`](/skills/yf-beads-extra/).
 
+## Sub-verbs
+
+The operator surface `/yf-beads-upstream` declares, verbatim from its `## Invocation`:
+
+| Invocation | Purpose |
+| :-- | :-- |
+| `/yf-beads-upstream init` | detect the remote, propose a backend, confirm with the operator, and write the `custom.upstream.*` config (including the `dolt.local-only` guard and the optional policy knobs) |
+| `/yf-beads-upstream push` | the land-the-plane push: enumerate open + deferred beads, preview, then perform the scoped `gh`-direct write and record each `external_ref` |
+| `/yf-beads-upstream status` | report the configured backend and the local↔upstream mapping state |
+| `/yf-beads-upstream pull` | enumerate upstream issues as the authoritative worklist |
+
 ## Three kinds of "push" — this is not `bd dolt push`
 
 The word "push" is overloaded across three orthogonal mechanisms. On any "push/sync
@@ -50,6 +61,29 @@ marker so the one-shot preflight offer stays silent forever.
 **The skill handles no auth token at all.** Writes are `gh`-direct, and `gh` owns its own
 credential store — so there is nothing to pass inline and nothing that could be persisted.
 Never write a token to config.
+
+### The owner-claimed exclusion, and `owner_on_create`
+
+Enumeration excludes beads that already carry an owner, on the reasoning that someone has
+claimed them. In a repo where `bd create` **auto-assigns** an owner, that exclusion swallows
+essentially everything, and the symptom is a push that reports a small candidate list rather
+than an error:
+
+```
+WARNING: 36 open bead(s) excluded as owner-claimed and will never be pushed. If `bd create`
+auto-assigns owners in this repo, set `custom.upstream.owner_on_create true`.
+```
+
+The remedy is one config write:
+
+```bash
+bd config set custom.upstream.owner_on_create true
+```
+
+**Do not read a short candidate list as "nothing to push" while that warning is present — the
+count is not the signal, the warning is.** From `enumerate` the warning goes to **stderr**, so
+`--json` stdout stays a pure array and a `| jq` pipeline hides it; `push` therefore repeats it
+**inline on stdout** so the signal survives the routed path.
 
 ## The push step
 
@@ -97,6 +131,22 @@ local bead set may be stale. Status enumerates open upstream issues ordered by l
 and priority, and treats local beads as a convenience view over that list. When
 tracking is disabled it falls back to the local worklist — `bd ready`, then
 `bd list --status open` — with no upstream calls.
+
+### `mappings` — reading the bead↔issue map back
+
+```bash
+uv run "${SKILL_DIR}/scripts/upstream.py" mappings --issues <bead-ids-csv> [--json]
+```
+
+Reports the recorded `external_ref` for the named beads. It is the verb that answers "did the
+write actually land, and where" — which matters because a `gh` exit 0 is not proof: the skill's
+writes are verified **structurally**, by a returned issue URL on create and a clean exit on edit,
+never by a scraped success line. A bead with no mapping is an issue nothing can map back, which is
+the failure mode routing every upstream write through this skill exists to prevent.
+
+Alongside it, `enumerate` lists push candidates, `granularity` and `config` report the resolved
+policy, `followons` lists the follow-on batch, and `hoist` / `unhoist` move a single bead upstream
+and back.
 
 ## `closable` — proposing, never closing
 

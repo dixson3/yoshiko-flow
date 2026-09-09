@@ -178,6 +178,73 @@ a hard failure.
 > were **not** deployed. So on a fresh machine run `yf harness skills install --tune` (or run
 > `yf harness tune` after a plain install).
 
+### Removing skills, and pruning a private tree
+
+Two different verbs, and the difference is the whole reason both exist.
+
+```bash
+yf harness skills remove --harness claude-code               # name-keyed removal of installed skills
+yf harness skills status                                     # install / up-to-date / completeness, per skill
+yf harness skills prune-private                              # DRY RUN — report what a prune would move
+yf harness skills prune-private --apply                      # the only path that mutates
+yf harness skills prune-private --root <a retired root>      # walk explicit root(s); repeatable
+yf harness skills prune-private --shared-root ~/.agents/skills   # the tree a kept dir is compared against
+yf harness skills prune-private --quarantine-dir /tmp/yf-quarantine   # where moved trees land
+yf harness skills prune-private --also-quarantine            # widen what the prune sweeps
+```
+
+**`prune-private` is not `remove` with a nicer name.** `remove` is a name-keyed `remove_dir_all`
+with no ownership check at all. `prune-private` walks each private skills root **directory by
+directory** — including members absent from the embedded skill set, which `status` is structurally
+blind to — classifies each into one of four outcomes, and **moves** to a timestamped quarantine
+rather than unlinking. It exists for the machines still carrying a pre-collapse layout
+(`.config/opencode/skills`, `.pi/skills`, `.opencode/skills`): those trees are searched by the
+`SKILL_DIR` resolver but are no longer install destinations, so a stale copy there is read while
+nothing updates it.
+
+**Dry run is the default, not a mode.** Without `--apply` the command writes nothing at all.
+
+### Pruning stale staged formulas
+
+```bash
+yf doctor                                                    # read-only diagnosis
+yf doctor --repair                                           # apply the beads-init repair sequence
+yf doctor --prune-formulas                                   # remove staged formulas no shipped skill owns
+```
+
+`yf preflight` **owns** formula staging — every run writes each beads-backed skill's embedded
+formulas into the project's `.beads/formulas/`. When a skill or a formula is retired, its staged
+copy is left behind, and `--prune-formulas` removes exactly those, using the staged-manifest
+marker (`.beads/formulas/.yf-staged.json`) to tell what `yf` put there from what you did.
+
+### The two `--force` flags on `yf self`, and what each overrides
+
+They are spelled the same and override different things. Both are documented here explicitly
+because a corpus-wide token check cannot distinguish them — `--force` is already documented
+elsewhere for other commands, so the mechanical CLI→page direction is structurally blind to a
+missing one of these two. That limit is declared rather than papered over.
+
+```bash
+yf self install --from-build --build --force    # overwrite an existing ~/.local/bin/yf
+yf self uninstall --force                       # proceed without the interactive confirmation
+```
+
+- **`yf self install --force`** overwrites an existing `~/.local/bin/yf` and suppresses the
+  staleness checks that would otherwise question the promotion. It **does not make the promotion
+  safe — it removes the objections.** Add it only when a re-deploy is genuinely intended and the
+  three preconditions above (on `main`, clean tree, in sync with `origin`) already hold.
+- **`yf self uninstall --force`** skips the interactive confirmation. Uninstall removes the
+  binary and the yf-owned XDG dirs and **never touches installed skills**.
+
+### Narrowing what a sync deploys
+### Narrowing what a sync deploys
+
+```bash
+yf harness tune --rules-only                                 # deploy the rules aggregate, leave config alone
+yf self install --from-build --build --no-skills             # promote the binary without redeploying skills
+yf self install --from-build --path ./target/release/yf      # promote from an explicit binary path
+```
+
 ### The install matrix — where skills land
 
 Each harness resolves to a skills directory under a scope anchor: **user** scope anchors at

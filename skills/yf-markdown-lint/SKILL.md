@@ -1,5 +1,6 @@
 ---
 name: yf-markdown-lint
+user-invocable: true
 skill-group: markdown
 depends-on-tool: [uv]
 depends-on-skill: []
@@ -95,6 +96,8 @@ fi
 <!-- <<< END SKILL_DIR resolver -->
 
 ## Invocation
+
+- `/yf-markdown-lint [<path> ...]` — lint files or directories as plain GFM (no args lints the current tree; `--rules ML001,...` selects a subset, `--format json` is machine-readable). Exit 1 on any violation
 
 ```
 /yf-markdown-lint [<path> ...] [--rules ML001,...] [--format text|json]

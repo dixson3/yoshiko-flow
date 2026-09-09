@@ -41,7 +41,10 @@ This plan works on **`web/` (a Pelican static site)**, the **`DRIFT-CHECK.md` ma
 - `gh`: gh version 2.100.0 (2026-09-03)
 - `glab`: glab 1.116.0 (e8436ca8a)
 - `claude`: 2.1.259 (Claude Code)
-- `d2`: v0.8.2 — currently pinned with `--theme 0 --layout elk`; **this plan proposes `dagre`** (D6)
+- `d2`: **v0.9.0** — pinned with `--theme 0 --layout elk`. Re-pinned from v0.8.2 on 2026-09-09
+  after the installed binary moved; geometry measured **identical 21/21**, so only the encoding
+  changed and no re-read was needed. **The `dagre` proposal (D6) was WITHDRAWN** at pass-4 C1 —
+  refuted across six diagrams. The layout stays `elk`.
 - `pelican`: 4.11.0 (`web/requirements.txt`)
 - `zsh`: 5.9
 - `archify`: installed at `~/.claude/skills/archify`, version `2.17.0-dev.1`, channel `development`

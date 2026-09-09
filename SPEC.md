@@ -1110,6 +1110,59 @@
 >   plan-066 Issue 0.1 was commissioned to perform.
 >
 >   Implementation lands in Epics 1-8; this entry records the SPEC-first Epic 0 amendment.
+>
+> - **plan-067 (2026-09-07, #373 / #374 / #375 / #376 / #247-partial / #263-partial):** diagram-set
+>   redesign, plus the rule change that keeps it complete. The Epic-0 amendment is SPEC-first: the
+>   drift engine could not see an **omission** at all, so a diagram or page that simply left a real
+>   relationship out passed every check by construction.
+>
+>   **Added `REQ-CHECK-012` — a frontmatter key with a THREE-VALUED source of truth shall not be
+>   read as two-valued.** `yf/src/frontmatter.rs` types `user-invocable:` as `Option<bool>`, where
+>   absent means *unknown*; `web/plugins/skill_pages.py` coerced absent to `False`. The two readings
+>   disagree only on the absent case, which is exactly the case neither side declares — so the live
+>   site rendered four skills as "auto (fires from its description conditions)" while their own
+>   descriptions read `TRIGGER when: /yf-markdown-lint invoked`. **A live false claim, produced by
+>   nothing more than a default argument.** The requirement, in three obligations: **(a)** a
+>   tri-state key shall be POPULATED at every producing site rather than defaulted at the consuming
+>   one — a default is a second, undeclared source of truth; **(b)** the population shall be
+>   MECHANICALLY ASSERTED, so the absent case cannot silently return; **(c)** where a consumer must
+>   nonetheless choose, it shall choose the reading that FAILS LOUDLY rather than the one that
+>   renders a plausible falsehood. Resolved on the **populate-all-20** branch: making the reader
+>   fail-closed would have left the frontmatter itself ambiguous, and the ambiguity is the defect.
+>
+>   **Added `REQ-CHECK-013` — the omission rule, and the headline behavior change.** A
+>   set-membership claim now FAILs on a **missing** member, not only a wrong one: the check
+>   computes both differences. `DRIFT-CHECK.md`'s prior wording — a page that "curates or omits
+>   repo-dev detail PASSes; only an affirmative contradiction FAILs" — made an omission invisible
+>   *by construction*. Measured: deleting two members of an enumerated group while leaving its
+>   count unchanged exited **0**. The `members is None` branch is named as part of the
+>   requirement rather than left to the implementation, because a membership check that runs only
+>   inside the `else` of "were any ids enumerated?" lands the new FAIL in the one branch where the
+>   omission cannot occur — and a diagram redesigned with *fewer* enumerated labels is then the
+>   easiest possible evasion (`#376`, the `#263` two-facts-one-signal class).
+>
+>   **Added `REQ-CHECK-010` — a required-set check DECLARES its scope and carries a VACUITY
+>   FLOOR.** v1 scope is **slash sub-verbs only**, the predicate is **corpus-wide** ("documented
+>   somewhere on the site"), and an under-floor derivation is INCONCLUSIVE rather than green.
+>   Measured: a required set over the derivable *frontmatter* classes newly FAILed 17-18 of 20
+>   green pages with **every failure an artifact**, and a per-page predicate manufactures ~30
+>   false failures on two pages alone. Script-verb coverage is excluded **by name** as
+>   irreducibly editorial — 40 registrations, zero visibility metadata.
+>
+>   **Added `REQ-CHECK-011` — a one-directional edge over a two-directional obligation is HALF a
+>   check.** `e-web-cli-surface`'s two declared failure directions were **both** page→CLI, so no
+>   check anywhere could see a shipped command that no page documents. Measured consequence:
+>   `yf harness skills prune-private`, live and **destructive**, is documented nowhere. The new
+>   source→derived direction is realized as a set difference with an exit code; **positional
+>   arguments are excluded** (clap derives long flags from field names, and a naive extractor
+>   returned 12 "missing" of which 5 were positionals — a ~40% artifact rate).
+>
+>   **Added `REQ-CHECK-014` — the `e-web-agents-set` edge, SCOPED.** The scope
+>   (`skills/{yf-plan,yf-research}/agents/*.md`) is a required part of the edge: unscoped it
+>   returns 23 files across 6 skills and surfaces 4-7 out-of-scope agents against **1** real
+>   finding — an 80-87% artifact rate that buries the thing it catches.
+>
+>   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
 

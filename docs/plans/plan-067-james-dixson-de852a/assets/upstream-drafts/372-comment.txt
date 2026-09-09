@@ -1,0 +1,28 @@
+**plan-066-james-dixson-e7fadb is complete.** Commit `1112676`.
+
+Nine epics: the SPEC-first repair of the drift engine's own contradiction, the P0 build unbreak,
+the two Class-B halves (the mechanical gate and the manifest repair), the Class-A prose and
+diagram repairs driven by checker output, editorial coverage, adjacent surfaces, and closure.
+
+**26 content defects, 9 process defects, 1 instrument false-green** — separated with counts in
+`docs/plans/plan-066-james-dixson-e7fadb/plan-retrospective.md`, per #317's acceptance criteria.
+
+What this plan changed about how defects are caught, beyond the defects themselves:
+
+- **`REQ-CHECK-008`** — a decidable predicate must be realized as a **runnable checker**, and the
+  **source-side trigger is mandatory**. An absent file is never edited and can never fire its own
+  on-edit check.
+- **`REQ-CHECK-009`** — a mechanical gate must **declare what it does not cover**, in its own
+  machine-readable output. A green with an undeclared boundary is indistinguishable from a green
+  with none.
+- **`REQ-CHECK-004`** split into its two halves, which had been stated as one requirement and put
+  the reachability half in contradiction with `REQ-CHECK-005` — leaving a node-level check with
+  no firing surface at all.
+
+Its diagram half was completed by **plan-067** (#373) after a human read declined this plan's set;
+that handoff is why #317 closed only now.
+
+Follow-ons filed and tagged by class in `findings/followons.md`; #247 and #263 remain **open** as
+partials.
+
+Closing.

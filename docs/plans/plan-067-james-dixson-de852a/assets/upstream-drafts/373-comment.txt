@@ -1,0 +1,42 @@
+Delivered by **plan-067** (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`.
+
+## Both halves shipped
+
+**Half 2 — omissions FAIL.** `REQ-CHECK-013` landed SPEC-first: a set-membership claim now fails
+on a **missing** member, not only a wrong one. Measured before the change: deleting two members of
+an enumerated group while leaving its count unchanged exited **0**. The `members is None` branch
+(#376) is closed in the same pass, because the omission check would otherwise have landed in the
+one branch where the omission cannot occur.
+
+Three further omission classes became mechanical: a declared slash sub-verb absent from the whole
+site (`REQ-CHECK-010`), a shipped CLI surface no page documents (`REQ-CHECK-011` — this is what
+reached `yf harness skills prune-private`, live and destructive and documented nowhere), and an
+in-scope pipeline agent the workflows page does not name (`REQ-CHECK-014`).
+
+The prose that contradicted the new rule — *"a page that curates or omits detail PASSes"* — was
+narrowed to **prose only** at all four sites rather than left standing beside it.
+
+**Half 1 — the diagram set.** 6 diagrams became 21:
+
+- `architecture.d2` is a layered stack; a new `architecture-deps.d2` carries the relations,
+  including all **twelve** `depends-on-skill` edges. The count is twelve, not the ten this issue
+  and the plan both assumed — the two missed were `yf-okf-hygiene → yf-okf` and
+  `yf-optimal-instructions → yf-skill-authoring`.
+- `phase-model` + `lifecycle` combined; `install-matrix` + `tune-matrix` combined.
+- `formulas.d2` (the generic ER meta-diagram) **removed** as asked, replaced by a skills/agents →
+  formulas map plus **one diagram per shipped formula**.
+- **11 per-skill diagrams, GENERATED** from a shared model, published on a computed threshold with
+  `--check` in the validation recipe. Hand-authoring 20 would have been 20 new drift surfaces.
+
+## The finding worth more than the deliverable
+
+**Three fully-green diagram sets were presented to the human-read gate. Two were declined.**
+plan-066's six, then plan-067's first twenty — every checker at 0, every PNG byte-identical to a
+fresh render — and both were turned down as redesign requests. The restyled third was accepted on
+2026-09-08.
+
+The checks were not wrong on any of the three occasions. **No mechanical signal distinguished the
+accepted set from the two declined ones.** That is three measurements, not an opinion, and it is
+the strongest evidence this repository has for keeping that gate `gate_type: human`.
+
+Closing.

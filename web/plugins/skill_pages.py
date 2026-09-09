@@ -44,6 +44,7 @@ generated pages are written through Pelican's normal page pipeline and theme.
 """
 
 import glob
+import logging
 import os
 import re
 
@@ -52,6 +53,21 @@ from markdown import Markdown
 
 from pelican import signals
 from pelican.contents import Page
+
+try:  # pelican puts the plugin dir on sys.path; a direct import must still work in tests.
+    import skill_model
+except ImportError:  # pragma: no cover
+    import sys as _sys
+    _sys.path.insert(0, _os_dirname := __import__("os").path.dirname(__file__))
+    import skill_model
+
+logger = logging.getLogger(__name__)
+
+# #374 — the non-trivial-content floor for an authored skill page, measured in RENDERABLE PROSE
+# (frontmatter and headings stripped). Low on purpose: it is a floor against a ZERO-BYTE or
+# title-only page, not an editorial standard. The smallest real page in the corpus is far above
+# it, so this cannot fire on legitimate prose.
+MIN_AUTHORED_PAGE_CHARS = 200
 
 # Install groups (the `skill-group` frontmatter). Display order + human labels; any group not
 # listed here is appended alphabetically, so a new skill-group never silently disappears.
@@ -76,70 +92,16 @@ def _fresh_md():
     return Markdown(extensions=["markdown.extensions.extra", "markdown.extensions.codehilite"])
 
 
-def _parse_frontmatter(text):
-    """Return the YAML frontmatter of a SKILL.md as a dict (empty dict if none/invalid)."""
-    match = _FRONTMATTER.match(text)
-    if not match:
-        return {}
-    try:
-        data = yaml.safe_load(match.group(1))
-    except yaml.YAMLError:
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _split_description(description):
-    """Split a skill ``description`` into (summary, trigger, skip) prose blocks.
-
-    The convention: free prose, then ``TRIGGER when: …`` then optional ``SKIP for: …``.
-    Whitespace/newlines from a folded YAML scalar are collapsed to single spaces.
-
-    Only ``summary`` reaches the rendered page (the title one-liner). ``trigger`` / ``skip``
-    are no longer surfaced as generated blocks — the authored prose folds trigger/skip
-    guidance into its own narrative — but are kept on the skill dict for the index/nav layer
-    and any future consumer.
-    """
-    text = " ".join((description or "").split())
-    trigger = skip = ""
-    skip_idx = text.find("SKIP for:")
-    trig_idx = text.find("TRIGGER when:")
-
-    if skip_idx != -1:
-        skip = text[skip_idx + len("SKIP for:") :].strip()
-        text = text[:skip_idx].strip()
-    if trig_idx != -1 and (skip_idx == -1 or trig_idx < skip_idx):
-        # trig_idx is relative to the original text; recompute against the (possibly
-        # skip-trimmed) text, which shares the same prefix up to trig_idx.
-        trigger = text[trig_idx + len("TRIGGER when:") :].strip()
-        summary = text[:trig_idx].strip()
-    else:
-        summary = text
-    return summary, trigger, skip
-
-
-def _read_skills(repo_root):
-    """Read every skills/*/SKILL.md; return a sorted list of skill dicts."""
-    skills = []
-    pattern = os.path.join(repo_root, "skills", "*", "SKILL.md")
-    for path in sorted(glob.glob(pattern)):
-        with open(path, encoding="utf-8") as fh:
-            fm = _parse_frontmatter(fh.read())
-        name = fm.get("name") or os.path.basename(os.path.dirname(path))
-        summary, trigger, skip = _split_description(fm.get("description", ""))
-        skills.append(
-            {
-                "name": name,
-                "group": fm.get("skill-group", "other"),
-                "invocable": bool(fm.get("user-invocable", False)),
-                "summary": summary,
-                "trigger": trigger,
-                "skip": skip,
-                "depends_on_tool": list(fm.get("depends-on-tool") or []),
-                "depends_on_skill": list(fm.get("depends-on-skill") or []),
-                "dependents": [],  # filled in by add_skill_pages (reverse of depends_on_skill)
-            }
-        )
-    return skills
+# ---------------------------------------------------------------------------
+# THE READER IS FACTORED OUT (plan-067 Issue 5.1). `skill_model.py` is the ONE reader of
+# `skills/*/SKILL.md`, so this page and the generated per-skill diagram provably read one
+# source. Two readers of one frontmatter is two grammars, and they disagree exactly where it
+# matters — which is what `REQ-CHECK-012` was written for.
+# ---------------------------------------------------------------------------
+_parse_frontmatter = skill_model.parse_frontmatter
+_split_description = skill_model.split_description
+_read_user_invocable = skill_model.read_user_invocable
+_read_skills = skill_model.read_skills
 
 
 def _ordered_groups(skills):
@@ -221,8 +183,26 @@ def _skill_page_html(settings, skill, known):
             f' &middot; <a href="{rdme}"><code>README.md</code></a></li>'
         )
     parts.append("</ul>")
+    # The GENERATED per-skill diagram, embedded only where one was published.
+    #
+    # Publication is a COMPUTED THRESHOLD in `skill_diagrams.py`, not a list here — so this
+    # block must ask the FILESYSTEM whether a diagram exists rather than re-deciding. Two
+    # copies of the threshold is two sources of truth for one fact, which is the defect class
+    # this whole plan is about.
+    diagram = os.path.join(settings["PATH"], "images", "skills", name + ".png")
+    if os.path.isfile(diagram):
+        parts.append(
+            f'<h2>Structure</h2>\n<p><img src="/images/skills/{name}.png" '
+            f'alt="Generated structure diagram for {name}: its skill-group and invocation, '
+            f'its declared tool and skill dependencies, the skills that depend on it, and the '
+            f'scripts, agents, formulas and protocols it ships"></p>\n'
+            f'<p><em>Generated from frontmatter and directory listings by '
+            f'<code>web/plugins/skill_diagrams.py</code> — it cannot drift from the skill it '
+            f'describes, and <code>--check</code> in the validation recipe is what makes that a '
+            f'guarantee rather than a convenience.</em></p>'
+        )
     # Prose body: the authored content/skills/<name>.md (the fail-closed guard guarantees it
-    # exists; an intentionally empty file simply renders no body below the quick reference).
+    # exists and carries non-trivial content).
     authored = _authored_page_html(settings, name)
     if authored:
         parts.append("<hr>")
@@ -290,18 +270,45 @@ def add_skill_pages(generator):
     if not skills:
         return
 
-    # Fail-closed: every skill MUST have an authored content/skills/<name>.md. A skill without
-    # one would otherwise ship an ungoverned, drift-check-less page, so the build stops here and
-    # names the offenders. The signal is also recorded on the context for tests / diagnostics.
-    missing = sorted(
-        s["name"] for s in skills if not os.path.isfile(_authored_page_path(settings, s["name"]))
-    )
+    # Fail-closed: every skill MUST have an authored content/skills/<name>.md, AND that page
+    # must carry NON-TRIVIAL CONTENT.
+    #
+    # #374: this guard used to be EXISTENCE-ONLY (`os.path.isfile`), so a ZERO-BYTE page built
+    # green with zero warnings. Existence is not content — `touch` satisfied a check whose whole
+    # purpose is that a governed page exists to be checked. That gap matters more now than when
+    # it was written: the per-skill diagrams are GENERATED, and a generated artifact is exactly
+    # the kind that can be emitted empty and still pass a presence test.
+    #
+    # The floor is deliberately LOW and measured in RENDERABLE PROSE, not bytes: the frontmatter
+    # block, whitespace and a lone heading are stripped before counting, so a page consisting of
+    # a title and nothing else does not pass by virtue of its title.
+    missing, trivial = [], []
+    for s in skills:
+        path = _authored_page_path(settings, s["name"])
+        if not os.path.isfile(path):
+            missing.append(s["name"])
+            continue
+        with open(path, encoding="utf-8") as fh:
+            body = _FRONTMATTER.sub("", fh.read())
+        prose = "\n".join(ln for ln in body.splitlines() if not ln.lstrip().startswith("#"))
+        if len(prose.strip()) < MIN_AUTHORED_PAGE_CHARS:
+            trivial.append(f"{s['name']} ({len(prose.strip())} chars)")
+    missing, trivial = sorted(missing), sorted(trivial)
     generator.context["missing_authored_page"] = missing
+    generator.context["trivial_authored_page"] = trivial
     if missing:
         raise RuntimeError(
             "skill_pages: no authored web/content/skills/<name>.md for: "
             + ", ".join(missing)
             + ". Every skill needs an authored page (add one under web/content/skills/)."
+        )
+    if trivial:
+        raise RuntimeError(
+            "skill_pages: authored page(s) below the "
+            f"{MIN_AUTHORED_PAGE_CHARS}-char non-trivial-content floor (#374): "
+            + ", ".join(trivial)
+            + ". A page that EXISTS but says nothing is not a governed page — existence is not "
+              "content."
         )
 
     # Reverse the depends-on-skill graph so each skill page can show what depends on IT.

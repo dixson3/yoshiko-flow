@@ -58,4 +58,4 @@ plus `parked` (deliberately paused) and `abandoned`.
 
 An incubator holds research state, not an execution DAG. When the parked thinking is ready to become work, `## Beads to file` routes to the beads skills — `bd create`, dependency edges per the direct-CLI conventions — or to [yf-plan](/skills/yf-plan/) for a full plan-and-execute DAG. The stubs stay human-readable until that hand-off. This keeps one durable task system (beads) and one research-parking surface, without one masquerading as the other.
 
-`/yf-incubator` is a beads-free utility skill. It has no companion rule and stores no runtime state of its own — every durable thing is the per-incubator markdown under `Incubator/`.
+`/yf-incubator` is a **workflows**-group skill (`skill-group: workflows`) that depends on [yf-beads-extra](/skills/yf-beads-extra/) for the direct-CLI conventions its `## Beads to file` hand-off uses. It runs no beads pipeline of its own, has no companion rule, and stores no runtime state — every durable thing is the per-incubator markdown under `Incubator/`.

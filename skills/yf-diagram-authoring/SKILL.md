@@ -112,6 +112,10 @@ fi
 ```
 <!-- <<< END SKILL_DIR resolver -->
 
+## Invocation
+
+- `/yf-diagram-authoring` — author or regenerate a diagram as `.d2` source plus its light-mode `.png` render, keeping the source beside every render. No sub-verbs: the caller supplies the output location, and the render pipeline (`render.py preflight` / `render` / `render-dir` / `check-dir`) is an implementation detail, not an operator surface
+
 ## Workflow
 
 1. **Preflight.** `uv run ${SKILL_DIR}/scripts/render.py preflight` — confirms `d2` is on PATH (the *only*

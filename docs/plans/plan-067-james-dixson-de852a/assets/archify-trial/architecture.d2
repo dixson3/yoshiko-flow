@@ -1,0 +1,145 @@
+# yoshiko-flow architecture — FULL content load (plan-067 Issue 3.2, archify-vs-d2 trial).
+# Layer 1 external tools · Layer 2 the 20 embedded skills in 4 groups · Layer 3 the yf CLI verbs.
+# Tool -> skill edges are the `depends-on-tool` frontmatter; skill -> skill edges are
+# `depends-on-skill` (12 edges, measured). `uv` is drawn as a SHARED SUBSTRATE, not 16 arrows.
+direction: down
+
+tools: {
+  label: "Layer 1 — external tools (8)"
+  style.stroke-dash: 3
+
+  bd: {label: "bd\nDolt-backed issue DB"; shape: cylinder}
+  gh: {label: "gh\nGitHub CLI"}
+  git: {label: "git"}
+  pandoc: {label: "pandoc"}
+  xelatex: {label: "xelatex"}
+  d2bin: {label: "d2\ndiagram renderer"}
+  herdr: {label: "herdr\nterminal multiplexer"}
+}
+
+uv: {
+  label: "uv — shared Python substrate for 16 of the 20 skills\n(all except beads-authoring, beads-extra, diagram-authoring, drift-check)"
+  style.stroke-dash: 4
+}
+
+skills: {
+  label: "Layer 2 — embedded skills (20)"
+
+  workflows: {
+    label: "workflows (3)\nyf-incubator · yf-plan · yf-research"
+    incubator: "yf-incubator"
+    plan: "yf-plan"
+    research: "yf-research"
+  }
+
+  beads: {
+    label: "beads (5)\nyf-beads-authoring · yf-beads-extra · yf-beads-hygiene\nyf-beads-init · yf-beads-upstream"
+    authoring: "yf-beads-authoring"
+    extra: "yf-beads-extra"
+    hygiene: "yf-beads-hygiene"
+    init: "yf-beads-init"
+    upstream: "yf-beads-upstream"
+  }
+
+  utility: {
+    label: "utility (8)\nyf-change-validation · yf-diagram-authoring · yf-drift-check · yf-herdr\nyf-okf · yf-okf-hygiene · yf-optimal-instructions · yf-skill-authoring"
+    changeval: "yf-change-validation"
+    diagram: "yf-diagram-authoring"
+    drift: "yf-drift-check"
+    herdrskill: "yf-herdr"
+    okf: "yf-okf"
+    okfhyg: "yf-okf-hygiene"
+    optinstr: "yf-optimal-instructions"
+    skillauth: "yf-skill-authoring"
+  }
+
+  markdown: {
+    label: "markdown (4)\nyf-markdown-format · yf-markdown-html · yf-markdown-lint · yf-markdown-pdf"
+    fmt: "yf-markdown-format"
+    html: "yf-markdown-html"
+    lint: "yf-markdown-lint"
+    pdf: "yf-markdown-pdf"
+  }
+}
+
+cli: {
+  label: "Layer 3 — the yf CLI"
+
+  verbs: {
+    label: "top-level verbs"
+    doctor: "yf doctor"
+    preflight: "yf preflight"
+    migrate: "yf migrate"
+    skilldir: "yf skill-dir"
+    version: "yf version"
+  }
+
+  self: {
+    label: "yf self"
+    update: "update"
+    install: "install"
+    uninstall: "uninstall"
+  }
+
+  harness: {
+    label: "yf harness"
+    tune: "tune"
+    hskills: {
+      label: "skills"
+      hinstall: "install"
+      hupgrade: "upgrade"
+      hremove: "remove"
+      hstatus: "status"
+      hprune: "prune-private"
+    }
+  }
+
+  deprecated: {
+    label: "yf skills\n(deprecated alias)"
+    style.stroke-dash: 5
+  }
+}
+
+# --- Layer 1 -> Layer 2 : depends-on-tool ---------------------------------
+tools.bd -> skills.beads.authoring
+tools.bd -> skills.beads.extra
+tools.bd -> skills.beads.hygiene
+tools.bd -> skills.beads.init
+tools.bd -> skills.beads.upstream
+tools.bd -> skills.workflows.plan
+tools.bd -> skills.workflows.research
+
+tools.git -> skills.beads.hygiene
+tools.git -> skills.beads.init
+tools.git -> skills.utility.okfhyg
+tools.git -> skills.workflows.plan
+tools.git -> skills.workflows.research
+
+tools.gh -> skills.beads.upstream
+tools.herdr -> skills.utility.herdrskill
+tools.d2bin -> skills.utility.diagram
+
+tools.pandoc -> skills.markdown.html
+tools.pandoc -> skills.markdown.pdf
+tools.xelatex -> skills.markdown.pdf
+
+uv -> skills: {style.stroke-dash: 4; label: "substrate"}
+
+# --- Layer 2 -> Layer 2 : depends-on-skill (12 edges, measured) -----------
+skills.beads.authoring -> skills.beads.extra
+skills.beads.hygiene -> skills.beads.extra
+skills.beads.hygiene -> skills.beads.init
+skills.beads.init -> skills.beads.extra
+skills.beads.upstream -> skills.beads.extra
+skills.workflows.incubator -> skills.beads.extra
+skills.workflows.plan -> skills.beads.extra
+skills.workflows.plan -> skills.beads.authoring
+skills.workflows.research -> skills.beads.extra
+skills.workflows.research -> skills.beads.authoring
+skills.utility.okfhyg -> skills.utility.okf
+skills.utility.optinstr -> skills.utility.skillauth
+
+# --- Layer 3 -> Layer 2 ---------------------------------------------------
+cli.harness.hskills -> skills: "deploys the embedded tree"
+cli.deprecated -> cli.harness.hskills: {style.stroke-dash: 5; label: "alias"}
+cli.verbs.preflight -> tools: "gates on tool presence"

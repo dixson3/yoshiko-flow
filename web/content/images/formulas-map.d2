@@ -1,0 +1,109 @@
+# The skills / agents -> formulas map (#373).
+#
+# WHICH SKILL OWNS WHICH FORMULA, and WHICH AGENT each formula's steps dispatch. This replaces
+# the former generic `formulas.d2` ER meta-diagram: that drawing explained what a formula IS,
+# which the formulas page already says in prose, and answered none of the questions a reader
+# actually arrives with — who owns this, what does it pour, and who runs each step.
+#
+# Sources of truth: skills/*/formulas/*.formula.toml (the `[[steps]]` and their descriptions)
+# and skills/*/agents/*.md (the dispatched subagents).
+direction: right
+
+yfplan: {
+  label: "yf-plan"
+  style.fill: "#eef2ff"
+  style.stroke: "#4f46e5"
+
+  execute: {
+    label: "plan-execute"
+    workflow_liquid_pour: "workflow · LIQUID (pour)"
+    shape: rectangle
+    style.fill: "#e0e7ff"
+  }
+  investigate: {
+    label: "plan-investigate"
+    workflow_vapor_wisp_burned: "workflow · VAPOR (wisp, burned)"
+    shape: rectangle
+    style.fill: "#ede9fe"
+  }
+  review: {
+    label: "plan-review"
+    workflow_vapor_wisp: "workflow · VAPOR (wisp)"
+    shape: rectangle
+    style.fill: "#ede9fe"
+  }
+  verify: {
+    label: "verify-artifact"
+    aspect_attaches_never_pours: "ASPECT — attaches, never pours"
+    shape: rectangle
+    style.fill: "#ecfeff"
+    style.stroke-dash: 3
+  }
+}
+
+yfresearch: {
+  label: "yf-research"
+  style.fill: "#f0fdf4"
+  style.stroke: "#15803d"
+
+  research: {
+    label: "yf-research"
+    workflow_liquid_pour: "workflow · LIQUID (pour)"
+    shape: rectangle
+    style.fill: "#dcfce7"
+  }
+}
+
+plan_agents: {
+  label: "skills/yf-plan/agents/"
+  style.fill: "#f8fafc"
+  investigator: "investigator.md"
+  planner: "planner.md"
+  reviewer: "reviewer.md"
+  redteam: "red-team.md"
+  coordinator: "coordinator.md"
+  reconciler: "reconciler.md"
+  captor: "captor.md"
+  lander: "lander.md"
+}
+
+research_agents: {
+  label: "skills/yf-research/agents/"
+  style.fill: "#f8fafc"
+  toolsmith: "toolsmith.md"
+  retriever: "retriever.md"
+  triangulator: "triangulator.md"
+  synthesizer: "synthesizer.md"
+  redteam: "red-team.md"
+  refiner: "refiner.md"
+  packager: "packager.md"
+  coordinator: "coordinator.md"
+}
+
+yfplan.investigate -> plan_agents.investigator: "one bead per experiment"
+yfplan.review -> plan_agents.reviewer: "step: conformance"
+yfplan.review -> plan_agents.redteam: "step: red-team"
+yfplan.execute -> plan_agents.coordinator: "drives the DAG"
+yfplan.execute -> plan_agents.reconciler: "injected reconcile step"
+yfplan.verify -> yfplan.review: "[compose] aspects" { style.stroke-dash: 3 }
+
+plan_agents.planner: {style.stroke-dash: 4}
+plan_agents.captor: {style.stroke-dash: 4}
+plan_agents.lander: {style.stroke-dash: 4}
+
+note: {
+  label: "planner · captor · lander are dispatched by SKILL.md PROSE,"
+  not_by_a_formula_step_they_h: "not by a formula step — they have no formula edge, and that is"
+  correct_rather_than_a_gap: "correct rather than a gap."
+  shape: text
+  near: bottom-center
+}
+
+yfresearch.research -> research_agents.toolsmith: "step: tooling"
+yfresearch.research -> research_agents.retriever: "injected retrieval beads"
+yfresearch.research -> research_agents.triangulator: "step: triangulate"
+yfresearch.research -> research_agents.synthesizer: "step: synthesize"
+yfresearch.research -> research_agents.redteam: "step: critique"
+yfresearch.research -> research_agents.refiner: "step: refine"
+yfresearch.research -> research_agents.packager: "step: package"
+yfresearch.research -> research_agents.coordinator: "drives the DAG"

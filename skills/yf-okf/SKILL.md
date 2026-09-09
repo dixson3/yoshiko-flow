@@ -158,6 +158,10 @@ into the target folder).
 
 ## Invocation
 
+- `/yf-okf init` — initialize yf-okf for a project (prereq check + install; § Init)
+- `/yf-okf check` — run the composed-ruleset conformance self-check over a bundle; report-only
+- `/yf-okf migrate` — opt-in, per-folder, in-place migration of one bundle to the OKF model (`--dry-run`)
+
 ```
 /yf-okf <subcommand>
 ```

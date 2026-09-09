@@ -21,7 +21,7 @@ yf harness tune --dry-run                        # preview without writing
 
 ## The tune matrix — config file + rule target
 
-![yf harness tune: the config file and rule managed-block target per harness](/images/tune-matrix.png)
+![The combined yf harness provision matrix: the five `yf harness skills` verbs and where the skill tree lands per harness and scope (skills_subpath), alongside `yf harness tune`'s config surface (surface_dir), its four rule managed-block targets, the consent gate, and the .yf/ ownership manifest](/images/install-matrix.png)
 
 `tune` runs two sub-operations per selected harness × scope: it **aligns the config file**
 (only for harnesses that ship a config profile) and it **deploys the always-loaded rule

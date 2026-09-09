@@ -1,0 +1,132 @@
+# yoshiko-flow DEPENDENCY RELATIONS (plan-067 Issues 7.0b + 7.4).
+#
+# SPLIT FROM `architecture.d2`. The Diagram human-read gate rejected the first set for style, and
+# D8's reference stack is EDGE-FREE — so the relations moved here rather than being deleted.
+# Without the split, Issue 7.1 would have removed these edges and SILENTLY REVERSED one of #373's
+# three named additions (the workflows->utility relation) while `resolves-upstream: #373 (include)`
+# still claimed to deliver it.
+#
+# `architecture.d2` answers "what is there". THIS file answers "what depends on what".
+#
+# RESTYLED (7.4): NO sublabels, NO parenthetical counts. The four `skill-group` containers use the
+# same COUNT-FREE form as the stack, so `check_web_counts`'s container detector reads membership
+# here too — the restyle made this file MORE checkable, not less.
+#
+# THE TWELVE `depends-on-skill` EDGES ARE MEASURED FROM FRONTMATTER. The two a hand count misses
+# are `yf-okf-hygiene -> yf-okf` and `yf-optimal-instructions -> yf-skill-authoring`. THE
+# WORKFLOWS->UTILITY RELATION #373 NAMES BY HAND is carried by `yf-plan` / `yf-research` ->
+# `yf-beads-authoring`.
+#
+# Node ids are the FULL SKILL NAMES on purpose: a checker deriving the declared set from
+# frontmatter cannot match an edge written in an alias it has never seen.
+direction: right
+
+tools: {
+  grid-columns: 4
+  bd: "bd"
+  gh: "gh"
+  git: "git"
+  pandoc: "pandoc"
+  xelatex: "xelatex"
+  d2: "d2"
+  herdr: "herdr"
+  uv: "uv"
+}
+
+skills: {
+  workflows: {
+    grid-columns: 3
+    yf-incubator: "yf-incubator"
+    yf-plan: "yf-plan"
+    yf-research: "yf-research"
+  }
+  beads: {
+    grid-columns: 3
+    yf-beads-authoring: "yf-beads-authoring"
+    yf-beads-extra: "yf-beads-extra"
+    yf-beads-hygiene: "yf-beads-hygiene"
+    yf-beads-init: "yf-beads-init"
+    yf-beads-upstream: "yf-beads-upstream"
+  }
+  utility: {
+    grid-columns: 4
+    yf-change-validation: "yf-change-validation"
+    yf-diagram-authoring: "yf-diagram-authoring"
+    yf-drift-check: "yf-drift-check"
+    yf-herdr: "yf-herdr"
+    yf-okf: "yf-okf"
+    yf-okf-hygiene: "yf-okf-hygiene"
+    yf-optimal-instructions: "yf-optimal-instructions"
+    yf-skill-authoring: "yf-skill-authoring"
+  }
+  markdown: {
+    grid-columns: 4
+    yf-markdown-format: "yf-markdown-format"
+    yf-markdown-html: "yf-markdown-html"
+    yf-markdown-lint: "yf-markdown-lint"
+    yf-markdown-pdf: "yf-markdown-pdf"
+  }
+}
+
+cli: {
+  verbs: {
+    grid-columns: 5
+    doctor: "yf doctor"
+    preflight: "yf preflight"
+    migrate: "yf migrate"
+    skilldir: "yf skill-dir"
+    version: "yf version"
+  }
+  self: {
+    grid-columns: 3
+    update: "yf self update"
+    install: "yf self install"
+    uninstall: "yf self uninstall"
+  }
+  harness: {
+    grid-columns: 6
+    tune: "yf harness tune"
+    hinstall: "yf harness skills install"
+    hupgrade: "yf harness skills upgrade"
+    hremove: "yf harness skills remove"
+    hstatus: "yf harness skills status"
+    hprune: "yf harness skills prune-private"
+  }
+  deprecated: "yf skills"
+}
+
+tools.bd -> skills.beads.yf-beads-authoring
+tools.bd -> skills.beads.yf-beads-extra
+tools.bd -> skills.beads.yf-beads-hygiene
+tools.bd -> skills.beads.yf-beads-init
+tools.bd -> skills.beads.yf-beads-upstream
+tools.bd -> skills.workflows.yf-plan
+tools.bd -> skills.workflows.yf-research
+tools.git -> skills.beads.yf-beads-hygiene
+tools.git -> skills.beads.yf-beads-init
+tools.git -> skills.utility.yf-okf-hygiene
+tools.git -> skills.workflows.yf-plan
+tools.git -> skills.workflows.yf-research
+tools.gh -> skills.beads.yf-beads-upstream
+tools.herdr -> skills.utility.yf-herdr
+tools.d2 -> skills.utility.yf-diagram-authoring
+tools.pandoc -> skills.markdown.yf-markdown-html
+tools.pandoc -> skills.markdown.yf-markdown-pdf
+tools.xelatex -> skills.markdown.yf-markdown-pdf
+skills.beads.yf-beads-authoring -> skills.beads.yf-beads-extra
+skills.beads.yf-beads-hygiene -> skills.beads.yf-beads-extra
+skills.beads.yf-beads-hygiene -> skills.beads.yf-beads-init
+skills.beads.yf-beads-init -> skills.beads.yf-beads-extra
+skills.beads.yf-beads-upstream -> skills.beads.yf-beads-extra
+skills.workflows.yf-incubator -> skills.beads.yf-beads-extra
+skills.workflows.yf-plan -> skills.beads.yf-beads-extra
+skills.workflows.yf-plan -> skills.beads.yf-beads-authoring
+skills.workflows.yf-research -> skills.beads.yf-beads-extra
+skills.workflows.yf-research -> skills.beads.yf-beads-authoring
+skills.utility.yf-okf-hygiene -> skills.utility.yf-okf
+skills.utility.yf-optimal-instructions -> skills.utility.yf-skill-authoring
+cli.harness.hskills -> skills: "deploys the embedded tree"
+cli.harness.tune -> skills: "deploys the always-loaded rules"
+cli.deprecated -> cli.harness.hskills: {style.stroke-dash: 5; label: "alias"}
+cli.verbs.preflight -> tools: "gates on tool presence"
+cli.self.install -> cli.harness.hskills: "--from-build runs the install-time SYNC"

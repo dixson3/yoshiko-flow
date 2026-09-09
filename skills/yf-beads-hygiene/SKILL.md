@@ -112,6 +112,12 @@ fi
 ```
 <!-- <<< END SKILL_DIR resolver -->
 
+## Invocation
+
+- `/yf-beads-hygiene audit` — read-only discovery of orphaned beads and dangling dependency edges, with gate-typed edges correctly classified so a live gate is never reported as dangling
+- `/yf-beads-hygiene repair` — gated repair of the findings the audit produced; never runs before an audit
+- `/yf-beads-hygiene restore` — round-trip reversal of a repair from its recorded journal
+
 ## The one rule that matters most
 
 **Resolve every dependency-edge target with `bd show <id>`, over the full universe — never by

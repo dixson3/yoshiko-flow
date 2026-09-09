@@ -1,0 +1,10 @@
+Fixed by **plan-067** Issue 4.2 (`docs/plans/plan-067-james-dixson-de852a`), commit `1112676`.
+
+`lifecycle.d2` now reads the real literal **`system_deps_missing`**, and gained
+`bd_not_initialized` and `rule_drift` alongside it.
+
+Fixed **in the same pass** that combined `phase-model.d2` into `lifecycle.d2`, deliberately:
+merging first would have carried the wrong literal forward into the combined diagram, where it
+would have been harder to see and no easier to catch.
+
+Closing.

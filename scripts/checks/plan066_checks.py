@@ -117,13 +117,41 @@ BACKEND_ALLOW_RES = [
 
 # SC9 / SC23 — diagram sites and the five shipped formula names.
 ARCH_D2 = "web/content/images/architecture.d2"
-FORMULAS_D2 = "web/content/images/formulas.d2"
+# TWO CONSTANTS, NOT ONE — amended by plan-067 Issue 4.4b/6.0, and the split is the point.
+#
+# plan-067 REMOVED `formulas.d2` (the generic formula-to-molecule ER meta-diagram) per
+# #373 and replaced it with `formulas-map.d2` plus one diagram per shipped formula. A
+# single constant was serving TWO DIFFERENT FACTS, and repointing it fixed one criterion
+# while breaking another:
+#
+#   FORMULAS_D2_HISTORICAL — the site plan-066 ACTUALLY REPAIRED. `inventory-control`
+#     asserts plan-066's own Class-A inventory recorded it. That is a statement about
+#     the PAST and it does not change when the file is later deleted; rewriting it would
+#     falsify the historical record to make a present-tense check pass.
+#   FORMULAS_DIAGRAM — the CURRENT subject of the five-formulas claim. `formulas-diagram`
+#     checks TODAY's diagram set, so it follows the subject.
+#
+# Collapsing "what was repaired" and "what is checked now" into one name is the same
+# two-facts-one-signal defect (#263) this repository keeps re-encountering — committed
+# here, briefly, while repairing something else.
+FORMULAS_D2_HISTORICAL = "web/content/images/formulas.d2"
+FORMULAS_DIAGRAM = "web/content/images/formulas-map.d2"
 SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "plan-review",
                     "verify-artifact", "yf-research"]
 SKILL_GROUPS = ["beads", "markdown", "utility", "workflows"]
 
 # SC10 — the D7 pin and its flags. sha256 equality is FLAG-SENSITIVE, hence both are pinned.
-D2_PIN = "v0.8.2"
+# RE-PINNED v0.8.2 -> v0.9.0 (2026-09-09, operator decision). The 21 committed PNGs
+# were re-rendered in one commit under the UNCHANGED flags `--theme 0 --layout elk`.
+#
+# WHAT THE UPGRADE ACTUALLY CHANGED, measured rather than assumed: GEOMETRY IS
+# IDENTICAL — 21/21 renders match the previous ones to the pixel in width and height —
+# but the PIXELS ARE NOT byte-identical: 0.36-1.02% of pixels differ, at deltas up to
+# 239/255. Reading the densest differing region at 2x shows why: the deltas are
+# ANTIALIASING ON GLYPH EDGES. Same text, same boxes, same colours, same positions.
+# So "only the encoding changed" is not quite right and "the layout moved" is wrong;
+# the accurate claim is that the RASTERISER changed and the PICTURE did not.
+D2_PIN = "v0.9.0"
 D2_FLAGS = ["--theme", "0", "--layout", "elk"]
 DIAGRAM_DIR = "web/content/images"
 
@@ -348,7 +376,7 @@ def sc_inventory_control(root: Path, a) -> tuple[bool, str, dict]:
     instrument, not an absent defect (D1's negative-control half).
     """
     inv = read(root, a.input or f"{PLAN_DIR}/findings/class-a-inventory.md")
-    required = HARNESS_SITES + BACKEND_SITES + [ARCH_D2, FORMULAS_D2, P0_PAGE]
+    required = HARNESS_SITES + BACKEND_SITES + [ARCH_D2, FORMULAS_D2_HISTORICAL, P0_PAGE]
     absent = [s for s in dict.fromkeys(required) if s not in inv]
     return not absent, (f"{len(set(required))} #317-named site(s) checked; "
                         + ("all present in the inventory" if not absent
@@ -459,7 +487,7 @@ def sc_group_membership(root: Path, a) -> tuple[bool, str, dict]:
 
 def sc_formulas_diagram(root: Path, a) -> tuple[bool, str, dict]:
     """SC23 — `formulas.d2` states FIVE shipped formulas and depicts all five BY NAME."""
-    d2 = read(root, FORMULAS_D2)
+    d2 = read(root, FORMULAS_DIAGRAM)
     on_disk = sorted(p.name.replace(".formula.toml", "")
                      for p in (root / "skills").glob("*/formulas/*.formula.toml"))
     findings = []

@@ -1,47 +1,78 @@
-# yoshiko-flow architecture — the yf kernel, embedded skills, beads, upstream tracking.
-direction: right
+# yoshiko-flow — THE LAYERED STACK (plan-067 Issue 7.1, D8).
+#
+# Restyled to the operator's reference at `assets/style-reference/architecture-reference.png`
+# after the Diagram human-read gate rejected the first set. Not for a false claim — that set was
+# fully green — but because the nodes were too wordy and this did not read as a stack.
+#
+# THE REFERENCE IS NORMATIVE FOR **LAYOUT**. THE CENSUS IS NORMATIVE FOR **CONTENT** (D8).
+# So: bands, one BARE-NAME box per member, tiling, NO edges, NO sublabels, NO parenthetical
+# counts — all from the reference. But all TWENTY skills appear, spelled from
+# `skills/*/SKILL.md` frontmatter — NOT the reference's 13 boxes, NOT its wildcards, and NOT its
+# `yf-beads-hygeine` typo.
+#
+# THE FOUR `skill-group` CONTAINERS ARE PRESERVED, with their ids and full census membership.
+# BANDS ARE VISUAL; CONTAINERS ARE STRUCTURAL. `yf-incubator` stays INSIDE `workflows` because
+# its `skill-group` says so — the reference draws it in a band of its own, but that is layout.
+# An executor obeying "images normative for layout" without this line could satisfy SC28 and D8
+# while making SC29 unsatisfiable.
+#
+# BAND ORDER IS REVERSED ON PURPOSE: `grid-rows` lays out in DECLARATION order downward, and the
+# reference reads BOTTOM-TO-TOP — tools at the floor, workflows at the top.
+#
+# The dependency relations live in `architecture-deps.d2` (Issue 7.0b). This file answers
+# "what is there"; that one answers "what depends on what".
+grid-rows: 6
+grid-gap: 12
 
-user: {
-  label: "operator\n(Claude Code / agent harness)"
-  shape: person
+workflows: {
+  grid-columns: 3
+  yf-plan: "yf-plan"
+  yf-research: "yf-research"
+  yf-incubator: "yf-incubator"
 }
 
-yf: {
-  label: "yf CLI\n(single Rust binary)"
-  shape: rectangle
-  install: "skills install / upgrade / remove"
-  preflight: "preflight <skill>\n(shared kernel gate)"
-  doctor: "doctor\n(env + install health)"
+markdown: {
+  grid-columns: 4
+  yf-markdown-format: "yf-markdown-format"
+  yf-markdown-html: "yf-markdown-html"
+  yf-markdown-lint: "yf-markdown-lint"
+  yf-markdown-pdf: "yf-markdown-pdf"
 }
 
-skills: {
-  label: "embedded skills (20)\ncompiled into the binary"
-  shape: rectangle
-  workflows: "workflows group (3)\nplan · research · incubator"
-  beads: "beads group (5)\nbeads-init · beads-extra\nbeads-authoring · beads-hygiene\nbeads-upstream"
-  utility: "utility group (8)\nskill-authoring · drift-check\ndiagram-authoring · okf\nokf-hygiene · optimal-instructions\nchange-validation · herdr"
-  markdown: "markdown group (4)\nmarkdown-lint · markdown-format\nmarkdown-pdf · markdown-html"
+utility: {
+  grid-columns: 4
+  yf-change-validation: "yf-change-validation"
+  yf-diagram-authoring: "yf-diagram-authoring"
+  yf-drift-check: "yf-drift-check"
+  yf-herdr: "yf-herdr"
+  yf-okf: "yf-okf"
+  yf-okf-hygiene: "yf-okf-hygiene"
+  yf-optimal-instructions: "yf-optimal-instructions"
+  yf-skill-authoring: "yf-skill-authoring"
 }
 
-harness: {
-  label: "harness surface\n~/.claude or ~/.agents\n(user or project scope)"
-  shape: rectangle
+beads: {
+  grid-columns: 5
+  yf-beads-init: "yf-beads-init"
+  yf-beads-extra: "yf-beads-extra"
+  yf-beads-authoring: "yf-beads-authoring"
+  yf-beads-hygiene: "yf-beads-hygiene"
+  yf-beads-upstream: "yf-beads-upstream"
 }
 
-bd: {
-  label: "beads (bd)\nDolt-backed issue DB"
-  shape: cylinder
+runtimes: {
+  grid-columns: 3
+  uv: "uv"
+  git: "git"
+  d2: "d2"
 }
 
-upstream: {
-  label: "upstream tracker\nGitHub Issues (via gh)"
-  shape: rectangle
+tools: {
+  grid-columns: 5
+  bd: "bd"
+  gh: "gh"
+  pandoc: "pandoc"
+  xelatex: "xelatex"
+  herdr: "herdr"
 }
 
-user -> yf: "invoke"
-yf.install -> skills: "embeds"
-yf.install -> harness: "deploys skills + rules"
-user -> harness: "/yf-plan, /yf-research, ..."
-harness -> yf.preflight: "gate before run"
-skills.beads -> bd: "track work"
-bd -> upstream: "land-the-plane push\n(open + deferred beads)"

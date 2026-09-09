@@ -6,6 +6,7 @@ description: >
   "let's design", "how should we build", "let's architect"), or native plan mode triggers.
   OVERRIDE: replaces EnterPlanMode/ExitPlanMode — never use native plan mode.
 user-invocable: true
+engine: plan_manager.py
 skill-group: workflows
 depends-on-tool: [bd, uv, git]
 depends-on-skill: [yf-beads-extra, yf-beads-authoring]
@@ -2049,5 +2050,5 @@ Every markdown artifact this skill writes (`plan.md`, `index.md`, `context.md`,
 `[[wikilinks]]` or `![[embeds]]`. Use GFM links (`[text](path)` / `[text](file.md#anchor)`)
 and GFM tables with explicit alignment markers (`:--` left, `:-:` center, `--:` right) and
 variable, content-sized column widths (never fixed-width padding). Lint each generated `.md`
-with the `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008`) and resolve any
+with the `yf-markdown-lint` authoring subset (`ML001,ML002,ML005,ML006,ML007,ML008,ML010`) and resolve any
 violation before handoff.
