@@ -186,10 +186,48 @@ on a mechanical signal where the deciding question is a human one.
 | Content defects | 14 | **17** | the wordy node set; `architecture.d2` not reading as a stack; `lifecycle.png` growing to 13362px under the fix for the first two |
 | Process defects | 11 | **15** | count-blind group detection; column-0 container anchor; the `label` collision; the `::` suffix collision |
 | Instrument false-greens | 3 | **4** | `sc_architecture_complete` passing while `architecture-deps.d2` did not exist — a criterion satisfied by the ABSENCE of its subject |
+| *(a fifth, in a MEASUREMENT rather than a checker)* | — | **5** | a `.md`-scoped grep counting plugin-generated embeds — a surface that structurally cannot hold them |
 
 The fourth false green is the sharpest of the four. `SC27c` reported PASS against a file that had
 never been created, because the function still read the old path. It was caught by *looking*
 before changing it, which is the only reason it is in this table rather than in the shipped plan.
+
+## A fifth false green, and it was in a MEASUREMENT, not a checker
+
+Recorded because the class is the same and the instance is instructive.
+
+The publication gap that became Issue 7.9 was raised as *"10 of the 11 per-skill diagrams are
+referenced by no page"*. It was stated twice and it was **wrong** — the references exist, emitted
+by `skill_pages.py` as an `<h2>Structure</h2>` block plus an `img` tag.
+
+**The grep was over `.md` sources, and a plugin-generated embed structurally cannot appear
+there.** Not "did not happen to appear": cannot. So the surface scanned could not have held the
+thing being looked for, and the measurement returned a confident count anyway.
+
+| | Reported | Actual |
+| :-- | --: | --: |
+| unreferenced in `.md` sources | 10-11 | **11** — correct, and irrelevant |
+| unreferenced in the **built site** | — | **0** |
+
+**Both numbers are true.** Only the second answers the question, which is whether a *reader* can
+reach the artifact.
+
+### Why this is worth a section rather than a footnote
+
+It is the same defect as `#181`, `#207`, `#263` and the four already counted above — **an
+instrument reporting a result over input it could not see** — but committed in an ad-hoc
+measurement rather than in a registered checker. That makes it the *least* guarded instance:
+checkers have controls and vacuity floors; a one-off grep has neither.
+
+**The finding was still net-positive**, and that is not a consolation prize. The underlying
+concern was real and nothing had been asserting it: delete the embed block and eleven diagrams
+vanish from the site with every check green. Issue 7.9 closed that, and its checker deliberately
+reads the **built site** — a source-only implementation would have inherited the same blind spot
+and manufactured eleven false findings on its first run.
+
+**The rule this yields:** before trusting a count, ask whether the surface you scanned is capable
+of holding what you are counting. A zero from a surface that cannot hold the thing is not a
+measurement.
 
 ## The rate to carry forward
 
