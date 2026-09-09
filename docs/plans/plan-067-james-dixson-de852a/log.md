@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-09
+- complete: plan complete — §6.4 chain cleared; both diagram gates and the upstream gate resolved by the operator
 
 - executing: d2 RE-PINNED v0.8.2 -> v0.9.0 on operator decision; all 21 PNGs re-rendered in one commit with unchanged flags. One-shot expected mass diff, NOT drift. Measured before acting: geometry identical 21/21, but pixels NOT identical (0.36-1.02% differ, deltas to 239/255) — a 2x read of the densest region shows glyph-edge antialiasing, same text/boxes/colours/positions. So 'only the encoding changed' was corrected to 'the rasteriser changed, the picture did not'; no third read needed. All 34 plan-067 verbs PASS; recheck-criteria: all 38 evaluated criteria hold.
 

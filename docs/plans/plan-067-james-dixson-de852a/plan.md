@@ -8,7 +8,7 @@ description: 'Diagram set redesign (#373): restack architecture as a layered mar
 id: plan-067-james-dixson-de852a
 author: james-dixson
 created: '2026-09-07'
-status: executing
+status: complete
 deliverable_class: standard
 fingerprint: 3edf041317beafda18f6ed19c8d78ae1b68411718fb59c844dd6f805d2a848f7
 epic: yf-mol-gtcy
@@ -18,7 +18,7 @@ epic: yf-mol-gtcy
 **ID:** plan-067-james-dixson-de852a
 **Author:** james-dixson
 **Created:** 2026-09-07
-**Status:** executing
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** yf-mol-gtcy
 **Fingerprint:** 3edf041317beafda18f6ed19c8d78ae1b68411718fb59c844dd6f805d2a848f7
@@ -59,7 +59,7 @@ retrospective that is gated behind that read. This plan owns the handoff that un
 | #376 | check_web_counts: group membership NOT CHECKED where a bullet enumerates no ids | include | **Re-scoped from adjacent to precondition** (pass-1 C6). It is the stated limit in the exact function Issue 1.1 modifies, and it is what would let an omission stay invisible under the new rule. | 1.1b |
 | #375 | lifecycle.d2 labels a preflight status `deps-missing` | include | Assigned to Issue 4.2, which merges `lifecycle.d2` — without this the wrong literal is carried forward into the combined diagram. | 4.2 |
 | #374 | skill_pages.py authored-page guard is EXISTENCE-only (a zero-byte page builds green) | include | Interacts directly with Epic 5's generated pages and with SC24; a generator emitting an empty page would build green. | 5.7 |
-| #317 | Plan 3/3: regenerate user-facing docs | partial | plan-066's tracker, parked behind its Diagram human-read gate. This plan does not close it — Issue 6.4 is the declared handoff that lets the operator open that gate. | — |
+| #317 | Plan 3/3: regenerate user-facing docs | include | **AMENDED at reconcile, 2026-09-09.** The row read `partial` on the true statement that *"this plan does not close it — Issue 6.4 is the declared handoff"*. The handoff then happened: the operator accepted the restyled set, plan-066's gate opened, plan-066 completed, and **#317 CLOSED**. `partial` asserts *"the remaining half is still real work"*, which is now FALSE — there is no remaining half. plan-067 delivered the DIAGRAM half and the handoff; plan-066 delivered the rest and performed the close, and #317 now carries an attribution comment naming both bundles. | 6.4, 6.5 |
 | #247 | Drift findings no declared edge covers | partial | In scope: the CLI→page direction (D4b) and the `web-diagram-src` coverage. Out of scope: the remainder of #247's manifest gap. | 1.3 (the in-scope half) |
 | #263 | META: "two facts, one signal" | partial | In scope: `not_checked` conflating "no ids enumerated" with "checked and clean" (1.1b). Out of scope: the META class. | 1.1b (the in-scope half) |
 

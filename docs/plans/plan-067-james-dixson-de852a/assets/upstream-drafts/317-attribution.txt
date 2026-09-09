@@ -1,0 +1,15 @@
+**Attribution follow-up — the other plan that delivered this.**
+
+`#317` was closed by **`plan-066-james-dixson-e7fadb`**, which did the P0 build unbreak, the
+Class-A/Class-B repairs and the defect separation. Its **diagram half** was delivered by
+**`plan-067-james-dixson-de852a`** (`docs/plans/plan-067-james-dixson-de852a`), at commit
+`2919f40`.
+
+plan-066's own diagram set was declined at its human-read gate, which produced `#373` and
+plan-067. plan-067 rebuilt the set — 6 diagrams became 21 — and its Issue 6.4 was the declared
+handoff that let that gate be answered. **This issue closed only once both plans had delivered.**
+
+No new work is claimed and the closure is unchanged. This comment exists so the close is
+**traceable to both bundles** rather than one — the same reason the full plan id was added to
+#104, #127, #363 and #322: `verify-reconcile` (`REQ-PLAN-074`, #136) matches on the full id,
+because a close a machine cannot map back to a bundle is an unproven reconciliation.

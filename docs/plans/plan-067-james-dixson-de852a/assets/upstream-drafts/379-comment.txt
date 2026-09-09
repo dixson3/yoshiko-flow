@@ -1,4 +1,4 @@
-**plan-067-james-dixson-de852a is complete.** Commit `1112676`.
+**plan-067-james-dixson-de852a is complete.** Commit `2919f40` (merged to `main` at `ea1bc4e`).
 
 Eight epics. The plan had two halves and the order between them was the design decision: **land
 the omissions-FAIL rule first, then let its failure list be the work inventory.**
