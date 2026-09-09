@@ -1,0 +1,10 @@
+**Attribution follow-up.** This issue was fixed and closed by **`plan-066-james-dixson-e7fadb`**
+(`docs/plans/plan-066-james-dixson-e7fadb`), at commit `50edbb5`.
+
+The earlier close comment credited "plan-066" in short form. This adds the **full plan id**, which
+is the key that maps a closed issue back to the bundle that closed it — `verify-reconcile`
+(`REQ-PLAN-074`, #136) matches on the full id precisely because a short form is ambiguous across
+plans and cannot be resolved mechanically.
+
+No new work is claimed here and the fix is unchanged. This comment exists so the close is
+**traceable**, not merely explained.

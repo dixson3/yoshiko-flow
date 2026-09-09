@@ -63,13 +63,13 @@ precondition #317 declares is satisfied.
 
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
-| #317 | Plan 3/3: regenerate user-facing docs (the site does not currently BUILD) | include | The plan of record. Both its declared predecessors (#315, #316) are closed. | _TBD_ |
-| #104 | web: prevent runaway Pelican devservers + add clean teardown | include | Folded per D3 — this plan runs `pelican` repeatedly and #317 flags it as likely to bite. | _TBD_ |
-| #127 | web/concepts: define idiomatic workflow terms | include | Folded per D3. #317 records it as excluded originally but "may fold here". | _TBD_ |
-| #363 | OKF-EXTENSION.md documentation remediation | include | Folded per D3 — same content-defect class, `docs/` surface. | _TBD_ |
-| #322 | docs yf-okf-hygiene SKILL.md: the "31 legacy, 7 halt" figure | include | Folded per D3 — a skill-doc content defect the web skill page can inherit. | _TBD_ |
-| #247 | Drift findings no declared edge covers | partial | This plan closes the four Class-B coverage gaps #317 enumerates, not all of #247's manifest gap. | _TBD_ |
-| #263 | META: "two facts, one signal" | partial | The `optional`/`required` token defect (Class-B item 6) is an instance of this class. The META issue stays open. | _TBD_ |
+| #317 | Plan 3/3: regenerate user-facing docs (the site does not currently BUILD) | include | The plan of record. Both its declared predecessors (#315, #316) are closed. | 8.5 (this plan) + plan-067 Issue 6.4 (the diagram handoff) |
+| #104 | web: prevent runaway Pelican devservers + add clean teardown | include | Folded per D3 — this plan runs `pelican` repeatedly and #317 flags it as likely to bite. | 4.9 |
+| #127 | web/concepts: define idiomatic workflow terms | include | Folded per D3. #317 records it as excluded originally but "may fold here". | 7.1, 7.2 |
+| #363 | OKF-EXTENSION.md documentation remediation | include | Folded per D3 — same content-defect class, `docs/` surface. | 8.1 |
+| #322 | docs yf-okf-hygiene SKILL.md: the "31 legacy, 7 halt" figure | include | Folded per D3 — a skill-doc content defect the web skill page can inherit. | 8.1 |
+| #247 | Drift findings no declared edge covers | partial | This plan closes the four Class-B coverage gaps #317 enumerates, not all of #247's manifest gap. | 3.1-3.6 (the four Class-B coverage gaps only) |
+| #263 | META: "two facts, one signal" | partial | The `optional`/`required` token defect (Class-B item 6) is an instance of this class. The META issue stays open. | 3.4 (the `optional`/`required` instance only) |
 | #273 | The command-vs-obligation law | exclude | Informs how checks are written; not itself in scope. | — |
 | #312 | Process-audit stage: amend the poured DAG | exclude | Orthogonal — the enforcement half, on the yf-plan axis. | — |
 | #365 | plan-065 execution tracking | exclude | A prior plan's tracker; unrelated to this work. | — |

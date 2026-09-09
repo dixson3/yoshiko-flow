@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-09
+- executing: HALT at §6.4 verify-reconcile: 5 of 7 upstream rows fail. #317 is an ORDERING conflict (an include row must be CLOSED before the chain passes, but the authorized order put it after completion; #317 is a scope issue, not a tracker, so closing it first violates no stated constraint). #104/#127/#363/#322 are CLOSED with a real fix but carry only 'Fixed in plan-066', not the full plan id verify-reconcile matches on — four upstream comments that are in NEITHER the authorized set NOR the earlier drafts. All four drafted and UNPOSTED. Issue 8.5's local half is done: Resolved By filled for all 7 rows. Nothing posted; plan-066 NOT advanced. See assets/upstream-drafts/HALT-plan066-close-chain.md.
 
 - executing: d2 re-pinned v0.8.2 -> v0.9.0; SC10 went INCONCLUSIVE -> HOLDS. All 24 verbs PASS; recheck-criteria: all 26 evaluated criteria hold. Remaining: 8.4b (hard-guarded to post-merge on main) and 8.5 (upstream reconcile, behind Gate 3, drafted and unposted).
 

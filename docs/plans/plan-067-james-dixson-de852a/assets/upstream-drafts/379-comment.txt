@@ -32,6 +32,6 @@ surface you scanned is capable of holding what you are counting.*
 
 Retrospective: `docs/plans/plan-067-james-dixson-de852a/plan-retrospective.md`.
 
-Closes #373, #374, #375, #376. #247 and #263 remain **open** as partials.
+Refs #373, #374, #375, #376 — each closed individually, ahead of this tracker. #247 and #263 remain **open** as partials.
 
 Closing.

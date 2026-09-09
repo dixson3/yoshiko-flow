@@ -110,3 +110,23 @@ measurements, not an opinion.
 Twenty-six content defects, nine process defects, one false green — and the corpus was green
 throughout. The number to remember is not 26. It is **three**: the number of fully-green diagram
 sets it took before a human read accepted one.
+
+## RE-001
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-09 |
+| `stop_class` | 5 |
+| `asked` | Can plan-066's §6.4 close chain run to complete? |
+| `answered` | NO — verify-reconcile fails 5 of 7 upstream rows and the chain HALTS. Reported, not worked around. Four of the five need upstream comments nobody had authorized; the fifth is an ordering conflict between the authorized step order and the chain's own gate. |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | verify-reconcile verdict fail: #317 OPEN (an include row must be CLOSED); #104/#127/#363/#322 CLOSED but no comment carries the full plan id plan-066-james-dixson-e7fadb — each says only 'Fixed in plan-066'. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
