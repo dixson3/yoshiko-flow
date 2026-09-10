@@ -43,3 +43,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/upstream-drafts/348.md](assets/upstream-drafts/348.md)
 - [assets/upstream-drafts/349.md](assets/upstream-drafts/349.md)
 - [assets/upstream-drafts/353.md](assets/upstream-drafts/353.md)
+- [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
