@@ -7,7 +7,7 @@ description: 'Repair the land close chain: cover the --apply preamble with tests
 id: plan-068-james-dixson-8ae0e1
 author: james-dixson
 created: '2026-09-09'
-status: executing
+status: reconciling
 deliverable_class: standard
 fingerprint: 463e92860dc3a16bc1f8232d86152c8f30e5f3c6faa24434cbd7c906d8e64dbf
 epic: yf-mol-cdqp
@@ -17,7 +17,7 @@ epic: yf-mol-cdqp
 **ID:** plan-068-james-dixson-8ae0e1
 **Author:** james-dixson
 **Created:** 2026-09-09
-**Status:** executing
+**Status:** reconciling
 **Deliverable-class:** standard
 **Epic:** yf-mol-cdqp
 **Fingerprint:** 463e92860dc3a16bc1f8232d86152c8f30e5f3c6faa24434cbd7c906d8e64dbf

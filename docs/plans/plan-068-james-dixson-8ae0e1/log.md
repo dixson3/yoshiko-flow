@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-09
+- reconciling: post-execution reconciliation — all 23 issues closed, 15/15 mechanical SC green
 - executing: start gate resolved
 - intake: epic yf-mol-cdqp poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
