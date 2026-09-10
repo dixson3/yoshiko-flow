@@ -39,3 +39,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/rehearsal-record.json](assets/rehearsal-record.json)
 - [assets/req-allocation.md](assets/req-allocation.md) - plan-068 — REQ id allocation record (Issue 0.2)
 - [findings/exec-001-inherited-doclint-red.md](findings/exec-001-inherited-doclint-red.md) - exec-001 — an INHERITED FAST/FULL-tier red, measured at Epic 0
+- [assets/upstream-drafts/331.md](assets/upstream-drafts/331.md)
+- [assets/upstream-drafts/348.md](assets/upstream-drafts/348.md)
+- [assets/upstream-drafts/349.md](assets/upstream-drafts/349.md)
+- [assets/upstream-drafts/353.md](assets/upstream-drafts/353.md)
