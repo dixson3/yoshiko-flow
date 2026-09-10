@@ -1231,6 +1231,31 @@
 >   plan-069's text falsely asserted plan-068 had already done them; both attributions are
 >   corrected. `REQ-LAND-027` stays deliberately reserved and is not consumed.
 >
+>
+>   **Amended `REQ-LAND-002`** — **ambient HEAD is not a fact.** "Every fact shall be re-derived at
+>   apply time" extends to *which branch a step operates on*. Under `execute.worktree: false`
+>   there is no execute worktree and `_land_l1_down_merge` picks
+>   `ctx.worktree if ctx.worktree.is_dir() else ctx.root`, so **L1 shall check out
+>   `ctx.execute_branch` explicitly.** Measured (EXP-001): in-place, L1 merged the target into
+>   ambient HEAD and reported `Already up to date.`, **exit 0**, verdict `pass`, journalling
+>   `L_DOWNMERGED` — a **silent self-merge**, indistinguishable in the manifest, the journal and
+>   the verdict from a real down-merge. Necessity stated honestly: once the in-place path checks
+>   out the execute branch (`REQ-BRANCH-002` as amended), `ctx.root`'s HEAD *is* that branch and
+>   the measured self-merge disappears without this clause. What the clause buys is that L1 no
+>   longer **depends** on that being true — a step whose correctness rests on what HEAD happens
+>   to be is one `git checkout` away from wrong, with nothing reporting it.
+>
+>   **Amended `REQ-LAND-004`** — **L2 in-place is a DECLARED SCOPE BOUNDARY**, not a
+>   specified-then-unimplemented step. `SKILL.md` §6.1 has said *"In-place (fallback) mode skips
+>   the merge"* since plan-009 and `land` never implemented it. Measured: `_land_l2_merge` runs
+>   `git checkout <target>` **in `ctx.root`**, which in-place **is** the execute checkout — so L2
+>   switches the one and only working tree off the execute branch — and the following
+>   `git pull --rebase`'s return code is **ignored**. Both are recorded as facts about the current
+>   implementation, and the L2 work is routed to **plan-069**. Specifying the *intended* behaviour
+>   here would leave plan-068's own SPEC-vs-implementation check (Issue 2.6) **trivially green**:
+>   SPEC and implementation would "agree" because neither changed. A declared boundary is
+>   checkable; a specified-and-unimplemented one reads as coverage.
+>
 >   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope

@@ -46,11 +46,30 @@ Three consequences follow structurally rather than procedurally:
 3. A decision can only ever **narrow** the landing. An `enable` on a step the manifest halted is
    ignored and reported; a `skip` requires a reason and is surfaced in the consent prompt.
 
+**Amendment (plan-068 Issue 0.4, dixson3/yoshiko-flow#331): AMBIENT HEAD IS NOT A FACT.**
+"Every fact shall be re-derived at apply time" extends to **which branch a step operates on**.
+Under `execute.worktree: false` there is no execute worktree, and `_land_l1_down_merge` selects
+its working tree as `ctx.worktree if ctx.worktree.is_dir() else ctx.root` — so **L1 shall check
+out `ctx.execute_branch` explicitly** rather than merging into whatever HEAD happens to be.
+
+Measured (plan-068 EXP-001): in-place, L1 merged the target into ambient HEAD and reported
+`Already up to date.`, **exit 0**, verdict `pass`, journalling `L_DOWNMERGED` — a **silent
+self-merge**. Nothing in the manifest, the journal or the verdict distinguishes that from a real
+down-merge, which makes it the worst class of the three: a green that means nothing.
+
+The explicit checkout is **defence in depth, and its necessity is stated honestly.** Once
+`_worktree_ensure` cuts and checks out the execute branch on the in-place path (`REQ-BRANCH-002`
+as amended), `ctx.root`'s HEAD *is* the execute branch and EXP-001's measured self-merge
+disappears without this clause. What this clause buys is that L1 no longer **depends on** that
+being true: it asserts the branch rather than inheriting it. A landing step whose correctness
+rests on an accident of what HEAD happens to be is one `git checkout` away from wrong, and
+nothing would report it.
+
 Rationale: this is #293's structural answer rather than a procedural one. It is also materially
 narrower trust than #301 assumes: `UPSTREAM_REQUIREMENTS` already encodes the per-disposition end
 states mechanically, so the agent is trusted to *explain* that a `partial` row stays open, never
 to *discover* it.
-Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_narrowing_only`
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_narrowing_only`; and `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_inplace.py test_l1_operates_on_the_execute_branch_not_ambient_head`
 
 REQ-LAND-003: **An omission from enumeration is not a `skip`.** The "every skip is surfaced in
 the consent prompt" guarantee of REQ-LAND-002 covers only writes the manifest *enumerated and
@@ -88,6 +107,30 @@ without retiring the edge that pins it.
 | **L17** | mirror residual open beads upstream, grouped per the decision | Requires the plan-folder state pushed at L16 to be visible, so a mirrored bead's references resolve. |
 | **L18** | prune — worktree, branch (local + remote), herdr tab | Nothing may be pruned before L16 has pushed everything that lived on the branch. |
 | **L19** | redeploy **iff** the landing touched `skills/` | The only step that mutates the machine outside the repository. Last, because a half-deployed session runs new scripts against old prose (AGENTS.md, "Three artifacts, not one"). |
+
+**Amendment (plan-068 Issue 0.4, dixson3/yoshiko-flow#331): L2 IN-PLACE IS A DECLARED SCOPE
+BOUNDARY, not a specified-then-unimplemented step.** `SKILL.md` §6.1 has said *"In-place
+(fallback) mode skips the merge"* in prose since plan-009, and `land` never implemented it. This
+amendment makes the **measured** behaviour normative and names the boundary, rather than
+specifying a behaviour no issue implements.
+
+**What L2 does in-place, measured.** `_land_l2_merge` runs `git checkout <target>` **in
+`ctx.root`** — and under `execute.worktree: false` `ctx.root` **is** the execute checkout. So L2
+switches the one and only working tree off the execute branch. The subsequent
+`git pull --rebase`'s return code is **ignored**. Both are recorded here as facts about the
+current implementation.
+
+**Declared boundary.** No issue in plan-068 implements or tests L2 in-place, and the L2 work is
+routed to **plan-069**. Specifying the intended behaviour here would leave plan-068's own
+SPEC-vs-implementation agreement check (Issue 2.6) **trivially green** — SPEC and implementation
+would "agree" because neither changed. A boundary that is declared is checkable; a boundary that
+is specified and unimplemented reads as coverage.
+
+**Why the single address space is what bites.** In worktree mode L1 and L2 act on two different
+trees, so L2's checkout of the target is harmless. In-place there is **one** address space, which
+is also why plan-068's own Issue 0.1 had to cut its execute branch **before every other commit**:
+a commit made before that branch exists lands on the merge target and escapes the merge L3
+validates.
 
 Rationale: plan-060's EXP-004 proved no single-push order satisfies all four landing
 constraints, so the order is two-push by necessity rather than by preference. Neither
