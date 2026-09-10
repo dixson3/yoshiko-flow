@@ -290,6 +290,7 @@ approved: yes
 | `uv-yf-land-seam` | `uv run skills/yf-plan/scripts/test_land_seam.py` |  |  |
 | `land-launcher-closure` | `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` |  |  |
 | `land-seam-ast` | `uv run scripts/checks/check_land_seam.py` |  |  |
+| `land-rehearsal` | `uv run skills/yf-plan/scripts/land_rehearsal.py` |  |  |
 | `mock-fidelity` | `uv run scripts/checks/check_mock_fidelity.py` |  |  |
 | `gate-plan063-amendment` | `uv run scripts/check_amendment_log.py --plan plan-063-james-dixson-3f74c1` |  |  |
 | `gate-plan064-amendment` | `uv run scripts/check_amendment_log.py --plan plan-064-james-dixson-a0b7fa` |  |  |
@@ -402,7 +403,7 @@ approved: yes
 | `skills/yf-plan/scripts/test_land_manifest.py` | `uv-yf-land-manifest` |
 | `skills/yf-plan/scripts/test_lander_agent_contract.py` | `uv-yf-lander-contract` |
 | `skills/yf-plan/scripts/test_land_apply.py` | `uv-yf-land-apply`, `mock-fidelity` |
-| `skills/yf-plan/scripts/land_rehearsal.py` | `uv-yf-land-apply`, `mock-fidelity` |
+| `skills/yf-plan/scripts/land_rehearsal.py` | `uv-yf-land-apply`, `mock-fidelity`, `land-rehearsal` |
 | `skills/yf-plan/spec/landing.md` | `uv-yf-land-apply`, `uv-yf-land-seam` |
 | `skills/yf-plan/scripts/test_land_seam.py` | `uv-yf-land-seam` |
 | `skills/yf-plan/scripts/derive_land_launchers.py` | `uv-yf-land-seam`, `land-launcher-closure`, `land-seam-ast` |

@@ -44,6 +44,217 @@ def _load_pm():
 
 PLAN_ID = "plan-999-rehearsal-sandbox"
 
+# ==========================================================================================
+# THE SANDBOX RUNNER (plan-068 Issue 1.5)
+# ==========================================================================================
+
+class _R:
+    """A `subprocess.CompletedProcess` lookalike. The seam only reads these three fields."""
+
+    def __init__(self, rc=0, out="", err=""):
+        self.returncode = rc
+        self.stdout = out
+        self.stderr = err
+
+
+class SandboxRunner:
+    """`git` PASSES THROUGH; `bd` / `gh` / `uv` / `yf` / `sh` are argv-recognising fakes that
+    FAIL on an unrecognised argv rather than returning 0.
+
+    THE CONTRACT IS THE WHOLE POINT, because `_dispatch` routes EVERY program through an
+    injected runner — `git` included — so a runner that stubbed everything would make `L_DONE`
+    a fiction (plan-068 pass-3 C5).
+
+    * **`git` passes through** to the sandbox. It is the local bare `origin` that makes the
+      push safe to rehearse, **not** the runner: there is no network path out of
+      `_build_sandbox`. Faking `git` would remove the only steps whose blast radius the
+      rehearsal exists to exercise.
+    * **Everything else is intercepted, and FAILS CLOSED on an argv it does not recognise.**
+      `LandingContext`'s own docstring records why: *"the injected fake returned 0 for any argv
+      it did not recognise. Every Tier-1 test passed."* A fake that answers everything cannot
+      witness the wrong executable being invoked — so this one answers only what it was taught,
+      and returns **127** with a distinctive marker otherwise.
+
+    Every call is recorded, including `env`, so a caller can assert on what actually ran.
+    """
+
+    #: Programs the runner FAKES. `git` is deliberately absent — see the class docstring.
+    FAKED = ("bd", "gh", "uv", "yf", "sh")
+
+    def __init__(self, work: Path, plan_id: str):
+        self.work = Path(work)
+        self.plan_id = plan_id
+        self.calls: list[list[str]] = []
+        self.envs: list[dict | None] = []
+        self.unrecognised: list[list[str]] = []
+
+    def __call__(self, prog, args, cwd=None, env=None):
+        self.calls.append([prog, *args])
+        self.envs.append(env)
+        if prog == "git":
+            return subprocess.run(["git", *args], cwd=str(cwd or self.work),
+                                  capture_output=True, text=True)
+        handler = getattr(self, f"_fake_{prog}", None)
+        if handler is None:
+            return self._unrecognised(prog, args)
+        return handler(list(args), cwd)
+
+    def _unrecognised(self, prog, args):
+        """FAIL CLOSED. Never 0, and never silent."""
+        self.unrecognised.append([prog, *args])
+        return _R(127, err=(f"SandboxRunner: UNRECOGNISED ARGV — refusing to answer "
+                            f"{[prog, *args]}. A fake that returns 0 for an argv it does not "
+                            f"recognise cannot witness the wrong executable being invoked."))
+
+    # -- the fakes ------------------------------------------------------------------------
+
+    def _fake_bd(self, args, cwd):
+        if args[:1] == ["list"]:
+            # An EMPTY bead list, and the honesty note is in `HONEST_SCOPE`: with no beads,
+            # L14's DAG comparison is not exercised. A poured-bead fixture is out of scope
+            # here (plan-068 Issue 1.6 / R7).
+            return _R(0, out="[]")
+        if args[:1] == ["show"]:
+            # L17's read-back needs an `external_ref` to report the mirror as verified.
+            return _R(0, out=json.dumps({"id": args[1] if len(args) > 1 else "yf-x",
+                                         "external_ref": "https://example.invalid/issues/1"}))
+        if args[:1] in (["close"], ["update"], ["gate"]):
+            return _R(0, out="{}")
+        return self._unrecognised("bd", args)
+
+    def _fake_gh(self, args, cwd):
+        if args[:2] == ["issue", "view"]:
+            return _R(0, out=json.dumps({"state": "OPEN", "comments": [{"body": "x"}]}))
+        if args[:2] in (["issue", "comment"], ["issue", "close"], ["issue", "edit"]):
+            return _R(0, out="https://example.invalid/issues/1")
+        return self._unrecognised("gh", args)
+
+    def _fake_uv(self, args, cwd):
+        """`uv run <script-or-verb> ...` — recognised by the SCRIPT NAME or the VERB."""
+        if args[:1] != ["run"]:
+            return self._unrecognised("uv", args)
+        rest = args[1:]
+        if not rest:
+            return self._unrecognised("uv", args)
+        target = Path(rest[0]).name
+        verb = rest[1] if len(rest) > 1 else ""
+        if target == "plan_manager.py":
+            if verb in _REHEARSAL_PM_VERBS:
+                return _R(0, out=json.dumps({"verdict": "pass", "faked": True, "verb": verb}))
+            return self._unrecognised("uv", args)
+        if target in _REHEARSAL_SCRIPTS:
+            return _R(0, out=json.dumps({"verdict": "pass", "faked": True,
+                                         "script": target}))
+        return self._unrecognised("uv", args)
+
+    def _fake_yf(self, args, cwd):
+        # L19 is skipped at the decision level in this rehearsal, so `yf` should never be
+        # reached. Recognising it anyway would hide a step that ran when it should not have.
+        return self._unrecognised("yf", args)
+
+    def _fake_sh(self, args, cwd):
+        # `_run_shell`'s routed form. No `validate-cmd` is configured in the sandbox, so this
+        # is unreachable — and if it IS reached, that is a finding, not a pass.
+        return self._unrecognised("sh", args)
+
+
+#: `plan_manager.py` verbs the close chain and L13-L15 invoke. Enumerated so an argv the
+#: rehearsal has not been taught about FAILS rather than silently returning 0.
+_REHEARSAL_PM_VERBS = frozenset({
+    "audit-close", "retrospective-report", "judgement-never-fired-report",
+    "classify-deliverable", "close-reconcile-step", "verify-reconcile", "recheck-criteria",
+    "complete-gate", "update-status",
+})
+
+#: Sibling scripts the L-steps shell out to.
+_REHEARSAL_SCRIPTS = frozenset({"close_cascade.py", "pour_fidelity.py", "upstream.py"})
+
+
+#: WHAT A GREEN REHEARSAL DOES AND DOES NOT ESTABLISH (plan-068 Issue 1.6 / R7).
+#:
+#: Stated in the ARTIFACT rather than only in a docstring, because the artifact is what the
+#: consuming tests read and what a later reader will quote.
+_HONEST_SCOPE = {
+    "established": [
+        "every L-step function EXECUTED — none is replaced by a lambda or a helper stub",
+        "every `git` process ran FOR REAL against a local bare `origin` inside a temp dir, so "
+        "L1/L2/L4/L6/L16's tree and push behaviour is genuinely exercised",
+        "the executor's ordering, journal advance and halt semantics ran unmodified",
+        "no process reached an executable the runner was not taught about — an unrecognised "
+        "argv returns 127 with a marker and is recorded in `unrecognised_argv`",
+    ],
+    "not_established": [
+        "L14's DAG COMPARISON. The faked `bd list` returns `[]` and the faked "
+        "`pour_fidelity.py` returns a pass, so the comparison has no input. A poured-bead "
+        "fixture is out of scope; this is R7's 'a stub in a different costume', named rather "
+        "than claimed as covered.",
+        "the close chain's real VERDICTS. `uv run plan_manager.py <verb>` is intercepted, so "
+        "`audit-close`, `verify-reconcile`, `recheck-criteria` and `complete-gate` return a "
+        "faked pass. What is exercised is that each is INVOKED with the right argv and that "
+        "its exit code is READ (#180), not what it would have decided.",
+        "L19 REDEPLOY. Skipped at the decision level — the sandbox has no `yf` binary, and "
+        "redeploy is the only step that mutates the machine outside the repository. The `yf` "
+        "fake therefore refuses every argv, so a reached L19 is a FINDING, not a pass.",
+        "any `gh` outcome. Upstream writes are faked; `test_readback_catches_wrong_body` in "
+        "test_land_apply.py is what covers the read-back's discriminating power.",
+    ],
+}
+
+
+def _stubbed_steps(pm, monkeypatched: dict[str, str], decision: dict) -> list[str]:
+    """Every `LAND_STEPS` key DISABLED, from **both** sources (SC3).
+
+    Two sources, because each is blind to the other:
+
+    * a `pm.*` MONKEYPATCH replaces a step function — and one function can cover several
+      L-numbers, which `_covered_steps` derives from `LAND_EXECUTOR`;
+    * a DECISION-LEVEL adjudication (`"steps": {"l19_redeploy": "skip:..."}`) disables a step
+      with no monkeypatch anywhere. pass-4 C8 measured this: `l19_redeploy` was disabled at
+      `land_rehearsal.py:120` and **no monkeypatch-keyed enumeration could see it**, so a
+      sixth step was hidden from a record that named three.
+
+    A step is "disabled" if either source disables it. Union, sorted, deduplicated.
+    """
+    covered = _covered_steps(pm)
+    out: set[str] = set()
+    for fname in monkeypatched:
+        keys = covered.get(fname)
+        if keys is None:
+            # A monkeypatch on something that is NOT an executor function. Recorded rather
+            # than dropped: it disables *something*, and silently omitting it is the class of
+            # blindness this function exists to remove.
+            out.add(f"<non-executor monkeypatch: {fname}>")
+        else:
+            out.update(keys)
+    for key, verdict in (decision.get("steps") or {}).items():
+        if not (isinstance(verdict, str) and verdict == "enable"):
+            out.add(key)
+    return sorted(out)
+
+
+def _covered_steps(pm) -> dict[str, list[str]]:
+    """Map each executor FUNCTION NAME to every `LAND_STEPS` key it produces.
+
+    DERIVED FROM `LAND_EXECUTOR` AND `LAND_STEPS`, never hand-written — this is the mapping
+    Issue 1.5 exists to fix. `LAND_EXECUTOR` names only the FIRST key per function, so
+    `_land_l8_to_l15_close_chain` appears as `l8_close_chain_head` while it actually produces
+    L8-L11, and `_land_l13_l15_finish` appears as `l13_complete_gate` while it produces
+    L13-L15. The previous record named THREE labels while hiding FIVE L-numbers (l9, l10, l11,
+    l14, l15), with `l14_pour_fidelity` absent entirely — the "second enumeration that can
+    drift" defect `spec/landing.md` forbids elsewhere.
+
+    The span of each entry is "from this entry's key up to the next entry's key, exclusive",
+    read off the normative `LAND_STEPS` order.
+    """
+    steps = list(pm.LAND_STEPS)
+    entries = list(pm.LAND_EXECUTOR)
+    out: dict[str, list[str]] = {}
+    for i, (key, fname) in enumerate(entries):
+        start = steps.index(key)
+        end = steps.index(entries[i + 1][0]) if i + 1 < len(entries) else len(steps)
+        out[fname] = steps[start:end]
+    return out
+
 
 def _git(*a, cwd):
     return subprocess.run(["git", *a], cwd=cwd, capture_output=True, text=True)
@@ -123,42 +334,35 @@ def rehearse(out_path: Path | None = None) -> dict:
                                           "the repository"},
             }
 
-            # The close chain and the bead tree belong to the LIVE repo's `bd`, which this
-            # sandbox has none of. Stub exactly those, and NOTHING ELSE: L0-L6 and L16-L19 —
-            # every git-touching step, which is the blast radius the rehearsal exists to
-            # exercise — run for real against the fake origin.
-            pm._land_l8_to_l15_close_chain = lambda ctx: [
-                {"step": "l8_close_chain_head", "verdict": "pass", "reason": "stubbed (no bd)",
-                 "journal": None, "halting": False, "detail": {"stubbed": True}}]
-            pm._land_l12_close_cascade = lambda ctx: {
-                "step": "l12_close_cascade", "verdict": "pass", "reason": "stubbed (no bd)",
-                "journal": None, "halting": False, "detail": {"stubbed": True}}
-            pm._land_l13_l15_finish = lambda ctx: [
-                {"step": "l15_update_status", "verdict": "pass", "reason": "stubbed (no bd)",
-                 "journal": "L_CLOSED", "halting": False, "detail": {"stubbed": True}}]
-            pm._validate_merged = lambda pd: {"status": "pass", "engine": "rehearsal-stub"}
-            # THE ORIGIN STUB FOR #340, CORRECTED (plan-063 Issue 5.1). It faked
-            # `_worktree_teardown` with ONE parameter and returned `{"action": ...}` — a key
-            # the real function NEVER produces. That is mechanically why plan-060's rehearsal
-            # recorded `l18_prune: pass` on a code path that could not run: the stub encoded
-            # the CALLER's wrong arity, so the rehearsal exercised the mistake instead of
-            # catching it.
+            # ===================================================================
+            # NO WHOLE-STEP STUBS. NO HELPER STUBS. ONE INJECTED RUNNER.
+            # ===================================================================
             #
-            # BOTH AXES are corrected, and only one of them is mechanically checkable:
-            # `check_mock_fidelity.py` binds `inspect.signature` and catches the ARITY; it is
-            # STRUCTURALLY BLIND to the RETURN SHAPE, which L18 now branches on
-            # (REQ-LAND-031). A stub returning no `status` is reported `inconclusive` by L18
-            # — correct, but it would make every rehearsal record an unjudged prune.
-            def _teardown_stub(plan_dir, force=False):
-                return {"status": "ok", "path": f".worktrees/{PLAN_ID}",
-                        "branch": f"{PLAN_ID}-execute",
-                        "steps": {"remove": {"ok": True, "detail": "sandbox stub"},
-                                  "branch_delete": {"ok": True, "detail": "sandbox stub"},
-                                  "prune": {"ok": True, "detail": "sandbox stub"}}}
+            # plan-068 Issue 1.5. What stood here disabled SIX steps via FIVE
+            # monkeypatches plus one decision-level skip:
+            #
+            #   * three `_land_l*` step lambdas (L8-L11, L12, L13-L15),
+            #   * `pm._validate_merged` — L3's ENTIRE validation, replaced by
+            #     `{"status": "pass", "engine": "rehearsal-stub"}`,
+            #   * `pm._worktree_teardown` — L18,
+            #   * and L19, disabled at the DECISION level, which no
+            #     monkeypatch-keyed enumeration can see.
+            #
+            # Issue 1.1 gave `_validate_merged` and `_worktree_teardown` both a
+            # `runner=` and a `root=`, and routed the eight bare launches inside
+            # the L-steps onto `ctx.run`. So all of it becomes injectable: the
+            # REAL step functions now run, with one `SandboxRunner` deciding what
+            # each process returns. That is the difference between a step that was
+            # replaced and a step that ran.
+            #
+            # `check_mock_fidelity.py` found the two helper stubs here
+            # MECHANICALLY the moment Issue 1.1 changed the signatures — it binds
+            # `inspect.signature` — which is the check doing precisely its job
+            # rather than an inspection catching them.
+            runner = SandboxRunner(work, PLAN_ID)
+            monkeypatched: dict[str, str] = {}          # DELIBERATELY EMPTY. See below.
 
-            pm._worktree_teardown = _teardown_stub
-
-            ctx = pm.LandingContext(rel, decision, manifest, root=work)
+            ctx = pm.LandingContext(rel, decision, manifest, root=work, runner=runner)
             result = pm._land_execute(ctx)
 
             origin_url = _git("remote", "get-url", "origin", cwd=work).stdout.strip()
@@ -176,8 +380,25 @@ def rehearse(out_path: Path | None = None) -> dict:
                 "halted_at": result.get("at"),
                 "steps_executed": result.get("steps_executed") or
                                   [r["step"] for r in result.get("results", [])],
-                "stubbed_steps": ["l8_close_chain_head", "l12_close_cascade",
-                                  "l15_update_status"],
+                # DERIVED FROM **BOTH** SOURCES, and from `LAND_EXECUTOR` rather than by
+                # hand (plan-068 Issue 1.5 / SC3). A monkeypatch-keyed enumeration is blind
+                # to the decision-level skip, and a hand-written list was blind to the L-span
+                # of each executor function — the old record named THREE labels while hiding
+                # FIVE L-numbers (l9, l10, l11, l14, l15), with `l14_pour_fidelity` absent
+                # entirely.
+                "stubbed_steps": _stubbed_steps(pm, monkeypatched, decision),
+                "stubbed_steps_by_source": {
+                    "pm_monkeypatch": sorted(
+                        k for f, _ in [(f, None) for f in monkeypatched]
+                        for k in _covered_steps(pm).get(f, [])),
+                    "decision_adjudication": sorted(
+                        k for k, v in (decision.get("steps") or {}).items()
+                        if not (isinstance(v, str) and v == "enable")),
+                },
+                "faked_programs": sorted(SandboxRunner.FAKED),
+                "passed_through_programs": ["git"],
+                "unrecognised_argv": runner.unrecognised,
+                "honest_scope": _HONEST_SCOPE,
                 "pushed_paths_on_fake_origin": landed,
                 "verdicts": {r["step"]: r["verdict"] for r in result.get("results", [])},
             }
