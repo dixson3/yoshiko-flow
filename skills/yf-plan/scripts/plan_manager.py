@@ -9128,6 +9128,74 @@ def _land_repreview_or_halt(plan_dir: Path, decision: dict) -> dict:
 #    "journal": "<state to record on success>", "halting": bool, "detail": {...}}
 
 
+#: REQ-LAND-037 obligation 2 — the DECLARED ctx-less helpers.
+#:
+#: Every *indirect* process launcher reachable from an `_land_l<N>_*` step. This is a
+#: HAND-DECLARED allowlist, deliberately: `derive_land_launchers.py` computes the same set from
+#: the AST, and `--check` fails when the two disagree. A constant computed from the call graph
+#: would make that check tautological — the whole value is that adding a `subprocess` call to a
+#: helper an L-step reaches breaks the build until someone *declares* it here.
+#:
+#: DERIVED, NEVER HAND-WRITTEN. Four consecutive plan-068 review passes found a hand-written
+#: enumeration of this set short, and pass-4 showed even the *seed* was short — seeding on a
+#: helper name misses `_repo_root` and `_git_root`, both bare
+#: `subprocess.run(["git", "rev-parse", "--show-toplevel"])` with no `cwd`. Regenerate with:
+#:
+#:     uv run skills/yf-plan/scripts/derive_land_launchers.py
+#:
+#: The depth-1 frontier is SIX; the transitive closure is THIRTEEN. `ctx.run` /
+#: `LandingContext._dispatch` are excluded from the call graph BY NAME — today that holds only
+#: because `self.run = self._dispatch` is an assignment, so the AST resolves no callee named
+#: `run`; naming the exclusion means a future `def run` changes nothing.
+#:
+#: NOT EMPTY, AND NOT EXPECTED TO BE. `_land_abort_merge` / `_land_capture_conflict` (L1/L2's
+#: conflict-recovery path) and `_land_changed_set` (close chain, L19) stay legitimately
+#: off-seam: each takes an explicit root, which is what obligation 2 requires. The consequence
+#: is stated rather than left implicit — the L1/L2 conflict path reaches a real
+#: `git merge --abort` against `ctx.root` that an injected runner never sees, so a test
+#: asserting "every process went through the runner" is FALSE on that path.
+LAND_CTXLESS_HELPERS: tuple[str, ...] = (
+    "_branch_exists",
+    "_dirty_outside_plan_dir",
+    "_git_root",
+    "_land_abort_merge",
+    "_land_capture_conflict",
+    "_land_changed_set",
+    "_registered_worktree_paths",
+    "_repo_root",
+    "_run_change_validation",
+    "_run_git",
+    "_run_shell",
+    "_validate_merged",
+    "_worktree_teardown",
+)
+
+#: The honest residue: DECLARED helpers that do NOT yet resolve their working directory from an
+#: explicit argument. A member here is a known open defect, never an exemption — the point of
+#: recording it is that a helper which is merely *declared* would otherwise read as compliant.
+#:
+#: Both members are the `yf-i127` defect class exactly: bare
+#: `subprocess.run(["git", "rev-parse", "--show-toplevel"])` with no `cwd`, falling back to
+#: `Path.cwd()` / `Path(".")`. They are reached transitively (through `_validate_merged` and
+#: `_worktree_teardown`), which is why giving those two a `root=` — not only a `runner=` — is
+#: what actually contains them: NO RUNNER INTERCEPTS A FILESYSTEM READ.
+#:
+#: An empty tuple is the end state. Subset of `LAND_CTXLESS_HELPERS` by construction.
+#:
+#: `_validate_merged` and `_worktree_teardown` are listed here at the SPEC-first commit and are
+#: removed by plan-068 Issue 1.1, which gives each BOTH a `runner=` and a `root=` on the
+#: `_dirty_outside_plan_dir` model. Listing them is the point: REQ-LAND-037 states the target,
+#: and a residue that is recorded and tested is a defect with a closing issue rather than a
+#: silent exception. `test_unrooted_is_a_subset_and_is_recorded_as_a_defect_not_an_exemption`
+#: FAILS once either grows a `root=`, so the list cannot outlive the defect it records.
+LAND_CTXLESS_HELPERS_UNROOTED: tuple[str, ...] = (
+    "_git_root",
+    "_repo_root",
+    "_validate_merged",
+    "_worktree_teardown",
+)
+
+
 class LandingContext:
     """Everything the steps share. Assembled ONCE, from RE-DERIVED facts (REQ-LAND-002)."""
 

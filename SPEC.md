@@ -1163,6 +1163,75 @@
 >   finding — an 80-87% artifact rate that buries the thing it catches.
 >
 >   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendments.
+> - **plan-068 (2026-09-09, #348 / #331 / #349-partial / #353-partial):** make the landing close
+>   chain **injectable** and make `land` work **in-place**. Two new ids, five amendments, and one
+>   carve-out retired. The allocation is recorded in
+>   `docs/plans/plan-068-james-dixson-8ae0e1/assets/req-allocation.md`, checked **bidirectionally**
+>   by `assets/check_req_allocation.py` — the one-directional form could never catch the
+>   over-claim this plan's own pass-4 review found in its own draft.
+>
+>   **Added `REQ-LAND-037`** (`skills/yf-plan/spec/landing.md`) — **every landing process launch
+>   is on the `ctx.run` seam, or is a DECLARED ctx-less helper.** Two obligations: no
+>   process-launch primitive inside any `_land_l<N>_*` function, and every *indirect* launcher
+>   **reachable from an L-step** is declared in `LAND_CTXLESS_HELPERS` and resolves its working
+>   directory from an explicit argument.
+>
+>   **The set is DERIVED, and the seed is process-launch primitives — never a helper name.**
+>   `skills/yf-plan/scripts/derive_land_launchers.py` seeds on `subprocess.*` / `os.system` /
+>   `os.popen` / `os.spawn*` / `pty.*`, marks every function containing one a direct launcher,
+>   takes the **transitive** closure over the intra-module call graph, then BFS's from every
+>   L-step. Measured: depth-1 frontier **6**, transitive closure **13**. Four consecutive review
+>   passes found a hand-written enumeration short, and pass-4 showed the *seed* was short too —
+>   a hand-picked seed of `{subprocess, _run_git, _run_shell, _run_change_validation}` misses
+>   `_repo_root` and `_git_root`, both bare `subprocess.run(["git", "rev-parse",
+>   "--show-toplevel"])` with **no `cwd`**, falling back to `Path.cwd()` / `Path(".")` — the
+>   `yf-i127` defect class exactly. An earlier draft of this same plan asserted the closure was
+>   **ten**: the same constant-vs-derivation mismatch the mechanism exists to remove, committed
+>   inside the paragraph that mandates the derivation.
+>
+>   **Why `runner=` alone is only half the fix.** A runner intercepts a *process*; **no runner
+>   intercepts a filesystem read.** `_validate_merged`'s tier-1 decision is three
+>   filesystem/config probes keyed on `_repo_root()` — `_approved_manifest_present`,
+>   `_change_validation_script`, `_resolve_validate_cmd` → `_read_config`. Without an explicit
+>   `root=`, a sandboxed test that does not `os.chdir()` still resolves the **real** repository's
+>   `CHANGE-VALIDATION.md` and the **real** engine script, then hands the fake a command whose
+>   `cwd` is the real repository. Execution would be contained; **resolution would not.** So both
+>   `_validate_merged` and `_worktree_teardown` take **both** parameters. This is a safety
+>   requirement: unrouted and unrooted, a pytest run would make L3 execute the real repository's
+>   FULL `CHANGE-VALIDATION.md` tier and L18 run `git worktree remove` / `git branch -d` /
+>   `git worktree prune` **in the real checkout**.
+>
+>   **The declared set is NOT empty, and the requirement does not pretend it will be.** Three
+>   depth-1 helpers stay legitimately off-seam — `_land_abort_merge`, `_land_capture_conflict`
+>   (L1/L2's conflict recovery) and `_land_changed_set` (close chain, L19) — each taking an
+>   explicit root, which is what obligation 2 requires. Landing an allowlist the SPEC claimed
+>   would be empty while three members sat in it is the failure this clause prevents. The stated
+>   consequence: the L1/L2 conflict path reaches a real `git merge --abort` against `ctx.root`
+>   that an injected runner never sees, so a test asserting "every process went through the
+>   runner" is **false on that path** and shall not be written.
+>
+>   **`LAND_CTXLESS_HELPERS_UNROOTED`** records the honest residue — a declared helper that does
+>   not *yet* resolve its cwd from an explicit argument, as a defect with a closing issue rather
+>   than as an exemption. Its companion test fails once a member grows a `root=`, so the list
+>   cannot outlive the defect it records.
+>
+>   **`REQ-LAND-031`'s carve-out is RETIRED as an over-read, and `REQ-LAND-031` itself is
+>   UNCHANGED.** It mandates calling `_worktree_teardown` with `force=False` in **keyword** form
+>   and **branching on the returned `status`** — it constrains the *call* and says nothing about
+>   how the callee launches. `_worktree_teardown(ctx.plan_dir, force=False, root=ctx.root,
+>   runner=ctx.run)` satisfies it verbatim while fully on the seam, and the precedent already
+>   exists at L16: `_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`.
+>   plan-068's EXP-001 recorded L18 as "deliberately off-seam per REQ-LAND-031"; that finding
+>   over-read the requirement and an earlier draft adopted the over-reading unchecked.
+>
+>   **Cited but NOT amended**, recorded so a reader does not mistake a citation for a change:
+>   `REQ-LAND-031` (above). **`REQ-LAND-018` and `REQ-LAND-036` are NOT this plan's** — the
+>   rationale amendment and the exclusion-table amendment both belong to **plan-069**, which
+>   plan-068 Issue 3.3 *verifies* rather than performs. An earlier draft over-claimed both, and
+>   plan-069's text falsely asserted plan-068 had already done them; both attributions are
+>   corrected. `REQ-LAND-027` stays deliberately reserved and is not consumed.
+>
+>   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
 

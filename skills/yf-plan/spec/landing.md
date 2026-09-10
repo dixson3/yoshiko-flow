@@ -576,3 +576,85 @@ landing-mutated facts of the table above are re-derived and reported, and are no
 re-derive every fact per REQ-LAND-002 **as amended by REQ-LAND-036** — the digest comparison that
 decides staleness is over the coverage set, not over the full fact map.
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_digest_survives_resume_after_teardown`
+
+REQ-LAND-037: **Every landing process launch is on the `ctx.run` seam, or is a DECLARED
+ctx-less helper.** Two obligations, and the second is what makes the first checkable:
+
+1. **Direct.** Every process a landing step launches **directly** shall be issued through
+   `LandingContext.run`, whose `cwd` defaults to the checkout root. No `_land_l<N>_*` function
+   shall contain a process-launch primitive (`subprocess.*`, `os.system` / `os.popen` /
+   `os.spawn*` / `os.exec*`, `pty.*`).
+2. **Indirect.** Every *indirect* launcher **reachable from an L-step** shall be a **declared
+   ctx-less helper** that resolves its working directory from an **explicit argument**. The
+   declaration is the `LAND_CTXLESS_HELPERS` constant in `plan_manager.py`; the reachable set
+   is `LAND_CTXLESS_HELPERS_UNROOTED`'s complement within it plus that constant, and the two
+   together are exhaustive.
+
+**"Reachable" is TRANSITIVE, and the set is DERIVED — never hand-written.** Four consecutive
+review passes of plan-068 found a hand-written enumeration of this set short, and pass-4 showed
+that even the *seed* was short. `skills/yf-plan/scripts/derive_land_launchers.py` seeds on
+**process-launch primitives** — never on a hand-picked helper name — marks every function
+containing one a direct launcher, takes the transitive closure over the intra-module call graph,
+then BFS's from every `_land_l<N>_*` function. The **depth-1 frontier is six**; the **transitive
+closure is thirteen**. This file quotes what the script emits; it does not restate a number that
+can drift from it.
+
+**The seam edge is excluded EXPLICITLY.** `ctx.run` / `LandingContext._dispatch` are removed from
+the call graph by name. Today that exclusion holds only by accident — `self.run = self._dispatch`
+is an *assignment*, so the AST resolves no callee named `run` — and if a future edit makes `run` a
+real `def` the closure would explode to nearly the whole module. Naming the exclusion means that
+edit changes nothing.
+
+**The declared set is NOT empty, and this requirement does not pretend it will be.** After the
+seam routing, three depth-1 helpers remain legitimately off-seam — `_land_abort_merge` and
+`_land_capture_conflict` (L1/L2's conflict-recovery path) and `_land_changed_set` (the close
+chain, L19) — plus their transitive launchers. All three take an **explicit root**, so all three
+satisfy obligation 2; none is structurally unroutable. Landing an allowlist this file claimed
+would be empty, while three members sat in it, is the failure mode this paragraph exists to
+prevent.
+
+**Consequence, stated rather than left as an inference.** The L1/L2 conflict path reaches a real
+`git merge --abort` against `ctx.root` that an injected runner never sees. That is **contained**,
+because the root is explicit — but a test asserting "every process went through the runner" is
+**false on that path**, and shall not be written.
+
+**`REQ-LAND-031`'s carve-out is RETIRED as an over-read.** That requirement mandates calling
+`_worktree_teardown` with `force=False` in **keyword** form and **branching on the returned
+`status`**. It constrains the **call**; it says nothing about how the callee launches.
+`_worktree_teardown(ctx.plan_dir, force=False, root=ctx.root, runner=ctx.run)` satisfies it
+verbatim **while fully on the seam**, and the precedent already exists at L16 —
+`_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`. `REQ-LAND-031`'s text is
+unchanged.
+
+**`runner=` alone closes only HALF the escape, and `root=` closes the other half.** A runner
+intercepts a *process*; **no runner intercepts a filesystem read**. `_validate_merged`'s tier-1
+decision is three filesystem/config probes keyed on `_repo_root()` — `_approved_manifest_present`,
+`_change_validation_script`, and `_resolve_validate_cmd` → `_read_config`. Without an explicit
+`root=`, a sandboxed test that does not `os.chdir()` still resolves the **real** repository's
+`CHANGE-VALIDATION.md` and the **real** engine script, then hands the fake a command whose `cwd`
+is the real repository. Execution would be contained; **resolution would not.**
+`_worktree_teardown` has the same shape via `_git_root()`. So both helpers take **both**
+parameters, on the `_dirty_outside_plan_dir` model.
+
+**This is a SAFETY requirement, not tidiness.** `_repo_root` and `_git_root` are bare
+`subprocess.run(["git", "rev-parse", "--show-toplevel"])` with **no `cwd`**, falling back to
+`Path.cwd()` / `Path(".")`. Left unrouted and unrooted, a pytest test that does not `os.chdir()`
+would make L3 run the **real** repository's FULL `CHANGE-VALIDATION.md` tier, and L18 run
+`git worktree remove` / `git branch -d <plan-id>-execute` / `git worktree prune` **in the real
+checkout**. An injected runner cannot prevent either, because neither call reaches `ctx.run`.
+
+**`LAND_CTXLESS_HELPERS_UNROOTED` is the honest residue.** A declared helper that does **not** yet
+resolve its cwd from an explicit argument is listed there rather than silently counted as
+compliant. It is a **subset** of `LAND_CTXLESS_HELPERS`, and a member of it is a known open defect
+with an issue, not an exemption. An empty `LAND_CTXLESS_HELPERS_UNROOTED` is the end state; a
+member that is neither declared nor unrouted-and-recorded is a violation.
+
+Rationale: `L8`–`L15` bypassed `ctx.run` for bare `subprocess.run`, so the rehearsal had to
+replace **whole steps** and three of fifteen were never exercised (dixson3/yoshiko-flow#348).
+A seam that every step is on is what makes an end-to-end landing test possible at all; a seam
+that *most* steps are on tests the steps that were already easy. The indirect clause exists
+because a token-keyed check on `subprocess.*` is structurally **blind** to `_run_git`, so a check
+written against obligation 1 alone reports green while obligation 2 is violated at five call
+sites — measured, plan-068 pass-2 C1.
+Verification: `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` exits 0; and
+`bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_seam.py test_declared_ctxless_helpers_match_the_derived_closure`
