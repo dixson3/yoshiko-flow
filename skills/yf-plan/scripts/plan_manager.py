@@ -9653,6 +9653,23 @@ def _land_l2_merge(ctx: LandingContext) -> dict:
 
     RUNS IN THE PRIMARY CHECKOUT — a linked worktree cannot check out a branch another
     worktree holds (REQ-LAND-010).
+
+    IN-PLACE IS A DECLARED SCOPE BOUNDARY, NOT A FIXED BEHAVIOUR (`REQ-LAND-004` as amended by
+    plan-068 Issue 0.4). Two facts about the code below, recorded because they are the
+    boundary rather than because they are correct:
+
+      * `git checkout <target>` runs in `ctx.root` — and under `execute.worktree: false`
+        `ctx.root` **is** the execute checkout, so this line switches the one and only working
+        tree off the execute branch;
+      * the following `git pull --rebase`'s return code is **ignored**.
+
+    Both are the measured status quo. The L2 in-place work is routed to **plan-069**, and no
+    plan-068 issue implements or tests it — specifying the *intended* behaviour here would
+    have left the SPEC-vs-implementation agreement check trivially green, since SPEC and code
+    would "agree" because neither changed (pass-3 C7).
+
+    `test_the_landed_spec_matches_the_implemented_L2_behaviour` reads BOTH sides mechanically,
+    so closing either fact without moving the boundary fails loudly.
     """
     co = ctx.run("git", ["checkout", ctx.target], cwd=ctx.root)
     if co.returncode != 0:

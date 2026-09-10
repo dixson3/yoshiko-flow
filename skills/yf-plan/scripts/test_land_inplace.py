@@ -29,6 +29,7 @@ THE `__main__` IS THE FORWARDING FORM (REQ-CLI-028).
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import os
@@ -539,6 +540,120 @@ def test_the_end_to_end_test_would_not_pass_without_the_seam():
     payload = json.loads(r.stdout)
     assert payload["verdict"] == "PASS"
     assert not payload["direct_violations"]
+
+
+# ============================================================================================
+# Issue 2.6 — the SPEC text and the implemented L1/L2 behaviour AGREE (SC9c)
+# ============================================================================================
+
+LANDING_SPEC = HERE.parent / "spec" / "landing.md"
+PM_SOURCE = HERE / "plan_manager.py"
+
+
+def test_the_landed_spec_matches_the_implemented_L1_behaviour():
+    """SC9c, L1 half. `REQ-LAND-002` as amended says L1 checks out the execute branch.
+
+    Read off BOTH sides rather than asserted about one: the SPEC must carry the clause, and
+    the implementation must exhibit it. Either alone is satisfiable while the pair diverges,
+    which is the whole subject of this issue.
+    """
+    spec = LANDING_SPEC.read_text()
+    assert "AMBIENT HEAD IS NOT A FACT" in spec, (
+        "REQ-LAND-002's in-place amendment is gone from the SPEC")
+    flat = " ".join(spec.split())
+    assert "L1 shall check out `ctx.execute_branch` explicitly" in flat, (
+        "the SPEC no longer states L1's explicit-checkout obligation")
+    src = PM_SOURCE.read_text()
+    body = src[src.index("def _land_l1_down_merge"):src.index("def _land_l2_merge")]
+    assert 'ctx.run("git", ["checkout", ctx.execute_branch]' in body, (
+        "L1 does not check out the execute branch — the SPEC says it shall, so SPEC and "
+        "implementation have DIVERGED")
+    # And the checkout is a HALT on failure, not a warning.
+    assert 'if co.returncode != 0:' in body and 'halting=True' in body, (
+        "L1's checkout failure is not halting; a non-halting checkout failure means the merge "
+        "runs against the wrong tree and reports `pass`")
+
+
+def test_the_landed_spec_matches_the_implemented_L2_behaviour():
+    """SC9c, L2 half — and this is the half that could have been trivially green.
+
+    `REQ-LAND-004`'s amendment does NOT specify what L2 should do in-place. It records what L2
+    DOES, and declares the work a scope boundary routed to plan-069. So agreement here means
+    the two recorded facts are still true of the code:
+
+      1. `git checkout <target>` runs in `ctx.root`;
+      2. the following `git pull --rebase`'s return code is IGNORED.
+
+    A test that only read the SPEC would pass forever. A test that only read the code would
+    pass forever. This reads both and FAILS when either moves without the other — including
+    the good direction: closing the ignored return code without moving the boundary is drift,
+    and drift is what this check is for.
+    """
+    spec = LANDING_SPEC.read_text()
+    flat = " ".join(spec.split())
+    assert "L2 IN-PLACE IS A DECLARED SCOPE BOUNDARY" in flat, (
+        "REQ-LAND-004's declared boundary is gone from the SPEC")
+    assert "runs `git checkout <target>` **in `ctx.root`**" in flat, (
+        "the SPEC no longer records fact 1 (the checkout runs in ctx.root)")
+    assert "return code is **ignored**" in flat, (
+        "the SPEC no longer records fact 2 (the pull --rebase return code is ignored)")
+    assert "routed to **plan-069**" in flat or "plan-069" in flat, (
+        "the SPEC declares a boundary but names no destination for the work")
+
+    src = PM_SOURCE.read_text()
+    body = src[src.index("def _land_l2_merge"):src.index("def _land_l3_validate_merged")]
+
+    # Fact 1 — still true.
+    assert 'ctx.run("git", ["checkout", ctx.target], cwd=ctx.root)' in body, (
+        "L2 no longer checks out the target in ctx.root. If that is a FIX, move "
+        "REQ-LAND-004's declared boundary in the same change-set — the SPEC currently records "
+        "this as the measured status quo.")
+
+    # Fact 2 — still true. Asserted by the ABSENCE of a binding, which is the only way to
+    # state "the return code is ignored" mechanically.
+    pull_line = next(
+        (ln for ln in body.splitlines() if 'pull", "--rebase"' in ln), None)
+    assert pull_line is not None, "L2 no longer pulls --rebase"
+    assert "=" not in pull_line.split("ctx.run")[0], (
+        f"L2's `git pull --rebase` return code is now BOUND, so it may be checked — that is "
+        f"the plan-069 work, and REQ-LAND-004's declared boundary must move with it. Line: "
+        f"{pull_line.strip()}")
+
+    # The code names the boundary, so a reader of the code finds the SPEC rather than
+    # discovering the ignored return code and assuming it is a bug nobody noticed.
+    assert "DECLARED SCOPE BOUNDARY" in body and "REQ-LAND-004" in body, (
+        "L2's docstring does not name the declared boundary; the SPEC records it, but a reader "
+        "of the code would meet the two facts with no pointer to why they are as they are")
+
+
+def test_no_plan_068_issue_implements_L2_in_place_which_is_why_the_boundary_is_DECLARED():
+    """The honesty check on Issue 0.4's own reasoning (pass-3 C7), made executable.
+
+    0.4's argument for recording rather than specifying was: *"No issue in Plan A implements or
+    tests L2 in-place, so specifying it here would leave SC9c/2.6 trivially green."* That
+    argument is only sound while it is TRUE — so it is asserted rather than trusted.
+
+    If a later change does implement L2 in-place, this test fails and the SPEC boundary must
+    move. That is the intended outcome, not a nuisance.
+    """
+    # THE EXECUTABLE BODY, WITH THE DOCSTRING STRIPPED. Checked via the AST rather than by
+    # slicing text, because L2's docstring legitimately says "in-place" several times — it is
+    # where the boundary is recorded. A substring check over the whole function would fire on
+    # the very note that declares the boundary, which is the opposite of what this asserts.
+    tree = ast.parse(PM_SOURCE.read_text())
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == "_land_l2_merge")
+    stmts = fn.body[1:] if (fn.body and isinstance(fn.body[0], ast.Expr)
+                            and isinstance(fn.body[0].value, ast.Constant)) else fn.body
+    code = "\n".join(ast.unparse(st) for st in stmts)
+
+    assert "_worktree_opted_out" not in code, (
+        "L2 now branches on in-place mode. REQ-LAND-004 records L2's in-place behaviour as a "
+        "DECLARED BOUNDARY routed to plan-069, and that declaration is now false — move it.")
+    assert "worktree" not in code, (
+        "L2's executable body now reasons about the worktree. If it has learned about in-place "
+        "mode, REQ-LAND-004's declared boundary must move in the same change-set — a boundary "
+        "the code has already crossed is not a boundary.")
 
 
 if __name__ == "__main__":
