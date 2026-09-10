@@ -1274,6 +1274,48 @@
 >   not a merge commit, and the in-place branch cut repairs it by making `HEAD` a real merge
 >   commit at L4 — stated and tested, not left as an unstated inference about a redeploy gate.
 >
+>   **Amended `REQ-BRANCH-001`, `REQ-BRANCH-002` and `REQ-BRANCH-004`** (`skills/yf-plan/spec/phases.md`)
+>   — **`land` shall work under `execute.worktree: false`.** `REQ-BRANCH-001`: the named-branch
+>   model applies to a branch cut with **no `worktree add`** — the name is a property of the
+>   *phase*, not of the mechanism that materialises it, so `_worktree_ensure` cuts and checks out
+>   `<plan-id>-execute` **in the primary checkout** on the in-place path. Measured:
+>   `_land_manifest` halts `execute-branch-missing` on a bare
+>   `git rev-parse --verify <plan-id>-execute` and **never calls `_worktree_opted_out()`** — so it
+>   is the *absent branch*, not the absent worktree, that made the landing route unreachable, and
+>   **two** consecutive plans (062, 063) hand-cut it as a numbered Epic-0 issue before plan-068
+>   made three.
+>
+>   `REQ-BRANCH-002` takes **two** clauses. **(i)** The pinned base binds an in-place
+>   `checkout -b` exactly as it binds `worktree add -b`, which is load-bearing structurally: the
+>   `opted-out` short-circuit sits at the **top** of `_worktree_ensure`, *before*
+>   `_worktree_viability`, `_resolve_execute_base` and the bd-resolution probe, so the in-place
+>   path never reaches the base resolver at all. The create is a **three-way branch** — absent →
+>   `checkout -b <b> <pinned-base>`; exists → plain `checkout`; already on it → no-op — because
+>   `_worktree_ensure` runs on **every** `execute` invocation, promises "idempotent
+>   create-or-reattach", and `git checkout -b` on an existing branch exits **128**.
+>   **Create-without-checkout is silently wrong**: the `checkout` half is what makes `ctx.root`'s
+>   HEAD the execute branch. **(ii)** The **dirty-tree refusal class** — the in-place cut shall
+>   refuse with a *declared* class rather than surfacing a raw `git` error. Measured:
+>   `git checkout -b` on a dirty divergent tree emits `error: Your local changes would be
+>   overwritten by checkout`, exits **1**, leaves HEAD unmoved, and `_worktree_ensure` has **no
+>   guard** for it. **The refusal carries NO new REQ id** — it governs the operation
+>   `REQ-BRANCH-002` already governs. (An earlier draft counted an amendment as an allocation and
+>   left this class with no id at all; the decision and its second reason — the plan's one-shot
+>   `REQ-LAND-(037|038)` gate resolves before this text lands, so an id allocated here could never
+>   have been checked by it — are recorded in that plan's `assets/req-allocation.md`.)
+>
+>   `REQ-BRANCH-004` takes an **explicit in-place carve-out**: "never left on a plan branch" does
+>   **not** hold for the duration of in-place execution, and the design contradicts it
+>   deliberately. With one address space, execution must happen **on** `<plan-id>-execute` — that
+>   is what makes `ctx.root`'s HEAD the execute branch, makes L1's down-merge real rather than a
+>   self-merge, and keeps a commit from landing on the merge target and escaping the merge L3
+>   validates. **The carve-out is BOUNDED, and the bound preserves the original rationale**
+>   (ambient-HEAD drift for the next plan): the risk is discharged at **L2**, which checks out the
+>   merge target, and at **L18**, whose teardown deletes the branch after the merge — so the
+>   carve-out covers only the interval between the in-place cut and L2. Recorded explicitly rather
+>   than as a silent exception: a design that contradicts a requirement and says nothing is
+>   indistinguishable from one that violates it.
+>
 >   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
