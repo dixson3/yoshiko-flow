@@ -6573,18 +6573,32 @@ def judgement_never_fired_report(plan_dir: str, as_json: bool):
     raise SystemExit(0)
 
 
-def _land_epic_from_bd(plan_dir: Path) -> str | None:
+def _land_epic_from_bd(plan_dir: Path, root: Path | None = None) -> str | None:
     """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
 
     Mirrors `_resume_scan`'s `epic_source=bd_metadata` route: the pour stamps the epic with
     `metadata.plan_dir` (SKILL.md §5.2a step (a)) exactly so the linkage is findable when
     plan.md carries no `**Epic:**` field. Reused here so the route-record check answers the
     same in both address spaces.
+
+    `root` IS AN EXPLICIT ARGUMENT, not the seam (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less
+    clause). This function has no `ctx` in scope — it is reached from `audit-close`, not from
+    an L-step — so a `runner=` would have nothing to be given. What it needs is a declared
+    working directory, and `root=None` preserves today's behaviour exactly.
+
+    Why it matters even though `bd`'s Dolt DB is shared (INV-2): "reachable from anywhere" is
+    a property of a repository that HAS one. Launched with no `cwd` at all, this reads whatever
+    database the ambient working directory resolves to — which under `execute.worktree: false`
+    is one directory, and under a worktree invocation is another. The value it returns is the
+    epic id the route-record check keys every gate lookup on, so resolving the wrong database
+    does not error: it returns `None` and the caller reports a LOUD INCONCLUSIVE about a plan
+    whose epic exists perfectly well somewhere else.
     """
     want = plan_dir.as_posix().rstrip("/")
     want_leaf = plan_dir.name
     proc = subprocess.run(["bd", "list", "--all", "--limit", "5000", "--json"],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True,
+                          cwd=str(root) if root is not None else None)
     if proc.returncode != 0:
         return None
     try:
@@ -6636,7 +6650,7 @@ def _land_assert_primary_checkout() -> dict:
     }
 
 
-def _land_route_record_findings(plan_dir: Path) -> list[dict]:
+def _land_route_record_findings(plan_dir: Path, root: Path | None = None) -> list[dict]:
     """`Type: human` gates whose ROUTE RECORD says an agent resolved them (REQ-LAND-015).
 
     THE SIGNAL IS ASYMMETRIC, and the asymmetry is what makes a strippable marker useful:
@@ -6647,6 +6661,15 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
 
     So this reports the dirty direction only. It never certifies that a gate WAS
     human-resolved, and nothing here should be read as doing so. DETECTION, NOT PREVENTION.
+
+    `root` IS AN EXPLICIT ARGUMENT (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less clause). Like
+    `_land_epic_from_bd`, this has no `ctx` in scope — `audit-close` calls it — so it takes a
+    declared working directory rather than a runner. `root=None` preserves today's behaviour.
+
+    Issue 1.3's AST check was originally scoped to leave these two ADVISORY, which would have
+    let this plan close #348's normative sentence while two `bd` calls still read a database
+    from the wrong cwd. The check now enforces the ctx-less clause, so an explicit root is what
+    satisfies it.
     """
     out: list[dict] = []
 
@@ -6695,7 +6718,7 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
     if plan_md.is_file():
         epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
     if not epic:
-        epic = _land_epic_from_bd(plan_dir)
+        epic = _land_epic_from_bd(plan_dir, root=root)
     if not epic:
         return _inconclusive(
             f"could not resolve the epic id — it is absent from {plan_md} (which is read "
@@ -6704,7 +6727,8 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
 
     proc = subprocess.run(
         ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
-        capture_output=True, text=True)
+        capture_output=True, text=True,
+        cwd=str(root) if root is not None else None)
     if proc.returncode != 0:
         return out
     try:

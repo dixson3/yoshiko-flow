@@ -711,8 +711,17 @@ that *most* steps are on tests the steps that were already easy. The indirect cl
 because a token-keyed check on `subprocess.*` is structurally **blind** to `_run_git`, so a check
 written against obligation 1 alone reports green while obligation 2 is violated at five call
 sites — measured, plan-068 pass-2 C1.
-Verification: `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` exits 0; and
-`bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_seam.py test_declared_ctxless_helpers_match_the_derived_closure`
+Verification: `uv run scripts/checks/check_land_seam.py` exits 0 — the AST check, keyed on the
+DERIVED launcher set and enforcing **both** obligations; `uv run
+skills/yf-plan/scripts/derive_land_launchers.py --check` exits 0; and `bash
+scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_seam.py test_declared_ctxless_helpers_match_the_derived_closure`.
+The AST check carries **four negative controls** in `test_land_seam.py`, one per way it could go
+vacuous: an injected direct launch inside an L-step must FAIL; a name dropped from
+`LAND_CTXLESS_HELPERS` with the code untouched must FAIL **while obligation 1 stays silent**
+(which is what proves the two clauses are independent rather than one counted twice); `os.system`
+occurring **zero** times in the module is pinned as an executable fact, since that measurement is
+the whole argument for a derived seed over a token list; and an unreadable source must exit **2**,
+never 0.
 
 REQ-LAND-038: **The merge preview states what the merge WILL LAND, not the symmetric
 difference.** `_land_merge_preview`'s `changed_paths` shall be the set of paths the merge of
