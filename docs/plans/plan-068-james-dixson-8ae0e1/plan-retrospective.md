@@ -108,3 +108,41 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` |  |
 | `cost` |  |
 
+## RE-006
+
+| field | value |
+| :-- | :-- |
+| `kind` | deviation |
+| `when` | 2026-09-09 |
+| `stop_class` |  |
+| `asked` | Writing the landing decision JSON via a python3 heredoc — was the heredoc delimiter quoted? |
+| `answered` | NO. I wrote <<PYEOF instead of <<'PYEOF', so zsh command-substituted every backtick in the embedded JSON. The shell EXECUTED fragments of the decision text, including 'yf self install --from-build --build' — the mid-execution deploy this very plan prohibits. It failed closed at the promote step (/Users/james/.local/bin/yf already exists — pass --force), so nothing was overwritten: binary still 0.5.0 (77eb7fe) dated Sep 5, installed skill tree still byte-DIFFERENT from the repo, git tree clean. Rewritten using the Write tool with zero shell interpolation. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | zsh emitted 'command not found: include/partial/deferred', 'fatal: ambiguous argument origin/main...main', and 'error: /Users/james/.local/bin/yf already exists — pass --force to overwrite'; post-hoc: yf --version unchanged at 0.5.0 (77eb7fe), diff of installed vs repo plan_manager.py still DIFFERENT, git status clean |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
+## RE-007
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-09-09 |
+| `stop_class` | 5 |
+| `asked` | FULL tier at land: green? |
+| `answered` | Not on the first three runs. Three failures, TWO of them inherited from main and one this plan's: (1) doclint SC41 vs plan-069's empty criteria table [inherited, cleared at Issue 3.3]; (2) okf-index-drift on plan-069's seven unindexed members [inherited, real descriptions authored]; (3) skill-readme-contract layout fence missing this plan's three new scripts, and skill_diagrams drift on yf-plan.d2 [both this plan's, both fixed]. Fourth run: status pass. |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | change_validation.py run --tier full --json: first_failure doclint-tests, then okf-index-drift, then skill-readme-contract, then skill_diagrams --check, then status pass. git diff --stat <base> -- docs/plans/plan-069/ is EMPTY for the first two, which is what establishes they were inherited. |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+
