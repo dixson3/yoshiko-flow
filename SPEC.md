@@ -1256,6 +1256,24 @@
 >   SPEC and implementation would "agree" because neither changed. A declared boundary is
 >   checkable; a specified-and-unimplemented one reads as coverage.
 >
+>   **Added `REQ-LAND-038`** — **the merge preview states what the merge WILL LAND, not the
+>   symmetric difference.** `_land_merge_preview.changed_paths` shall be the two-dot range
+>   `<target>..<execute_branch>`, never the two-argument `git diff <target> <execute_branch>`
+>   form, which is a symmetric difference between two tips and cannot distinguish "branch ahead"
+>   from "branch behind". Measured (EXP-001): for a branch **behind** its target — a merge
+>   guaranteed to be a no-op — the preview reported `changed_paths: ["work.txt"]` and
+>   `available: true`, naming the *target's* changes and attributing them to the branch.
+>
+>   **The consequence is named rather than inferred:** `touches_skills` derives from
+>   `changed_paths`, and `touches_skills` is **L19's redeploy precondition**. A directionality
+>   defect therefore propagates to whether the machine's installed toolchain is rewritten — a
+>   behind-branch preview naming a `skills/` path the branch never touched **arms** a redeploy
+>   with no reason to run, and the inverse **hides** one that should. Neither is observable from
+>   the preview's own output. `_land_changed_set` is settled in the same requirement because it
+>   asks the same question after the merge: its `HEAD^1..HEAD` degrades in-place when `HEAD` is
+>   not a merge commit, and the in-place branch cut repairs it by making `HEAD` a real merge
+>   commit at L4 — stated and tested, not left as an unstated inference about a redeploy gate.
+>
 >   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope

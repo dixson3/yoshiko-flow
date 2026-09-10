@@ -701,3 +701,39 @@ written against obligation 1 alone reports green while obligation 2 is violated 
 sites — measured, plan-068 pass-2 C1.
 Verification: `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` exits 0; and
 `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_seam.py test_declared_ctxless_helpers_match_the_derived_closure`
+
+REQ-LAND-038: **The merge preview states what the merge WILL LAND, not the symmetric
+difference.** `_land_merge_preview`'s `changed_paths` shall be the set of paths the merge of
+`<execute_branch>` into `<target>` **introduces** — the two-dot range `<target>..<execute_branch>`
+— never the two-argument `git diff <target> <execute_branch>` form, which is a **symmetric
+difference between two tips** and cannot distinguish "the branch is ahead" from "the branch is
+behind".
+
+Measured (plan-068 EXP-001): for a branch **behind** its target — a merge guaranteed to be a
+no-op — the preview reported `changed_paths: ["work.txt"]` and `available: true`. The paths it
+named were the *target's* changes, attributed to the branch. Nothing in the manifest said
+otherwise.
+
+**The consequence is named here rather than left as an inference.** `touches_skills` is derived
+from `changed_paths`, and `touches_skills` is **L19's redeploy precondition**. So a
+directionality defect in the preview propagates to *whether the machine's installed toolchain is
+rewritten*: a behind-branch preview that names a `skills/` path the branch never touched arms a
+redeploy the landing has no reason to perform, and the inverse hides one it does. Neither is
+observable from the preview's own output.
+
+**`_land_changed_set` is settled in the same requirement, because it is the same question asked
+after the merge rather than before.** It computes `HEAD^1..HEAD` (`REQ-LAND-025`, #303), which
+degrades **in-place** when `HEAD` is not a merge commit — EXP-001 measured it. The in-place
+branch-cut of `REQ-BRANCH-002` (as amended) mostly repairs this **by making `HEAD` a real merge
+commit at L4**, and that reasoning is **stated and tested** rather than left as an unstated
+inference about the redeploy precondition: an unstated inference is exactly how a redeploy
+precondition comes to depend on a property nobody re-checked.
+
+`_land_changed_set`'s existing total-function behaviour is unchanged: on a non-merge `HEAD` it
+returns the single commit's own diff rather than raising.
+
+Rationale: the two-argument `git diff A B` form reads as "what differs", which is the wrong
+question for a preview whose consumers are a consent prompt and a redeploy gate. Both consumers
+need "what will this landing introduce". A symmetric difference answers a question neither asked,
+and answers it with a `true`.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_manifest.py test_merge_preview_is_directional`
