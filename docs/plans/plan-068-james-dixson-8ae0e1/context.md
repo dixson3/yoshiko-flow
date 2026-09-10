@@ -72,6 +72,29 @@ checklists.
 | **No `yf skills install` / `yf self install` mid-execution** | `plan_manager.py` is re-invoked per call, so a mid-execution deploy takes effect in the *same* session for scripts but not for `SKILL.md` prose | A half-deployed session runs **new scripts against old prose**. Redeploy is the **last** step of landing, from clean `main` in sync with `origin` |
 | **Sandbox discipline for tests** | Issue 2.5's end-to-end test and the rehearsal build throwaway repos | **Measured hazard:** `_validate_merged` and `_worktree_teardown` resolve their root via cwd-less `_repo_root()` / `_git_root()` falling back to `Path.cwd()` / `Path(".")`. Without Issue 1.1's `root=` parameter, a test that does not `os.chdir()` would run L3's FULL tier and **`git branch -d` in the real checkout** |
 
+
+### Verified at execution (2026-09-09)
+
+Drafting could state these as expectations; only running the plan could confirm them. Recorded
+because the bundle's contract is that a cold reader understands it from the folder alone, and an
+assumption that was never checked reads exactly like one that was.
+
+| Assumption | Verified how | Result |
+| :-- | :-- | :-- |
+| In-place, `execute.worktree: false` | `plan_manager.py config-resolve --json` | `false`, source `config.local` — confirmed, and `_worktree_ensure` returned `viable: false, reason: "opted-out"` before Epic 2 changed it |
+| The execute branch must be hand-cut | Issue 0.1 | cut from `main@42bb27dd`, recorded in `assets/execute-base.txt`; SC0 verified (branch exists **and** is HEAD) |
+| **The `land` that runs is the INSTALLED copy** | `diff ~/.claude/skills/yf-plan/scripts/plan_manager.py skills/yf-plan/scripts/plan_manager.py` | **DIFFERENT.** This is the three-artifacts rule made concrete: every Epic 1/2 fix takes effect at the next deploy, so this plan lands through the un-repaired path it repairs. See `assets/landing-hazard-playbook.md` |
+| `gh` credentials for Gate 4 | `gh auth status` | authenticated as `dixson3` via `GITHUB_TOKEN`; all four issue comments posted and **verified by read-back**, not by exit code |
+| `uv run --with` network provisioning | every test invocation | worked throughout; `test_land_apply.py` alone provisions `pytest`, `click`, `pyyaml` per run |
+| Baseline suite green before the seam | Gate 2, `--sweep-gates=all` | **66 passed, exit 0, 43.6s** — matching the plan's measured baseline of 66 exactly |
+| macOS/BSD `grep` semantics | Gate 1 executed literally on this platform | exit 0; the twice-rewritten form held |
+
+**One assumption was WRONG in a way worth recording.** The plan predicted Issue 1.1 would break
+**eight** tests (pass-5 prototyped it). Measured: **sixteen**. The extra eight came from Issue
+1.1's own recorded decision to add `env=` to the seam now rather than later — a decision the
+prototype did not include. With `FakeRunner` updated to accept and record `env`, the residue was
+exactly the predicted eight. The prediction was not wrong about the refactor; it was wrong about
+a decision that had not been made when it was measured.
 ## Adjacent-concept glossary
 
 _Optional._ Terms, acronyms, or project-specific jargon the plan uses.

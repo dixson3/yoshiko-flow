@@ -32,3 +32,10 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-4.md](reviews/pass-4.md) - [red-team pass 4] REVISE (targeted) - 9 concerns, reducing to 3 root causes. The AST seed set was itself short (_repo_root/_git_root), closure depth was undefined, the REQ-LAND-031 carve-out was an over-read, SC9 had a REPRODUCED false green at L1's down-merge, and L3/L18 could escape the sandbox into the real repo. Judged CONVERGING; every defect was found by RUNNING code, so a general pass-5 has negative value.
 - [reviews/pass-5.md](reviews/pass-5.md) - [red-team pass 5, EXECUTION] REVISE - 6 concerns, all sentence-level. Executed the pass-4 fixes rather than reading them: closure depth is 13 not 10, the ctx-less set does NOT become empty (three helpers remain), Issue 1.1's runner= closes only half the sandbox escape (three filesystem probes need root=), and 8 tests break not 1. SC9, the REQ-LAND-031 retirement, runner= feasibility and all counts HELD under adversarial execution.
 - [reviews/pass-6.md](reviews/pass-6.md) - [red-team pass 6, NARROW CONFIRMATION] APPROVE - all six pass-5 edits landed correctly and every measurement they cite was independently reproduced (closure frontier 6 / transitive 13, the eight test names, the three filesystem probes, the --no-ff merge, the _run_shell signature). Mechanical state clean. Residual risk is execution-surfaced, not review-surfaced.
+- [assets/check_req_allocation.py](assets/check_req_allocation.py)
+- [assets/execute-base.txt](assets/execute-base.txt)
+- [assets/landing-hazard-playbook.md](assets/landing-hazard-playbook.md) - plan-068 — landing-hazard playbook (Issue 4.1)
+- [assets/plan-069-relocation-audit.md](assets/plan-069-relocation-audit.md) - Issue 3.3 — does plan-069 carry every item this split relocated?
+- [assets/rehearsal-record.json](assets/rehearsal-record.json)
+- [assets/req-allocation.md](assets/req-allocation.md) - plan-068 — REQ id allocation record (Issue 0.2)
+- [findings/exec-001-inherited-doclint-red.md](findings/exec-001-inherited-doclint-red.md) - exec-001 — an INHERITED FAST/FULL-tier red, measured at Epic 0
