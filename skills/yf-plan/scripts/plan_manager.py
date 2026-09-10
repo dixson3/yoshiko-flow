@@ -3895,10 +3895,18 @@ LANDING_STRATEGIES = ("main", "feature-branch")
 
 
 def _worktree_opted_out() -> bool:
-    """True iff the operator set `execute.worktree` false in .yf-plan.local.json (2.4).
+    """True iff the operator set `execute.worktree` false in the plan config (2.4).
 
     Default is opt-IN (worktree mode on). Tolerates both the flat dotted key and a
     nested {"execute": {"worktree": false}} form.
+
+    THE FILE IS `.yf/plan/config.local.json`, not `.yf-plan.local.json`. This docstring and
+    `_worktree_ensure_in_place`'s verdict detail both named the LEGACY root dotfile, which is
+    still read as the lowest-precedence tier but is not where the live value sits — an
+    operator following the old string would have looked in the wrong file (plan-068 pass-2
+    C13). `_read_config` merges `.yf/plan/config.local.json` → `.yf/plan/config.json` →
+    `.yf-plan.local.json`, highest first, and it is the first of those that this repository
+    uses.
     """
     cfg = _read_config()
     if CONFIG_KEY_WORKTREE in cfg:
@@ -4298,11 +4306,24 @@ def _worktree_ensure(plan_dir: Path) -> dict:
     `action` ∈ {created, reattached-branch, reattached-worktree}.
     `reason` ∈ {not-a-git-repo, beads-not-initialized, dirty-locked, bd-db-unresolved}.
     """
-    if _worktree_opted_out():
-        return {"viable": False, "reason": "opted-out",
-                "detail": f"{CONFIG_KEY_WORKTREE} is false in .yf-plan.local.json; "
-                          f"running in-place by operator choice."}
     repo_root = _git_root()
+
+    # IN-PLACE (dixson3/yoshiko-flow#331, plan-068 Issue 2.1 / REQ-BRANCH-001+002 as amended).
+    #
+    # The `opted-out` short-circuit USED TO RETURN HERE, above `_worktree_viability`,
+    # `_resolve_execute_base` and the bd-resolution probe — so the in-place path never reached
+    # the base resolver at all. That is mechanically why `land` was unreachable under
+    # `execute.worktree: false`: `_land_manifest` halts `execute-branch-missing` on a bare
+    # `git rev-parse --verify <plan-id>-execute` and NEVER calls `_worktree_opted_out()`, so it
+    # is the ABSENT BRANCH, not the absent worktree, that blocked the landing route. Two
+    # consecutive plans (062, 063) hand-cut that branch as a numbered Epic-0 issue, and
+    # plan-068 made three.
+    #
+    # `viable: False` is UNCHANGED and load-bearing: the caller still runs in-place. What
+    # changes is that the branch now exists and is CHECKED OUT before it does.
+    if _worktree_opted_out():
+        return _worktree_ensure_in_place(plan_dir, repo_root)
+
     fallback = _worktree_viability(repo_root)
     if fallback is not None:
         return fallback
@@ -4381,6 +4402,128 @@ def _worktree_ensure(plan_dir: Path) -> dict:
         "dirty_files": dirty_files,
         "gitignore_updated": gitignore_updated,
     }
+
+
+def _worktree_ensure_in_place(plan_dir: Path, repo_root: Path) -> dict:
+    """Cut AND CHECK OUT `<plan-id>-execute` in the PRIMARY checkout (design (b), #331).
+
+    Returns the same `viable: False, reason: "opted-out"` verdict it always did — the caller
+    must still run in-place — plus `branch`, `action` and `base`, so the operator can see what
+    happened. Nothing else in the manifest changes: measured, `land --dry-run` goes from
+    halting `execute-branch-missing` to `verdict: pass`, `halts: []`, exit 0.
+
+    CREATE-WITHOUT-CHECKOUT IS SILENTLY WRONG, and the `checkout` half is not optional. The
+    whole point is that `ctx.root`'s HEAD **is** the execute branch: that is what makes L1's
+    down-merge real rather than the measured self-merge (`REQ-LAND-002` as amended, EXP-001 —
+    `Already up to date.`, exit 0, verdict `pass`), and what keeps a commit from landing on the
+    merge target and escaping the merge L3 validates.
+
+    THREE-WAY, because this function runs on **every** `execute` invocation and its own
+    docstring promises "idempotent create-or-reattach", while `git checkout -b` on an existing
+    branch exits **128** — multi-session execution is the normal case, not the exception:
+
+      * already on the branch  → no-op            (`action: "already-on-branch"`)
+      * branch exists          → plain `checkout` (`action: "reattached-branch-in-place"`)
+      * branch absent          → `checkout -b <branch> <pinned-base>`  (`action: "created-in-place"`)
+
+    THE DIRTY-TREE REFUSAL CLASS (plan-068 Issue 2.2, `REQ-BRANCH-002` clause (ii)). Measured:
+    `git checkout -b` on a dirty divergent tree emits `error: Your local changes would be
+    overwritten by checkout`, exits **1**, and leaves HEAD unmoved — a class this function had
+    no guard for, so it surfaced as a raw `git` error at the moment execution began. It is now
+    a declared refusal (`reason: "dirty-tree-in-place"`) reported BEFORE any checkout is
+    attempted.
+
+    The refusal is scoped to the two branch-MOVING arms. Already being on the branch is a
+    no-op that cannot overwrite anything, so a dirty tree there is ordinary in-flight work —
+    refusing it would make every resumed in-place session unable to continue.
+
+    THE bd-RESOLUTION PROBE DOES NOT APPLY (stated, per Issue 2.1's requirement to say so).
+    `_bd_resolves_from` exists to check INV-2 — that `bd` reaches the primary's shared Dolt DB
+    from *a linked worktree*. In-place there is no second address space: the cwd **is** the
+    primary checkout, so the probe would be asking whether the primary can reach its own
+    database. A green would be uninformative and a red would mean the whole session was
+    already broken, so it is skipped rather than run for symmetry.
+    """
+    plan_id = _plan_id_from_dir(plan_dir)
+    branch = _execute_branch(plan_id)
+    detail_prefix = (f"{CONFIG_KEY_WORKTREE} is false in .yf/plan/config.local.json; "
+                     f"running in-place by operator choice.")
+
+    # NOT A GIT REPO → PLAIN `opted-out`, and no branch cut is attempted.
+    #
+    # `opted-out` IS THE OPERATOR'S DECISION, and an environmental detail must not silently
+    # replace it: the caller runs in-place either way, and a reason that changes with the
+    # weather is a reason a caller cannot branch on. Outside a git repository there is no
+    # branch to cut, so `opted-out` is simply the truthful answer — and `branch_cut` records
+    # that nothing was done rather than leaving the caller to infer it from the absence of
+    # an `action`.
+    #
+    # THE ONE EXCEPTION IS THE DIRTY-TREE REFUSAL BELOW, which gets its own reason because it
+    # is a DECLARED REFUSAL CLASS the operator must act on (`REQ-BRANCH-002` clause (ii)) —
+    # not a note about the environment.
+    if not _is_git_repo():
+        return {"viable": False, "reason": "opted-out", "action": "branch-cut-skipped",
+                "branch": branch, "base": None,
+                "branch_cut": {"ok": False, "reason": "not-a-git-repo"},
+                "detail": (f"{detail_prefix} No git repository here, so {branch} was not "
+                           f"cut; `land` will still halt `execute-branch-missing`.")}
+
+    cur = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root)
+    current = cur.stdout.strip() if cur.returncode == 0 else None
+
+    if current == branch:
+        return {"viable": False, "reason": "opted-out", "action": "already-on-branch",
+                "branch": branch, "base": None,
+                "detail": f"{detail_prefix} Already on {branch}."}
+
+    exists = _branch_exists(branch, repo_root)
+
+    # THE REFUSAL, BEFORE THE CHECKOUT. Both remaining arms move HEAD.
+    dirty, dirty_files = _worktree_dirty(repo_root)
+    if dirty:
+        return {
+            "viable": False,
+            "reason": "dirty-tree-in-place",
+            "branch": branch,
+            "dirty": True,
+            "dirty_files": dirty_files,
+            "detail": (
+                f"the primary checkout is DIRTY and the in-place path must move HEAD to "
+                f"{branch} (currently {current or 'an unresolved HEAD'}). `git checkout` "
+                f"refuses on a dirty divergent tree — measured: `error: Your local changes "
+                f"would be overwritten by checkout`, exit 1, HEAD unmoved. Commit or stash "
+                f"the {len(dirty_files)} change(s) and re-run; nothing has been changed."),
+        }
+
+    if exists:
+        r = _run_git(["checkout", branch], cwd=repo_root)
+        if r.returncode != 0:
+            return {"viable": False, "reason": "dirty-tree-in-place", "branch": branch,
+                    "detail": (f"could not check out the existing {branch}: "
+                               f"{(r.stderr or '').strip()}")}
+        return {"viable": False, "reason": "opted-out",
+                "action": "reattached-branch-in-place", "branch": branch, "base": None,
+                "detail": f"{detail_prefix} Checked out the existing {branch}."}
+
+    base, base_detail = _resolve_execute_base(plan_id, repo_root)
+    if base is None:
+        # `base-unresolved` — THE SAME REASON THE WORKTREE PATH RETURNS, deliberately: an
+        # unresolvable pinned base is the same condition whichever mechanism would have
+        # materialised the branch, and `REQ-BRANCH-002` binds the START-POINT rather than the
+        # command. Unlike `not-a-git-repo` above, this is a repository the operator can
+        # actually fix (a missing feature branch, an indeterminate default), so surfacing it
+        # by name is actionable rather than noise.
+        return {"viable": False, "reason": "base-unresolved", "branch": branch,
+                "branch_cut": {"ok": False, "reason": "base-unresolved"},
+                "detail": f"{detail_prefix} {base_detail}"}
+    r = _run_git(["checkout", "-b", branch, base], cwd=repo_root)
+    if r.returncode != 0:
+        return {"viable": False, "reason": "dirty-tree-in-place", "branch": branch,
+                "detail": (f"could not cut {branch} from the pinned base {base}: "
+                           f"{(r.stderr or '').strip()}")}
+    return {"viable": False, "reason": "opted-out", "action": "created-in-place",
+            "branch": branch, "base": base,
+            "detail": f"{detail_prefix} Cut and checked out {branch} ({base_detail})."}
 
 
 def _worktree_teardown(plan_dir: Path, force: bool, root: Path | None = None,
@@ -8006,7 +8149,37 @@ def _land_merge_preview(target: str, execute_branch: str,
 
     changed_paths: list[str] = []
     if predicted_tree:
-        d = _run_git(["diff", "--name-only", f"{target}", f"{execute_branch}"], cwd=root)
+        # THE TWO-DOT RANGE, NOT THE TWO-ARGUMENT FORM (`REQ-LAND-038`, plan-068 Issue 2.4).
+        #
+        # `git diff <target> <execute_branch>` is a SYMMETRIC DIFFERENCE BETWEEN TWO TIPS and
+        # cannot distinguish "the branch is ahead" from "the branch is behind". Measured
+        # (EXP-001): for a branch BEHIND its target — a merge guaranteed to be a no-op — it
+        # reported `changed_paths: ["work.txt"]` and `available: true`, naming the TARGET's
+        # changes and attributing them to the branch.
+        #
+        # `<target>..<execute_branch>` asks the question the consumers actually have: what
+        # does this merge INTRODUCE. And the consumers are why it matters — `touches_skills`
+        # below derives from this list, and `touches_skills` is L19's REDEPLOY PRECONDITION.
+        # A behind-branch preview naming a `skills/` path the branch never touched ARMS a
+        # redeploy the landing has no reason to perform; the inverse HIDES one it does.
+        # Neither is observable from the preview's own output.
+        # MERGE-BASE THEN DIFF — spelled in two steps deliberately.
+        #
+        # `git diff A..B` is NOT a range: for `git diff` the two-dot form is plain sugar for
+        # `git diff A B`, the same symmetric endpoint diff. That is the trap this fix walked
+        # into once already, and it is worth recording rather than quietly correcting: the
+        # first attempt swapped the two-argument form for `A..B` and MEASURED IDENTICAL —
+        # `changed_paths: ["work.txt"]` for a branch strictly behind its target.
+        #
+        # The directional question is "what does `B` add since it diverged from `A`", whose
+        # git spelling is the merge base as the left endpoint. Written as an explicit
+        # `merge-base` call rather than the `A...B` sugar, because this module already carries
+        # a normative prohibition on a three-dot expression (`REQ-LAND-025` / #303,
+        # `_land_changed_set`) and a second three-dot literal here — correct in this context,
+        # forbidden in that one — is an invitation to read the wrong rule onto the wrong line.
+        mb = _run_git(["merge-base", target, execute_branch], cwd=root)
+        left = mb.stdout.strip() if mb.returncode == 0 and mb.stdout.strip() else target
+        d = _run_git(["diff", "--name-only", left, execute_branch], cwd=root)
         if d.returncode == 0:
             changed_paths = [ln for ln in d.stdout.splitlines() if ln]
 
@@ -8030,6 +8203,21 @@ def _land_changed_set(root: Path | None = None) -> list[str]:
 
     On a non-merge `HEAD` (`HEAD^1` absent or HEAD having one parent) this returns the
     single commit's own diff, so the helper is total rather than raising on a fast-forward.
+
+    THE IN-PLACE CASE, AND WHY IT IS NOW CORRECT (`REQ-LAND-038`, plan-068 Issue 2.4). EXP-001
+    measured this helper DEGRADING under `execute.worktree: false`, because with no execute
+    branch there was no merge and `HEAD` was not a merge commit — so the "single commit's own
+    diff" fallback fired and the landed set was one commit rather than the whole landing.
+
+    The repair is not in this function. `_worktree_ensure_in_place` cuts a real execute branch,
+    so L2 performs a real `--no-ff` merge and L4 commits it: **`HEAD` becomes a genuine merge
+    commit**, the first-parent range is the landing, and the fallback is not reached. That
+    reasoning is written down and TESTED (`test_changed_set_reads_the_merge_range_in_place`)
+    rather than left as an unstated inference — an unstated inference is exactly how L19's
+    redeploy precondition came to depend on a property nobody re-checked.
+
+    The fallback stays, and stays correct: a fast-forward or an initial commit is still a
+    legitimate `HEAD` shape, and returning its own diff is better than raising.
     """
     root = root or _repo_root()
     r = _run_git(["rev-list", "--parents", "-n", "1", "HEAD"], cwd=root)
@@ -9409,9 +9597,36 @@ def _land_l1_down_merge(ctx: LandingContext) -> dict:
 
     A conflict here is `L_CONFLICT_DOWNMERGE` — fully local, pre-L6 and pre-L7, so the
     recovery is capture-then-abort and there is no outward trace.
+
+    IT OPERATES ON `ctx.execute_branch`, NOT ON AMBIENT HEAD (`REQ-LAND-002` as amended by
+    plan-068 Issue 2.3, dixson3/yoshiko-flow#331). The working tree is still
+    `ctx.worktree if ctx.worktree.is_dir() else ctx.root` — but in-place that resolves to the
+    ONE AND ONLY checkout, so without an explicit checkout this step merged the target into
+    whatever HEAD happened to be. Measured (EXP-001): `Already up to date.`, **exit 0**,
+    verdict `pass`, journalling `L_DOWNMERGED` — a **silent self-merge**, indistinguishable in
+    the manifest, the journal and the verdict from a real down-merge.
+
+    NECESSITY, STATED HONESTLY (plan-068 pass-2 C12). Once `_worktree_ensure_in_place` cuts and
+    checks out the execute branch, `ctx.root`'s HEAD *is* that branch and EXP-001's measured
+    self-merge disappears **without this checkout**. What the checkout buys is that L1 no
+    longer DEPENDS on that being true — it asserts the branch rather than inheriting it. A
+    landing step whose correctness rests on an accident of what HEAD happens to be is one
+    `git checkout` away from wrong, and nothing would report it.
+
+    A FAILED CHECKOUT IS A HALT, NOT A WARNING. If the branch cannot be checked out there is
+    no state in which the rest of L1 means anything: the merge would run against the wrong
+    tree and report `pass`.
     """
     wt = ctx.worktree if ctx.worktree.is_dir() else ctx.root
     ctx.run("git", ["fetch", "--all", "--prune"], cwd=wt)
+    co = ctx.run("git", ["checkout", ctx.execute_branch], cwd=wt)
+    if co.returncode != 0:
+        return _step("l1_down_merge", "fail",
+                     f"could not check out {ctx.execute_branch} in {wt}: "
+                     f"{(co.stderr or '').strip()}. L1 merges the TARGET INTO THE EXECUTE "
+                     f"BRANCH, so without that branch checked out the merge would run "
+                     f"against ambient HEAD and report `pass` on a self-merge.",
+                     halting=True)
     r = ctx.run("git", ["merge", "--no-ff", "-m",
                  f"plan-{ctx.plan_id}: down-merge {ctx.target} before landing", ctx.target],
                 cwd=wt)
