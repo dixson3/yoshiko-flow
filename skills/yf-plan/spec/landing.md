@@ -46,11 +46,30 @@ Three consequences follow structurally rather than procedurally:
 3. A decision can only ever **narrow** the landing. An `enable` on a step the manifest halted is
    ignored and reported; a `skip` requires a reason and is surfaced in the consent prompt.
 
+**Amendment (plan-068 Issue 0.4, dixson3/yoshiko-flow#331): AMBIENT HEAD IS NOT A FACT.**
+"Every fact shall be re-derived at apply time" extends to **which branch a step operates on**.
+Under `execute.worktree: false` there is no execute worktree, and `_land_l1_down_merge` selects
+its working tree as `ctx.worktree if ctx.worktree.is_dir() else ctx.root` — so **L1 shall check
+out `ctx.execute_branch` explicitly** rather than merging into whatever HEAD happens to be.
+
+Measured (plan-068 EXP-001): in-place, L1 merged the target into ambient HEAD and reported
+`Already up to date.`, **exit 0**, verdict `pass`, journalling `L_DOWNMERGED` — a **silent
+self-merge**. Nothing in the manifest, the journal or the verdict distinguishes that from a real
+down-merge, which makes it the worst class of the three: a green that means nothing.
+
+The explicit checkout is **defence in depth, and its necessity is stated honestly.** Once
+`_worktree_ensure` cuts and checks out the execute branch on the in-place path (`REQ-BRANCH-002`
+as amended), `ctx.root`'s HEAD *is* the execute branch and EXP-001's measured self-merge
+disappears without this clause. What this clause buys is that L1 no longer **depends on** that
+being true: it asserts the branch rather than inheriting it. A landing step whose correctness
+rests on an accident of what HEAD happens to be is one `git checkout` away from wrong, and
+nothing would report it.
+
 Rationale: this is #293's structural answer rather than a procedural one. It is also materially
 narrower trust than #301 assumes: `UPSTREAM_REQUIREMENTS` already encodes the per-disposition end
 states mechanically, so the agent is trusted to *explain* that a `partial` row stays open, never
 to *discover* it.
-Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_narrowing_only`
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_narrowing_only`; and `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_inplace.py test_l1_operates_on_the_execute_branch_not_ambient_head`
 
 REQ-LAND-003: **An omission from enumeration is not a `skip`.** The "every skip is surfaced in
 the consent prompt" guarantee of REQ-LAND-002 covers only writes the manifest *enumerated and
@@ -88,6 +107,30 @@ without retiring the edge that pins it.
 | **L17** | mirror residual open beads upstream, grouped per the decision | Requires the plan-folder state pushed at L16 to be visible, so a mirrored bead's references resolve. |
 | **L18** | prune — worktree, branch (local + remote), herdr tab | Nothing may be pruned before L16 has pushed everything that lived on the branch. |
 | **L19** | redeploy **iff** the landing touched `skills/` | The only step that mutates the machine outside the repository. Last, because a half-deployed session runs new scripts against old prose (AGENTS.md, "Three artifacts, not one"). |
+
+**Amendment (plan-068 Issue 0.4, dixson3/yoshiko-flow#331): L2 IN-PLACE IS A DECLARED SCOPE
+BOUNDARY, not a specified-then-unimplemented step.** `SKILL.md` §6.1 has said *"In-place
+(fallback) mode skips the merge"* in prose since plan-009, and `land` never implemented it. This
+amendment makes the **measured** behaviour normative and names the boundary, rather than
+specifying a behaviour no issue implements.
+
+**What L2 does in-place, measured.** `_land_l2_merge` runs `git checkout <target>` **in
+`ctx.root`** — and under `execute.worktree: false` `ctx.root` **is** the execute checkout. So L2
+switches the one and only working tree off the execute branch. The subsequent
+`git pull --rebase`'s return code is **ignored**. Both are recorded here as facts about the
+current implementation.
+
+**Declared boundary.** No issue in plan-068 implements or tests L2 in-place, and the L2 work is
+routed to **plan-069**. Specifying the intended behaviour here would leave plan-068's own
+SPEC-vs-implementation agreement check (Issue 2.6) **trivially green** — SPEC and implementation
+would "agree" because neither changed. A boundary that is declared is checkable; a boundary that
+is specified and unimplemented reads as coverage.
+
+**Why the single address space is what bites.** In worktree mode L1 and L2 act on two different
+trees, so L2's checkout of the target is harmless. In-place there is **one** address space, which
+is also why plan-068's own Issue 0.1 had to cut its execute branch **before every other commit**:
+a commit made before that branch exists lands on the merge target and escapes the merge L3
+validates.
 
 Rationale: plan-060's EXP-004 proved no single-push order satisfies all four landing
 constraints, so the order is two-push by necessity rather than by preference. Neither
@@ -576,3 +619,142 @@ landing-mutated facts of the table above are re-derived and reported, and are no
 re-derive every fact per REQ-LAND-002 **as amended by REQ-LAND-036** — the digest comparison that
 decides staleness is over the coverage set, not over the full fact map.
 Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_digest_survives_resume_after_teardown`
+
+REQ-LAND-037: **Every landing process launch is on the `ctx.run` seam, or is a DECLARED
+ctx-less helper.** Two obligations, and the second is what makes the first checkable:
+
+1. **Direct.** Every process a landing step launches **directly** shall be issued through
+   `LandingContext.run`, whose `cwd` defaults to the checkout root. No `_land_l<N>_*` function
+   shall contain a process-launch primitive (`subprocess.*`, `os.system` / `os.popen` /
+   `os.spawn*` / `os.exec*`, `pty.*`).
+2. **Indirect.** Every *indirect* launcher **reachable from an L-step** shall be a **declared
+   ctx-less helper** that resolves its working directory from an **explicit argument**. The
+   declaration is the `LAND_CTXLESS_HELPERS` constant in `plan_manager.py`; the reachable set
+   is `LAND_CTXLESS_HELPERS_UNROOTED`'s complement within it plus that constant, and the two
+   together are exhaustive.
+
+**"Reachable" is TRANSITIVE, and the set is DERIVED — never hand-written.** Four consecutive
+review passes of plan-068 found a hand-written enumeration of this set short, and pass-4 showed
+that even the *seed* was short. `skills/yf-plan/scripts/derive_land_launchers.py` seeds on
+**process-launch primitives** — never on a hand-picked helper name — marks every function
+containing one a direct launcher, takes the transitive closure over the intra-module call graph,
+then BFS's from every `_land_l<N>_*` function.
+
+**The counts below are QUOTED FROM THE SCRIPT, and a test parses this exact line.** This file
+does not restate a number that can drift from what the deriver emits — and the discipline earned
+its keep immediately: the closure was **13** at this requirement's SPEC-first commit and **14**
+after the Epic-1 seam routing added the `_git` shim, so a pinned literal would have gone stale
+inside the same plan that mandated deriving it.
+
+```
+DERIVED: depth1_frontier=6 closure=14
+```
+
+Regenerate with `uv run skills/yf-plan/scripts/derive_land_launchers.py`;
+`test_spec_quotes_the_script_rather_than_restating_a_number` parses the line above and compares
+it to a live derivation, so drift in either direction fails loudly rather than silently.
+
+**The seam edge is excluded EXPLICITLY.** `ctx.run` / `LandingContext._dispatch` are removed from
+the call graph by name. Today that exclusion holds only by accident — `self.run = self._dispatch`
+is an *assignment*, so the AST resolves no callee named `run` — and if a future edit makes `run` a
+real `def` the closure would explode to nearly the whole module. Naming the exclusion means that
+edit changes nothing.
+
+**The declared set is NOT empty, and this requirement does not pretend it will be.** After the
+seam routing, three depth-1 helpers remain legitimately off-seam — `_land_abort_merge` and
+`_land_capture_conflict` (L1/L2's conflict-recovery path) and `_land_changed_set` (the close
+chain, L19) — plus their transitive launchers. All three take an **explicit root**, so all three
+satisfy obligation 2; none is structurally unroutable. Landing an allowlist this file claimed
+would be empty, while three members sat in it, is the failure mode this paragraph exists to
+prevent.
+
+**Consequence, stated rather than left as an inference.** The L1/L2 conflict path reaches a real
+`git merge --abort` against `ctx.root` that an injected runner never sees. That is **contained**,
+because the root is explicit — but a test asserting "every process went through the runner" is
+**false on that path**, and shall not be written.
+
+**`REQ-LAND-031`'s carve-out is RETIRED as an over-read.** That requirement mandates calling
+`_worktree_teardown` with `force=False` in **keyword** form and **branching on the returned
+`status`**. It constrains the **call**; it says nothing about how the callee launches.
+`_worktree_teardown(ctx.plan_dir, force=False, root=ctx.root, runner=ctx.run)` satisfies it
+verbatim **while fully on the seam**, and the precedent already exists at L16 —
+`_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`. `REQ-LAND-031`'s text is
+unchanged.
+
+**`runner=` alone closes only HALF the escape, and `root=` closes the other half.** A runner
+intercepts a *process*; **no runner intercepts a filesystem read**. `_validate_merged`'s tier-1
+decision is three filesystem/config probes keyed on `_repo_root()` — `_approved_manifest_present`,
+`_change_validation_script`, and `_resolve_validate_cmd` → `_read_config`. Without an explicit
+`root=`, a sandboxed test that does not `os.chdir()` still resolves the **real** repository's
+`CHANGE-VALIDATION.md` and the **real** engine script, then hands the fake a command whose `cwd`
+is the real repository. Execution would be contained; **resolution would not.**
+`_worktree_teardown` has the same shape via `_git_root()`. So both helpers take **both**
+parameters, on the `_dirty_outside_plan_dir` model.
+
+**This is a SAFETY requirement, not tidiness.** `_repo_root` and `_git_root` are bare
+`subprocess.run(["git", "rev-parse", "--show-toplevel"])` with **no `cwd`**, falling back to
+`Path.cwd()` / `Path(".")`. Left unrouted and unrooted, a pytest test that does not `os.chdir()`
+would make L3 run the **real** repository's FULL `CHANGE-VALIDATION.md` tier, and L18 run
+`git worktree remove` / `git branch -d <plan-id>-execute` / `git worktree prune` **in the real
+checkout**. An injected runner cannot prevent either, because neither call reaches `ctx.run`.
+
+**`LAND_CTXLESS_HELPERS_UNROOTED` is the honest residue.** A declared helper that does **not** yet
+resolve its cwd from an explicit argument is listed there rather than silently counted as
+compliant. It is a **subset** of `LAND_CTXLESS_HELPERS`, and a member of it is a known open defect
+with an issue, not an exemption. An empty `LAND_CTXLESS_HELPERS_UNROOTED` is the end state; a
+member that is neither declared nor unrouted-and-recorded is a violation.
+
+Rationale: `L8`–`L15` bypassed `ctx.run` for bare `subprocess.run`, so the rehearsal had to
+replace **whole steps** and three of fifteen were never exercised (dixson3/yoshiko-flow#348).
+A seam that every step is on is what makes an end-to-end landing test possible at all; a seam
+that *most* steps are on tests the steps that were already easy. The indirect clause exists
+because a token-keyed check on `subprocess.*` is structurally **blind** to `_run_git`, so a check
+written against obligation 1 alone reports green while obligation 2 is violated at five call
+sites — measured, plan-068 pass-2 C1.
+Verification: `uv run scripts/checks/check_land_seam.py` exits 0 — the AST check, keyed on the
+DERIVED launcher set and enforcing **both** obligations; `uv run
+skills/yf-plan/scripts/derive_land_launchers.py --check` exits 0; and `bash
+scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_seam.py test_declared_ctxless_helpers_match_the_derived_closure`.
+The AST check carries **four negative controls** in `test_land_seam.py`, one per way it could go
+vacuous: an injected direct launch inside an L-step must FAIL; a name dropped from
+`LAND_CTXLESS_HELPERS` with the code untouched must FAIL **while obligation 1 stays silent**
+(which is what proves the two clauses are independent rather than one counted twice); `os.system`
+occurring **zero** times in the module is pinned as an executable fact, since that measurement is
+the whole argument for a derived seed over a token list; and an unreadable source must exit **2**,
+never 0.
+
+REQ-LAND-038: **The merge preview states what the merge WILL LAND, not the symmetric
+difference.** `_land_merge_preview`'s `changed_paths` shall be the set of paths the merge of
+`<execute_branch>` into `<target>` **introduces** — the two-dot range `<target>..<execute_branch>`
+— never the two-argument `git diff <target> <execute_branch>` form, which is a **symmetric
+difference between two tips** and cannot distinguish "the branch is ahead" from "the branch is
+behind".
+
+Measured (plan-068 EXP-001): for a branch **behind** its target — a merge guaranteed to be a
+no-op — the preview reported `changed_paths: ["work.txt"]` and `available: true`. The paths it
+named were the *target's* changes, attributed to the branch. Nothing in the manifest said
+otherwise.
+
+**The consequence is named here rather than left as an inference.** `touches_skills` is derived
+from `changed_paths`, and `touches_skills` is **L19's redeploy precondition**. So a
+directionality defect in the preview propagates to *whether the machine's installed toolchain is
+rewritten*: a behind-branch preview that names a `skills/` path the branch never touched arms a
+redeploy the landing has no reason to perform, and the inverse hides one it does. Neither is
+observable from the preview's own output.
+
+**`_land_changed_set` is settled in the same requirement, because it is the same question asked
+after the merge rather than before.** It computes `HEAD^1..HEAD` (`REQ-LAND-025`, #303), which
+degrades **in-place** when `HEAD` is not a merge commit — EXP-001 measured it. The in-place
+branch-cut of `REQ-BRANCH-002` (as amended) mostly repairs this **by making `HEAD` a real merge
+commit at L4**, and that reasoning is **stated and tested** rather than left as an unstated
+inference about the redeploy precondition: an unstated inference is exactly how a redeploy
+precondition comes to depend on a property nobody re-checked.
+
+`_land_changed_set`'s existing total-function behaviour is unchanged: on a non-merge `HEAD` it
+returns the single commit's own diff rather than raising.
+
+Rationale: the two-argument `git diff A B` form reads as "what differs", which is the wrong
+question for a preview whose consumers are a consent prompt and a redeploy gate. Both consumers
+need "what will this landing introduce". A symmetric difference answers a question neither asked,
+and answers it with a `true`.
+Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_manifest.py test_merge_preview_is_directional`

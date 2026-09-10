@@ -1,0 +1,103 @@
+{
+  "schema": "yf-plan/landing-rehearsal@1",
+  "generated_at": "2026-09-09T18:26:10-07:00",
+  "plan_id": "plan-999-rehearsal-sandbox",
+  "origin_url": "/var/folders/xc/y6k9w0m55k37b1571xch_2cw0000gn/T/yf-land-rehearsal-nwvef8wg/fake-origin.git",
+  "origin_is_local_sandbox": true,
+  "sandbox_root": "/var/folders/xc/y6k9w0m55k37b1571xch_2cw0000gn/T/yf-land-rehearsal-nwvef8wg",
+  "terminal_journal_state": "L_DONE",
+  "reached_terminal_state": true,
+  "halted": false,
+  "halted_at": null,
+  "steps_executed": [
+    "l0_lock_acquire",
+    "l1_down_merge",
+    "l2_merge",
+    "l3_validate_merged",
+    "l4_commit_merge",
+    "l5_advisory_recheck",
+    "l6_push_one",
+    "l7_reconcile_writes",
+    "audit-close",
+    "retrospective-report",
+    "judgement-never-fired-report",
+    "classify-deliverable",
+    "close-reconcile-step",
+    "verify-reconcile",
+    "recheck-criteria",
+    "l12_close_cascade",
+    "l13_complete_gate",
+    "l14_pour_fidelity",
+    "l15_update_status",
+    "l16_commit_and_push_two",
+    "l17_residual_mirroring",
+    "l18_prune",
+    "l19_redeploy"
+  ],
+  "stubbed_steps": [
+    "l19_redeploy"
+  ],
+  "stubbed_steps_by_source": {
+    "pm_monkeypatch": [],
+    "decision_adjudication": [
+      "l19_redeploy"
+    ]
+  },
+  "faked_programs": [
+    "bd",
+    "gh",
+    "sh",
+    "uv",
+    "yf"
+  ],
+  "passed_through_programs": [
+    "git"
+  ],
+  "unrecognised_argv": [],
+  "honest_scope": {
+    "established": [
+      "every L-step function EXECUTED \u2014 none is replaced by a lambda or a helper stub",
+      "every `git` process ran FOR REAL against a local bare `origin` inside a temp dir, so L1/L2/L4/L6/L16's tree and push behaviour is genuinely exercised",
+      "the executor's ordering, journal advance and halt semantics ran unmodified",
+      "no process reached an executable the runner was not taught about \u2014 an unrecognised argv returns 127 with a marker and is recorded in `unrecognised_argv`"
+    ],
+    "not_established": [
+      "L14's DAG COMPARISON. The faked `bd list` returns `[]` and the faked `pour_fidelity.py` returns a pass, so the comparison has no input. A poured-bead fixture is out of scope; this is R7's 'a stub in a different costume', named rather than claimed as covered.",
+      "the close chain's real VERDICTS. `uv run plan_manager.py <verb>` is intercepted, so `audit-close`, `verify-reconcile`, `recheck-criteria` and `complete-gate` return a faked pass. What is exercised is that each is INVOKED with the right argv and that its exit code is READ (#180), not what it would have decided.",
+      "L19 REDEPLOY. Skipped at the decision level \u2014 the sandbox has no `yf` binary, and redeploy is the only step that mutates the machine outside the repository. The `yf` fake therefore refuses every argv, so a reached L19 is a FINDING, not a pass.",
+      "any `gh` outcome. Upstream writes are faked; `test_readback_catches_wrong_body` in test_land_apply.py is what covers the read-back's discriminating power."
+    ]
+  },
+  "pushed_paths_on_fake_origin": [
+    ".gitignore",
+    "docs/plans/plan-999-rehearsal-sandbox/log.md",
+    "docs/plans/plan-999-rehearsal-sandbox/plan.md",
+    "skills/base.txt",
+    "skills/landed.py"
+  ],
+  "verdicts": {
+    "l0_lock_acquire": "pass",
+    "l1_down_merge": "pass",
+    "l2_merge": "pass",
+    "l3_validate_merged": "pass",
+    "l4_commit_merge": "pass",
+    "l5_advisory_recheck": "pass",
+    "l6_push_one": "pass",
+    "l7_reconcile_writes": "pass",
+    "audit-close": "pass",
+    "retrospective-report": "pass",
+    "judgement-never-fired-report": "pass",
+    "classify-deliverable": "pass",
+    "close-reconcile-step": "pass",
+    "verify-reconcile": "pass",
+    "recheck-criteria": "pass",
+    "l12_close_cascade": "pass",
+    "l13_complete_gate": "pass",
+    "l14_pour_fidelity": "pass",
+    "l15_update_status": "pass",
+    "l16_commit_and_push_two": "pass",
+    "l17_residual_mirroring": "pass",
+    "l18_prune": "pass",
+    "l19_redeploy": "pass"
+  }
+}

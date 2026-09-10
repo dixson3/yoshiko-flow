@@ -185,6 +185,10 @@ approved: yes
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
+| `uv-yf-land-seam` | `uv run skills/yf-plan/scripts/test_land_seam.py` |  |  |
+| `land-launcher-closure` | `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` |  |  |
+| `land-seam-ast` | `uv run scripts/checks/check_land_seam.py` |  |  |
+| `uv-yf-land-inplace` | `uv run skills/yf-plan/scripts/test_land_inplace.py` |  |  |
 | `mock-fidelity` | `uv run scripts/checks/check_mock_fidelity.py` |  |  |
 | `gate-plan063-amendment` | `uv run scripts/check_amendment_log.py --plan plan-063-james-dixson-3f74c1` |  |  |
 | `gate-plan064-amendment` | `uv run scripts/check_amendment_log.py --plan plan-064-james-dixson-a0b7fa` |  |  |
@@ -284,6 +288,11 @@ approved: yes
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
+| `uv-yf-land-seam` | `uv run skills/yf-plan/scripts/test_land_seam.py` |  |  |
+| `land-launcher-closure` | `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` |  |  |
+| `land-seam-ast` | `uv run scripts/checks/check_land_seam.py` |  |  |
+| `uv-yf-land-inplace` | `uv run skills/yf-plan/scripts/test_land_inplace.py` |  |  |
+| `land-rehearsal` | `uv run skills/yf-plan/scripts/land_rehearsal.py` |  |  |
 | `mock-fidelity` | `uv run scripts/checks/check_mock_fidelity.py` |  |  |
 | `gate-plan063-amendment` | `uv run scripts/check_amendment_log.py --plan plan-063-james-dixson-3f74c1` |  |  |
 | `gate-plan064-amendment` | `uv run scripts/check_amendment_log.py --plan plan-064-james-dixson-a0b7fa` |  |  |
@@ -392,12 +401,17 @@ approved: yes
 | `skills/yf-incubator/OKF-EXTENSION.md` | `okf-index-drift`, `uv-okf` |
 | `skills/yf-plan/scripts/test_recheck_criteria.py` | `uv-recheck-criteria` |
 | `skills/yf-plan/scripts/test_index_members.py` | `uv-index-members` |
-| `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum`, `uv-yf-land-manifest`, `uv-yf-lander-contract`, `uv-yf-land-apply`, `mock-fidelity` |
+| `skills/yf-plan/scripts/plan_manager.py` | `uv-recheck-criteria`, `uv-index-members`, `uv-yf-cli-enum`, `uv-yf-land-manifest`, `uv-yf-lander-contract`, `uv-yf-land-apply`, `mock-fidelity`, `uv-yf-land-seam`, `land-launcher-closure`, `land-seam-ast`, `uv-yf-land-inplace` |
 | `skills/yf-plan/scripts/test_land_manifest.py` | `uv-yf-land-manifest` |
 | `skills/yf-plan/scripts/test_lander_agent_contract.py` | `uv-yf-lander-contract` |
 | `skills/yf-plan/scripts/test_land_apply.py` | `uv-yf-land-apply`, `mock-fidelity` |
-| `skills/yf-plan/scripts/land_rehearsal.py` | `uv-yf-land-apply`, `mock-fidelity` |
-| `skills/yf-plan/spec/landing.md` | `uv-yf-land-apply` |
+| `skills/yf-plan/scripts/land_rehearsal.py` | `uv-yf-land-apply`, `mock-fidelity`, `land-rehearsal`, `uv-yf-land-inplace` |
+| `skills/yf-plan/spec/landing.md` | `uv-yf-land-apply`, `uv-yf-land-seam`, `uv-yf-land-inplace` |
+| `skills/yf-plan/scripts/test_land_seam.py` | `uv-yf-land-seam` |
+| `skills/yf-plan/scripts/derive_land_launchers.py` | `uv-yf-land-seam`, `land-launcher-closure`, `land-seam-ast` |
+| `scripts/checks/check_land_seam.py` | `land-seam-ast`, `uv-yf-land-seam` |
+| `skills/yf-plan/scripts/test_land_inplace.py` | `uv-yf-land-inplace` |
+| `skills/yf-plan/spec/phases.md` | `uv-yf-land-inplace`, `uv-yf-land-apply` |
 | `skills/*/SKILL.md` | `skill-readme-contract` |
 | `skills/*/README.md` | `skill-readme-contract`, `skill-readme-fence` |
 | `scripts/checks/check_skill_readme_contract.py` | `skill-readme-contract`, `skill-readme-tests` |

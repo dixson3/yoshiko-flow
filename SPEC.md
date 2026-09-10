@@ -1163,6 +1163,163 @@
 >   finding — an 80-87% artifact rate that buries the thing it catches.
 >
 >   Implementation lands in Epics 1-6; this entry records the SPEC-first Epic 0 amendments.
+> - **plan-068 (2026-09-09, #348 / #331 / #349-partial / #353-partial):** make the landing close
+>   chain **injectable** and make `land` work **in-place**. Two new ids, five amendments, and one
+>   carve-out retired. The allocation is recorded in
+>   `docs/plans/plan-068-james-dixson-8ae0e1/assets/req-allocation.md`, checked **bidirectionally**
+>   by `assets/check_req_allocation.py` — the one-directional form could never catch the
+>   over-claim this plan's own pass-4 review found in its own draft.
+>
+>   **Added `REQ-LAND-037`** (`skills/yf-plan/spec/landing.md`) — **every landing process launch
+>   is on the `ctx.run` seam, or is a DECLARED ctx-less helper.** Two obligations: no
+>   process-launch primitive inside any `_land_l<N>_*` function, and every *indirect* launcher
+>   **reachable from an L-step** is declared in `LAND_CTXLESS_HELPERS` and resolves its working
+>   directory from an explicit argument.
+>
+>   **The set is DERIVED, and the seed is process-launch primitives — never a helper name.**
+>   `skills/yf-plan/scripts/derive_land_launchers.py` seeds on `subprocess.*` / `os.system` /
+>   `os.popen` / `os.spawn*` / `pty.*`, marks every function containing one a direct launcher,
+>   takes the **transitive** closure over the intra-module call graph, then BFS's from every
+>   L-step. Measured at this SPEC-first commit: depth-1 frontier **6**, transitive closure
+>   **13** — and **14** after Epic 1's routing added the `_git` shim, which is why
+>   `spec/landing.md` carries a machine-readable `DERIVED:` line that a test parses against a
+>   live derivation rather than a literal either file could let go stale. Four consecutive review
+>   passes found a hand-written enumeration short, and pass-4 showed the *seed* was short too —
+>   a hand-picked seed of `{subprocess, _run_git, _run_shell, _run_change_validation}` misses
+>   `_repo_root` and `_git_root`, both bare `subprocess.run(["git", "rev-parse",
+>   "--show-toplevel"])` with **no `cwd`**, falling back to `Path.cwd()` / `Path(".")` — the
+>   `yf-i127` defect class exactly. An earlier draft of this same plan asserted the closure was
+>   **ten**: the same constant-vs-derivation mismatch the mechanism exists to remove, committed
+>   inside the paragraph that mandates the derivation.
+>
+>   **Why `runner=` alone is only half the fix.** A runner intercepts a *process*; **no runner
+>   intercepts a filesystem read.** `_validate_merged`'s tier-1 decision is three
+>   filesystem/config probes keyed on `_repo_root()` — `_approved_manifest_present`,
+>   `_change_validation_script`, `_resolve_validate_cmd` → `_read_config`. Without an explicit
+>   `root=`, a sandboxed test that does not `os.chdir()` still resolves the **real** repository's
+>   `CHANGE-VALIDATION.md` and the **real** engine script, then hands the fake a command whose
+>   `cwd` is the real repository. Execution would be contained; **resolution would not.** So both
+>   `_validate_merged` and `_worktree_teardown` take **both** parameters. This is a safety
+>   requirement: unrouted and unrooted, a pytest run would make L3 execute the real repository's
+>   FULL `CHANGE-VALIDATION.md` tier and L18 run `git worktree remove` / `git branch -d` /
+>   `git worktree prune` **in the real checkout**.
+>
+>   **The declared set is NOT empty, and the requirement does not pretend it will be.** Three
+>   depth-1 helpers stay legitimately off-seam — `_land_abort_merge`, `_land_capture_conflict`
+>   (L1/L2's conflict recovery) and `_land_changed_set` (close chain, L19) — each taking an
+>   explicit root, which is what obligation 2 requires. Landing an allowlist the SPEC claimed
+>   would be empty while three members sat in it is the failure this clause prevents. The stated
+>   consequence: the L1/L2 conflict path reaches a real `git merge --abort` against `ctx.root`
+>   that an injected runner never sees, so a test asserting "every process went through the
+>   runner" is **false on that path** and shall not be written.
+>
+>   **`LAND_CTXLESS_HELPERS_UNROOTED`** records the honest residue — a declared helper that does
+>   not *yet* resolve its cwd from an explicit argument, as a defect with a closing issue rather
+>   than as an exemption. Its companion test fails once a member grows a `root=`, so the list
+>   cannot outlive the defect it records.
+>
+>   **`REQ-LAND-031`'s carve-out is RETIRED as an over-read, and `REQ-LAND-031` itself is
+>   UNCHANGED.** It mandates calling `_worktree_teardown` with `force=False` in **keyword** form
+>   and **branching on the returned `status`** — it constrains the *call* and says nothing about
+>   how the callee launches. `_worktree_teardown(ctx.plan_dir, force=False, root=ctx.root,
+>   runner=ctx.run)` satisfies it verbatim while fully on the seam, and the precedent already
+>   exists at L16: `_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`.
+>   plan-068's EXP-001 recorded L18 as "deliberately off-seam per REQ-LAND-031"; that finding
+>   over-read the requirement and an earlier draft adopted the over-reading unchecked.
+>
+>   **Cited but NOT amended**, recorded so a reader does not mistake a citation for a change:
+>   `REQ-LAND-031` (above). **`REQ-LAND-018` and `REQ-LAND-036` are NOT this plan's** — the
+>   rationale amendment and the exclusion-table amendment both belong to **plan-069**, which
+>   plan-068 Issue 3.3 *verifies* rather than performs. An earlier draft over-claimed both, and
+>   plan-069's text falsely asserted plan-068 had already done them; both attributions are
+>   corrected. `REQ-LAND-027` stays deliberately reserved and is not consumed.
+>
+>
+>   **Amended `REQ-LAND-002`** — **ambient HEAD is not a fact.** "Every fact shall be re-derived at
+>   apply time" extends to *which branch a step operates on*. Under `execute.worktree: false`
+>   there is no execute worktree and `_land_l1_down_merge` picks
+>   `ctx.worktree if ctx.worktree.is_dir() else ctx.root`, so **L1 shall check out
+>   `ctx.execute_branch` explicitly.** Measured (EXP-001): in-place, L1 merged the target into
+>   ambient HEAD and reported `Already up to date.`, **exit 0**, verdict `pass`, journalling
+>   `L_DOWNMERGED` — a **silent self-merge**, indistinguishable in the manifest, the journal and
+>   the verdict from a real down-merge. Necessity stated honestly: once the in-place path checks
+>   out the execute branch (`REQ-BRANCH-002` as amended), `ctx.root`'s HEAD *is* that branch and
+>   the measured self-merge disappears without this clause. What the clause buys is that L1 no
+>   longer **depends** on that being true — a step whose correctness rests on what HEAD happens
+>   to be is one `git checkout` away from wrong, with nothing reporting it.
+>
+>   **Amended `REQ-LAND-004`** — **L2 in-place is a DECLARED SCOPE BOUNDARY**, not a
+>   specified-then-unimplemented step. `SKILL.md` §6.1 has said *"In-place (fallback) mode skips
+>   the merge"* since plan-009 and `land` never implemented it. Measured: `_land_l2_merge` runs
+>   `git checkout <target>` **in `ctx.root`**, which in-place **is** the execute checkout — so L2
+>   switches the one and only working tree off the execute branch — and the following
+>   `git pull --rebase`'s return code is **ignored**. Both are recorded as facts about the current
+>   implementation, and the L2 work is routed to **plan-069**. Specifying the *intended* behaviour
+>   here would leave plan-068's own SPEC-vs-implementation check (Issue 2.6) **trivially green**:
+>   SPEC and implementation would "agree" because neither changed. A declared boundary is
+>   checkable; a specified-and-unimplemented one reads as coverage.
+>
+>   **Added `REQ-LAND-038`** — **the merge preview states what the merge WILL LAND, not the
+>   symmetric difference.** `_land_merge_preview.changed_paths` shall be the two-dot range
+>   `<target>..<execute_branch>`, never the two-argument `git diff <target> <execute_branch>`
+>   form, which is a symmetric difference between two tips and cannot distinguish "branch ahead"
+>   from "branch behind". Measured (EXP-001): for a branch **behind** its target — a merge
+>   guaranteed to be a no-op — the preview reported `changed_paths: ["work.txt"]` and
+>   `available: true`, naming the *target's* changes and attributing them to the branch.
+>
+>   **The consequence is named rather than inferred:** `touches_skills` derives from
+>   `changed_paths`, and `touches_skills` is **L19's redeploy precondition**. A directionality
+>   defect therefore propagates to whether the machine's installed toolchain is rewritten — a
+>   behind-branch preview naming a `skills/` path the branch never touched **arms** a redeploy
+>   with no reason to run, and the inverse **hides** one that should. Neither is observable from
+>   the preview's own output. `_land_changed_set` is settled in the same requirement because it
+>   asks the same question after the merge: its `HEAD^1..HEAD` degrades in-place when `HEAD` is
+>   not a merge commit, and the in-place branch cut repairs it by making `HEAD` a real merge
+>   commit at L4 — stated and tested, not left as an unstated inference about a redeploy gate.
+>
+>   **Amended `REQ-BRANCH-001`, `REQ-BRANCH-002` and `REQ-BRANCH-004`** (`skills/yf-plan/spec/phases.md`)
+>   — **`land` shall work under `execute.worktree: false`.** `REQ-BRANCH-001`: the named-branch
+>   model applies to a branch cut with **no `worktree add`** — the name is a property of the
+>   *phase*, not of the mechanism that materialises it, so `_worktree_ensure` cuts and checks out
+>   `<plan-id>-execute` **in the primary checkout** on the in-place path. Measured:
+>   `_land_manifest` halts `execute-branch-missing` on a bare
+>   `git rev-parse --verify <plan-id>-execute` and **never calls `_worktree_opted_out()`** — so it
+>   is the *absent branch*, not the absent worktree, that made the landing route unreachable, and
+>   **two** consecutive plans (062, 063) hand-cut it as a numbered Epic-0 issue before plan-068
+>   made three.
+>
+>   `REQ-BRANCH-002` takes **two** clauses. **(i)** The pinned base binds an in-place
+>   `checkout -b` exactly as it binds `worktree add -b`, which is load-bearing structurally: the
+>   `opted-out` short-circuit sits at the **top** of `_worktree_ensure`, *before*
+>   `_worktree_viability`, `_resolve_execute_base` and the bd-resolution probe, so the in-place
+>   path never reaches the base resolver at all. The create is a **three-way branch** — absent →
+>   `checkout -b <b> <pinned-base>`; exists → plain `checkout`; already on it → no-op — because
+>   `_worktree_ensure` runs on **every** `execute` invocation, promises "idempotent
+>   create-or-reattach", and `git checkout -b` on an existing branch exits **128**.
+>   **Create-without-checkout is silently wrong**: the `checkout` half is what makes `ctx.root`'s
+>   HEAD the execute branch. **(ii)** The **dirty-tree refusal class** — the in-place cut shall
+>   refuse with a *declared* class rather than surfacing a raw `git` error. Measured:
+>   `git checkout -b` on a dirty divergent tree emits `error: Your local changes would be
+>   overwritten by checkout`, exits **1**, leaves HEAD unmoved, and `_worktree_ensure` has **no
+>   guard** for it. **The refusal carries NO new REQ id** — it governs the operation
+>   `REQ-BRANCH-002` already governs. (An earlier draft counted an amendment as an allocation and
+>   left this class with no id at all; the decision and its second reason — the plan's one-shot
+>   `REQ-LAND-(037|038)` gate resolves before this text lands, so an id allocated here could never
+>   have been checked by it — are recorded in that plan's `assets/req-allocation.md`.)
+>
+>   `REQ-BRANCH-004` takes an **explicit in-place carve-out**: "never left on a plan branch" does
+>   **not** hold for the duration of in-place execution, and the design contradicts it
+>   deliberately. With one address space, execution must happen **on** `<plan-id>-execute` — that
+>   is what makes `ctx.root`'s HEAD the execute branch, makes L1's down-merge real rather than a
+>   self-merge, and keeps a commit from landing on the merge target and escaping the merge L3
+>   validates. **The carve-out is BOUNDED, and the bound preserves the original rationale**
+>   (ambient-HEAD drift for the next plan): the risk is discharged at **L2**, which checks out the
+>   merge target, and at **L18**, whose teardown deletes the branch after the merge — so the
+>   carve-out covers only the interval between the in-place cut and L2. Recorded explicitly rather
+>   than as a silent exception: a design that contradicts a requirement and says nothing is
+>   indistinguishable from one that violates it.
+>
+>   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
 

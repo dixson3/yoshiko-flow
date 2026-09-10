@@ -615,8 +615,42 @@ for _p in _corpus:
             if _chk["id"] in _radius:
                 _radius[_chk["id"]] += len(doc_lint_mod.run_check(_chk, _txt, _schema, path=_p))
 print(f"     [measured] blast radius over {len(_corpus)} plans (plan-049 self-excluded): {_radius}")
-check("SC41: `criteria-cells-filled` has a measured blast radius of 0 over the corpus",
-      _radius["criteria-cells-filled"] == 0, str(_radius))
+# MEASURED 0 UNTIL 2026-09-09, AND 1 SINCE. The firing bundle is `plan-069`, and it is an
+# UNDERSTOOD firing rather than a regression — so this assertion follows the exact precedent
+# of the `gate-completeness` arm below: pin the number, name the bundle, and add a second
+# assertion that the firing is the one we expect. A bare relaxation to `<= 1` would let a
+# genuinely new offender in silently, which is what the sibling arm's two-assertion shape
+# exists to prevent.
+#
+# WHY IT FIRES, AND WHY NEITHER SIDE IS WRONG. plan-069 is at `status: scoping`: its Success
+# Criteria are genuinely not written yet, because the design questions it carries from
+# plan-068's pass-1 red-team are unsettled, and criteria for a design that does not exist
+# would be worse than none. The check is also right — a zero-row table satisfies every column
+# and id check while asserting nothing.
+#
+# THE DECLARED-ABSENCE ESCAPE DOES NOT REACH THIS SECTION, and that is a real gap worth
+# stating rather than working around. `cell-non-empty`'s zero-row branch is GENERIC across
+# sections, but its sentinel and its remediation message are hard-coded to upstream issues:
+# a zero-row `## Success Criteria` table is told to *"add a `no-upstream-issues:` line"*.
+# plan-069 carries a prose declaration of the absence; the linter cannot see it, because the
+# only string it accepts would be a false statement in that section. Writing it anyway to buy
+# a green would be fabricating an assertion to silence a check — the precise move #185
+# rejected as "strictly worse than the finding it silences".
+#
+# So the number moves and the gap is recorded. Making the sentinel section-appropriate is a
+# `doc_lint` behaviour change, which is SPEC-first work and belongs to whoever owns that
+# engine — not to a corpus measurement in a test file.
+check("SC41: `criteria-cells-filled` fires on exactly 1 plan — plan-069's, whose criteria are "
+      "legitimately unwritten at `status: scoping`",
+      _radius["criteria-cells-filled"] == 1, str(_radius))
+check("SC41: ...and that one firing is plan-069's, not a new offender hiding behind the count",
+      any("Success Criteria" in d
+          for _p in _corpus if _p.parent.name.startswith("plan-069")
+          for _schema in doc_lint_mod.load_schemas("plan")
+          for _chk in _schema["checks"] if _chk["id"] == "criteria-cells-filled"
+          for d in doc_lint_mod.run_check(
+              _chk, _p.read_text(encoding="utf-8", errors="replace"), _schema, path=_p)),
+      str(_radius))
 # MEASURED 2 BEFORE Issue 3.3, AND 1 AFTER — the drop is the relocation working.
 # plan-008's `Capability Gate: d2 present (see above)` stub was one of the two; the authorized
 # corpus write removed it, so the check that flagged it as vacuous now finds one fewer. The

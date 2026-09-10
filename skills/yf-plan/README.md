@@ -186,6 +186,7 @@ skills/yf-plan/
 │   │       ├── MANIFEST.json
 │   │       └── README.md                  # This file
 │   ├── close_cascade.py                   # Bottom-up cascade-close of all-terminal containers (§6.4)
+│   ├── derive_land_launchers.py           # REQ-LAND-037's ctx-less-helper closure, DERIVED from the AST
 │   ├── doc_lint.py
 │   ├── gate_consistency.py                # Gate/Blocks-set consistency: self-satisfaction and
 │   ├── land_rehearsal.py
@@ -214,7 +215,9 @@ skills/yf-plan/
 │   ├── test_intake_lint_binding.py
 │   ├── test_judgement_trigger.py
 │   ├── test_land_apply.py
+│   ├── test_land_inplace.py               # `land` under `execute.worktree: false` (#331), incl. end-to-end
 │   ├── test_land_manifest.py
+│   ├── test_land_seam.py                  # REQ-LAND-037: derivation, declaration and SPEC pinned together
 │   ├── test_lander_agent_contract.py
 │   ├── test_recheck_criteria.py
 │   ├── test_reconcile_step_resolution.py

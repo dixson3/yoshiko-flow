@@ -56,7 +56,7 @@ LEGACY_CONFIG_FILE = Path(".yf-plan.local.json")
 CONFIG_TIERS = (CONFIG_LOCAL_FILE, CONFIG_SHARED_FILE, LEGACY_CONFIG_FILE)
 
 
-def _bootstrap_config() -> dict:
+def _bootstrap_config(root=None) -> dict:
     """Read + merge the config tiers with no module-level dependencies.
 
     Called at import time because `PLANS_DIR` / `INCUBATOR_PARENT` are module
@@ -66,9 +66,17 @@ def _bootstrap_config() -> dict:
     never raised, so a bad config file cannot make the module unimportable.
 
     Tiers are applied lowest-first so the highest tier wins each key.
+
+    `root` REBASES the (cwd-relative) tier paths onto an explicit directory. It exists because
+    **no injected process runner intercepts a filesystem read** (plan-068 Issue 1.1 /
+    REQ-LAND-037): `_validate_merged`'s tier-1 vs tier-2 decision is made by reading config and
+    probing for files, so a landing test that hands the seam a fake runner but leaves this
+    cwd-keyed still *resolves* the real repository's config. Execution would be contained;
+    resolution would not.
     """
     cfg: dict = {}
-    for path in reversed(CONFIG_TIERS):
+    tiers = CONFIG_TIERS if root is None else tuple(Path(root) / t for t in CONFIG_TIERS)
+    for path in reversed(tiers):
         try:
             if path.exists():
                 loaded = json.loads(path.read_text())
@@ -1449,7 +1457,7 @@ def _read_json(path: Path) -> dict:
         return {}
 
 
-def _read_config() -> dict:
+def _read_config(root=None) -> dict:
     """Operator config, merged across the three tiers (REQ-YF-PRE-004).
 
     Precedence, highest first: `.yf/plan/config.local.json` (gitignored override) →
@@ -1460,8 +1468,11 @@ def _read_config() -> dict:
     Re-read on every call rather than reusing the import-time `_CONFIG`, so a config
     written during a run (or a test that rewrites it) is observed. `_CONFIG` exists
     only because `PLANS_DIR` / `INCUBATOR_PARENT` bind at import.
+
+    `root` is passed straight through to `_bootstrap_config` — see its note on why a filesystem
+    read needs an explicit root even when every process is on the seam.
     """
-    return _bootstrap_config()
+    return _bootstrap_config(root)
 
 
 @click.group()
@@ -3884,10 +3895,18 @@ LANDING_STRATEGIES = ("main", "feature-branch")
 
 
 def _worktree_opted_out() -> bool:
-    """True iff the operator set `execute.worktree` false in .yf-plan.local.json (2.4).
+    """True iff the operator set `execute.worktree` false in the plan config (2.4).
 
     Default is opt-IN (worktree mode on). Tolerates both the flat dotted key and a
     nested {"execute": {"worktree": false}} form.
+
+    THE FILE IS `.yf/plan/config.local.json`, not `.yf-plan.local.json`. This docstring and
+    `_worktree_ensure_in_place`'s verdict detail both named the LEGACY root dotfile, which is
+    still read as the lowest-precedence tier but is not where the live value sits — an
+    operator following the old string would have looked in the wrong file (plan-068 pass-2
+    C13). `_read_config` merges `.yf/plan/config.local.json` → `.yf/plan/config.json` →
+    `.yf-plan.local.json`, highest first, and it is the first of those that this repository
+    uses.
     """
     cfg = _read_config()
     if CONFIG_KEY_WORKTREE in cfg:
@@ -3898,12 +3917,12 @@ def _worktree_opted_out() -> bool:
     return False
 
 
-def _resolve_validate_cmd() -> str | None:
+def _resolve_validate_cmd(root=None) -> str | None:
     """The project integration suite from .yf-plan.local.json `validate-cmd` (3.3).
 
     Unset → None (§6.1.5 runs plan gates only + emits the cross-plan-not-checked notice).
     """
-    cfg = _read_config()
+    cfg = _read_config(root)
     val = cfg.get(CONFIG_KEY_VALIDATE_CMD)
     return val if isinstance(val, str) and val.strip() else None
 
@@ -4133,10 +4152,30 @@ def _worktree_path(plan_dir: Path) -> Path:
     return WORKTREES_DIR / _plan_id_from_dir(plan_dir)
 
 
-def _run_git(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-    """Run `git <args>` capturing output; never raises on non-zero exit."""
+def _git(args: list[str], cwd: Path | None = None, runner=None):
+    """`git <args>` through an INJECTED RUNNER when one is supplied, else directly.
+
+    ONE definition site, deliberately (the `_dirty_outside_plan_dir` precedent). Several
+    `REQ-LAND-037` ctx-less helpers need the same "route it if you were given a runner"
+    behaviour, and open-coding `runner(...) if runner else _run_git(...)` at each call site is
+    how one of them ends up missing it — a defect no call-graph derivation can catch once the
+    call is spelled correctly at four sites and wrongly at the fifth.
+    """
+    if runner is not None:
+        return runner("git", args, cwd=cwd)
+    return _run_git(args, cwd=cwd)
+
+
+def _run_git(args: list[str], cwd: Path | None = None,
+             env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """Run `git <args>` capturing output; never raises on non-zero exit.
+
+    `env=None` means INHERIT (subprocess's own semantics), not "empty". Accepted so the
+    `LandingContext._dispatch` seam can pass it through for `git` as it does for every other
+    program — see that method's note on why `env` landed with the seam rather than after it.
+    """
     return subprocess.run(
-        ["git", *args], cwd=cwd, capture_output=True, text=True,
+        ["git", *args], cwd=cwd, capture_output=True, text=True, env=env,
     )
 
 
@@ -4145,9 +4184,9 @@ def _is_git_repo() -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
-def _registered_worktree_paths(repo_root: Path) -> set[Path]:
+def _registered_worktree_paths(repo_root: Path, runner=None) -> set[Path]:
     """Resolved absolute paths of every registered git worktree."""
-    r = _run_git(["worktree", "list", "--porcelain"], cwd=repo_root)
+    r = _git(["worktree", "list", "--porcelain"], cwd=repo_root, runner=runner)
     paths: set[Path] = set()
     for line in r.stdout.splitlines():
         if line.startswith("worktree "):
@@ -4155,9 +4194,9 @@ def _registered_worktree_paths(repo_root: Path) -> set[Path]:
     return paths
 
 
-def _branch_exists(branch: str, repo_root: Path) -> bool:
-    r = _run_git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
-                 cwd=repo_root)
+def _branch_exists(branch: str, repo_root: Path, runner=None) -> bool:
+    r = _git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+             cwd=repo_root, runner=runner)
     return r.returncode == 0
 
 
@@ -4267,11 +4306,24 @@ def _worktree_ensure(plan_dir: Path) -> dict:
     `action` ∈ {created, reattached-branch, reattached-worktree}.
     `reason` ∈ {not-a-git-repo, beads-not-initialized, dirty-locked, bd-db-unresolved}.
     """
-    if _worktree_opted_out():
-        return {"viable": False, "reason": "opted-out",
-                "detail": f"{CONFIG_KEY_WORKTREE} is false in .yf-plan.local.json; "
-                          f"running in-place by operator choice."}
     repo_root = _git_root()
+
+    # IN-PLACE (dixson3/yoshiko-flow#331, plan-068 Issue 2.1 / REQ-BRANCH-001+002 as amended).
+    #
+    # The `opted-out` short-circuit USED TO RETURN HERE, above `_worktree_viability`,
+    # `_resolve_execute_base` and the bd-resolution probe — so the in-place path never reached
+    # the base resolver at all. That is mechanically why `land` was unreachable under
+    # `execute.worktree: false`: `_land_manifest` halts `execute-branch-missing` on a bare
+    # `git rev-parse --verify <plan-id>-execute` and NEVER calls `_worktree_opted_out()`, so it
+    # is the ABSENT BRANCH, not the absent worktree, that blocked the landing route. Two
+    # consecutive plans (062, 063) hand-cut that branch as a numbered Epic-0 issue, and
+    # plan-068 made three.
+    #
+    # `viable: False` is UNCHANGED and load-bearing: the caller still runs in-place. What
+    # changes is that the branch now exists and is CHECKED OUT before it does.
+    if _worktree_opted_out():
+        return _worktree_ensure_in_place(plan_dir, repo_root)
+
     fallback = _worktree_viability(repo_root)
     if fallback is not None:
         return fallback
@@ -4352,7 +4404,130 @@ def _worktree_ensure(plan_dir: Path) -> dict:
     }
 
 
-def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
+def _worktree_ensure_in_place(plan_dir: Path, repo_root: Path) -> dict:
+    """Cut AND CHECK OUT `<plan-id>-execute` in the PRIMARY checkout (design (b), #331).
+
+    Returns the same `viable: False, reason: "opted-out"` verdict it always did — the caller
+    must still run in-place — plus `branch`, `action` and `base`, so the operator can see what
+    happened. Nothing else in the manifest changes: measured, `land --dry-run` goes from
+    halting `execute-branch-missing` to `verdict: pass`, `halts: []`, exit 0.
+
+    CREATE-WITHOUT-CHECKOUT IS SILENTLY WRONG, and the `checkout` half is not optional. The
+    whole point is that `ctx.root`'s HEAD **is** the execute branch: that is what makes L1's
+    down-merge real rather than the measured self-merge (`REQ-LAND-002` as amended, EXP-001 —
+    `Already up to date.`, exit 0, verdict `pass`), and what keeps a commit from landing on the
+    merge target and escaping the merge L3 validates.
+
+    THREE-WAY, because this function runs on **every** `execute` invocation and its own
+    docstring promises "idempotent create-or-reattach", while `git checkout -b` on an existing
+    branch exits **128** — multi-session execution is the normal case, not the exception:
+
+      * already on the branch  → no-op            (`action: "already-on-branch"`)
+      * branch exists          → plain `checkout` (`action: "reattached-branch-in-place"`)
+      * branch absent          → `checkout -b <branch> <pinned-base>`  (`action: "created-in-place"`)
+
+    THE DIRTY-TREE REFUSAL CLASS (plan-068 Issue 2.2, `REQ-BRANCH-002` clause (ii)). Measured:
+    `git checkout -b` on a dirty divergent tree emits `error: Your local changes would be
+    overwritten by checkout`, exits **1**, and leaves HEAD unmoved — a class this function had
+    no guard for, so it surfaced as a raw `git` error at the moment execution began. It is now
+    a declared refusal (`reason: "dirty-tree-in-place"`) reported BEFORE any checkout is
+    attempted.
+
+    The refusal is scoped to the two branch-MOVING arms. Already being on the branch is a
+    no-op that cannot overwrite anything, so a dirty tree there is ordinary in-flight work —
+    refusing it would make every resumed in-place session unable to continue.
+
+    THE bd-RESOLUTION PROBE DOES NOT APPLY (stated, per Issue 2.1's requirement to say so).
+    `_bd_resolves_from` exists to check INV-2 — that `bd` reaches the primary's shared Dolt DB
+    from *a linked worktree*. In-place there is no second address space: the cwd **is** the
+    primary checkout, so the probe would be asking whether the primary can reach its own
+    database. A green would be uninformative and a red would mean the whole session was
+    already broken, so it is skipped rather than run for symmetry.
+    """
+    plan_id = _plan_id_from_dir(plan_dir)
+    branch = _execute_branch(plan_id)
+    detail_prefix = (f"{CONFIG_KEY_WORKTREE} is false in .yf/plan/config.local.json; "
+                     f"running in-place by operator choice.")
+
+    # NOT A GIT REPO → PLAIN `opted-out`, and no branch cut is attempted.
+    #
+    # `opted-out` IS THE OPERATOR'S DECISION, and an environmental detail must not silently
+    # replace it: the caller runs in-place either way, and a reason that changes with the
+    # weather is a reason a caller cannot branch on. Outside a git repository there is no
+    # branch to cut, so `opted-out` is simply the truthful answer — and `branch_cut` records
+    # that nothing was done rather than leaving the caller to infer it from the absence of
+    # an `action`.
+    #
+    # THE ONE EXCEPTION IS THE DIRTY-TREE REFUSAL BELOW, which gets its own reason because it
+    # is a DECLARED REFUSAL CLASS the operator must act on (`REQ-BRANCH-002` clause (ii)) —
+    # not a note about the environment.
+    if not _is_git_repo():
+        return {"viable": False, "reason": "opted-out", "action": "branch-cut-skipped",
+                "branch": branch, "base": None,
+                "branch_cut": {"ok": False, "reason": "not-a-git-repo"},
+                "detail": (f"{detail_prefix} No git repository here, so {branch} was not "
+                           f"cut; `land` will still halt `execute-branch-missing`.")}
+
+    cur = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root)
+    current = cur.stdout.strip() if cur.returncode == 0 else None
+
+    if current == branch:
+        return {"viable": False, "reason": "opted-out", "action": "already-on-branch",
+                "branch": branch, "base": None,
+                "detail": f"{detail_prefix} Already on {branch}."}
+
+    exists = _branch_exists(branch, repo_root)
+
+    # THE REFUSAL, BEFORE THE CHECKOUT. Both remaining arms move HEAD.
+    dirty, dirty_files = _worktree_dirty(repo_root)
+    if dirty:
+        return {
+            "viable": False,
+            "reason": "dirty-tree-in-place",
+            "branch": branch,
+            "dirty": True,
+            "dirty_files": dirty_files,
+            "detail": (
+                f"the primary checkout is DIRTY and the in-place path must move HEAD to "
+                f"{branch} (currently {current or 'an unresolved HEAD'}). `git checkout` "
+                f"refuses on a dirty divergent tree — measured: `error: Your local changes "
+                f"would be overwritten by checkout`, exit 1, HEAD unmoved. Commit or stash "
+                f"the {len(dirty_files)} change(s) and re-run; nothing has been changed."),
+        }
+
+    if exists:
+        r = _run_git(["checkout", branch], cwd=repo_root)
+        if r.returncode != 0:
+            return {"viable": False, "reason": "dirty-tree-in-place", "branch": branch,
+                    "detail": (f"could not check out the existing {branch}: "
+                               f"{(r.stderr or '').strip()}")}
+        return {"viable": False, "reason": "opted-out",
+                "action": "reattached-branch-in-place", "branch": branch, "base": None,
+                "detail": f"{detail_prefix} Checked out the existing {branch}."}
+
+    base, base_detail = _resolve_execute_base(plan_id, repo_root)
+    if base is None:
+        # `base-unresolved` — THE SAME REASON THE WORKTREE PATH RETURNS, deliberately: an
+        # unresolvable pinned base is the same condition whichever mechanism would have
+        # materialised the branch, and `REQ-BRANCH-002` binds the START-POINT rather than the
+        # command. Unlike `not-a-git-repo` above, this is a repository the operator can
+        # actually fix (a missing feature branch, an indeterminate default), so surfacing it
+        # by name is actionable rather than noise.
+        return {"viable": False, "reason": "base-unresolved", "branch": branch,
+                "branch_cut": {"ok": False, "reason": "base-unresolved"},
+                "detail": f"{detail_prefix} {base_detail}"}
+    r = _run_git(["checkout", "-b", branch, base], cwd=repo_root)
+    if r.returncode != 0:
+        return {"viable": False, "reason": "dirty-tree-in-place", "branch": branch,
+                "detail": (f"could not cut {branch} from the pinned base {base}: "
+                           f"{(r.stderr or '').strip()}")}
+    return {"viable": False, "reason": "opted-out", "action": "created-in-place",
+            "branch": branch, "base": base,
+            "detail": f"{detail_prefix} Cut and checked out {branch} ({base_detail})."}
+
+
+def _worktree_teardown(plan_dir: Path, force: bool, root: Path | None = None,
+                       runner=None) -> dict:
     """Remove the worktree + delete the merged EXECUTE branch + prune (Issue 1.1/2.3).
 
     `git worktree remove` refuses on a dirty tree unless force=True (INV-1: never
@@ -4363,22 +4538,36 @@ def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
     Under the `feature-branch` strategy the feature `<plan-id>` branch is therefore
     **preserved** (never referenced here); under `main` the execute branch is deleted
     after its merge to the default branch. Teardown never deletes a feature branch.
+
+    `root` AND `runner`, on the `_dirty_outside_plan_dir` model (plan-068 Issue 1.1 /
+    REQ-LAND-037). This is a SAFETY fix, not tidiness: the root was resolved by `_git_root()`,
+    a bare cwd-less `git rev-parse --show-toplevel` falling back to `Path(".")`. So a pytest
+    test that did not `os.chdir()` would run `git worktree remove`, `git branch -d
+    <plan-id>-execute` and `git worktree prune` **in the real yoshiko-flow checkout** — against
+    the very branch the plan under test just cut. An injected runner alone cannot prevent it,
+    because the *resolution* happens before any process is launched.
+
+    Defaults preserve the previous behaviour exactly: `root=None` → `_git_root()`,
+    `runner=None` → the direct `_run_git` path. `REQ-LAND-031`'s carve-out is retired — that
+    requirement constrains the CALL (`force=False` in keyword form, branch on the returned
+    `status`) and says nothing about how this function launches, so a fully-routed call
+    satisfies it verbatim.
     """
-    repo_root = _git_root()
+    repo_root = Path(root) if root is not None else _git_root()
     plan_id = _plan_id_from_dir(plan_dir)
     branch = _execute_branch(plan_id)
     wt_rel = _worktree_path(plan_dir)
     wt_abs = (repo_root / wt_rel).resolve()
 
     steps: dict[str, dict] = {}
-    registered = _registered_worktree_paths(repo_root)
+    registered = _registered_worktree_paths(repo_root, runner=runner)
 
     if wt_abs in registered:
         rm_args = ["worktree", "remove", str(wt_abs)]
         if force:
             rm_args.append("--force")
-        r = _run_git(rm_args, cwd=repo_root)
-        steps["remove"] = {"ok": r.returncode == 0, "detail": r.stderr.strip()}
+        r = _git(rm_args, cwd=repo_root, runner=runner)
+        steps["remove"] = {"ok": r.returncode == 0, "detail": (r.stderr or "").strip()}
         if r.returncode != 0:
             # Refused (dirty) — stop before deleting the branch (work may be unmerged).
             return {"status": "blocked", "path": str(wt_rel), "branch": branch,
@@ -4388,16 +4577,17 @@ def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
     else:
         steps["remove"] = {"ok": True, "detail": "no registered worktree (skipped)"}
 
-    if _branch_exists(branch, repo_root):
+    if _branch_exists(branch, repo_root, runner=runner):
         del_flag = "-D" if force else "-d"
-        r = _run_git(["branch", del_flag, branch], cwd=repo_root)
+        r = _git(["branch", del_flag, branch], cwd=repo_root, runner=runner)
         steps["branch_delete"] = {"ok": r.returncode == 0,
-                                  "detail": r.stderr.strip() or r.stdout.strip()}
+                                  "detail": (r.stderr or "").strip()
+                                            or (r.stdout or "").strip()}
     else:
         steps["branch_delete"] = {"ok": True, "detail": "no branch (skipped)"}
 
-    r = _run_git(["worktree", "prune"], cwd=repo_root)
-    steps["prune"] = {"ok": r.returncode == 0, "detail": r.stderr.strip()}
+    r = _git(["worktree", "prune"], cwd=repo_root, runner=runner)
+    steps["prune"] = {"ok": r.returncode == 0, "detail": (r.stderr or "").strip()}
 
     all_ok = all(s["ok"] for s in steps.values())
     return {"status": "ok" if all_ok else "partial", "path": str(wt_rel),
@@ -4559,8 +4749,30 @@ def _landing_lock_release(plan_id: str, force: bool) -> dict:
     return {"released": True, "freed": held}
 
 
-def _run_shell(cmd: str, cwd: Path | None = None) -> dict:
-    """Run a shell command, capturing a truncated result for a validation report."""
+def _run_shell(cmd: str, cwd: Path | None = None, runner=None) -> dict:
+    """Run a shell command, capturing a truncated result for a validation report.
+
+    ROUTED AS `runner("sh", ["-c", cmd], cwd=cwd)` (plan-068 Issue 1.1's recorded decision).
+    `_run_shell` is `shell=True` over a command *string*, so it does not fit the seam's
+    `(prog, args, cwd=)` contract directly — the alternative considered was declaring tier-2
+    `validate-cmd` out of the seam entirely. It is routed instead, because "out of the seam"
+    for the tier that runs an operator-supplied arbitrary command is the least defensible place
+    to leave a hole: a test that means to sandbox a landing would silently execute whatever the
+    real repository's `validate-cmd` happens to be.
+
+    The `sh -c` spelling means an argv-recognising fake sees `("sh", ["-c", "<cmd>"])`, which is
+    why `test_each_step_invokes_the_RIGHT_EXECUTABLE`'s program set and Issue 2.5's fakes both
+    have to know about `sh`. The unrouted path keeps `shell=True` verbatim, so behaviour with no
+    runner injected is unchanged.
+    """
+    if runner is not None:
+        try:
+            r = runner("sh", ["-c", cmd], cwd=cwd)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"cmd": cmd, "ok": False, "returncode": None, "error": str(e)}
+        tail = ((r.stdout or "") + (r.stderr or "")).strip()
+        return {"cmd": cmd, "ok": r.returncode == 0, "returncode": r.returncode,
+                "output_tail": tail[-2000:]}
     try:
         r = subprocess.run(cmd, shell=True, cwd=cwd,
                            capture_output=True, text=True)
@@ -4641,7 +4853,7 @@ def _approved_manifest_present(repo_root: Path) -> bool:
     return bool(re.search(r"approved:\s*yes", text, re.IGNORECASE))
 
 
-def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
+def _run_change_validation(script: Path, repo_root: Path, runner=None) -> dict | None:
     """Delegate to the engine's `run --tier full --json` over the merged tree.
 
     Returns the engine's parsed JSON payload, or None if the invocation could not
@@ -4649,11 +4861,13 @@ def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
     but `§0 approved: no`) is returned as-is so the caller can fall through, NOT
     treated as a failure.
     """
+    args = ["run", str(script), "run", "--tier", "full", "--json"]
     try:
-        r = subprocess.run(
-            ["uv", "run", str(script), "run", "--tier", "full", "--json"],
-            cwd=str(repo_root), capture_output=True, text=True,
-        )
+        if runner is not None:
+            r = runner("uv", args, cwd=repo_root)
+        else:
+            r = subprocess.run(["uv", *args], cwd=str(repo_root),
+                               capture_output=True, text=True)
     except (OSError, subprocess.SubprocessError):
         return None
     try:
@@ -4662,7 +4876,7 @@ def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
         return None
 
 
-def _validate_merged(plan_dir: Path) -> dict:
+def _validate_merged(plan_dir: Path, root: Path | None = None, runner=None) -> dict:
     """Validate the merged tree before push (Issue 3.2; runs PRIMARY-side, post-merge).
 
     Three-tier precedence for the cross-plan safety net (plan-015 D.1):
@@ -4686,8 +4900,19 @@ def _validate_merged(plan_dir: Path) -> dict:
     preserved; an `engine` discriminator ("change-validation"|"validate-cmd"|"none") is
     ADDED so SKILL prose / downstream can surface which tier ran. The exit-3-on-non-pass
     contract lives in the Click wrapper and is unchanged.
+
+    `root` AND `runner` ARE BOTH REQUIRED TO CONTAIN THIS, and `runner=` alone closes only half
+    the escape (plan-068 Issue 1.1 / REQ-LAND-037, measured). The tier-1 decision is made by
+    **three filesystem/config probes** keyed on the repo root — `_approved_manifest_present`,
+    `_change_validation_script`, and `_resolve_validate_cmd` → `_read_config` — and **no runner
+    intercepts a filesystem read**. Without `root`, a sandboxed landing test that does not
+    `os.chdir()` resolves the **real** repository's `CHANGE-VALIDATION.md` and the **real**
+    engine script, then hands the fake a command whose `cwd` is the real repository: execution
+    contained, *resolution* not. Unrouted and unrooted, L3 would run the real repository's FULL
+    tier from inside a test. Defaults preserve the previous behaviour exactly.
     """
-    validate_cmd = _resolve_validate_cmd()
+    root = Path(root) if root is not None else None
+    validate_cmd = _resolve_validate_cmd(root)
     result: dict = {
         "plan_dir": str(plan_dir),
         "validate_cmd_configured": validate_cmd is not None,
@@ -4697,11 +4922,11 @@ def _validate_merged(plan_dir: Path) -> dict:
     }
 
     # Tier 1: yf-change-validation engine (approved manifest + resolvable script).
-    repo_root = _repo_root()
+    repo_root = root if root is not None else _repo_root()
     if _approved_manifest_present(repo_root):
         script = _change_validation_script(repo_root)
         if script is not None:
-            payload = _run_change_validation(script, repo_root)
+            payload = _run_change_validation(script, repo_root, runner=runner)
             # None → unparseable invocation; `refused` → unapproved at engine read.
             # Both fall through to the next tier (refusal is NOT a failure).
             if payload is not None and payload.get("status") != "refused":
@@ -4714,7 +4939,7 @@ def _validate_merged(plan_dir: Path) -> dict:
 
     # Tier 2: configured validate-cmd (prior layer-(b) behavior).
     if validate_cmd is not None:
-        layer_b = _run_shell(validate_cmd)
+        layer_b = _run_shell(validate_cmd, cwd=repo_root, runner=runner)
         result["engine"] = "validate-cmd"
         result["layer_b"] = layer_b
         result["status"] = "pass" if layer_b["ok"] else "fail"
@@ -6491,18 +6716,32 @@ def judgement_never_fired_report(plan_dir: str, as_json: bool):
     raise SystemExit(0)
 
 
-def _land_epic_from_bd(plan_dir: Path) -> str | None:
+def _land_epic_from_bd(plan_dir: Path, root: Path | None = None) -> str | None:
     """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
 
     Mirrors `_resume_scan`'s `epic_source=bd_metadata` route: the pour stamps the epic with
     `metadata.plan_dir` (SKILL.md §5.2a step (a)) exactly so the linkage is findable when
     plan.md carries no `**Epic:**` field. Reused here so the route-record check answers the
     same in both address spaces.
+
+    `root` IS AN EXPLICIT ARGUMENT, not the seam (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less
+    clause). This function has no `ctx` in scope — it is reached from `audit-close`, not from
+    an L-step — so a `runner=` would have nothing to be given. What it needs is a declared
+    working directory, and `root=None` preserves today's behaviour exactly.
+
+    Why it matters even though `bd`'s Dolt DB is shared (INV-2): "reachable from anywhere" is
+    a property of a repository that HAS one. Launched with no `cwd` at all, this reads whatever
+    database the ambient working directory resolves to — which under `execute.worktree: false`
+    is one directory, and under a worktree invocation is another. The value it returns is the
+    epic id the route-record check keys every gate lookup on, so resolving the wrong database
+    does not error: it returns `None` and the caller reports a LOUD INCONCLUSIVE about a plan
+    whose epic exists perfectly well somewhere else.
     """
     want = plan_dir.as_posix().rstrip("/")
     want_leaf = plan_dir.name
     proc = subprocess.run(["bd", "list", "--all", "--limit", "5000", "--json"],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True,
+                          cwd=str(root) if root is not None else None)
     if proc.returncode != 0:
         return None
     try:
@@ -6554,7 +6793,7 @@ def _land_assert_primary_checkout() -> dict:
     }
 
 
-def _land_route_record_findings(plan_dir: Path) -> list[dict]:
+def _land_route_record_findings(plan_dir: Path, root: Path | None = None) -> list[dict]:
     """`Type: human` gates whose ROUTE RECORD says an agent resolved them (REQ-LAND-015).
 
     THE SIGNAL IS ASYMMETRIC, and the asymmetry is what makes a strippable marker useful:
@@ -6565,6 +6804,15 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
 
     So this reports the dirty direction only. It never certifies that a gate WAS
     human-resolved, and nothing here should be read as doing so. DETECTION, NOT PREVENTION.
+
+    `root` IS AN EXPLICIT ARGUMENT (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less clause). Like
+    `_land_epic_from_bd`, this has no `ctx` in scope — `audit-close` calls it — so it takes a
+    declared working directory rather than a runner. `root=None` preserves today's behaviour.
+
+    Issue 1.3's AST check was originally scoped to leave these two ADVISORY, which would have
+    let this plan close #348's normative sentence while two `bd` calls still read a database
+    from the wrong cwd. The check now enforces the ctx-less clause, so an explicit root is what
+    satisfies it.
     """
     out: list[dict] = []
 
@@ -6613,7 +6861,7 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
     if plan_md.is_file():
         epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
     if not epic:
-        epic = _land_epic_from_bd(plan_dir)
+        epic = _land_epic_from_bd(plan_dir, root=root)
     if not epic:
         return _inconclusive(
             f"could not resolve the epic id — it is absent from {plan_md} (which is read "
@@ -6622,7 +6870,8 @@ def _land_route_record_findings(plan_dir: Path) -> list[dict]:
 
     proc = subprocess.run(
         ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
-        capture_output=True, text=True)
+        capture_output=True, text=True,
+        cwd=str(root) if root is not None else None)
     if proc.returncode != 0:
         return out
     try:
@@ -7900,7 +8149,37 @@ def _land_merge_preview(target: str, execute_branch: str,
 
     changed_paths: list[str] = []
     if predicted_tree:
-        d = _run_git(["diff", "--name-only", f"{target}", f"{execute_branch}"], cwd=root)
+        # THE TWO-DOT RANGE, NOT THE TWO-ARGUMENT FORM (`REQ-LAND-038`, plan-068 Issue 2.4).
+        #
+        # `git diff <target> <execute_branch>` is a SYMMETRIC DIFFERENCE BETWEEN TWO TIPS and
+        # cannot distinguish "the branch is ahead" from "the branch is behind". Measured
+        # (EXP-001): for a branch BEHIND its target — a merge guaranteed to be a no-op — it
+        # reported `changed_paths: ["work.txt"]` and `available: true`, naming the TARGET's
+        # changes and attributing them to the branch.
+        #
+        # `<target>..<execute_branch>` asks the question the consumers actually have: what
+        # does this merge INTRODUCE. And the consumers are why it matters — `touches_skills`
+        # below derives from this list, and `touches_skills` is L19's REDEPLOY PRECONDITION.
+        # A behind-branch preview naming a `skills/` path the branch never touched ARMS a
+        # redeploy the landing has no reason to perform; the inverse HIDES one it does.
+        # Neither is observable from the preview's own output.
+        # MERGE-BASE THEN DIFF — spelled in two steps deliberately.
+        #
+        # `git diff A..B` is NOT a range: for `git diff` the two-dot form is plain sugar for
+        # `git diff A B`, the same symmetric endpoint diff. That is the trap this fix walked
+        # into once already, and it is worth recording rather than quietly correcting: the
+        # first attempt swapped the two-argument form for `A..B` and MEASURED IDENTICAL —
+        # `changed_paths: ["work.txt"]` for a branch strictly behind its target.
+        #
+        # The directional question is "what does `B` add since it diverged from `A`", whose
+        # git spelling is the merge base as the left endpoint. Written as an explicit
+        # `merge-base` call rather than the `A...B` sugar, because this module already carries
+        # a normative prohibition on a three-dot expression (`REQ-LAND-025` / #303,
+        # `_land_changed_set`) and a second three-dot literal here — correct in this context,
+        # forbidden in that one — is an invitation to read the wrong rule onto the wrong line.
+        mb = _run_git(["merge-base", target, execute_branch], cwd=root)
+        left = mb.stdout.strip() if mb.returncode == 0 and mb.stdout.strip() else target
+        d = _run_git(["diff", "--name-only", left, execute_branch], cwd=root)
         if d.returncode == 0:
             changed_paths = [ln for ln in d.stdout.splitlines() if ln]
 
@@ -7924,6 +8203,21 @@ def _land_changed_set(root: Path | None = None) -> list[str]:
 
     On a non-merge `HEAD` (`HEAD^1` absent or HEAD having one parent) this returns the
     single commit's own diff, so the helper is total rather than raising on a fast-forward.
+
+    THE IN-PLACE CASE, AND WHY IT IS NOW CORRECT (`REQ-LAND-038`, plan-068 Issue 2.4). EXP-001
+    measured this helper DEGRADING under `execute.worktree: false`, because with no execute
+    branch there was no merge and `HEAD` was not a merge commit — so the "single commit's own
+    diff" fallback fired and the landed set was one commit rather than the whole landing.
+
+    The repair is not in this function. `_worktree_ensure_in_place` cuts a real execute branch,
+    so L2 performs a real `--no-ff` merge and L4 commits it: **`HEAD` becomes a genuine merge
+    commit**, the first-parent range is the landing, and the fallback is not reached. That
+    reasoning is written down and TESTED (`test_changed_set_reads_the_merge_range_in_place`)
+    rather than left as an unstated inference — an unstated inference is exactly how L19's
+    redeploy precondition came to depend on a property nobody re-checked.
+
+    The fallback stays, and stays correct: a fast-forward or an initial commit is still a
+    legitimate `HEAD` shape, and returning its own diff is better than raising.
     """
     root = root or _repo_root()
     r = _run_git(["rev-list", "--parents", "-n", "1", "HEAD"], cwd=root)
@@ -9128,6 +9422,79 @@ def _land_repreview_or_halt(plan_dir: Path, decision: dict) -> dict:
 #    "journal": "<state to record on success>", "halting": bool, "detail": {...}}
 
 
+#: REQ-LAND-037 obligation 2 — the DECLARED ctx-less helpers.
+#:
+#: Every *indirect* process launcher reachable from an `_land_l<N>_*` step. This is a
+#: HAND-DECLARED allowlist, deliberately: `derive_land_launchers.py` computes the same set from
+#: the AST, and `--check` fails when the two disagree. A constant computed from the call graph
+#: would make that check tautological — the whole value is that adding a `subprocess` call to a
+#: helper an L-step reaches breaks the build until someone *declares* it here.
+#:
+#: DERIVED, NEVER HAND-WRITTEN. Four consecutive plan-068 review passes found a hand-written
+#: enumeration of this set short, and pass-4 showed even the *seed* was short — seeding on a
+#: helper name misses `_repo_root` and `_git_root`, both bare
+#: `subprocess.run(["git", "rev-parse", "--show-toplevel"])` with no `cwd`. Regenerate with:
+#:
+#:     uv run skills/yf-plan/scripts/derive_land_launchers.py
+#:
+#: The depth-1 frontier is SIX; the transitive closure is THIRTEEN. `ctx.run` /
+#: `LandingContext._dispatch` are excluded from the call graph BY NAME — today that holds only
+#: because `self.run = self._dispatch` is an assignment, so the AST resolves no callee named
+#: `run`; naming the exclusion means a future `def run` changes nothing.
+#:
+#: NOT EMPTY, AND NOT EXPECTED TO BE. `_land_abort_merge` / `_land_capture_conflict` (L1/L2's
+#: conflict-recovery path) and `_land_changed_set` (close chain, L19) stay legitimately
+#: off-seam: each takes an explicit root, which is what obligation 2 requires. The consequence
+#: is stated rather than left implicit — the L1/L2 conflict path reaches a real
+#: `git merge --abort` against `ctx.root` that an injected runner never sees, so a test
+#: asserting "every process went through the runner" is FALSE on that path.
+LAND_CTXLESS_HELPERS: tuple[str, ...] = (
+    "_branch_exists",
+    "_dirty_outside_plan_dir",
+    "_git",
+    "_git_root",
+    "_land_abort_merge",
+    "_land_capture_conflict",
+    "_land_changed_set",
+    "_registered_worktree_paths",
+    "_repo_root",
+    "_run_change_validation",
+    "_run_git",
+    "_run_shell",
+    "_validate_merged",
+    "_worktree_teardown",
+)
+
+#: The honest residue: DECLARED helpers that do NOT yet resolve their working directory from an
+#: explicit argument. A member here is a known open defect, never an exemption — the point of
+#: recording it is that a helper which is merely *declared* would otherwise read as compliant.
+#:
+#: Both members are the `yf-i127` defect class exactly: bare
+#: `subprocess.run(["git", "rev-parse", "--show-toplevel"])` with no `cwd`, falling back to
+#: `Path.cwd()` / `Path(".")`. They are reached transitively (through `_validate_merged` and
+#: `_worktree_teardown`), which is why giving those two a `root=` — not only a `runner=` — is
+#: what actually contains them: NO RUNNER INTERCEPTS A FILESYSTEM READ.
+#:
+#: An empty tuple is the end state. Subset of `LAND_CTXLESS_HELPERS` by construction.
+#:
+#: `_validate_merged` and `_worktree_teardown` were listed here at the SPEC-first commit and
+#: were REMOVED by plan-068 Issue 1.1, which gave each BOTH a `runner=` and a `root=` on the
+#: `_dirty_outside_plan_dir` model. The removal was not optional: the residue list's companion
+#: test (`test_unrooted_is_a_subset_and_is_recorded_as_a_defect_not_an_exemption`) FAILS once a
+#: member grows a `root=`, so the list cannot outlive the defect it records — which is exactly
+#: what a residue list is for, and exactly what makes it safe to have one.
+#:
+#: `_git_root` and `_repo_root` remain, and they are the honest remainder: both take NO
+#: parameters at all, so neither can be rooted without changing every caller in the module.
+#: They are reached only TRANSITIVELY now (through helpers that do take a root), so a fully
+#: routed-and-rooted call site never enters them — which is why closing them is a separate,
+#: lower-urgency change rather than part of this seam.
+LAND_CTXLESS_HELPERS_UNROOTED: tuple[str, ...] = (
+    "_git_root",
+    "_repo_root",
+)
+
+
 class LandingContext:
     """Everything the steps share. Assembled ONCE, from RE-DERIVED facts (REQ-LAND-002)."""
 
@@ -9158,15 +9525,29 @@ class LandingContext:
         self.results: list[dict] = []
 
 
-    def _dispatch(self, prog: str, args: list[str], cwd: Path | None = None):
+    def _dispatch(self, prog: str, args: list[str], cwd: Path | None = None,
+                  env: dict[str, str] | None = None):
         """Run `<prog> <args>`. `prog` is EXPLICIT so a step cannot silently run the wrong
-        executable — see the note on `self.run`."""
+        executable — see the note on `self.run`.
+
+        `env` IS ACCEPTED NOW, DELIBERATELY, THOUGH NO STEP PASSES IT YET (plan-068 Issue 1.1's
+        recorded decision). The consumers that will want it are plan-069's `recover()` tests and
+        L19's redeploy tests, both of which need to run a step under a controlled environment.
+        Adding it later would be a **second** signature change to the same seam, breaking the
+        same set of test stubs a second time — `check_mock_fidelity` binds `inspect.signature`,
+        so every arity change costs a stub sweep. Paying that once is strictly cheaper than
+        paying it twice, and an unused keyword-only-in-practice parameter costs nothing.
+
+        `None` means "inherit", not "empty": it is passed straight through to
+        `subprocess.run(env=...)`, whose own `None` already means inherit. An injected runner
+        that ignores `env` is behaving correctly for every call site that exists today.
+        """
         if self._runner is not None:
-            return self._runner(prog, args, cwd=cwd or self.root)
+            return self._runner(prog, args, cwd=cwd or self.root, env=env)
         if prog == "git":
-            return _run_git(args, cwd=cwd or self.root)
+            return _run_git(args, cwd=cwd or self.root, env=env)
         return subprocess.run([prog, *args], cwd=str(cwd or self.root),
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, env=env)
 
     def step_enabled(self, key: str) -> tuple[bool, str | None]:
         """Is this step enabled by the decision? Returns (enabled, skip_reason).
@@ -9216,9 +9597,36 @@ def _land_l1_down_merge(ctx: LandingContext) -> dict:
 
     A conflict here is `L_CONFLICT_DOWNMERGE` — fully local, pre-L6 and pre-L7, so the
     recovery is capture-then-abort and there is no outward trace.
+
+    IT OPERATES ON `ctx.execute_branch`, NOT ON AMBIENT HEAD (`REQ-LAND-002` as amended by
+    plan-068 Issue 2.3, dixson3/yoshiko-flow#331). The working tree is still
+    `ctx.worktree if ctx.worktree.is_dir() else ctx.root` — but in-place that resolves to the
+    ONE AND ONLY checkout, so without an explicit checkout this step merged the target into
+    whatever HEAD happened to be. Measured (EXP-001): `Already up to date.`, **exit 0**,
+    verdict `pass`, journalling `L_DOWNMERGED` — a **silent self-merge**, indistinguishable in
+    the manifest, the journal and the verdict from a real down-merge.
+
+    NECESSITY, STATED HONESTLY (plan-068 pass-2 C12). Once `_worktree_ensure_in_place` cuts and
+    checks out the execute branch, `ctx.root`'s HEAD *is* that branch and EXP-001's measured
+    self-merge disappears **without this checkout**. What the checkout buys is that L1 no
+    longer DEPENDS on that being true — it asserts the branch rather than inheriting it. A
+    landing step whose correctness rests on an accident of what HEAD happens to be is one
+    `git checkout` away from wrong, and nothing would report it.
+
+    A FAILED CHECKOUT IS A HALT, NOT A WARNING. If the branch cannot be checked out there is
+    no state in which the rest of L1 means anything: the merge would run against the wrong
+    tree and report `pass`.
     """
     wt = ctx.worktree if ctx.worktree.is_dir() else ctx.root
     ctx.run("git", ["fetch", "--all", "--prune"], cwd=wt)
+    co = ctx.run("git", ["checkout", ctx.execute_branch], cwd=wt)
+    if co.returncode != 0:
+        return _step("l1_down_merge", "fail",
+                     f"could not check out {ctx.execute_branch} in {wt}: "
+                     f"{(co.stderr or '').strip()}. L1 merges the TARGET INTO THE EXECUTE "
+                     f"BRANCH, so without that branch checked out the merge would run "
+                     f"against ambient HEAD and report `pass` on a self-merge.",
+                     halting=True)
     r = ctx.run("git", ["merge", "--no-ff", "-m",
                  f"plan-{ctx.plan_id}: down-merge {ctx.target} before landing", ctx.target],
                 cwd=wt)
@@ -9245,6 +9653,23 @@ def _land_l2_merge(ctx: LandingContext) -> dict:
 
     RUNS IN THE PRIMARY CHECKOUT — a linked worktree cannot check out a branch another
     worktree holds (REQ-LAND-010).
+
+    IN-PLACE IS A DECLARED SCOPE BOUNDARY, NOT A FIXED BEHAVIOUR (`REQ-LAND-004` as amended by
+    plan-068 Issue 0.4). Two facts about the code below, recorded because they are the
+    boundary rather than because they are correct:
+
+      * `git checkout <target>` runs in `ctx.root` — and under `execute.worktree: false`
+        `ctx.root` **is** the execute checkout, so this line switches the one and only working
+        tree off the execute branch;
+      * the following `git pull --rebase`'s return code is **ignored**.
+
+    Both are the measured status quo. The L2 in-place work is routed to **plan-069**, and no
+    plan-068 issue implements or tests it — specifying the *intended* behaviour here would
+    have left the SPEC-vs-implementation agreement check trivially green, since SPEC and code
+    would "agree" because neither changed (pass-3 C7).
+
+    `test_the_landed_spec_matches_the_implemented_L2_behaviour` reads BOTH sides mechanically,
+    so closing either fact without moving the boundary fails loudly.
     """
     co = ctx.run("git", ["checkout", ctx.target], cwd=ctx.root)
     if co.returncode != 0:
@@ -9279,7 +9704,10 @@ def _land_l3_validate_merged(ctx: LandingContext) -> dict:
     reported and NOT coerced to `fail` — the #262 defect lives inside `_validate_merged`
     itself and must not be reproduced one frame up.
     """
-    out = _validate_merged(ctx.plan_dir)
+    # BOTH `root=` AND `runner=` (plan-068 Issue 1.1 / REQ-LAND-037). `runner=` alone would
+    # contain the *execution* and leave the *resolution* loose: this function's tier-1 decision
+    # is three filesystem/config probes, and no runner intercepts a filesystem read.
+    out = _validate_merged(ctx.plan_dir, root=ctx.root, runner=ctx.run)
     status = (out.get("status") or out.get("verdict") or "").lower()
     if status == "fail":
         return _step("l3_validate_merged", "fail",
@@ -9351,10 +9779,8 @@ def _land_l5_advisory_recheck(ctx: LandingContext) -> dict:
     The authoritative halting run is L11, after the reconcile writes that some criteria
     depend on.
     """
-    proc = subprocess.run(
-        ["uv", "run", str(Path(__file__).resolve()), "recheck-criteria",
-         str(ctx.plan_dir), "--json"],
-        capture_output=True, text=True, cwd=ctx.root)
+    proc = ctx.run("uv", ["run", str(Path(__file__).resolve()), "recheck-criteria",
+                          str(ctx.plan_dir), "--json"], cwd=ctx.root)
     return _step("l5_advisory_recheck", "pass",
                  f"advisory pre-push criteria run complete (exit {proc.returncode}) — "
                  f"ADVISORY, never halting; the authoritative run is L11",
@@ -9518,7 +9944,13 @@ def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
         if verb == "classify-deliverable":
             for p in changed:
                 args += ["--changed", p]
-        proc = subprocess.run(args, capture_output=True, text=True, cwd=ctx.root)
+        # THE PROGRAM IS SLICED OFF, and that is the whole hazard of routing this site
+        # (plan-068 Issue 1.1, measured). `args` is built as `["uv", "run", me, verb, ...]`,
+        # while `ctx.run(prog, args)` prepends `prog` itself — so `ctx.run("uv", args)` would
+        # hand the seam `uv uv run ...`. An injected runner that returns 0 for any argv it does
+        # not recognise would report that as a pass, which is the exact failure
+        # `LandingContext`'s own docstring records from the Epic-6 rehearsal.
+        proc = ctx.run(args[0], args[1:], cwd=ctx.root)
         rc = proc.returncode                      # READ, not echoed.
         if rc == 0:
             out.append(_step(verb, "pass", f"{verb} clean", halting=halting, exit_code=rc))
@@ -9553,8 +9985,8 @@ def _land_l12_close_cascade(ctx: LandingContext) -> dict:
         return _step("l12_close_cascade", "inconclusive",
                      "no **Epic:** field in plan.md — nothing to cascade", halting=False)
     engine = Path(__file__).resolve().parent / "close_cascade.py"
-    proc = subprocess.run(["uv", "run", str(engine), epic, "--plan", ctx.plan_id, "--json"],
-                          capture_output=True, text=True, cwd=ctx.root)
+    proc = ctx.run("uv", ["run", str(engine), epic, "--plan", ctx.plan_id, "--json"],
+                   cwd=ctx.root)
     if proc.returncode != 0:
         return _step("l12_close_cascade", "fail",
                      f"cascade-close reported open children or a close error (exit "
@@ -9576,8 +10008,8 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
     out: list[dict] = []
     me = str(Path(__file__).resolve())
 
-    g = subprocess.run(["uv", "run", me, "complete-gate", str(ctx.plan_dir), "--json"],
-                       capture_output=True, text=True, cwd=ctx.root)
+    g = ctx.run("uv", ["run", me, "complete-gate", str(ctx.plan_dir), "--json"],
+                cwd=ctx.root)
     if g.returncode != 0:
         out.append(_step("l13_complete_gate", "fail",
                          "the completion gate blocked a ci-release plan — its "
@@ -9589,13 +10021,17 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
 
     beads = ctx.root / ".yf" / "plan" / "land-beads.json"
     beads.parent.mkdir(parents=True, exist_ok=True)
-    bl = subprocess.run(["bd", "list", "--all", "--include-gates", "--limit", "5000",
-                         "--json"], capture_output=True, text=True)
+    # `cwd=ctx.root` IS THE FIX, not incidental tidiness. This was the ONE close-chain
+    # subprocess launched with NO cwd at all (dixson3/yoshiko-flow#348), so it read whatever
+    # bead database the ambient working directory resolved to — and its output is what L14
+    # compares the poured DAG against. A wrong database here does not error; it produces a
+    # confident divergence verdict about the wrong plan.
+    bl = ctx.run("bd", ["list", "--all", "--include-gates", "--limit", "5000", "--json"],
+                 cwd=ctx.root)
     beads.write_text(bl.stdout or "[]", encoding="utf-8")
     engine = Path(__file__).resolve().parent / "pour_fidelity.py"
-    f = subprocess.run(["uv", "run", str(engine), str(beads), str(ctx.plan_dir),
-                        "--strict", "--plan", ctx.plan_id, "--json"],
-                       capture_output=True, text=True, cwd=ctx.root)
+    f = ctx.run("uv", ["run", str(engine), str(beads), str(ctx.plan_dir),
+                       "--strict", "--plan", ctx.plan_id, "--json"], cwd=ctx.root)
     if f.returncode == 2:
         out.append(_step("l14_pour_fidelity", "fail",
                          "pour fidelity is INCONCLUSIVE — the comparison could not be made "
@@ -9613,9 +10049,8 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
         return out
     out.append(_step("l14_pour_fidelity", "pass", "pour fidelity clean"))
 
-    s = subprocess.run(["uv", "run", me, "update-status", str(ctx.plan_dir), "complete",
-                        "-m", "plan complete (landed by `land --apply`)"],
-                       capture_output=True, text=True, cwd=ctx.root)
+    s = ctx.run("uv", ["run", me, "update-status", str(ctx.plan_dir), "complete",
+                       "-m", "plan complete (landed by `land --apply`)"], cwd=ctx.root)
     if s.returncode != 0:
         out.append(_step("l15_update_status", "fail",
                          f"could not set complete: {(s.stderr or '').strip()[:200]}",
@@ -9756,7 +10191,14 @@ def _land_l17_residual_mirroring(ctx: LandingContext) -> dict:
                         "--apply"], cwd=ctx.root)
     verified = []
     for b in beads:
-        back = subprocess.run(["bd", "show", b, "--json"], capture_output=True, text=True)
+        # ROUTED AND ROOTED (plan-068 Issue 1.1). This read-back is the SOLE verification
+        # signal under REQ-LAND-019 — `bd close` refuses and exits 0 when blocked (#230), so
+        # the exit code proves nothing and this loop is what stands in for it. It was launched
+        # with no `cwd`, so the one signal that decides whether L17 passes could be read from
+        # the wrong database. Routing it also makes REQ-LAND-019's read-back visible to the
+        # seam for the first time, which is why `test_each_step_invokes_the_RIGHT_EXECUTABLE`
+        # now expects `{"uv", "bd"}` for this step rather than `{"uv"}`.
+        back = ctx.run("bd", ["show", b, "--json"], cwd=ctx.root)
         ok = False
         try:
             d = json.loads(back.stdout)
@@ -9840,7 +10282,15 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     #     fallback — and nothing consulted `status` at all. A `blocked` teardown (dirty
     #     worktree: nothing removed, branch left behind) reported `verdict: pass`. A landing
     #     must not report a prune it did not perform.
-    wt = _worktree_teardown(ctx.plan_dir, force=False)
+    # (d) OFF THE SEAM. Added by plan-068 Issue 1.1: `REQ-LAND-031`'s apparent carve-out was
+    #     an OVER-READ. That requirement constrains this CALL — `force=False` in keyword form,
+    #     branch on the returned `status` — and says nothing about how the callee launches, so
+    #     the fully-routed form below satisfies it verbatim. The precedent is already in this
+    #     file at L16: `_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`.
+    #     `root=` is not optional alongside `runner=`: the root was resolved by the cwd-less
+    #     `_git_root()`, so a test that did not `os.chdir()` would run `git worktree remove` /
+    #     `git branch -d` / `git worktree prune` in the REAL checkout.
+    wt = _worktree_teardown(ctx.plan_dir, force=False, root=ctx.root, runner=ctx.run)
     status = wt.get("status") if isinstance(wt, dict) else None
     actions.append({"action": "worktree-teardown", "status": status, "result": wt})
 

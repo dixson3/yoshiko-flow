@@ -772,13 +772,19 @@ def test_capture_rejects_an_unenumerated_site(repo):
 # =========================================================================================
 
 
-def _teardown_ok(plan_dir, force=False):
+def _teardown_ok(plan_dir, force=False, root=None, runner=None):
     """A stub of `_worktree_teardown` that matches the REAL SIGNATURE AND THE REAL SHAPE.
 
     Both axes were wrong, and only one of them is mechanically detectable. `check_mock_fidelity`
     binds `inspect.signature`, so it catches the arity; it is STRUCTURALLY BLIND to the RETURN
     shape, and the return shape is what L18 branches on (REQ-LAND-031). The four shipped stubs
     returned `{"action": "removed"}` — a key `_worktree_teardown` NEVER produces.
+
+    `root=` / `runner=` added by plan-068 Issue 1.2. The signature is spelled OUT rather than
+    absorbed into `**kw` deliberately: `check_mock_fidelity` compares against
+    `inspect.signature`, and a `**kw` stub matches every arity, so it would pass the check
+    while telling a reader nothing about what the real function takes. That is the check going
+    vacuous — the exact class of defect this stub's own docstring exists to warn about.
     """
     return {"status": "ok", "path": f".worktrees/{PLAN_ID}", "branch": f"{PLAN_ID}-execute",
             "steps": {"remove": {"ok": True, "detail": ""},
@@ -798,13 +804,20 @@ class FakeRunner:
     def __init__(self, script=None):
         self.script = script or {}
         self.calls: list[list[str]] = []
+        self.envs: list[dict | None] = []
 
-    def __call__(self, prog, args, cwd=None):
+    def __call__(self, prog, args, cwd=None, env=None):
         # THE PROGRAM IS PART OF THE RECORDED CALL. An earlier version dropped it and
         # returned 0 for any argv, which is precisely why `git issue comment`,
         # `git push --issues` and `git self install` all passed their tests. A fake that
         # answers everything cannot witness the wrong executable being invoked.
+        #
+        # `env` LANDED WITH THE SEAM (plan-068 Issue 1.1) and no step passes it yet. It is
+        # accepted AND RECORDED rather than swallowed, because a fake that silently drops a
+        # parameter is how the seam's contract and the fake's contract drift apart — the same
+        # class of blindness as the dropped `prog` above, one parameter over.
         self.calls.append([prog, *args])
+        self.envs.append(env)
         for key, res in self.script.items():
             if all(tok in [prog, *args] for tok in key.split("|")):
                 return res
@@ -845,8 +858,13 @@ def test_red_full_tier_halts_with_lock_held(repo, monkeypatch):
     serialization; the tree assertion is what catches `pull --rebase` picking up commits that
     arrived after L1, which the single-machine lock cannot prevent.
     """
+    # `root=` / `runner=` are accepted (plan-068 Issue 1.1 gave `_validate_merged` both:
+    # `runner=` contains the execution, `root=` contains the RESOLUTION, and no runner
+    # intercepts a filesystem read). Spelled out rather than `**kw` so the stub still states
+    # the real arity.
     monkeypatch.setattr(pm, "_validate_merged",
-                        lambda pd: {"status": "fail", "engine": "change-validation",
+                        lambda pd, root=None, runner=None: {
+                            "status": "fail", "engine": "change-validation",
                                     "first_failure": {"cmd": "cargo test"}})
     ctx = _ctx(repo, FakeRunner())
     out = pm._land_l3_validate_merged(ctx)
@@ -868,7 +886,8 @@ def test_red_full_tier_halts_with_lock_held(repo, monkeypatch):
 def test_inconclusive_validation_is_not_coerced_to_fail(repo, monkeypatch):
     """#262/#263. An INCONCLUSIVE tier is reported and does NOT halt the landing."""
     monkeypatch.setattr(pm, "_validate_merged",
-                        lambda pd: {"status": "inconclusive", "engine": "none"})
+                        lambda pd, root=None, runner=None: {"status": "inconclusive",
+                                                            "engine": "none"})
     out = pm._land_l3_validate_merged(_ctx(repo, FakeRunner()))
     assert out["verdict"] == "inconclusive"
     assert out["halting"] is False
@@ -1041,9 +1060,9 @@ def test_prune_is_strategy_aware(repo, monkeypatch):
     `<plan-id>-execute`; the tab close defaults to a PROPOSAL."""
     seen = []
 
-    def _capture(plan_dir, force=False, **kw):
-        seen.append(((plan_dir,), {"force": force, **kw}))
-        return _teardown_ok(plan_dir, force)
+    def _capture(plan_dir, force=False, root=None, runner=None):
+        seen.append(((plan_dir,), {"force": force, "root": root, "runner": runner}))
+        return _teardown_ok(plan_dir, force, root, runner)
 
     monkeypatch.setattr(pm, "_worktree_teardown", _capture)
 
@@ -1057,12 +1076,30 @@ def test_prune_is_strategy_aware(repo, monkeypatch):
     # and is invisible to `ctx.run`. Deleting the assertion would leave L18's HEADLINE ACTION
     # untested at the step level, so it is replaced with the two facts that survive the fix:
     # the delegation is made with the right arguments, and no branch delete reaches `ctx.run`.
-    assert seen == [((pm.Path("docs/plans") / PLAN_ID,), {"force": False})], (
-        f"L18 must delegate to _worktree_teardown(plan_dir, force=False) in KEYWORD form; "
-        f"observed {seen}")
+    # ASSERTED STRUCTURALLY, not by dict equality (plan-068 Issue 1.2). Issue 1.1 added
+    # `root=` and `runner=`, whose values are a `tmp_path` and a BOUND METHOD — neither is
+    # writable as a literal, so an exact-equality assertion could only be kept by weakening
+    # it to `**kw` and asserting nothing about the two new arguments. The four facts below are
+    # what the equality was actually protecting, each stated on its own.
+    assert len(seen) == 1, f"L18 must call the teardown exactly once; saw {seen}"
+    (pos, kw), = seen
+    assert pos == (pm.Path("docs/plans") / PLAN_ID,), f"wrong plan_dir: {pos}"
+    assert kw["force"] is False, (
+        "REQ-LAND-031: `force=False` in KEYWORD form — the keyword is normative so the next "
+        f"signature change fails loudly rather than silently rebinding a positional; saw {kw}")
+    assert kw["root"] is not None, (
+        "REQ-LAND-037: `root=` must be passed. Without it the teardown resolves its root via "
+        "the cwd-less `_git_root()` and would run `git worktree remove` / `git branch -d` in "
+        "the REAL checkout from inside this test.")
+    assert kw["runner"] is not None, (
+        "REQ-LAND-037: `runner=` must be passed, so the teardown's own git launches are on "
+        "the seam. REQ-LAND-031's apparent carve-out was an over-read — it constrains this "
+        "CALL, not how the callee launches.")
     assert not [c for c in r.calls if "branch" in c and "-d" in c], (
         "L18 must NOT issue its own `git branch -d` — the teardown already deletes the "
-        "branch, so a second delete permanently reports ok:false 'branch not found'")
+        "branch, so a second delete permanently reports ok:false 'branch not found'. "
+        "(The teardown is stubbed here, so its own delete reaches neither git nor the runner; "
+        "what this asserts is that L18's OWN frame issues none.)")
     dele = [a for a in out["detail"]["actions"] if a["action"] == "delete-execute-branch"][0]
     assert dele["via"] == "_worktree_teardown" and dele["ok"] is True, (
         "the delete is REPORTED from the teardown's own branch_delete step")
@@ -1178,7 +1215,8 @@ def test_executor_halts_before_any_destructive_stage(repo, monkeypatch):
     reachable — the ordering is what makes the guarantee, not a check inside L12."""
     body = repo / "b.md"; body.write_text("intended\n", encoding="utf-8")
     dec = {"upstream_writes": [{"issue": "301", "action": "comment", "body_path": str(body)}]}
-    monkeypatch.setattr(pm, "_validate_merged", lambda pd: {"status": "pass", "engine": "x"})
+    monkeypatch.setattr(pm, "_validate_merged",
+                        lambda pd, root=None, runner=None: {"status": "pass", "engine": "x"})
     monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
     monkeypatch.setattr(pm, "_landing_lock_release", lambda p, f=False: {"released": True})
     r = FakeRunner({"issue|view": _R(0, json.dumps({"state": "OPEN", "comments": []})),
@@ -1209,7 +1247,8 @@ def globals_of_pm(name):
 def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
     """REQ-LAND-002. Every skip is surfaced, so 'the landing did less than you think' is
     never silent."""
-    monkeypatch.setattr(pm, "_validate_merged", lambda pd: {"status": "pass", "engine": "x"})
+    monkeypatch.setattr(pm, "_validate_merged",
+                        lambda pd, root=None, runner=None: {"status": "pass", "engine": "x"})
     monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
     monkeypatch.setattr(pm, "_landing_lock_release", lambda p, f=False: {"released": True})
     monkeypatch.setattr(pm, "_worktree_teardown", _teardown_ok)
@@ -1297,10 +1336,18 @@ def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
          {"upstream_writes": [{"issue": "301", "action": "comment",
                                "body_path": str(body)}]},                       {"gh"}),
         (pm._land_l16_commit_and_push_two, {},                                  {"git"}),
-        # L18 invokes NOTHING through `ctx.run` (Issue 2.2): its only process work is the
-        # branch delete, and that is DELEGATED to `_worktree_teardown`, which uses `_run_git`
-        # directly. The empty set is the assertion, not an omission — a `{"git"}` expectation
-        # here would only be satisfiable by restoring the duplicate delete this plan removed.
+        # L18 invokes nothing through `ctx.run` FROM ITS OWN FRAME, and the empty set is the
+        # assertion rather than an omission: a `{"git"}` expectation here would only be
+        # satisfiable by restoring the duplicate branch delete plan-063 removed.
+        #
+        # THE STATED REASON CHANGED AT plan-068 Issue 1.1 AND IS CORRECTED HERE. The old
+        # comment said L18's delete is delegated to `_worktree_teardown`, "which uses
+        # `_run_git` directly" — that is no longer true: the teardown now takes `runner=` and
+        # L18 passes `ctx.run`, so in production the delete DOES reach the seam. What keeps
+        # this expectation empty is that `_worktree_teardown` is MONKEYPATCHED to
+        # `_teardown_ok` two lines above, so no real git launch happens at all. Leaving the
+        # old rationale would have made a passing assertion rest on a false explanation — the
+        # kind of stale comment that survives every refactor because nothing executes it.
         (pm._land_l18_prune,       {},                                          set()),
         (pm._land_l19_redeploy,    {},                                          {"yf"}),
     ]
@@ -1320,9 +1367,21 @@ def test_each_step_invokes_the_RIGHT_EXECUTABLE(repo, monkeypatch):
     r17 = FakeRunner()
     pm._land_l17_residual_mirroring(_ctx(
         repo, r17, decision={"residual_bead_groups": [{"beads": ["yf-aaa"]}]}))
-    assert r17.programs() == {"uv"}, (
-        f"L17 invoked {r17.programs()}; it must call `uv run upstream.py push` CONCRETELY")
+    # `{"uv", "bd"}` — and the `bd` is the POINT (plan-068 SC8b / Issue 1.2). L17's read-back
+    # loop is the SOLE verification signal under REQ-LAND-019: `bd close` refuses and exits 0
+    # when blocked (#230), so the exit code proves nothing and the `bd show` read-back is what
+    # stands in for it. It was launched by a bare `subprocess.run` with NO cwd, which made the
+    # one signal that decides whether L17 passes both unroutable and able to read the wrong
+    # database. Routing it makes REQ-LAND-019's read-back visible to the seam for the FIRST
+    # time — so the set widening from `{"uv"}` to `{"uv", "bd"}` is an improvement in what
+    # this test can see, not a relaxation of it.
+    assert r17.programs() == {"uv", "bd"}, (
+        f"L17 invoked {r17.programs()}; it must call `uv run upstream.py push` CONCRETELY "
+        f"and verify each bead by a `bd show` READ-BACK (REQ-LAND-019)")
     assert r17.saw("run", "push", "--issues", "--apply")
+    assert r17.saw("show", "yf-aaa", "--json"), (
+        "the read-back must reach the seam — an unrouted read-back is invisible to any test "
+        "that injects a runner, which is how a cwd-less `bd show` survived unnoticed")
 
 
 # =========================================================================================
@@ -1397,6 +1456,157 @@ def test_rehearsal_reached_terminal_state():
     # The push actually reached the fake origin — the rehearsal moved real refs.
     assert any("landed" in p for p in rec["pushed_paths_on_fake_origin"]), (
         "nothing reached the fake origin; the pushes were not real")
+
+
+# -----------------------------------------------------------------------------------------
+# plan-068 Issue 1.6 — THE REHEARSAL ACTUALLY RUNS HERE, rather than being read about
+# -----------------------------------------------------------------------------------------
+
+def _load_rehearsal():
+    spec = importlib.util.spec_from_file_location(
+        "land_rehearsal_under_test", Path(__file__).resolve().parent / "land_rehearsal.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.fixture(scope="module")
+def live_rehearsal():
+    """ONE live rehearsal per module, shared.
+
+    Module-scoped rather than per-test because each run builds a git repo, pushes to a bare
+    origin and drives twenty-three steps. The record is a pure value once produced, so sharing
+    it costs nothing in isolation — and five independent runs would only assert five times
+    that the same harness works.
+    """
+    return _load_rehearsal().rehearse()
+
+
+def test_the_rehearsal_EXECUTES_under_pytest_and_reaches_L_DONE(live_rehearsal):
+    """Issue 1.6. The harness is EXECUTED, not read from a committed artifact.
+
+    The two tests above read `plan-060/assets/rehearsal-record.json`, which is a historical
+    record of a run that happened once. Nothing re-executed the harness, so it could rot
+    silently — a broken rehearsal and a working one produce the same green until someone runs
+    it by hand. This test runs it.
+
+    The committed artifact is deliberately NOT regenerated by this plan. It is plan-060's
+    record of plan-060's run; overwriting it would destroy the evidence it exists to carry.
+    The rot is fixed by executing the harness, not by rewriting history.
+    """
+    rec = live_rehearsal
+    assert rec["reached_terminal_state"] is True, (
+        f"the rehearsal HALTED at {rec.get('halted_at')} — verdicts: {rec.get('verdicts')}")
+    assert rec["terminal_journal_state"] == "L_DONE"
+    assert rec["origin_is_local_sandbox"] is True
+    assert "yoshiko-flow" not in rec["origin_url"]
+
+
+def test_the_rehearsal_IS_STUB_FREE_at_L3_and_L18(live_rehearsal):
+    """Issue 1.5. No `pm.*` monkeypatch at all — the real step functions run.
+
+    What this replaces disabled SIX steps via FIVE monkeypatches: three `_land_l*` lambdas,
+    `pm._validate_merged` (L3's ENTIRE validation, replaced by `{"status": "pass", "engine":
+    "rehearsal-stub"}`) and `pm._worktree_teardown` (L18). Issue 1.1 gave the two helpers a
+    `runner=` and a `root=`, so both became injectable and the whole-step lambdas became
+    unnecessary.
+    """
+    rec = live_rehearsal
+    assert rec["stubbed_steps_by_source"]["pm_monkeypatch"] == [], (
+        f"the rehearsal still monkeypatches: "
+        f"{rec['stubbed_steps_by_source']['pm_monkeypatch']}")
+    for key in ("l3_validate_merged", "l18_prune"):
+        assert key not in rec["stubbed_steps"], f"{key} is still disabled"
+        assert key in rec["steps_executed"], f"{key} did not run"
+        assert rec["verdicts"][key] == "pass", rec["verdicts"]
+
+
+def test_stubbed_steps_is_DERIVED_from_both_sources_and_names_the_decision_skip(live_rehearsal):
+    """SC3. The record names EVERY remaining disabled step, whatever its symbol.
+
+    Two independent blindnesses are closed here, and each was measured:
+
+    * pass-3 C4 — the `_land_l*` wording was blind to the two HELPER stubs
+      (`_validate_merged`, `_worktree_teardown`), so a record naming three step lambdas
+      described five disabled steps.
+    * pass-4 C8 — the MONKEYPATCH wording was blind to `land_rehearsal.py`'s decision-level
+      `"l19_redeploy": "skip:sandbox has no yf binary"`, which disables a SIXTH step that
+      Issue 2.5 explicitly requires reaching. No monkeypatch-keyed enumeration can see it.
+
+    So the derivation reads both sources, and the L-span of each executor function comes from
+    `LAND_EXECUTOR` + `LAND_STEPS` rather than a hand-written list. The old hand-written
+    record named three labels while hiding five L-numbers (l9, l10, l11, l14, l15), with
+    `l14_pour_fidelity` absent entirely.
+    """
+    reh = _load_rehearsal()
+    rec = live_rehearsal
+
+    # The decision-level skip is VISIBLE — the pass-4 C8 blindness.
+    assert "l19_redeploy" in rec["stubbed_steps"], rec["stubbed_steps"]
+    assert rec["stubbed_steps_by_source"]["decision_adjudication"] == ["l19_redeploy"]
+
+    # The union is exactly the two sources, with nothing invented and nothing dropped.
+    both = set(rec["stubbed_steps_by_source"]["pm_monkeypatch"]) | \
+        set(rec["stubbed_steps_by_source"]["decision_adjudication"])
+    assert set(rec["stubbed_steps"]) == both, (
+        f"stubbed_steps {rec['stubbed_steps']} is not the union of its declared sources "
+        f"{sorted(both)} — the derivation and the breakdown disagree")
+
+    # And the L-span derivation is real: the multi-step executor functions cover more than
+    # one key each, which is the fact a hand-written list got wrong.
+    covered = reh._covered_steps(pm)
+    assert len(covered["_land_l8_to_l15_close_chain"]) >= 4, covered
+    assert len(covered["_land_l13_l15_finish"]) >= 3, covered
+    assert "l14_pour_fidelity" in covered["_land_l13_l15_finish"], (
+        "l14_pour_fidelity is not attributed to any executor function — it was absent "
+        "entirely from the hand-written record")
+
+
+def test_the_runner_PASSES_GIT_THROUGH_and_refuses_an_unrecognised_argv(live_rehearsal):
+    """pass-3 C5. `_dispatch` routes EVERY program through an injected runner, `git` included.
+
+    So a runner that stubbed everything would make `L_DONE` a fiction. Two halves:
+
+    * `git` is passed THROUGH to the sandbox — it is the local bare `origin` that makes the
+      push safe, not the runner. The record must show real refs moved.
+    * everything else FAILS CLOSED on an argv it was not taught. `LandingContext`'s own
+      docstring records the alternative: *"the injected fake returned 0 for any argv it did
+      not recognise. Every Tier-1 test passed."*
+    """
+    reh = _load_rehearsal()
+    assert "git" not in reh.SandboxRunner.FAKED, (
+        "git must PASS THROUGH — faking it removes the only steps whose blast radius the "
+        "rehearsal exists to exercise")
+    rec = live_rehearsal
+    assert rec["passed_through_programs"] == ["git"]
+    assert rec["unrecognised_argv"] == [], (
+        f"the runner was asked for an argv it does not recognise: {rec['unrecognised_argv']}. "
+        f"That is a finding — it means a step invoked something the rehearsal never modelled.")
+    # Real refs moved, so `git` really did pass through.
+    assert any("landed" in p for p in rec["pushed_paths_on_fake_origin"]), (
+        "nothing reached the fake origin; `git` did not actually run")
+
+    # The refusal is not theoretical — exercise it directly.
+    r = reh.SandboxRunner(Path("."), "plan-x")("bd", ["frobnicate", "--all"])
+    assert r.returncode == 127 and "UNRECOGNISED ARGV" in r.stderr, (r.returncode, r.stderr)
+
+
+def test_the_rehearsal_record_STATES_WHAT_IT_DOES_NOT_ESTABLISH(live_rehearsal):
+    """R9 / Issue 1.6. A green rehearsal must not be read as more than it is.
+
+    With a faked `bd list` returning `[]` and a faked `pour_fidelity.py` returning a pass,
+    L14's DAG comparison has no input — it is not exercised. That is R7's "a stub in a
+    different costume", and the honest response is to NAME it in the artifact the consuming
+    tests read, not to leave it in a docstring nobody quotes.
+    """
+    rec = live_rehearsal
+    scope = rec["honest_scope"]
+    assert scope["established"] and scope["not_established"]
+    blob = " ".join(scope["not_established"])
+    assert "L14" in blob and "DAG COMPARISON" in blob, (
+        "the record does not name L14's unexercised DAG comparison — the residual gap must be "
+        "VISIBLE, which is what Issue 1.5's derived `stubbed_steps` and this field are for")
+    assert "L19" in blob
 
 
 def test_runbook_covers_every_journal_state():
@@ -1920,9 +2130,9 @@ def test_l18_delegates_branch_delete(repo, monkeypatch):
     """
     seen = []
 
-    def _capture(plan_dir, force=False):
+    def _capture(plan_dir, force=False, root=None, runner=None):
         seen.append((plan_dir, force))
-        return _teardown_ok(plan_dir, force)
+        return _teardown_ok(plan_dir, force, root, runner)
 
     monkeypatch.setattr(pm, "_worktree_teardown", _capture)
     r = FakeRunner()
@@ -1954,7 +2164,8 @@ def test_l18_blocked_teardown(repo, monkeypatch):
                "branch": f"{PLAN_ID}-execute",
                "steps": {"remove": {"ok": False, "detail": "contains modified files"}},
                "detail": "worktree remove refused (dirty?)"}
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd, force=False: blocked)
+    monkeypatch.setattr(pm, "_worktree_teardown",
+                        lambda pd, force=False, root=None, runner=None: blocked)
     out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
     assert out["verdict"] == "fail", "a blocked teardown pruned NOTHING"
     assert out["halting"] is True
@@ -1967,13 +2178,14 @@ def test_l18_blocked_teardown(repo, monkeypatch):
                    steps={"remove": {"ok": True, "detail": ""},
                           "branch_delete": {"ok": False, "detail": "not fully merged"},
                           "prune": {"ok": True, "detail": ""}})
-    monkeypatch.setattr(pm, "_worktree_teardown", lambda pd, force=False: partial)
+    monkeypatch.setattr(pm, "_worktree_teardown",
+                        lambda pd, force=False, root=None, runner=None: partial)
     out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
     assert out["verdict"] == "inconclusive" and out["halting"] is False
 
     # ABSENT `status` — the old stub shape. UNJUDGED, so `inconclusive`.
     monkeypatch.setattr(pm, "_worktree_teardown",
-                        lambda pd, force=False: {"action": "removed"})
+                        lambda pd, force=False, root=None, runner=None: {"action": "removed"})
     out = pm._land_l18_prune(_ctx(repo, FakeRunner()))
     assert out["verdict"] == "inconclusive", (
         "a return shape carrying no `status` establishes nothing about the prune")

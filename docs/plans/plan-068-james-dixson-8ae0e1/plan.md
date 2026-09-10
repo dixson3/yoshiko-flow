@@ -7,17 +7,19 @@ description: 'Repair the land close chain: cover the --apply preamble with tests
 id: plan-068-james-dixson-8ae0e1
 author: james-dixson
 created: '2026-09-09'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: 463e92860dc3a16bc1f8232d86152c8f30e5f3c6faa24434cbd7c906d8e64dbf
+epic: yf-mol-cdqp
 ---
 # Plan: Repair the land close chain: cover the --apply preamble with tests, make land work under execute.worktree false, and close the L8-L16 injection and measurement defects
 
 **ID:** plan-068-james-dixson-8ae0e1
 **Author:** james-dixson
 **Created:** 2026-09-09
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** yf-mol-cdqp
 **Fingerprint:** 463e92860dc3a16bc1f8232d86152c8f30e5f3c6faa24434cbd7c906d8e64dbf
 
 ## Objective
@@ -64,10 +66,10 @@ regions are exactly the ones whose failure mode is a public, irreversible write.
 ## Upstream Issues
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
-| #348 | The landing close chain bypasses `ctx.run` | include | **Fully resolved here.** Beads `yf-9yb0`, `yf-i127`. Closes on Epic 1 | _TBD_ |
-| #331 | `land` is incompatible with `execute.worktree: false` | include | **Fully resolved here.** Bead `yf-f7lq`. Closes on Epic 2 | _TBD_ |
-| #349 | The `land --apply` executor frame is outside REQ-LAND-030's wrapper and the test suite | partial | **Correction only** (Epic 3). The preamble tests and the bookkeeping guard are **plan-069 (Plan B)**. Per pass-1 Upstream Assessment, #349 is claimed across both plans — **it must NOT be closed by this plan** | _TBD_ |
-| #353 | `LAND_DIGEST_EXCLUDED` omits self-mutated facts | partial | **Correction only** (Epic 3): L4-not-L6, and `predicted_tree` stable. The projection fix is **plan-069**, and pass-1 C2/C3 showed its design is not yet settled | _TBD_ |
+| #348 | The landing close chain bypasses `ctx.run` | include | **Fully resolved here.** Beads `yf-9yb0`, `yf-i127`. Closes on Epic 1 | Epic 1 (1.1-1.6) |
+| #331 | `land` is incompatible with `execute.worktree: false` | include | **Fully resolved here.** Bead `yf-f7lq`. Closes on Epic 2 | Epic 2 (2.1-2.6) |
+| #349 | The `land --apply` executor frame is outside REQ-LAND-030's wrapper and the test suite | partial | **Correction only** (Epic 3). The preamble tests and the bookkeeping guard are **plan-069 (Plan B)**. Per pass-1 Upstream Assessment, #349 is claimed across both plans — **it must NOT be closed by this plan** | 3.1, 3.2 (correction only) |
+| #353 | `LAND_DIGEST_EXCLUDED` omits self-mutated facts | partial | **Correction only** (Epic 3): L4-not-L6, and `predicted_tree` stable. The projection fix is **plan-069**, and pass-1 C2/C3 showed its design is not yet settled | 3.1, 3.2 (correction only) |
 | #334 | `_land_tty_gate(allow_list=[None])` opens the consent gate unconditionally | deferred | Moved to **plan-069 (Plan B)** at the A/B split | — |
 | #350 | A measurement that failed is reported as a green number | deferred | Moved to **plan-069 (Plan B)** | — |
 | #352 | `land --dry-run` never checks `requires_mention` | deferred | Moved to **plan-069 (Plan B)** | — |

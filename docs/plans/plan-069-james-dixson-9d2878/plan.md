@@ -103,9 +103,24 @@ Two further measured defects, neither in plan-068's scope:
   about `pull --rebase` picking up commits, which is not what happened. It fails closed and
   pre-push, so this is legibility, not safety.
 
-**Cross-plan coupling (pass-2 C9).** plan-068's Issue 2.5 end-to-end `--apply` test clears the
-consent gate by passing an **explicit tty allow-list**, precisely so this plan's `#334` fix cannot
-break it. Verify that when the `#334` guard lands.
+**Cross-plan coupling (pass-2 C9), CORRECTED AGAINST WHAT PLAN-068 ACTUALLY LANDED**
+(plan-068 Issue 3.3, verified 2026-09-09). The coupling is real and the mechanism is **not** what
+this line predicted, so the verification step changes:
+
+- **Predicted:** plan-068's Issue 2.5 end-to-end test clears the consent gate by passing an
+  explicit tty allow-list.
+- **Landed:** `skills/yf-plan/scripts/test_land_inplace.py::test_end_to_end_in_place_landing_reaches_L_DONE`
+  drives **`_land_execute` directly**, with an explicit decision-level `steps` map. It never
+  reaches `_land_tty_gate` at all, because that gate lives in the **CLI preamble**, not in the
+  executor.
+
+The intent is satisfied more strongly than the prediction: a test that never invokes the gate
+cannot be broken by a change to the gate. **So the `#334` verification step is different from
+what this line asked for** — do not go looking for an allow-list argument in that test and
+conclude the coupling was dropped. What to verify when the `#334` guard lands: that the
+**CLI-level** `--apply` path still has a way to be driven under test, since plan-068's end-to-end
+coverage deliberately stops at the executor boundary and #349's preamble tests (this plan's) are
+what will cover the frame above it.
 
 **Unresolved design questions carried from plan-068's pass-1 red-team — these must be settled
 before this plan can draft its digest epic:**
@@ -160,5 +175,20 @@ _To be determined._
 | :-- | :-- | :-- | :-- |
 
 ## Success Criteria
+
+> **DECLARED ABSENCE — this plan is at `status: scoping` and its Success Criteria are not yet
+> written.** The table below is deliberately empty, and saying so is the point: a zero-row table
+> satisfies every column and id check while asserting nothing, so `doc_lint`'s
+> `criteria-cells-filled` treats an undeclared empty table as a finding. It is the only bundle in
+> the corpus that fires it (measured 2026-09-09), and because `_shared/test_doc_lint.py` asserts a
+> corpus-wide blast radius of **0** for that check, the undeclared form was a **red in both the
+> FAST and the FULL tier** — and therefore a guaranteed **L3 halt with the lock held** for any
+> plan landing after it. Recorded by plan-068 as `findings/exec-001-inherited-doclint-red.md` and
+> declared here at its Issue 3.3.
+>
+> The criteria are written when this plan reaches `drafting`, after the design questions carried
+> from plan-068's pass-1 red-team (C2, C3, C3b, C4, C5, C8) are settled — writing them sooner
+> would state criteria for a design that does not exist.
+
 | # | Criterion | Verification | Discharged-by |
 | :-- | :-- | :-- | :-- |
