@@ -28,6 +28,10 @@ found, which is why the check is written both ways.
 | `REQ-BRANCH-001` | amended | `spec/phases.md` | Extends the named-per-phase-branch model to a branch cut with **no `worktree add`** (the in-place path). | 0.6 |
 | `REQ-BRANCH-002` | amended | `spec/phases.md` | Two clauses: (i) the pinned base applies to an in-place `checkout -b` as it does to `worktree add -b`; (ii) **the dirty-tree precondition** on the in-place path, as a declared refusal class. | 0.6 |
 | `REQ-BRANCH-004` | amended | `spec/phases.md` | An **in-place carve-out** to "never left on a plan branch", which design (b) deliberately contradicts for the duration of in-place execution. | 0.6 |
+| `REQ-LAND-018` | referenced | `SPEC.md` log | **NOT this plan's.** Named in the amendment log's *cited but not amended* paragraph solely to record that the rationale amendment belongs to **plan-069**. Its text is untouched. | 0.2, 3.3 |
+| `REQ-LAND-025` | referenced | `spec/landing.md` | Cited by `REQ-LAND-038` as the origin of `_land_changed_set`'s `HEAD^1..HEAD` (dixson3/yoshiko-flow#303), whose in-place degradation `REQ-LAND-038` settles. Its text is untouched. | 0.5 |
+| `REQ-LAND-027` | referenced | `SPEC.md` log | Named only to record that it **stays deliberately reserved** and is not consumed by this plan. Its reservation at `spec/landing.md:384` is untouched. | 0.2 |
+| `REQ-LAND-036` | referenced | `SPEC.md` log | **NOT this plan's.** Named in the *cited but not amended* paragraph solely to record that the exclusion-table amendment belongs to **plan-069**. Its text is untouched. | 0.2, 3.3 |
 
 ## Decisions this issue was required to record
 
@@ -59,8 +63,20 @@ pass-4 C6 caught v3 over-claiming both. They belong to **plan-069**:
 - `REQ-LAND-018` — the rationale amendment.
 
 Issue 3.3 **verifies plan-069 carries them**; this plan neither performs them nor claims to.
-Neither id appears in the table above, and neither may appear in this plan's SPEC diff. If one
-does, SC9b's forward direction fails — which is the point.
+
+**They DO appear in the table above, with role `referenced`, and that is not a contradiction —
+it is what SC9b measured.** Both ids land in this plan's SPEC diff, because the amendment log's
+*cited but not amended* paragraph **names them in order to disclaim them**. A record that omitted
+them would fail SC9b's forward direction (`diff → record`), and passing it by deleting the
+disclaimer would be strictly worse: the disclaimer is the only place the split is written down.
+
+So the `role` column, not absence from the table, is what carries the claim. `new` and `amended`
+are this plan's; `referenced` is explicitly **not**. What SC9b still catches — and what pass-4 C6
+found in an earlier draft — is either id appearing as `new` or `amended`, or appearing in the diff
+as an actual **text change** to the requirement rather than a citation.
+
+**Measured, at Issue 0.6:** the landed diff carries **twelve** ids; the allocation is **two**.
+The eight-row table earlier in this file was itself short by four until the check said so.
 
 ### 3. `REQ-LAND-027` stays reserved
 
@@ -68,6 +84,21 @@ does, SC9b's forward direction fails — which is the point.
 `REQ-LAND-037` and `REQ-LAND-038` are the next two free numbers after `REQ-LAND-036`, both
 verified at 0 occurrences across `spec/landing.md`, `spec/phases.md` and `SPEC.md` by Gate 1
 before Issue 0.3 landed.
+
+### 4. Four `referenced` rows were added at Issue 0.6, by measurement rather than by review
+
+The table was authored at Issue 0.2, when no SPEC change had landed and the checker correctly
+returned **INCONCLUSIVE** — it had nothing to compare against. Once Issue 0.6 completed the SPEC
+diff, the check ran for the first time with real input on **both** sides and reported four ids in
+the diff that the record did not carry: `REQ-LAND-018`, `REQ-LAND-025`, `REQ-LAND-027`,
+`REQ-LAND-036`.
+
+Recorded because it is the mechanism working as designed, not as an erratum. Every one of the four
+is a **citation** — three in the amendment log's *cited but not amended* paragraph, one in
+`REQ-LAND-038`'s body — and a citation is exactly what a human-authored inventory drops. Four
+review passes over this plan's own text did not catch it either. The forward direction
+(`diff → record`) is the one that fired, which is the direction a one-directional check written
+around pass-4 C6's over-claim would **not** have had.
 
 ## Verifying this record (SC9b)
 
