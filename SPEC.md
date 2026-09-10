@@ -1180,7 +1180,10 @@
 >   `skills/yf-plan/scripts/derive_land_launchers.py` seeds on `subprocess.*` / `os.system` /
 >   `os.popen` / `os.spawn*` / `pty.*`, marks every function containing one a direct launcher,
 >   takes the **transitive** closure over the intra-module call graph, then BFS's from every
->   L-step. Measured: depth-1 frontier **6**, transitive closure **13**. Four consecutive review
+>   L-step. Measured at this SPEC-first commit: depth-1 frontier **6**, transitive closure
+>   **13** — and **14** after Epic 1's routing added the `_git` shim, which is why
+>   `spec/landing.md` carries a machine-readable `DERIVED:` line that a test parses against a
+>   live derivation rather than a literal either file could let go stale. Four consecutive review
 >   passes found a hand-written enumeration short, and pass-4 showed the *seed* was short too —
 >   a hand-picked seed of `{subprocess, _run_git, _run_shell, _run_change_validation}` misses
 >   `_repo_root` and `_git_root`, both bare `subprocess.run(["git", "rev-parse",

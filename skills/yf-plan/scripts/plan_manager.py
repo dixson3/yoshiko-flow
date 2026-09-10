@@ -56,7 +56,7 @@ LEGACY_CONFIG_FILE = Path(".yf-plan.local.json")
 CONFIG_TIERS = (CONFIG_LOCAL_FILE, CONFIG_SHARED_FILE, LEGACY_CONFIG_FILE)
 
 
-def _bootstrap_config() -> dict:
+def _bootstrap_config(root=None) -> dict:
     """Read + merge the config tiers with no module-level dependencies.
 
     Called at import time because `PLANS_DIR` / `INCUBATOR_PARENT` are module
@@ -66,9 +66,17 @@ def _bootstrap_config() -> dict:
     never raised, so a bad config file cannot make the module unimportable.
 
     Tiers are applied lowest-first so the highest tier wins each key.
+
+    `root` REBASES the (cwd-relative) tier paths onto an explicit directory. It exists because
+    **no injected process runner intercepts a filesystem read** (plan-068 Issue 1.1 /
+    REQ-LAND-037): `_validate_merged`'s tier-1 vs tier-2 decision is made by reading config and
+    probing for files, so a landing test that hands the seam a fake runner but leaves this
+    cwd-keyed still *resolves* the real repository's config. Execution would be contained;
+    resolution would not.
     """
     cfg: dict = {}
-    for path in reversed(CONFIG_TIERS):
+    tiers = CONFIG_TIERS if root is None else tuple(Path(root) / t for t in CONFIG_TIERS)
+    for path in reversed(tiers):
         try:
             if path.exists():
                 loaded = json.loads(path.read_text())
@@ -1449,7 +1457,7 @@ def _read_json(path: Path) -> dict:
         return {}
 
 
-def _read_config() -> dict:
+def _read_config(root=None) -> dict:
     """Operator config, merged across the three tiers (REQ-YF-PRE-004).
 
     Precedence, highest first: `.yf/plan/config.local.json` (gitignored override) →
@@ -1460,8 +1468,11 @@ def _read_config() -> dict:
     Re-read on every call rather than reusing the import-time `_CONFIG`, so a config
     written during a run (or a test that rewrites it) is observed. `_CONFIG` exists
     only because `PLANS_DIR` / `INCUBATOR_PARENT` bind at import.
+
+    `root` is passed straight through to `_bootstrap_config` — see its note on why a filesystem
+    read needs an explicit root even when every process is on the seam.
     """
-    return _bootstrap_config()
+    return _bootstrap_config(root)
 
 
 @click.group()
@@ -3898,12 +3909,12 @@ def _worktree_opted_out() -> bool:
     return False
 
 
-def _resolve_validate_cmd() -> str | None:
+def _resolve_validate_cmd(root=None) -> str | None:
     """The project integration suite from .yf-plan.local.json `validate-cmd` (3.3).
 
     Unset → None (§6.1.5 runs plan gates only + emits the cross-plan-not-checked notice).
     """
-    cfg = _read_config()
+    cfg = _read_config(root)
     val = cfg.get(CONFIG_KEY_VALIDATE_CMD)
     return val if isinstance(val, str) and val.strip() else None
 
@@ -4133,10 +4144,30 @@ def _worktree_path(plan_dir: Path) -> Path:
     return WORKTREES_DIR / _plan_id_from_dir(plan_dir)
 
 
-def _run_git(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-    """Run `git <args>` capturing output; never raises on non-zero exit."""
+def _git(args: list[str], cwd: Path | None = None, runner=None):
+    """`git <args>` through an INJECTED RUNNER when one is supplied, else directly.
+
+    ONE definition site, deliberately (the `_dirty_outside_plan_dir` precedent). Several
+    `REQ-LAND-037` ctx-less helpers need the same "route it if you were given a runner"
+    behaviour, and open-coding `runner(...) if runner else _run_git(...)` at each call site is
+    how one of them ends up missing it — a defect no call-graph derivation can catch once the
+    call is spelled correctly at four sites and wrongly at the fifth.
+    """
+    if runner is not None:
+        return runner("git", args, cwd=cwd)
+    return _run_git(args, cwd=cwd)
+
+
+def _run_git(args: list[str], cwd: Path | None = None,
+             env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """Run `git <args>` capturing output; never raises on non-zero exit.
+
+    `env=None` means INHERIT (subprocess's own semantics), not "empty". Accepted so the
+    `LandingContext._dispatch` seam can pass it through for `git` as it does for every other
+    program — see that method's note on why `env` landed with the seam rather than after it.
+    """
     return subprocess.run(
-        ["git", *args], cwd=cwd, capture_output=True, text=True,
+        ["git", *args], cwd=cwd, capture_output=True, text=True, env=env,
     )
 
 
@@ -4145,9 +4176,9 @@ def _is_git_repo() -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
-def _registered_worktree_paths(repo_root: Path) -> set[Path]:
+def _registered_worktree_paths(repo_root: Path, runner=None) -> set[Path]:
     """Resolved absolute paths of every registered git worktree."""
-    r = _run_git(["worktree", "list", "--porcelain"], cwd=repo_root)
+    r = _git(["worktree", "list", "--porcelain"], cwd=repo_root, runner=runner)
     paths: set[Path] = set()
     for line in r.stdout.splitlines():
         if line.startswith("worktree "):
@@ -4155,9 +4186,9 @@ def _registered_worktree_paths(repo_root: Path) -> set[Path]:
     return paths
 
 
-def _branch_exists(branch: str, repo_root: Path) -> bool:
-    r = _run_git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
-                 cwd=repo_root)
+def _branch_exists(branch: str, repo_root: Path, runner=None) -> bool:
+    r = _git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+             cwd=repo_root, runner=runner)
     return r.returncode == 0
 
 
@@ -4352,7 +4383,8 @@ def _worktree_ensure(plan_dir: Path) -> dict:
     }
 
 
-def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
+def _worktree_teardown(plan_dir: Path, force: bool, root: Path | None = None,
+                       runner=None) -> dict:
     """Remove the worktree + delete the merged EXECUTE branch + prune (Issue 1.1/2.3).
 
     `git worktree remove` refuses on a dirty tree unless force=True (INV-1: never
@@ -4363,22 +4395,36 @@ def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
     Under the `feature-branch` strategy the feature `<plan-id>` branch is therefore
     **preserved** (never referenced here); under `main` the execute branch is deleted
     after its merge to the default branch. Teardown never deletes a feature branch.
+
+    `root` AND `runner`, on the `_dirty_outside_plan_dir` model (plan-068 Issue 1.1 /
+    REQ-LAND-037). This is a SAFETY fix, not tidiness: the root was resolved by `_git_root()`,
+    a bare cwd-less `git rev-parse --show-toplevel` falling back to `Path(".")`. So a pytest
+    test that did not `os.chdir()` would run `git worktree remove`, `git branch -d
+    <plan-id>-execute` and `git worktree prune` **in the real yoshiko-flow checkout** — against
+    the very branch the plan under test just cut. An injected runner alone cannot prevent it,
+    because the *resolution* happens before any process is launched.
+
+    Defaults preserve the previous behaviour exactly: `root=None` → `_git_root()`,
+    `runner=None` → the direct `_run_git` path. `REQ-LAND-031`'s carve-out is retired — that
+    requirement constrains the CALL (`force=False` in keyword form, branch on the returned
+    `status`) and says nothing about how this function launches, so a fully-routed call
+    satisfies it verbatim.
     """
-    repo_root = _git_root()
+    repo_root = Path(root) if root is not None else _git_root()
     plan_id = _plan_id_from_dir(plan_dir)
     branch = _execute_branch(plan_id)
     wt_rel = _worktree_path(plan_dir)
     wt_abs = (repo_root / wt_rel).resolve()
 
     steps: dict[str, dict] = {}
-    registered = _registered_worktree_paths(repo_root)
+    registered = _registered_worktree_paths(repo_root, runner=runner)
 
     if wt_abs in registered:
         rm_args = ["worktree", "remove", str(wt_abs)]
         if force:
             rm_args.append("--force")
-        r = _run_git(rm_args, cwd=repo_root)
-        steps["remove"] = {"ok": r.returncode == 0, "detail": r.stderr.strip()}
+        r = _git(rm_args, cwd=repo_root, runner=runner)
+        steps["remove"] = {"ok": r.returncode == 0, "detail": (r.stderr or "").strip()}
         if r.returncode != 0:
             # Refused (dirty) — stop before deleting the branch (work may be unmerged).
             return {"status": "blocked", "path": str(wt_rel), "branch": branch,
@@ -4388,16 +4434,17 @@ def _worktree_teardown(plan_dir: Path, force: bool) -> dict:
     else:
         steps["remove"] = {"ok": True, "detail": "no registered worktree (skipped)"}
 
-    if _branch_exists(branch, repo_root):
+    if _branch_exists(branch, repo_root, runner=runner):
         del_flag = "-D" if force else "-d"
-        r = _run_git(["branch", del_flag, branch], cwd=repo_root)
+        r = _git(["branch", del_flag, branch], cwd=repo_root, runner=runner)
         steps["branch_delete"] = {"ok": r.returncode == 0,
-                                  "detail": r.stderr.strip() or r.stdout.strip()}
+                                  "detail": (r.stderr or "").strip()
+                                            or (r.stdout or "").strip()}
     else:
         steps["branch_delete"] = {"ok": True, "detail": "no branch (skipped)"}
 
-    r = _run_git(["worktree", "prune"], cwd=repo_root)
-    steps["prune"] = {"ok": r.returncode == 0, "detail": r.stderr.strip()}
+    r = _git(["worktree", "prune"], cwd=repo_root, runner=runner)
+    steps["prune"] = {"ok": r.returncode == 0, "detail": (r.stderr or "").strip()}
 
     all_ok = all(s["ok"] for s in steps.values())
     return {"status": "ok" if all_ok else "partial", "path": str(wt_rel),
@@ -4559,8 +4606,30 @@ def _landing_lock_release(plan_id: str, force: bool) -> dict:
     return {"released": True, "freed": held}
 
 
-def _run_shell(cmd: str, cwd: Path | None = None) -> dict:
-    """Run a shell command, capturing a truncated result for a validation report."""
+def _run_shell(cmd: str, cwd: Path | None = None, runner=None) -> dict:
+    """Run a shell command, capturing a truncated result for a validation report.
+
+    ROUTED AS `runner("sh", ["-c", cmd], cwd=cwd)` (plan-068 Issue 1.1's recorded decision).
+    `_run_shell` is `shell=True` over a command *string*, so it does not fit the seam's
+    `(prog, args, cwd=)` contract directly — the alternative considered was declaring tier-2
+    `validate-cmd` out of the seam entirely. It is routed instead, because "out of the seam"
+    for the tier that runs an operator-supplied arbitrary command is the least defensible place
+    to leave a hole: a test that means to sandbox a landing would silently execute whatever the
+    real repository's `validate-cmd` happens to be.
+
+    The `sh -c` spelling means an argv-recognising fake sees `("sh", ["-c", "<cmd>"])`, which is
+    why `test_each_step_invokes_the_RIGHT_EXECUTABLE`'s program set and Issue 2.5's fakes both
+    have to know about `sh`. The unrouted path keeps `shell=True` verbatim, so behaviour with no
+    runner injected is unchanged.
+    """
+    if runner is not None:
+        try:
+            r = runner("sh", ["-c", cmd], cwd=cwd)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"cmd": cmd, "ok": False, "returncode": None, "error": str(e)}
+        tail = ((r.stdout or "") + (r.stderr or "")).strip()
+        return {"cmd": cmd, "ok": r.returncode == 0, "returncode": r.returncode,
+                "output_tail": tail[-2000:]}
     try:
         r = subprocess.run(cmd, shell=True, cwd=cwd,
                            capture_output=True, text=True)
@@ -4641,7 +4710,7 @@ def _approved_manifest_present(repo_root: Path) -> bool:
     return bool(re.search(r"approved:\s*yes", text, re.IGNORECASE))
 
 
-def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
+def _run_change_validation(script: Path, repo_root: Path, runner=None) -> dict | None:
     """Delegate to the engine's `run --tier full --json` over the merged tree.
 
     Returns the engine's parsed JSON payload, or None if the invocation could not
@@ -4649,11 +4718,13 @@ def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
     but `§0 approved: no`) is returned as-is so the caller can fall through, NOT
     treated as a failure.
     """
+    args = ["run", str(script), "run", "--tier", "full", "--json"]
     try:
-        r = subprocess.run(
-            ["uv", "run", str(script), "run", "--tier", "full", "--json"],
-            cwd=str(repo_root), capture_output=True, text=True,
-        )
+        if runner is not None:
+            r = runner("uv", args, cwd=repo_root)
+        else:
+            r = subprocess.run(["uv", *args], cwd=str(repo_root),
+                               capture_output=True, text=True)
     except (OSError, subprocess.SubprocessError):
         return None
     try:
@@ -4662,7 +4733,7 @@ def _run_change_validation(script: Path, repo_root: Path) -> dict | None:
         return None
 
 
-def _validate_merged(plan_dir: Path) -> dict:
+def _validate_merged(plan_dir: Path, root: Path | None = None, runner=None) -> dict:
     """Validate the merged tree before push (Issue 3.2; runs PRIMARY-side, post-merge).
 
     Three-tier precedence for the cross-plan safety net (plan-015 D.1):
@@ -4686,8 +4757,19 @@ def _validate_merged(plan_dir: Path) -> dict:
     preserved; an `engine` discriminator ("change-validation"|"validate-cmd"|"none") is
     ADDED so SKILL prose / downstream can surface which tier ran. The exit-3-on-non-pass
     contract lives in the Click wrapper and is unchanged.
+
+    `root` AND `runner` ARE BOTH REQUIRED TO CONTAIN THIS, and `runner=` alone closes only half
+    the escape (plan-068 Issue 1.1 / REQ-LAND-037, measured). The tier-1 decision is made by
+    **three filesystem/config probes** keyed on the repo root — `_approved_manifest_present`,
+    `_change_validation_script`, and `_resolve_validate_cmd` → `_read_config` — and **no runner
+    intercepts a filesystem read**. Without `root`, a sandboxed landing test that does not
+    `os.chdir()` resolves the **real** repository's `CHANGE-VALIDATION.md` and the **real**
+    engine script, then hands the fake a command whose `cwd` is the real repository: execution
+    contained, *resolution* not. Unrouted and unrooted, L3 would run the real repository's FULL
+    tier from inside a test. Defaults preserve the previous behaviour exactly.
     """
-    validate_cmd = _resolve_validate_cmd()
+    root = Path(root) if root is not None else None
+    validate_cmd = _resolve_validate_cmd(root)
     result: dict = {
         "plan_dir": str(plan_dir),
         "validate_cmd_configured": validate_cmd is not None,
@@ -4697,11 +4779,11 @@ def _validate_merged(plan_dir: Path) -> dict:
     }
 
     # Tier 1: yf-change-validation engine (approved manifest + resolvable script).
-    repo_root = _repo_root()
+    repo_root = root if root is not None else _repo_root()
     if _approved_manifest_present(repo_root):
         script = _change_validation_script(repo_root)
         if script is not None:
-            payload = _run_change_validation(script, repo_root)
+            payload = _run_change_validation(script, repo_root, runner=runner)
             # None → unparseable invocation; `refused` → unapproved at engine read.
             # Both fall through to the next tier (refusal is NOT a failure).
             if payload is not None and payload.get("status") != "refused":
@@ -4714,7 +4796,7 @@ def _validate_merged(plan_dir: Path) -> dict:
 
     # Tier 2: configured validate-cmd (prior layer-(b) behavior).
     if validate_cmd is not None:
-        layer_b = _run_shell(validate_cmd)
+        layer_b = _run_shell(validate_cmd, cwd=repo_root, runner=runner)
         result["engine"] = "validate-cmd"
         result["layer_b"] = layer_b
         result["status"] = "pass" if layer_b["ok"] else "fail"
@@ -9157,6 +9239,7 @@ def _land_repreview_or_halt(plan_dir: Path, decision: dict) -> dict:
 LAND_CTXLESS_HELPERS: tuple[str, ...] = (
     "_branch_exists",
     "_dirty_outside_plan_dir",
+    "_git",
     "_git_root",
     "_land_abort_merge",
     "_land_capture_conflict",
@@ -9182,17 +9265,21 @@ LAND_CTXLESS_HELPERS: tuple[str, ...] = (
 #:
 #: An empty tuple is the end state. Subset of `LAND_CTXLESS_HELPERS` by construction.
 #:
-#: `_validate_merged` and `_worktree_teardown` are listed here at the SPEC-first commit and are
-#: removed by plan-068 Issue 1.1, which gives each BOTH a `runner=` and a `root=` on the
-#: `_dirty_outside_plan_dir` model. Listing them is the point: REQ-LAND-037 states the target,
-#: and a residue that is recorded and tested is a defect with a closing issue rather than a
-#: silent exception. `test_unrooted_is_a_subset_and_is_recorded_as_a_defect_not_an_exemption`
-#: FAILS once either grows a `root=`, so the list cannot outlive the defect it records.
+#: `_validate_merged` and `_worktree_teardown` were listed here at the SPEC-first commit and
+#: were REMOVED by plan-068 Issue 1.1, which gave each BOTH a `runner=` and a `root=` on the
+#: `_dirty_outside_plan_dir` model. The removal was not optional: the residue list's companion
+#: test (`test_unrooted_is_a_subset_and_is_recorded_as_a_defect_not_an_exemption`) FAILS once a
+#: member grows a `root=`, so the list cannot outlive the defect it records — which is exactly
+#: what a residue list is for, and exactly what makes it safe to have one.
+#:
+#: `_git_root` and `_repo_root` remain, and they are the honest remainder: both take NO
+#: parameters at all, so neither can be rooted without changing every caller in the module.
+#: They are reached only TRANSITIVELY now (through helpers that do take a root), so a fully
+#: routed-and-rooted call site never enters them — which is why closing them is a separate,
+#: lower-urgency change rather than part of this seam.
 LAND_CTXLESS_HELPERS_UNROOTED: tuple[str, ...] = (
     "_git_root",
     "_repo_root",
-    "_validate_merged",
-    "_worktree_teardown",
 )
 
 
@@ -9226,15 +9313,29 @@ class LandingContext:
         self.results: list[dict] = []
 
 
-    def _dispatch(self, prog: str, args: list[str], cwd: Path | None = None):
+    def _dispatch(self, prog: str, args: list[str], cwd: Path | None = None,
+                  env: dict[str, str] | None = None):
         """Run `<prog> <args>`. `prog` is EXPLICIT so a step cannot silently run the wrong
-        executable — see the note on `self.run`."""
+        executable — see the note on `self.run`.
+
+        `env` IS ACCEPTED NOW, DELIBERATELY, THOUGH NO STEP PASSES IT YET (plan-068 Issue 1.1's
+        recorded decision). The consumers that will want it are plan-069's `recover()` tests and
+        L19's redeploy tests, both of which need to run a step under a controlled environment.
+        Adding it later would be a **second** signature change to the same seam, breaking the
+        same set of test stubs a second time — `check_mock_fidelity` binds `inspect.signature`,
+        so every arity change costs a stub sweep. Paying that once is strictly cheaper than
+        paying it twice, and an unused keyword-only-in-practice parameter costs nothing.
+
+        `None` means "inherit", not "empty": it is passed straight through to
+        `subprocess.run(env=...)`, whose own `None` already means inherit. An injected runner
+        that ignores `env` is behaving correctly for every call site that exists today.
+        """
         if self._runner is not None:
-            return self._runner(prog, args, cwd=cwd or self.root)
+            return self._runner(prog, args, cwd=cwd or self.root, env=env)
         if prog == "git":
-            return _run_git(args, cwd=cwd or self.root)
+            return _run_git(args, cwd=cwd or self.root, env=env)
         return subprocess.run([prog, *args], cwd=str(cwd or self.root),
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, env=env)
 
     def step_enabled(self, key: str) -> tuple[bool, str | None]:
         """Is this step enabled by the decision? Returns (enabled, skip_reason).
@@ -9347,7 +9448,10 @@ def _land_l3_validate_merged(ctx: LandingContext) -> dict:
     reported and NOT coerced to `fail` — the #262 defect lives inside `_validate_merged`
     itself and must not be reproduced one frame up.
     """
-    out = _validate_merged(ctx.plan_dir)
+    # BOTH `root=` AND `runner=` (plan-068 Issue 1.1 / REQ-LAND-037). `runner=` alone would
+    # contain the *execution* and leave the *resolution* loose: this function's tier-1 decision
+    # is three filesystem/config probes, and no runner intercepts a filesystem read.
+    out = _validate_merged(ctx.plan_dir, root=ctx.root, runner=ctx.run)
     status = (out.get("status") or out.get("verdict") or "").lower()
     if status == "fail":
         return _step("l3_validate_merged", "fail",
@@ -9419,10 +9523,8 @@ def _land_l5_advisory_recheck(ctx: LandingContext) -> dict:
     The authoritative halting run is L11, after the reconcile writes that some criteria
     depend on.
     """
-    proc = subprocess.run(
-        ["uv", "run", str(Path(__file__).resolve()), "recheck-criteria",
-         str(ctx.plan_dir), "--json"],
-        capture_output=True, text=True, cwd=ctx.root)
+    proc = ctx.run("uv", ["run", str(Path(__file__).resolve()), "recheck-criteria",
+                          str(ctx.plan_dir), "--json"], cwd=ctx.root)
     return _step("l5_advisory_recheck", "pass",
                  f"advisory pre-push criteria run complete (exit {proc.returncode}) — "
                  f"ADVISORY, never halting; the authoritative run is L11",
@@ -9586,7 +9688,13 @@ def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
         if verb == "classify-deliverable":
             for p in changed:
                 args += ["--changed", p]
-        proc = subprocess.run(args, capture_output=True, text=True, cwd=ctx.root)
+        # THE PROGRAM IS SLICED OFF, and that is the whole hazard of routing this site
+        # (plan-068 Issue 1.1, measured). `args` is built as `["uv", "run", me, verb, ...]`,
+        # while `ctx.run(prog, args)` prepends `prog` itself — so `ctx.run("uv", args)` would
+        # hand the seam `uv uv run ...`. An injected runner that returns 0 for any argv it does
+        # not recognise would report that as a pass, which is the exact failure
+        # `LandingContext`'s own docstring records from the Epic-6 rehearsal.
+        proc = ctx.run(args[0], args[1:], cwd=ctx.root)
         rc = proc.returncode                      # READ, not echoed.
         if rc == 0:
             out.append(_step(verb, "pass", f"{verb} clean", halting=halting, exit_code=rc))
@@ -9621,8 +9729,8 @@ def _land_l12_close_cascade(ctx: LandingContext) -> dict:
         return _step("l12_close_cascade", "inconclusive",
                      "no **Epic:** field in plan.md — nothing to cascade", halting=False)
     engine = Path(__file__).resolve().parent / "close_cascade.py"
-    proc = subprocess.run(["uv", "run", str(engine), epic, "--plan", ctx.plan_id, "--json"],
-                          capture_output=True, text=True, cwd=ctx.root)
+    proc = ctx.run("uv", ["run", str(engine), epic, "--plan", ctx.plan_id, "--json"],
+                   cwd=ctx.root)
     if proc.returncode != 0:
         return _step("l12_close_cascade", "fail",
                      f"cascade-close reported open children or a close error (exit "
@@ -9644,8 +9752,8 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
     out: list[dict] = []
     me = str(Path(__file__).resolve())
 
-    g = subprocess.run(["uv", "run", me, "complete-gate", str(ctx.plan_dir), "--json"],
-                       capture_output=True, text=True, cwd=ctx.root)
+    g = ctx.run("uv", ["run", me, "complete-gate", str(ctx.plan_dir), "--json"],
+                cwd=ctx.root)
     if g.returncode != 0:
         out.append(_step("l13_complete_gate", "fail",
                          "the completion gate blocked a ci-release plan — its "
@@ -9657,13 +9765,17 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
 
     beads = ctx.root / ".yf" / "plan" / "land-beads.json"
     beads.parent.mkdir(parents=True, exist_ok=True)
-    bl = subprocess.run(["bd", "list", "--all", "--include-gates", "--limit", "5000",
-                         "--json"], capture_output=True, text=True)
+    # `cwd=ctx.root` IS THE FIX, not incidental tidiness. This was the ONE close-chain
+    # subprocess launched with NO cwd at all (dixson3/yoshiko-flow#348), so it read whatever
+    # bead database the ambient working directory resolved to — and its output is what L14
+    # compares the poured DAG against. A wrong database here does not error; it produces a
+    # confident divergence verdict about the wrong plan.
+    bl = ctx.run("bd", ["list", "--all", "--include-gates", "--limit", "5000", "--json"],
+                 cwd=ctx.root)
     beads.write_text(bl.stdout or "[]", encoding="utf-8")
     engine = Path(__file__).resolve().parent / "pour_fidelity.py"
-    f = subprocess.run(["uv", "run", str(engine), str(beads), str(ctx.plan_dir),
-                        "--strict", "--plan", ctx.plan_id, "--json"],
-                       capture_output=True, text=True, cwd=ctx.root)
+    f = ctx.run("uv", ["run", str(engine), str(beads), str(ctx.plan_dir),
+                       "--strict", "--plan", ctx.plan_id, "--json"], cwd=ctx.root)
     if f.returncode == 2:
         out.append(_step("l14_pour_fidelity", "fail",
                          "pour fidelity is INCONCLUSIVE — the comparison could not be made "
@@ -9681,9 +9793,8 @@ def _land_l13_l15_finish(ctx: LandingContext) -> list[dict]:
         return out
     out.append(_step("l14_pour_fidelity", "pass", "pour fidelity clean"))
 
-    s = subprocess.run(["uv", "run", me, "update-status", str(ctx.plan_dir), "complete",
-                        "-m", "plan complete (landed by `land --apply`)"],
-                       capture_output=True, text=True, cwd=ctx.root)
+    s = ctx.run("uv", ["run", me, "update-status", str(ctx.plan_dir), "complete",
+                       "-m", "plan complete (landed by `land --apply`)"], cwd=ctx.root)
     if s.returncode != 0:
         out.append(_step("l15_update_status", "fail",
                          f"could not set complete: {(s.stderr or '').strip()[:200]}",
@@ -9824,7 +9935,14 @@ def _land_l17_residual_mirroring(ctx: LandingContext) -> dict:
                         "--apply"], cwd=ctx.root)
     verified = []
     for b in beads:
-        back = subprocess.run(["bd", "show", b, "--json"], capture_output=True, text=True)
+        # ROUTED AND ROOTED (plan-068 Issue 1.1). This read-back is the SOLE verification
+        # signal under REQ-LAND-019 — `bd close` refuses and exits 0 when blocked (#230), so
+        # the exit code proves nothing and this loop is what stands in for it. It was launched
+        # with no `cwd`, so the one signal that decides whether L17 passes could be read from
+        # the wrong database. Routing it also makes REQ-LAND-019's read-back visible to the
+        # seam for the first time, which is why `test_each_step_invokes_the_RIGHT_EXECUTABLE`
+        # now expects `{"uv", "bd"}` for this step rather than `{"uv"}`.
+        back = ctx.run("bd", ["show", b, "--json"], cwd=ctx.root)
         ok = False
         try:
             d = json.loads(back.stdout)
@@ -9908,7 +10026,15 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     #     fallback — and nothing consulted `status` at all. A `blocked` teardown (dirty
     #     worktree: nothing removed, branch left behind) reported `verdict: pass`. A landing
     #     must not report a prune it did not perform.
-    wt = _worktree_teardown(ctx.plan_dir, force=False)
+    # (d) OFF THE SEAM. Added by plan-068 Issue 1.1: `REQ-LAND-031`'s apparent carve-out was
+    #     an OVER-READ. That requirement constrains this CALL — `force=False` in keyword form,
+    #     branch on the returned `status` — and says nothing about how the callee launches, so
+    #     the fully-routed form below satisfies it verbatim. The precedent is already in this
+    #     file at L16: `_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`.
+    #     `root=` is not optional alongside `runner=`: the root was resolved by the cwd-less
+    #     `_git_root()`, so a test that did not `os.chdir()` would run `git worktree remove` /
+    #     `git branch -d` / `git worktree prune` in the REAL checkout.
+    wt = _worktree_teardown(ctx.plan_dir, force=False, root=ctx.root, runner=ctx.run)
     status = wt.get("status") if isinstance(wt, dict) else None
     actions.append({"action": "worktree-teardown", "status": status, "result": wt})
 

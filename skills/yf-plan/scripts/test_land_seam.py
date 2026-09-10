@@ -237,13 +237,24 @@ def test_spec_quotes_the_script_rather_than_restating_a_number():
     assert "REQ-LAND-037" in text
     assert "derive_land_launchers.py" in text
     assert "LAND_CTXLESS_HELPERS" in text
-    # The two counts the SPEC does state are stated as derived facts about the frontier and
-    # the closure, and the deriver must still emit them.
+
+    # THE COUNTS ARE PARSED FROM THE SPEC AND COMPARED TO A LIVE DERIVATION — never asserted
+    # against a literal written here. Issue 0.3's mandate is *"the SPEC quotes whatever the
+    # script emits; it does not restate a number"*, and an earlier version of this test pinned
+    # `closure == 13`, which went stale one issue later when Epic 1's routing added the `_git`
+    # shim and made it 14. A literal in the test is the same defect as a literal in the SPEC,
+    # relocated: both are a second enumeration that can drift.
+    m = re.search(r"^DERIVED: depth1_frontier=(\d+) closure=(\d+)$", text, re.M)
+    assert m, "spec/landing.md carries no machine-readable `DERIVED:` counts line"
     d = _derive()
-    assert d["counts"]["depth1_frontier"] == 6, d["counts"]
-    assert d["counts"]["closure"] == 13, d["counts"]
-    assert "depth-1 frontier is six" in text
-    assert "transitive\nclosure is thirteen" in text or "closure is thirteen" in text
+    assert int(m.group(1)) == d["counts"]["depth1_frontier"], (
+        f"SPEC says depth-1 frontier={m.group(1)}, the deriver emits "
+        f"{d['counts']['depth1_frontier']} — regenerate with derive_land_launchers.py"
+    )
+    assert int(m.group(2)) == d["counts"]["closure"], (
+        f"SPEC says closure={m.group(2)}, the deriver emits {d['counts']['closure']} "
+        "— regenerate with derive_land_launchers.py"
+    )
 
 
 def test_req_land_031_carve_out_is_retired_in_text_and_031_itself_is_unchanged():

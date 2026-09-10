@@ -638,9 +638,21 @@ review passes of plan-068 found a hand-written enumeration of this set short, an
 that even the *seed* was short. `skills/yf-plan/scripts/derive_land_launchers.py` seeds on
 **process-launch primitives** — never on a hand-picked helper name — marks every function
 containing one a direct launcher, takes the transitive closure over the intra-module call graph,
-then BFS's from every `_land_l<N>_*` function. The **depth-1 frontier is six**; the **transitive
-closure is thirteen**. This file quotes what the script emits; it does not restate a number that
-can drift from it.
+then BFS's from every `_land_l<N>_*` function.
+
+**The counts below are QUOTED FROM THE SCRIPT, and a test parses this exact line.** This file
+does not restate a number that can drift from what the deriver emits — and the discipline earned
+its keep immediately: the closure was **13** at this requirement's SPEC-first commit and **14**
+after the Epic-1 seam routing added the `_git` shim, so a pinned literal would have gone stale
+inside the same plan that mandated deriving it.
+
+```
+DERIVED: depth1_frontier=6 closure=14
+```
+
+Regenerate with `uv run skills/yf-plan/scripts/derive_land_launchers.py`;
+`test_spec_quotes_the_script_rather_than_restating_a_number` parses the line above and compares
+it to a live derivation, so drift in either direction fails loudly rather than silently.
 
 **The seam edge is excluded EXPLICITLY.** `ctx.run` / `LandingContext._dispatch` are removed from
 the call graph by name. Today that exclusion holds only by accident — `self.run = self._dispatch`
