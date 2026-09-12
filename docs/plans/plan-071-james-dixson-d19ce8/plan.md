@@ -7,17 +7,19 @@ description: Freeze yf-plan mechanism growth and convert the review loop from re
 id: plan-071-james-dixson-d19ce8
 author: james-dixson
 created: '2026-09-10'
-status: approved
+status: executing
 deliverable_class: standard
 fingerprint: f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
+epic: yf-mol-zi49
 ---
 # Plan: Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
 
 **ID:** plan-071-james-dixson-d19ce8
 **Author:** james-dixson
 **Created:** 2026-09-10
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
+**Epic:** yf-mol-zi49
 **Fingerprint:** f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
 
 ## Objective

@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-09-12
+- executing: start gate resolved
+- intake: epic yf-mol-zi49 poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved the re-scoped plan (plan-070 deferred; this plan goes first)
 - ready-for-approval: ready-check green after the plan-070-deferral re-scope — pass-5 (execution) APPROVE + audit pass
 - review-pass: 5 (execution) — APPROVE on the plan-070-deferral re-scope; re-certified against fingerprint 11310dcf (stored d623f106 was stale); 3 low notes actioned
