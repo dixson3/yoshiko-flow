@@ -217,6 +217,7 @@ skills/yf-plan/
 │   ├── test_land_manifest.py
 │   ├── test_land_seam.py                  # REQ-LAND-037: derivation, declaration and SPEC pinned together
 │   ├── test_lander_agent_contract.py
+│   ├── test_ready_check_smoke.py
 │   ├── test_recheck_criteria.py
 │   ├── test_reconcile_step_resolution.py
 │   ├── test_retrospective.py

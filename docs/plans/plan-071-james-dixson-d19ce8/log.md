@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-12
+- executing: SC4 Verification amended mid-execution (ESC-001): the original ls → exit 2 clause is GNU-only (BSD ls exits 1); now test ! -e A && test ! -e B → exit 0. Counted as a post-approval flip by the fidelity metric (R8); the plan is stale-approved until re-fingerprinted at landing
 - executing: start gate resolved
 - intake: epic yf-mol-zi49 poured
 - autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level

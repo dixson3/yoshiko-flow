@@ -142,6 +142,7 @@ approved: yes
 | `uv-yf-cascade` | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 | `uv-yf-complete-gate` | `uv run skills/yf-plan/scripts/test_complete_gate.py` |  |  |
 | `uv-yf-review-verdict` | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
+| `uv-yf-ready-smoke` | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` |  |  |
 | `uv-yf-stamp-tracker` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q` |  |  |
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
@@ -288,6 +289,7 @@ approved: yes
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
+| `uv-yf-ready-smoke` | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` |  |  |
 | `uv-yf-land-seam` | `uv run skills/yf-plan/scripts/test_land_seam.py` |  |  |
 | `land-launcher-closure` | `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` |  |  |
 | `land-seam-ast` | `uv run scripts/checks/check_land_seam.py` |  |  |
@@ -446,12 +448,13 @@ approved: yes
 | `skills/yf-plan/formulas/**` | `uv-yf-gates` |
 | `skills/yf-beads-upstream/scripts/upstream_render.py` | `uv-with` |
 | `docs/plans/plan-052-james-dixson-fa8056/assets/**` | `gate-plan052` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent`, `uv-yf-ready-smoke` |
 | `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_complete_gate.py` | `uv-yf-complete-gate` |
 | `skills/yf-plan/scripts/test_review_verdict.py` | `uv-yf-review-verdict` |
+| `skills/yf-plan/scripts/test_ready_check_smoke.py` | `uv-yf-ready-smoke` |
 | `skills/yf-plan/scripts/test_config_tiers.py` | `uv-yf-config-tiers` |
 | `skills/yf-plan/scripts/test_classify_deliverable.py` | `uv-yf-classify` |
 | `skills/yf-plan/scripts/test_close_contract.py` | `uv-yf-close-contract` |

@@ -69,6 +69,18 @@ def _stage(td: Path, *, status: str = "review") -> Path:
     import re
     text = re.sub(r"(?m)^status: .*$", f"status: {status}", text, count=1)
     text = re.sub(r"(?m)^\*\*Status:\*\* .*$", f"**Status:** {status}", text, count=1)
+    # plan-071 Issue 2.4 (REQ-PLAN-085): `ready-check` now also EXECUTES what it approves —
+    # every Success Criteria row must be clause-form or `manual:`, and `gate_consistency.py`
+    # must not FAIL. plan-049 is a landed bundle with 42 PROSE criteria and one gate that
+    # names the issue it blocks, so under the new rule it is correctly NOT ready — on axes
+    # this test does not exercise (test_ready_check_smoke.py does). The control arm isolates
+    # the doc-lint axis by neutralising both: every Verification cell becomes an honest
+    # `manual:` waiver and the capability-gate blocks are dropped from the copy. The mutant
+    # arm below still injects its malformed heading on top of this, so the binding under test
+    # is unchanged.
+    text = re.sub(r"(?m)^(\| SC\d+[a-z]? \| [^|]*\| )([^|]*)(\| [^|]*\|)\s*$",
+                  r"\1manual: control fixture — REQ-PLAN-085 axis covered elsewhere \3", text)
+    text = re.sub(r"(?s)### Capability Gate:.*?(?=### Reconcile Gate)", "", text)
     pmd.write_text(text, encoding="utf-8")
     return dst
 

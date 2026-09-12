@@ -8008,6 +8008,167 @@ def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
     sys.exit(3 if escalates else 0)
 
 
+# --- REQ-PLAN-085 (plan-071 Issue 2.4): ready-check EXECUTES what it approves --------------
+
+#: The smoke-run's per-command bound. 30s, not `recheck-criteria`'s 60s: this is a shape check
+#: (does the command RUN at all), not a verdict on the criterion.
+READY_SMOKE_TIMEOUT = 30
+#: stderr signatures that mean "this command cannot run as written" — an instrument defect,
+#: never a criterion that is merely false yet.
+_READY_SMOKE_STDERR_FAIL = ("usage:", "unrecognized arguments", "command not found")
+_NO_SUCH_FILE = "No such file or directory"
+
+
+def _missing_paths(stderr: str, cmd: str) -> list[str]:
+    """The paths a command reported as missing, or — when the message names none (uv's
+    `Caused by: No such file or directory (os error 2)`) — the path-shaped tokens of the
+    command itself that do not exist. Never empty when stderr carries the message."""
+    out: list[str] = []
+    for line in stderr.splitlines():
+        if _NO_SUCH_FILE not in line:
+            continue
+        segs = [s.strip().strip("'\"`") for s in line.split(": ")]
+        for i, s in enumerate(segs):
+            if s.startswith(_NO_SUCH_FILE):
+                # `cat: PATH: No such file…` names it BEFORE; python's `…directory: 'PATH'` AFTER
+                after = segs[i + 1] if i + 1 < len(segs) else ""
+                before = segs[i - 1] if i >= 1 else ""
+                cand = after if after and not after.startswith("(") else before
+                cand = cand.strip().strip("'\"`")
+                if cand and cand.lower() not in ("error", "caused by") and " " not in cand:
+                    out.append(cand)
+                break
+    if stderr and _NO_SUCH_FILE in stderr and not out:
+        for tok in re.findall(r"[^\s\"'`;&|()]+", cmd):
+            if "/" in tok and not tok.startswith("-") and not Path(tok).exists():
+                out.append(tok)
+        if not out:
+            out.append("<unnamed>")
+    return out
+
+
+def _load_doc_lint_module():
+    """The co-resident `doc_lint.py`, so the clause grammar has ONE definition (REQ-PLAN-085
+    says reuse `_verification_clause_ok`; a second grammar here would drift from the linter)."""
+    import importlib.util as _ilu
+    here = Path(__file__).resolve().parent
+    cand = here / "doc_lint.py"
+    if not cand.is_file():
+        return None
+    spec = _ilu.spec_from_file_location("doc_lint_for_ready_check", cand)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _epics_declared_paths(docs: dict) -> set[str]:
+    """Every code-span token in the `## Epics` issue text — the DERIVED allow-list for a
+    `No such file` on a deliverable the plan itself creates. Never hand-listed."""
+    out: set[str] = set()
+    for i in docs.get("issues") or []:
+        blob = f"{i.get('title', '')}\n{i.get('detail', '')}"
+        for span in re.findall(r"`([^`\n]+)`", blob):
+            span = span.strip()
+            out.add(span)
+            out.add(Path(span).name)
+    return out
+
+
+def _ready_smoke_run(pdir: Path, docs: dict, *, timeout: int = READY_SMOKE_TIMEOUT) -> dict:
+    """Smoke-run every clause-form Success Criteria command (REQ-PLAN-085 (a)).
+
+    Returns ``{"rows": [...], "failures": [...], "checked": n}``. A row FAILS readiness when
+    its cell is neither clause-form nor `manual:`, or when the command exits 126/127, times
+    out, writes a usage/argparse/command-not-found signature to stderr, or reports
+    `No such file` on a path the plan's `## Epics` text does not name. A command that is
+    GREEN while reporting a missing input is the #356/#364 false-pass polarity and is a
+    failure too (`empty-collection-suspect`).
+    """
+    dl = _load_doc_lint_module()
+    clause_ok = dl._verification_clause_ok if dl else (lambda c: True)
+    rows_in = docs.get("criteria") or []
+    declared = _epics_declared_paths(docs)
+    plan_md = pdir / "plan.md"
+    preamble = _criteria_preamble(plan_md.read_text(encoding="utf-8")) if plan_md.exists() else ""
+    repo_root = _repo_root_for(pdir)
+    env = dict(os.environ, YF_RECHECK_DEPTH=str(RECHECK_MAX_DEPTH))   # a nested recheck refuses
+    rows, failures = [], []
+    for r in rows_in:
+        cid = r.get("id") or r.get("raw_id") or "?"
+        cell = r.get("verification") or ""
+        rec = {"id": cid}
+        if not clause_ok(cell):
+            rec.update(status="prose", reason="Verification cell is neither clause-form "
+                                                "(REQ-DATA-070) nor `manual:`")
+            rows.append(rec); failures.append(rec); continue
+        kind, cmd, want = _classify_criterion(cell)
+        if kind == "manual":
+            rec.update(status="manual"); rows.append(rec); continue
+        rec.update(command=cmd, expected_exit=want)
+        if "recheck-criteria" in (cmd or "") or "ready-check" in (cmd or ""):
+            rec.update(status="skipped-self-reference"); rows.append(rec); continue
+        try:
+            proc = subprocess.run(["bash", "-c", _criteria_command(preamble, cmd)],
+                                  cwd=str(repo_root), env=env, capture_output=True,
+                                  text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            rec.update(status="timeout", reason=f"exceeded {timeout}s")
+            rows.append(rec); failures.append(rec); continue
+        except OSError as e:
+            rec.update(status="unrunnable", reason=str(e))
+            rows.append(rec); failures.append(rec); continue
+        rc, err = proc.returncode, (proc.stderr or "")
+        rec["actual_exit"] = rc
+        rec["holds_now"] = _recheck_holds(rc, want)
+        low = err.lower()
+        if rc in (126, 127):
+            rec.update(status="unrunnable", reason=f"exit {rc}: {err.strip()[-200:]}")
+            rows.append(rec); failures.append(rec); continue
+        sig = next((s for s in _READY_SMOKE_STDERR_FAIL if s in low), None)
+        if sig:
+            rec.update(status="unrunnable", reason=f"stderr carries `{sig}`: {err.strip()[-200:]}")
+            rows.append(rec); failures.append(rec); continue
+        missing = _missing_paths(err, cmd or "")
+        if missing:
+            undeclared = [m for m in missing
+                          if m not in declared and Path(m).name not in declared]
+            if rec["holds_now"]:
+                rec.update(status="empty-collection-suspect", missing=missing,
+                           reason="the command is GREEN while reporting a missing input — "
+                                  "the #356/#364 false-pass polarity; the criterion passes "
+                                  "on nothing")
+                rows.append(rec); failures.append(rec); continue
+            if undeclared:
+                rec.update(status="no-such-file", missing=undeclared,
+                           reason="a path the command needs does not exist and the plan's "
+                                  "`## Epics` text does not name it as a deliverable")
+                rows.append(rec); failures.append(rec); continue
+            rec.update(status="not-yet-dischargeable", missing=missing)
+            rows.append(rec); continue
+        rec["status"] = "ran"
+        rows.append(rec)
+    return {"rows": rows, "failures": failures, "checked": len(rows_in),
+            "preamble_present": bool(preamble)}
+
+
+def _ready_gate_consistency(pdir: Path) -> dict:
+    """Run `gate_consistency.py` over the bundle (REQ-PLAN-085 (a), #325): FAIL blocks
+    readiness, INCONCLUSIVE is reported. The engine's first look is pre-approval."""
+    engine = Path(__file__).resolve().parent / "gate_consistency.py"
+    if not engine.is_file():
+        return {"verdict": "INCONCLUSIVE", "exit": 2, "reason": "gate_consistency.py absent"}
+    proc = subprocess.run(["uv", "run", str(engine), str(pdir), "--json"],
+                          capture_output=True, text=True)
+    try:
+        out = json.loads(proc.stdout) if proc.stdout.strip() else {}
+    except json.JSONDecodeError:
+        out = {}
+    return {"verdict": out.get("verdict") or ("PASS" if proc.returncode == 0 else
+                                              "FAIL" if proc.returncode == 1 else "INCONCLUSIVE"),
+            "exit": proc.returncode, "findings": out.get("findings") or [],
+            "gates": out.get("gates"), "reason": out.get("reason")}
+
+
 def _ready_check_result(pdir: Path) -> dict:
     """The REQ-PLAN-066 readiness verdict as data (plan-047 Issue 2.5).
 
@@ -8046,6 +8207,22 @@ def _ready_check_result(pdir: Path) -> dict:
             f"portability audit did not pass (status={audit['status']}) — run "
             "`/yf-plan capture` or fix the failing findings")
 
+    # --- REQ-PLAN-085 (a): execute what you approve ---------------------------------------
+    try:
+        docs = _run_plan_extract(pdir)
+    except Exception as e:  # noqa: BLE001 — an unreadable plan is not ready
+        docs = {}
+        reasons.append(f"plan_extract could not read the plan: {e}")
+    smoke = _ready_smoke_run(pdir, docs) if docs else {"rows": [], "failures": [], "checked": 0}
+    for f in smoke["failures"]:
+        reasons.append(f"criterion {f['id']}: {f['status']} — {f.get('reason', '')}")
+    gates = _ready_gate_consistency(pdir)
+    if gates["verdict"] == "FAIL":
+        reasons.append(
+            f"gate_consistency FAIL ({len(gates.get('findings') or [])} finding(s)) — "
+            "a capability gate contradicts its own Blocks set; fix the plan's ## Gates")
+    fp = _fingerprint_status(pdir)
+
     ready = not reasons
     result = {
         "ready": ready,
@@ -8054,6 +8231,10 @@ def _ready_check_result(pdir: Path) -> dict:
         "review_pass": n,
         "malformed_review": malformed_review,
         "audit_status": audit["status"],
+        # REQ-PLAN-085 surfaces (pass-5 C2: until now only `resume-scan` reported staleness)
+        "stale_approved": fp["stale_approved"],
+        "criteria": smoke,
+        "gate_consistency": gates,
     }
     return result
 

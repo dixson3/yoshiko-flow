@@ -684,7 +684,7 @@ On audit pass, transition to INTAKE. On audit fail, stay in PLAN — the operato
 
 ### Ready-for-approval gate (before the approval prompt)
 
-Do **not** solicit operator approval until the plan is genuinely *ready*. Run `ready-check` — it verifies **both** preconditions in one place: the **last recorded** red-team verdict is `APPROVE` (REQ-PLAN-030) **and** the portability audit passes (REQ-PLAN-033). It exits `3` (not ready) or `0` (ready):
+Do **not** solicit operator approval until the plan is genuinely *ready*. Run `ready-check` — it verifies the preconditions in one place: the **last recorded** red-team verdict is `APPROVE` (REQ-PLAN-030), the portability audit passes (REQ-PLAN-033), and — **REQ-PLAN-085: `ready-check` executes what it approves** — every Success Criteria row is clause-form or `manual:`, every clause-form command **smoke-runs** under `bash -c` with a 30s bound (exit 126/127, a timeout, a `usage:`/`unrecognized arguments`/`command not found` on stderr, or a `No such file` on a path the plan's `## Epics` text does not name fails the row by id; a command that is GREEN while reporting a missing input is the #356/#364 false-pass polarity and fails too), `gate_consistency.py` runs over the bundle (FAIL blocks; INCONCLUSIVE is reported), and `stale_approved` is surfaced. The verdict's `criteria.rows` lists every row's smoke result. It exits `3` (not ready) or `0` (ready):
 
 ```bash
 READY_JSON=$(uv run ${SKILL_DIR}/scripts/plan_manager.py ready-check "${plan_dir}" --json) || true
