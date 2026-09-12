@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-12
+- review-pass: 6 (execution) — APPROVE, zero measured findings; post-execution recertification after the SC4 amendment (ESC-001); fingerprint refreshed f0822aa9 → ba0e9a44 on operator instruction ('recertify')
+- autonomy: max-review-cycles raised to 6 for this invocation (cycles=5) — escalation override
 - reconciling: post-execution reconciliation
 - executing: Issue 5.1 measurements at 7f56199 (execute branch, in-place): FULL tier: exit 0 (98 rows pass); all 36 skills/yf-plan/scripts/test_*.py files exit 0; recheck-criteria --timeout 60: 20/20 clause-form criteria hold (SC1-SC13, SC14b-SC20; SC14 manual, discharged by this line)
 - executing: REQ-LAND-015 branch: reader deleted (#393 closed by subtraction) — _land_route_record_findings and its four tests removed; the two route_record stamps (apply journal, tty-refusal envelope) are untouched

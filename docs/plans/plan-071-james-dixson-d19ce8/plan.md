@@ -9,7 +9,7 @@ author: james-dixson
 created: '2026-09-10'
 status: reconciling
 deliverable_class: standard
-fingerprint: f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
+fingerprint: ba0e9a44d11bc404efb0d9c596c3c99585aedd0803674f09b13011624c37c652
 epic: yf-mol-zi49
 ---
 # Plan: Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
@@ -20,7 +20,7 @@ epic: yf-mol-zi49
 **Status:** reconciling
 **Deliverable-class:** standard
 **Epic:** yf-mol-zi49
-**Fingerprint:** f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
+**Fingerprint:** ba0e9a44d11bc404efb0d9c596c3c99585aedd0803674f09b13011624c37c652
 
 ## Objective
 Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
