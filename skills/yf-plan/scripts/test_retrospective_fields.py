@@ -28,27 +28,27 @@ def check(label: str, ok: bool, detail: str = "") -> None:
         FAILURES.append(label)
 
 
-KNOWN = ["plan-execute", "plan-investigate", "plan-review", "yf-research"]
+KNOWN = ["plan-execute", "plan-investigate", "yf-research"]
 
 # --- both directions. A checker that rejects everything is useless. -----------------------
-code, msg = rf.check_formula("plan-review", KNOWN)
+code, msg = rf.check_formula("plan-execute", KNOWN)
 check("a KNOWN formula is accepted (exit 0)", code == 0, msg)
 
 code, msg = rf.check_formula("definitely-not-a-formula", KNOWN)
 check("an UNKNOWN formula is REJECTED (exit 1, a real negative)", code == 1, msg)
-check("...and the rejection names the closed domain", "plan-review" in msg, msg)
+check("...and the rejection names the closed domain", "plan-execute" in msg, msg)
 
 code, msg = rf.check_formula("", KNOWN)
 check("an EMPTY name is rejected — an empty name prevents nothing", code == 1, msg)
 
 # --- INCONCLUSIVE is not FAIL ------------------------------------------------------------
-code, msg = rf.check_formula("plan-review", None)
+code, msg = rf.check_formula("plan-execute", None)
 check("an unreachable domain is INCONCLUSIVE (exit 2), never FAIL",
       code == rf.INCONCLUSIVE, msg)
 check("...and says the name is UNVALIDATED, not invalid", "unvalidated" in msg.lower(), msg)
 
 # --- near-misses must not slip through ----------------------------------------------------
-for near in ("plan-reviews", "Plan-Review", "plan_review", " plan-review"):
+for near in ("plan-executes", "Plan-Execute", "plan_execute", " plan-execute"):
     code, _ = rf.check_formula(near, KNOWN)
     check(f"near-miss {near!r} is rejected", code == 1)
 

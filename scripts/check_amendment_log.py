@@ -72,6 +72,10 @@ CITED_NOT_TOUCHED = {
     "REQ-YF-DOCTOR-003",
     "REQ-YF-CLI-002",
     "REQ-DATA-057",
+    # plan-071 Issue 0.4 names the id plan-070's unlanded draft reserved, only to state that it
+    # is NOT allocated. Naming it in the SPEC.md entry would put the literal in the tree, which
+    # plan-071's SC3 residue grep forbids — so it is cited-not-touched by construction.
+    "REQ-LAND-039",
 }
 
 REQ_RE = re.compile(r"REQ-[A-Z]+(?:-[A-Z]+)*-\d{3}")
@@ -188,8 +192,18 @@ def main() -> int:
     nxt = re.search(r"^> - \*\*", tail[1:], re.M)
     entry = tail[: nxt.start() + 1] if nxt else tail
 
+    # A RETAGGED citation still covers its id. plan-071 merged fourteen `REQ-LAND-*` ids into
+    # six survivors and retired three; its SC3 forbids the merged literals anywhere outside
+    # `spec/landing.md`, so historical amendment entries now cite them as
+    # `REQ-LAND-<new> (as merged by plan-071 from <old>)` or `the formerly reserved landing id
+    # <old>`. The entry still records the id — in the form the freeze allows — so A1 reads
+    # both spellings. The bare-number forms are recognised ONLY inside this plan's own entry
+    # text, never across the whole spec.
+    entry_ids = set(REQ_RE.findall(entry))
+    entry_ids |= {f"REQ-LAND-{n}" for n in re.findall(r"as merged by plan-071 from (\d{3})", entry)}
+    entry_ids |= {f"REQ-LAND-{n}" for n in re.findall(r"reserved landing id (\d{3})", entry)}
     rc = 0
-    missing = sorted(i for i in touched if i not in entry)
+    missing = sorted(i for i in touched if i not in entry_ids)
     if missing:
         rc = 1
         print(

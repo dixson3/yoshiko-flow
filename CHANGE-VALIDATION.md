@@ -45,7 +45,7 @@
 >   (`check_agents_set.py`, `REQ-CHECK-014`). What remains excluded is narrower and is stated
 >   narrowly: **prose that chooses not to explain something it never enumerated**;
 > - **script-verb coverage** — irreducibly editorial, and declared so on measurement rather than
->   asserted: `plan_manager.py` carries 40 flat `@cli.command` registrations with **zero**
+>   asserted: `plan_manager.py` carries 33 flat `@cli.command` registrations with **zero**
 >   visibility metadata (`hidden=`, `deprecated=`, `short_help=` all absent), and `spec/cli.md`
 >   `REQ-CLI-006` frames the entire set as internal delegation. There is no bit in the source to
 >   read, so the rule makes this class **visible in review**; it does not mechanise it;
@@ -142,13 +142,16 @@ approved: yes
 | `uv-yf-cascade` | `uv run skills/yf-plan/scripts/test_close_cascade.py` |  |  |
 | `uv-yf-complete-gate` | `uv run skills/yf-plan/scripts/test_complete_gate.py` |  |  |
 | `uv-yf-review-verdict` | `uv run skills/yf-plan/scripts/test_review_verdict.py` |  |  |
+| `uv-yf-ready-smoke` | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` |  |  |
+| `uv-yf-escalations` | `uv run skills/yf-plan/scripts/test_escalations.py` |  |  |
+| `uv-yf-severity-vocab` | `uv run skills/yf-plan/scripts/test_severity_vocabulary.py` |  |  |
+| `freeze-provably-necessary` | `uv run scripts/checks/check-provably-necessary.py` |  |  |
 | `uv-yf-stamp-tracker` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q` |  |  |
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
 | `uv-yf-close-contract` | `uv run skills/yf-plan/scripts/test_close_contract.py` |  |  |
 | `uv-yf-intake-lint` | `uv run skills/yf-plan/scripts/test_intake_lint_binding.py` |  |  |
 | `uv-yf-verify-reconcile` | `uv run skills/yf-plan/scripts/test_verify_reconcile.py` |  |  |
-| `uv-yf-audit-close` | `uv run skills/yf-plan/scripts/test_audit_close.py` |  |  |
 | `uv-yf-reconcile-step` | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
 | `uv-yf-status-idem` | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
 | `uv-yf-cascade-root` | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
@@ -249,7 +252,6 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_close_contract.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_verify_reconcile.py` |  |  |
-|  | `uv run skills/yf-plan/scripts/test_audit_close.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
@@ -288,6 +290,10 @@ approved: yes
 | `uv-yf-land-manifest` | `uv run skills/yf-plan/scripts/test_land_manifest.py` |  |  |
 | `uv-yf-lander-contract` | `uv run skills/yf-plan/scripts/test_lander_agent_contract.py` |  |  |
 | `uv-yf-land-apply` | `uv run skills/yf-plan/scripts/test_land_apply.py` |  |  |
+| `uv-yf-ready-smoke` | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` |  |  |
+| `uv-yf-escalations` | `uv run skills/yf-plan/scripts/test_escalations.py` |  |  |
+| `uv-yf-severity-vocab` | `uv run skills/yf-plan/scripts/test_severity_vocabulary.py` |  |  |
+| `freeze-provably-necessary` | `uv run scripts/checks/check-provably-necessary.py` |  |  |
 | `uv-yf-land-seam` | `uv run skills/yf-plan/scripts/test_land_seam.py` |  |  |
 | `land-launcher-closure` | `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` |  |  |
 | `land-seam-ast` | `uv run scripts/checks/check_land_seam.py` |  |  |
@@ -446,17 +452,24 @@ approved: yes
 | `skills/yf-plan/formulas/**` | `uv-yf-gates` |
 | `skills/yf-beads-upstream/scripts/upstream_render.py` | `uv-with` |
 | `docs/plans/plan-052-james-dixson-fa8056/assets/**` | `gate-plan052` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent`, `uv-yf-ready-smoke`, `uv-yf-escalations`, `uv-yf-severity-vocab`, `uv-yf-verb-invocations` |
 | `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
 | `skills/yf-plan/scripts/test_complete_gate.py` | `uv-yf-complete-gate` |
 | `skills/yf-plan/scripts/test_review_verdict.py` | `uv-yf-review-verdict` |
+| `skills/yf-plan/scripts/test_ready_check_smoke.py` | `uv-yf-ready-smoke` |
+| `skills/yf-plan/scripts/test_escalations.py` | `uv-yf-escalations` |
+| `skills/yf-plan/scripts/test_severity_vocabulary.py` | `uv-yf-severity-vocab` |
+| `skills/yf-plan/scripts/test_verb_invocations.py` | `uv-yf-verb-invocations` |
+| `scripts/checks/check-provably-necessary.py` | `freeze-provably-necessary`, `freeze-self-test` |
+| `skills/yf-plan/**` | `freeze-provably-necessary` |
+| `skills/yf-plan/SPEC.md` | `freeze-provably-necessary` |
+| `skills/yf-plan/scripts/doc_lint.py` | `uv-yf-severity-vocab` |
 | `skills/yf-plan/scripts/test_config_tiers.py` | `uv-yf-config-tiers` |
 | `skills/yf-plan/scripts/test_classify_deliverable.py` | `uv-yf-classify` |
 | `skills/yf-plan/scripts/test_close_contract.py` | `uv-yf-close-contract` |
 | `skills/yf-plan/scripts/test_verify_reconcile.py` | `uv-yf-verify-reconcile` |
-| `skills/yf-plan/scripts/test_audit_close.py` | `uv-yf-audit-close` |
 | `skills/yf-plan/scripts/test_reconcile_step_resolution.py` | `uv-yf-reconcile-step` |
 | `skills/yf-plan/scripts/test_update_status_idempotent.py` | `uv-yf-status-idem` |
 | `skills/yf-plan/scripts/test_cascade_root_resolution.py` | `uv-yf-cascade-root` |
@@ -468,7 +481,7 @@ approved: yes
 | `skills/yf-plan/scripts/test_upstream_requirements.py` | `uv-yf-upstream-req` |
 | `skills/yf-plan/spec/cli.md` | `uv-yf-cli-enum` |
 | `skills/yf-plan/spec/agents.md` | `uv-yf-review-agent` |
-| `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-audit-close`, `uv-yf-reconcile-step`, `uv-yf-gates`, `uv-yf-review-agent` |
+| `skills/yf-plan/SKILL.md` | `uv-yf-close-contract`, `uv-yf-reconcile-step`, `uv-yf-gates`, `uv-yf-review-agent` |
 | `skills/yf-plan/agents/*.md` | `uv-yf-gates`, `uv-yf-review-agent` |
 | `skills/yf-herdr/**` | `uv-herdr-launch` |
 | `skills/yf-herdr/SKILL.md` | `uv-herdr-launch` |

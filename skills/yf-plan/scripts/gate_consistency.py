@@ -166,22 +166,67 @@ def main() -> int:
         return INCONCLUSIVE
 
     findings = check_plan(doc)
+    verdict, code, evaluated, total = verdict_for(doc, findings)
     out = {
         "plan_dir": str(pdir),
-        "verdict": "FAIL" if findings else "PASS",
-        "gates": len(doc.get("gates") or []),
+        "verdict": verdict,
+        "gates": total,
+        "evaluated": evaluated,
         "findings": findings,
     }
+    if verdict == "INCONCLUSIVE":
+        out["reason"] = (f"{total} gate(s) declared but none has an issue-kind Blocks set "
+                         f"({evaluated}/{total} evaluable) — the engine could judge nothing")
     if a.as_json:
         print(json.dumps(out, indent=1))
     else:
-        if findings:
+        if verdict == "FAIL":
             print(f"FAIL: {len(findings)} gate-consistency finding(s):")
             for f in findings:
                 print(f"  - [arm {f['arm']}] {f['detail']}")
+        elif verdict == "INCONCLUSIVE":
+            print(f"INCONCLUSIVE: {out['reason']}", file=sys.stderr)
         else:
             print(f"PASS: {out['gates']} gate(s) consistent with their Blocks sets")
-    return 1 if findings else 0
+    return code
+
+
+def _issue_kind_blocks(gate: dict) -> list[str]:
+    """The entries of a gate's Blocks set that name ISSUES — not the `reconcile step` sentinel
+    and not an `epic:<N>` container reference (REQ-DATA-019 admits all three forms)."""
+    out = []
+    for b in gate.get("blocks") or []:
+        if isinstance(b, dict):
+            if b.get("kind") == "issue" and b.get("ref"):
+                out.append(str(b["ref"]))
+        elif b and b != "reconcile step" and not str(b).startswith("epic:"):
+            out.append(str(b))
+    return out
+
+
+def verdict_for(doc: dict, findings: list[dict]) -> tuple[str, int, int, int]:
+    """-> (verdict, exit, evaluated, total). TWO FACTS, TWO SIGNALS (#325, plan-071 Issue 4.4).
+
+    Before this, a plan with capability gates none of which the engine could evaluate returned
+    the same `PASS`/exit 0 as a plan that declares no capability gate at all. Those are
+    different facts: the first is a legitimate plan (plan-069 declares no gate), the second is
+    an instrument that judged nothing — and "judged nothing" must never read as "clean".
+
+      no capability gate declared            -> PASS, gates: 0, exit 0
+      gates declared, none evaluable         -> INCONCLUSIVE, exit 2, `evaluated/total`
+      >= 1 evaluable, findings               -> FAIL, exit 1
+      >= 1 evaluable, no findings            -> PASS, exit 0
+    """
+    gates = [g for g in (doc.get("gates") or [])
+             if "capability" in str(g.get("kind", g.get("type", ""))).lower()
+             or _issue_kind_blocks(g) or g.get("blocks")]
+    total = len(doc.get("gates") or [])
+    evaluated = sum(1 for g in (doc.get("gates") or []) if _issue_kind_blocks(g))
+    if total == 0:
+        return "PASS", 0, 0, 0
+    if evaluated == 0:
+        return "INCONCLUSIVE", INCONCLUSIVE, 0, total
+    return ("FAIL", 1, evaluated, total) if findings else ("PASS", 0, evaluated, total)
 
 
 if __name__ == "__main__":

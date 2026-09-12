@@ -20,7 +20,7 @@
 #         and an offline land must not be blocked by it.
 #
 # `YF_OKF_BASELINE_URL` overrides the fetch target. That override is this script's contract
-# with `scripts/checks/check-baseline-pin-contract.sh`, which uses it to SIMULATE a network
+# with the former `scripts/checks/check-baseline-pin-contract.sh` (retired by plan-071 as unwired), which used it to SIMULATE a network
 # failure and assert the offline exit DIFFERS from the clean one — the pair of exits that an
 # absent detector could not produce.
 set -uo pipefail

@@ -2,6 +2,8 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "pytest>=8",
+#     "click>=8",
+#     "pyyaml>=6",
 # ]
 # ///
 """Mechanical enforcement of the §6.4 close-step contract (REQ-COMPLETE-001/003, plan-043).
@@ -392,6 +394,69 @@ _VERB_RE = re.compile(r'^@cli\.command\("([a-z][\w-]*)"\)', re.M)
 _SITE_GLOBS = ("SKILL.md", "agents/*.md", "scripts/*.py")
 
 
+# ======================================================================================
+# plan-071 Issue 4.7 (#392) — ONE SOURCE for the close chain: SKILL.md §6.4's verb order IS
+# `LAND_CLOSE_CHAIN` followed by the L12-L15 steps, asserted with a negative control
+# ======================================================================================
+
+def _load_pm_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("pm_for_close_contract",
+                                                  _SKILL_DIR / "scripts" / "plan_manager.py")
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+#: The steps after the chain table, in order: L12 cascade, L13 complete-gate, L14 pour
+#: fidelity, L15 update-status. These are executor functions, not `LAND_CLOSE_CHAIN` rows.
+_L12_TO_L15 = ["close_cascade.py", "complete-gate", "pour_fidelity.py", "update-status"]
+
+
+def _six_four_verb_order() -> list[str]:
+    """The §6.4 block's script invocations in source order, NON-COMMENTED ones only: a
+    commented invocation is an operator-override note (`set-deliverable-class`), not a step."""
+    return [i["name"] for i in _invocations() if not i["commented"]]
+
+
+def _expected_order(pm) -> list[str]:
+    return [v for v, _, _ in pm.LAND_CLOSE_CHAIN] + _L12_TO_L15
+
+
+def test_six_four_order_equals_land_close_chain_then_l12_to_l15():
+    """SC16 (plan-071). SKILL.md §6.4 and `LAND_CLOSE_CHAIN` were two enumerations of one chain
+    with nothing joining them; now the prose order is asserted against the table."""
+    pm = _load_pm_module()
+    assert ("gate-consistency", "l8_close_chain_head", True) in pm.LAND_CLOSE_CHAIN, (
+        "Issue 4.4: gate-consistency is the HALTING regression guard in the former audit-close slot")
+    got, want = _six_four_verb_order(), _expected_order(pm)
+    assert got == want, f"§6.4 order {got} != LAND_CLOSE_CHAIN + L12-L15 {want}"
+
+
+def test_six_four_order_negative_control_a_reordered_line_fails(tmp_path: Path, monkeypatch):
+    """A copy of SKILL.md with two chain invocations SWAPPED must fail the order assertion —
+    otherwise the test above could be satisfied by an enumerator that returns a sorted set."""
+    global _SKILL_MD
+    pm = _load_pm_module()
+    lines = _SKILL_MD.read_text(encoding="utf-8").split("\n")
+    idx = [i for i, l in enumerate(lines)
+           if "plan_manager.py verify-reconcile" in l or "plan_manager.py close-reconcile-step" in l]
+    a, b = idx[0], idx[1]
+    assert lines[a] != lines[b]
+    lines[a], lines[b] = lines[b], lines[a]
+    copy = tmp_path / "SKILL.md"
+    copy.write_text("\n".join(lines), encoding="utf-8")
+    saved = _SKILL_MD
+    try:
+        _SKILL_MD = copy
+        assert _six_four_verb_order() != _expected_order(pm), (
+            "the order assertion did not fire on a reordered SKILL.md — it is not reading order")
+    finally:
+        _SKILL_MD = saved
+    assert _six_four_verb_order() == _expected_order(pm), "restored"
+
+
 def _registered_verbs() -> set[str]:
     """Every verb `plan_manager.py` actually registers."""
     return set(_VERB_RE.findall((_HERE / "plan_manager.py").read_text(encoding="utf-8")))
@@ -420,6 +485,12 @@ def _list_steps() -> list[str]:
 
 
 def _main(argv: list[str]) -> int:
+    if "--skill-md" in argv:
+        # plan-071 Issue 4.3: measure a HISTORICAL SKILL.md (a `git show` written to a temp
+        # file) so a bundle's cited close-chain figure can be pinned to the tree it quoted,
+        # on the `run-git-call-sites` precedent in plan-060's registry.
+        global _SKILL_MD
+        _SKILL_MD = Path(argv[argv.index("--skill-md") + 1])
     if "--list-steps" in argv:
         # SOLE STDOUT. Nothing else may be printed on this path.
         print(json.dumps({"steps": _list_steps()}, indent=2))

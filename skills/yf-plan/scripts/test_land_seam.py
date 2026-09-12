@@ -258,17 +258,22 @@ def test_spec_quotes_the_script_rather_than_restating_a_number():
     )
 
 
-def test_req_land_031_carve_out_is_retired_in_text_and_031_itself_is_unchanged():
-    """0.3's decision: the carve-out was an over-read; REQ-LAND-031's own text does not move.
+def test_req_land_004_l18_row_constrains_the_call_and_037_puts_it_on_the_seam():
+    """plan-068 Issue 0.3's decision, retagged by plan-071 Issue 0.4: the L18 teardown rule
+    constrains the CALL (`force=False` in keyword form, branch on `status`) and says nothing
+    about how the callee launches, so a fully-on-seam call satisfies it verbatim.
 
-    REQ-LAND-031 constrains the CALL (`force=False` in keyword form, branch on `status`). It
-    says nothing about how the callee launches, so a fully-on-seam call satisfies it verbatim.
+    plan-071 merged that rule into REQ-LAND-004's L18 row (the retired id is deliberately not
+    named here — the tree carries no residue of a merged id). Read off the row, not the file.
     """
     text = SPEC.read_text()
-    assert "`REQ-LAND-031`'s carve-out is RETIRED as an over-read" in text
-    # REQ-LAND-031's own clauses survive untouched.
-    assert "shall call\n`_worktree_teardown` with `force=False` in **keyword** form" in text
-    assert "shall **branch on the returned\n`status`**" in text
+    row = next((ln for ln in text.splitlines() if ln.startswith("| **L18**")), "")
+    assert row, "REQ-LAND-004's order table has no L18 row"
+    assert "`_worktree_teardown` with `force=False` in **keyword** form" in row
+    assert "**branch on the returned `status`**" in row
+    # And REQ-LAND-037 states that the on-seam call satisfies that row verbatim.
+    flat = " ".join(text.split())
+    assert "satisfies the REQ-LAND-004 L18 row verbatim" in flat
 
 
 def test_the_no_runner_intercepts_a_filesystem_read_reason_is_recorded():
@@ -308,7 +313,9 @@ def test_the_ast_check_passes_on_the_real_module():
     assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
     payload = json.loads(r.stdout)
     assert payload["verdict"] == "PASS"
-    assert payload["steps_checked"] >= 15, payload
+    # DERIVED from the executor table, never a literal: plan-071 retired L5 (14 keys), and a
+    # pinned `>= 15` would have failed on the deletion of a step the check never needed.
+    assert payload["steps_checked"] == len(pm.LAND_EXECUTOR), payload
     # NOT VACUOUS BY CONSTRUCTION: a check that inspected zero L-steps would "pass".
     assert payload["closure"], "the check saw an EMPTY closure — it proved nothing"
 
@@ -393,25 +400,28 @@ def test_the_check_is_INCONCLUSIVE_not_green_when_it_cannot_run(tmp_path):
     assert "INCONCLUSIVE" in r.stderr
 
 
-def test_the_two_out_of_L_step_bd_calls_take_an_explicit_root():
-    """Issue 1.4 / SC2. Neither has `ctx` in scope, so each needs an explicit root argument.
-
-    pass-1 flagged that leaving these advisory would let this plan close #348's normative
-    sentence while two calls still read a database from the wrong cwd.
+def test_the_former_out_of_L_step_bd_callers_are_gone_and_none_remains_unrooted():
+    """Issue 1.4 / SC2, RETAGGED by plan-071 Issue 3.2. The two out-of-L-step `bd` callers this
+    test pinned — `_land_route_record_findings` (the writer-less REQ-LAND-015 reader) and its
+    only helper `_land_epic_from_bd` — were deleted under the retention standard. The property
+    they were held to survives as a rule over what remains: any `_land_*` function that launches
+    `bd` without a `ctx` in scope takes an explicit `root`.
     """
     tree = ast.parse(PM.read_text())
-    sigs = {
-        n.name: {a.arg for a in n.args.args} | {a.arg for a in n.args.kwonlyargs}
-        for n in tree.body
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
+    fns = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    sigs = {n.name: {a.arg for a in n.args.args} | {a.arg for a in n.args.kwonlyargs} for n in fns}
     for name in ("_land_epic_from_bd", "_land_route_record_findings"):
-        assert name in sigs, f"{name} is gone — re-scope SC2 rather than deleting the check"
-        assert "root" in sigs[name], (
-            f"{name} takes no explicit `root` — it has no `ctx` in scope, so a runner has "
-            f"nothing to be given and a declared working directory is what REQ-LAND-037's "
-            f"ctx-less clause requires. Signature: {sorted(sigs[name])}"
-        )
+        assert name not in sigs, f"{name} was deleted by plan-071 (#393 by subtraction) — it is back"
+    unrooted = []
+    for n in fns:
+        if not n.name.startswith("_land_") or "ctx" in sigs[n.name]:
+            continue
+        src = ast.get_source_segment(PM.read_text(), n) or ""
+        if '"bd"' in src and "root" not in sigs[n.name]:
+            unrooted.append(n.name)
+    assert not unrooted, (
+        f"ctx-less `_land_*` function(s) launch `bd` with no explicit root: {unrooted} — "
+        f"REQ-LAND-037's ctx-less clause requires a declared working directory")
 
 
 if __name__ == "__main__":

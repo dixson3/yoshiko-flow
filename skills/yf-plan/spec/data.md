@@ -518,9 +518,10 @@ Rationale: #246 reported REQ-DATA-044's "uniformly `W`" as a conformance defect 
 schema. Resolving it toward the prose would delete the only enforcement `doc_lint` has past intake;
 resolving it toward the schema requires a requirement for the pattern, which did not exist. This is
 that requirement.
-Verification: `scripts/checks/check-closeout-can-fail.sh` — a RED fixture carrying a close-out
-violation at `status: complete` shall produce at least one error, and the same fixture without the
-violation shall not. Two branches, so a missing linter cannot satisfy it.
+Verification: a RED fixture carrying a close-out violation at `status: complete` shall produce at
+least one error, and the same fixture without the violation shall not — two branches, so a missing
+linter cannot satisfy it. *(The `check-closeout-can-fail.sh` instrument that ran this was retired by
+plan-071 under REQ-PLAN-086 as unwired; the check is covered by `test_doc_lint.py`'s close-out cases.)*
 
 REQ-DATA-075: *(added plan-056 Issue 0.4 / #171-partial)* **`description:` is a PRODUCER CONTRACT,
 not a lint.** Every yf-plan producer that stamps OKF frontmatter onto a bundle `.md` shall stamp a
@@ -575,9 +576,10 @@ stamp. Re-measured 2026-08-28 (Issue 0.8): 189 of 993 nested files carry one, co
 in the twelve newest bundles, so coverage is a **producer-version artifact** rather than an authoring
 gap. Fixing the producer makes coverage grow forward without touching a single frozen bundle, which
 is D-1's forward-only principle applied to metadata.
-Verification: `uv run scripts/checks/check-description-coverage.py <plan-dir>` shall exit 0 on a
-bundle whose nested artifacts were written by the amended producers, and non-zero on one carrying an
-unstamped artifact of a non-exempt type. Two branches, so an absent script cannot satisfy it.
+Verification: a bundle whose nested artifacts were written by the amended producers carries a
+`description:` on every non-exempt member, and one carrying an unstamped artifact does not — the
+`W`-severity `description-present` check in `doc_lint` reports the second. *(The
+`check-description-coverage.py` instrument was retired by plan-071 under REQ-PLAN-086 as unwired.)*
 
 REQ-DATA-054: `doc_lint.py` shall support a **`cell-non-empty`** check kind, asserting that
 each named column of a section's first table holds content in every row, and that the table
@@ -945,9 +947,11 @@ Because the sub-key is consumed by the parser, it shall be **excluded from `deta
 same grounds as `depends-on:` and `resolves-upstream:` (REQ-DATA-063): the same bytes must not
 be reachable both as a structured field and as prose.
 
-The field exists to make **single-writer ownership** measurable. Its consumer is report-only
-(REQ-PLAN-080's sibling `ownership-report`), and shall return **INCONCLUSIVE below 80% path
-coverage** — a stated number, never a verdict of "orthogonal" computed over no input.
+The field exists to make **single-writer ownership** measurable. *(amended plan-071 Issue 4.1 /
+REQ-PLAN-086: the report-only `ownership-report` consumer was deleted — no `SKILL.md` step, agent
+brief or chain row invoked it. The field stays first-class in `plan_extract.py`; any future consumer
+shall return INCONCLUSIVE below 80% path coverage — a stated number, never a verdict of "orthogonal"
+computed over no input.)*
 Rationale: an ownership signal measured at p=3.4e-11 over shared declared paths is unusable
 while the paths themselves live only in prose. Declaring them makes a plan's worst
 single-writer violations visible at authoring time; this plan's own previous shape measured

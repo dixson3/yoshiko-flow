@@ -79,22 +79,9 @@ def test_every_entry_carries_every_field():
         assert req["why"].strip(), f"{literal} carries no rationale"
 
 
-def test_grant_actions_are_derived_from_the_fields_not_declared():
-    """The divergence `ctl-178-grant`'s contrast arm caught, pinned.
-
-    `supersede` DECLARED a `comment` action while its own `requires_mention` is False, so the
-    generator demanded a clause the verifier would never check. Deriving the actions makes
-    that divergence unrepresentable.
-    """
-    for literal, req in pm.UPSTREAM_REQUIREMENTS.items():
-        acts = pm._grant_actions_for(req)
-        assert ("comment" in acts) == bool(req["requires_mention"]), (
-            f"{literal}: a comment is asked for iff a mention is required")
-        closes = {"close", "close-not-planned"} & set(acts)
-        assert bool(closes) == (req["end_state"] == "CLOSED"), (
-            f"{literal}: a close is asked for iff the end state is CLOSED")
-        if req["state_reason"] == "NOT_PLANNED":
-            assert "close-not-planned" in acts, literal
+# plan-071 Issue 4.1: the `grant` generator (and `_grant_actions_for`) was deleted under
+# REQ-PLAN-086 — it had no live caller. The table's single-read property is asserted below
+# through the one live reader, `_verify_row`.
 
 
 # --- SC8: the read is BEHAVIORAL ------------------------------------------------------
@@ -127,29 +114,20 @@ def _bundle(tmp_path: Path) -> Path:
     return d
 
 
-def _grant_actions(bundle: Path) -> list[str]:
-    res = CliRunner().invoke(pm.cli, ["grant", str(bundle), "--json"])
-    payload = json.loads(res.output)
-    return sorted(a["kind"]
-                  for row in payload["proposal"]["rows"] for a in row["actions"])
-
-
-def test_both_readers_change_when_one_entry_is_mutated(tmp_path, monkeypatch):
-    """SC8, executed. Mutate ONE entry; BOTH verdicts must change.
+def test_the_verifier_changes_when_one_entry_is_mutated(tmp_path, monkeypatch):
+    """SC8, executed (grant half retired by plan-071). Mutate ONE entry; the verdict must change.
 
     An existence check or an import check passes on a table that is present and ignored.
     This does not.
     """
     _stub_gh(monkeypatch)
-    bundle = _bundle(tmp_path)
+    _bundle(tmp_path)
     row = {"issue": _ISSUE, "disposition": "include"}
 
     before_verify = pm._verify_row(row, _PLAN)["verdict"]
-    before_grant = _grant_actions(bundle)
 
     # The arm must not be vacuous: the unmutated state has to be the one we think it is.
     assert before_verify == "pass", before_verify
-    assert before_grant == ["close", "comment"], before_grant
 
     mutated = copy.deepcopy(pm.UPSTREAM_REQUIREMENTS)
     mutated["include"]["end_state"] = "OPEN"        # the payload is CLOSED, so this must fail
@@ -157,16 +135,11 @@ def test_both_readers_change_when_one_entry_is_mutated(tmp_path, monkeypatch):
     monkeypatch.setattr(pm, "UPSTREAM_REQUIREMENTS", mutated)
 
     after_verify = pm._verify_row(row, _PLAN)["verdict"]
-    after_grant = _grant_actions(bundle)
 
     assert after_verify != before_verify, (
         "`_verify_row`'s verdict did not change when the table entry it claims to read was "
         "mutated — it is not reading the table")
     assert after_verify == "fail", after_verify
-    assert after_grant != before_grant, (
-        "`grant`'s proposal did not change when the table entry it claims to read was "
-        "mutated — it is not reading the table")
-    assert after_grant == [], after_grant
 
 
 def test_the_stub_is_load_bearing(tmp_path, monkeypatch):
@@ -182,44 +155,11 @@ def test_the_stub_is_load_bearing(tmp_path, monkeypatch):
 
 # --- SC10's behavioral half: coverage of EVERY disposition ---------------------------
 
-@pytest.mark.parametrize("disposition", sorted(
-    {"include", "exclude", "partial", "supersede", "deferred", "tracker"}))
-def test_grant_covers_every_disposition_without_crashing(tmp_path, disposition):
-    """Every literal produces a well-formed proposal row — including the three that require
-    NO action. `exclude` and `deferred` yield an empty action list, which is a RESULT, not a
-    skip: a row silently absent from the proposal is indistinguishable from a row nobody
-    checked."""
-    d = tmp_path / _PLAN
-    d.mkdir()
-    (d / "plan.md").write_text(
-        "# Plan: t\n\n## Upstream Issues\n"
-        "| Issue | Title | Disposition | Notes | Resolved By |\n"
-        "| :-- | :-- | :-- | :-- | :-- |\n"
-        f"| [#900](https://x/900) | t | {disposition} | n | 1.1 |\n", encoding="utf-8")
-    res = CliRunner().invoke(pm.cli, ["grant", str(d), "--json"])
-    assert res.exit_code == 0, res.output
-    payload = json.loads(res.output)
-    rows = payload["proposal"]["rows"]
-    assert len(rows) == 1, f"{disposition} produced {len(rows)} rows, expected 1"
-    assert rows[0]["disposition"] == disposition
-    assert rows[0]["why"].strip(), "the rationale must travel with the requirement"
-    if disposition in ("exclude", "deferred"):
-        assert rows[0]["actions"] == [], (
-            f"{disposition} requires no upstream action, but the row must still be PRESENT")
-
-
-def test_an_unrecognised_disposition_fails_loudly_rather_than_being_skipped(tmp_path):
-    """The failure mode SC10 exists to prevent, from the generator's side."""
-    d = tmp_path / _PLAN
-    d.mkdir()
-    (d / "plan.md").write_text(
-        "# Plan: t\n\n## Upstream Issues\n"
-        "| Issue | Title | Disposition | Notes | Resolved By |\n"
-        "| :-- | :-- | :-- | :-- | :-- |\n"
-        "| [#901](https://x/901) | t | inclde | n | 1.1 |\n", encoding="utf-8")
-    res = CliRunner().invoke(pm.cli, ["grant", str(d), "--json"])
-    assert res.exit_code != 0, "a typo'd disposition was silently skipped"
-    assert json.loads(res.output)["verdict"] == "fail"
+# plan-071 Issue 4.1: `test_grant_covers_every_disposition_without_crashing` and
+# `test_an_unrecognised_disposition_fails_loudly_rather_than_being_skipped` drove the
+# deleted `grant` verb (REQ-PLAN-086) and were retired with it. The verifier-side property
+# — every literal in UPSTREAM_DISPOSITIONS has exactly one table entry — is the first test
+# in this file.
 
 
 if __name__ == "__main__":

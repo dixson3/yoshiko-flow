@@ -160,9 +160,12 @@ class SandboxRunner:
 
 #: `plan_manager.py` verbs the close chain and L13-L15 invoke. Enumerated so an argv the
 #: rehearsal has not been taught about FAILS rather than silently returning 0.
-_REHEARSAL_PM_VERBS = frozenset({
-    "audit-close", "retrospective-report", "judgement-never-fired-report",
-    "classify-deliverable", "close-reconcile-step", "verify-reconcile", "recheck-criteria",
+#: DERIVED FROM `LAND_CLOSE_CHAIN`, never copied (plan-071 Issue 4.7, #392): the chain was
+#: encoded three times — SKILL.md §6.4, this list, and `LAND_CLOSE_CHAIN` — with no test
+#: joining them, so a verb added to the chain silently went unfaked here and the rehearsal
+#: reported it as unrecognised. The two L13/L15 verbs outside the chain table are the only
+#: literals, and `test_close_contract.py` asserts SKILL.md's order against the same source.
+_REHEARSAL_PM_VERBS = frozenset(v for v, _, _ in _load_pm().LAND_CLOSE_CHAIN) | frozenset({
     "complete-gate", "update-status",
 })
 
@@ -189,7 +192,7 @@ _HONEST_SCOPE = {
         "fixture is out of scope; this is R7's 'a stub in a different costume', named rather "
         "than claimed as covered.",
         "the close chain's real VERDICTS. `uv run plan_manager.py <verb>` is intercepted, so "
-        "`audit-close`, `verify-reconcile`, `recheck-criteria` and `complete-gate` return a "
+        "`verify-reconcile`, `recheck-criteria` and `complete-gate` return a "
         "faked pass. What is exercised is that each is INVOKED with the right argv and that "
         "its exit code is READ (#180), not what it would have decided.",
         "L19 REDEPLOY. Skipped at the decision level — the sandbox has no `yf` binary, and "
@@ -237,7 +240,7 @@ def _covered_steps(pm) -> dict[str, list[str]]:
 
     DERIVED FROM `LAND_EXECUTOR` AND `LAND_STEPS`, never hand-written — this is the mapping
     Issue 1.5 exists to fix. `LAND_EXECUTOR` names only the FIRST key per function, so
-    `_land_l8_to_l15_close_chain` appears as `l8_close_chain_head` while it actually produces
+    `_land_l8_to_l11_close_chain` appears as `l8_close_chain_head` while it actually produces
     L8-L11, and `_land_l13_l15_finish` appears as `l13_complete_gate` while it produces
     L13-L15. The previous record named THREE labels while hiding FIVE L-numbers (l9, l10, l11,
     l14, l15), with `l14_pour_fidelity` absent entirely — the "second enumeration that can

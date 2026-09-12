@@ -1,6 +1,19 @@
 # Log
 
 ## 2026-09-12
+- landing-halt: L_CONFLICT_MERGE l2_merge irreversible=false (L2 rebased local main onto origin while main was ahead with merge commits; recovered by resetting main to 68c63b7 from the reflog and pushing it; pre-push, no outward write)
+- review-pass: 6 (execution) — APPROVE, zero measured findings; post-execution recertification after the SC4 amendment (ESC-001); fingerprint refreshed f0822aa9 → ba0e9a44 on operator instruction ('recertify')
+- autonomy: max-review-cycles raised to 6 for this invocation (cycles=5) — escalation override
+- reconciling: post-execution reconciliation
+- executing: Issue 5.1 measurements at 7f56199 (execute branch, in-place): FULL tier: exit 0 (98 rows pass); all 36 skills/yf-plan/scripts/test_*.py files exit 0; recheck-criteria --timeout 60: 20/20 clause-form criteria hold (SC1-SC13, SC14b-SC20; SC14 manual, discharged by this line)
+- executing: REQ-LAND-015 branch: reader deleted (#393 closed by subtraction) — _land_route_record_findings and its four tests removed; the two route_record stamps (apply journal, tty-refusal envelope) are untouched
+- executing: ESC-002 resolved by the parent: plan-070 moved out of the working tree; okf-index-drift is clean again
+- executing: FAST tier caveat (ESC-002): okf-index-drift fails only on the untracked, deferred plan-070 bundle (5 members absent from its index.md); every other row is green. plan-070 is not touched; the landing gate will surface it to the operator
+- executing: D-10 measured: 2 ci-release bundles (plan-031, plan-041); subsystem retained — attest-validation now has a test (test_complete_gate.py, Issue 4.2)
+- executing: SC4 Verification amended mid-execution (ESC-001): the original ls → exit 2 clause is GNU-only (BSD ls exits 1); now test ! -e A && test ! -e B → exit 0. Counted as a post-approval flip by the fidelity metric (R8); the plan is stale-approved until re-fingerprinted at landing
+- executing: start gate resolved
+- intake: epic yf-mol-zi49 poured
+- autonomy: per-invocation override resolved to 'autonomous' (source: flag) — overrides the configured/default level
 - approved: operator approved the re-scoped plan (plan-070 deferred; this plan goes first)
 - ready-for-approval: ready-check green after the plan-070-deferral re-scope — pass-5 (execution) APPROVE + audit pass
 - review-pass: 5 (execution) — APPROVE on the plan-070-deferral re-scope; re-certified against fingerprint 11310dcf (stored d623f106 was stale); 3 low notes actioned

@@ -105,7 +105,20 @@ def f_close_chain_steps() -> int | str:
     """
     if not CLOSE_CONTRACT.is_file():
         return inconclusive(f"no test_close_contract.py at {CLOSE_CONTRACT}")
-    proc = subprocess.run(["uv", "run", str(CLOSE_CONTRACT), "--list-steps"],
+    # PINNED to plan-060's landing (plan-071 Issue 4.3): the chain is now the subject of a
+    # freeze that removed two of its steps, so a live count would report the freeze as drift
+    # of a figure plan-060 quoted as of its own landing. Same precedent as `cli-verbs`.
+    import tempfile
+    show = subprocess.run(
+        ["git", "show", f"{CLI_VERBS_BASELINE_REV}:skills/yf-plan/SKILL.md"],
+        capture_output=True, text=True, cwd=ROOT)
+    if show.returncode != 0 or not show.stdout:
+        return inconclusive(
+            f"the baseline commit {CLI_VERBS_BASELINE_REV[:10]} is not reachable in this "
+            f"clone — an unreachable baseline is INCONCLUSIVE, never a drift")
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+        fh.write(show.stdout); tmp = fh.name
+    proc = subprocess.run(["uv", "run", str(CLOSE_CONTRACT), "--skill-md", tmp, "--list-steps"],
                           capture_output=True, text=True, cwd=ROOT)
     if proc.returncode != 0:
         return inconclusive(f"--list-steps exited {proc.returncode}")
@@ -115,15 +128,29 @@ def f_close_chain_steps() -> int | str:
         return inconclusive(f"--list-steps output is not the expected JSON: {exc}")
 
 
+#: plan-071 Issue 4.1: the verb count is now the SUBJECT of a freeze (REQ-PLAN-086 deletes
+#: seven verbs and ceilings the set), so a live count of REQ-CLI-006's enumeration would drift
+#: on the very change that made it a figure worth freezing. plan-060 quoted the enumeration
+#: AS OF ITS OWN LANDING; the measurement is pinned there, on the `run-git-call-sites`
+#: precedent above — a historical claim gets a historical measurement.
+CLI_VERBS_BASELINE_REV = "b01c99f9532f22aa620976edf018a339a8aa2d1a"
+
+
 def f_cli_verbs() -> int | str:
-    """Verbs enumerated in REQ-CLI-006's own paragraph — the SPEC side of the set equality.
+    """Verbs enumerated in REQ-CLI-006's own paragraph — the SPEC side of the set equality,
+    AT plan-060's landing commit (see `CLI_VERBS_BASELINE_REV`).
 
     Scoped to the REQ block exactly as `test_cli_enumeration.py` scopes it, so backticked
     names elsewhere in cli.md cannot inflate the count.
     """
-    if not CLI_SPEC.is_file():
-        return inconclusive(f"no cli.md at {CLI_SPEC}")
-    text = CLI_SPEC.read_text(encoding="utf-8")
+    proc = subprocess.run(
+        ["git", "show", f"{CLI_VERBS_BASELINE_REV}:skills/yf-plan/spec/cli.md"],
+        capture_output=True, text=True, cwd=ROOT)
+    if proc.returncode != 0 or not proc.stdout:
+        return inconclusive(
+            f"the baseline commit {CLI_VERBS_BASELINE_REV[:10]} is not reachable in this "
+            f"clone — an unreachable baseline is INCONCLUSIVE, never a drift")
+    text = proc.stdout
     try:
         start = text.index("REQ-CLI-006:")
         end = text.index("Rationale:", start)

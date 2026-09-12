@@ -693,12 +693,11 @@ are per-skill (the three current models genuinely differ) and are specified in e
 - Path exclusion (REQ-OKF-CHK-003) is checked by `_shared/test_okf.py::exclude_globs_declared` (a
   synthetic `OKF-EXTENSION.md` carrying a §3b; removing it restores the findings) and
   `::overlap_invariant` (the two declared lists agree, and **both are non-empty** — the non-vacuity
-  half), plus `scripts/checks/check-fixture-carveout.sh` over a real bundle.
-- The corpus drift driver (REQ-OKF-CHK-004) is checked by
-  `scripts/checks/check-drift-driver-contract.sh`, which asserts a **nonexistent enumerated root
-  yields a different exit than a clean corpus**, and by `check-recipe-row.sh okf-index-drift`, which
-  asserts the row is present in `CHANGE-VALIDATION.md` **and** appears in a FULL-tier run's JSON — a
-  bare full-tier run cannot show this, since it already exits 0 before the row exists.
+  half). The former `check-fixture-carveout.sh` real-bundle pass was retired by plan-071 as an
+  unwired instrument.
+- The corpus drift driver (REQ-OKF-CHK-004) is exercised by the `okf-index-drift` row in
+  `CHANGE-VALIDATION.md`; its two former shell instruments (`check-drift-driver-contract.sh`,
+  `check-recipe-row.sh`) were retired by plan-071 as unwired.
 - Each *(testable)* REQ is the anchor a tagged test names.
 
 ## 6. References

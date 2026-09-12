@@ -7,18 +7,20 @@ description: Freeze yf-plan mechanism growth and convert the review loop from re
 id: plan-071-james-dixson-d19ce8
 author: james-dixson
 created: '2026-09-10'
-status: approved
+status: reconciling
 deliverable_class: standard
-fingerprint: f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
+fingerprint: ba0e9a44d11bc404efb0d9c596c3c99585aedd0803674f09b13011624c37c652
+epic: yf-mol-zi49
 ---
 # Plan: Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
 
 **ID:** plan-071-james-dixson-d19ce8
 **Author:** james-dixson
 **Created:** 2026-09-10
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
-**Fingerprint:** f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
+**Epic:** yf-mol-zi49
+**Fingerprint:** ba0e9a44d11bc404efb0d9c596c3c99585aedd0803674f09b13011624c37c652
 
 ## Objective
 Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
@@ -318,7 +320,7 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
 | SC1 | The verb count did not grow and dead verbs are gone: at most 32 `@cli.command` registrations remain (41 at scoping − 6 dead − `audit-close` − `parked` − `judgement-never-fired-report` = 32, slack zero) | `test $(grep -c '@cli.command(' skills/yf-plan/scripts/plan_manager.py) -le 32` → exit 0 | 4.1, 4.3 |
 | SC2 | The REQ-LAND set is pruned to at most 22 ids and `spec/landing.md` to at most 350 lines | `test $(grep -Eo 'REQ-LAND-[0-9]+[a-z]*' skills/yf-plan/spec/landing.md \| sort -u \| wc -l) -le 22 && test $(wc -l < skills/yf-plan/spec/landing.md) -le 350` → exit 0 | 0.4 |
 | SC3 | No merged or deleted REQ-LAND id survives anywhere outside `spec/landing.md` (an invariant: green today, red between Issues 0.4 and 3.3, green after; `-I` and `--exclude-dir=__pycache__` because ugrep prints binary-match lines on stdout — pass-3 C1) | `test -z "$(comm -13 <(grep -Eo 'REQ-LAND-[0-9]+[a-z]*' skills/yf-plan/spec/landing.md \| sort -u) <(grep -rhoEI 'REQ-LAND-[0-9]+[a-z]*' skills/yf-plan SPEC.md --exclude-dir=formulas --exclude-dir=__pycache__ \| sort -u))"` → exit 0 | 3.1, 3.3 |
-| SC4 | The unpoured review formulas are deleted | `ls skills/yf-plan/formulas/plan-review.formula.toml skills/yf-plan/formulas/verify-artifact.formula.toml` → exit 2 | 2.5 |
+| SC4 | The unpoured review formulas are deleted (clause amended during execution: `ls` exits 1 on BSD and 2 on GNU for missing operands, so the original `→ exit 2` could never hold on macOS — ESC-001) | `test ! -e skills/yf-plan/formulas/plan-review.formula.toml && test ! -e skills/yf-plan/formulas/verify-artifact.formula.toml` → exit 0 | 2.5 |
 | SC5 | The red-team brief carries the execution-pass contract and a brief without it fails the contract test | `grep -q 'REQ-AGENT-066' skills/yf-plan/scripts/test_review_agent_contract.py && uv run skills/yf-plan/scripts/test_review_agent_contract.py` → exit 0 | 2.1, 2.3 |
 | SC6 | `ready-check` refuses a prose criterion and an unrunnable command, and passes a clause-form plan | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` → exit 0 | 2.4 |
 | SC7 | The `fidelity` retrospective kind is accepted with both numbers and refused without them | `grep -q 'fidelity' skills/yf-plan/scripts/test_retrospective.py && uv run skills/yf-plan/scripts/test_retrospective.py` → exit 0 | 1.1, 1.2 |

@@ -568,6 +568,8 @@ Two passes, in order. Both agents are read-only with respect to the repository u
 
    PLAN: {plan_dir}/plan.md
    PRIOR PASSES: {reviews/pass-*.md, if any}
+   PASS INDEX: {count of reviews/pass-*.md + 1}
+   SKILL_DIR: {SKILL_DIR}
    ```
 
    Use `Agent` with `subagent_type="general-purpose"`. The agent is **read-only with respect to the repository
@@ -576,10 +578,26 @@ Two passes, in order. Both agents are read-only with respect to the repository u
    `log.md` `review-pass:` bullet, as the create-on-present step below describes.
 
    **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Under the
-   **autonomous default**, *the main session* resolves the concerns and **re-dispatches** the red-team,
-   cycling to `APPROVE` **without an operator acknowledgement per cycle** — bounded by `max_review_cycles`.
+   **autonomous default**, *the main session* resolves the concerns and **re-dispatches** the red-team
+   **without an operator acknowledgement per cycle** — bounded by `max_review_cycles` (default 5).
    Report the verdict and concerns; do not stop for them. Under `checkpointed`, present them to the operator
    and wait.
+
+   **The loop has the shape TWO-THEN-EXECUTE (REQ-PLAN-030 as amended, REQ-AGENT-066).** The pass index
+   is the count of existing `reviews/pass-*.md` plus one. **Passes 1 and 2 are reading passes**; **pass 3
+   and every later pass is an execution pass**: the red-team runs the shipped bundle checkers (`doc_lint`,
+   `plan_extract --strict`, `gate_consistency.py`, `check_amendment_log.py`, `check-req-coverage.py`,
+   `okf.py reindex --check`, `audit`) and every clause-form Success Criteria command, re-verifies every
+   prior pass's `resolved` cell by running the evidence it names (#306), and records each exit code in a
+   `Measurements` table. Every pass file carries `**Mode:** reading` or `**Mode:** execution` on the line
+   under its verdict heading. **Convergence is an execution pass with zero `measured:` findings**, which
+   returns `APPROVE` — the loop is not "resolve and re-dispatch until APPROVE" with no terminating rule
+   (#286). A pass that reads a converged plan and manufactures a concern is the failure this shape removes.
+
+   **The finding vocabulary is closed (#390).** A cross-artifact claim — "the test does not cover X", "the
+   verb has no caller", "the resolution was only half made" — is **`measured:`** with the command and its
+   output, or it is labelled **`inferred:`**. An `inferred:` finding cannot be `high` and cannot block
+   approval; only a `measured:` finding can. The `Basis` column of the Concerns table carries the token.
 
    **Honesty clause (R2/R3).** REQ-AGENT-049 constrains this *text*, not reviewer conduct: that a pass was
    genuinely dispatched has no exit code, and `ctl-184-dispatch` does not claim to verify it.
@@ -613,9 +631,13 @@ has burned `N` review cycles should not silently resume.
 
 **Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends a `log.md` **`- review-pass:`** bullet, as a **single atomic step**. The token is `review-pass:`, **not** `review:` — a `review:` bullet is what a *status transition into the review phase* writes, and counting both against the pass-file total made a correct bundle hard-fail the audit (REQ-PORT-006 as amended by plan-047 Issue 0.9b/2.7). Like `intake:` and `validated:`, `review-pass:` is a recognized non-status token: it never advances `status`. The file captures, verbatim:
 
-- **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE)
+- **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE), with the **`**Mode:** reading|execution`** line
+  directly beneath it
 - **Strengths**
-- **Concerns** — each with severity (high/medium/low) and recommendation, verbatim
+- **Concerns** — each with severity (high/medium/low), its `Basis` (`measured:` command + exit, or
+  `inferred:`) and recommendation, verbatim
+- **Measurements** — on an execution pass, the table of every checker and criterion command run, with
+  its exit code
 - **Missing** sections
 - **Gate Assessment** and **Upstream Assessment**
 - A **Resolutions** table with one row per concern and status `unresolved`, in this shape
@@ -662,7 +684,7 @@ On audit pass, transition to INTAKE. On audit fail, stay in PLAN — the operato
 
 ### Ready-for-approval gate (before the approval prompt)
 
-Do **not** solicit operator approval until the plan is genuinely *ready*. Run `ready-check` — it verifies **both** preconditions in one place: the **last recorded** red-team verdict is `APPROVE` (REQ-PLAN-030) **and** the portability audit passes (REQ-PLAN-033). It exits `3` (not ready) or `0` (ready):
+Do **not** solicit operator approval until the plan is genuinely *ready*. Run `ready-check` — it verifies the preconditions in one place: the **last recorded** red-team verdict is `APPROVE` (REQ-PLAN-030), the portability audit passes (REQ-PLAN-033), and — **REQ-PLAN-085: `ready-check` executes what it approves** — every Success Criteria row is clause-form or `manual:`, every clause-form command **smoke-runs** under `bash -c` with a 30s bound (exit 126/127, a timeout, a `usage:`/`unrecognized arguments`/`command not found` on stderr, or a `No such file` on a path the plan's `## Epics` text does not name fails the row by id; a command that is GREEN while reporting a missing input is the #356/#364 false-pass polarity and fails too), `gate_consistency.py` runs over the bundle (FAIL blocks; INCONCLUSIVE is reported), and `stale_approved` is surfaced. The verdict's `criteria.rows` lists every row's smoke result. It exits `3` (not ready) or `0` (ready):
 
 ```bash
 READY_JSON=$(uv run ${SKILL_DIR}/scripts/plan_manager.py ready-check "${plan_dir}" --json) || true
@@ -1661,68 +1683,54 @@ epics open under a closed molecule is exactly the #73 defect (stale "ready" cont
 `bd ready`). A container with any still-open child is a **hard failure** — the cascade exits
 non-zero and completion **halts** (never a silent close, never a silent `complete`).
 
-**Reconcile-time re-confirm of the deliverable class (C5, REQ-PLAN-069a).** Before the gate runs,
-the merged-tree changed paths are now available (they may have been absent at intake §4.1.5).
-Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
-present it and let the operator confirm/override:
-
-**Close-time bundle-conformance audit (ADVISORY, REQ-PLAN-075 / #140) — runs FIRST.** Its
-position is the chain's read-before-write constraint (REQ-COMPLETE-001 constraint 1): it must
-sit **above the `classify-deliverable` block below**, because that block contains the
-`set-deliverable-class` **plan.md dual-write**. Placing it merely above the `log.md` write is
-not enough, and placing it at the *bottom* of this block would make it judge artifacts the
-close step itself wrote microseconds earlier — a real, previously-observed failure.
+**Gate consistency (HALTING, REQ-PLAN-085 / #325) — runs FIRST.** `ready-check` already ran this
+engine before approval (Issue 2.4), so at close it is a **regression guard**: a `## Gates` edit
+made during execution that contradicts a gate's own Blocks set halts here rather than surfacing
+as a wedged reconcile. It sits in the former `audit-close` slot (plan-071 Issue 4.4).
 
 ```bash
-AUDIT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py audit-close "${plan_dir}" --json)
-echo "$AUDIT"
-# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. Findings are a
-# recommendation to run `/yf-plan capture <plan-id>`, not a halt. Do NOT add a
-# `FAIL-LOUD:` banner here — that vocabulary is reserved for halting steps.
+GATES=$(uv run ${SKILL_DIR}/scripts/plan_manager.py gate-consistency "${plan_dir}" --json)
+GATES_RC=$?
+echo "$GATES"
+if [ "$GATES_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: gate-consistency did not pass (exit $GATES_RC — 1 is a contradicting gate,"
+  echo "2 means gates are declared but none could be evaluated). Completion HALTS; do NOT set"
+  echo "'complete'. Fix the plan's ## Gates, then re-run §6.4."
+  exit 1
+fi
 ```
 
-> **Grandfathering caveat.** The audit's legacy downgrade keys on `log.md`'s `scoping:`
-> entries. A `log.md` write that drops them silently promotes `warn` findings to `fail` — which
-> is another reason this step reads *before* the close step writes.
-
-**Close-time retrospective report (ADVISORY, 4.4) — runs before the `classify-deliverable`
-block below.** Its position is the same read-before-write constraint (REQ-COMPLETE-001
-constraint 1) that puts `audit-close` first: it is an **observing** step, and the block below
-contains the `set-deliverable-class` plan.md dual-write.
+**Close-time retrospective report (ADVISORY) — runs next, above the `classify-deliverable`
+block below.** Its position is the chain's read-before-write constraint (REQ-COMPLETE-001
+constraint 1): it is an **observing** step, and the block below contains the
+`set-deliverable-class` **plan.md dual-write**. Placing an observing step at the *bottom* of this
+block would make it judge artifacts the close step itself wrote microseconds earlier — a real,
+previously-observed failure.
 
 ```bash
 RETRO=$(uv run ${SKILL_DIR}/scripts/plan_manager.py retrospective-report "${plan_dir}" --json)
 echo "$RETRO"
 # ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. An ABSENT
-# plan-retrospective.md is a legitimate state, not a finding. Do NOT add a `FAIL-LOUD:`
-# banner here — that vocabulary is reserved for halting steps.
+# plan-retrospective.md is a legitimate state, not a finding. The report also carries the
+# `judgement` (did the yf-judgement trigger leave an echo) and `escalations` (raised / open /
+# pushed) sections that used to be a separate verb. Do NOT add a `FAIL-LOUD:` banner here —
+# that vocabulary is reserved for halting steps.
 ```
 
-**Close-time yf-judgement never-fired report (ADVISORY, plan-059 Issue 5.2) — an OBSERVING
-step, so it sits in the same read-before-write band as the two above.**
+*(plan-071 Issue 4.3 / REQ-PLAN-086: the former `audit-close` step — the plan-phase `audit`
+engine run a second time at close, exit 0 unconditionally — and the former
+`judgement-never-fired-report` verb were removed. Neither could fail; the second is now a section
+of the report above. The `gate-consistency` engine takes the former `audit-close` slot in the
+chain as a **halting** regression guard, Issue 4.4.)*
 
-```bash
-JUDGEMENT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py judgement-never-fired-report "${plan_dir}" --json)
-echo "$JUDGEMENT"
-# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. It answers "did the
-# trigger RUN", not "did it find anything" — a trigger that never fires and a trigger that is
-# not installed produce the same silence, and this repository has four recorded instances of
-# exactly that. Do NOT add a `FAIL-LOUD:` banner here — that vocabulary is reserved for
-# halting steps.
-```
-
-**Read the limits, which the verb states about itself.** This report is **defence in depth,
-not the primary remedy**. The load-bearing mechanism is the trigger writing its own
-`judgement:` echo to `log.md` on both the fired and not-fired paths — nothing has to remember
-for that to happen. Fronting the report as a `plan_manager.py` verb buys exactly one thing:
-`test_close_contract.py` enumerates this block from `SKILL.md`, so a step **added** without
-the envelope is detected. It does **not** detect a step **removed**, and it never establishes
-that §6.4 was run at all.
-
+**Reconcile-time re-confirm of the deliverable class (C5, REQ-PLAN-069a).** Before the gate runs,
+the merged-tree changed paths are now available (they may have been absent at intake §4.1.5).
+Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
+present it and let the operator confirm/override:
 
 ```bash
 # `HEAD^1..HEAD`, NEVER the three-dot symmetric-difference form against the merge target
-# (REQ-LAND-025, #303) — spelled in prose here rather than literally, because SC34
+# (REQ-LAND-004, #303) — spelled in prose here rather than literally, because SC34
 # asserts that literal's ABSENCE from this file and a comment naming it would defeat
 # the check while looking like documentation. The three-dot
 # form runs at a moment when `HEAD == MERGE_TARGET`, so it is EMPTY BY CONSTRUCTION and
@@ -1959,7 +1967,7 @@ Without plan-id: show all plans with bead counts.
 not executed) so an intake'd-but-unexecuted plan is never silently forgotten:
 
 ```bash
-PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
+PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py list --parked --json)
 COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
 ```
 
@@ -1974,7 +1982,7 @@ so an approved-but-unexecuted plan is caught before the session ends. This is a 
 documented script-verb step** — never a harness hook or scheduler:
 
 ```bash
-PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
+PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py list --parked --json)
 COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
 # COUNT > 0 → report: "N plan(s) approved but not executed — run /yf-plan execute <id>."
 ```

@@ -872,19 +872,19 @@
 >   Implementation lands in Epics 1-5; this entry records the SPEC-first Epic 0 amendment.
 > - **plan-062 (2026-09-03, #327 / #326-deferred / #266-partial / #304-partial):** wire
 >   `land --apply` to `_land_execute`, and make the seam testable — added
->   **`REQ-LAND-028`** (`land --apply` **shall reach the executor**; a build whose CLI does not
+>   **`REQ-LAND-010 (as merged by plan-071 from 028)`** (`land --apply` **shall reach the executor**; a build whose CLI does not
 >   invoke `_land_execute` is non-conformant, however comprehensively `_land_execute` itself is
->   tested) and **`REQ-LAND-029`** (a resume **shall not re-execute** a step whose journal state
+>   tested) and **`REQ-LAND-011 (as merged by plan-071 from 029)`** (a resume **shall not re-execute** a step whose journal state
 >   is reached, and shall mark skipped steps explicitly in `results`, with FORWARD resolution for
 >   the three unjournaled keys and an `l0_lock_acquire` exemption). Revised
 >   **`REQ-LAND-011`**'s `Verification:` line, which named `test_stale_decision_halts_before_merge`
 >   — a **staleness** test standing as the verification of a **resumability** requirement — and now
->   names `test_resume_skips_completed`. **`REQ-LAND-027` is deliberately RESERVED, not skipped
+>   names `test_resume_skips_completed`. **`the formerly reserved landing id 027 (retired by plan-071)` is deliberately RESERVED, not skipped
 >   silently:** it is held for the deferred `draft_body_path` OKF-frontmatter fix (#326), whose
 >   complete verified design is recorded in `findings/exp-003`, so the id sequence carries a
 >   documented hole rather than an unexplained gap.
 >
->   **Why REQ-LAND-028 is a requirement and not a bug fix.** `_land_execute` drives all fifteen
+>   **Why REQ-LAND-010 (as merged by plan-071 from 028) is a requirement and not a bug fix.** `_land_execute` drives all fifteen
 >   `LAND_EXECUTOR` steps, advances the journal, is fail-closed, and was covered by a passing
 >   suite — while having **exactly one occurrence in the file, its own `def`**. `--apply` returned
 >   an unconditional "executor is not implemented" stub, so the **sole writing mode** of the
@@ -894,7 +894,7 @@
 >   invokes. A one-line fix closes the instance; a requirement plus a seam-level test closes the
 >   class, which is why both land here.
 >
->   **Why REQ-LAND-029 lands FIRST, before the wiring.** `depends-on` ordering is not atomicity.
+>   **Why REQ-LAND-011 (as merged by plan-071 from 029) lands FIRST, before the wiring.** `depends-on` ordering is not atomicity.
 >   The `resume_from` block contained `for key, _ in LAND_EXECUTOR: pass`; `done` was stored and
 >   **loaded nowhere**. Measured in a sandbox, a resume after a halt at L17 re-executed all fifteen
 >   steps from L0, including `l6_push_one` and `l7_reconcile_writes` — so wiring the seam first
@@ -908,27 +908,27 @@
 >   **complete correctly or fail legibly** — added **`REQ-LAND-030`** (**step dispatch is
 >   fail-closed**: an exception raised by a `LAND_EXECUTOR` step is caught and returned *directly*
 >   as a halting `inconclusive` row with `journal: null`, `KeyboardInterrupt`/`SystemExit`
->   re-raised, process exit **1**), **`REQ-LAND-031`** (L18's teardown is **non-forcing** —
+>   re-raised, process exit **1**), **`REQ-LAND-004 (as merged by plan-071 from 031)`** (L18's teardown is **non-forcing** —
 >   `force=False` in keyword form — issues no duplicate `git branch -d`, and **branches on the
 >   returned `status`**, reporting an absent `status` as `inconclusive`), **`REQ-LAND-032`**
 >   (L16's commit **and its staged-changes guard** are path-scoped to `<plan_dir>`, with the
->   `-m <msg> -o -- <dir>` argument order normative), **`REQ-LAND-033`** (L16's post-condition
+>   `-m <msg> -o -- <dir>` argument order normative), **`REQ-LAND-032 (as merged by plan-071 from 033)`** (L16's post-condition
 >   reads `--porcelain=v1 -uall -z` and exempts `.yf/plan/` by **path prefix over the path
->   field**, with exactly one definition site, `_dirty_outside_plan_dir`), **`REQ-LAND-034`**
+>   field**, with exactly one definition site, `_dirty_outside_plan_dir`), **`REQ-LAND-026 (as merged by plan-071 from 034)`**
 >   (a **primary checkout dirty outside the plan folder is a HALTING `--dry-run` finding**,
 >   computed via that same single helper), **`REQ-LAND-035`** (a decision document **and every
 >   `body_path` it names** live outside the work tree; the refusal sits beside
 >   `_land_assert_primary_checkout` and **before** the tty gate; `apply_command` defaults the
->   decision path to `${TMPDIR:-/tmp}/<plan-id>-decision.json`), and **`REQ-LAND-036`** (the
+>   decision path to `${TMPDIR:-/tmp}/<plan-id>-decision.json`), and **`REQ-LAND-002 (as merged by plan-071 from 036)`** (the
 >   `manifest_digest`'s **coverage set excludes LANDING-MUTATED facts**, exhaustively
 >   `execute_worktree_present` and `execute_worktree_dirty`, because L18's own teardown flips
 >   them mid-landing). Amended **`REQ-LAND-020`** (a post-condition **shall be able to see what
 >   the step did** — a step whose write removes the evidence its post-condition inspects is not
 >   fail-closed however the assertion is worded), and amended **`REQ-LAND-002`** and
->   **`REQ-LAND-011`**, whose "**re-derive every fact**" wording contradicted REQ-LAND-036's
+>   **`REQ-LAND-011`**, whose "**re-derive every fact**" wording contradicted REQ-LAND-002 (as merged by plan-071 from 036)'s
 >   exclusion; both now read against the digest's **coverage set**.
 >
->   **Why the exclusion is a SPEC change and not an implementation detail.** REQ-LAND-036 is a
+>   **Why the exclusion is a SPEC change and not an implementation detail.** REQ-LAND-002 (as merged by plan-071 from 036) is a
 >   **normative deviation** from two shipped requirements. Left unamended, a halt after a partial
 >   L18 would re-derive a manifest that mismatches on a fact **the landing itself changed** and
 >   route the operator back to `--dry-run` for a mutation performed on purpose. The verifying
@@ -1020,7 +1020,8 @@
 >   the call site instead of the callee" finding, recurring on a third engine. Pinning the new
 >   criteria to **new** test names prevents *inheriting* a false green but never *detects* one, so
 >   the plan additionally adds a **negative control** (`check-crash-test-detects-lag.sh`, with a
->   `--req` arm covering both) that reverts each fix in a sandbox and asserts the test **FAILS**.
+>   `--req` arm covering both) that reverts each fix in a sandbox and asserts the test **FAILS**
+>   (that control was never wired into CI or CHANGE-VALIDATION and was retired by plan-071).
 >
 >   **Declared `no-req-required` set: {1.7, 5.1, 5.2, 5.3, 5.4, 5.5}** — a `.gitignore` entry, two
 >   `CHANGE-VALIDATION.md` trigger-scope rows, and three upstream comment/issue/bead filings. None
@@ -1218,21 +1219,21 @@
 >   than as an exemption. Its companion test fails once a member grows a `root=`, so the list
 >   cannot outlive the defect it records.
 >
->   **`REQ-LAND-031`'s carve-out is RETIRED as an over-read, and `REQ-LAND-031` itself is
+>   **`REQ-LAND-004 (as merged by plan-071 from 031)`'s carve-out is RETIRED as an over-read, and `REQ-LAND-004 (as merged by plan-071 from 031)` itself is
 >   UNCHANGED.** It mandates calling `_worktree_teardown` with `force=False` in **keyword** form
 >   and **branching on the returned `status`** — it constrains the *call* and says nothing about
 >   how the callee launches. `_worktree_teardown(ctx.plan_dir, force=False, root=ctx.root,
 >   runner=ctx.run)` satisfies it verbatim while fully on the seam, and the precedent already
 >   exists at L16: `_dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)`.
->   plan-068's EXP-001 recorded L18 as "deliberately off-seam per REQ-LAND-031"; that finding
+>   plan-068's EXP-001 recorded L18 as "deliberately off-seam per REQ-LAND-004 (as merged by plan-071 from 031)"; that finding
 >   over-read the requirement and an earlier draft adopted the over-reading unchecked.
 >
 >   **Cited but NOT amended**, recorded so a reader does not mistake a citation for a change:
->   `REQ-LAND-031` (above). **`REQ-LAND-018` and `REQ-LAND-036` are NOT this plan's** — the
+>   `REQ-LAND-004 (as merged by plan-071 from 031)` (above). **`REQ-LAND-002 (as merged by plan-071 from 018)` and `REQ-LAND-002 (as merged by plan-071 from 036)` are NOT this plan's** — the
 >   rationale amendment and the exclusion-table amendment both belong to **plan-069**, which
 >   plan-068 Issue 3.3 *verifies* rather than performs. An earlier draft over-claimed both, and
 >   plan-069's text falsely asserted plan-068 had already done them; both attributions are
->   corrected. `REQ-LAND-027` stays deliberately reserved and is not consumed.
+>   corrected. `the formerly reserved landing id 027 (retired by plan-071)` stays deliberately reserved and is not consumed.
 >
 >
 >   **Amended `REQ-LAND-002`** — **ambient HEAD is not a fact.** "Every fact shall be re-derived at
@@ -1320,6 +1321,67 @@
 >   indistinguishable from one that violates it.
 >
 >   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
+>
+> - **plan-071 (2026-09-12, #323 / #338 / #384 / #286 / #364 / #325 / #390 / #392-partial /
+>   #356-partial / #358-partial / #306-partial):** **freeze yf-plan mechanism growth, convert
+>   the review loop from reading to executing, adopt an approval-to-landing fidelity metric, and
+>   subtract the declared-but-unenforced layers.** Four new ids, one amendment, one spec rewrite;
+>   every implementation epic depends on an Epic 0 issue that names its requirement.
+>
+>   **Added `REQ-AGENT-066`** (`skills/yf-plan/spec/agents.md`) — **the execution-pass
+>   contract.** Red-team passes 1–2 may read; pass 3 and every later pass runs the shipped bundle
+>   checkers and every clause-form criterion, re-verifies every prior `resolved` cell (#306),
+>   emits `**Mode:** reading|execution` under the verdict heading, and raises only `measured:`
+>   findings at `high` — an `inferred:` finding cannot block (#390). An execution pass with zero
+>   measured findings returns `APPROVE`: the convergence standard (#286). **Cited, not amended:**
+>   `REQ-AGENT-049` (dispatch as a sub-agent) and `REQ-AGENT-043` (read-only with a sandbox
+>   spike) — the execution pass runs *under* both.
+>
+>   **Amended `REQ-PLAN-030`** (`skills/yf-plan/SPEC.md`) — the review loop has the shape
+>   **two-then-execute**; `max-review-cycles` stays 5; the `plan-review` and `verify-artifact`
+>   formulas, which had zero pour callers, are removed as dead code (a bug fix to the shipped
+>   shape, no new id).
+>
+>   **Added `REQ-PLAN-084`** (`skills/yf-plan/SPEC.md` §2.7) — **the fidelity metric.** Two
+>   derived numbers, `sc_flipped_post_approval` (the `Verification` column diffed against the
+>   intake commit, plus rows FALSE under a fresh `recheck-criteria`) and `halts_post_irreversible`
+>   (`- landing-halt:` bullets in `log.md` at or after `L_PUSHED_1`, written by `land --apply`'s
+>   halt path; `no-record` where the bullet predates the bundle). `retrospective-report
+>   --fidelity` derives them; `retrospective-append --kind fidelity` records them. **No new verb.**
+>
+>   **Added `REQ-PLAN-085`** (`skills/yf-plan/SPEC.md` §2.4) — **`ready-check` executes what it
+>   approves.** Every Success Criteria row is clause-form or `manual:`; every command is
+>   smoke-run under `bash -c` (exit 126/127, timeout, usage/argparse errors fail; `No such file`
+>   fails unless the path is a declared deliverable named in `## Epics`, allow-list derived from
+>   `plan_extract.py`); `gate_consistency.py` runs at `ready-check` (#325); `stale_approved` is
+>   surfaced. A halting close-chain verb's exit 2 **halts** (`halt_reason: inconclusive`, verdict
+>   kept three-valued).
+>
+>   **Added `REQ-PLAN-086`** (`skills/yf-plan/SPEC.md` §2.9) — **the freeze and the retention
+>   standard.** Live call path **and** a fixture-failing test, or it is deleted. The ceilings are
+>   machine-read from the requirement: `verb_ceiling = 32` (41 − 6 dead − `audit-close` −
+>   `parked` − `judgement-never-fired-report`), `req_land_ceiling = 22` (39 − 3 deleted − 14
+>   absorbed). The one freeze exception is `scripts/checks/check-provably-necessary.py`, the
+>   check that enforces it.
+>
+>   **Rewrote `skills/yf-plan/spec/landing.md`** (Issue 0.4) from the tree as it is — plan-070 is
+>   deferred, so **the thirty-ninth id its unlanded draft reserved does not exist and is not
+>   allocated here** (the family ends at 038; that id is named nowhere in the tree, by design,
+>   so the freeze's residue grep stays clean). 39 ids → 22.
+>   Kept verbatim: 001, 006, 010, 013, 014, 017, 019, 035, and 026 as the anchor of the dry-run
+>   group. Merged: 002+003+018+036 → 002 (re-derivation and digest; 018's unimplemented
+>   "re-preview before merge" claim dropped); 004+005+025+023+031 → 004 (the order table;
+>   023/031's L18 rules become that row's text); 006+007+008+009 → 006 (the journal);
+>   011+029 → 011 (resume); 032+033 → 032 (L16); 024+034+026 → 026 (the dry-run contract).
+>   Rewritten as forward requirements: 012, 017a, 020, 021, 022, 030, 037 (the `DERIVED:` fence
+>   kept), 038. Deleted: 016, 027, 028 (patch-log entries with no forward requirement).
+>   **Narrowed `REQ-LAND-015`** to the two `route_record` stamps that exist — the `land` apply
+>   journal and the tty-refusal envelope — dropping the per-gate-close clause nothing writes; the
+>   writer-less reader `_land_route_record_findings` is deleted under the retention standard, so
+>   #393 closes by subtraction. "20 logical steps, 15 executor keys" is stated once. Every
+>   retained id keeps a one-line `Verification:` naming an existing test.
+>
+>   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
 

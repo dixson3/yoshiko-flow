@@ -284,8 +284,9 @@ reported as **inconclusive**, never as a pass.
 
 A formula that **weaves into another formula's steps at cook time** rather than being poured as a
 molecule of its own. It declares no steps to run on its own and is attached by the consumer,
-through the consumer's own `[compose] aspects`. `verify-artifact` is the shipped example — which
-is why it appears in the shipped-formula count while never producing a molecule.
+through the consumer's own `[compose] aspects`. No shipped formula is an aspect today: the former
+`verify-artifact` example was removed with the unpoured `plan-review` formula (plan-071), so the
+shipped-formula count contains workflows only.
 
 ### closable
 

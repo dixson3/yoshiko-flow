@@ -136,6 +136,10 @@ def test_landing_spec_enumerates_steps_and_journal_states():
 
     for name in ("REQ-LAND-013", "REQ-LAND-014", "REQ-LAND-015"):
         assert name in text
+    # plan-071 Issue 3.1 (REQ-PLAN-086): the REQ-LAND family is FROZEN at the pruned set.
+    # Counted as distinct id STRINGS, the same measurement SC2 and the freeze check make.
+    ids = set(re.findall(r"REQ-LAND-\d+[a-z]*", text))
+    assert len(ids) <= 22, f"{len(ids)} REQ-LAND ids in the spec — the freeze ceiling is 22"
     assert "not prevention" in text
     assert "detection, not prevention" in text
     assert "herdr pane run" in text
@@ -146,9 +150,9 @@ def test_landing_spec_enumerates_steps_and_journal_states():
 # =========================================================================================
 
 def test_journal_recovery_every_state(repo):
-    """SC19 / Issues 3.1, 3.7 / REQ-LAND-009.
+    """SC19 / Issues 3.1, 3.7 / REQ-LAND-006.
 
-    TOTAL over the state set: every one of the seventeen is written and recovered. A recovery
+    TOTAL over the state set: every one of the sixteen is written and recovered. A recovery
     table that is total over 13 of 17 is the `okf_hygiene` S1 defect again.
     """
     j = pm.LandingJournal(repo, PLAN_ID)
@@ -202,13 +206,13 @@ def test_a_corrupt_journal_is_not_an_absent_one(repo):
 
 
 def test_journal_recovery_is_keyed_on_phase_not_observed_state(repo):
-    """REQ-LAND-009, and this is the assertion that actually pins the property.
+    """REQ-LAND-006, and this is the assertion that actually pins the property.
 
     The tree is made IDENTICAL for two different recorded phases. Anything keyed on observed
     state must answer the same for both; the journal answers differently, which is the point.
     """
     j = pm.LandingJournal(repo, PLAN_ID)
-    # Snapshot AFTER the first write: the journal is staged INSIDE the tree (REQ-LAND-008),
+    # Snapshot AFTER the first write: the journal is staged INSIDE the tree (REQ-LAND-006),
     # so its own directory is part of the tree state. Capturing before would compare a tree
     # with no journal against a tree with one and prove nothing about phase-vs-observation.
     j.write("L_LOCKED")
@@ -516,215 +520,6 @@ def test_conflict_states_have_non_uniform_recoveries():
         "closed and `status: complete` written")
 
 
-def test_route_record_check_sees_a_CLOSED_gate(repo, monkeypatch):
-    """REQ-LAND-015 regression. THE CHECK MUST BE ABLE TO FIRE AT ALL.
-
-    THE DEFECT THIS PINS, measured on the live tree: `_land_route_record_findings` queried
-    `bd list --type gate` WITHOUT `--all`, and **`bd list` excludes closed issues by
-    default**. A route record is stamped AT CLOSE, so the two reachable states were:
-
-        gate OPEN   -> no route_record yet   -> `if not rr: continue` -> nothing to flag
-        gate CLOSED -> record exists         -> INVISIBLE TO THE QUERY
-
-    There is no third state, so the check could never fire — for any gate, ever. A CHECK THAT
-    CANNOT FAIL, shipped as the detection control for dixson3/yoshiko-flow#293, by the plan
-    whose subject is checks that cannot fail.
-
-    THE FAKE `bd` REPRODUCES THE REAL SEMANTICS rather than just returning the gate: it
-    returns the closed gate ONLY when `--all` is present. So this test is RED against the
-    unfixed query and GREEN against the fixed one, which is the property that makes it a
-    regression test rather than a restatement.
-    """
-    pdir = repo / "docs" / "plans" / PLAN_ID
-    # The **Epic:** field is a HEADER field and must sit ABOVE the first `## ` heading —
-    # `_read_plan_field` reads the header block only. Appending it at end-of-file (an earlier
-    # draft of this fixture) leaves it unread, and the check then returns early having never
-    # queried bd, which looks exactly like the bug under test. A fixture that reproduces the
-    # symptom for the wrong reason is worse than no fixture.
-    t = (pdir / "plan.md").read_text(encoding="utf-8")
-    t = t.replace("\n## ", "\n**Epic:** yf-mol-test\n\n## ", 1)
-    (pdir / "plan.md").write_text(t, encoding="utf-8")
-
-    gate = {
-        "id": "yf-mol-test.8",
-        "title": "Gate: a human consent gate",
-        "status": "closed",
-        "issue_type": "gate",
-        "metadata": {
-            "gate_type": "human",
-            "route_record": {
-                "has_tty": False,
-                "agent_markers": ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"],
-                "closed_by": "execution-agent",
-            },
-        },
-    }
-
-    calls: list[list[str]] = []
-
-    class _P:
-        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
-
-    real_run = subprocess.run
-
-    def fake_run(args, *a, **kw):
-        if isinstance(args, list) and args and args[0] == "bd":
-            calls.append(args)
-            # REAL SEMANTICS: closed issues are returned ONLY with --all.
-            return _P(json.dumps([gate] if "--all" in args else []))
-        return real_run(args, *a, **kw)
-
-    monkeypatch.setattr(pm.subprocess, "run", fake_run)
-    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
-
-    findings = pm._land_route_record_findings(Path("docs/plans") / PLAN_ID)
-
-    assert calls, "the check never queried bd at all"
-    assert any("--all" in c for c in calls), (
-        "the bd gate query omits --all, so it can never see a CLOSED gate — and a route "
-        "record only exists once the gate is closed. The check cannot fire.")
-    assert len(findings) == 1, (
-        f"expected the agent-closed human gate to be flagged, got {findings}")
-    f = findings[0]
-    assert f["status"] == "fail"
-    assert "yf-mol-test.8" in f["item"]
-    assert "CLAUDECODE" in f["detail"]
-    assert "DETECTION, not prevention" in f["detail"]
-
-
-def test_route_record_check_does_not_flag_a_clean_close(repo, monkeypatch):
-    """The other direction. Flagging a CLEAN record would claim it proves a human, which it
-    cannot — the markers are strippable, so absence is weak evidence (REQ-LAND-015)."""
-    pdir = repo / "docs" / "plans" / PLAN_ID
-    # The **Epic:** field is a HEADER field and must sit ABOVE the first `## ` heading —
-    # `_read_plan_field` reads the header block only. Appending it at end-of-file (an earlier
-    # draft of this fixture) leaves it unread, and the check then returns early having never
-    # queried bd, which looks exactly like the bug under test. A fixture that reproduces the
-    # symptom for the wrong reason is worse than no fixture.
-    t = (pdir / "plan.md").read_text(encoding="utf-8")
-    t = t.replace("\n## ", "\n**Epic:** yf-mol-test\n\n## ", 1)
-    (pdir / "plan.md").write_text(t, encoding="utf-8")
-    gate = {"id": "yf-mol-test.8", "title": "Gate: g", "status": "closed",
-            "issue_type": "gate",
-            "metadata": {"gate_type": "human",
-                         "route_record": {"has_tty": True, "agent_markers": []}}}
-
-    class _P:
-        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
-
-    real_run = subprocess.run
-    monkeypatch.setattr(pm.subprocess, "run",
-                        lambda args, *a, **kw: _P(json.dumps([gate]))
-                        if isinstance(args, list) and args and args[0] == "bd"
-                        else real_run(args, *a, **kw))
-    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
-    assert pm._land_route_record_findings(Path("docs/plans") / PLAN_ID) == []
-
-
-def test_route_record_check_agrees_across_address_spaces(repo, monkeypatch, tmp_path):
-    """REQ-LAND-015. THE CHECK MUST ANSWER THE SAME FROM BOTH ADDRESS SPACES.
-
-    THE DEFECT THIS PINS, measured on the live tree at 09c74f6: identical command, identical
-    plan_dir, `fail` from the primary checkout and `pass` from the execute worktree — because
-    `plan_dir/plan.md` is read RELATIVE TO CWD and the `**Epic:**` field is written
-    PRIMARY-SIDE, so the worktree's copy predates it. The check had TWO TRUTHS, and the wrong
-    one was a SILENT PASS.
-
-    The fixture reproduces exactly that asymmetry: the epic field exists only in the primary's
-    plan.md, and the linked worktree carries the pre-execution copy.
-    """
-    wt = repo / ".worktrees" / PLAN_ID
-    (repo / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
-    _git("add", "-A", cwd=repo); _git("commit", "-q", "-m", "ignore", cwd=repo)
-    assert _git("worktree", "add", "-q", str(wt), f"{PLAN_ID}-execute", cwd=repo).returncode == 0
-
-    # THE ASYMMETRY: the epic field lands PRIMARY-SIDE only, which is what the address-space
-    # model prescribes and what actually happens during execution.
-    pm_md = repo / "docs" / "plans" / PLAN_ID / "plan.md"
-    t = pm_md.read_text(encoding="utf-8").replace("\n## ", "\n**Epic:** yf-mol-test\n\n## ", 1)
-    pm_md.write_text(t, encoding="utf-8")
-    assert "yf-mol-test" not in (wt / "docs" / "plans" / PLAN_ID / "plan.md").read_text(
-        encoding="utf-8"), "the fixture must reproduce the asymmetry, not paper over it"
-
-    gate = {"id": "yf-mol-test.8", "title": "Gate: g", "status": "closed",
-            "issue_type": "gate",
-            "metadata": {"gate_type": "human",
-                         "route_record": {"has_tty": False,
-                                          "agent_markers": ["CLAUDECODE"]}}}
-    # The epic, stamped with metadata.plan_dir at pour time — the cwd-INDEPENDENT linkage.
-    epic_bead = {"id": "yf-mol-test", "title": "plan-execute", "status": "open",
-                 "issue_type": "epic",
-                 "metadata": {"plan_dir": f"docs/plans/{PLAN_ID}"}}
-
-    class _P:
-        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
-
-    real_run = subprocess.run
-
-    def fake_run(args, *a, **kw):
-        if isinstance(args, list) and args and args[0] == "bd":
-            if "--type" in args and "gate" in args:
-                return _P(json.dumps([gate] if "--all" in args else []))
-            return _P(json.dumps([epic_bead, gate]))
-        return real_run(args, *a, **kw)
-
-    monkeypatch.setattr(pm.subprocess, "run", fake_run)
-    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
-
-    rel = Path("docs/plans") / PLAN_ID
-    cwd0 = os.getcwd()
-    try:
-        os.chdir(repo)
-        from_primary = pm._land_route_record_findings(rel)
-        os.chdir(wt)
-        from_worktree = pm._land_route_record_findings(rel)
-    finally:
-        os.chdir(cwd0)
-
-    def shape(fs):
-        return sorted((f["status"], f.get("class", "finding"), f["item"]) for f in fs)
-
-    assert shape(from_primary) == shape(from_worktree), (
-        "THE CHECK HAS TWO TRUTHS depending on where the caller stands:\n"
-        f"  primary : {shape(from_primary)}\n"
-        f"  worktree: {shape(from_worktree)}\n"
-        "A control that answers differently by address space is not a control.")
-    assert from_primary, "both agreed — on NOTHING. Agreement on silence is not agreement."
-    assert any(f["status"] == "fail" for f in from_primary)
-
-
-def test_route_record_check_no_op_is_LOUD(repo, monkeypatch):
-    """The check must never return an empty list meaning "did not run".
-
-    `if not epic: return out` was silent, and every caller read the empty list as "checked and
-    clean". A control whose failure mode is indistinguishable from a clean result is the
-    defect this plan exists to remove. The no-op is now an INCONCLUSIVE-class finding —
-    `warn`, never `fail`, per REQ-DATA-057: an instrument that could not run must not
-    manufacture a verdict on the artifact.
-    """
-    class _P:
-        def __init__(self, out): self.returncode = 0; self.stdout = out; self.stderr = ""
-
-    real_run = subprocess.run
-    monkeypatch.setattr(pm.shutil, "which", lambda n: "/usr/bin/bd")
-    monkeypatch.setattr(pm.subprocess, "run",
-                        lambda args, *a, **kw: _P("[]")
-                        if isinstance(args, list) and args and args[0] == "bd"
-                        else real_run(args, *a, **kw))
-
-    out = pm._land_route_record_findings(Path("docs/plans") / PLAN_ID)
-    assert out, "an unresolvable epic must NOT return an empty list — that reads as `clean`"
-    assert out[0]["class"] == "inconclusive"
-    assert out[0]["status"] == "warn", "INCONCLUSIVE maps to warn, never fail (REQ-DATA-057)"
-    assert "DID NOT RUN" in out[0]["detail"]
-
-    # And when `bd` is absent entirely — also loud, for the same reason.
-    monkeypatch.setattr(pm.shutil, "which", lambda n: None)
-    out2 = pm._land_route_record_findings(Path("docs/plans") / PLAN_ID)
-    assert out2 and out2[0]["class"] == "inconclusive"
-    assert "not on PATH" in out2[0]["detail"]
-
-
 def test_no_target_taking_rewind_in_landing_path():
     """REQ-LAND-017a. No landing step issues a history-rewind that takes a TARGET REVISION.
 
@@ -777,7 +572,7 @@ def _teardown_ok(plan_dir, force=False, root=None, runner=None):
 
     Both axes were wrong, and only one of them is mechanically detectable. `check_mock_fidelity`
     binds `inspect.signature`, so it catches the arity; it is STRUCTURALLY BLIND to the RETURN
-    shape, and the return shape is what L18 branches on (REQ-LAND-031). The four shipped stubs
+    shape, and the return shape is what L18 branches on (REQ-LAND-004). The four shipped stubs
     returned `{"action": "removed"}` — a key `_worktree_teardown` NEVER produces.
 
     `root=` / `runner=` added by plan-068 Issue 1.2. The signature is spelled OUT rather than
@@ -895,14 +690,64 @@ def test_inconclusive_validation_is_not_coerced_to_fail(repo, monkeypatch):
 
 # -- SC23 / SC24 ---------------------------------------------------------------------------
 
-def test_prepush_recheck_is_advisory(repo):
-    """SC23 / Issue 4.2. L5 reports without halting — ADVISORY describes the VERDICT, not
-    whether it runs."""
-    out = pm._land_l5_advisory_recheck(_ctx(repo, FakeRunner()))
-    assert out["halting"] is False
-    assert out["verdict"] == "pass"
-    assert out["detail"]["advisory"] is True
-    assert out["journal"] == "L_PREPUSH_CHECKED"
+def test_l5_advisory_recheck_is_gone(repo):
+    """plan-071 Issue 4.3 (REQ-PLAN-086). L5 — the ADVISORY pre-push `recheck-criteria` run —
+    was a duplicate of the authoritative L11 run, cost the whole criteria suite twice per
+    landing, and could not fail by construction. It is deleted, not skipped: no executor key,
+    no journal state, no function."""
+    keys = [k for k, _ in pm.LAND_EXECUTOR]
+    assert "l5_advisory_recheck" not in keys
+    assert "l5_advisory_recheck" not in pm.LAND_STEPS
+    assert "l5_advisory_recheck" not in pm.LAND_NON_SKIPPABLE
+    assert "L_PREPUSH_CHECKED" not in pm.LAND_JOURNAL_STATES
+    assert "L_PREPUSH_CHECKED" not in pm.LAND_PROGRESS_ORDER
+    assert not hasattr(pm, "_land_l5_advisory_recheck")
+    # And the label numbering is stable: L6 still follows L4 in the executor order.
+    assert keys.index("l6_push_one") == keys.index("l4_commit_merge") + 1
+
+
+def test_halting_verb_exit_2_halts_chain(repo, monkeypatch):
+    """REQ-PLAN-085 (b) (plan-071 Issue 4.3). A HALTING close-chain verb that exits 2 halts the
+    chain — with its honest `inconclusive` verdict kept (REQ-LAND-012: never coerced to `fail`)
+    and `halt_reason: inconclusive` in the envelope. An ADVISORY verb's exit 2 still only reports.
+
+    Both arms are asserted: the halting verb stops the chain (no later verb runs), the advisory
+    one does not.
+    """
+    seen: list[str] = []
+
+    class _Proc:
+        def __init__(self, rc): self.returncode, self.stdout, self.stderr = rc, "", ""
+
+    def fake_run(prog, args, cwd=None, env=None):
+        verb = args[2] if len(args) > 2 else "?"
+        seen.append(verb)
+        if verb == "recheck-criteria":
+            return _Proc(2)                        # the halting verb cannot judge
+        if verb == "retrospective-report":
+            return _Proc(2)                        # the advisory verb cannot judge either
+        return _Proc(0)
+
+    ctx = _ctx(repo, FakeRunner())
+    monkeypatch.setattr(ctx, "run", fake_run)
+    monkeypatch.setattr(pm, "_land_changed_set", lambda root: [])
+    rows = pm._land_l8_to_l11_close_chain(ctx)
+    by = {r["step"]: r for r in rows}
+    adv = by["retrospective-report"]
+    assert adv["verdict"] == "inconclusive" and adv["halting"] is False, adv
+    halt = by["recheck-criteria"]
+    assert halt["verdict"] == "inconclusive", "the verdict is NOT coerced to fail (REQ-LAND-012)"
+    assert halt["halting"] is True
+    assert halt["detail"]["halt_reason"] == "inconclusive"
+    assert halt["detail"]["halt_class"] == pm.LAND_HALT_MECHANICAL
+    assert rows[-1]["step"] == "recheck-criteria", "the chain stopped at the halting verb"
+    # And `_land_execute`'s loop honours it: a halting inconclusive row halts the landing.
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    for key, fname in pm.LAND_EXECUTOR:
+        if fname != "_land_l8_to_l11_close_chain":
+            monkeypatch.setattr(pm, fname, lambda ctx, _k=key: _step_ok(_k, journal=pm.LAND_STEP_JOURNAL.get(_k)))
+    out = pm._land_execute(ctx)
+    assert out["halted"] is True and out["at"] == "recheck-criteria", out
 
 
 def test_push_one_is_gated_and_declared_irreversible(repo):
@@ -969,12 +814,13 @@ def test_close_chain_exit_codes_read(repo):
     assert tbl["close-reconcile-step"] is True, "gate-before-close ordering is HALTING (#180)"
     assert tbl["verify-reconcile"] is True
     assert tbl["recheck-criteria"] is True
-    assert tbl["audit-close"] is False, "the close-time audit is ADVISORY"
+    assert "audit-close" not in tbl, "audit-close was deleted by plan-071 (REQ-PLAN-086)"
+    assert "judgement-never-fired-report" not in tbl, "folded into retrospective-report (plan-071)"
     assert tbl["retrospective-report"] is False
 
     # `CHANGED` is HEAD^1..HEAD, never <target>...HEAD (#303).
     import inspect
-    src = _code_only(inspect.getsource(pm._land_l8_to_l15_close_chain))
+    src = _code_only(inspect.getsource(pm._land_l8_to_l11_close_chain))
     assert "_land_changed_set" in src
     assert "..." not in src, "the empty-by-construction three-dot form must not appear"
 
@@ -1085,7 +931,7 @@ def test_prune_is_strategy_aware(repo, monkeypatch):
     (pos, kw), = seen
     assert pos == (pm.Path("docs/plans") / PLAN_ID,), f"wrong plan_dir: {pos}"
     assert kw["force"] is False, (
-        "REQ-LAND-031: `force=False` in KEYWORD form — the keyword is normative so the next "
+        "REQ-LAND-004: `force=False` in KEYWORD form — the keyword is normative so the next "
         f"signature change fails loudly rather than silently rebinding a positional; saw {kw}")
     assert kw["root"] is not None, (
         "REQ-LAND-037: `root=` must be passed. Without it the teardown resolves its root via "
@@ -1093,7 +939,7 @@ def test_prune_is_strategy_aware(repo, monkeypatch):
         "the REAL checkout from inside this test.")
     assert kw["runner"] is not None, (
         "REQ-LAND-037: `runner=` must be passed, so the teardown's own git launches are on "
-        "the seam. REQ-LAND-031's apparent carve-out was an over-read — it constrains this "
+        "the seam. REQ-LAND-004's apparent carve-out was an over-read — it constrains this "
         "CALL, not how the callee launches.")
     assert not [c for c in r.calls if "branch" in c and "-d" in c], (
         "L18 must NOT issue its own `git branch -d` — the teardown already deletes the "
@@ -1255,7 +1101,7 @@ def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
     # Stub the close chain: this test isolates SKIP SURFACING, and an unstubbed
     # pour-fidelity legitimately halts at L14 on a fixture with no real beads — which the
     # guard below caught, rather than letting the test pass vacuously.
-    monkeypatch.setattr(pm, "_land_l8_to_l15_close_chain",
+    monkeypatch.setattr(pm, "_land_l8_to_l11_close_chain",
                         lambda ctx: [_step_ok("l8_close_chain_head")])
     monkeypatch.setattr(pm, "_land_l12_close_cascade",
                         lambda ctx: _step_ok("l12_close_cascade"))
@@ -1555,7 +1401,7 @@ def test_stubbed_steps_is_DERIVED_from_both_sources_and_names_the_decision_skip(
     # And the L-span derivation is real: the multi-step executor functions cover more than
     # one key each, which is the fact a hand-written list got wrong.
     covered = reh._covered_steps(pm)
-    assert len(covered["_land_l8_to_l15_close_chain"]) >= 4, covered
+    assert len(covered["_land_l8_to_l11_close_chain"]) >= 4, covered
     assert len(covered["_land_l13_l15_finish"]) >= 3, covered
     assert "l14_pour_fidelity" in covered["_land_l13_l15_finish"], (
         "l14_pour_fidelity is not attributed to any executor function — it was absent "
@@ -1641,7 +1487,7 @@ def test_runbook_covers_every_journal_state():
 
 
 # =========================================================================================
-# plan-062 — THE SEAM. `land --apply` must REACH `_land_execute` (REQ-LAND-028, #327)
+# plan-062 — THE SEAM. `land --apply` must REACH `_land_execute` (REQ-LAND-010, #327)
 # =========================================================================================
 #
 # WHY THESE TESTS EXIST AT ALL. `_land_execute` drives all fifteen `LAND_EXECUTOR` steps,
@@ -1706,7 +1552,7 @@ def _run_land_apply(repo, tmp_path, monkeypatch, decision=None, execute_spy=None
 
 
 def test_seam_reaches_executor(repo, tmp_path, monkeypatch):
-    """SC1 / Issue 2.0 / REQ-LAND-028. `--apply` REACHES `_land_execute`.
+    """SC1 / Issue 2.0 / REQ-LAND-010. `--apply` REACHES `_land_execute`.
 
     THE ASSERTION IS ABOUT THE CALL, NOT ABOUT THE LANDING. What must be true is that the CLI
     entry point invokes the executor and that the executor genuinely started — `l0_lock_acquire`
@@ -1734,7 +1580,7 @@ def test_seam_reaches_executor(repo, tmp_path, monkeypatch):
 
     assert seen.get("called"), (
         "`land --apply` did not reach `_land_execute` — the CLI entry point is disconnected "
-        "from the engine (REQ-LAND-028). This is the #327 defect: a fully implemented, fully "
+        "from the engine (REQ-LAND-010). This is the #327 defect: a fully implemented, fully "
         "tested executor that no entry point invokes.")
     assert isinstance(seen["ctx"], pm.LandingContext), (
         "the seam must hand the executor a real LandingContext, assembled from re-derived "
@@ -1876,7 +1722,7 @@ def test_no_test_only_bypass_was_introduced():
 
 
 # =========================================================================================
-# plan-062 — THE RESUME. A resume must not re-execute completed steps (REQ-LAND-029, #327)
+# plan-062 — THE RESUME. A resume must not re-execute completed steps (REQ-LAND-011, #327)
 # =========================================================================================
 
 def _resume_ctx(repo, monkeypatch, phase):
@@ -1897,7 +1743,7 @@ def _resume_ctx(repo, monkeypatch, phase):
 
     for key, fname in pm.LAND_EXECUTOR:
         j = pm.LAND_STEP_JOURNAL.get(key)
-        if fname == "_land_l8_to_l15_close_chain":
+        if fname == "_land_l8_to_l11_close_chain":
             def _chain(ctx, _k=key):
                 ran.append(_k)
                 return [_step_ok(_k)]
@@ -1916,7 +1762,7 @@ def _resume_ctx(repo, monkeypatch, phase):
 
 
 def test_resume_skips_completed(repo, monkeypatch):
-    """SC4 / Issue 4.1 / REQ-LAND-029. REQ-LAND-011's `Verification:` names THIS test.
+    """SC4 / Issue 4.1 / REQ-LAND-011. REQ-LAND-011's `Verification:` names THIS test.
 
     After a halt at L17, a resume must execute NEITHER `l6_push_one` NOR
     `l7_reconcile_writes` — the two irreversible outward writes. Measured before the fix, a
@@ -1946,11 +1792,11 @@ def test_resume_skips_completed(repo, monkeypatch):
     resumed = [r["step"] for r in out["results"] if r.get("detail", {}).get("resumed")]
     assert "l6_push_one" in resumed and "l7_reconcile_writes" in resumed, (
         f"a skipped step must be SURFACED with an explicit `resumed` marker, never a silent "
-        f"absence (REQ-LAND-029). Marked: {resumed}")
+        f"absence (REQ-LAND-011). Marked: {resumed}")
 
 
 def test_resume_forward_resolution(repo, monkeypatch):
-    """SC4b / Issue 4.2 / REQ-LAND-029. The three unjournaled steps resolve FORWARD.
+    """SC4b / Issue 4.2 / REQ-LAND-011. The three unjournaled steps resolve FORWARD.
 
     `l3_validate_merged`, `l8_close_chain_head` and `l12_close_cascade` have no entry in
     `LAND_STEP_JOURNAL`, so whether they are "done" must be borrowed from a neighbour. Taking
@@ -2012,6 +1858,33 @@ def test_resume_done_set_is_step_keys_not_journal_states(repo):
 # =========================================================================================
 # SC1 / REQ-LAND-030 — a step that RAISES becomes a halting envelope, not a traceback
 # =========================================================================================
+
+def test_halting_step_writes_the_landing_halt_bullet(repo, monkeypatch):
+    """REQ-PLAN-084 (plan-071 Issue 1.2). Every halt path of `_land_execute` writes a
+    `- landing-halt: <phase> <verb> irreversible=<bool>` bullet to the bundle's `log.md`
+    BEFORE returning — the fidelity metric's only durable source, since the `/.yf/` journal
+    is gitignored and cleared at the terminal green state.
+    """
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    monkeypatch.setattr(pm, "_land_l3_validate_merged",
+                        lambda ctx: (_ for _ in ()).throw(TypeError("boom")))
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+    ctx = _ctx(repo, r)
+    out = pm._land_execute(ctx)
+    assert out["halted"] is True
+    assert out["landing_halt"]["recorded"] is True
+    log = (ctx.plan_dir / "log.md").read_text(encoding="utf-8")
+    hits = pm._LANDING_HALT_RE.findall(log)
+    assert hits == [("L_MERGED_UNCOMMITTED", "l3_validate_merged", "false")], log
+
+    # And a halt AFTER push #1 is stamped irreversible=true, which is what the metric counts.
+    ctx.journal.write("L_PUSHED_1", note="t")
+    rec = pm._land_record_halt(ctx, "l7_reconcile_writes")
+    assert rec["irreversible"] is True
+    fid = pm._fidelity_halts((ctx.plan_dir / "log.md").read_text(encoding="utf-8"))
+    assert fid["halts_post_irreversible"] == 1 and fid["source"] == "log.md"
+
 
 def test_step_exception_becomes_halting(repo, monkeypatch):
     """REQ-LAND-030 (#340). An exception raised by a `LAND_EXECUTOR` step is caught at the
@@ -2117,7 +1990,7 @@ def test_dispatch_wrapper_reraises_control_flow(repo, monkeypatch):
 
 
 # =========================================================================================
-# SC2c / SC2d / REQ-LAND-031 — L18 branches on the teardown's STATUS, and delegates the delete
+# SC2c / SC2d / REQ-LAND-004 — L18 branches on the teardown's STATUS, and delegates the delete
 # =========================================================================================
 
 def test_l18_delegates_branch_delete(repo, monkeypatch):
@@ -2150,7 +2023,7 @@ def test_l18_delegates_branch_delete(repo, monkeypatch):
 
 
 def test_l18_blocked_teardown(repo, monkeypatch):
-    """SC2c / REQ-LAND-031. A `blocked` teardown is a HALTING fail, never a `pass`.
+    """SC2c / REQ-LAND-004. A `blocked` teardown is a HALTING fail, never a `pass`.
 
     Measured before the fix: a dirty worktree meant nothing was removed and the branch was
     left behind, and L18 reported `verdict: pass`. A landing must not report a prune it did
@@ -2315,7 +2188,7 @@ def test_l16_commits_plan_dir_writes(tmp_path, monkeypatch):
 
 
 def test_l16_without_anchor(tmp_path, monkeypatch):
-    """SC3c / REQ-LAND-033 (#343). The exemption filter works in a repo WITHOUT `/.yf/` in
+    """SC3c / REQ-LAND-032 (#343). The exemption filter works in a repo WITHOUT `/.yf/` in
     `.gitignore` — the only configuration where it is load-bearing at all.
 
     Three things are asserted together because each alone is satisfiable by a wrong filter:
@@ -2355,7 +2228,7 @@ def test_l16_without_anchor(tmp_path, monkeypatch):
 
 
 def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatch):
-    """REQ-LAND-033's third clause, isolated. A path merely CONTAINING the allowlist
+    """REQ-LAND-032's third clause, isolated. A path merely CONTAINING the allowlist
     fragment is NOT exempt — that is the substring bug (#343) restated as a test."""
     root = _real_repo(tmp_path, anchor=False)
     trap = root / "docs" / "a.yf" / "plan"
@@ -2368,11 +2241,11 @@ def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatc
 
 
 # =========================================================================================
-# SC5 / SC5b / SC6 — the dry-run facts that PREDICT L16 (REQ-LAND-034/035/036)
+# SC5 / SC5b / SC6 — the dry-run facts that PREDICT L16 (REQ-LAND-026/035/036)
 # =========================================================================================
 
 def test_dryrun_halts_on_dirty_primary(tmp_path, monkeypatch):
-    """SC5 / REQ-LAND-034 (#333). A primary checkout dirty OUTSIDE the plan folder is a
+    """SC5 / REQ-LAND-026 (#333). A primary checkout dirty OUTSIDE the plan folder is a
     HALTING dry-run finding — and dirt INSIDE it is not.
 
     Both directions, because a halt that fires on everything is as useless as one that fires
@@ -2451,7 +2324,7 @@ def test_dryrun_predicts_the_L16_halt_it_causes(tmp_path, monkeypatch):
 
 
 def test_digest_survives_resume_after_teardown(tmp_path, monkeypatch):
-    """SC5b / REQ-LAND-036. BOTH DIRECTIONS, and the second one is what stops this test from
+    """SC5b / REQ-LAND-002. BOTH DIRECTIONS, and the second one is what stops this test from
     being satisfied by a digest that covers nothing.
 
     1. Flipping a LANDING-MUTATED fact (`execute_worktree_present`, which L18's own teardown

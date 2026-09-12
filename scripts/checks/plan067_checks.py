@@ -17,7 +17,7 @@ repository has now hit five times — including twice inside this plan's OWN exp
 (EXP-003's slash-verb extractor returned green over an input it could not see; EXP-001's layout
 recommendation generalised from one sample of six).
 
-FOUR IMPLEMENTATION MANDATES, inherited from `plan066_checks.py` and each from a MEASURED
+FOUR IMPLEMENTATION MANDATES, inherited from plan-066's checker (deleted by plan-071 as unwired) and each from a MEASURED
 failure. They are restated rather than referenced because a mandate stored only in a sibling
 file is a mandate the next author does not read:
 
@@ -102,8 +102,7 @@ AGENTS_SCOPE_SKILLS = ["yf-plan", "yf-research"]
 WORKFLOWS_PAGE = "web/content/pages/workflows.md"
 
 # SC21b — the shipped formulas, one diagram each; and the meta-diagram this plan REMOVES.
-SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "plan-review",
-                    "verify-artifact", "yf-research"]
+SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "yf-research"]
 REMOVED_META_DIAGRAM = "formulas.d2"
 
 # SC20 — the combined lifecycle's required content, and #375's literal.
@@ -909,52 +908,17 @@ def sc_index_complete(root: Path, a) -> tuple[bool, str, dict]:
 
 
 def sc_plan066_still_green(root: Path, a) -> tuple[bool, str, dict]:
-    """SC26b — plan-066's criteria still hold on the post-plan-067 tree.
+    """SC26b — RETIRED by plan-071 Issue 4.5 (REQ-PLAN-086).
 
-    Epic 4 rebuilds `architecture.d2` (plan-066 SC9) and removes `formulas.d2` (its SC23), so
-    this is not a formality: a criterion measured green at its discharging issue and false two
-    epics later is the exact defect `recheck-criteria` exists to catch.
+    This verb re-ran plan-066's own checker (`plan066_checks.py verbs-match`) on the post-plan-067
+    tree. That checker was wired into no CI row and no CHANGE-VALIDATION row, so plan-071 deleted
+    it under the retention standard. The verb NAME survives because plan-067's frozen `plan.md`
+    cites it and `verbs-match` asserts the name sets agree; it now reports INCONCLUSIVE with the
+    reason, never a pass — a retired instrument must not certify anything.
     """
-    p066 = root / "scripts" / "checks" / "plan066_checks.py"
-    if not p066.is_file():
-        raise Inconclusive("plan066_checks.py is absent")
-    proc = run_cmd(root, ["uv", "run", str(p066), "verbs-match"])
-    if proc.returncode == 2:
-        raise Inconclusive(f"plan066 verbs-match INCONCLUSIVE: {proc.stderr.strip()[:200]}")
-    plan066 = None
-    for cand in sorted((root / "docs" / "plans").glob("plan-066-*")):
-        plan066 = cand
-    if plan066 is None:
-        raise Inconclusive("no plan-066 bundle found")
-    txt = (plan066 / "plan.md").read_text(encoding="utf-8", errors="replace")
-    verbs = sorted(set(re.findall(r"plan066_checks\.py\s+([a-z0-9][a-z0-9-]*)", txt)))
-    if not verbs:
-        raise Inconclusive("parsed zero plan-066 verbs")
-    # THE DECLARED HANDOFF ITEM, separated from a regression because they are DIFFERENT FACTS.
-    # plan-066's `diagram-reads` requires one dated human-read entry per diagram. plan-067
-    # restructured the diagram set, so it is FALSE — and that is CORRECT, not a regression: the
-    # new set has not been human-read. It is discharged by the operator at plan-067's own
-    # Diagram human read gate (Issue 6.4, the declared plan-066 handoff), never by an agent.
-    # Writing entries for diagrams no human has looked at would satisfy the check while
-    # destroying the thing it checks.
-    HANDOFF = {"diagram-reads"}
-    red, handoff = {}, {}
-    for v in verbs:
-        r = run_cmd(root, ["uv", "run", str(p066), v])
-        if r.returncode == 1:
-            (handoff if v in HANDOFF else red)[v] = (r.stdout.strip()[:160]
-                                                     or r.stderr.strip()[:160])
-    ok = not red and not handoff
-    if red:
-        reason = f"plan-066 criteria REGRESSED: {sorted(red)}"
-    elif handoff:
-        reason = (f"{len(verbs)} plan-066 criterion verb(s) re-run; no regression. PENDING THE "
-                  f"DECLARED HANDOFF: {sorted(handoff)} — the restructured diagram set awaits "
-                  f"the operator's read at plan-067's Diagram human read gate (Issue 6.4). An "
-                  f"agent read is evidence, never a discharge.")
-    else:
-        reason = f"{len(verbs)} plan-066 criterion verb(s) re-run; none FALSE"
-    return ok, reason, {"regressed": red, "pending_handoff": handoff, "verbs": verbs}
+    raise Inconclusive("plan066_checks.py was deleted by plan-071 (unwired); SC26b can no longer "
+                       "be re-measured and is recorded as retired, not green")
+
 
 
 # ---------------------------------------------------------------------------

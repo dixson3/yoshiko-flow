@@ -73,10 +73,13 @@ def test_terminal_resolved_gate_status_closed():
     assert cc._bead_is_terminal(_n("g", itype="gate", status="closed")) is True
 
 
-def test_terminal_resolved_gate_forward_compat_flag():
-    # C4 forward-compat: a gate marked resolved without status:closed is terminal.
+def test_open_gate_with_a_resolved_flag_is_NOT_terminal():
+    # plan-071 Issue 4.3 (#394): the forward-compat arms are gone. `status: closed` is the only
+    # terminal signal — bd never writes `gate_status`/`resolved` (EXP-002: 0 over 232 gates),
+    # so a predicate honouring them certified nothing and could hide a genuinely open gate.
     assert cc._bead_is_terminal(
-        _n("g", itype="gate", status="open", gate_status="resolved")) is True
+        _n("g", itype="gate", status="open", gate_status="resolved")) is False
+    assert cc._bead_is_terminal(_n("g", itype="gate", status="open", resolved=True)) is False
 
 
 def test_terminal_unsatisfied_gate_is_open_child():
@@ -126,10 +129,11 @@ def test_cascade_blocks_on_open_child(monkeypatch):
 # --- cascade: resolved gate does NOT block; unsatisfied gate DOES (C4) --------
 
 def test_cascade_resolved_gate_not_blocked(monkeypatch):
-    # Container whose only non-closed child is a resolved (forward-compat) gate → closes.
+    # Container whose only child is a RESOLVED gate — which `bd gate resolve` closes
+    # (status: closed; plan-071 Issue 4.3 removed the forward-compat flag arms) → closes.
     nodes = {
         "e1": _n("e1", itype="epic", status="open"),
-        "g1": _n("g1", itype="gate", status="open", gate_status="resolved"),
+        "g1": _n("g1", itype="gate", status="closed"),
     }
     edges = {"e1": ["g1"]}
     _FakeTree(nodes, edges).install(monkeypatch)

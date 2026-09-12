@@ -178,7 +178,7 @@ def test_merge_preview_reports_conflicts(repo):
 # --------------------------------------------------------------------------------------
 
 def test_digest_covers_merge_preview(repo):
-    """SC8 / Issue 1.5 / REQ-LAND-018.
+    """SC8 / Issue 1.5 / REQ-LAND-002.
 
     Two assertions, and the SECOND is the load-bearing one:
       (a) the digest is stable across recomputation on an unchanged tree; and
@@ -211,7 +211,7 @@ def test_digest_covers_merge_preview(repo):
 # --------------------------------------------------------------------------------------
 
 def test_number_collision_halts(repo):
-    """SC9 / Issue 1.3 / REQ-LAND-024.
+    """SC9 / Issue 1.3 / REQ-LAND-026.
 
     The fixture reproduces the MEASURED case: two bundles sharing `NNN`, differing only by
     hash suffix. They merge CLEANLY, which is why merge-back is the only detection point —
@@ -247,7 +247,7 @@ def test_number_collision_absent_when_unique(repo):
 # --------------------------------------------------------------------------------------
 
 def test_changed_set_nonempty(repo):
-    """SC10 / Issue 1.4 / REQ-LAND-025 / #303.
+    """SC10 / Issue 1.4 / REQ-LAND-004 / #303.
 
     BOTH DIRECTIONS, because the point is a COMPARISON: after a real merge the documented
     `<target>...HEAD` expression is EMPTY while `HEAD^1..HEAD` is not. A test asserting only
@@ -406,13 +406,18 @@ def test_halt_class_is_present_only_on_a_halt():
 
 def test_step_and_journal_sets_are_the_declared_ones():
     """The two closed sets, asserted here so a silent edit to either is caught."""
-    assert len(pm.LAND_STEPS) == 20
+    # 20 labels L0..L19 minus the retired L5 (plan-071 Issue 4.3): the numbering is stable,
+    # the advisory duplicate is gone.
+    assert len(pm.LAND_STEPS) == 19
+    assert "l5_advisory_recheck" not in pm.LAND_STEPS
     assert pm.LAND_STEPS[0] == "l0_lock_acquire"
     assert pm.LAND_STEPS[-1] == "l19_redeploy"
     assert pm.LAND_NON_SKIPPABLE <= set(pm.LAND_STEPS)
     assert "l16_commit_and_push_two" in pm.LAND_NON_SKIPPABLE, (
         "skipping L16 reproduces D-2's residue exactly")
-    assert len(pm.LAND_JOURNAL_STATES) == 17
+    # 13 progress states + 4 conflict states before plan-071; L5's `L_PREPUSH_CHECKED` was
+    # retired with the step (Issue 4.3), so 12 + 4.
+    assert len(pm.LAND_JOURNAL_STATES) == 16
     assert pm.LAND_TERMINAL_STATE == "L_DONE"
     conflict = [s for s in pm.LAND_JOURNAL_STATES if "CONFLICT" in s or "REJECTED" in s]
     assert len(conflict) == 4, "one journal state per conflict site, and there are four"

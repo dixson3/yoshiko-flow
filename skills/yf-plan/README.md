@@ -118,9 +118,7 @@ skills/yf-plan/
 │       └── off-vocabulary-med.md
 ├── formulas/
 │   ├── plan-execute.formula.toml          # Beads molecule for execution pipeline
-│   ├── plan-investigate.formula.toml      # Beads molecule for investigation wisp
-│   ├── plan-review.formula.toml           # Beads molecule for the Phase-3 review loop (sequencing only)
-│   └── verify-artifact.formula.toml       # ASPECT woven over plan-review's steps at COOK time —
+│   └── plan-investigate.formula.toml      # Beads molecule for investigation wisp
 ├── protocols/
 │   ├── DOC-LINT.md                        # Document-lint on-edit trigger — fires the linter on a create or
 │   ├── manifest.json                      # Hash manifest for PLANS.md and DOC-LINT.md
@@ -196,9 +194,7 @@ skills/yf-plan/
 │   ├── plan_manager.py                    # Plan CRUD, prerequisite checking, portability audit, crash-recovery
 │   ├── plan_template.py                   # The canonical plan.md skeleton + producer constants (vendored
 │   ├── pour_fidelity.py
-│   ├── repair_dangling_epics.py           # One-shot repair for epics orphaned by a crashed pour
 │   ├── retrospective_fields.py            # prevention_formula enum check + prevention_vars (#196)
-│   ├── test_audit_close.py
 │   ├── test_autonomy.py
 │   ├── test_cascade_root_resolution.py
 │   ├── test_classify_deliverable.py
@@ -213,12 +209,12 @@ skills/yf-plan/
 │   ├── test_gates.py
 │   ├── test_index_members.py
 │   ├── test_intake_lint_binding.py
-│   ├── test_judgement_trigger.py
 │   ├── test_land_apply.py
 │   ├── test_land_inplace.py               # `land` under `execute.worktree: false` (#331), incl. end-to-end
 │   ├── test_land_manifest.py
 │   ├── test_land_seam.py                  # REQ-LAND-037: derivation, declaration and SPEC pinned together
 │   ├── test_lander_agent_contract.py
+│   ├── test_ready_check_smoke.py
 │   ├── test_recheck_criteria.py
 │   ├── test_reconcile_step_resolution.py
 │   ├── test_retrospective.py
@@ -231,6 +227,7 @@ skills/yf-plan/
 │   ├── test_update_status_gate.py
 │   ├── test_update_status_idempotent.py
 │   ├── test_upstream_requirements.py
+│   ├── test_verb_invocations.py
 │   ├── test_verify_beads.py
 │   ├── test_verify_reconcile.py
 │   ├── test_worktree.py

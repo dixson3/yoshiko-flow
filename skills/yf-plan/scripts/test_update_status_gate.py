@@ -42,6 +42,17 @@ def _bundle(tmp_path: Path, *, ready: bool) -> Path:
     t = re.sub(r"^\*\*Status:\*\* .*$", "**Status:** review", (d / "plan.md").read_text(),
                count=1, flags=re.M)
     t = re.sub(r"^status: .*$", "status: review", t, count=1, flags=re.M)
+    # plan-071 Issue 2.4 (REQ-PLAN-085): `ready-check` now EXECUTES what it approves — every
+    # Success Criteria row must be clause-form or `manual:` and `gate_consistency.py` must not
+    # FAIL. plan-047 is a landed bundle with prose criteria, so under the new rule it is
+    # correctly NOT ready on axes this test does not exercise (test_ready_check_smoke.py
+    # does). Neutralise both in the copy: honest `manual:` waivers, capability gates dropped.
+    i = t.index("## Success Criteria")
+    j = t.find("\n## ", i + 5)
+    t = t[:i] + ("## Success Criteria\n\n| # | Criterion | Verification | Discharged-by |\n"
+                 "| :-- | :-- | :-- | :-- |\n| SC1 | fixture | manual: REQ-PLAN-085 axis "
+                 "covered by test_ready_check_smoke.py | 1.1 |\n") + (t[j:] if j != -1 else "")
+    t = re.sub(r"(?s)### Capability Gate:.*?(?=### Reconcile Gate)", "", t)
     (d / "plan.md").write_text(t)
     assert "**Status:** review" in t and "status: review" in t, "fixture did not set status"
     if not ready:

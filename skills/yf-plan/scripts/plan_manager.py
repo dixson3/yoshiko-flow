@@ -702,8 +702,15 @@ RETROSPECTIVE_FIELDS: tuple[str, ...] = (
     "kind", "when", "stop_class", "asked", "answered", "frontloadable",
     "detected_by", "evidence", "escape_class", "adjudication", "origin",
     "culpability", "prevention", "cost",
+    # The approval-to-landing fidelity metric (REQ-PLAN-084, plan-071 Issue 1.1). Two
+    # DERIVED numbers, recorded where the retrospective already writes — no new verb.
+    "sc_flipped_post_approval", "halts_post_irreversible",
 )
-RETROSPECTIVE_KINDS = ("stop", "deviation")
+RETROSPECTIVE_KINDS = ("stop", "deviation", "fidelity")
+#: The two fields a `fidelity` entry MUST carry. `halts_post_irreversible` may also be the
+#: literal `no-record` — a bundle that predates the `landing-halt:` bullet reports that it
+#: cannot know, never a zero (REQ-PLAN-084).
+RETROSPECTIVE_FIDELITY_FIELDS = ("sc_flipped_post_approval", "halts_post_irreversible")
 RETROSPECTIVE_DETECTED_BY = ("self-report", "operator", "mechanical-check")
 
 _RETRO_HEADER = """---
@@ -756,6 +763,20 @@ def append_retrospective(plan_dir: Path, entry: dict, *, dry_run: bool = False) 
             f"unknown retrospective kind {row['kind']!r}; expected one of "
             f"{', '.join(RETROSPECTIVE_KINDS)}"
         )
+    if row["kind"] == "fidelity":
+        # BOTH numbers are REQUIRED for this kind. A fidelity entry with one number is a
+        # narration about the other; refusing is what makes `--kind fidelity` mean something.
+        for k in RETROSPECTIVE_FIDELITY_FIELDS:
+            v = str(row.get(k, "")).strip()
+            if not v:
+                raise ValueError(
+                    f"kind `fidelity` requires `{k}` (an integer"
+                    f"{' or `no-record`' if k == 'halts_post_irreversible' else ''})")
+            if not (v.isdigit() or (k == "halts_post_irreversible" and v == "no-record")):
+                raise ValueError(f"`{k}` must be a non-negative integer"
+                                 f"{' or `no-record`' if k == 'halts_post_irreversible' else ''}"
+                                 f", got {v!r}")
+            row[k] = v
     if not row.get("when"):
         row["when"] = datetime.now().strftime("%Y-%m-%d")
     # An unsubstantiated state claim is a narration, not a finding (REQ-PORT-052).
@@ -1614,10 +1635,26 @@ def _enumerate_plans() -> list[dict]:
 
 
 @cli.command("list")
-@click.option("--json-output", "as_json", is_flag=True)
-def list_plans(as_json: bool):
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+@click.option("--parked", "parked_only", is_flag=True,
+              help="Only PARKED plans — approved but never executed (#86, REQ-PLAN-068). "
+                   "Emits {count, parked}; consumed by the status nudge and land-the-plane.")
+def list_plans(as_json: bool, parked_only: bool):
     """List all plans and research items, across vault-default + Incubator roots."""
     plans = _enumerate_plans()
+    if parked_only:
+        # plan-071 Issue 4.1: the former `parked` verb, folded in as a filter (REQ-PLAN-086).
+        parked = [p for p in plans if p.get("parked")]
+        if as_json:
+            click.echo(json.dumps({"count": len(parked), "parked": parked}, indent=2))
+            return
+        if not parked:
+            click.echo("No parked plans.")
+            return
+        click.echo(f"{len(parked)} plan(s) approved but not executed — run /yf-plan execute <id>:")
+        for p in parked:
+            click.echo(f"  {p['id']:<35} {p['objective']}")
+        return
 
     research = []
     for root in list_research_roots():
@@ -1669,29 +1706,6 @@ def list_plans(as_json: bool):
             )
 
 
-@cli.command("parked")
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def parked_cmd(as_json: bool):
-    """Enumerate parked plans — approved but never executed (#86, REQ-PLAN-068).
-
-    Consumed by the `/yf-plan status` nudge and the land-the-plane check.
-    """
-    parked = [p for p in _enumerate_plans() if p.get("parked")]
-    if as_json:
-        click.echo(json.dumps({"count": len(parked), "parked": parked}, indent=2))
-        return
-    if not parked:
-        click.echo("No parked plans.")
-        return
-    click.echo(f"{len(parked)} plan(s) approved but not executed — run /yf-plan execute <id>:")
-    for p in parked:
-        click.echo(f"  {p['id']:<35} {p['objective']}")
-
-
-#: The three lifecycle moments at which the reserved listing is regenerated
-#: (REQ-PLAN-081(b), plan-056 Issue 2.3). Three rather than one because the three bracket
-#: the phases that CREATE members: triage and `references/` land by intake; `scripts/` and
-#: `findings/` by execute-start; `plan-retrospective.md` and `reviews/` by close.
 _REINDEX_STATUSES: frozenset[str] = frozenset({"approved", "executing", "complete"})
 
 
@@ -2064,72 +2078,6 @@ def record_epic(plan_dir: str, epic_id: str):
         "epic_field": "written",
         "intake_log_entry": None if intake_present else intake_entry,
     }))
-
-
-@cli.command("index-add")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.argument("path")
-@click.argument("description", required=False, default=None)
-@click.option("--regenerate", is_flag=True,
-              help="Instead of adding one entry, regenerate the whole listing (reindex --write).")
-@click.option("--check", is_flag=True,
-              help="With --regenerate: report drift without writing (reindex --check).")
-@click.option("--json", "as_json", is_flag=True, help="Emit a JSON verdict.")
-def index_add(plan_dir: str, path: str, description: str | None,
-              regenerate: bool, check: bool, as_json: bool):
-    """Add one entry to a bundle's reserved `index.md`, or regenerate the listing.
-
-    REQ-PLAN-081(c). This is a NEW PUBLIC SURFACE, and it exists because index
-    regeneration was measured **unreachable from the CLI**: `seed_index` is callable only
-    from `init`, so an operator who noticed index drift had no supported repair short of
-    editing `index.md` by hand — which is how the nine drifting bundles came to drift.
-
-    `--regenerate` routes to the engine's `reindex_write`, never to `seed_index`:
-    regeneration must PRESERVE AUTHOR PROSE (REQ-OKF-072), and `seed_index` overwrites the
-    file wholesale.
-    """
-    pdir = Path(plan_dir)
-    if regenerate:
-        try:
-            res = (okf.reindex_check(pdir) if check
-                   else okf.reindex_write(pdir))
-        except okf.MarkerImbalanceError as exc:
-            out = {"verdict": "inconclusive", "reason": str(exc),
-                   "remediation": ("An unbalanced generated-region marker leaves the region "
-                                   "unbounded; regenerating would discard prose "
-                                   "unrecoverably. Balance the markers, then re-run.")}
-            click.echo(json.dumps(out, indent=1))
-            sys.exit(okf.REINDEX_EXIT["inconclusive"])
-        click.echo(json.dumps(res, indent=1))
-        sys.exit(res.get("exit", 0))
-
-    index = pdir / "index.md"
-    if not index.exists():
-        click.echo(json.dumps({"verdict": "inconclusive", "plan_dir": plan_dir,
-                               "reason": f"no reserved index.md under {plan_dir}",
-                               "remediation": "Run `/yf-okf migrate` or re-seed the bundle."},
-                              indent=1))
-        sys.exit(2)
-    target = pdir / path.rstrip("/")
-    if not target.exists():
-        # A LISTING MEMBER MUST EXIST. Listing something absent asserts a fact that is false
-        # in every clone, and generates the `empty-dir`/`ghost` drift `reindex` reports.
-        click.echo(json.dumps({"verdict": "fail", "plan_dir": plan_dir, "path": path,
-                               "reason": f"{path} does not exist in the bundle",
-                               "remediation": "Create the member first; an index never "
-                                              "asserts a path that is not there."}, indent=1))
-        sys.exit(1)
-    before = index.read_text(encoding="utf-8")
-    if f"]({path})" in before:
-        click.echo(json.dumps({"verdict": "pass", "plan_dir": plan_dir, "path": path,
-                               "added": False, "reason": "already listed (idempotent)"},
-                              indent=1))
-        sys.exit(0)
-    okf.add_index_entry(pdir, path, description or "")
-    click.echo(json.dumps({"verdict": "pass", "plan_dir": plan_dir, "path": path,
-                           "added": True,
-                           "description": (description or None)}, indent=1))
-    sys.exit(0)
 
 
 @cli.command("clear-epic")
@@ -2797,28 +2745,6 @@ def _verify_row(row: dict, plan_id: str) -> dict:
     return {"issue": number, "disposition": disp, "verdict": "pass", "detail": detail}
 
 
-def _grant_actions_for(req: dict) -> list[str]:
-    """The outward-facing actions a disposition requires, DERIVED from its own fields.
-
-    Derived rather than declared, and that is not tidiness — `ctl-178-grant`'s contrast arm
-    MEASURED the two halves diverging on the first run: `supersede` declared a `comment`
-    action while its own `requires_mention` is `False`, so the generator demanded an
-    authorization clause for something reconciliation would never check. A grant that asks
-    for MORE than the verifier requires is as wrong as one that asks for less; it just fails
-    in the direction that looks conservative.
-
-    Only the tracker filing is not derivable — a `tracker` row's action is to CREATE the
-    issue, which no end-state field can express — so it is carried as `extra_actions`.
-    """
-    acts: list[str] = []
-    if req["requires_mention"]:
-        acts.append("comment")
-    if req["end_state"] == "CLOSED":
-        acts.append("close-not-planned" if req["state_reason"] == "NOT_PLANNED" else "close")
-    acts.extend(req.get("extra_actions", []))
-    return acts
-
-
 _GRANT_ACTION_TEMPLATES = {
     "comment": ("gh issue comment {n} --body '<what {plan} did for #{n}>'",
                 "post a comment naming the full plan id"),
@@ -2831,228 +2757,6 @@ _GRANT_ACTION_TEMPLATES = {
 }
 
 
-def _grant_proposal(plan_md_text: str, plan_id: str) -> dict:
-    """The upstream-write proposal, DERIVED from the Upstream Issues table.
-
-    Reads `UPSTREAM_REQUIREMENTS` — the same table `_verify_row` reads — so what the operator
-    is asked to authorize and what reconciliation will later require are one derivation, not
-    two. Local only: no network, so it is runnable before any `gh` call and before any
-    authorization exists.
-    """
-    rows = parse_upstream_rows(plan_md_text)
-    items, unrecognised = [], []
-    for r in rows:
-        disp = r["disposition"]
-        req = UPSTREAM_REQUIREMENTS.get(disp)
-        if req is None:
-            unrecognised.append({"issue": r["issue"], "disposition": disp})
-            continue
-        actions = []
-        for kind in _grant_actions_for(req):
-            cmd, human = _GRANT_ACTION_TEMPLATES[kind]
-            actions.append({
-                "kind": kind,
-                "human": human,
-                "command": cmd.format(n=r["issue"], plan=plan_id),
-            })
-        items.append({
-            "issue": r["issue"], "disposition": disp,
-            "resolved_by": r.get("resolved_by") or "",
-            "actions": actions,
-            "end_state": req["end_state"], "state_reason": req["state_reason"],
-            "requires_mention": req["requires_mention"],
-            "why": req["why"],
-        })
-    return {"plan_id": plan_id, "rows": items, "unrecognised": unrecognised,
-            "actionable": [i for i in items if i["actions"]]}
-
-
-def _grant_coverage(proposal: dict, text: str) -> list[dict]:
-    """Which of the proposal's required actions an authorization text does NOT cover.
-
-    THE ROUND-TRIP CHECK, and the reason this verb exists. plan-048's grant was hand-derived
-    from the same table this generator reads, `#172`'s close was missed, and the omission
-    surfaced only at `verify-reconcile` — after the outward-facing writes had begun. The
-    amendment repairing it is still on disk and states the cause: *"an oversight in THIS
-    FILE."*
-
-    Coverage is judged per ACTION, not per issue: an `include` row needs BOTH a comment and a
-    close, and plan-048's omission was exactly a close on an issue the grant already
-    mentioned. A per-issue check would have passed it.
-    """
-    lowered = text.lower()
-    uncovered = []
-    for item in proposal["rows"]:
-        n = item["issue"]
-        # A `file-tracker` action is judged over the WHOLE text, never scoped to the issue
-        # number. The fixture's contrast arm caught this too: a grant written BEFORE the
-        # tracker exists CANNOT name its number, because the number is the thing being
-        # created. plan-048's real grant authorizes it as item 1, by plan id.
-        tracker_acts = [a for a in item["actions"] if a["kind"] == "file-tracker"]
-        if tracker_acts:
-            if not any(w in lowered for w in ("tracker", "gh issue create")):
-                uncovered.append({**tracker_acts[0], "issue": n,
-                                  "disposition": item["disposition"],
-                                  "reason": "no clause authorizes filing the coarse tracker"})
-            continue
-        # The issue must be named at all. `#172` and a bare `172` both count — an
-        # authorization is prose, and demanding one spelling would manufacture false gaps.
-        named = (f"#{n}" in text) or re.search(rf"(?<![\w#]){re.escape(str(n))}(?![\w])", text)
-        for act in item["actions"]:
-            kind = act["kind"]
-            if not named:
-                uncovered.append({**act, "issue": n, "disposition": item["disposition"],
-                                  "reason": f"#{n} is not named in the authorization at all"})
-                continue
-            # Scope the search to the sentence(s) naming this issue, so a `close` authorized
-            # for one issue cannot silently cover another.
-            window = " ".join(
-                ln for ln in lowered.splitlines()
-                if f"#{n}" in ln or re.search(rf"(?<![\w#]){re.escape(str(n))}(?![\w])", ln))
-            if kind in ("close", "close-not-planned"):
-                ok = "clos" in window
-                if kind == "close-not-planned":
-                    ok = ok and ("not planned" in window or "not_planned" in window
-                                 or "supersede" in window)
-            elif kind == "comment":
-                ok = "comment" in window or "post" in window
-            elif kind == "file-tracker":
-                ok = "file" in window or "creat" in window or "tracker" in window
-            else:
-                ok = False
-            if not ok:
-                uncovered.append({**act, "issue": n, "disposition": item["disposition"],
-                                  "reason": f"#{n} is named, but no clause authorizes: "
-                                            f"{act['human']}"})
-    return uncovered
-
-
-@cli.command("grant")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--check", "check_path", type=click.Path(),
-              help="Reconcile an EXISTING authorization file against the proposal and report "
-                   "every required action it does not cover. This is the round-trip check.")
-@click.option("--json-output", "--json", "as_json", is_flag=True,
-              help="Emit the structured verdict (default is also JSON).")
-def grant(plan_dir: str, check_path: str | None, as_json: bool):
-    """Generate the upstream-write authorization PROPOSAL from the plan's own table.
-
-    REQ-CLI-025 / #178. It emits a proposal and NOTHING ELSE: it never writes the
-    authorization file, never performs an upstream write, and needs no network — so it runs
-    before any `gh` call and before any authorization exists.
-
-    WHY THIS EXISTS. plan-048 HALTED ITS OWN RECONCILE on a hand-derived grant that missed
-    `#172`'s close. The amendment repairing it is still in that plan's
-    `assets/upstream-authorization.txt` and names the cause: *"Its omission from the original
-    list was an oversight in THIS FILE, not a decision to withhold."* plan-049 avoided the
-    same defect only because the operator derived the grant by hand a second time.
-
-    The generator and `_verify_row` read ONE table (`UPSTREAM_REQUIREMENTS`), so what the
-    operator is asked to authorize and what reconciliation will later require cannot drift.
-    Two prose derivations of the same rule is what produced the gap.
-
-    With `--check <file>`, additionally reconciles an existing authorization against the
-    proposal and fails on any uncovered action. Coverage is judged PER ACTION, not per issue:
-    plan-048's omission was a close on an issue the grant already mentioned, which a per-issue
-    check would have passed.
-    """
-    pdir = Path(plan_dir)
-    plan_md = pdir / "plan.md"
-    if not plan_md.exists():
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False,
-            "reason": f"plan.md not found under {plan_dir}",
-            "remediation": "Check the plan_dir argument.",
-        }))
-        sys.exit(1)
-
-    plan_id = _plan_id_from_dir(pdir)
-    proposal = _grant_proposal(plan_md.read_text(), plan_id)
-
-    if proposal["unrecognised"]:
-        bad = ", ".join(f"#{u['issue']}={u['disposition']!r}"
-                        for u in proposal["unrecognised"])
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "plan_id": plan_id,
-            "proposal": proposal,
-            "reason": f"unrecognised disposition(s) in the Upstream Issues table: {bad}",
-            "remediation": "Every Disposition cell must be one of "
-                           + "|".join(sorted(UPSTREAM_REQUIREMENTS))
-                           + ". A generator that silently skipped an unrecognised literal "
-                             "would omit exactly the row nobody checked.",
-        }, indent=2))
-        sys.exit(1)
-
-    if check_path is None:
-        click.echo(json.dumps({
-            "verdict": "pass", "passed": True, "plan_id": plan_id,
-            "proposal": proposal,
-            "reason": f"{len(proposal['actionable'])} of {len(proposal['rows'])} upstream "
-                      "row(s) require an outward-facing action",
-            "remediation": None,
-        }, indent=2))
-        return
-
-    cpath = Path(check_path)
-    if not cpath.exists():
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "plan_id": plan_id,
-            "proposal": proposal, "uncovered": [],
-            "reason": f"no authorization file at {check_path}",
-            "remediation": "Present the proposal above to the operator and record their "
-                           "explicit authorization before any upstream write.",
-        }, indent=2))
-        sys.exit(1)
-
-    uncovered = _grant_coverage(proposal, cpath.read_text(encoding="utf-8", errors="replace"))
-    if uncovered:
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "plan_id": plan_id,
-            "proposal": proposal, "uncovered": uncovered,
-            "reason": f"{len(uncovered)} required upstream action(s) are NOT covered by "
-                      f"{check_path}",
-            "remediation": "Do NOT proceed. Either extend the authorization to cover each "
-                           "action below, or change the row's disposition — those are the "
-                           "only two consistent states. This is the exact check plan-048 "
-                           "lacked when it halted its own reconcile on an omitted close:\n"
-                           + "\n".join(f"  #{u['issue']} ({u['disposition']}): {u['human']}"
-                                        f"\n    {u['command']}" for u in uncovered),
-        }, indent=2))
-        sys.exit(1)
-
-    click.echo(json.dumps({
-        "verdict": "pass", "passed": True, "plan_id": plan_id,
-        "proposal": proposal, "uncovered": [],
-        "reason": f"{check_path} covers all {len(proposal['actionable'])} actionable row(s)",
-        "remediation": None,
-    }, indent=2))
-
-
-# --- ownership-report — single-writer ownership over declared paths (Issue 1.5) --------
-#
-# REPORT-ONLY, PERMANENTLY (R1). It is never a gate and never blocks anything, because the
-# measurement it rests on is PARTIALLY CIRCULAR and the report says so in its own output: the
-# lever was derived from this corpus, and `ownership-report` is itself generated by one of the
-# five `plan_manager.py` writers it flags. A circular measurement is worth SURFACING and is
-# not worth ENFORCING.
-#
-# SIGNALS INCLUDED — and the two that are DELIBERATELY EXCLUDED, with the measurement:
-#
-#   S1  shared declared paths          INCLUDED — p = 3.4e-11, the strongest signal measured
-#   S3  DRIFT-CHECK.md edges           INCLUDED — a declared docs<->impl edge is a real
-#                                      co-writing relationship
-#   S2  CHANGE-VALIDATION.md rows      EXCLUDED — p = 0.85. Indistinguishable from noise; a
-#                                      recipe row groups files by WHO RUNS THEM, not by who
-#                                      writes them, so two issues sharing a row need not
-#                                      share a writer at all.
-#   S4  shared upstream refs           EXCLUDED — fired 0 times across the whole corpus. A
-#                                      signal with no positives contributes no information
-#                                      and cannot be validated in either direction.
-#
-# THE INCONCLUSIVE FLOOR IS A NUMBER: 80% path coverage. Below it the pairwise measurement
-# has too thin a denominator to mean anything, and the honest output is "I could not tell".
-# Reporting "orthogonal" on no input is the silent-green class in its ownership form — a
-# conclusion drawn from an empty set reads exactly like a clean bill of health.
 OWNERSHIP_COVERAGE_FLOOR = 80
 
 
@@ -3081,112 +2785,6 @@ def _run_plan_extract(plan_dir: Path) -> dict:
     return mod.extract(plan_dir / "plan.md")
 
 
-def _ownership_pairs(issues: list[dict]) -> tuple[list[dict], dict]:
-    """All unordered issue pairs sharing >= 1 declared path (S1). Pure."""
-    by_path: dict[str, list[str]] = {}
-    for i in issues:
-        for t in i.get("touches") or []:
-            by_path.setdefault(t, []).append(i["id"])
-    shared = {p: sorted(set(ids)) for p, ids in by_path.items() if len(set(ids)) > 1}
-    pairs: dict[tuple[str, str], list[str]] = {}
-    for path, ids in shared.items():
-        for a_i in range(len(ids)):
-            for b_i in range(a_i + 1, len(ids)):
-                pairs.setdefault((ids[a_i], ids[b_i]), []).append(path)
-    out = [{"a": a, "b": b, "paths": sorted(ps)} for (a, b), ps in sorted(pairs.items())]
-    return out, shared
-
-
-@cli.command("ownership-report")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "json_output", is_flag=True,
-              help="Emit the structured report (default is also JSON).")
-def ownership_report(plan_dir: str, json_output: bool):
-    """REPORT-ONLY single-writer ownership over a plan's declared paths (REQ-DATA-071).
-
-    Never a gate. Returns INCONCLUSIVE below the stated 80% path-coverage floor, and never
-    reports "orthogonal" on no input.
-    """
-    pdir = Path(plan_dir)
-    plan_md = pdir / "plan.md"
-    base = {
-        "report_only": True,
-        "coverage_floor": OWNERSHIP_COVERAGE_FLOOR,
-        "signals_included": ["shared-declared-paths", "drift-check-edges"],
-        "signals_excluded": {
-            "change-validation-rows": "p=0.85, indistinguishable from noise",
-            "shared-upstream-refs": "fired 0 times across the corpus",
-        },
-        "circularity": (
-            "PARTIALLY CIRCULAR: the ownership lever was derived from this corpus, and this "
-            "report is itself generated by one of the plan_manager.py writers it flags. "
-            "Surfaced deliberately; never enforced."
-        ),
-    }
-
-    if not plan_md.exists():
-        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE",
-                               "reason": f"plan.md not found under {plan_dir}"}))
-        sys.exit(0)
-
-    try:
-        docs = _run_plan_extract(pdir)
-    except Exception as e:  # noqa: BLE001 — any extractor failure is INCONCLUSIVE, not a finding
-        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE",
-                               "reason": f"plan_extract could not read the plan: {e}"}))
-        sys.exit(0)
-
-    issues = docs.get("issues") or []
-    if not issues:
-        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE", "coverage": 0.0,
-                               "reason": "the plan declares no issues"}))
-        sys.exit(0)
-
-    declared = [i for i in issues if i.get("touches")]
-    coverage = round(100.0 * len(declared) / len(issues), 1)
-
-    if coverage < OWNERSHIP_COVERAGE_FLOOR:
-        click.echo(json.dumps({
-            **base, "verdict": "INCONCLUSIVE", "coverage": coverage,
-            "issues": len(issues), "issues_declaring": len(declared),
-            "reason": (f"path coverage is {coverage}%, below the {OWNERSHIP_COVERAGE_FLOOR}% "
-                       f"floor — the pairwise measurement has too thin a denominator to "
-                       f"mean anything, so the honest answer is that it could not be told"),
-        }))
-        sys.exit(0)
-
-    pairs, shared = _ownership_pairs(issues)
-    click.echo(json.dumps({
-        **base, "verdict": "REPORT", "coverage": coverage,
-        "issues": len(issues), "issues_declaring": len(declared),
-        "shared_paths": {p: ids for p, ids in sorted(shared.items())},
-        "multi_writer_paths": len(shared),
-        "pairs": pairs,
-        "reason": (f"{len(shared)} declared path(s) have more than one writer across "
-                   f"{len(pairs)} issue pair(s); coverage {coverage}%"),
-    }, indent=1))
-    sys.exit(0)
-
-
-# --- recheck-criteria — completion-time re-check of Success Criteria (REQ-PLAN-080) ----
-#
-# THE TRIGGER, STATED AS A MEASUREMENT: plan-051 shipped `SC4b` measured green at the issue
-# that discharged it and FALSE two epics later — a file added downstream matched its pattern
-# and nothing re-ran the check. It was caught by an operator re-measurement, not by anything
-# the plan shipped. A criterion is only as good as the last time something re-ran it.
-#
-# `YF_RECHECK_DEPTH` IS THE LOAD-BEARING GUARD. The name-check below is BEST-EFFORT and scans
-# THE EXECUTED COMMAND STRING ONLY, never the criterion row — a criterion row may legitimately
-# *discuss* this verb, and in plan-052 every clause routes through `gate-run.sh` so no clause
-# contains the literal `recheck-criteria` at all. A name-check over rows would therefore be
-# both unnecessary and wrong.
-#
-# THE DEPTH RULE IS ABOUT WHAT EACH DEPTH MAY DO:
-#     depth 0 and depth 1 EVALUATE;  depth 2 returns exit 2 (INCONCLUSIVE) WITHOUT EXECUTING.
-# Depth 1 must evaluate because a criterion's command routes through the plan's own harness
-# and therefore runs one level down when this verb is invoked from the §6.4 close chain. A
-# guard that refused at depth 1 would make every fixture-driven control valid standalone and
-# INCONCLUSIVE under the chain — the exact state this plan exists to prevent.
 RECHECK_MAX_DEPTH = 2
 
 #: REQ-DATA-070's clause grammar, duplicated here rather than imported: `doc_lint` owns the
@@ -3244,30 +2842,31 @@ def _recheck_holds(rc: int, want: str) -> bool:
     return rc == int(want)
 
 
-@cli.command("verify-beads")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--fixture", type=click.Path(), default=None,
-              help="pinned JSON bead snapshot instead of live bd state")
-@click.option("--json-output", "--json", "json_output", is_flag=True,
-              help="Emit the structured verdict (default is also JSON).")
-def verify_beads_cmd(plan_dir: str, fixture: str | None, json_output: bool):
-    """Emit injection-time verify beads for `plan-execute` (#197, Issue 5.2).
+#: A plan's CRITERIA PREAMBLE (dixson3/yoshiko-flow#364): a fenced `sh`/`bash` block placed
+#: under `## Success Criteria` and BEFORE the table, whose lines are shell assignments or
+#: `export`s the criteria commands rely on (`$YR`, `$PB`, ...). It is part of the plan, so it
+#: is established by THE VERB THAT RUNS THE CRITERIA — every binding (the close chain's L11,
+#: `ready-check`'s smoke-run, `retrospective-report --fidelity`) inherits it by construction
+#: instead of each caller remembering to export the right variables.
+_PREAMBLE_FENCE = re.compile(
+    r"^## Success Criteria[^\n]*\n(?:(?!^\|)[^\n]*\n)*?```(?:sh|bash)\n(?P<body>.*?)^```",
+    re.M | re.S)
 
-    A thin wrapper over `verify_beads.py`. `plan-execute` declares ONE step and its real DAG
-    is built from plan.md, so there is nothing for an aspect to weave over — this is the
-    mechanism for that case, not the same mechanism applied twice.
+
+def _criteria_preamble(plan_md_text: str) -> str:
+    """The plan's criteria preamble as shell text, or `''` when the plan declares none.
+
+    Only the FIRST fenced `sh`/`bash` block between the `## Success Criteria` heading and the
+    table counts; a fence after the table is prose. Measured (#364): with the preamble absent,
+    positive-polarity criteria FALSE-FAIL and negated ones FALSE-PASS — the second silently.
     """
-    engine = Path(__file__).resolve().parent / "verify_beads.py"
-    if not engine.is_file():
-        click.echo(json.dumps({"verdict": "INCONCLUSIVE",
-                               "reason": f"verify_beads.py not found at {engine}"}))
-        sys.exit(2)
-    args = ["uv", "run", str(engine), "--plan", _plan_id_from_dir(Path(plan_dir)), "--json"]
-    if fixture:
-        args += ["--fixture", fixture]
-    proc = subprocess.run(args, capture_output=True, text=True)
-    click.echo(proc.stdout.strip() or proc.stderr.strip())
-    sys.exit(proc.returncode)
+    m = _PREAMBLE_FENCE.search(plan_md_text)
+    return m.group("body").strip() + "\n" if m else ""
+
+
+def _criteria_command(preamble: str, cmd: str) -> str:
+    """The `bash -c` program for one criterion: the preamble, then the command."""
+    return f"{preamble}{cmd}" if preamble else cmd
 
 
 @cli.command("gate-consistency")
@@ -3295,8 +2894,9 @@ def gate_consistency_cmd(plan_dir: str, json_output: bool):
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "json_output", is_flag=True,
               help="Emit the structured verdict (default is also JSON).")
-@click.option("--timeout", default=300, show_default=True,
-              help="Per-criterion command timeout, in seconds.")
+@click.option("--timeout", default=60, show_default=True,
+              help="Per-criterion command timeout, in seconds (plan-071: 300 -> 60; a criterion "
+                   "that needs minutes is `manual:`).")
 @click.option("--advisory", is_flag=True,
               help="Report an unjudged class-A criterion without halting (REQ-PLAN-080).")
 @click.option("--require-evaluated", "require_evaluated", default=None, type=float,
@@ -3358,6 +2958,8 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
 
     child_env = dict(os.environ, YF_RECHECK_DEPTH=str(depth + 1))
     repo_root = _repo_root_for(pdir)
+    # #364: the preamble is established HERE, so no caller can forget it.
+    preamble = _criteria_preamble(plan_md.read_text(encoding="utf-8"))
 
     results, class_a, evaluated, failed = [], 0, 0, []
     for r in rows:
@@ -3378,7 +2980,8 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
             continue
 
         try:
-            proc = subprocess.run(["bash", "-c", cmd], cwd=str(repo_root), env=child_env,
+            proc = subprocess.run(["bash", "-c", _criteria_command(preamble, cmd)],
+                                  cwd=str(repo_root), env=child_env,
                                   capture_output=True, text=True, timeout=timeout)
             rc = proc.returncode
         except subprocess.TimeoutExpired:
@@ -3443,6 +3046,7 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
         "harness_incomplete": bool(unjudged),
         "unjudged": unjudged,
         "skipped_self_reference": self_ref,
+        "preamble_present": bool(preamble),
         "judgeable": judgeable,
         "at_completion_binding": at_completion,
         "require_evaluated": threshold,
@@ -4548,7 +4152,7 @@ def _worktree_teardown(plan_dir: Path, force: bool, root: Path | None = None,
     because the *resolution* happens before any process is launched.
 
     Defaults preserve the previous behaviour exactly: `root=None` → `_git_root()`,
-    `runner=None` → the direct `_run_git` path. `REQ-LAND-031`'s carve-out is retired — that
+    `runner=None` → the direct `_run_git` path. `REQ-LAND-004`'s carve-out is retired — that
     requirement constrains the CALL (`force=False` in keyword form, branch on the returned
     `status`) and says nothing about how this function launches, so a fully-routed call
     satisfies it verbatim.
@@ -6282,13 +5886,11 @@ def _gate_is_resolved(bead: dict) -> bool:
     arm. Two readers disagreeing about whether a gate is satisfied is how an ordering
     assertion becomes a fail-loud false positive.
     """
-    if bead.get("status") == "closed":
-        return True
-    for key in ("resolved", "verified", "gate_resolved"):
-        if bead.get(key) is True:
-            return True
-    return str(bead.get("gate_status", "")).lower() in (
-        "resolved", "verified", "satisfied", "passed", "closed")
+    # plan-071 Issue 4.3 (#394): ONE predicate, imported — never a second copy. The former
+    # forward-compat arms (`resolved`/`verified`/`gate_resolved`/`gate_status`) matched keys
+    # bd never writes (EXP-002: zero occurrences over 232 gates) and were deleted.
+    import close_cascade as _cc
+    return _cc._bead_is_terminal(bead)
 
 
 def _find_start_gate_pair(epic: str) -> tuple[dict | None, dict | None, str | None]:
@@ -6608,163 +6210,6 @@ def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
 _ESCALATION_OPEN_STATUSES = ("reconciling", "complete")
 
 
-def _open_escalation_findings(plan_dir: Path) -> list[dict]:
-    """One `warn` finding, item `escalation-open`, when a question outlives the plan.
-
-    **`W`, never `E`.** An open escalation is a fact about the plan's *conversation*, not a
-    defect in its bundle, and this whole step is advisory — a halting severity here would
-    block completion on an unanswered question, which is precisely the coercion that would
-    make the mechanism something to route around rather than use.
-
-    **Exactly ONE finding, however many escalations are open.** The signal is "this plan is
-    finishing with unanswered questions", which is one fact; emitting one per entry would let
-    a plan with six open escalations look six times worse than a plan with one, when what a
-    reader needs is the list, which the detail carries.
-
-    Returns `[]` outside `_ESCALATION_OPEN_STATUSES`, and `[]` when there is no
-    `escalations.md` at all — the presence-optional contract holds here too.
-    """
-    plan_md = plan_dir / "plan.md"
-    if not plan_md.exists():
-        return []
-    status = _read_plan_status(plan_md.read_text(encoding="utf-8"))
-    if status not in _ESCALATION_OPEN_STATUSES:
-        return []
-    path = plan_dir / ESCALATION_FILE
-    if not path.exists():
-        return []
-    entries = _escalation_entries(path.read_text(encoding="utf-8"))
-    open_ids = [e for e in sorted(entries) if entries[e].get("state", "").strip() == "raised"]
-    if not open_ids:
-        return []
-    return [_audit_finding(
-        "escalation-open", "warn",
-        f"{len(open_ids)} escalation(s) still `state: raised` at `{status}`: "
-        f"{', '.join(open_ids)}. The plan is finishing with a question nobody answered. "
-        f"Either record the answer with `escalation-resolve <id> --answer ...`, or — if the "
-        f"recommended default was taken without an answer arriving — record THAT with "
-        f"`escalation-resolve <id> --answer '<the default>' --default-taken`, which is the "
-        f"ordinary fire-and-forget outcome and not a failure. Advisory: completion is NOT "
-        f"blocked."
-    )]
-
-
-@cli.command("judgement-never-fired-report")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def judgement_never_fired_report(plan_dir: str, as_json: bool):
-    """Close-time report on whether yf-judgement's trigger ever ran — ADVISORY (Issue 5.2).
-
-    **The question this answers is "did the detector run", NOT "did it find anything".** A
-    trigger that never fires and a trigger that is not installed produce the same silence, and
-    plan-059 records four instances of that exact failure in this repository — `closable`,
-    `plan_manager.py audit`, `retrospective_fields.py`, and #270's never-poured formula. Every
-    one was found by hand, late, by someone who happened to go looking.
-
-    **This is DEFENCE IN DEPTH, not the primary remedy, and the difference is stated rather
-    than implied.** The load-bearing mechanism is the trigger writing its own `judgement:`
-    echo to `log.md` on both paths (Issue 5.1) — nothing has to remember for that to happen.
-    This verb only *reads* those echoes. Fronting it as a `plan_manager.py` verb buys one
-    specific thing: `test_close_contract.py` enumerates the §6.4 chain from `SKILL.md`, so a
-    step **added** without the envelope is detected. It does **not** detect a step **removed**,
-    and it never establishes that §6.4 was run at all. Both limits are real and neither is
-    closed here.
-
-    Advisory: exits 0 unconditionally and never gates `set complete`.
-    """
-    pdir = Path(plan_dir)
-    log = pdir / "log.md"
-    lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-    echoes = [ln for ln in lines if "judgement: " in ln]
-    fired = [ln for ln in echoes if JUDGEMENT_FIRED in ln]
-    not_fired = [ln for ln in echoes if JUDGEMENT_NOT_FIRED in ln]
-    esc = _escalation_report(pdir)
-
-    if not echoes:
-        verdict = "fail"
-        reason = ("the yf-judgement trigger left NO echo in log.md — it either never ran or "
-                  "no longer writes its echo. These are indistinguishable from here, which "
-                  "is the whole point: a trigger whose non-firing looks like a quiet period "
-                  "is not observable.")
-        remediation = (
-            "Run `plan_manager.py judgement-echo-check <plan_dir> --json` — it invokes the "
-            "trigger and reports `lines_added` by diffing log.md, so it distinguishes the "
-            "two cases. If `lines_added` is 0, restore the `_judgement_echo` call in "
-            "`review-loop-check`. Advisory: completion is NOT blocked."
-        )
-    else:
-        verdict = "pass"
-        reason = (f"the trigger ran {len(echoes)} time(s) — {len(fired)} fired, "
-                  f"{len(not_fired)} not-fired. Non-firing is RECORDED, not merely absent.")
-        remediation = None
-
-    click.echo(json.dumps({
-        "verdict": verdict,
-        "passed": verdict == "pass",
-        "advisory": True,
-        "echoes": len(echoes),
-        "fired": len(fired),
-        "not_fired": len(not_fired),
-        "last_echo": echoes[0] if echoes else None,
-        "escalations_raised": esc["raised"],
-        "escalations_open": esc["open"],
-        "pushes": esc["pushes"],
-        "reason": reason,
-        "remediation": remediation,
-    }, indent=2))
-    # ADVISORY: always 0. Not conditional, and with no flag to make it conditional.
-    raise SystemExit(0)
-
-
-def _land_epic_from_bd(plan_dir: Path, root: Path | None = None) -> str | None:
-    """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
-
-    Mirrors `_resume_scan`'s `epic_source=bd_metadata` route: the pour stamps the epic with
-    `metadata.plan_dir` (SKILL.md §5.2a step (a)) exactly so the linkage is findable when
-    plan.md carries no `**Epic:**` field. Reused here so the route-record check answers the
-    same in both address spaces.
-
-    `root` IS AN EXPLICIT ARGUMENT, not the seam (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less
-    clause). This function has no `ctx` in scope — it is reached from `audit-close`, not from
-    an L-step — so a `runner=` would have nothing to be given. What it needs is a declared
-    working directory, and `root=None` preserves today's behaviour exactly.
-
-    Why it matters even though `bd`'s Dolt DB is shared (INV-2): "reachable from anywhere" is
-    a property of a repository that HAS one. Launched with no `cwd` at all, this reads whatever
-    database the ambient working directory resolves to — which under `execute.worktree: false`
-    is one directory, and under a worktree invocation is another. The value it returns is the
-    epic id the route-record check keys every gate lookup on, so resolving the wrong database
-    does not error: it returns `None` and the caller reports a LOUD INCONCLUSIVE about a plan
-    whose epic exists perfectly well somewhere else.
-    """
-    want = plan_dir.as_posix().rstrip("/")
-    want_leaf = plan_dir.name
-    proc = subprocess.run(["bd", "list", "--all", "--limit", "5000", "--json"],
-                          capture_output=True, text=True,
-                          cwd=str(root) if root is not None else None)
-    if proc.returncode != 0:
-        return None
-    try:
-        data = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return None
-    if isinstance(data, dict):
-        data = data.get("issues") or []
-    for b in data if isinstance(data, list) else []:
-        meta = b.get("metadata") or {}
-        if isinstance(meta, str):
-            try:
-                meta = json.loads(meta)
-            except json.JSONDecodeError:
-                continue
-        pd = str(meta.get("plan_dir") or "").rstrip("/")
-        # Match on the full repo-relative path OR its leaf: the two address spaces agree on
-        # the leaf even where a caller passes an absolute or differently-rooted plan_dir.
-        if pd and (pd == want or Path(pd).name == want_leaf):
-            return str(b.get("id", "")).split(".")[0] or None
-    return None
-
-
 def _land_assert_primary_checkout() -> dict:
     """REQ-LAND-010 ENFORCED, not assumed: `--apply` runs from the PRIMARY checkout.
 
@@ -6791,218 +6236,6 @@ def _land_assert_primary_checkout() -> dict:
                    f"L2 cannot check out the merge target from a linked worktree anyway."),
         "remediation": f"cd {primary} && re-run the `apply_command` from `land --dry-run`.",
     }
-
-
-def _land_route_record_findings(plan_dir: Path, root: Path | None = None) -> list[dict]:
-    """`Type: human` gates whose ROUTE RECORD says an agent resolved them (REQ-LAND-015).
-
-    THE SIGNAL IS ASYMMETRIC, and the asymmetry is what makes a strippable marker useful:
-
-      * a CLEAN record is WEAK evidence of a human — anyone can strip a marker;
-      * a DIRTY record is STRONG evidence of an agent — nothing adds `CLAUDECODE` and
-        removes the controlling terminal by accident.
-
-    So this reports the dirty direction only. It never certifies that a gate WAS
-    human-resolved, and nothing here should be read as doing so. DETECTION, NOT PREVENTION.
-
-    `root` IS AN EXPLICIT ARGUMENT (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less clause). Like
-    `_land_epic_from_bd`, this has no `ctx` in scope — `audit-close` calls it — so it takes a
-    declared working directory rather than a runner. `root=None` preserves today's behaviour.
-
-    Issue 1.3's AST check was originally scoped to leave these two ADVISORY, which would have
-    let this plan close #348's normative sentence while two `bd` calls still read a database
-    from the wrong cwd. The check now enforces the ctx-less clause, so an explicit root is what
-    satisfies it.
-    """
-    out: list[dict] = []
-
-    def _inconclusive(reason: str) -> list[dict]:
-        """A LOUD NO-OP. The check DID NOT RUN, and that is a different fact from `clean`.
-
-        Silence here was the third vacuity path in this control: `if not epic: return out`
-        returned an empty list, which every caller read as "checked and found nothing". A
-        control whose failure mode is indistinguishable from a clean result is the defect this
-        plan exists to remove (#263, #181).
-
-        `warn`, never `fail` — REQ-DATA-057's precedent: an INCONCLUSIVE is a statement about
-        the INSTRUMENT, not a verdict on the artifact, so it must not manufacture a failure.
-        """
-        return [{"item": "route-record check", "status": "warn", "class": "inconclusive",
-                 "detail": (f"ROUTE-RECORD CHECK DID NOT RUN: {reason}. This is NOT a clean "
-                            f"result — the REQ-LAND-015 detection control for #293 was not "
-                            f"evaluated. Distinguish it from a pass.")}]
-
-    # RESOLVE THE EPIC ID FROM A CWD-INDEPENDENT SOURCE FIRST.
-    #
-    # WHY: `plan_dir/plan.md` is read RELATIVE TO CWD, and the plan folder is PRIMARY-SIDE by
-    # the address-space model — so the worktree's copy predates every field the execution
-    # wrote. Measured on this very plan at 09c74f6: identical command, identical plan_dir,
-    # `fail` from the primary and `pass` from the worktree, because the `**Epic:**` field is
-    # present in one plan.md and absent in the other. TWO TRUTHS, and the wrong one was the
-    # silent pass.
-    #
-    # `bd` IS THE CWD-INDEPENDENT SOURCE and is the right one on the merits, not merely the
-    # convenient one: INV-2 makes the shared Dolt DB reachable identically from either address
-    # space, and the epic is STAMPED with `metadata.plan_dir` at pour time precisely so the
-    # linkage survives a plan.md that lacks the field — that is `_resume_scan`'s documented
-    # `epic_source=bd_metadata` fallback, reused here rather than reinvented.
-    #
-    # DELIBERATELY NOT CHOSEN: reading the PRIMARY's plan.md from a worktree invocation. It
-    # would work, and it is what this session reached for once already and was right to be
-    # corrected on — a check that silently reaches across the address-space boundary to find a
-    # more convenient answer is how the boundary stops meaning anything. `bd` is shared BY
-    # DESIGN; the other checkout is not.
-    if not shutil.which("bd"):
-        return _inconclusive("`bd` is not on PATH, so neither the epic id nor the gate list "
-                             "could be resolved")
-
-    epic = None
-    plan_md = plan_dir / "plan.md"
-    if plan_md.is_file():
-        epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
-    if not epic:
-        epic = _land_epic_from_bd(plan_dir, root=root)
-    if not epic:
-        return _inconclusive(
-            f"could not resolve the epic id — it is absent from {plan_md} (which is read "
-            f"relative to cwd, and the plan folder is primary-side) and no bead carries "
-            f"`metadata.plan_dir == {plan_dir.as_posix()}`")
-
-    proc = subprocess.run(
-        ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
-        capture_output=True, text=True,
-        cwd=str(root) if root is not None else None)
-    if proc.returncode != 0:
-        return out
-    try:
-        data = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return out
-    if isinstance(data, dict):
-        data = data.get("issues") or []
-    for g in data if isinstance(data, list) else []:
-        if not str(g.get("id", "")).startswith(epic):
-            continue
-        meta = g.get("metadata") or {}
-        if isinstance(meta, str):
-            try:
-                meta = json.loads(meta)
-            except json.JSONDecodeError:
-                meta = {}
-        if (meta.get("gate_type") or "human") != "human":
-            continue
-        rr = meta.get("route_record") or {}
-        if not rr:
-            continue
-        if _land_route_record_is_agent(rr):
-            out.append({
-                "item": f"gate {g.get('id')} route record",
-                "status": "fail",
-                "detail": (
-                    f"a `Type: human` gate carries a route record reading NO TTY with agent "
-                    f"marker(s) {rr.get('agent_markers')}. That is an executing agent "
-                    f"resolving a human consent gate — dixson3/yoshiko-flow#293. This is "
-                    f"DETECTION, not prevention: the record is strippable, so its absence "
-                    f"proves nothing, but its presence is strong evidence."),
-            })
-    return out
-
-
-@cli.command("audit-close")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True,
-              help="Emit the structured verdict (default is also JSON).")
-def audit_close(plan_dir: str, as_json: bool):
-    """Close-time bundle-conformance audit — ADVISORY (REQ-PLAN-075 / #140).
-
-    Reports the **absolute** finding set and NEVER gates `set complete`.
-
-    WHY A SEPARATE VERB FROM `audit`
-    --------------------------------
-    `audit` is a PLAN-phase gate: it exits non-zero on `fail` because a plan must not
-    reach INTAKE unportable. Reusing it at close would inherit that halting exit code.
-    This verb wraps the SAME `_audit_plan` engine (identical findings, no second
-    implementation) and re-frames the verdict as advisory: it exits 0 unconditionally.
-    The halting difference is structural, not a flag an author can get wrong.
-
-    WHY ADVISORY AND NOT FAIL-LOUD
-    ------------------------------
-    Measured across the completed corpus, a fail-loud close-time audit would have
-    blocked 22% of plans that legitimately completed — including one proven false
-    positive (a Windows-drive-letter regex matching inside a quoted fixture body) and
-    one failure the close step INFLICTED ON ITSELF via its own `log.md` write. Blocking
-    completion on that record would be worse than the drift it detects.
-
-    WHY THE ABSOLUTE SET AND NOT A DELTA
-    ------------------------------------
-    A delta-since-approval was considered and dropped. The Phase-3 audit is a
-    *precondition of approval*, so the stored baseline is an empty fail set by
-    construction on every non-`--force` approval — the delta EQUALS the absolute set in
-    the normal path. Its entire measured benefit was suppressing one legacy case out of
-    ten. And because this step cannot block, noise costs nothing.
-    """
-    pdir = Path(plan_dir)
-    result = _audit_plan(pdir)
-    findings = list(result.get("findings", []) or [])
-    # plan-059 Issue 5.4 — the OPEN-ESCALATION signal, added HERE and deliberately not in
-    # `_audit_plan`.
-    #
-    # The placement is the requirement, not a convenience. REQ-PORT-ACT-ESCALATION puts
-    # `escalations.md` on NO audit presence list, so `audit` must stay silent about
-    # escalations in both directions — a bundle with none and a bundle with one audit
-    # identically. This close-time verb is a different question: not "is the bundle
-    # conformant" but "is the plan finishing with a question it never got an answer to".
-    #
-    # It is the plan's own thesis applied to its own artifact. An escalation raised, never
-    # answered, and never noticed is exactly the silent-idle failure the whole mechanism
-    # exists to make impossible — and without this the artifact would record the question
-    # while nothing ever read it back.
-    findings.extend(_open_escalation_findings(pdir))
-    # plan-060 Issue 3.4 / REQ-LAND-015 — the ROUTE-RECORD signal. A `Type: human`
-    # gate whose recorded route reads "no tty, CLAUDECODE set" was resolved by an
-    # agent asserting its own authorization, which is dixson3/yoshiko-flow#293
-    # exactly. DETECTION, NOT PREVENTION: the markers are strippable — but
-    # ASYMMETRICALLY, so a dirty record is strong evidence even though a clean one is
-    # weak. This would have surfaced #293 within seconds.
-    findings.extend(_land_route_record_findings(pdir))
-    fails = [f for f in findings if f.get("status") == "fail"]
-    warns = [f for f in findings if f.get("status") == "warn"]
-
-    if fails:
-        verdict = "fail"
-        reason = (f"{len(fails)} bundle-conformance finding(s) at close "
-                  f"({len(warns)} warn). Completion is NOT blocked.")
-        remediation = (
-            "Advisory only — `set complete` proceeds regardless. To resolve, run "
-            f"`/yf-plan capture {pdir.name}` and address:\n"
-            + "\n".join(f"  - {f.get('item')}: {f.get('detail')}" for f in fails)
-        )
-    elif warns:
-        verdict = "pass"
-        reason = f"no failing findings at close ({len(warns)} warn)"
-        remediation = None
-    else:
-        verdict = "pass"
-        reason = "bundle is conformant at close"
-        remediation = None
-
-    click.echo(json.dumps({
-        "verdict": verdict,
-        "passed": verdict == "pass",
-        "advisory": True,
-        "audit_status": result.get("status"),
-        "findings": findings,
-        "fail_count": len(fails),
-        "warn_count": len(warns),
-        "grandfathered": result.get("grandfathered"),
-        "reason": reason,
-        "remediation": remediation,
-    }, indent=2))
-
-    # REQ-PLAN-075: an `advisory` step ALWAYS exits 0. This is not conditional on the
-    # verdict, and deliberately has no flag to make it conditional — the guarantee is
-    # what makes the step safe to run at close given the 22% measured block rate.
-    sys.exit(0)
 
 
 @cli.command("config-resolve")
@@ -7122,10 +6355,140 @@ def config_resolve(autonomy_flag: str | None, sweep_flag: str | None,
             click.echo(f"{k:<20} {str(v['value']):<20} {v['source']}")
 
 
+# --- the approval-to-landing fidelity metric (REQ-PLAN-084, plan-071 Issue 1.2) -----------
+
+#: The `log.md` token `land --apply` writes on every halting step, BEFORE it returns. Inert to
+#: the lifecycle like `intake:` — it matches neither the `review-pass:` count regex nor the
+#: `scoping:` grandfather regex. The `/.yf/` journal cannot be the source: it is gitignored,
+#: cleared at the terminal green state, and records only progress states.
+LANDING_HALT_TOKEN = "landing-halt:"
+_LANDING_HALT_RE = re.compile(
+    r"^- (?:\d{4}-\d{2}-\d{2} )?landing-halt: (?P<phase>\S+) (?P<verb>\S+)"
+    r"(?: irreversible=(?P<irr>true|false))?", re.M)
+#: The fixed subject `commit-plan` writes at intake; the fidelity diff is against THAT commit,
+#: so amending a criterion before landing is exactly what gets counted (R8).
+INTAKE_COMMIT_SUBJECT = "INTAKE approved (awaiting /yf-plan execute)"
+
+
+def _landing_phase_is_irreversible(phase: str) -> bool:
+    """True at or after `L_PUSHED_1`, and for the one post-outward-write conflict state."""
+    if phase == "L_REJECTED_PUSH_2":
+        return True
+    if phase in LAND_PROGRESS_ORDER:
+        return LAND_PROGRESS_ORDER.index(phase) >= LAND_PROGRESS_ORDER.index("L_PUSHED_1")
+    return False
+
+
+def _land_record_halt(ctx, step_key: str) -> dict:
+    """Write the `landing-halt:` bullet for a halting step (REQ-PLAN-084).
+
+    Called from `_land_execute`'s halt paths BEFORE the envelope is returned — an edit inside
+    the existing halt path, not a new step. Never raises: a broken log must not turn a halt
+    report into a traceback.
+    """
+    phase = (ctx.journal.read() or {}).get("phase") or "L_INIT"
+    irr = _landing_phase_is_irreversible(phase)
+    bullet = f"{LANDING_HALT_TOKEN} {phase} {step_key} irreversible={'true' if irr else 'false'}"
+    try:
+        okf.append_log(ctx.plan_dir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
+        return {"recorded": True, "bullet": bullet, "irreversible": irr}
+    except Exception as exc:  # noqa: BLE001 — the halt envelope is the priority
+        return {"recorded": False, "bullet": bullet, "irreversible": irr, "error": str(exc)}
+
+
+def _fidelity_halts(log_text: str) -> dict:
+    """`halts_post_irreversible` from `log.md`: an int, or `no-record` when no bullet exists."""
+    hits = list(_LANDING_HALT_RE.finditer(log_text))
+    if not hits:
+        return {"halts_post_irreversible": "no-record", "halts": [], "source": "no-record"}
+    post = [h.groupdict() for h in hits if _landing_phase_is_irreversible(h.group("phase"))]
+    return {"halts_post_irreversible": len(post), "halts": post, "source": "log.md"}
+
+
+def _fidelity_intake_commit(plan_id: str, root: Path) -> str | None:
+    """The LATEST intake commit for this plan (a re-approval supersedes the first)."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "--format=%H", "-n", "1", "--fixed-strings",
+             f"--grep={plan_id}: {INTAKE_COMMIT_SUBJECT}"],
+            cwd=str(root), capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    sha = out.stdout.strip().splitlines()
+    return sha[0] if out.returncode == 0 and sha else None
+
+
+def _criteria_verification_by_id(plan_md_text: str) -> dict[str, str]:
+    """`{SCn: Verification cell}` read through the canonical extractor, never a hand parser."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        (Path(td) / "plan.md").write_text(plan_md_text, encoding="utf-8")
+        rows = (_run_plan_extract(Path(td)).get("criteria") or [])
+    return {r.get("id") or r.get("raw_id"): (r.get("verification") or "") for r in rows}
+
+
+def _fidelity_derive(plan_dir: Path, *, recheck: dict | None, root: Path | None = None) -> dict:
+    """Derive the two REQ-PLAN-084 numbers. Pure over its inputs except the `git show`.
+
+    `sc_flipped_post_approval` = rows whose Verification cell differs between the intake
+    commit's `plan.md` and the working one, UNION rows the supplied `recheck` verdict reports
+    FALSE. `halts_post_irreversible` comes from `log.md` (see `_fidelity_halts`).
+    """
+    root = root or _repo_root_for(plan_dir)
+    plan_id = _plan_id_from_dir(plan_dir)
+    working = (plan_dir / "plan.md").read_text(encoding="utf-8")
+    now = _criteria_verification_by_id(working)
+
+    sha = _fidelity_intake_commit(plan_id, root)
+    flipped: list[dict] = []
+    approved_source = "no-intake-commit"
+    if sha:
+        rel = os.path.relpath(plan_dir.resolve(), root.resolve()).replace(os.sep, "/")
+        show = subprocess.run(["git", "show", f"{sha}:{rel}/plan.md"], cwd=str(root),
+                              capture_output=True, text=True)
+        if show.returncode == 0:
+            approved_source = sha[:12]
+            then = _criteria_verification_by_id(show.stdout)
+            for cid, cell in now.items():
+                before = then.get(cid)
+                if before is None:
+                    flipped.append({"id": cid, "kind": "added-after-approval"})
+                elif before.strip() != cell.strip():
+                    kind = "converted-to-manual" if cell.strip().startswith("manual:") else "amended"
+                    flipped.append({"id": cid, "kind": kind})
+            for cid in then:
+                if cid not in now:
+                    flipped.append({"id": cid, "kind": "removed-after-approval"})
+    false_rows = [c for c in ((recheck or {}).get("failed") or [])]
+    for cid in false_rows:
+        if not any(f["id"] == cid for f in flipped):
+            flipped.append({"id": cid, "kind": "false-at-landing"})
+
+    log_path = plan_dir / "log.md"
+    halts = _fidelity_halts(log_path.read_text(encoding="utf-8") if log_path.exists() else "")
+    return {
+        "plan_id": plan_id,
+        "intake_commit": sha,
+        "approved_source": approved_source,
+        "sc_flipped_post_approval": len(flipped),
+        "sc_flipped": flipped,
+        "recheck_verdict": (recheck or {}).get("verdict"),
+        "recheck_failed": false_rows,
+        **halts,
+    }
+
+
 @cli.command("retrospective-report")
 @click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--fidelity", is_flag=True,
+              help="Derive the REQ-PLAN-084 fidelity numbers (runs `recheck-criteria` itself).")
+@click.option("--record", is_flag=True,
+              help="With --fidelity: append a `fidelity` retrospective entry with the numbers.")
+@click.option("--timeout", default=60, show_default=True,
+              help="With --fidelity: per-criterion timeout handed to `recheck-criteria`.")
 @click.option("--json-output", "--json", "as_json", is_flag=True)
-def retrospective_report(plan_dir: str, as_json: bool):
+def retrospective_report(plan_dir: str, fidelity: bool, record: bool, timeout: int,
+                         as_json: bool):
     """ADVISORY close-step report of the bundle's retrospective entries (4.4).
 
     Emits the REQ-COMPLETE-003 verdict envelope (``status`` + ``findings`` +
@@ -7144,6 +6507,34 @@ def retrospective_report(plan_dir: str, as_json: bool):
     itself had just written.
     """
     pdir = Path(plan_dir)
+    if fidelity:
+        # RUN THE ORACLE ITSELF (pass-1 C11): nothing persists L11's output, so there is no
+        # file to read. `recheck-criteria` establishes the plan's criteria preamble env on
+        # its own (#364), so this binding inherits it by construction.
+        me = str(Path(__file__).resolve())
+        proc = subprocess.run(["uv", "run", me, "recheck-criteria", str(pdir), "--json",
+                               "--advisory", "--timeout", str(timeout)],
+                              capture_output=True, text=True)
+        try:
+            recheck = json.loads(proc.stdout) if proc.stdout.strip() else None
+        except json.JSONDecodeError:
+            recheck = None
+        out = _fidelity_derive(pdir, recheck=recheck)
+        out["recheck_exit"] = proc.returncode
+        out["status"] = "ok"
+        out["advisory"] = True
+        if record:
+            entry = {
+                "kind": "fidelity",
+                "detected_by": "mechanical-check",
+                "evidence": (f"retrospective-report --fidelity: intake {out['approved_source']}, "
+                             f"recheck exit {proc.returncode}, halts source {out['source']}"),
+                "sc_flipped_post_approval": str(out["sc_flipped_post_approval"]),
+                "halts_post_irreversible": str(out["halts_post_irreversible"]),
+            }
+            out["recorded"] = append_retrospective(pdir, entry)
+        click.echo(json.dumps(out, indent=2))
+        return
     path = pdir / RETROSPECTIVE_FILE
     entries: list[dict] = []
     if path.exists():
@@ -7177,6 +6568,21 @@ def retrospective_report(plan_dir: str, as_json: bool):
             f"{unverified} of {len(entries)} entries carry `evidence: unverified` — a state "
             "assertion with no evidence is a narration, not a finding. Advisory only."
         )
+    # plan-071 Issue 4.3: the former `judgement-never-fired-report` verb, folded in as a section.
+    # It answers "did the yf-judgement trigger RUN", not "did it find anything" — but the echo
+    # it read was deleted with `judgement-echo-check` (Issue 4.1), so on any bundle executed
+    # after plan-071 an absent echo is the expected state and is reported, never a finding.
+    log = pdir / "log.md"
+    log_lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+    echoes = [ln for ln in log_lines if "judgement: " in ln]
+    judgement = {
+        "echoes": len(echoes),
+        "fired": sum(1 for ln in echoes if JUDGEMENT_FIRED in ln),
+        "not_fired": sum(1 for ln in echoes if JUDGEMENT_NOT_FIRED in ln),
+        "note": ("the trigger's log echo was retired by plan-071 (REQ-PLAN-086); an absent echo "
+                 "is expected on bundles executed after it") if not echoes else None,
+    }
+    escalations = _escalation_report(pdir)
     result = {
         "status": "ok",
         "present": path.exists(),
@@ -7184,6 +6590,8 @@ def retrospective_report(plan_dir: str, as_json: bool):
         "by_kind": by_kind,
         "by_stop_class": by_class,
         "unverified": unverified,
+        "judgement": judgement,
+        "escalations": escalations,
         "findings": findings,
         "remediation": (
             "Advisory. Absence is never a finding. To enrich a thin entry, re-run "
@@ -7291,12 +6699,19 @@ def escalation_resolve(plan_dir: str, escalation_id: str, answer: str,
 @click.option("--culpability", default="")
 @click.option("--prevention", default="")
 @click.option("--cost", default="")
+@click.option("--sc-flipped-post-approval", "sc_flipped", default="",
+              help="`--kind fidelity` only: Success Criteria rows whose Verification cell "
+                   "changed after approval, plus rows FALSE at landing (REQ-PLAN-084).")
+@click.option("--halts-post-irreversible", "halts_post", default="",
+              help="`--kind fidelity` only: `landing-halt:` bullets at or after L_PUSHED_1, "
+                   "or the literal `no-record` (REQ-PLAN-084).")
 @click.option("--dry-run", is_flag=True, help="Report what would be written; write nothing.")
 @click.option("--json-output", "--json", "as_json", is_flag=True)
 def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
                          answered: str, frontloadable: str, detected_by: str,
                          evidence: str, escape_class: str, adjudication: str,
                          origin: str, culpability: str, prevention: str, cost: str,
+                         sc_flipped: str, halts_post: str,
                          dry_run: bool, as_json: bool):
     """Append one `## RE-NNN` entry to `plan-retrospective.md` (REQ-CLI-022).
 
@@ -7320,6 +6735,7 @@ def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
         "frontloadable": frontloadable, "detected_by": detected_by, "evidence": evidence,
         "escape_class": escape_class, "adjudication": adjudication, "origin": origin,
         "culpability": culpability, "prevention": prevention, "cost": cost,
+        "sc_flipped_post_approval": sc_flipped, "halts_post_irreversible": halts_post,
     }
     try:
         result = append_retrospective(Path(plan_dir), entry, dry_run=dry_run)
@@ -7347,39 +6763,6 @@ _JUDGEMENT_TERMINAL_STATUSES = ("complete", "abandoned")
 
 JUDGEMENT_FIRED = "judgement: fired"
 JUDGEMENT_NOT_FIRED = "judgement: not-fired"
-
-
-def _judgement_echo(plan_dir: Path, fired: bool, detail: str) -> dict:
-    """Write the trigger's own echo to `log.md`, on BOTH the fired and not-fired paths.
-
-    THIS IS THE LOAD-BEARING HALF OF EPIC 5, and the reason is the command-vs-obligation
-    law the plan is built on: only a step the SCRIPT performs is a step that survives.
-    Every other observability remedy in this plan — enumerating the report by name in the
-    close contract, a tagged test at the call site — is defence in depth that a removal
-    can walk past. This one writes itself.
-    
-    Without it, a trigger that never fires is INDISTINGUISHABLE FROM A QUIET PERIOD, and
-    plan-059 records four separate instances of exactly that failure (`closable`,
-    `plan_manager.py audit`, `retrospective_fields.py`, and #270's never-poured formula) —
-    every one found by hand, late, by someone who went looking.
-
-    The echo bullet is INERT to the lifecycle: it matches neither the `review:` count regex
-    (REQ-PORT-006) nor the `scoping:` grandfather-date regex, so it can never perturb an
-    audit. Returns ``{"appended", "line", "skipped_reason"}``.
-    """
-    plan_md = plan_dir / "plan.md"
-    status = None
-    if plan_md.exists():
-        status = _read_plan_status(plan_md.read_text(encoding="utf-8"))
-    if status in _JUDGEMENT_TERMINAL_STATUSES:
-        return {"appended": False, "line": None,
-                "skipped_reason": f"bundle status is `{status}` — its log is a closed record"}
-    bullet = f"{JUDGEMENT_FIRED if fired else JUDGEMENT_NOT_FIRED} — {detail}"
-    try:
-        okf.append_log(plan_dir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
-    except Exception as exc:  # a broken log must not take the trigger down with it
-        return {"appended": False, "line": None, "skipped_reason": f"append_log failed: {exc}"}
-    return {"appended": True, "line": f"- {bullet}", "skipped_reason": None}
 
 
 def _review_loop_escalation(plan_dir: Path, escalates: bool, cycles: int, limit: int) -> dict:
@@ -7530,31 +6913,6 @@ def _escalation_report(plan_dir: Path) -> dict:
     }
 
 
-@cli.command("escalation-report")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def escalation_report(plan_dir: str, as_json: bool):
-    """Report the escalation instrumentation research 005 §8.4 names as missing (Issue 3.5).
-
-    Emits `raised`, `answered`, `no_answer_taken`, `open` and `pushes`, plus one row per
-    escalation recording when it was raised, whether it was answered, and whether its
-    `on_no_answer` default was taken instead.
-
-    **`raised` is CUMULATIVE** — every entry ever raised, whatever state it is in now — not
-    the number currently in `state: raised`, which is reported separately as `open`. The
-    distinction is load-bearing: the cost-ratio premise the whole escalation path rests on is
-    "how often does an answer arrive versus how often is the default silently taken", and a
-    count that shrinks as questions get answered cannot measure it.
-    """
-    result = _escalation_report(Path(plan_dir))
-    if as_json:
-        click.echo(json.dumps(result, indent=2))
-    else:
-        click.echo(f"raised={result['raised']} answered={result['answered']} "
-                   f"no_answer_taken={result['no_answer_taken']} open={result['open']} "
-                   f"pushes={result['pushes']}")
-
-
 @cli.command("escalation-push")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--pane", default=None,
@@ -7658,56 +7016,6 @@ def escalation_push(plan_dir: str, pane: str | None, dry_run: bool, as_json: boo
     click.echo(json.dumps(result, indent=2) if as_json else f"pushed {len(pending)} in 1 message")
 
 
-@cli.command("judgement-echo-check")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def judgement_echo_check(plan_dir: str, as_json: bool):
-    """Prove the trigger echoes, by EXTERNAL OBSERVATION (Issue 5.1).
-
-    Reads `log.md`, invokes the trigger **as a subprocess**, reads `log.md` again, and
-    reports `lines_added` and `added_line` from the difference. Nothing here trusts anything
-    the trigger says about itself: a self-report from the component under test is exactly the
-    evidence standard `detected_by` exists to make visible.
-
-    The subprocess is deliberate rather than an in-process call. An in-process call would
-    still be green if `review-loop-check` stopped invoking the echo and this verb invoked it
-    directly — which is the removal Epic 5 exists to detect.
-    """
-    pdir = Path(plan_dir)
-    log = pdir / "log.md"
-    before = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-
-    proc = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "review-loop-check",
-         str(pdir), "--json"],
-        capture_output=True, text=True,
-    )
-    after = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-
-    # A MULTISET difference, not a membership test. `ln not in before` silently reports ZERO
-    # lines added when the appended line is IDENTICAL to one already in the log — which is the
-    # ordinary case, since a second invocation on the same day writes the same bullet. The
-    # membership form made this verb report its own failure on every re-run.
-    added = list((Counter(after) - Counter(before)).elements())
-    judgement_lines = [ln for ln in added if "judgement: " in ln]
-    result = {
-        "plan_dir": str(pdir),
-        "trigger": "review-loop-check",
-        "trigger_exit": proc.returncode,
-        "lines_added": len(judgement_lines),
-        "added_line": judgement_lines[0] if judgement_lines else None,
-        "all_added_lines": added,
-        "verdict": "PASS" if len(judgement_lines) == 1 else "FAIL",
-        "remediation": None if len(judgement_lines) == 1 else (
-            "the trigger wrote no `judgement:` echo to log.md. A trigger whose non-firing is "
-            "indistinguishable from a quiet period is not shippable (plan-059 SC6). Restore "
-            "the `_judgement_echo` call in `review-loop-check`."
-        ),
-    }
-    click.echo(json.dumps(result, indent=2))
-    raise SystemExit(0 if result["verdict"] == "PASS" else 1)
-
-
 @cli.command("review-loop-check")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--max-review-cycles", "raise_to", type=int, default=None,
@@ -7764,11 +7072,7 @@ def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
     # so its non-firing is distinguishable from a quiet period without anyone remembering to
     # look. This is the only remedy in Epic 5 that sits at the top of the
     # command-vs-obligation table.
-    result["judgement_echo"] = _judgement_echo(
-        pdir, escalates,
-        f"review-loop-check: {cycles}/{limit} cycle(s), "
-        f"{'ESCALATING (stop class 4)' if escalates else 'converging'}",
-    )
+
     if escalates:
         result["remediation"] = (
             f"the review loop has run {cycles} cycle(s), at or above the bound of {limit}. "
@@ -7788,6 +7092,167 @@ def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
 
     click.echo(json.dumps(result, indent=2))
     sys.exit(3 if escalates else 0)
+
+
+# --- REQ-PLAN-085 (plan-071 Issue 2.4): ready-check EXECUTES what it approves --------------
+
+#: The smoke-run's per-command bound. 30s, not `recheck-criteria`'s 60s: this is a shape check
+#: (does the command RUN at all), not a verdict on the criterion.
+READY_SMOKE_TIMEOUT = 30
+#: stderr signatures that mean "this command cannot run as written" — an instrument defect,
+#: never a criterion that is merely false yet.
+_READY_SMOKE_STDERR_FAIL = ("usage:", "unrecognized arguments", "command not found")
+_NO_SUCH_FILE = "No such file or directory"
+
+
+def _missing_paths(stderr: str, cmd: str) -> list[str]:
+    """The paths a command reported as missing, or — when the message names none (uv's
+    `Caused by: No such file or directory (os error 2)`) — the path-shaped tokens of the
+    command itself that do not exist. Never empty when stderr carries the message."""
+    out: list[str] = []
+    for line in stderr.splitlines():
+        if _NO_SUCH_FILE not in line:
+            continue
+        segs = [s.strip().strip("'\"`") for s in line.split(": ")]
+        for i, s in enumerate(segs):
+            if s.startswith(_NO_SUCH_FILE):
+                # `cat: PATH: No such file…` names it BEFORE; python's `…directory: 'PATH'` AFTER
+                after = segs[i + 1] if i + 1 < len(segs) else ""
+                before = segs[i - 1] if i >= 1 else ""
+                cand = after if after and not after.startswith("(") else before
+                cand = cand.strip().strip("'\"`")
+                if cand and cand.lower() not in ("error", "caused by") and " " not in cand:
+                    out.append(cand)
+                break
+    if stderr and _NO_SUCH_FILE in stderr and not out:
+        for tok in re.findall(r"[^\s\"'`;&|()]+", cmd):
+            if "/" in tok and not tok.startswith("-") and not Path(tok).exists():
+                out.append(tok)
+        if not out:
+            out.append("<unnamed>")
+    return out
+
+
+def _load_doc_lint_module():
+    """The co-resident `doc_lint.py`, so the clause grammar has ONE definition (REQ-PLAN-085
+    says reuse `_verification_clause_ok`; a second grammar here would drift from the linter)."""
+    import importlib.util as _ilu
+    here = Path(__file__).resolve().parent
+    cand = here / "doc_lint.py"
+    if not cand.is_file():
+        return None
+    spec = _ilu.spec_from_file_location("doc_lint_for_ready_check", cand)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _epics_declared_paths(docs: dict) -> set[str]:
+    """Every code-span token in the `## Epics` issue text — the DERIVED allow-list for a
+    `No such file` on a deliverable the plan itself creates. Never hand-listed."""
+    out: set[str] = set()
+    for i in docs.get("issues") or []:
+        blob = f"{i.get('title', '')}\n{i.get('detail', '')}"
+        for span in re.findall(r"`([^`\n]+)`", blob):
+            span = span.strip()
+            out.add(span)
+            out.add(Path(span).name)
+    return out
+
+
+def _ready_smoke_run(pdir: Path, docs: dict, *, timeout: int = READY_SMOKE_TIMEOUT) -> dict:
+    """Smoke-run every clause-form Success Criteria command (REQ-PLAN-085 (a)).
+
+    Returns ``{"rows": [...], "failures": [...], "checked": n}``. A row FAILS readiness when
+    its cell is neither clause-form nor `manual:`, or when the command exits 126/127, times
+    out, writes a usage/argparse/command-not-found signature to stderr, or reports
+    `No such file` on a path the plan's `## Epics` text does not name. A command that is
+    GREEN while reporting a missing input is the #356/#364 false-pass polarity and is a
+    failure too (`empty-collection-suspect`).
+    """
+    dl = _load_doc_lint_module()
+    clause_ok = dl._verification_clause_ok if dl else (lambda c: True)
+    rows_in = docs.get("criteria") or []
+    declared = _epics_declared_paths(docs)
+    plan_md = pdir / "plan.md"
+    preamble = _criteria_preamble(plan_md.read_text(encoding="utf-8")) if plan_md.exists() else ""
+    repo_root = _repo_root_for(pdir)
+    env = dict(os.environ, YF_RECHECK_DEPTH=str(RECHECK_MAX_DEPTH))   # a nested recheck refuses
+    rows, failures = [], []
+    for r in rows_in:
+        cid = r.get("id") or r.get("raw_id") or "?"
+        cell = r.get("verification") or ""
+        rec = {"id": cid}
+        if not clause_ok(cell):
+            rec.update(status="prose", reason="Verification cell is neither clause-form "
+                                                "(REQ-DATA-070) nor `manual:`")
+            rows.append(rec); failures.append(rec); continue
+        kind, cmd, want = _classify_criterion(cell)
+        if kind == "manual":
+            rec.update(status="manual"); rows.append(rec); continue
+        rec.update(command=cmd, expected_exit=want)
+        if "recheck-criteria" in (cmd or "") or "ready-check" in (cmd or ""):
+            rec.update(status="skipped-self-reference"); rows.append(rec); continue
+        try:
+            proc = subprocess.run(["bash", "-c", _criteria_command(preamble, cmd)],
+                                  cwd=str(repo_root), env=env, capture_output=True,
+                                  text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            rec.update(status="timeout", reason=f"exceeded {timeout}s")
+            rows.append(rec); failures.append(rec); continue
+        except OSError as e:
+            rec.update(status="unrunnable", reason=str(e))
+            rows.append(rec); failures.append(rec); continue
+        rc, err = proc.returncode, (proc.stderr or "")
+        rec["actual_exit"] = rc
+        rec["holds_now"] = _recheck_holds(rc, want)
+        low = err.lower()
+        if rc in (126, 127):
+            rec.update(status="unrunnable", reason=f"exit {rc}: {err.strip()[-200:]}")
+            rows.append(rec); failures.append(rec); continue
+        sig = next((s for s in _READY_SMOKE_STDERR_FAIL if s in low), None)
+        if sig:
+            rec.update(status="unrunnable", reason=f"stderr carries `{sig}`: {err.strip()[-200:]}")
+            rows.append(rec); failures.append(rec); continue
+        missing = _missing_paths(err, cmd or "")
+        if missing:
+            undeclared = [m for m in missing
+                          if m not in declared and Path(m).name not in declared]
+            if rec["holds_now"]:
+                rec.update(status="empty-collection-suspect", missing=missing,
+                           reason="the command is GREEN while reporting a missing input — "
+                                  "the #356/#364 false-pass polarity; the criterion passes "
+                                  "on nothing")
+                rows.append(rec); failures.append(rec); continue
+            if undeclared:
+                rec.update(status="no-such-file", missing=undeclared,
+                           reason="a path the command needs does not exist and the plan's "
+                                  "`## Epics` text does not name it as a deliverable")
+                rows.append(rec); failures.append(rec); continue
+            rec.update(status="not-yet-dischargeable", missing=missing)
+            rows.append(rec); continue
+        rec["status"] = "ran"
+        rows.append(rec)
+    return {"rows": rows, "failures": failures, "checked": len(rows_in),
+            "preamble_present": bool(preamble)}
+
+
+def _ready_gate_consistency(pdir: Path) -> dict:
+    """Run `gate_consistency.py` over the bundle (REQ-PLAN-085 (a), #325): FAIL blocks
+    readiness, INCONCLUSIVE is reported. The engine's first look is pre-approval."""
+    engine = Path(__file__).resolve().parent / "gate_consistency.py"
+    if not engine.is_file():
+        return {"verdict": "INCONCLUSIVE", "exit": 2, "reason": "gate_consistency.py absent"}
+    proc = subprocess.run(["uv", "run", str(engine), str(pdir), "--json"],
+                          capture_output=True, text=True)
+    try:
+        out = json.loads(proc.stdout) if proc.stdout.strip() else {}
+    except json.JSONDecodeError:
+        out = {}
+    return {"verdict": out.get("verdict") or ("PASS" if proc.returncode == 0 else
+                                              "FAIL" if proc.returncode == 1 else "INCONCLUSIVE"),
+            "exit": proc.returncode, "findings": out.get("findings") or [],
+            "gates": out.get("gates"), "reason": out.get("reason")}
 
 
 def _ready_check_result(pdir: Path) -> dict:
@@ -7828,6 +7293,22 @@ def _ready_check_result(pdir: Path) -> dict:
             f"portability audit did not pass (status={audit['status']}) — run "
             "`/yf-plan capture` or fix the failing findings")
 
+    # --- REQ-PLAN-085 (a): execute what you approve ---------------------------------------
+    try:
+        docs = _run_plan_extract(pdir)
+    except Exception as e:  # noqa: BLE001 — an unreadable plan is not ready
+        docs = {}
+        reasons.append(f"plan_extract could not read the plan: {e}")
+    smoke = _ready_smoke_run(pdir, docs) if docs else {"rows": [], "failures": [], "checked": 0}
+    for f in smoke["failures"]:
+        reasons.append(f"criterion {f['id']}: {f['status']} — {f.get('reason', '')}")
+    gates = _ready_gate_consistency(pdir)
+    if gates["verdict"] == "FAIL":
+        reasons.append(
+            f"gate_consistency FAIL ({len(gates.get('findings') or [])} finding(s)) — "
+            "a capability gate contradicts its own Blocks set; fix the plan's ## Gates")
+    fp = _fingerprint_status(pdir)
+
     ready = not reasons
     result = {
         "ready": ready,
@@ -7836,6 +7317,10 @@ def _ready_check_result(pdir: Path) -> dict:
         "review_pass": n,
         "malformed_review": malformed_review,
         "audit_status": audit["status"],
+        # REQ-PLAN-085 surfaces (pass-5 C2: until now only `resume-scan` reported staleness)
+        "stale_approved": fp["stale_approved"],
+        "criteria": smoke,
+        "gate_consistency": gates,
     }
     return result
 
@@ -7907,7 +7392,7 @@ LAND_SCHEMA_DECISION = "yf-plan/landing-decision@1"
 #: express a two-push order and would make `merge: skip` legal.
 LAND_STEPS: tuple[str, ...] = (
     "l0_lock_acquire", "l1_down_merge", "l2_merge", "l3_validate_merged",
-    "l4_commit_merge", "l5_advisory_recheck", "l6_push_one", "l7_reconcile_writes",
+    "l4_commit_merge", "l6_push_one", "l7_reconcile_writes",
     "l8_close_chain_head", "l9_close_reconcile_step", "l10_verify_reconcile",
     "l11_recheck_criteria", "l12_close_cascade", "l13_complete_gate",
     "l14_pour_fidelity", "l15_update_status", "l16_commit_and_push_two",
@@ -7919,11 +7404,11 @@ LAND_STEPS: tuple[str, ...] = (
 #: the uncommitted, unpushed `status: complete` this whole capability exists to remove.
 LAND_NON_SKIPPABLE: frozenset[str] = frozenset({
     "l0_lock_acquire", "l1_down_merge", "l2_merge", "l3_validate_merged",
-    "l4_commit_merge", "l5_advisory_recheck", "l6_push_one", "l16_commit_and_push_two",
+    "l4_commit_merge", "l6_push_one", "l16_commit_and_push_two",
 })
 
 #: The journal state set (REQ-LAND-006). CLOSED and NORMATIVE — `spec/landing.md` names the
-#: same seventeen, and `test_land_apply.py` asserts the two agree. They are enumerated in ONE
+#: same sixteen (seventeen before plan-071 retired L5), and `test_land_apply.py` asserts the two agree. They are enumerated in ONE
 #: place because `okf_hygiene`'s R2/SC11/test-suite all keyed on "a set of five" that no
 #: document listed, so a five-state test and a five-state journal could have been five
 #: DIFFERENT fives with every instrument green.
@@ -7932,8 +7417,7 @@ LAND_JOURNAL_STATES: dict[str, str] = {
     "L_LOCKED": "landing lock held; no tree mutated",
     "L_DOWNMERGED": "target down-merged into <plan-id>-execute",
     "L_MERGED_UNCOMMITTED": "merge present on the target, uncommitted",
-    "L_VALIDATED": "FULL tier green; merge committed; lock released",
-    "L_PREPUSH_CHECKED": "advisory criteria run complete — the last fully reversible state",
+    "L_VALIDATED": "FULL tier green; merge committed; lock released — the last fully reversible state (L5 retired by plan-071)",
     "L_PUSHED_1": "push #1 done — the irreversible boundary has been crossed",
     "L_RECONCILED": "every enumerated gh write posted and verified by read-back",
     "L_CLOSED": "close chain L8-L15 complete; status: complete written",
@@ -7997,7 +7481,7 @@ def _land_canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-#: THE DIGEST'S COVERAGE SET EXCLUDES LANDING-MUTATED FACTS (REQ-LAND-036).
+#: THE DIGEST'S COVERAGE SET EXCLUDES LANDING-MUTATED FACTS (REQ-LAND-002).
 #:
 #: Exhaustive, and each member is here for the SAME reason: **L18's own teardown flips it
 #: mid-landing**. `execute_worktree_present` goes `true` -> `false` and `execute_worktree_dirty`
@@ -8037,7 +7521,7 @@ def _land_digest_coverage(facts: dict) -> dict:
 
 
 def _land_digest(facts: dict) -> str:
-    """`sha256` over the `facts` object's COVERAGE SET (REQ-LAND-018, REQ-LAND-036).
+    """`sha256` over the `facts` object's COVERAGE SET (REQ-LAND-002, REQ-LAND-002).
 
     IT MUST COVER `predicted_tree` AND THE TARGET TIP. Measured (EXP-006): those are exactly
     the fields that drift when another plan lands between dry-run and apply, so a digest
@@ -8088,7 +7572,7 @@ def _land_enumerate(directory: Path, checkout_root: Path | None = None) -> list[
         `--ignored=matching`, the documented fix for exactly that collapsing, ALSO returns 1.
 
     (e) AN OMISSION FROM ENUMERATION IS SILENT. It is not a `skip`, so REQ-LAND-002's "every
-        skip is surfaced in the consent prompt" guarantee does NOT cover it (REQ-LAND-003).
+        skip is surfaced in the consent prompt" guarantee does NOT cover it (REQ-LAND-002).
         The premise this helper originally rested on — that draft bodies are "untracked by
         construction" — is RETIRED: `commit-plan` falsifies it by design.
     """
@@ -8174,7 +7658,7 @@ def _land_merge_preview(target: str, execute_branch: str,
         # The directional question is "what does `B` add since it diverged from `A`", whose
         # git spelling is the merge base as the left endpoint. Written as an explicit
         # `merge-base` call rather than the `A...B` sugar, because this module already carries
-        # a normative prohibition on a three-dot expression (`REQ-LAND-025` / #303,
+        # a normative prohibition on a three-dot expression (`REQ-LAND-004` / #303,
         # `_land_changed_set`) and a second three-dot literal here — correct in this context,
         # forbidden in that one — is an invitation to read the wrong rule onto the wrong line.
         mb = _run_git(["merge-base", target, execute_branch], cwd=root)
@@ -8195,7 +7679,7 @@ def _land_merge_preview(target: str, execute_branch: str,
 def _land_changed_set(root: Path | None = None) -> list[str]:
     """The landed change set, computed as `HEAD^1..HEAD` — NEVER `<target>...HEAD`.
 
-    ISSUE 1.4 / `REQ-LAND-025` / dixson3/yoshiko-flow#303. The documented `<target>...HEAD`
+    ISSUE 1.4 / `REQ-LAND-004` / dixson3/yoshiko-flow#303. The documented `<target>...HEAD`
     expression runs at a moment when `HEAD == <target>`, so it is EMPTY BY CONSTRUCTION and
     `classify-deliverable`'s `path-backed` evidence is structurally unreachable through it.
     `HEAD^1..HEAD` reads the merge's second parent's contribution, which is the set that
@@ -8235,7 +7719,7 @@ def _land_number_collisions(plan_id: str, target: str,
                             root: Path | None = None) -> list[str]:
     """Other plan bundles on the merge target sharing this plan's `NNN` (Issue 1.3).
 
-    `REQ-LAND-024` / dixson3/yoshiko-flow#302-B3. Two bundles sharing an `NNN` and differing
+    `REQ-LAND-026` / dixson3/yoshiko-flow#302-B3. Two bundles sharing an `NNN` and differing
     only by hash suffix MERGE CLEANLY — measured, and commented on #302 — so merge-back is
     the ONLY place the collision is detectable at all. Reported as a HALTING finding.
 
@@ -8295,7 +7779,7 @@ def _land_upstream_facts(plan_dir: Path, plan_id: str) -> dict:
             "why": req.get("why"),
             "resolved_by": r.get("resolved_by"),
             "draft_body_path": draft_rel,
-            # ENUMERATED, never assumed. An omission here is SILENT (REQ-LAND-003) — it is
+            # ENUMERATED, never assumed. An omission here is SILENT (REQ-LAND-002) — it is
             # not a `skip`, so the consent-prompt guarantee does not cover it.
             "draft_present": draft_rel in present,
         })
@@ -8323,7 +7807,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
     execute_branch = _execute_branch(plan_id)
     wt = _worktree_path(plan_dir)
 
-    # THE PRIMARY CHECKOUT, not `_repo_root()` (REQ-LAND-034). L16's post-condition runs
+    # THE PRIMARY CHECKOUT, not `_repo_root()` (REQ-LAND-026). L16's post-condition runs
     # against `ctx.root`, which is the PRIMARY — so a prediction computed in a linked worktree
     # would be predicting the wrong tree, which is #341's original defect in a new place.
     # Memoized: the two `primary_checkout_*` facts and the halt below are ONE observation, and
@@ -8381,7 +7865,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             "resolvable_by_agent": False,
         })
 
-    # THE HALTING FINDING (REQ-LAND-034, #333/#341). Emitted from the SAME observation the
+    # THE HALTING FINDING (REQ-LAND-026, #333/#341). Emitted from the SAME observation the
     # two `primary_checkout_*` facts are computed from, and scoped to OUTSIDE the plan folder
     # — dirt inside it is exactly what `git add -- <plan_dir>` is for.
     #
@@ -8426,7 +7910,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             "merge_target": target,
             "execute_branch": execute_branch,
             "worktree_path": wt.as_posix(),
-            # FOUR FIELDS, REPLACING `worktree_dirty` (REQ-LAND-036 / #341). The rename is
+            # FOUR FIELDS, REPLACING `worktree_dirty` (REQ-LAND-002 / #341). The rename is
             # MANDATORY, not cosmetic: `worktree_dirty` named the tree L16 DOES NOT CHECK.
             # It observed `.worktrees/<plan-id>` while L16's post-condition reads `ctx.root`,
             # and its value was `bool((False, []))` — a non-empty TUPLE, so it was constantly
@@ -8441,7 +7925,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             # because `false` would assert "clean" about a tree that does not exist.
             "execute_worktree_present": wt.is_dir(),
             "execute_worktree_dirty": (bool(_worktree_dirty(wt)[0]) if wt.is_dir() else None),
-            # Computed VIA `_dirty_outside_plan_dir` — the helper REQ-LAND-033 defines — and
+            # Computed VIA `_dirty_outside_plan_dir` — the helper REQ-LAND-032 defines — and
             # never by an inline predicate. Two implementations of one rule is how the dry run
             # stops predicting L16 (SC4c pins the single definition site).
             "primary_checkout_dirty_outside_plan_dir": _primary_dirt(plan_dir, root)["dirty"],
@@ -8450,7 +7934,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             # DIGEST-COVERED, and deliberately so: measured, the predicted tree oid and the
             # target tip are EXACTLY the fields that drift when another plan lands between
             # dry-run and apply. A digest omitting them cannot detect the staleness it
-            # exists to detect (Issue 1.5 / REQ-LAND-018).
+            # exists to detect (Issue 1.5 / REQ-LAND-002).
             "resolved_target_tip": resolved_tip,
             "merge_preview": preview,
             "plan_number_collisions": collisions,
@@ -8469,9 +7953,10 @@ def _land_plan_status(plan_dir: Path) -> str | None:
     NAMED `_land_*`, and the prefix is load-bearing rather than cosmetic. An earlier draft
     called this `_read_plan_status`, which SHADOWED an existing module-level function of that
     name taking plan.md TEXT — Python simply rebinds, so the later definition silently won and
-    `_open_escalation_findings` started passing a `str` where a `Path` was now expected. The
-    house `_land_*` prefix on every helper this capability adds is what makes that collision
-    class impossible by construction; it was caught by `test_audit_close.py`, not by review.
+    the (since-deleted) escalation-findings reader started passing a `str` where a `Path` was
+    now expected. The house `_land_*` prefix on every helper this capability adds is what makes
+    that collision class impossible by construction; it was caught by the (since-deleted)
+    audit-close test file, not by review.
     """
     p = plan_dir / "plan.md"
     if not p.is_file():
@@ -8711,7 +8196,7 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
         halts = manifest["halts"]
         verdict = "fail" if halts else "pass"
 
-        # `resolvable_by_agent` NOW HAS A CONSUMER (Issue 4.4, REQ-LAND-034). It was written
+        # `resolvable_by_agent` NOW HAS A CONSUMER (Issue 4.4, REQ-LAND-026). It was written
         # in five places and READ IN NONE, so the new halt's `true` would have been as inert
         # as the five existing `false`s — a field nothing reads is a field that cannot be
         # wrong, which is the vacuous-check class (#263) in data form.
@@ -8803,7 +8288,7 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             halt_class=LAND_HALT_OUTWARD,
             route_record=gate["route_record"]), indent=2))
         sys.exit(3)
-    # ---- THE SEAM (REQ-LAND-028, dixson3/yoshiko-flow#327) --------------------------------
+    # ---- THE SEAM (REQ-LAND-010, dixson3/yoshiko-flow#327) --------------------------------
     #
     # Everything above this line was already here; what was missing was the CALL. `_land_execute`
     # drove all fifteen steps, advanced the journal and was fail-closed, while having exactly one
@@ -8838,8 +8323,8 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             halt_class=LAND_HALT_MECHANICAL, offenders=contained["offenders"]), indent=2))
         sys.exit(1)
 
-    # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-009), never observed
-    # state. `recover()` is TOTAL over the seventeen states, so all four of its actions are
+    # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-006), never observed
+    # state. `recover()` is TOTAL over the sixteen states, so all four of its actions are
     # branched on here — an unhandled action would silently become a fresh landing, which is
     # the one wrong answer that can re-push and re-post.
     journal = LandingJournal(_land_primary_checkout(), _plan_id_from_dir(pdir))
@@ -9054,7 +8539,7 @@ def _land_tty_gate(allow_list: list[str] | None = None) -> dict:
 LAND_JOURNAL_DIR = ".yf/plan/landing-journal"
 
 # The ALLOWLIST the dirty check exempts, as a PATH PREFIX. `.yf/plan/` covers both the landing
-# journal (REQ-LAND-008 stages it inside the tree — a `mktemp -d` would turn `os.rename` into a
+# journal (REQ-LAND-006 stages it inside the tree — a `mktemp -d` would turn `os.rename` into a
 # copy and void every durability claim) and `land-beads.json`, which the old substring filter
 # did not exempt at all.
 LAND_DIRT_ALLOWLIST: tuple[str, ...] = (".yf/plan/",)
@@ -9090,10 +8575,10 @@ def _porcelain_records(out: str) -> list[tuple[str, str]]:
 
 def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
     """THE SINGLE DEFINITION SITE of "the tree is dirty outside the plan folder"
-    (REQ-LAND-033).
+    (REQ-LAND-032).
 
     ONE RULE, ONE IMPLEMENTATION, TWO CALLERS: L16's post-condition ENFORCES it and
-    `land --dry-run` PREDICTS it (REQ-LAND-034). Two independent implementations of one rule
+    `land --dry-run` PREDICTS it (REQ-LAND-026). Two independent implementations of one rule
     is precisely how the dry run stops predicting L16 — the defect this plan exists to close
     — so a second definition site is a regression even when both copies agree today.
 
@@ -9107,7 +8592,7 @@ def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
       fragment anywhere in the line, and did not even exempt the journal it was written for.
 
     Returns `{"dirty", "paths", "staged", "records"}`. `paths` are the offending paths only —
-    the boolean is what the digest carries, the list is what a halt reports (REQ-LAND-036).
+    the boolean is what the digest carries, the list is what a halt reports (REQ-LAND-002).
     """
     root = root or _git_root()
     prefix = Path(plan_dir).as_posix().rstrip("/") + "/"
@@ -9129,7 +8614,6 @@ def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
             staged.append(path)
     return {"dirty": bool(paths), "paths": sorted(paths), "staged": sorted(staged),
             "records": len(paths)}
-
 
 
 def _land_fsync_write(path: Path, text: str) -> None:
@@ -9157,14 +8641,14 @@ def _land_fsync_write(path: Path, text: str) -> None:
 class LandingJournal:
     """A durable record of WHICH ENUMERATED STATE a landing is in (REQ-LAND-006).
 
-    RECOVERY IS KEYED ON THE RECORDED PHASE, NEVER ON OBSERVED STATE (REQ-LAND-009). That
+    RECOVERY IS KEYED ON THE RECORDED PHASE, NEVER ON OBSERVED STATE (REQ-LAND-006). That
     distinction is the whole mechanism: at several boundaries "wrote nothing" and "wrote
     everything then died" are INDISTINGUISHABLE from the filesystem and from git. A merge
     that was committed and a merge that was never attempted both leave a clean tree once the
     process is gone; only the recorded phase separates them.
 
     The state set is CLOSED — `LAND_JOURNAL_STATES` — and `spec/landing.md` names the same
-    seventeen. `okf_hygiene`'s R2, SC11 and test suite all keyed on "a set of five" that no
+    sixteen. `okf_hygiene`'s R2, SC11 and test suite all keyed on "a set of five" that no
     document listed, so a five-state test and a five-state journal could have been five
     DIFFERENT fives with every instrument green. Enumerating once, in one place that the spec
     is asserted against, is what removes that.
@@ -9220,7 +8704,7 @@ class LandingJournal:
     def recover(self) -> dict:
         """What a resumed `--apply` should do, derived from the RECORDED PHASE.
 
-        TOTAL over the state set (REQ-LAND-009): every one of the seventeen has a row, and an
+        TOTAL over the state set (REQ-LAND-006): every one of the sixteen has a row, and an
         unknown or corrupt phase is INCONCLUSIVE rather than "start over".
         """
         rec = self.read()
@@ -9263,7 +8747,7 @@ class LandingJournal:
 #: progress state and returns to a DIFFERENT recovery.
 LAND_PROGRESS_ORDER: tuple[str, ...] = (
     "L_INIT", "L_LOCKED", "L_DOWNMERGED", "L_MERGED_UNCOMMITTED", "L_VALIDATED",
-    "L_PREPUSH_CHECKED", "L_PUSHED_1", "L_RECONCILED", "L_CLOSED", "L_PUSHED_2",
+    "L_PUSHED_1", "L_RECONCILED", "L_CLOSED", "L_PUSHED_2",
     "L_MIRRORED", "L_PRUNED", "L_DONE",
 )
 
@@ -9769,26 +9253,6 @@ def _land_l4_commit_merge(ctx: LandingContext) -> dict:
 
 # -- L5 ------------------------------------------------------------------------------------
 
-def _land_l5_advisory_recheck(ctx: LandingContext) -> dict:
-    """L5 — ADVISORY `recheck-criteria` on the merged tree, BEFORE the push.
-
-    THE LAST FULLY REVERSIBLE POINT. Tree-sensitive criteria are exercised while the landing
-    can still be abandoned with no outward trace.
-
-    ADVISORY DESCRIBES THE VERDICT, NOT WHETHER IT RUNS (`REQ-LAND-004` L5): it never halts.
-    The authoritative halting run is L11, after the reconcile writes that some criteria
-    depend on.
-    """
-    proc = ctx.run("uv", ["run", str(Path(__file__).resolve()), "recheck-criteria",
-                          str(ctx.plan_dir), "--json"], cwd=ctx.root)
-    return _step("l5_advisory_recheck", "pass",
-                 f"advisory pre-push criteria run complete (exit {proc.returncode}) — "
-                 f"ADVISORY, never halting; the authoritative run is L11",
-                 journal="L_PREPUSH_CHECKED", halting=False,
-                 exit_code=proc.returncode, advisory=True,
-                 output=(proc.stdout or proc.stderr)[-2000:])
-
-
 # -- L6 ------------------------------------------------------------------------------------
 
 def _land_l6_push_one(ctx: LandingContext) -> dict:
@@ -9912,9 +9376,11 @@ def _land_l7_reconcile_writes(ctx: LandingContext) -> dict:
 #: never accidentally be walked past (#180's defect, in which an exit code was captured and
 #: only ECHOED).
 LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
-    ("audit-close",                   "l8_close_chain_head",     False),
+    # plan-071 Issue 4.3: `audit-close` (the same engine as `audit`, run again at close) and
+    # `judgement-never-fired-report` (folded into `retrospective-report`) are gone. Issue 4.4
+    # puts `gate-consistency` in the former `audit-close` slot as a HALTING regression guard.
+    ("gate-consistency",              "l8_close_chain_head",     True),
     ("retrospective-report",          "l8_close_chain_head",     False),
-    ("judgement-never-fired-report",  "l8_close_chain_head",     False),
     ("classify-deliverable",          "l8_close_chain_head",     False),
     ("close-reconcile-step",          "l9_close_reconcile_step", True),
     ("verify-reconcile",              "l10_verify_reconcile",    True),
@@ -9922,7 +9388,7 @@ LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
 )
 
 
-def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
+def _land_l8_to_l11_close_chain(ctx: LandingContext) -> list[dict]:
     """L8-L15 — the existing close chain, invoked verb by verb.
 
     EACH EXIT CODE IS **READ**, NOT MERELY ECHOED. That is #180's defect: `close-reconcile-step`
@@ -9930,8 +9396,11 @@ def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
     reported `inconclusive`, exited 0, and the chain walked on to cascade-close and
     `set complete` with the reconcile step still open.
 
-    AN `inconclusive` IS REPORTED AND DOES NOT HALT. A `gh` outage must never block completion
-    on healthy work (R1), and `recheck-criteria`'s exit 2 maps to warn per REQ-DATA-057.
+    AN `inconclusive` FROM A HALTING VERB HALTS (REQ-PLAN-085 (b), plan-071 Issue 4.3). A
+    landing that cannot evaluate its own criteria is not a clean landing. The row keeps its
+    honest `inconclusive` verdict — it is NOT coerced to `fail` (REQ-LAND-012) — and carries
+    `halt_reason: "inconclusive"`; `_land_execute` halts on `halting`, whatever the verdict.
+    An `inconclusive` from an ADVISORY verb is reported and does not halt.
 
     `CHANGED` is computed as `HEAD^1..HEAD` (Issue 1.4 / #303), never `<target>...HEAD`.
     """
@@ -9957,10 +9426,16 @@ def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
             continue
         if rc == 2:
             out.append(_step(verb, "inconclusive",
-                             f"{verb} was INCONCLUSIVE (exit 2) — reported, NOT coerced to "
-                             f"fail and NOT halting",
-                             halting=False, exit_code=rc,
+                             f"{verb} was INCONCLUSIVE (exit 2) — "
+                             + ("HALTING: a halting verb that cannot judge establishes nothing, "
+                                "and completion stops here (REQ-PLAN-085 (b)). Not coerced to fail."
+                                if halting else "reported, NOT coerced to fail and NOT halting."),
+                             halting=halting, exit_code=rc,
+                             halt_reason="inconclusive" if halting else None,
+                             halt_class=LAND_HALT_MECHANICAL if halting else None,
                              output=(proc.stdout or proc.stderr)[-1500:]))
+            if halting:
+                return out
             continue
         out.append(_step(verb, "fail",
                          f"{verb} exited {rc}. "
@@ -10097,7 +9572,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
     #
     # SCOPING THE GUARD REMOVES A MISLEADING ERROR; IT DOES NOT REMOVE THE HALT. The
     # post-condition below still sees the unrelated file and returns a halting fail — which
-    # is intended, and is what `--dry-run` now predicts (REQ-LAND-034).
+    # is intended, and is what `--dry-run` now predicts (REQ-LAND-026).
     staged = ctx.run("git", ["diff", "--cached", "--quiet", "--", ctx.plan_dir.as_posix()],
                      cwd=ctx.root)
     if staged.returncode != 0:                      # non-zero == there IS something staged
@@ -10124,7 +9599,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
 
     # POST-CONDITION, asserted on the way OUT.
     #
-    # THE LANDING JOURNAL IS EXCLUDED, and it must be. REQ-LAND-008 stages it INSIDE the repo
+    # THE LANDING JOURNAL IS EXCLUDED, and it must be. REQ-LAND-006 stages it INSIDE the repo
     # tree (a `mktemp -d` would turn `os.rename` into a copy and void every durability claim),
     # and L16 runs at `L_PUSHED_2` — three steps before the landing ends — so the journal is
     # necessarily still present and necessarily still describing an in-flight landing.
@@ -10133,7 +9608,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
     # anchor that `yf preflight` ensures, the journal appeared as an untracked file and L16
     # failed its own post-condition. The live repo has that anchor, so the defect was invisible
     # here and would have surfaced first in whichever repo lacked it.
-    # `-uall` and the PATH-PREFIX filter (REQ-LAND-033, #343). See `_dirty_outside_plan_dir`.
+    # `-uall` and the PATH-PREFIX filter (REQ-LAND-032, #343). See `_dirty_outside_plan_dir`.
     dirt = _dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)
     porcelain = "\n".join(dirt["paths"]).strip()
     unpushed = ctx.run("git", ["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
@@ -10259,7 +9734,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     feature = _feature_branch(ctx.plan_id)
     actions, preserved = [], []
 
-    # REQ-LAND-031 (#340). THREE DEFECTS LIVED IN THE THREE LINES THIS REPLACES.
+    # REQ-LAND-004 (#340). THREE DEFECTS LIVED IN THE THREE LINES THIS REPLACES.
     #
     # (a) ARITY. `_worktree_teardown(plan_dir, force)` takes TWO parameters; the call passed
     #     one, and raised `TypeError` on the first real `--apply` in this repository's
@@ -10282,7 +9757,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     #     fallback — and nothing consulted `status` at all. A `blocked` teardown (dirty
     #     worktree: nothing removed, branch left behind) reported `verdict: pass`. A landing
     #     must not report a prune it did not perform.
-    # (d) OFF THE SEAM. Added by plan-068 Issue 1.1: `REQ-LAND-031`'s apparent carve-out was
+    # (d) OFF THE SEAM. Added by plan-068 Issue 1.1: `REQ-LAND-004`'s apparent carve-out was
     #     an OVER-READ. That requirement constrains this CALL — `force=False` in keyword form,
     #     branch on the returned `status` — and says nothing about how the callee launches, so
     #     the fully-routed form below satisfies it verbatim. The precedent is already in this
@@ -10324,7 +9799,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
                                 "implemented here."}
     actions.append(tab_action)
 
-    # BRANCH ON THE RETURNED `status` (REQ-LAND-031). Three-valued, and the ABSENT case is
+    # BRANCH ON THE RETURNED `status` (REQ-LAND-004). Three-valued, and the ABSENT case is
     # stated rather than inferred: a stub or a future return shape carrying no `status` has
     # established NOTHING about the prune, so the step is `inconclusive` — never `pass`.
     if status == "ok":
@@ -10410,10 +9885,9 @@ LAND_EXECUTOR: tuple[tuple[str, str], ...] = (
     ("l2_merge",                "_land_l2_merge"),
     ("l3_validate_merged",      "_land_l3_validate_merged"),
     ("l4_commit_merge",         "_land_l4_commit_merge"),
-    ("l5_advisory_recheck",     "_land_l5_advisory_recheck"),
     ("l6_push_one",             "_land_l6_push_one"),
     ("l7_reconcile_writes",     "_land_l7_reconcile_writes"),
-    ("l8_close_chain_head",     "_land_l8_to_l15_close_chain"),
+    ("l8_close_chain_head",     "_land_l8_to_l11_close_chain"),
     ("l12_close_cascade",       "_land_l12_close_cascade"),
     ("l13_complete_gate",       "_land_l13_l15_finish"),
     ("l16_commit_and_push_two", "_land_l16_commit_and_push_two"),
@@ -10437,7 +9911,6 @@ LAND_STEP_JOURNAL: dict[str, str] = {
     "l1_down_merge": "L_DOWNMERGED",
     "l2_merge": "L_MERGED_UNCOMMITTED",
     "l4_commit_merge": "L_VALIDATED",
-    "l5_advisory_recheck": "L_PREPUSH_CHECKED",
     "l6_push_one": "L_PUSHED_1",
     "l7_reconcile_writes": "L_RECONCILED",
     "l13_complete_gate": "L_CLOSED",
@@ -10451,7 +9924,7 @@ LAND_STEP_JOURNAL: dict[str, str] = {
 #: Steps that are NEVER skipped on a resume, however far the journal advanced.
 #:
 #: `l0_lock_acquire` is the only member, and the reason is asymmetric rather than cosmetic
-#: (REQ-LAND-029). The landing lock is released at **L4**, not at the end, so a uniform skip
+#: (REQ-LAND-011). The landing lock is released at **L4**, not at the end, so a uniform skip
 #: rule would run L1-L4 holding no lock and then `unlink` a lock it never acquired --
 #: `_landing_lock_release` is keyed on plan+host, not PID, so that unlink would steal a lock
 #: belonging to a concurrent landing. Re-executing L0 is safe because `_landing_lock_acquire`
@@ -10466,7 +9939,7 @@ LAND_RESUME_NEVER_SKIP: frozenset[str] = frozenset({"l0_lock_acquire"})
 def _land_resume_done(resume_from: str | None) -> set[str]:
     """Translate a journal phase into the set of EXECUTOR STEP KEYS already completed.
 
-    THE TWO VOCABULARIES ARE NOT THE SAME SET (REQ-LAND-029, dixson3/yoshiko-flow#327). The
+    THE TWO VOCABULARIES ARE NOT THE SAME SET (REQ-LAND-011, dixson3/yoshiko-flow#327). The
     journal records `L_*` PHASES; the step loop iterates `LAND_EXECUTOR` STEP KEYS. The
     original code built a set of phases, named it `done`, and then never read it -- so a
     resume after a halt at L17 re-executed all fifteen steps from L0, `l6_push_one` and
@@ -10514,7 +9987,7 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
     """Drive L0-L19, advancing the journal between steps and halting on the first halting
     failure.
 
-    RESUME IS KEYED ON THE JOURNAL'S RECORDED PHASE (REQ-LAND-009), never on observed state,
+    RESUME IS KEYED ON THE JOURNAL'S RECORDED PHASE (REQ-LAND-006), never on observed state,
     and a resume RE-DERIVES the manifest and re-checks the digest before continuing
     (REQ-LAND-011) — the journal says WHERE it was, never WHAT WAS TRUE.
 
@@ -10527,7 +10000,7 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
     results: list[dict] = []
     for key, fname in LAND_EXECUTOR:
         if key in done:
-            # RESUMED, NOT SILENTLY ABSENT (REQ-LAND-029). A skip that leaves no row is
+            # RESUMED, NOT SILENTLY ABSENT (REQ-LAND-011). A skip that leaves no row is
             # indistinguishable from a step that was never in the table -- so the row is
             # emitted with an explicit `resumed` marker, and the journal is NOT rewritten
             # (it already records this state; rewriting it would move the phase backwards
@@ -10609,10 +10082,12 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
             )
             results.append(row)
             ctx.results.append(row)
+            halt_rec = _land_record_halt(ctx, row["step"])          # REQ-PLAN-084
             return {"halted": True, "at": row["step"], "results": results,
                     "journal_phase": (ctx.journal.read() or {}).get("phase"),
                     "reason": row["reason"],
-                    "recovery": row["detail"].get("recovery")}
+                    "recovery": row["detail"].get("recovery"),
+                    "landing_halt": halt_rec}
         batch = out if isinstance(out, list) else [out]
         results.extend(batch)
         ctx.results.extend(batch)
@@ -10620,13 +10095,17 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
         for r in batch:
             if r.get("journal"):
                 ctx.journal.write(r["journal"], step=r["step"])
-            if r["verdict"] == "fail" and r.get("halting"):
+            # A halting row halts on `fail` AND on `inconclusive` (REQ-PLAN-085 (b), plan-071):
+            # the verdict stays three-valued, the halt is keyed on `halting` alone.
+            if r.get("halting") and r["verdict"] in ("fail", "inconclusive"):
                 if r.get("journal") and r["journal"] in LAND_CONFLICT_STATES:
                     pass                       # the conflict state is already recorded above
+                halt_rec = _land_record_halt(ctx, r["step"])          # REQ-PLAN-084
                 return {"halted": True, "at": r["step"], "results": results,
                         "journal_phase": (ctx.journal.read() or {}).get("phase"),
                         "reason": r["reason"], "recovery": r.get("detail", {}).get("recovery")
-                                                or r.get("recovery")}
+                                                or r.get("recovery"),
+                        "landing_halt": halt_rec}
 
     final = ctx.journal.read() or {}
     terminal = final.get("phase") == LAND_TERMINAL_STATE

@@ -67,7 +67,7 @@ _REVIEWER = _SKILL_DIR / "agents" / "reviewer.md"
 _THIS_TEST = Path(__file__).name
 
 # The declared REQ set. The vacuity guard below asserts the parameterized case set EQUALS it.
-_DECLARED: set[str] = {"REQ-AGENT-049", "REQ-AGENT-043", "REQ-AGENT-045"}
+_DECLARED: set[str] = {"REQ-AGENT-049", "REQ-AGENT-043", "REQ-AGENT-045", "REQ-AGENT-066"}
 
 # Shared wording. Both amended REQs carve out the same two properties, which is D-8: rewording
 # only the red-team would leave the two agents contradicting each other on one constraint.
@@ -153,8 +153,44 @@ def _check_agent_carve_out(path: Path, req: str) -> None:
     )
 
 
+# REQ-AGENT-066 (plan-071 Issue 2.3): the execution-pass contract, as PROPERTIES of the brief.
+# Each string below is something the brief must SAY; the negative control strips the `## Mode`
+# section and asserts the check fails, so a brief that lost the rule cannot pass by accident.
+_066_CHECKERS = ("doc_lint.py", "plan_extract.py", "gate_consistency.py",
+                 "check_amendment_log.py", "check-req-coverage.py", "okf.py", "audit")
+_066_REQUIRED = (
+    "## Mode",                                  # the rule has a home
+    "**Mode:** reading | execution",            # the template emits the parseable line
+    "| # | Severity | Basis | Concern | Recommendation |",   # the measured|inferred column
+    "`measured:`", "`inferred:`",               # the closed vocabulary
+    "zero `measured:` findings returns `APPROVE`",          # the convergence standard (#286)
+    "re-verify every `resolved` cell",          # #306, the phantom resolution
+    "cannot be `high`",                          # #390, an inference cannot block
+)
+
+
+def _check_066(path: Path = _RED_TEAM) -> None:
+    """The brief carries the pass-index Mode rule, the checker list, the Basis column."""
+    body = path.read_text(encoding="utf-8")
+    for needle in _066_REQUIRED:
+        assert needle in body, (
+            f"REQ-AGENT-066: {path.name} does not carry {needle!r}. The execution-pass "
+            "contract is a set of things the brief must SAY; a brief missing one of them "
+            "reverts to an open-ended reading loop (#286)."
+        )
+    # The pass-index rule: both halves, so a brief that says "pass 3" but drops "1 and 2 may
+    # read" (or vice versa) fails.
+    assert re.search(r"Passes \*\*1 and 2\*\*|passes 1 and 2|\| 1, 2 \|", body, re.I), (
+        "REQ-AGENT-066: the brief does not say passes 1 and 2 may be reading passes")
+    assert re.search(r"3 and (every )?later", body), (
+        "REQ-AGENT-066: the brief does not say pass 3 and later are execution passes")
+    for c in _066_CHECKERS:
+        assert c in body, f"REQ-AGENT-066: the execution pass does not name checker {c!r}"
+
+
 _PROSE_CHECKS = {
     "REQ-AGENT-049": _check_049,
+    "REQ-AGENT-066": _check_066,
     "REQ-AGENT-043": lambda: _check_agent_carve_out(_RED_TEAM, "REQ-AGENT-043"),
     "REQ-AGENT-045": lambda: _check_agent_carve_out(_REVIEWER, "REQ-AGENT-045"),
 }
@@ -213,6 +249,22 @@ def test_the_checks_span_both_agent_files() -> None:
     assert covered == {"red-team.md", "reviewer.md"}
     for p in (_RED_TEAM, _REVIEWER):
         assert p.is_file(), f"{p} does not exist — the agent templates moved."
+
+
+def test_066_negative_control_a_brief_without_the_mode_rule_fails(tmp_path: Path) -> None:
+    """plan-071 Issue 2.3: a copy of `red-team.md` with the `## Mode` section removed must FAIL
+    `_check_066`. Without this the check could be satisfied by an empty function."""
+    text = _RED_TEAM.read_text(encoding="utf-8")
+    start = text.index("## Mode")
+    end = text.index("## Execution-pass procedure")
+    stripped = text[:start] + text[end:]
+    assert "## Mode" not in stripped
+    copy = tmp_path / "red-team.md"
+    copy.write_text(stripped, encoding="utf-8")
+    with pytest.raises(AssertionError, match="REQ-AGENT-066"):
+        _check_066(copy)
+    # And the shipped brief passes the same check — the control is a control, not a tautology.
+    _check_066(_RED_TEAM)
 
 
 def test_the_spec_is_parseable_at_all() -> None:

@@ -175,8 +175,8 @@ into the target folder).
 Non-engine-backed subcommands: init
 
 All engine-backed subcommands route to `scripts/okf.py` via `uv run`. The marker line above
-is machine-read by `scripts/checks/check-assess-verb-gone.sh`, which asserts that every
-ADVERTISED ENGINE-BACKED subcommand is dispatchable by that script. `init` is advertised and
+is a declared exemption set (its former reader, `check-assess-verb-gone.sh`, was retired by
+plan-071 as an unwired instrument). `init` is advertised and
 undispatchable **legitimately** — it routes to the § Init prose, not to the engine — and
 declaring it here is what makes that distinguishable from an oversight. An *inferred*
 exemption is indistinguishable from a defect, which is the whole reason the verb below was
