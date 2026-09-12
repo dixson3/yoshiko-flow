@@ -2013,6 +2013,33 @@ def test_resume_done_set_is_step_keys_not_journal_states(repo):
 # SC1 / REQ-LAND-030 — a step that RAISES becomes a halting envelope, not a traceback
 # =========================================================================================
 
+def test_halting_step_writes_the_landing_halt_bullet(repo, monkeypatch):
+    """REQ-PLAN-084 (plan-071 Issue 1.2). Every halt path of `_land_execute` writes a
+    `- landing-halt: <phase> <verb> irreversible=<bool>` bullet to the bundle's `log.md`
+    BEFORE returning — the fidelity metric's only durable source, since the `/.yf/` journal
+    is gitignored and cleared at the terminal green state.
+    """
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    monkeypatch.setattr(pm, "_land_l3_validate_merged",
+                        lambda ctx: (_ for _ in ()).throw(TypeError("boom")))
+    r = FakeRunner({"rev-parse|HEAD^{tree}": _R(0, "t\n"),
+                    f"rev-parse|{PLAN_ID}-execute^{{tree}}": _R(0, "t\n")})
+    ctx = _ctx(repo, r)
+    out = pm._land_execute(ctx)
+    assert out["halted"] is True
+    assert out["landing_halt"]["recorded"] is True
+    log = (ctx.plan_dir / "log.md").read_text(encoding="utf-8")
+    hits = pm._LANDING_HALT_RE.findall(log)
+    assert hits == [("L_MERGED_UNCOMMITTED", "l3_validate_merged", "false")], log
+
+    # And a halt AFTER push #1 is stamped irreversible=true, which is what the metric counts.
+    ctx.journal.write("L_PUSHED_1", note="t")
+    rec = pm._land_record_halt(ctx, "l7_reconcile_writes")
+    assert rec["irreversible"] is True
+    fid = pm._fidelity_halts((ctx.plan_dir / "log.md").read_text(encoding="utf-8"))
+    assert fid["halts_post_irreversible"] == 1 and fid["source"] == "log.md"
+
+
 def test_step_exception_becomes_halting(repo, monkeypatch):
     """REQ-LAND-030 (#340). An exception raised by a `LAND_EXECUTOR` step is caught at the
     dispatch site and becomes a HALTING `inconclusive` row with NO journal advance.

@@ -289,3 +289,210 @@ def test_a_bundle_without_an_index_still_writes_the_entry(pm, bundle):
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# =======================================================================================
+# plan-071 Issue 1.1 — the `fidelity` kind (REQ-PLAN-084): two numbers, both REQUIRED
+# =======================================================================================
+
+def _fid(**kw) -> dict:
+    base = _entry(kind="fidelity", stop_class="", asked="", answered="",
+                  sc_flipped_post_approval="3", halts_post_irreversible="1",
+                  evidence="retrospective-report --fidelity")
+    base.update(kw)
+    return base
+
+
+def test_fidelity_is_a_kind_and_carries_both_numbers(pm, bundle):
+    assert "fidelity" in pm.RETROSPECTIVE_KINDS
+    assert set(pm.RETROSPECTIVE_FIDELITY_FIELDS) <= set(pm.RETROSPECTIVE_FIELDS)
+    r = pm.append_retrospective(bundle, _fid())
+    assert r["appended"] is True
+    text = (bundle / pm.RETROSPECTIVE_FILE).read_text(encoding="utf-8")
+    assert "| `kind` | fidelity |" in text
+    assert "| `sc_flipped_post_approval` | 3 |" in text
+    assert "| `halts_post_irreversible` | 1 |" in text
+
+
+def test_fidelity_refuses_a_missing_number(pm, bundle):
+    """A fidelity entry with one number is a narration about the other."""
+    with pytest.raises(ValueError, match="sc_flipped_post_approval"):
+        pm.append_retrospective(bundle, _fid(sc_flipped_post_approval=""))
+    with pytest.raises(ValueError, match="halts_post_irreversible"):
+        pm.append_retrospective(bundle, _fid(halts_post_irreversible=""))
+    with pytest.raises(ValueError, match="integer"):
+        pm.append_retrospective(bundle, _fid(sc_flipped_post_approval="many"))
+    assert not (bundle / pm.RETROSPECTIVE_FILE).exists(), "a refused entry wrote nothing"
+
+
+def test_fidelity_accepts_no_record_for_halts_but_not_for_flips(pm, bundle):
+    """A bundle predating the `landing-halt:` bullet reports `no-record`, never zero."""
+    assert pm.append_retrospective(bundle, _fid(halts_post_irreversible="no-record"))["appended"]
+    with pytest.raises(ValueError):
+        pm.append_retrospective(bundle, _fid(sc_flipped_post_approval="no-record", asked="x"))
+
+
+def test_fidelity_renders_as_the_existing_two_column_table(pm, bundle):
+    pm.append_retrospective(bundle, _fid())
+    text = (bundle / pm.RETROSPECTIVE_FILE).read_text(encoding="utf-8")
+    block = text[text.index("## RE-001"):]
+    assert "| field | value |" in block and "| :-- | :-- |" in block
+    assert not re.search(r"^\*\*[A-Za-z_ ]+:\*\*", block, re.M), "no bold-label lines"
+
+
+def test_other_kinds_do_not_require_the_fidelity_numbers(pm, bundle):
+    assert pm.append_retrospective(bundle, _entry(kind="stop"))["appended"]
+    assert pm.append_retrospective(bundle, _entry(kind="deviation", asked="d"))["appended"]
+
+
+# =======================================================================================
+# plan-071 Issue 1.2 — `retrospective-report --fidelity` DERIVES the two numbers
+# =======================================================================================
+
+import subprocess as _sp
+
+
+def _git(*args, cwd):
+    _sp.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+_PLAN_ID = "plan-998-test-fidel1"
+
+_PLAN_TEMPLATE = """---
+type: Plan
+okf_spec: OKF-PLAN
+id: {pid}
+status: executing
+---
+# Plan: fidelity fixture
+
+**ID:** {pid}
+**Status:** executing
+
+## Objective
+t
+
+## Epics
+### Epic 1: e
+- Issue 1.1: do a thing
+
+## Success Criteria
+{preamble}| # | Criterion | Verification | Discharged-by |
+| :-- | :-- | :-- | :-- |
+| SC1 | one | `{sc1}` → exit 0 | 1.1 |
+| SC2 | two | `true` → exit 0 | 1.1 |
+| SC3 | three | `true` → exit 0 | 1.1 |
+"""
+
+
+@pytest.fixture()
+def fidelity_repo(tmp_path, monkeypatch):
+    """A git repo with an INTAKE commit, then a post-approval edit to SC1's Verification."""
+    root = tmp_path / "repo"
+    pdir = root / "docs" / "plans" / _PLAN_ID
+    pdir.mkdir(parents=True)
+    _git("init", "-q", "-b", "main", ".", cwd=root)
+    for k, v in (("user.email", "t@example.invalid"), ("user.name", "T"),
+                 ("commit.gpgsign", "false")):
+        _git("config", k, v, cwd=root)
+    (pdir / "plan.md").write_text(
+        _PLAN_TEMPLATE.format(pid=_PLAN_ID, preamble="", sc1="true"), encoding="utf-8")
+    (pdir / "log.md").write_text("# Log\n\n## 2026-01-01\n- scoping: init\n", encoding="utf-8")
+    _git("add", "-A", cwd=root)
+    _git("commit", "-q", "-m", f"{_PLAN_ID}: INTAKE approved (awaiting /yf-plan execute)",
+         cwd=root)
+    # The post-approval flip: SC1's cell changes. Uncommitted is fine — the diff is against
+    # the intake commit, not against HEAD.
+    (pdir / "plan.md").write_text(
+        _PLAN_TEMPLATE.format(pid=_PLAN_ID, preamble="", sc1="test -d ."), encoding="utf-8")
+    monkeypatch.chdir(root)
+    return root, pdir
+
+
+def test_fidelity_derivation_counts_a_flipped_cell_and_a_false_row(pm, fidelity_repo):
+    root, pdir = fidelity_repo
+    (pdir / "log.md").write_text(
+        "# Log\n\n## 2026-01-02\n"
+        "- landing-halt: L_PUSHED_1 l7_reconcile_writes irreversible=true\n"
+        "- landing-halt: L_MERGED_UNCOMMITTED l3_validate_merged irreversible=false\n"
+        "## 2026-01-01\n- scoping: init\n", encoding="utf-8")
+    out = pm._fidelity_derive(pdir, recheck={"verdict": "FAIL", "failed": ["SC2"]}, root=root)
+    assert out["intake_commit"], "the intake commit must be found by its fixed subject"
+    kinds = {f["id"]: f["kind"] for f in out["sc_flipped"]}
+    assert kinds == {"SC1": "amended", "SC2": "false-at-landing"}, kinds
+    assert out["sc_flipped_post_approval"] == 2
+    # Only the halt at/after L_PUSHED_1 counts; the L3 halt is pre-irreversible.
+    assert out["halts_post_irreversible"] == 1
+    assert out["source"] == "log.md"
+
+
+def test_fidelity_reports_no_record_when_no_halt_bullet_exists(pm, fidelity_repo):
+    root, pdir = fidelity_repo
+    out = pm._fidelity_derive(pdir, recheck={"verdict": "PASS", "failed": []}, root=root)
+    assert out["halts_post_irreversible"] == "no-record"
+    assert out["source"] == "no-record"
+    assert out["sc_flipped_post_approval"] == 1     # SC1 only
+
+
+def test_fidelity_counts_a_manual_conversion_as_a_flip(pm, fidelity_repo):
+    """R8: amending a criterion to `manual:` before landing is exactly what is counted."""
+    root, pdir = fidelity_repo
+    text = (pdir / "plan.md").read_text(encoding="utf-8")
+    text = text.replace("| SC3 | three | `true` → exit 0 |", "| SC3 | three | manual: no |")
+    (pdir / "plan.md").write_text(text, encoding="utf-8")
+    out = pm._fidelity_derive(pdir, recheck=None, root=root)
+    kinds = {f["id"]: f["kind"] for f in out["sc_flipped"]}
+    assert kinds["SC3"] == "converted-to-manual"
+
+
+def test_irreversible_boundary_is_l_pushed_1_and_rejected_push_2(pm):
+    assert pm._landing_phase_is_irreversible("L_PUSHED_1")
+    assert pm._landing_phase_is_irreversible("L_CLOSED")
+    assert pm._landing_phase_is_irreversible("L_REJECTED_PUSH_2")
+    assert not pm._landing_phase_is_irreversible("L_VALIDATED")
+    assert not pm._landing_phase_is_irreversible("L_REJECTED_PUSH_1")
+    assert not pm._landing_phase_is_irreversible("L_CONFLICT_MERGE")
+
+
+def test_fidelity_report_runs_recheck_itself_and_records(pm, fidelity_repo):
+    """The verb runs `recheck-criteria` ITSELF (pass-1 C11) and `--record` writes the kind."""
+    from click.testing import CliRunner
+    root, pdir = fidelity_repo
+    r = CliRunner().invoke(pm.cli, ["retrospective-report", str(pdir), "--fidelity",
+                                    "--record", "--timeout", "20", "--json"])
+    assert r.exit_code == 0, r.output
+    out = json.loads(r.output)
+    assert out["recheck_verdict"] in ("PASS", "FAIL", "HARNESS_INCOMPLETE", "INCONCLUSIVE")
+    assert out["sc_flipped_post_approval"] == 1
+    assert out["recorded"]["appended"] is True
+    text = (pdir / pm.RETROSPECTIVE_FILE).read_text(encoding="utf-8")
+    assert "| `kind` | fidelity |" in text
+    assert "| `halts_post_irreversible` | no-record |" in text
+
+
+# =======================================================================================
+# #364 — the criteria preamble env is established by recheck-criteria ITSELF
+# =======================================================================================
+
+def test_criteria_preamble_is_read_from_the_fence_before_the_table(pm):
+    text = _PLAN_TEMPLATE.format(pid="p", preamble="```sh\nexport T=set-by-preamble\n```\n\n",
+                                 sc1="true")
+    assert pm._criteria_preamble(text).strip() == "export T=set-by-preamble"
+    assert pm._criteria_preamble(_PLAN_TEMPLATE.format(pid="p", preamble="", sc1="true")) == ""
+
+
+def test_recheck_establishes_the_preamble_env(pm, tmp_path, monkeypatch):
+    from click.testing import CliRunner
+    pdir = tmp_path / "plan-997-test-pream1"
+    pdir.mkdir()
+    (pdir / "plan.md").write_text(
+        _PLAN_TEMPLATE.format(pid="plan-997-test-pream1",
+                              preamble="```sh\nexport T=set-by-preamble\n```\n\n",
+                              sc1='test "$T" = set-by-preamble'), encoding="utf-8")
+    monkeypatch.delenv("T", raising=False)
+    r = CliRunner().invoke(pm.cli, ["recheck-criteria", str(pdir), "--json", "--advisory",
+                                    "--timeout", "20"])
+    out = json.loads(r.output)
+    assert out["preamble_present"] is True
+    sc1 = next(c for c in out["criteria"] if c["id"] == "SC1")
+    assert sc1["status"] == "holds", out

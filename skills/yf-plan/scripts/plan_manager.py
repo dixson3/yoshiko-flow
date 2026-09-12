@@ -702,8 +702,15 @@ RETROSPECTIVE_FIELDS: tuple[str, ...] = (
     "kind", "when", "stop_class", "asked", "answered", "frontloadable",
     "detected_by", "evidence", "escape_class", "adjudication", "origin",
     "culpability", "prevention", "cost",
+    # The approval-to-landing fidelity metric (REQ-PLAN-084, plan-071 Issue 1.1). Two
+    # DERIVED numbers, recorded where the retrospective already writes — no new verb.
+    "sc_flipped_post_approval", "halts_post_irreversible",
 )
-RETROSPECTIVE_KINDS = ("stop", "deviation")
+RETROSPECTIVE_KINDS = ("stop", "deviation", "fidelity")
+#: The two fields a `fidelity` entry MUST carry. `halts_post_irreversible` may also be the
+#: literal `no-record` — a bundle that predates the `landing-halt:` bullet reports that it
+#: cannot know, never a zero (REQ-PLAN-084).
+RETROSPECTIVE_FIDELITY_FIELDS = ("sc_flipped_post_approval", "halts_post_irreversible")
 RETROSPECTIVE_DETECTED_BY = ("self-report", "operator", "mechanical-check")
 
 _RETRO_HEADER = """---
@@ -756,6 +763,20 @@ def append_retrospective(plan_dir: Path, entry: dict, *, dry_run: bool = False) 
             f"unknown retrospective kind {row['kind']!r}; expected one of "
             f"{', '.join(RETROSPECTIVE_KINDS)}"
         )
+    if row["kind"] == "fidelity":
+        # BOTH numbers are REQUIRED for this kind. A fidelity entry with one number is a
+        # narration about the other; refusing is what makes `--kind fidelity` mean something.
+        for k in RETROSPECTIVE_FIDELITY_FIELDS:
+            v = str(row.get(k, "")).strip()
+            if not v:
+                raise ValueError(
+                    f"kind `fidelity` requires `{k}` (an integer"
+                    f"{' or `no-record`' if k == 'halts_post_irreversible' else ''})")
+            if not (v.isdigit() or (k == "halts_post_irreversible" and v == "no-record")):
+                raise ValueError(f"`{k}` must be a non-negative integer"
+                                 f"{' or `no-record`' if k == 'halts_post_irreversible' else ''}"
+                                 f", got {v!r}")
+            row[k] = v
     if not row.get("when"):
         row["when"] = datetime.now().strftime("%Y-%m-%d")
     # An unsubstantiated state claim is a narration, not a finding (REQ-PORT-052).
@@ -3244,6 +3265,33 @@ def _recheck_holds(rc: int, want: str) -> bool:
     return rc == int(want)
 
 
+#: A plan's CRITERIA PREAMBLE (dixson3/yoshiko-flow#364): a fenced `sh`/`bash` block placed
+#: under `## Success Criteria` and BEFORE the table, whose lines are shell assignments or
+#: `export`s the criteria commands rely on (`$YR`, `$PB`, ...). It is part of the plan, so it
+#: is established by THE VERB THAT RUNS THE CRITERIA — every binding (the close chain's L11,
+#: `ready-check`'s smoke-run, `retrospective-report --fidelity`) inherits it by construction
+#: instead of each caller remembering to export the right variables.
+_PREAMBLE_FENCE = re.compile(
+    r"^## Success Criteria[^\n]*\n(?:(?!^\|)[^\n]*\n)*?```(?:sh|bash)\n(?P<body>.*?)^```",
+    re.M | re.S)
+
+
+def _criteria_preamble(plan_md_text: str) -> str:
+    """The plan's criteria preamble as shell text, or `''` when the plan declares none.
+
+    Only the FIRST fenced `sh`/`bash` block between the `## Success Criteria` heading and the
+    table counts; a fence after the table is prose. Measured (#364): with the preamble absent,
+    positive-polarity criteria FALSE-FAIL and negated ones FALSE-PASS — the second silently.
+    """
+    m = _PREAMBLE_FENCE.search(plan_md_text)
+    return m.group("body").strip() + "\n" if m else ""
+
+
+def _criteria_command(preamble: str, cmd: str) -> str:
+    """The `bash -c` program for one criterion: the preamble, then the command."""
+    return f"{preamble}{cmd}" if preamble else cmd
+
+
 @cli.command("verify-beads")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--fixture", type=click.Path(), default=None,
@@ -3358,6 +3406,8 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
 
     child_env = dict(os.environ, YF_RECHECK_DEPTH=str(depth + 1))
     repo_root = _repo_root_for(pdir)
+    # #364: the preamble is established HERE, so no caller can forget it.
+    preamble = _criteria_preamble(plan_md.read_text(encoding="utf-8"))
 
     results, class_a, evaluated, failed = [], 0, 0, []
     for r in rows:
@@ -3378,7 +3428,8 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
             continue
 
         try:
-            proc = subprocess.run(["bash", "-c", cmd], cwd=str(repo_root), env=child_env,
+            proc = subprocess.run(["bash", "-c", _criteria_command(preamble, cmd)],
+                                  cwd=str(repo_root), env=child_env,
                                   capture_output=True, text=True, timeout=timeout)
             rc = proc.returncode
         except subprocess.TimeoutExpired:
@@ -3443,6 +3494,7 @@ def recheck_criteria(plan_dir: str, json_output: bool, timeout: int,
         "harness_incomplete": bool(unjudged),
         "unjudged": unjudged,
         "skipped_self_reference": self_ref,
+        "preamble_present": bool(preamble),
         "judgeable": judgeable,
         "at_completion_binding": at_completion,
         "require_evaluated": threshold,
@@ -7122,10 +7174,140 @@ def config_resolve(autonomy_flag: str | None, sweep_flag: str | None,
             click.echo(f"{k:<20} {str(v['value']):<20} {v['source']}")
 
 
+# --- the approval-to-landing fidelity metric (REQ-PLAN-084, plan-071 Issue 1.2) -----------
+
+#: The `log.md` token `land --apply` writes on every halting step, BEFORE it returns. Inert to
+#: the lifecycle like `intake:` — it matches neither the `review-pass:` count regex nor the
+#: `scoping:` grandfather regex. The `/.yf/` journal cannot be the source: it is gitignored,
+#: cleared at the terminal green state, and records only progress states.
+LANDING_HALT_TOKEN = "landing-halt:"
+_LANDING_HALT_RE = re.compile(
+    r"^- (?:\d{4}-\d{2}-\d{2} )?landing-halt: (?P<phase>\S+) (?P<verb>\S+)"
+    r"(?: irreversible=(?P<irr>true|false))?", re.M)
+#: The fixed subject `commit-plan` writes at intake; the fidelity diff is against THAT commit,
+#: so amending a criterion before landing is exactly what gets counted (R8).
+INTAKE_COMMIT_SUBJECT = "INTAKE approved (awaiting /yf-plan execute)"
+
+
+def _landing_phase_is_irreversible(phase: str) -> bool:
+    """True at or after `L_PUSHED_1`, and for the one post-outward-write conflict state."""
+    if phase == "L_REJECTED_PUSH_2":
+        return True
+    if phase in LAND_PROGRESS_ORDER:
+        return LAND_PROGRESS_ORDER.index(phase) >= LAND_PROGRESS_ORDER.index("L_PUSHED_1")
+    return False
+
+
+def _land_record_halt(ctx, step_key: str) -> dict:
+    """Write the `landing-halt:` bullet for a halting step (REQ-PLAN-084).
+
+    Called from `_land_execute`'s halt paths BEFORE the envelope is returned — an edit inside
+    the existing halt path, not a new step. Never raises: a broken log must not turn a halt
+    report into a traceback.
+    """
+    phase = (ctx.journal.read() or {}).get("phase") or "L_INIT"
+    irr = _landing_phase_is_irreversible(phase)
+    bullet = f"{LANDING_HALT_TOKEN} {phase} {step_key} irreversible={'true' if irr else 'false'}"
+    try:
+        okf.append_log(ctx.plan_dir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
+        return {"recorded": True, "bullet": bullet, "irreversible": irr}
+    except Exception as exc:  # noqa: BLE001 — the halt envelope is the priority
+        return {"recorded": False, "bullet": bullet, "irreversible": irr, "error": str(exc)}
+
+
+def _fidelity_halts(log_text: str) -> dict:
+    """`halts_post_irreversible` from `log.md`: an int, or `no-record` when no bullet exists."""
+    hits = list(_LANDING_HALT_RE.finditer(log_text))
+    if not hits:
+        return {"halts_post_irreversible": "no-record", "halts": [], "source": "no-record"}
+    post = [h.groupdict() for h in hits if _landing_phase_is_irreversible(h.group("phase"))]
+    return {"halts_post_irreversible": len(post), "halts": post, "source": "log.md"}
+
+
+def _fidelity_intake_commit(plan_id: str, root: Path) -> str | None:
+    """The LATEST intake commit for this plan (a re-approval supersedes the first)."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "--format=%H", "-n", "1", "--fixed-strings",
+             f"--grep={plan_id}: {INTAKE_COMMIT_SUBJECT}"],
+            cwd=str(root), capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    sha = out.stdout.strip().splitlines()
+    return sha[0] if out.returncode == 0 and sha else None
+
+
+def _criteria_verification_by_id(plan_md_text: str) -> dict[str, str]:
+    """`{SCn: Verification cell}` read through the canonical extractor, never a hand parser."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        (Path(td) / "plan.md").write_text(plan_md_text, encoding="utf-8")
+        rows = (_run_plan_extract(Path(td)).get("criteria") or [])
+    return {r.get("id") or r.get("raw_id"): (r.get("verification") or "") for r in rows}
+
+
+def _fidelity_derive(plan_dir: Path, *, recheck: dict | None, root: Path | None = None) -> dict:
+    """Derive the two REQ-PLAN-084 numbers. Pure over its inputs except the `git show`.
+
+    `sc_flipped_post_approval` = rows whose Verification cell differs between the intake
+    commit's `plan.md` and the working one, UNION rows the supplied `recheck` verdict reports
+    FALSE. `halts_post_irreversible` comes from `log.md` (see `_fidelity_halts`).
+    """
+    root = root or _repo_root_for(plan_dir)
+    plan_id = _plan_id_from_dir(plan_dir)
+    working = (plan_dir / "plan.md").read_text(encoding="utf-8")
+    now = _criteria_verification_by_id(working)
+
+    sha = _fidelity_intake_commit(plan_id, root)
+    flipped: list[dict] = []
+    approved_source = "no-intake-commit"
+    if sha:
+        rel = os.path.relpath(plan_dir.resolve(), root.resolve()).replace(os.sep, "/")
+        show = subprocess.run(["git", "show", f"{sha}:{rel}/plan.md"], cwd=str(root),
+                              capture_output=True, text=True)
+        if show.returncode == 0:
+            approved_source = sha[:12]
+            then = _criteria_verification_by_id(show.stdout)
+            for cid, cell in now.items():
+                before = then.get(cid)
+                if before is None:
+                    flipped.append({"id": cid, "kind": "added-after-approval"})
+                elif before.strip() != cell.strip():
+                    kind = "converted-to-manual" if cell.strip().startswith("manual:") else "amended"
+                    flipped.append({"id": cid, "kind": kind})
+            for cid in then:
+                if cid not in now:
+                    flipped.append({"id": cid, "kind": "removed-after-approval"})
+    false_rows = [c for c in ((recheck or {}).get("failed") or [])]
+    for cid in false_rows:
+        if not any(f["id"] == cid for f in flipped):
+            flipped.append({"id": cid, "kind": "false-at-landing"})
+
+    log_path = plan_dir / "log.md"
+    halts = _fidelity_halts(log_path.read_text(encoding="utf-8") if log_path.exists() else "")
+    return {
+        "plan_id": plan_id,
+        "intake_commit": sha,
+        "approved_source": approved_source,
+        "sc_flipped_post_approval": len(flipped),
+        "sc_flipped": flipped,
+        "recheck_verdict": (recheck or {}).get("verdict"),
+        "recheck_failed": false_rows,
+        **halts,
+    }
+
+
 @cli.command("retrospective-report")
 @click.argument("plan_dir", type=click.Path(exists=True))
+@click.option("--fidelity", is_flag=True,
+              help="Derive the REQ-PLAN-084 fidelity numbers (runs `recheck-criteria` itself).")
+@click.option("--record", is_flag=True,
+              help="With --fidelity: append a `fidelity` retrospective entry with the numbers.")
+@click.option("--timeout", default=60, show_default=True,
+              help="With --fidelity: per-criterion timeout handed to `recheck-criteria`.")
 @click.option("--json-output", "--json", "as_json", is_flag=True)
-def retrospective_report(plan_dir: str, as_json: bool):
+def retrospective_report(plan_dir: str, fidelity: bool, record: bool, timeout: int,
+                         as_json: bool):
     """ADVISORY close-step report of the bundle's retrospective entries (4.4).
 
     Emits the REQ-COMPLETE-003 verdict envelope (``status`` + ``findings`` +
@@ -7144,6 +7326,34 @@ def retrospective_report(plan_dir: str, as_json: bool):
     itself had just written.
     """
     pdir = Path(plan_dir)
+    if fidelity:
+        # RUN THE ORACLE ITSELF (pass-1 C11): nothing persists L11's output, so there is no
+        # file to read. `recheck-criteria` establishes the plan's criteria preamble env on
+        # its own (#364), so this binding inherits it by construction.
+        me = str(Path(__file__).resolve())
+        proc = subprocess.run(["uv", "run", me, "recheck-criteria", str(pdir), "--json",
+                               "--advisory", "--timeout", str(timeout)],
+                              capture_output=True, text=True)
+        try:
+            recheck = json.loads(proc.stdout) if proc.stdout.strip() else None
+        except json.JSONDecodeError:
+            recheck = None
+        out = _fidelity_derive(pdir, recheck=recheck)
+        out["recheck_exit"] = proc.returncode
+        out["status"] = "ok"
+        out["advisory"] = True
+        if record:
+            entry = {
+                "kind": "fidelity",
+                "detected_by": "mechanical-check",
+                "evidence": (f"retrospective-report --fidelity: intake {out['approved_source']}, "
+                             f"recheck exit {proc.returncode}, halts source {out['source']}"),
+                "sc_flipped_post_approval": str(out["sc_flipped_post_approval"]),
+                "halts_post_irreversible": str(out["halts_post_irreversible"]),
+            }
+            out["recorded"] = append_retrospective(pdir, entry)
+        click.echo(json.dumps(out, indent=2))
+        return
     path = pdir / RETROSPECTIVE_FILE
     entries: list[dict] = []
     if path.exists():
@@ -7291,12 +7501,19 @@ def escalation_resolve(plan_dir: str, escalation_id: str, answer: str,
 @click.option("--culpability", default="")
 @click.option("--prevention", default="")
 @click.option("--cost", default="")
+@click.option("--sc-flipped-post-approval", "sc_flipped", default="",
+              help="`--kind fidelity` only: Success Criteria rows whose Verification cell "
+                   "changed after approval, plus rows FALSE at landing (REQ-PLAN-084).")
+@click.option("--halts-post-irreversible", "halts_post", default="",
+              help="`--kind fidelity` only: `landing-halt:` bullets at or after L_PUSHED_1, "
+                   "or the literal `no-record` (REQ-PLAN-084).")
 @click.option("--dry-run", is_flag=True, help="Report what would be written; write nothing.")
 @click.option("--json-output", "--json", "as_json", is_flag=True)
 def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
                          answered: str, frontloadable: str, detected_by: str,
                          evidence: str, escape_class: str, adjudication: str,
                          origin: str, culpability: str, prevention: str, cost: str,
+                         sc_flipped: str, halts_post: str,
                          dry_run: bool, as_json: bool):
     """Append one `## RE-NNN` entry to `plan-retrospective.md` (REQ-CLI-022).
 
@@ -7320,6 +7537,7 @@ def retrospective_append(plan_dir: str, kind: str, stop_class: str, asked: str,
         "frontloadable": frontloadable, "detected_by": detected_by, "evidence": evidence,
         "escape_class": escape_class, "adjudication": adjudication, "origin": origin,
         "culpability": culpability, "prevention": prevention, "cost": cost,
+        "sc_flipped_post_approval": sc_flipped, "halts_post_irreversible": halts_post,
     }
     try:
         result = append_retrospective(Path(plan_dir), entry, dry_run=dry_run)
@@ -10609,10 +10827,12 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
             )
             results.append(row)
             ctx.results.append(row)
+            halt_rec = _land_record_halt(ctx, row["step"])          # REQ-PLAN-084
             return {"halted": True, "at": row["step"], "results": results,
                     "journal_phase": (ctx.journal.read() or {}).get("phase"),
                     "reason": row["reason"],
-                    "recovery": row["detail"].get("recovery")}
+                    "recovery": row["detail"].get("recovery"),
+                    "landing_halt": halt_rec}
         batch = out if isinstance(out, list) else [out]
         results.extend(batch)
         ctx.results.extend(batch)
@@ -10623,10 +10843,12 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
             if r["verdict"] == "fail" and r.get("halting"):
                 if r.get("journal") and r["journal"] in LAND_CONFLICT_STATES:
                     pass                       # the conflict state is already recorded above
+                halt_rec = _land_record_halt(ctx, r["step"])          # REQ-PLAN-084
                 return {"halted": True, "at": r["step"], "results": results,
                         "journal_phase": (ctx.journal.read() or {}).get("phase"),
                         "reason": r["reason"], "recovery": r.get("detail", {}).get("recovery")
-                                                or r.get("recovery")}
+                                                or r.get("recovery"),
+                        "landing_halt": halt_rec}
 
     final = ctx.journal.read() or {}
     terminal = final.get("phase") == LAND_TERMINAL_STATE
