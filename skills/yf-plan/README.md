@@ -227,6 +227,7 @@ skills/yf-plan/
 │   ├── test_update_status_gate.py
 │   ├── test_update_status_idempotent.py
 │   ├── test_upstream_requirements.py
+│   ├── test_verb_invocations.py
 │   ├── test_verify_beads.py
 │   ├── test_verify_reconcile.py
 │   ├── test_worktree.py

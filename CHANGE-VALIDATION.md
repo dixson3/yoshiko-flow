@@ -145,6 +145,7 @@ approved: yes
 | `uv-yf-ready-smoke` | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` |  |  |
 | `uv-yf-escalations` | `uv run skills/yf-plan/scripts/test_escalations.py` |  |  |
 | `uv-yf-severity-vocab` | `uv run skills/yf-plan/scripts/test_severity_vocabulary.py` |  |  |
+| `freeze-provably-necessary` | `uv run scripts/checks/check-provably-necessary.py` |  |  |
 | `uv-yf-stamp-tracker` | `uv run --with pytest --with click --with pyyaml python3 -m pytest skills/yf-plan/scripts/test_stamp_tracker.py -q` |  |  |
 | `uv-yf-config-tiers` | `uv run skills/yf-plan/scripts/test_config_tiers.py` |  |  |
 | `uv-yf-classify` | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
@@ -293,6 +294,7 @@ approved: yes
 | `uv-yf-ready-smoke` | `uv run skills/yf-plan/scripts/test_ready_check_smoke.py` |  |  |
 | `uv-yf-escalations` | `uv run skills/yf-plan/scripts/test_escalations.py` |  |  |
 | `uv-yf-severity-vocab` | `uv run skills/yf-plan/scripts/test_severity_vocabulary.py` |  |  |
+| `freeze-provably-necessary` | `uv run scripts/checks/check-provably-necessary.py` |  |  |
 | `uv-yf-land-seam` | `uv run skills/yf-plan/scripts/test_land_seam.py` |  |  |
 | `land-launcher-closure` | `uv run skills/yf-plan/scripts/derive_land_launchers.py --check` |  |  |
 | `land-seam-ast` | `uv run scripts/checks/check_land_seam.py` |  |  |
@@ -451,7 +453,7 @@ approved: yes
 | `skills/yf-plan/formulas/**` | `uv-yf-gates` |
 | `skills/yf-beads-upstream/scripts/upstream_render.py` | `uv-with` |
 | `docs/plans/plan-052-james-dixson-fa8056/assets/**` | `gate-plan052` |
-| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent`, `uv-yf-ready-smoke`, `uv-yf-escalations`, `uv-yf-severity-vocab` |
+| `skills/yf-plan/scripts/**` | `uv-yf`, `uv-yf-cascade`, `uv-yf-complete-gate`, `uv-yf-review-verdict`, `uv-yf-config-tiers`, `uv-yf-classify`, `uv-yf-stamp-tracker`, `uv-yf-close-contract`, `uv-yf-verify-reconcile`, `uv-yf-reconcile-step`, `uv-yf-status-idem`, `uv-yf-cascade-root`, `uv-yf-epic-ref`, `uv-yf-autonomy`, `uv-yf-gates`, `uv-yf-retro`, `uv-yf-cli-enum`, `uv-yf-upstream-req`, `uv-yf-review-agent`, `uv-yf-ready-smoke`, `uv-yf-escalations`, `uv-yf-severity-vocab`, `uv-yf-verb-invocations` |
 | `skills/yf-plan/scripts/test_epic_ref_audit.py` | `uv-yf-epic-ref` |
 | `skills/yf-plan/scripts/test_worktree.py` | `uv-yf` |
 | `skills/yf-plan/scripts/test_close_cascade.py` | `uv-yf-cascade` |
@@ -460,6 +462,10 @@ approved: yes
 | `skills/yf-plan/scripts/test_ready_check_smoke.py` | `uv-yf-ready-smoke` |
 | `skills/yf-plan/scripts/test_escalations.py` | `uv-yf-escalations` |
 | `skills/yf-plan/scripts/test_severity_vocabulary.py` | `uv-yf-severity-vocab` |
+| `skills/yf-plan/scripts/test_verb_invocations.py` | `uv-yf-verb-invocations` |
+| `scripts/checks/check-provably-necessary.py` | `freeze-provably-necessary`, `freeze-self-test` |
+| `skills/yf-plan/**` | `freeze-provably-necessary` |
+| `skills/yf-plan/SPEC.md` | `freeze-provably-necessary` |
 | `skills/yf-plan/scripts/doc_lint.py` | `uv-yf-severity-vocab` |
 | `skills/yf-plan/scripts/test_config_tiers.py` | `uv-yf-config-tiers` |
 | `skills/yf-plan/scripts/test_classify_deliverable.py` | `uv-yf-classify` |
