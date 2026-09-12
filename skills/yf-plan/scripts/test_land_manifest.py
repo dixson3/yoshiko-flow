@@ -178,7 +178,7 @@ def test_merge_preview_reports_conflicts(repo):
 # --------------------------------------------------------------------------------------
 
 def test_digest_covers_merge_preview(repo):
-    """SC8 / Issue 1.5 / REQ-LAND-018.
+    """SC8 / Issue 1.5 / REQ-LAND-002.
 
     Two assertions, and the SECOND is the load-bearing one:
       (a) the digest is stable across recomputation on an unchanged tree; and
@@ -211,7 +211,7 @@ def test_digest_covers_merge_preview(repo):
 # --------------------------------------------------------------------------------------
 
 def test_number_collision_halts(repo):
-    """SC9 / Issue 1.3 / REQ-LAND-024.
+    """SC9 / Issue 1.3 / REQ-LAND-026.
 
     The fixture reproduces the MEASURED case: two bundles sharing `NNN`, differing only by
     hash suffix. They merge CLEANLY, which is why merge-back is the only detection point —
@@ -247,7 +247,7 @@ def test_number_collision_absent_when_unique(repo):
 # --------------------------------------------------------------------------------------
 
 def test_changed_set_nonempty(repo):
-    """SC10 / Issue 1.4 / REQ-LAND-025 / #303.
+    """SC10 / Issue 1.4 / REQ-LAND-004 / #303.
 
     BOTH DIRECTIONS, because the point is a COMPARISON: after a real merge the documented
     `<target>...HEAD` expression is EMPTY while `HEAD^1..HEAD` is not. A test asserting only

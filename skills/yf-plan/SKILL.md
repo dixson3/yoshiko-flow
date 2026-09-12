@@ -1744,7 +1744,7 @@ that §6.4 was run at all.
 
 ```bash
 # `HEAD^1..HEAD`, NEVER the three-dot symmetric-difference form against the merge target
-# (REQ-LAND-025, #303) — spelled in prose here rather than literally, because SC34
+# (REQ-LAND-004, #303) — spelled in prose here rather than literally, because SC34
 # asserts that literal's ABSENCE from this file and a comment naming it would defeat
 # the check while looking like documentation. The three-dot
 # form runs at a moment when `HEAD == MERGE_TARGET`, so it is EMPTY BY CONSTRUCTION and

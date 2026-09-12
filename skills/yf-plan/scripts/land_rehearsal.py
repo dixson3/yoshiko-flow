@@ -237,7 +237,7 @@ def _covered_steps(pm) -> dict[str, list[str]]:
 
     DERIVED FROM `LAND_EXECUTOR` AND `LAND_STEPS`, never hand-written — this is the mapping
     Issue 1.5 exists to fix. `LAND_EXECUTOR` names only the FIRST key per function, so
-    `_land_l8_to_l15_close_chain` appears as `l8_close_chain_head` while it actually produces
+    `_land_l8_to_l11_close_chain` appears as `l8_close_chain_head` while it actually produces
     L8-L11, and `_land_l13_l15_finish` appears as `l13_complete_gate` while it produces
     L13-L15. The previous record named THREE labels while hiding FIVE L-numbers (l9, l10, l11,
     l14, l15), with `l14_pour_fidelity` absent entirely — the "second enumeration that can

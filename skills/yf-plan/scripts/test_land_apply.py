@@ -136,6 +136,10 @@ def test_landing_spec_enumerates_steps_and_journal_states():
 
     for name in ("REQ-LAND-013", "REQ-LAND-014", "REQ-LAND-015"):
         assert name in text
+    # plan-071 Issue 3.1 (REQ-PLAN-086): the REQ-LAND family is FROZEN at the pruned set.
+    # Counted as distinct id STRINGS, the same measurement SC2 and the freeze check make.
+    ids = set(re.findall(r"REQ-LAND-\d+[a-z]*", text))
+    assert len(ids) <= 22, f"{len(ids)} REQ-LAND ids in the spec — the freeze ceiling is 22"
     assert "not prevention" in text
     assert "detection, not prevention" in text
     assert "herdr pane run" in text
@@ -146,7 +150,7 @@ def test_landing_spec_enumerates_steps_and_journal_states():
 # =========================================================================================
 
 def test_journal_recovery_every_state(repo):
-    """SC19 / Issues 3.1, 3.7 / REQ-LAND-009.
+    """SC19 / Issues 3.1, 3.7 / REQ-LAND-006.
 
     TOTAL over the state set: every one of the seventeen is written and recovered. A recovery
     table that is total over 13 of 17 is the `okf_hygiene` S1 defect again.
@@ -202,13 +206,13 @@ def test_a_corrupt_journal_is_not_an_absent_one(repo):
 
 
 def test_journal_recovery_is_keyed_on_phase_not_observed_state(repo):
-    """REQ-LAND-009, and this is the assertion that actually pins the property.
+    """REQ-LAND-006, and this is the assertion that actually pins the property.
 
     The tree is made IDENTICAL for two different recorded phases. Anything keyed on observed
     state must answer the same for both; the journal answers differently, which is the point.
     """
     j = pm.LandingJournal(repo, PLAN_ID)
-    # Snapshot AFTER the first write: the journal is staged INSIDE the tree (REQ-LAND-008),
+    # Snapshot AFTER the first write: the journal is staged INSIDE the tree (REQ-LAND-006),
     # so its own directory is part of the tree state. Capturing before would compare a tree
     # with no journal against a tree with one and prove nothing about phase-vs-observation.
     j.write("L_LOCKED")
@@ -777,7 +781,7 @@ def _teardown_ok(plan_dir, force=False, root=None, runner=None):
 
     Both axes were wrong, and only one of them is mechanically detectable. `check_mock_fidelity`
     binds `inspect.signature`, so it catches the arity; it is STRUCTURALLY BLIND to the RETURN
-    shape, and the return shape is what L18 branches on (REQ-LAND-031). The four shipped stubs
+    shape, and the return shape is what L18 branches on (REQ-LAND-004). The four shipped stubs
     returned `{"action": "removed"}` — a key `_worktree_teardown` NEVER produces.
 
     `root=` / `runner=` added by plan-068 Issue 1.2. The signature is spelled OUT rather than
@@ -974,7 +978,7 @@ def test_close_chain_exit_codes_read(repo):
 
     # `CHANGED` is HEAD^1..HEAD, never <target>...HEAD (#303).
     import inspect
-    src = _code_only(inspect.getsource(pm._land_l8_to_l15_close_chain))
+    src = _code_only(inspect.getsource(pm._land_l8_to_l11_close_chain))
     assert "_land_changed_set" in src
     assert "..." not in src, "the empty-by-construction three-dot form must not appear"
 
@@ -1085,7 +1089,7 @@ def test_prune_is_strategy_aware(repo, monkeypatch):
     (pos, kw), = seen
     assert pos == (pm.Path("docs/plans") / PLAN_ID,), f"wrong plan_dir: {pos}"
     assert kw["force"] is False, (
-        "REQ-LAND-031: `force=False` in KEYWORD form — the keyword is normative so the next "
+        "REQ-LAND-004: `force=False` in KEYWORD form — the keyword is normative so the next "
         f"signature change fails loudly rather than silently rebinding a positional; saw {kw}")
     assert kw["root"] is not None, (
         "REQ-LAND-037: `root=` must be passed. Without it the teardown resolves its root via "
@@ -1093,7 +1097,7 @@ def test_prune_is_strategy_aware(repo, monkeypatch):
         "the REAL checkout from inside this test.")
     assert kw["runner"] is not None, (
         "REQ-LAND-037: `runner=` must be passed, so the teardown's own git launches are on "
-        "the seam. REQ-LAND-031's apparent carve-out was an over-read — it constrains this "
+        "the seam. REQ-LAND-004's apparent carve-out was an over-read — it constrains this "
         "CALL, not how the callee launches.")
     assert not [c for c in r.calls if "branch" in c and "-d" in c], (
         "L18 must NOT issue its own `git branch -d` — the teardown already deletes the "
@@ -1255,7 +1259,7 @@ def test_a_skipped_step_is_surfaced_never_silent(repo, monkeypatch):
     # Stub the close chain: this test isolates SKIP SURFACING, and an unstubbed
     # pour-fidelity legitimately halts at L14 on a fixture with no real beads — which the
     # guard below caught, rather than letting the test pass vacuously.
-    monkeypatch.setattr(pm, "_land_l8_to_l15_close_chain",
+    monkeypatch.setattr(pm, "_land_l8_to_l11_close_chain",
                         lambda ctx: [_step_ok("l8_close_chain_head")])
     monkeypatch.setattr(pm, "_land_l12_close_cascade",
                         lambda ctx: _step_ok("l12_close_cascade"))
@@ -1555,7 +1559,7 @@ def test_stubbed_steps_is_DERIVED_from_both_sources_and_names_the_decision_skip(
     # And the L-span derivation is real: the multi-step executor functions cover more than
     # one key each, which is the fact a hand-written list got wrong.
     covered = reh._covered_steps(pm)
-    assert len(covered["_land_l8_to_l15_close_chain"]) >= 4, covered
+    assert len(covered["_land_l8_to_l11_close_chain"]) >= 4, covered
     assert len(covered["_land_l13_l15_finish"]) >= 3, covered
     assert "l14_pour_fidelity" in covered["_land_l13_l15_finish"], (
         "l14_pour_fidelity is not attributed to any executor function — it was absent "
@@ -1641,7 +1645,7 @@ def test_runbook_covers_every_journal_state():
 
 
 # =========================================================================================
-# plan-062 — THE SEAM. `land --apply` must REACH `_land_execute` (REQ-LAND-028, #327)
+# plan-062 — THE SEAM. `land --apply` must REACH `_land_execute` (REQ-LAND-010, #327)
 # =========================================================================================
 #
 # WHY THESE TESTS EXIST AT ALL. `_land_execute` drives all fifteen `LAND_EXECUTOR` steps,
@@ -1706,7 +1710,7 @@ def _run_land_apply(repo, tmp_path, monkeypatch, decision=None, execute_spy=None
 
 
 def test_seam_reaches_executor(repo, tmp_path, monkeypatch):
-    """SC1 / Issue 2.0 / REQ-LAND-028. `--apply` REACHES `_land_execute`.
+    """SC1 / Issue 2.0 / REQ-LAND-010. `--apply` REACHES `_land_execute`.
 
     THE ASSERTION IS ABOUT THE CALL, NOT ABOUT THE LANDING. What must be true is that the CLI
     entry point invokes the executor and that the executor genuinely started — `l0_lock_acquire`
@@ -1734,7 +1738,7 @@ def test_seam_reaches_executor(repo, tmp_path, monkeypatch):
 
     assert seen.get("called"), (
         "`land --apply` did not reach `_land_execute` — the CLI entry point is disconnected "
-        "from the engine (REQ-LAND-028). This is the #327 defect: a fully implemented, fully "
+        "from the engine (REQ-LAND-010). This is the #327 defect: a fully implemented, fully "
         "tested executor that no entry point invokes.")
     assert isinstance(seen["ctx"], pm.LandingContext), (
         "the seam must hand the executor a real LandingContext, assembled from re-derived "
@@ -1876,7 +1880,7 @@ def test_no_test_only_bypass_was_introduced():
 
 
 # =========================================================================================
-# plan-062 — THE RESUME. A resume must not re-execute completed steps (REQ-LAND-029, #327)
+# plan-062 — THE RESUME. A resume must not re-execute completed steps (REQ-LAND-011, #327)
 # =========================================================================================
 
 def _resume_ctx(repo, monkeypatch, phase):
@@ -1897,7 +1901,7 @@ def _resume_ctx(repo, monkeypatch, phase):
 
     for key, fname in pm.LAND_EXECUTOR:
         j = pm.LAND_STEP_JOURNAL.get(key)
-        if fname == "_land_l8_to_l15_close_chain":
+        if fname == "_land_l8_to_l11_close_chain":
             def _chain(ctx, _k=key):
                 ran.append(_k)
                 return [_step_ok(_k)]
@@ -1916,7 +1920,7 @@ def _resume_ctx(repo, monkeypatch, phase):
 
 
 def test_resume_skips_completed(repo, monkeypatch):
-    """SC4 / Issue 4.1 / REQ-LAND-029. REQ-LAND-011's `Verification:` names THIS test.
+    """SC4 / Issue 4.1 / REQ-LAND-011. REQ-LAND-011's `Verification:` names THIS test.
 
     After a halt at L17, a resume must execute NEITHER `l6_push_one` NOR
     `l7_reconcile_writes` — the two irreversible outward writes. Measured before the fix, a
@@ -1946,11 +1950,11 @@ def test_resume_skips_completed(repo, monkeypatch):
     resumed = [r["step"] for r in out["results"] if r.get("detail", {}).get("resumed")]
     assert "l6_push_one" in resumed and "l7_reconcile_writes" in resumed, (
         f"a skipped step must be SURFACED with an explicit `resumed` marker, never a silent "
-        f"absence (REQ-LAND-029). Marked: {resumed}")
+        f"absence (REQ-LAND-011). Marked: {resumed}")
 
 
 def test_resume_forward_resolution(repo, monkeypatch):
-    """SC4b / Issue 4.2 / REQ-LAND-029. The three unjournaled steps resolve FORWARD.
+    """SC4b / Issue 4.2 / REQ-LAND-011. The three unjournaled steps resolve FORWARD.
 
     `l3_validate_merged`, `l8_close_chain_head` and `l12_close_cascade` have no entry in
     `LAND_STEP_JOURNAL`, so whether they are "done" must be borrowed from a neighbour. Taking
@@ -2144,7 +2148,7 @@ def test_dispatch_wrapper_reraises_control_flow(repo, monkeypatch):
 
 
 # =========================================================================================
-# SC2c / SC2d / REQ-LAND-031 — L18 branches on the teardown's STATUS, and delegates the delete
+# SC2c / SC2d / REQ-LAND-004 — L18 branches on the teardown's STATUS, and delegates the delete
 # =========================================================================================
 
 def test_l18_delegates_branch_delete(repo, monkeypatch):
@@ -2177,7 +2181,7 @@ def test_l18_delegates_branch_delete(repo, monkeypatch):
 
 
 def test_l18_blocked_teardown(repo, monkeypatch):
-    """SC2c / REQ-LAND-031. A `blocked` teardown is a HALTING fail, never a `pass`.
+    """SC2c / REQ-LAND-004. A `blocked` teardown is a HALTING fail, never a `pass`.
 
     Measured before the fix: a dirty worktree meant nothing was removed and the branch was
     left behind, and L18 reported `verdict: pass`. A landing must not report a prune it did
@@ -2342,7 +2346,7 @@ def test_l16_commits_plan_dir_writes(tmp_path, monkeypatch):
 
 
 def test_l16_without_anchor(tmp_path, monkeypatch):
-    """SC3c / REQ-LAND-033 (#343). The exemption filter works in a repo WITHOUT `/.yf/` in
+    """SC3c / REQ-LAND-032 (#343). The exemption filter works in a repo WITHOUT `/.yf/` in
     `.gitignore` — the only configuration where it is load-bearing at all.
 
     Three things are asserted together because each alone is satisfiable by a wrong filter:
@@ -2382,7 +2386,7 @@ def test_l16_without_anchor(tmp_path, monkeypatch):
 
 
 def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatch):
-    """REQ-LAND-033's third clause, isolated. A path merely CONTAINING the allowlist
+    """REQ-LAND-032's third clause, isolated. A path merely CONTAINING the allowlist
     fragment is NOT exempt — that is the substring bug (#343) restated as a test."""
     root = _real_repo(tmp_path, anchor=False)
     trap = root / "docs" / "a.yf" / "plan"
@@ -2395,11 +2399,11 @@ def test_dirty_outside_plan_dir_is_a_prefix_not_a_substring(tmp_path, monkeypatc
 
 
 # =========================================================================================
-# SC5 / SC5b / SC6 — the dry-run facts that PREDICT L16 (REQ-LAND-034/035/036)
+# SC5 / SC5b / SC6 — the dry-run facts that PREDICT L16 (REQ-LAND-026/035/036)
 # =========================================================================================
 
 def test_dryrun_halts_on_dirty_primary(tmp_path, monkeypatch):
-    """SC5 / REQ-LAND-034 (#333). A primary checkout dirty OUTSIDE the plan folder is a
+    """SC5 / REQ-LAND-026 (#333). A primary checkout dirty OUTSIDE the plan folder is a
     HALTING dry-run finding — and dirt INSIDE it is not.
 
     Both directions, because a halt that fires on everything is as useless as one that fires
@@ -2478,7 +2482,7 @@ def test_dryrun_predicts_the_L16_halt_it_causes(tmp_path, monkeypatch):
 
 
 def test_digest_survives_resume_after_teardown(tmp_path, monkeypatch):
-    """SC5b / REQ-LAND-036. BOTH DIRECTIONS, and the second one is what stops this test from
+    """SC5b / REQ-LAND-002. BOTH DIRECTIONS, and the second one is what stops this test from
     being satisfied by a digest that covers nothing.
 
     1. Flipping a LANDING-MUTATED fact (`execute_worktree_present`, which L18's own teardown

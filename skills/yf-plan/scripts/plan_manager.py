@@ -4600,7 +4600,7 @@ def _worktree_teardown(plan_dir: Path, force: bool, root: Path | None = None,
     because the *resolution* happens before any process is launched.
 
     Defaults preserve the previous behaviour exactly: `root=None` → `_git_root()`,
-    `runner=None` → the direct `_run_git` path. `REQ-LAND-031`'s carve-out is retired — that
+    `runner=None` → the direct `_run_git` path. `REQ-LAND-004`'s carve-out is retired — that
     requirement constrains the CALL (`force=False` in keyword form, branch on the returned
     `status`) and says nothing about how this function launches, so a fully-routed call
     satisfies it verbatim.
@@ -8396,7 +8396,7 @@ def _land_canonical(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-#: THE DIGEST'S COVERAGE SET EXCLUDES LANDING-MUTATED FACTS (REQ-LAND-036).
+#: THE DIGEST'S COVERAGE SET EXCLUDES LANDING-MUTATED FACTS (REQ-LAND-002).
 #:
 #: Exhaustive, and each member is here for the SAME reason: **L18's own teardown flips it
 #: mid-landing**. `execute_worktree_present` goes `true` -> `false` and `execute_worktree_dirty`
@@ -8436,7 +8436,7 @@ def _land_digest_coverage(facts: dict) -> dict:
 
 
 def _land_digest(facts: dict) -> str:
-    """`sha256` over the `facts` object's COVERAGE SET (REQ-LAND-018, REQ-LAND-036).
+    """`sha256` over the `facts` object's COVERAGE SET (REQ-LAND-002, REQ-LAND-002).
 
     IT MUST COVER `predicted_tree` AND THE TARGET TIP. Measured (EXP-006): those are exactly
     the fields that drift when another plan lands between dry-run and apply, so a digest
@@ -8487,7 +8487,7 @@ def _land_enumerate(directory: Path, checkout_root: Path | None = None) -> list[
         `--ignored=matching`, the documented fix for exactly that collapsing, ALSO returns 1.
 
     (e) AN OMISSION FROM ENUMERATION IS SILENT. It is not a `skip`, so REQ-LAND-002's "every
-        skip is surfaced in the consent prompt" guarantee does NOT cover it (REQ-LAND-003).
+        skip is surfaced in the consent prompt" guarantee does NOT cover it (REQ-LAND-002).
         The premise this helper originally rested on — that draft bodies are "untracked by
         construction" — is RETIRED: `commit-plan` falsifies it by design.
     """
@@ -8573,7 +8573,7 @@ def _land_merge_preview(target: str, execute_branch: str,
         # The directional question is "what does `B` add since it diverged from `A`", whose
         # git spelling is the merge base as the left endpoint. Written as an explicit
         # `merge-base` call rather than the `A...B` sugar, because this module already carries
-        # a normative prohibition on a three-dot expression (`REQ-LAND-025` / #303,
+        # a normative prohibition on a three-dot expression (`REQ-LAND-004` / #303,
         # `_land_changed_set`) and a second three-dot literal here — correct in this context,
         # forbidden in that one — is an invitation to read the wrong rule onto the wrong line.
         mb = _run_git(["merge-base", target, execute_branch], cwd=root)
@@ -8594,7 +8594,7 @@ def _land_merge_preview(target: str, execute_branch: str,
 def _land_changed_set(root: Path | None = None) -> list[str]:
     """The landed change set, computed as `HEAD^1..HEAD` — NEVER `<target>...HEAD`.
 
-    ISSUE 1.4 / `REQ-LAND-025` / dixson3/yoshiko-flow#303. The documented `<target>...HEAD`
+    ISSUE 1.4 / `REQ-LAND-004` / dixson3/yoshiko-flow#303. The documented `<target>...HEAD`
     expression runs at a moment when `HEAD == <target>`, so it is EMPTY BY CONSTRUCTION and
     `classify-deliverable`'s `path-backed` evidence is structurally unreachable through it.
     `HEAD^1..HEAD` reads the merge's second parent's contribution, which is the set that
@@ -8634,7 +8634,7 @@ def _land_number_collisions(plan_id: str, target: str,
                             root: Path | None = None) -> list[str]:
     """Other plan bundles on the merge target sharing this plan's `NNN` (Issue 1.3).
 
-    `REQ-LAND-024` / dixson3/yoshiko-flow#302-B3. Two bundles sharing an `NNN` and differing
+    `REQ-LAND-026` / dixson3/yoshiko-flow#302-B3. Two bundles sharing an `NNN` and differing
     only by hash suffix MERGE CLEANLY — measured, and commented on #302 — so merge-back is
     the ONLY place the collision is detectable at all. Reported as a HALTING finding.
 
@@ -8694,7 +8694,7 @@ def _land_upstream_facts(plan_dir: Path, plan_id: str) -> dict:
             "why": req.get("why"),
             "resolved_by": r.get("resolved_by"),
             "draft_body_path": draft_rel,
-            # ENUMERATED, never assumed. An omission here is SILENT (REQ-LAND-003) — it is
+            # ENUMERATED, never assumed. An omission here is SILENT (REQ-LAND-002) — it is
             # not a `skip`, so the consent-prompt guarantee does not cover it.
             "draft_present": draft_rel in present,
         })
@@ -8722,7 +8722,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
     execute_branch = _execute_branch(plan_id)
     wt = _worktree_path(plan_dir)
 
-    # THE PRIMARY CHECKOUT, not `_repo_root()` (REQ-LAND-034). L16's post-condition runs
+    # THE PRIMARY CHECKOUT, not `_repo_root()` (REQ-LAND-026). L16's post-condition runs
     # against `ctx.root`, which is the PRIMARY — so a prediction computed in a linked worktree
     # would be predicting the wrong tree, which is #341's original defect in a new place.
     # Memoized: the two `primary_checkout_*` facts and the halt below are ONE observation, and
@@ -8780,7 +8780,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             "resolvable_by_agent": False,
         })
 
-    # THE HALTING FINDING (REQ-LAND-034, #333/#341). Emitted from the SAME observation the
+    # THE HALTING FINDING (REQ-LAND-026, #333/#341). Emitted from the SAME observation the
     # two `primary_checkout_*` facts are computed from, and scoped to OUTSIDE the plan folder
     # — dirt inside it is exactly what `git add -- <plan_dir>` is for.
     #
@@ -8825,7 +8825,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             "merge_target": target,
             "execute_branch": execute_branch,
             "worktree_path": wt.as_posix(),
-            # FOUR FIELDS, REPLACING `worktree_dirty` (REQ-LAND-036 / #341). The rename is
+            # FOUR FIELDS, REPLACING `worktree_dirty` (REQ-LAND-002 / #341). The rename is
             # MANDATORY, not cosmetic: `worktree_dirty` named the tree L16 DOES NOT CHECK.
             # It observed `.worktrees/<plan-id>` while L16's post-condition reads `ctx.root`,
             # and its value was `bool((False, []))` — a non-empty TUPLE, so it was constantly
@@ -8840,7 +8840,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             # because `false` would assert "clean" about a tree that does not exist.
             "execute_worktree_present": wt.is_dir(),
             "execute_worktree_dirty": (bool(_worktree_dirty(wt)[0]) if wt.is_dir() else None),
-            # Computed VIA `_dirty_outside_plan_dir` — the helper REQ-LAND-033 defines — and
+            # Computed VIA `_dirty_outside_plan_dir` — the helper REQ-LAND-032 defines — and
             # never by an inline predicate. Two implementations of one rule is how the dry run
             # stops predicting L16 (SC4c pins the single definition site).
             "primary_checkout_dirty_outside_plan_dir": _primary_dirt(plan_dir, root)["dirty"],
@@ -8849,7 +8849,7 @@ def _land_manifest(plan_dir: str | Path) -> dict:
             # DIGEST-COVERED, and deliberately so: measured, the predicted tree oid and the
             # target tip are EXACTLY the fields that drift when another plan lands between
             # dry-run and apply. A digest omitting them cannot detect the staleness it
-            # exists to detect (Issue 1.5 / REQ-LAND-018).
+            # exists to detect (Issue 1.5 / REQ-LAND-002).
             "resolved_target_tip": resolved_tip,
             "merge_preview": preview,
             "plan_number_collisions": collisions,
@@ -9110,7 +9110,7 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
         halts = manifest["halts"]
         verdict = "fail" if halts else "pass"
 
-        # `resolvable_by_agent` NOW HAS A CONSUMER (Issue 4.4, REQ-LAND-034). It was written
+        # `resolvable_by_agent` NOW HAS A CONSUMER (Issue 4.4, REQ-LAND-026). It was written
         # in five places and READ IN NONE, so the new halt's `true` would have been as inert
         # as the five existing `false`s — a field nothing reads is a field that cannot be
         # wrong, which is the vacuous-check class (#263) in data form.
@@ -9202,7 +9202,7 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             halt_class=LAND_HALT_OUTWARD,
             route_record=gate["route_record"]), indent=2))
         sys.exit(3)
-    # ---- THE SEAM (REQ-LAND-028, dixson3/yoshiko-flow#327) --------------------------------
+    # ---- THE SEAM (REQ-LAND-010, dixson3/yoshiko-flow#327) --------------------------------
     #
     # Everything above this line was already here; what was missing was the CALL. `_land_execute`
     # drove all fifteen steps, advanced the journal and was fail-closed, while having exactly one
@@ -9237,7 +9237,7 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
             halt_class=LAND_HALT_MECHANICAL, offenders=contained["offenders"]), indent=2))
         sys.exit(1)
 
-    # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-009), never observed
+    # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-006), never observed
     # state. `recover()` is TOTAL over the seventeen states, so all four of its actions are
     # branched on here — an unhandled action would silently become a fresh landing, which is
     # the one wrong answer that can re-push and re-post.
@@ -9453,7 +9453,7 @@ def _land_tty_gate(allow_list: list[str] | None = None) -> dict:
 LAND_JOURNAL_DIR = ".yf/plan/landing-journal"
 
 # The ALLOWLIST the dirty check exempts, as a PATH PREFIX. `.yf/plan/` covers both the landing
-# journal (REQ-LAND-008 stages it inside the tree — a `mktemp -d` would turn `os.rename` into a
+# journal (REQ-LAND-006 stages it inside the tree — a `mktemp -d` would turn `os.rename` into a
 # copy and void every durability claim) and `land-beads.json`, which the old substring filter
 # did not exempt at all.
 LAND_DIRT_ALLOWLIST: tuple[str, ...] = (".yf/plan/",)
@@ -9489,10 +9489,10 @@ def _porcelain_records(out: str) -> list[tuple[str, str]]:
 
 def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
     """THE SINGLE DEFINITION SITE of "the tree is dirty outside the plan folder"
-    (REQ-LAND-033).
+    (REQ-LAND-032).
 
     ONE RULE, ONE IMPLEMENTATION, TWO CALLERS: L16's post-condition ENFORCES it and
-    `land --dry-run` PREDICTS it (REQ-LAND-034). Two independent implementations of one rule
+    `land --dry-run` PREDICTS it (REQ-LAND-026). Two independent implementations of one rule
     is precisely how the dry run stops predicting L16 — the defect this plan exists to close
     — so a second definition site is a regression even when both copies agree today.
 
@@ -9506,7 +9506,7 @@ def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
       fragment anywhere in the line, and did not even exempt the journal it was written for.
 
     Returns `{"dirty", "paths", "staged", "records"}`. `paths` are the offending paths only —
-    the boolean is what the digest carries, the list is what a halt reports (REQ-LAND-036).
+    the boolean is what the digest carries, the list is what a halt reports (REQ-LAND-002).
     """
     root = root or _git_root()
     prefix = Path(plan_dir).as_posix().rstrip("/") + "/"
@@ -9556,7 +9556,7 @@ def _land_fsync_write(path: Path, text: str) -> None:
 class LandingJournal:
     """A durable record of WHICH ENUMERATED STATE a landing is in (REQ-LAND-006).
 
-    RECOVERY IS KEYED ON THE RECORDED PHASE, NEVER ON OBSERVED STATE (REQ-LAND-009). That
+    RECOVERY IS KEYED ON THE RECORDED PHASE, NEVER ON OBSERVED STATE (REQ-LAND-006). That
     distinction is the whole mechanism: at several boundaries "wrote nothing" and "wrote
     everything then died" are INDISTINGUISHABLE from the filesystem and from git. A merge
     that was committed and a merge that was never attempted both leave a clean tree once the
@@ -9619,7 +9619,7 @@ class LandingJournal:
     def recover(self) -> dict:
         """What a resumed `--apply` should do, derived from the RECORDED PHASE.
 
-        TOTAL over the state set (REQ-LAND-009): every one of the seventeen has a row, and an
+        TOTAL over the state set (REQ-LAND-006): every one of the seventeen has a row, and an
         unknown or corrupt phase is INCONCLUSIVE rather than "start over".
         """
         rec = self.read()
@@ -10321,7 +10321,7 @@ LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
 )
 
 
-def _land_l8_to_l15_close_chain(ctx: LandingContext) -> list[dict]:
+def _land_l8_to_l11_close_chain(ctx: LandingContext) -> list[dict]:
     """L8-L15 — the existing close chain, invoked verb by verb.
 
     EACH EXIT CODE IS **READ**, NOT MERELY ECHOED. That is #180's defect: `close-reconcile-step`
@@ -10496,7 +10496,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
     #
     # SCOPING THE GUARD REMOVES A MISLEADING ERROR; IT DOES NOT REMOVE THE HALT. The
     # post-condition below still sees the unrelated file and returns a halting fail — which
-    # is intended, and is what `--dry-run` now predicts (REQ-LAND-034).
+    # is intended, and is what `--dry-run` now predicts (REQ-LAND-026).
     staged = ctx.run("git", ["diff", "--cached", "--quiet", "--", ctx.plan_dir.as_posix()],
                      cwd=ctx.root)
     if staged.returncode != 0:                      # non-zero == there IS something staged
@@ -10523,7 +10523,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
 
     # POST-CONDITION, asserted on the way OUT.
     #
-    # THE LANDING JOURNAL IS EXCLUDED, and it must be. REQ-LAND-008 stages it INSIDE the repo
+    # THE LANDING JOURNAL IS EXCLUDED, and it must be. REQ-LAND-006 stages it INSIDE the repo
     # tree (a `mktemp -d` would turn `os.rename` into a copy and void every durability claim),
     # and L16 runs at `L_PUSHED_2` — three steps before the landing ends — so the journal is
     # necessarily still present and necessarily still describing an in-flight landing.
@@ -10532,7 +10532,7 @@ def _land_l16_commit_and_push_two(ctx: LandingContext) -> dict:
     # anchor that `yf preflight` ensures, the journal appeared as an untracked file and L16
     # failed its own post-condition. The live repo has that anchor, so the defect was invisible
     # here and would have surfaced first in whichever repo lacked it.
-    # `-uall` and the PATH-PREFIX filter (REQ-LAND-033, #343). See `_dirty_outside_plan_dir`.
+    # `-uall` and the PATH-PREFIX filter (REQ-LAND-032, #343). See `_dirty_outside_plan_dir`.
     dirt = _dirty_outside_plan_dir(ctx.plan_dir, root=ctx.root, runner=ctx.run)
     porcelain = "\n".join(dirt["paths"]).strip()
     unpushed = ctx.run("git", ["rev-list", "--count", f"origin/{ctx.target}..{ctx.target}"],
@@ -10658,7 +10658,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     feature = _feature_branch(ctx.plan_id)
     actions, preserved = [], []
 
-    # REQ-LAND-031 (#340). THREE DEFECTS LIVED IN THE THREE LINES THIS REPLACES.
+    # REQ-LAND-004 (#340). THREE DEFECTS LIVED IN THE THREE LINES THIS REPLACES.
     #
     # (a) ARITY. `_worktree_teardown(plan_dir, force)` takes TWO parameters; the call passed
     #     one, and raised `TypeError` on the first real `--apply` in this repository's
@@ -10681,7 +10681,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
     #     fallback — and nothing consulted `status` at all. A `blocked` teardown (dirty
     #     worktree: nothing removed, branch left behind) reported `verdict: pass`. A landing
     #     must not report a prune it did not perform.
-    # (d) OFF THE SEAM. Added by plan-068 Issue 1.1: `REQ-LAND-031`'s apparent carve-out was
+    # (d) OFF THE SEAM. Added by plan-068 Issue 1.1: `REQ-LAND-004`'s apparent carve-out was
     #     an OVER-READ. That requirement constrains this CALL — `force=False` in keyword form,
     #     branch on the returned `status` — and says nothing about how the callee launches, so
     #     the fully-routed form below satisfies it verbatim. The precedent is already in this
@@ -10723,7 +10723,7 @@ def _land_l18_prune(ctx: LandingContext) -> dict:
                                 "implemented here."}
     actions.append(tab_action)
 
-    # BRANCH ON THE RETURNED `status` (REQ-LAND-031). Three-valued, and the ABSENT case is
+    # BRANCH ON THE RETURNED `status` (REQ-LAND-004). Three-valued, and the ABSENT case is
     # stated rather than inferred: a stub or a future return shape carrying no `status` has
     # established NOTHING about the prune, so the step is `inconclusive` — never `pass`.
     if status == "ok":
@@ -10812,7 +10812,7 @@ LAND_EXECUTOR: tuple[tuple[str, str], ...] = (
     ("l5_advisory_recheck",     "_land_l5_advisory_recheck"),
     ("l6_push_one",             "_land_l6_push_one"),
     ("l7_reconcile_writes",     "_land_l7_reconcile_writes"),
-    ("l8_close_chain_head",     "_land_l8_to_l15_close_chain"),
+    ("l8_close_chain_head",     "_land_l8_to_l11_close_chain"),
     ("l12_close_cascade",       "_land_l12_close_cascade"),
     ("l13_complete_gate",       "_land_l13_l15_finish"),
     ("l16_commit_and_push_two", "_land_l16_commit_and_push_two"),
@@ -10850,7 +10850,7 @@ LAND_STEP_JOURNAL: dict[str, str] = {
 #: Steps that are NEVER skipped on a resume, however far the journal advanced.
 #:
 #: `l0_lock_acquire` is the only member, and the reason is asymmetric rather than cosmetic
-#: (REQ-LAND-029). The landing lock is released at **L4**, not at the end, so a uniform skip
+#: (REQ-LAND-011). The landing lock is released at **L4**, not at the end, so a uniform skip
 #: rule would run L1-L4 holding no lock and then `unlink` a lock it never acquired --
 #: `_landing_lock_release` is keyed on plan+host, not PID, so that unlink would steal a lock
 #: belonging to a concurrent landing. Re-executing L0 is safe because `_landing_lock_acquire`
@@ -10865,7 +10865,7 @@ LAND_RESUME_NEVER_SKIP: frozenset[str] = frozenset({"l0_lock_acquire"})
 def _land_resume_done(resume_from: str | None) -> set[str]:
     """Translate a journal phase into the set of EXECUTOR STEP KEYS already completed.
 
-    THE TWO VOCABULARIES ARE NOT THE SAME SET (REQ-LAND-029, dixson3/yoshiko-flow#327). The
+    THE TWO VOCABULARIES ARE NOT THE SAME SET (REQ-LAND-011, dixson3/yoshiko-flow#327). The
     journal records `L_*` PHASES; the step loop iterates `LAND_EXECUTOR` STEP KEYS. The
     original code built a set of phases, named it `done`, and then never read it -- so a
     resume after a halt at L17 re-executed all fifteen steps from L0, `l6_push_one` and
@@ -10913,7 +10913,7 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
     """Drive L0-L19, advancing the journal between steps and halting on the first halting
     failure.
 
-    RESUME IS KEYED ON THE JOURNAL'S RECORDED PHASE (REQ-LAND-009), never on observed state,
+    RESUME IS KEYED ON THE JOURNAL'S RECORDED PHASE (REQ-LAND-006), never on observed state,
     and a resume RE-DERIVES the manifest and re-checks the digest before continuing
     (REQ-LAND-011) — the journal says WHERE it was, never WHAT WAS TRUE.
 
@@ -10926,7 +10926,7 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
     results: list[dict] = []
     for key, fname in LAND_EXECUTOR:
         if key in done:
-            # RESUMED, NOT SILENTLY ABSENT (REQ-LAND-029). A skip that leaves no row is
+            # RESUMED, NOT SILENTLY ABSENT (REQ-LAND-011). A skip that leaves no row is
             # indistinguishable from a step that was never in the table -- so the row is
             # emitted with an explicit `resumed` marker, and the journal is NOT rewritten
             # (it already records this state; rewriting it would move the phase backwards
