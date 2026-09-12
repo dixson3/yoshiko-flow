@@ -1,0 +1,20 @@
+direction: right
+before: "Before (plans 050–070)" {
+  draft -> read1: "red-team reads"
+  read1 -> read2 -> readN: "5–13 prose passes"
+  readN -> approve
+  approve -> execute -> land
+  land -> halt: "every landing since 062"
+  halt -> draft: "next plan's scope"
+  halt.style.fill: "#f8d7da"
+}
+after: "After (this plan)" {
+  draft -> read1 -> read2: "≤2 reading passes"
+  read2 -> exec: "execution pass:\nrun checkers + criteria"
+  exec -> approve: "0 measured findings"
+  approve -> smoke: "ready-check smoke-runs\nevery criterion"
+  smoke -> execute -> land
+  land -> metric: "fidelity: SC flips,\nhalts after L6"
+  metric.style.fill: "#d4edda"
+}
+before -> after: "subtract: 8 dead verbs, L5, audit-close,\n2 formulas, 17 REQ-LAND ids, unwired checks"
