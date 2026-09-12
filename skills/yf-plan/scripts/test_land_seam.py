@@ -258,17 +258,22 @@ def test_spec_quotes_the_script_rather_than_restating_a_number():
     )
 
 
-def test_req_land_031_carve_out_is_retired_in_text_and_031_itself_is_unchanged():
-    """0.3's decision: the carve-out was an over-read; REQ-LAND-031's own text does not move.
+def test_req_land_004_l18_row_constrains_the_call_and_037_puts_it_on_the_seam():
+    """plan-068 Issue 0.3's decision, retagged by plan-071 Issue 0.4: the L18 teardown rule
+    constrains the CALL (`force=False` in keyword form, branch on `status`) and says nothing
+    about how the callee launches, so a fully-on-seam call satisfies it verbatim.
 
-    REQ-LAND-031 constrains the CALL (`force=False` in keyword form, branch on `status`). It
-    says nothing about how the callee launches, so a fully-on-seam call satisfies it verbatim.
+    plan-071 merged that rule into REQ-LAND-004's L18 row (the retired id is deliberately not
+    named here — the tree carries no residue of a merged id). Read off the row, not the file.
     """
     text = SPEC.read_text()
-    assert "`REQ-LAND-031`'s carve-out is RETIRED as an over-read" in text
-    # REQ-LAND-031's own clauses survive untouched.
-    assert "shall call\n`_worktree_teardown` with `force=False` in **keyword** form" in text
-    assert "shall **branch on the returned\n`status`**" in text
+    row = next((ln for ln in text.splitlines() if ln.startswith("| **L18**")), "")
+    assert row, "REQ-LAND-004's order table has no L18 row"
+    assert "`_worktree_teardown` with `force=False` in **keyword** form" in row
+    assert "**branch on the returned `status`**" in row
+    # And REQ-LAND-037 states that the on-seam call satisfies that row verbatim.
+    flat = " ".join(text.split())
+    assert "satisfies the REQ-LAND-004 L18 row verbatim" in flat
 
 
 def test_the_no_runner_intercepts_a_filesystem_read_reason_is_recorded():

@@ -1363,7 +1363,9 @@
 >   check that enforces it.
 >
 >   **Rewrote `skills/yf-plan/spec/landing.md`** (Issue 0.4) from the tree as it is — plan-070 is
->   deferred, so **`REQ-LAND-039` does not exist and is not allocated here**. 39 ids → 22.
+>   deferred, so **the thirty-ninth id its unlanded draft reserved does not exist and is not
+>   allocated here** (the family ends at 038; that id is named nowhere in the tree, by design,
+>   so the freeze's residue grep stays clean). 39 ids → 22.
 >   Kept verbatim: 001, 006, 010, 013, 014, 017, 019, 035, and 026 as the anchor of the dry-run
 >   group. Merged: 002+003+018+036 → 002 (re-derivation and digest; 018's unimplemented
 >   "re-preview before merge" claim dropped); 004+005+025+023+031 → 004 (the order table;

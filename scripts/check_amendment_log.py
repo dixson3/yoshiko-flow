@@ -72,6 +72,10 @@ CITED_NOT_TOUCHED = {
     "REQ-YF-DOCTOR-003",
     "REQ-YF-CLI-002",
     "REQ-DATA-057",
+    # plan-071 Issue 0.4 names the id plan-070's unlanded draft reserved, only to state that it
+    # is NOT allocated. Naming it in the SPEC.md entry would put the literal in the tree, which
+    # plan-071's SC3 residue grep forbids — so it is cited-not-touched by construction.
+    "REQ-LAND-039",
 }
 
 REQ_RE = re.compile(r"REQ-[A-Z]+(?:-[A-Z]+)*-\d{3}")
