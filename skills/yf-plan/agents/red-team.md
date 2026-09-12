@@ -12,7 +12,66 @@ Adversarial review of a plan before approval. No access to investigation worktre
 
 ## Inputs
 
-- `plan_dir` — access to plan.md, scope-answers.md, upstream-triage.md, findings/
+- `plan_dir` — access to plan.md, scope-answers.md, upstream-triage.md, findings/, reviews/
+- `SKILL_DIR` — the installed skill directory, for the checkers an execution pass runs
+
+## Mode
+
+**Every pass has a mode, keyed on its pass index (REQ-AGENT-066).** The pass index is the count of
+`reviews/pass-*.md` files that exist when you are dispatched, plus one:
+
+```bash
+N=$(( $(ls "${plan_dir}"/reviews/pass-*.md 2>/dev/null | wc -l) + 1 ))
+```
+
+| Pass index | Mode | What it may do |
+| :-- | :-- | :-- |
+| 1, 2 | **reading** | the Evaluate checklist below; findings may be `measured:` or `inferred:` |
+| 3 and later | **execution** | the Execution-pass procedure below is **mandatory**; only `measured:` findings may be `high` |
+
+Emit the mode as the line directly under the verdict heading: `**Mode:** reading` or
+`**Mode:** execution`. It is a parseable field, not a remark — SC-style checks grep for it.
+
+**Why two, then execute.** Measured over plans 062/063/068, every landing-chain defect was found
+by *running* something and none by 27 reading passes; plan-068 pass 4 recorded that a further
+reading pass had negative value; #286 recorded that an open brief on a converged plan manufactures
+concerns. Reading has near-zero recall on the silent-green class, and execution has near-total
+recall — so the loop's later passes use the instrument that can see the defect.
+
+## Execution-pass procedure (pass index ≥ 3)
+
+Run every command below from the repository root, each under a 60-second bound (`timeout 60`),
+and **record the exit code of each** in the pass file's Measurements table. A command that is
+absent from this repository (the `scripts/` checkers ship with yoshiko-flow, not with the skill)
+is recorded as `absent`, never as a pass.
+
+<!-- skill-script-refs: allow the two bare `scripts/` checkers are yoshiko-flow repo checkers, named as optional ("if present") — the skill-shipped ones resolve through SKILL_DIR -->
+```bash
+uv run "${SKILL_DIR}/scripts/doc_lint.py" --path "${plan_dir}/plan.md" --json
+uv run "${SKILL_DIR}/scripts/plan_extract.py" "${plan_dir}" --json --strict
+uv run "${SKILL_DIR}/scripts/gate_consistency.py" "${plan_dir}" --json
+uv run scripts/check_amendment_log.py --plan "${plan_id}"          # repo checker, if present
+uv run scripts/checks/check-req-coverage.py "${plan_dir}"          # repo checker, if present
+uv run "${SKILL_DIR}/scripts/okf.py" reindex --check "${plan_dir}" --json
+uv run "${SKILL_DIR}/scripts/plan_manager.py" audit "${plan_dir}" --json-output
+```
+
+Then **every clause-form Success Criteria row**: extract the command from its `Verification`
+cell (unescape `\|` → `|`), run it with `bash -c` from the repo root under the 60-second bound,
+and compare the exit code to the clause's `→ exit N`. A row that is RED because its artifact does
+not exist yet is expected before execution — record it as `measured: not-yet-dischargeable`, not
+as a concern. A row that is GREEN before any issue ran is a concern (#384): the criterion cannot
+distinguish the plan's work from the world's prior state.
+
+Then **re-verify every `resolved` cell in every prior pass** (#306, the phantom resolution): for
+each row of a prior pass's Resolutions table whose status is `resolved`, run the evidence the
+resolution names — the grep, the test, the diff — and record `measured: holds` or
+`measured: phantom` with the command and exit code. A resolution whose cell names no runnable
+evidence is `inferred:` and is reported as such.
+
+**Convergence.** An execution pass with **zero `measured:` findings returns `APPROVE`.** Do not
+manufacture a concern to have something to say; `inferred:` notes at `low` or `medium` may
+accompany an APPROVE and do not block it.
 
 ## Evaluate
 
@@ -38,14 +97,20 @@ Adversarial review of a plan before approval. No access to investigation worktre
 # Plan Red-Team: <plan-id>
 
 ## Verdict: APPROVE | REVISE | INVESTIGATE-MORE
+**Mode:** reading | execution
 
 ## Strengths
 - <what's solid>
 
 ## Concerns
-| # | Severity | Concern | Recommendation |
-| :-- | :-- | :-- | :-- |
-| C1 | high \| medium \| low \| medium-high \| low-medium | <issue> | <what to change> |
+| # | Severity | Basis | Concern | Recommendation |
+| :-- | :-- | :-- | :-- | :-- |
+| C1 | high \| medium \| low \| medium-high \| low-medium | measured: `<cmd>` → exit N \| inferred: <why> | <issue> | <what to change> |
+
+## Measurements
+| Check | Command | Exit | Note |
+| :-- | :-- | --: | :-- |
+| doc_lint | `...` | 0 | <one line> |
 
 ## Missing
 - <gaps>
@@ -53,6 +118,14 @@ Adversarial review of a plan before approval. No access to investigation worktre
 ## Gate Assessment
 ## Upstream Assessment
 ```
+
+**The `Basis` cell is a closed two-token vocabulary (REQ-AGENT-066, #390).** `measured:` cites the
+command you ran and the exit code you observed; `inferred:` is a reading claim. An `inferred:`
+finding **cannot be `high`** and cannot block approval — an inference recorded as a measurement
+survived six passes once, and the column exists so it cannot again. A cross-artifact claim
+("the test does not cover X", "the verb has no caller") is `measured:` with the command and its
+output, or it is `inferred:`. The `Measurements` table is **required on an execution pass** and
+optional on a reading pass.
 
 **The `Severity` cell is a CLOSED vocabulary, and the table is why it is checkable
 (REQ-DATA-076 / REQ-AGENT-041).** Write exactly one of `high`, `medium`, `low`, `medium-high`,

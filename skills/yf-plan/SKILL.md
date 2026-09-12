@@ -568,6 +568,8 @@ Two passes, in order. Both agents are read-only with respect to the repository u
 
    PLAN: {plan_dir}/plan.md
    PRIOR PASSES: {reviews/pass-*.md, if any}
+   PASS INDEX: {count of reviews/pass-*.md + 1}
+   SKILL_DIR: {SKILL_DIR}
    ```
 
    Use `Agent` with `subagent_type="general-purpose"`. The agent is **read-only with respect to the repository
@@ -576,10 +578,26 @@ Two passes, in order. Both agents are read-only with respect to the repository u
    `log.md` `review-pass:` bullet, as the create-on-present step below describes.
 
    **Its verdict drives the phase transition** and owns the `pass-N.md` lifecycle below. Under the
-   **autonomous default**, *the main session* resolves the concerns and **re-dispatches** the red-team,
-   cycling to `APPROVE` **without an operator acknowledgement per cycle** — bounded by `max_review_cycles`.
+   **autonomous default**, *the main session* resolves the concerns and **re-dispatches** the red-team
+   **without an operator acknowledgement per cycle** — bounded by `max_review_cycles` (default 5).
    Report the verdict and concerns; do not stop for them. Under `checkpointed`, present them to the operator
    and wait.
+
+   **The loop has the shape TWO-THEN-EXECUTE (REQ-PLAN-030 as amended, REQ-AGENT-066).** The pass index
+   is the count of existing `reviews/pass-*.md` plus one. **Passes 1 and 2 are reading passes**; **pass 3
+   and every later pass is an execution pass**: the red-team runs the shipped bundle checkers (`doc_lint`,
+   `plan_extract --strict`, `gate_consistency.py`, `check_amendment_log.py`, `check-req-coverage.py`,
+   `okf.py reindex --check`, `audit`) and every clause-form Success Criteria command, re-verifies every
+   prior pass's `resolved` cell by running the evidence it names (#306), and records each exit code in a
+   `Measurements` table. Every pass file carries `**Mode:** reading` or `**Mode:** execution` on the line
+   under its verdict heading. **Convergence is an execution pass with zero `measured:` findings**, which
+   returns `APPROVE` — the loop is not "resolve and re-dispatch until APPROVE" with no terminating rule
+   (#286). A pass that reads a converged plan and manufactures a concern is the failure this shape removes.
+
+   **The finding vocabulary is closed (#390).** A cross-artifact claim — "the test does not cover X", "the
+   verb has no caller", "the resolution was only half made" — is **`measured:`** with the command and its
+   output, or it is labelled **`inferred:`**. An `inferred:` finding cannot be `high` and cannot block
+   approval; only a `measured:` finding can. The `Basis` column of the Concerns table carries the token.
 
    **Honesty clause (R2/R3).** REQ-AGENT-049 constrains this *text*, not reviewer conduct: that a pass was
    genuinely dispatched has no exit code, and `ctl-184-dispatch` does not claim to verify it.
@@ -613,9 +631,13 @@ has burned `N` review cycles should not silently resume.
 
 **Write the report at presentation (create-on-present).** The moment the red-team presents — *before* anything is resolved — the main session writes `${plan_dir}/reviews/pass-N.md` **and** appends a `log.md` **`- review-pass:`** bullet, as a **single atomic step**. The token is `review-pass:`, **not** `review:` — a `review:` bullet is what a *status transition into the review phase* writes, and counting both against the pass-file total made a correct bundle hard-fail the audit (REQ-PORT-006 as amended by plan-047 Issue 0.9b/2.7). Like `intake:` and `validated:`, `review-pass:` is a recognized non-status token: it never advances `status`. The file captures, verbatim:
 
-- **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE)
+- **Verdict** (APPROVE / REVISE / INVESTIGATE-MORE), with the **`**Mode:** reading|execution`** line
+  directly beneath it
 - **Strengths**
-- **Concerns** — each with severity (high/medium/low) and recommendation, verbatim
+- **Concerns** — each with severity (high/medium/low), its `Basis` (`measured:` command + exit, or
+  `inferred:`) and recommendation, verbatim
+- **Measurements** — on an execution pass, the table of every checker and criterion command run, with
+  its exit code
 - **Missing** sections
 - **Gate Assessment** and **Upstream Assessment**
 - A **Resolutions** table with one row per concern and status `unresolved`, in this shape
