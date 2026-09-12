@@ -252,7 +252,6 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_classify_deliverable.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_close_contract.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_verify_reconcile.py` |  |  |
-|  | `uv run skills/yf-plan/scripts/test_audit_close.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_reconcile_step_resolution.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_update_status_idempotent.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
