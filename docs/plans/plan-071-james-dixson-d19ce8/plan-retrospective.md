@@ -32,3 +32,24 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `prevention` | REQ-PLAN-085's smoke-run now records actual_exit per row; a reviewer can see 1 vs 2 before approval |
 | `cost` |  |
 
+## RE-002
+
+| field | value |
+| :-- | :-- |
+| `kind` | fidelity |
+| `when` | 2026-09-12 |
+| `stop_class` |  |
+| `asked` |  |
+| `answered` |  |
+| `frontloadable` |  |
+| `detected_by` | mechanical-check |
+| `evidence` | retrospective-report --fidelity: intake 1ad85139bfd4, recheck exit 0, halts source no-record |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+| `sc_flipped_post_approval` | 1 |
+| `halts_post_irreversible` | no-record |
+
