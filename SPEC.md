@@ -1320,6 +1320,64 @@
 >   indistinguishable from one that violates it.
 >
 >   Implementation lands in Epics 1-2; this entry records the SPEC-first Epic 0 amendments.
+>
+> - **plan-071 (2026-09-12, #323 / #338 / #384 / #286 / #364 / #325 / #390 / #392-partial /
+>   #356-partial / #358-partial / #306-partial):** **freeze yf-plan mechanism growth, convert
+>   the review loop from reading to executing, adopt an approval-to-landing fidelity metric, and
+>   subtract the declared-but-unenforced layers.** Four new ids, one amendment, one spec rewrite;
+>   every implementation epic depends on an Epic 0 issue that names its requirement.
+>
+>   **Added `REQ-AGENT-066`** (`skills/yf-plan/spec/agents.md`) — **the execution-pass
+>   contract.** Red-team passes 1–2 may read; pass 3 and every later pass runs the shipped bundle
+>   checkers and every clause-form criterion, re-verifies every prior `resolved` cell (#306),
+>   emits `**Mode:** reading|execution` under the verdict heading, and raises only `measured:`
+>   findings at `high` — an `inferred:` finding cannot block (#390). An execution pass with zero
+>   measured findings returns `APPROVE`: the convergence standard (#286). **Cited, not amended:**
+>   `REQ-AGENT-049` (dispatch as a sub-agent) and `REQ-AGENT-043` (read-only with a sandbox
+>   spike) — the execution pass runs *under* both.
+>
+>   **Amended `REQ-PLAN-030`** (`skills/yf-plan/SPEC.md`) — the review loop has the shape
+>   **two-then-execute**; `max-review-cycles` stays 5; the `plan-review` and `verify-artifact`
+>   formulas, which had zero pour callers, are removed as dead code (a bug fix to the shipped
+>   shape, no new id).
+>
+>   **Added `REQ-PLAN-084`** (`skills/yf-plan/SPEC.md` §2.7) — **the fidelity metric.** Two
+>   derived numbers, `sc_flipped_post_approval` (the `Verification` column diffed against the
+>   intake commit, plus rows FALSE under a fresh `recheck-criteria`) and `halts_post_irreversible`
+>   (`- landing-halt:` bullets in `log.md` at or after `L_PUSHED_1`, written by `land --apply`'s
+>   halt path; `no-record` where the bullet predates the bundle). `retrospective-report
+>   --fidelity` derives them; `retrospective-append --kind fidelity` records them. **No new verb.**
+>
+>   **Added `REQ-PLAN-085`** (`skills/yf-plan/SPEC.md` §2.4) — **`ready-check` executes what it
+>   approves.** Every Success Criteria row is clause-form or `manual:`; every command is
+>   smoke-run under `bash -c` (exit 126/127, timeout, usage/argparse errors fail; `No such file`
+>   fails unless the path is a declared deliverable named in `## Epics`, allow-list derived from
+>   `plan_extract.py`); `gate_consistency.py` runs at `ready-check` (#325); `stale_approved` is
+>   surfaced. A halting close-chain verb's exit 2 **halts** (`halt_class: inconclusive`).
+>
+>   **Added `REQ-PLAN-086`** (`skills/yf-plan/SPEC.md` §2.9) — **the freeze and the retention
+>   standard.** Live call path **and** a fixture-failing test, or it is deleted. The ceilings are
+>   machine-read from the requirement: `verb_ceiling = 32` (41 − 6 dead − `audit-close` −
+>   `parked` − `judgement-never-fired-report`), `req_land_ceiling = 22` (39 − 3 deleted − 14
+>   absorbed). The one freeze exception is `scripts/checks/check-provably-necessary.py`, the
+>   check that enforces it.
+>
+>   **Rewrote `skills/yf-plan/spec/landing.md`** (Issue 0.4) from the tree as it is — plan-070 is
+>   deferred, so **`REQ-LAND-039` does not exist and is not allocated here**. 39 ids → 22.
+>   Kept verbatim: 001, 006, 010, 013, 014, 017, 019, 035, and 026 as the anchor of the dry-run
+>   group. Merged: 002+003+018+036 → 002 (re-derivation and digest; 018's unimplemented
+>   "re-preview before merge" claim dropped); 004+005+025+023+031 → 004 (the order table;
+>   023/031's L18 rules become that row's text); 006+007+008+009 → 006 (the journal);
+>   011+029 → 011 (resume); 032+033 → 032 (L16); 024+034+026 → 026 (the dry-run contract).
+>   Rewritten as forward requirements: 012, 017a, 020, 021, 022, 030, 037 (the `DERIVED:` fence
+>   kept), 038. Deleted: 016, 027, 028 (patch-log entries with no forward requirement).
+>   **Narrowed `REQ-LAND-015`** to the two `route_record` stamps that exist — the `land` apply
+>   journal and the tty-refusal envelope — dropping the per-gate-close clause nothing writes; the
+>   writer-less reader `_land_route_record_findings` is deleted under the retention standard, so
+>   #393 closes by subtraction. "20 logical steps, 15 executor keys" is stated once. Every
+>   retained id keeps a one-line `Verification:` naming an existing test.
+>
+>   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
 

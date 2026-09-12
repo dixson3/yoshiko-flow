@@ -70,6 +70,18 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   earlier APPROVE followed by a REVISE (whose revisions were never re-reviewed) is **not** ready.
   Both agents are **read-only with respect to the repository under review**; the main session writes
   files. A sandbox spike outside that repository is authorized (REQ-AGENT-043/045).
+  *(amended plan-071 Issue 0.1 / #286, #390)* **The red-team loop has the shape two-then-execute.**
+  The pass index is the count of existing `reviews/pass-*.md` plus one. Passes 1 and 2 may be
+  **reading** passes; pass 3 and every later pass is an **execution** pass under REQ-AGENT-066 — it
+  runs the shipped bundle checkers and every clause-form Success Criteria command, re-verifies every
+  prior `resolved` cell, and may raise only `measured:` findings at `high`. Every `pass-N.md` carries
+  a `**Mode:** reading|execution` line directly under its verdict heading. **Convergence is an
+  execution pass with zero measured findings**, which returns `APPROVE`; the loop is not "resolve
+  and re-dispatch until APPROVE" with no terminating rule. `max-review-cycles` stays at 5. A
+  cross-artifact claim in any pass is `measured:` with the command and its output, or it is labelled
+  `inferred:` and cannot block. The shipped enforcement layer for the review loop is the brief
+  (`agents/red-team.md`) and its contract test; **no review formula is poured** — the
+  `plan-review` and `verify-artifact` formulas had no pour caller and are removed as dead code.
 - **REQ-PLAN-031** *(testable)* at red-team presentation the main session shall write
   `reviews/pass-N.md` **and** append the `log.md` `review:` line atomically (create-on-present),
   preserving `count(reviews/pass-*.md) == count(log.md review: lines)` (REQ-PORT-006).
@@ -101,6 +113,33 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   Operator approval is the single act of consent that transitions `ready-for-approval → approved`.
   `ready-check` and the approval transition are **adjacent** — `ready-check` re-runs at approval so
   no content edit can slip between a green check and the fingerprint write (REQ-PLAN-034).
+- **REQ-PLAN-085** *(testable, plan-071 Issue 0.2 / #384, #325, #356)* **`ready-check` executes the
+  criteria it approves, and an unjudgeable landing halts.** Two clauses.
+
+  **(a) At `ready-check`.** Every `## Success Criteria` row's `Verification` cell shall be either
+  **clause-form** (the REQ-DATA-070 grammar, judged by `doc_lint`'s `_verification_clause_ok` — one
+  grammar, never a second) or begin with **`manual:`**; any other cell fails readiness with the row
+  id. Every clause-form command shall be **smoke-run** under `bash -c` from the repository root with a
+  30-second bound. The smoke-run fails the row when the command exits **126 or 127**, **times out**,
+  or writes `usage:`, `unrecognized arguments` or `command not found` to stderr. A `No such file`
+  failure is a readiness failure **unless the missing path is named in the plan's `## Epics` text** —
+  a declared deliverable that does not exist yet — where the allow-list is **derived from
+  `plan_extract.py` output**, never hand-listed. An empty-collection false-fail (#356: a command
+  green only because the set it scans is empty) is reported as an authoring defect, not a pass.
+  `ready-check` shall additionally run `gate_consistency.py` over the bundle (a `FAIL` blocks
+  readiness; an `INCONCLUSIVE` is reported — the engine's first look is pre-approval, not L8 after
+  the push) and shall surface `stale_approved` from the fingerprint check, which until this
+  amendment only `resume-scan` reported.
+
+  **(b) At the close chain.** A **halting** close-chain verb that exits **2 (INCONCLUSIVE)** shall
+  **halt** the chain with `halt_class: inconclusive`. A landing that cannot evaluate its own
+  criteria is not a clean landing. Because clause (a) makes the grammar mandatory before approval,
+  the halt is reachable only by a plan approved before this amendment — that is deliberate.
+  Rationale: #384 — a criterion could be green before its `Discharged-by` issues ran, and no command
+  in any criterion was ever run before approval; measured on this plan's own draft, three of twenty
+  rows were green before any change and four failed on `No such file` for artifacts the plan itself
+  creates. Verification: `uv run skills/yf-plan/scripts/test_ready_check_smoke.py`;
+  `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/test_land_apply.py test_halting_verb_exit_2_halts_chain`.
 - **REQ-PLAN-034** *(testable)* approval shall write the fingerprint under the dual field set
   (`fingerprint` frontmatter key + `**Fingerprint:**` line, REQ-DATA-015) over the plan's content
   sections — everything before the first `## ` (frontmatter, `**Field:**` lines, and the now-relocated
@@ -420,11 +459,75 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   reference — and never **078**, which is retired. Allocation verified against
   `docs/plans/plan-060-james-dixson-6a6ac9/assets/free-req-ids.md`.
 
+- **REQ-PLAN-084** *(testable, plan-071 Issue 0.2 / #358)* **The approval-to-landing fidelity
+  metric.** The implicit goal of the review loop is that *approval predicts a clean landing*, and
+  yf-plan shall measure it with **two derived numbers**, computed from artifacts rather than
+  transcribed:
+
+  - **`sc_flipped_post_approval`** — the count of `## Success Criteria` rows whose `Verification`
+    cell differs between the plan as approved (`git show <intake-commit>:plan.md`, where the intake
+    commit is the one `commit-plan` made with the fixed subject `<plan-id>: INTAKE approved (awaiting
+    /yf-plan execute)`) and the landed `plan.md`, **plus** rows reported FALSE by a fresh
+    `recheck-criteria --json` run under the plan's criteria preamble env. A `manual:` conversion
+    counts as a flip. A flip caused by external state (#358) is counted as an authoring defect, not
+    excused as a regression.
+  - **`halts_post_irreversible`** — the count of `- landing-halt: <phase> <verb>` bullets in the
+    bundle's `log.md` whose phase is at or after `L_PUSHED_1` (the first irreversible step), plus
+    conflict-state entries. The bullet is written by `land --apply`'s existing halt path **before it
+    returns**, for every halting `fail` step, carrying the phase, the verb and an `irreversible`
+    flag; the `/.yf/` journal cannot be the source because it is gitignored, cleared at the terminal
+    green state and records only progress states. `landing-halt:` is an inert token like
+    `intake:`. A bundle that predates the bullet reports **`no-record`**, never zero.
+
+  `retrospective-report --fidelity <plan_dir>` derives both and prints them; with `--record` it
+  writes them through `retrospective-append --kind fidelity --sc-flipped-post-approval N
+  --halts-post-irreversible N`, a **new kind on the existing verb** — both integers are required for
+  that kind and the entry renders as the existing two-column table. **No new verb is added.**
+  Rationale: the system measured concerns per pass, REQ coverage and pass-file counts, none of which
+  is the goal; both numbers here were at or near 100% per plan over 060–070 and nothing recorded
+  them. Verification: `grep -q 'fidelity' skills/yf-plan/scripts/test_retrospective.py && uv run skills/yf-plan/scripts/test_retrospective.py`.
+
 ### 2.8 Capture (manual)
 
 - **REQ-PLAN-070** `capture` shall be re-entrant and status-agnostic (pre-intake phases only), purely
   side-effecting on the plan folder, advancing no status and touching no beads; `--retro`
   additionally mines the current session's conversation for the portability classes.
+
+### 2.9 Mechanism freeze & retention standard (plan-071)
+
+- **REQ-PLAN-086** *(testable, plan-071 Issue 0.3 / #392)* **The freeze and the retention standard.**
+  A `plan_manager.py` verb, a sibling check script, a formula, an agent step, a close-chain step or a
+  `REQ-LAND-*` id is **retained only if it is provably necessary**: (a) it sits on a live call path
+  from `SKILL.md`, an `agents/*.md`, `LAND_CLOSE_CHAIN` / `LAND_EXECUTOR` or `CHANGE-VALIDATION.md` —
+  an operator-offered remediation verb that `SKILL.md` instructs the operator to run counts — **and**
+  (b) a test exists that makes it fail on a fixture (a negative control). Anything failing either leg
+  is **deleted, not deprecated**.
+
+  **The freeze.** No new `plan_manager.py` verb, no new `REQ-LAND-*` id and no new land step is
+  added. The freeze has exactly one declared exception: `scripts/checks/check-provably-necessary.py`,
+  the repo check that enforces it. That check reads its ceilings **from this requirement**, never
+  from a constant beside the code, so the two lines below are the machine-read source:
+
+  `verb_ceiling = 32` — at most 32 `@cli.command` registrations in `plan_manager.py`. The arithmetic
+  is stated so that slack of zero is visible: 41 registered at scoping − 6 dead (`ownership-report`,
+  `escalation-report`, `verify-beads`, `index-add`, `judgement-echo-check`, `grant`) − `audit-close`
+  (the same engine as `audit`) − `parked` (a `list` filter) − `judgement-never-fired-report` (merged
+  into `retrospective-report`) = **32**.
+
+  `req_land_ceiling = 22` — at most 22 distinct `REQ-LAND-*` ids in `spec/landing.md`: 39 at scoping
+  − 3 deleted − 14 absorbed by six merge groups = **22**.
+
+  The check requires, for every registered verb, at least one call site on the leg-(a) surfaces and
+  at least one **invocation-form** test reference (`plan_manager.py <verb>` inside an argv list, or a
+  `CliRunner.invoke`; a bare mention in an enumeration list such as `test_cli_enumeration.py` does
+  not count); and, for every `REQ-LAND-*` id, that its `Verification:` test exists as a `def`. It
+  exits 0/1/2, ships with five negative-control fixtures, and runs as a `CHANGE-VALIDATION.md` FAST
+  row scoped to `skills/yf-plan/**`.
+  Rationale: between 2026-08-10 and plan-070 `plan_manager.py` grew 3,170 → 10,649 lines and the
+  `REQ-LAND` family 0 → 39 ids while the silent-green defect rate stayed flat; nothing removed the
+  layer that failed. Without an executed check the freeze is prose (#392).
+  Verification: `uv run scripts/checks/check-provably-necessary.py --self-test`;
+  `test $(grep -c '@cli.command(' skills/yf-plan/scripts/plan_manager.py) -le 32`.
 
 ## 3. Interfaces
 
