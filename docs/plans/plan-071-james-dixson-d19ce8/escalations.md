@@ -53,7 +53,7 @@ warning, which would train a reader to ignore it.
 | `evidence` | uv run scripts/checks/check_okf_index_drift.py --min-roots 30 --json -> drifting: [docs/plans/plan-070-james-dixson-810177] (findings/exp-001, exp-002, references/upstream-230/263/266 absent from index.md); every other bundle clean |
 | `asked_of` |  |
 | `state` | resolved |
-| `answer` | moved out of tree by parent (to /Users/james/workspace/dixson3/yoshiko-flow-deferred/plan-070-james-dixson-810177; no git change, no plan-070 file edited) |
+| `answer` | moved out of tree by parent (to `../yoshiko-flow-deferred/plan-070-james-dixson-810177`, repo-relative; no git change, no plan-070 file edited) |
 | `raised_when` | 2026-09-12 |
 | `resolved_when` | 2026-09-12 |
 | `no_answer_taken` | no |
