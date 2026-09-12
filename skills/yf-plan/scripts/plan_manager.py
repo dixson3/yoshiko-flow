@@ -2894,8 +2894,9 @@ def gate_consistency_cmd(plan_dir: str, json_output: bool):
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--json-output", "--json", "json_output", is_flag=True,
               help="Emit the structured verdict (default is also JSON).")
-@click.option("--timeout", default=300, show_default=True,
-              help="Per-criterion command timeout, in seconds.")
+@click.option("--timeout", default=60, show_default=True,
+              help="Per-criterion command timeout, in seconds (plan-071: 300 -> 60; a criterion "
+                   "that needs minutes is `manual:`).")
 @click.option("--advisory", is_flag=True,
               help="Report an unjudged class-A criterion without halting (REQ-PLAN-080).")
 @click.option("--require-evaluated", "require_evaluated", default=None, type=float,
@@ -5885,13 +5886,11 @@ def _gate_is_resolved(bead: dict) -> bool:
     arm. Two readers disagreeing about whether a gate is satisfied is how an ordering
     assertion becomes a fail-loud false positive.
     """
-    if bead.get("status") == "closed":
-        return True
-    for key in ("resolved", "verified", "gate_resolved"):
-        if bead.get(key) is True:
-            return True
-    return str(bead.get("gate_status", "")).lower() in (
-        "resolved", "verified", "satisfied", "passed", "closed")
+    # plan-071 Issue 4.3 (#394): ONE predicate, imported — never a second copy. The former
+    # forward-compat arms (`resolved`/`verified`/`gate_resolved`/`gate_status`) matched keys
+    # bd never writes (EXP-002: zero occurrences over 232 gates) and were deleted.
+    import close_cascade as _cc
+    return _cc._bead_is_terminal(bead)
 
 
 def _find_start_gate_pair(epic: str) -> tuple[dict | None, dict | None, str | None]:
@@ -6211,113 +6210,6 @@ def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
 _ESCALATION_OPEN_STATUSES = ("reconciling", "complete")
 
 
-def _open_escalation_findings(plan_dir: Path) -> list[dict]:
-    """One `warn` finding, item `escalation-open`, when a question outlives the plan.
-
-    **`W`, never `E`.** An open escalation is a fact about the plan's *conversation*, not a
-    defect in its bundle, and this whole step is advisory — a halting severity here would
-    block completion on an unanswered question, which is precisely the coercion that would
-    make the mechanism something to route around rather than use.
-
-    **Exactly ONE finding, however many escalations are open.** The signal is "this plan is
-    finishing with unanswered questions", which is one fact; emitting one per entry would let
-    a plan with six open escalations look six times worse than a plan with one, when what a
-    reader needs is the list, which the detail carries.
-
-    Returns `[]` outside `_ESCALATION_OPEN_STATUSES`, and `[]` when there is no
-    `escalations.md` at all — the presence-optional contract holds here too.
-    """
-    plan_md = plan_dir / "plan.md"
-    if not plan_md.exists():
-        return []
-    status = _read_plan_status(plan_md.read_text(encoding="utf-8"))
-    if status not in _ESCALATION_OPEN_STATUSES:
-        return []
-    path = plan_dir / ESCALATION_FILE
-    if not path.exists():
-        return []
-    entries = _escalation_entries(path.read_text(encoding="utf-8"))
-    open_ids = [e for e in sorted(entries) if entries[e].get("state", "").strip() == "raised"]
-    if not open_ids:
-        return []
-    return [_audit_finding(
-        "escalation-open", "warn",
-        f"{len(open_ids)} escalation(s) still `state: raised` at `{status}`: "
-        f"{', '.join(open_ids)}. The plan is finishing with a question nobody answered. "
-        f"Either record the answer with `escalation-resolve <id> --answer ...`, or — if the "
-        f"recommended default was taken without an answer arriving — record THAT with "
-        f"`escalation-resolve <id> --answer '<the default>' --default-taken`, which is the "
-        f"ordinary fire-and-forget outcome and not a failure. Advisory: completion is NOT "
-        f"blocked."
-    )]
-
-
-@cli.command("judgement-never-fired-report")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def judgement_never_fired_report(plan_dir: str, as_json: bool):
-    """Close-time report on whether yf-judgement's trigger ever ran — ADVISORY (Issue 5.2).
-
-    **The question this answers is "did the detector run", NOT "did it find anything".** A
-    trigger that never fires and a trigger that is not installed produce the same silence, and
-    plan-059 records four instances of that exact failure in this repository — `closable`,
-    `plan_manager.py audit`, `retrospective_fields.py`, and #270's never-poured formula. Every
-    one was found by hand, late, by someone who happened to go looking.
-
-    **This is DEFENCE IN DEPTH, not the primary remedy, and the difference is stated rather
-    than implied.** The load-bearing mechanism is the trigger writing its own `judgement:`
-    echo to `log.md` on both paths (Issue 5.1) — nothing has to remember for that to happen.
-    This verb only *reads* those echoes. Fronting it as a `plan_manager.py` verb buys one
-    specific thing: `test_close_contract.py` enumerates the §6.4 chain from `SKILL.md`, so a
-    step **added** without the envelope is detected. It does **not** detect a step **removed**,
-    and it never establishes that §6.4 was run at all. Both limits are real and neither is
-    closed here.
-
-    Advisory: exits 0 unconditionally and never gates `set complete`.
-    """
-    pdir = Path(plan_dir)
-    log = pdir / "log.md"
-    lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-    echoes = [ln for ln in lines if "judgement: " in ln]
-    fired = [ln for ln in echoes if JUDGEMENT_FIRED in ln]
-    not_fired = [ln for ln in echoes if JUDGEMENT_NOT_FIRED in ln]
-    esc = _escalation_report(pdir)
-
-    if not echoes:
-        verdict = "fail"
-        reason = ("the yf-judgement trigger left NO echo in log.md — it either never ran or "
-                  "no longer writes its echo. These are indistinguishable from here, which "
-                  "is the whole point: a trigger whose non-firing looks like a quiet period "
-                  "is not observable.")
-        remediation = (
-            "The trigger's log echo and its `judgement-echo-check` probe were deleted by "
-            "plan-071 (REQ-PLAN-086: no live caller), so an absent echo is the EXPECTED state "
-            "on any bundle executed after it. Advisory: completion is NOT blocked."
-        )
-    else:
-        verdict = "pass"
-        reason = (f"the trigger ran {len(echoes)} time(s) — {len(fired)} fired, "
-                  f"{len(not_fired)} not-fired. Non-firing is RECORDED, not merely absent.")
-        remediation = None
-
-    click.echo(json.dumps({
-        "verdict": verdict,
-        "passed": verdict == "pass",
-        "advisory": True,
-        "echoes": len(echoes),
-        "fired": len(fired),
-        "not_fired": len(not_fired),
-        "last_echo": echoes[0] if echoes else None,
-        "escalations_raised": esc["raised"],
-        "escalations_open": esc["open"],
-        "pushes": esc["pushes"],
-        "reason": reason,
-        "remediation": remediation,
-    }, indent=2))
-    # ADVISORY: always 0. Not conditional, and with no flag to make it conditional.
-    raise SystemExit(0)
-
-
 def _land_epic_from_bd(plan_dir: Path, root: Path | None = None) -> str | None:
     """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
 
@@ -6508,103 +6400,6 @@ def _land_route_record_findings(plan_dir: Path, root: Path | None = None) -> lis
                     f"proves nothing, but its presence is strong evidence."),
             })
     return out
-
-
-@cli.command("audit-close")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True,
-              help="Emit the structured verdict (default is also JSON).")
-def audit_close(plan_dir: str, as_json: bool):
-    """Close-time bundle-conformance audit — ADVISORY (REQ-PLAN-075 / #140).
-
-    Reports the **absolute** finding set and NEVER gates `set complete`.
-
-    WHY A SEPARATE VERB FROM `audit`
-    --------------------------------
-    `audit` is a PLAN-phase gate: it exits non-zero on `fail` because a plan must not
-    reach INTAKE unportable. Reusing it at close would inherit that halting exit code.
-    This verb wraps the SAME `_audit_plan` engine (identical findings, no second
-    implementation) and re-frames the verdict as advisory: it exits 0 unconditionally.
-    The halting difference is structural, not a flag an author can get wrong.
-
-    WHY ADVISORY AND NOT FAIL-LOUD
-    ------------------------------
-    Measured across the completed corpus, a fail-loud close-time audit would have
-    blocked 22% of plans that legitimately completed — including one proven false
-    positive (a Windows-drive-letter regex matching inside a quoted fixture body) and
-    one failure the close step INFLICTED ON ITSELF via its own `log.md` write. Blocking
-    completion on that record would be worse than the drift it detects.
-
-    WHY THE ABSOLUTE SET AND NOT A DELTA
-    ------------------------------------
-    A delta-since-approval was considered and dropped. The Phase-3 audit is a
-    *precondition of approval*, so the stored baseline is an empty fail set by
-    construction on every non-`--force` approval — the delta EQUALS the absolute set in
-    the normal path. Its entire measured benefit was suppressing one legacy case out of
-    ten. And because this step cannot block, noise costs nothing.
-    """
-    pdir = Path(plan_dir)
-    result = _audit_plan(pdir)
-    findings = list(result.get("findings", []) or [])
-    # plan-059 Issue 5.4 — the OPEN-ESCALATION signal, added HERE and deliberately not in
-    # `_audit_plan`.
-    #
-    # The placement is the requirement, not a convenience. REQ-PORT-ACT-ESCALATION puts
-    # `escalations.md` on NO audit presence list, so `audit` must stay silent about
-    # escalations in both directions — a bundle with none and a bundle with one audit
-    # identically. This close-time verb is a different question: not "is the bundle
-    # conformant" but "is the plan finishing with a question it never got an answer to".
-    #
-    # It is the plan's own thesis applied to its own artifact. An escalation raised, never
-    # answered, and never noticed is exactly the silent-idle failure the whole mechanism
-    # exists to make impossible — and without this the artifact would record the question
-    # while nothing ever read it back.
-    findings.extend(_open_escalation_findings(pdir))
-    # plan-060 Issue 3.4 / REQ-LAND-015 — the ROUTE-RECORD signal. A `Type: human`
-    # gate whose recorded route reads "no tty, CLAUDECODE set" was resolved by an
-    # agent asserting its own authorization, which is dixson3/yoshiko-flow#293
-    # exactly. DETECTION, NOT PREVENTION: the markers are strippable — but
-    # ASYMMETRICALLY, so a dirty record is strong evidence even though a clean one is
-    # weak. This would have surfaced #293 within seconds.
-    findings.extend(_land_route_record_findings(pdir))
-    fails = [f for f in findings if f.get("status") == "fail"]
-    warns = [f for f in findings if f.get("status") == "warn"]
-
-    if fails:
-        verdict = "fail"
-        reason = (f"{len(fails)} bundle-conformance finding(s) at close "
-                  f"({len(warns)} warn). Completion is NOT blocked.")
-        remediation = (
-            "Advisory only — `set complete` proceeds regardless. To resolve, run "
-            f"`/yf-plan capture {pdir.name}` and address:\n"
-            + "\n".join(f"  - {f.get('item')}: {f.get('detail')}" for f in fails)
-        )
-    elif warns:
-        verdict = "pass"
-        reason = f"no failing findings at close ({len(warns)} warn)"
-        remediation = None
-    else:
-        verdict = "pass"
-        reason = "bundle is conformant at close"
-        remediation = None
-
-    click.echo(json.dumps({
-        "verdict": verdict,
-        "passed": verdict == "pass",
-        "advisory": True,
-        "audit_status": result.get("status"),
-        "findings": findings,
-        "fail_count": len(fails),
-        "warn_count": len(warns),
-        "grandfathered": result.get("grandfathered"),
-        "reason": reason,
-        "remediation": remediation,
-    }, indent=2))
-
-    # REQ-PLAN-075: an `advisory` step ALWAYS exits 0. This is not conditional on the
-    # verdict, and deliberately has no flag to make it conditional — the guarantee is
-    # what makes the step safe to run at close given the 22% measured block rate.
-    sys.exit(0)
 
 
 @cli.command("config-resolve")
@@ -6937,6 +6732,21 @@ def retrospective_report(plan_dir: str, fidelity: bool, record: bool, timeout: i
             f"{unverified} of {len(entries)} entries carry `evidence: unverified` — a state "
             "assertion with no evidence is a narration, not a finding. Advisory only."
         )
+    # plan-071 Issue 4.3: the former `judgement-never-fired-report` verb, folded in as a section.
+    # It answers "did the yf-judgement trigger RUN", not "did it find anything" — but the echo
+    # it read was deleted with `judgement-echo-check` (Issue 4.1), so on any bundle executed
+    # after plan-071 an absent echo is the expected state and is reported, never a finding.
+    log = pdir / "log.md"
+    log_lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+    echoes = [ln for ln in log_lines if "judgement: " in ln]
+    judgement = {
+        "echoes": len(echoes),
+        "fired": sum(1 for ln in echoes if JUDGEMENT_FIRED in ln),
+        "not_fired": sum(1 for ln in echoes if JUDGEMENT_NOT_FIRED in ln),
+        "note": ("the trigger's log echo was retired by plan-071 (REQ-PLAN-086); an absent echo "
+                 "is expected on bundles executed after it") if not echoes else None,
+    }
+    escalations = _escalation_report(pdir)
     result = {
         "status": "ok",
         "present": path.exists(),
@@ -6944,6 +6754,8 @@ def retrospective_report(plan_dir: str, fidelity: bool, record: bool, timeout: i
         "by_kind": by_kind,
         "by_stop_class": by_class,
         "unverified": unverified,
+        "judgement": judgement,
+        "escalations": escalations,
         "findings": findings,
         "remediation": (
             "Advisory. Absence is never a finding. To enrich a thin entry, re-run "
@@ -7744,7 +7556,7 @@ LAND_SCHEMA_DECISION = "yf-plan/landing-decision@1"
 #: express a two-push order and would make `merge: skip` legal.
 LAND_STEPS: tuple[str, ...] = (
     "l0_lock_acquire", "l1_down_merge", "l2_merge", "l3_validate_merged",
-    "l4_commit_merge", "l5_advisory_recheck", "l6_push_one", "l7_reconcile_writes",
+    "l4_commit_merge", "l6_push_one", "l7_reconcile_writes",
     "l8_close_chain_head", "l9_close_reconcile_step", "l10_verify_reconcile",
     "l11_recheck_criteria", "l12_close_cascade", "l13_complete_gate",
     "l14_pour_fidelity", "l15_update_status", "l16_commit_and_push_two",
@@ -7756,11 +7568,11 @@ LAND_STEPS: tuple[str, ...] = (
 #: the uncommitted, unpushed `status: complete` this whole capability exists to remove.
 LAND_NON_SKIPPABLE: frozenset[str] = frozenset({
     "l0_lock_acquire", "l1_down_merge", "l2_merge", "l3_validate_merged",
-    "l4_commit_merge", "l5_advisory_recheck", "l6_push_one", "l16_commit_and_push_two",
+    "l4_commit_merge", "l6_push_one", "l16_commit_and_push_two",
 })
 
 #: The journal state set (REQ-LAND-006). CLOSED and NORMATIVE — `spec/landing.md` names the
-#: same seventeen, and `test_land_apply.py` asserts the two agree. They are enumerated in ONE
+#: same sixteen (seventeen before plan-071 retired L5), and `test_land_apply.py` asserts the two agree. They are enumerated in ONE
 #: place because `okf_hygiene`'s R2/SC11/test-suite all keyed on "a set of five" that no
 #: document listed, so a five-state test and a five-state journal could have been five
 #: DIFFERENT fives with every instrument green.
@@ -7769,8 +7581,7 @@ LAND_JOURNAL_STATES: dict[str, str] = {
     "L_LOCKED": "landing lock held; no tree mutated",
     "L_DOWNMERGED": "target down-merged into <plan-id>-execute",
     "L_MERGED_UNCOMMITTED": "merge present on the target, uncommitted",
-    "L_VALIDATED": "FULL tier green; merge committed; lock released",
-    "L_PREPUSH_CHECKED": "advisory criteria run complete — the last fully reversible state",
+    "L_VALIDATED": "FULL tier green; merge committed; lock released — the last fully reversible state (L5 retired by plan-071)",
     "L_PUSHED_1": "push #1 done — the irreversible boundary has been crossed",
     "L_RECONCILED": "every enumerated gh write posted and verified by read-back",
     "L_CLOSED": "close chain L8-L15 complete; status: complete written",
@@ -8306,9 +8117,10 @@ def _land_plan_status(plan_dir: Path) -> str | None:
     NAMED `_land_*`, and the prefix is load-bearing rather than cosmetic. An earlier draft
     called this `_read_plan_status`, which SHADOWED an existing module-level function of that
     name taking plan.md TEXT — Python simply rebinds, so the later definition silently won and
-    `_open_escalation_findings` started passing a `str` where a `Path` was now expected. The
-    house `_land_*` prefix on every helper this capability adds is what makes that collision
-    class impossible by construction; it was caught by `test_audit_close.py`, not by review.
+    the (since-deleted) escalation-findings reader started passing a `str` where a `Path` was
+    now expected. The house `_land_*` prefix on every helper this capability adds is what makes
+    that collision class impossible by construction; it was caught by the (since-deleted)
+    audit-close test file, not by review.
     """
     p = plan_dir / "plan.md"
     if not p.is_file():
@@ -8676,7 +8488,7 @@ def land_cmd(plan_dir: str, dry_run: bool, apply_path: str | None,
         sys.exit(1)
 
     # THE JOURNAL DECIDES WHETHER THIS IS A START OR A RESUME (REQ-LAND-006), never observed
-    # state. `recover()` is TOTAL over the seventeen states, so all four of its actions are
+    # state. `recover()` is TOTAL over the sixteen states, so all four of its actions are
     # branched on here — an unhandled action would silently become a fresh landing, which is
     # the one wrong answer that can re-push and re-post.
     journal = LandingJournal(_land_primary_checkout(), _plan_id_from_dir(pdir))
@@ -9000,7 +8812,7 @@ class LandingJournal:
     process is gone; only the recorded phase separates them.
 
     The state set is CLOSED — `LAND_JOURNAL_STATES` — and `spec/landing.md` names the same
-    seventeen. `okf_hygiene`'s R2, SC11 and test suite all keyed on "a set of five" that no
+    sixteen. `okf_hygiene`'s R2, SC11 and test suite all keyed on "a set of five" that no
     document listed, so a five-state test and a five-state journal could have been five
     DIFFERENT fives with every instrument green. Enumerating once, in one place that the spec
     is asserted against, is what removes that.
@@ -9056,7 +8868,7 @@ class LandingJournal:
     def recover(self) -> dict:
         """What a resumed `--apply` should do, derived from the RECORDED PHASE.
 
-        TOTAL over the state set (REQ-LAND-006): every one of the seventeen has a row, and an
+        TOTAL over the state set (REQ-LAND-006): every one of the sixteen has a row, and an
         unknown or corrupt phase is INCONCLUSIVE rather than "start over".
         """
         rec = self.read()
@@ -9099,7 +8911,7 @@ class LandingJournal:
 #: progress state and returns to a DIFFERENT recovery.
 LAND_PROGRESS_ORDER: tuple[str, ...] = (
     "L_INIT", "L_LOCKED", "L_DOWNMERGED", "L_MERGED_UNCOMMITTED", "L_VALIDATED",
-    "L_PREPUSH_CHECKED", "L_PUSHED_1", "L_RECONCILED", "L_CLOSED", "L_PUSHED_2",
+    "L_PUSHED_1", "L_RECONCILED", "L_CLOSED", "L_PUSHED_2",
     "L_MIRRORED", "L_PRUNED", "L_DONE",
 )
 
@@ -9605,26 +9417,6 @@ def _land_l4_commit_merge(ctx: LandingContext) -> dict:
 
 # -- L5 ------------------------------------------------------------------------------------
 
-def _land_l5_advisory_recheck(ctx: LandingContext) -> dict:
-    """L5 — ADVISORY `recheck-criteria` on the merged tree, BEFORE the push.
-
-    THE LAST FULLY REVERSIBLE POINT. Tree-sensitive criteria are exercised while the landing
-    can still be abandoned with no outward trace.
-
-    ADVISORY DESCRIBES THE VERDICT, NOT WHETHER IT RUNS (`REQ-LAND-004` L5): it never halts.
-    The authoritative halting run is L11, after the reconcile writes that some criteria
-    depend on.
-    """
-    proc = ctx.run("uv", ["run", str(Path(__file__).resolve()), "recheck-criteria",
-                          str(ctx.plan_dir), "--json"], cwd=ctx.root)
-    return _step("l5_advisory_recheck", "pass",
-                 f"advisory pre-push criteria run complete (exit {proc.returncode}) — "
-                 f"ADVISORY, never halting; the authoritative run is L11",
-                 journal="L_PREPUSH_CHECKED", halting=False,
-                 exit_code=proc.returncode, advisory=True,
-                 output=(proc.stdout or proc.stderr)[-2000:])
-
-
 # -- L6 ------------------------------------------------------------------------------------
 
 def _land_l6_push_one(ctx: LandingContext) -> dict:
@@ -9748,9 +9540,10 @@ def _land_l7_reconcile_writes(ctx: LandingContext) -> dict:
 #: never accidentally be walked past (#180's defect, in which an exit code was captured and
 #: only ECHOED).
 LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
-    ("audit-close",                   "l8_close_chain_head",     False),
+    # plan-071 Issue 4.3: `audit-close` (the same engine as `audit`, run again at close) and
+    # `judgement-never-fired-report` (folded into `retrospective-report`) are gone. Issue 4.4
+    # puts `gate-consistency` in the former `audit-close` slot as a HALTING regression guard.
     ("retrospective-report",          "l8_close_chain_head",     False),
-    ("judgement-never-fired-report",  "l8_close_chain_head",     False),
     ("classify-deliverable",          "l8_close_chain_head",     False),
     ("close-reconcile-step",          "l9_close_reconcile_step", True),
     ("verify-reconcile",              "l10_verify_reconcile",    True),
@@ -9766,8 +9559,11 @@ def _land_l8_to_l11_close_chain(ctx: LandingContext) -> list[dict]:
     reported `inconclusive`, exited 0, and the chain walked on to cascade-close and
     `set complete` with the reconcile step still open.
 
-    AN `inconclusive` IS REPORTED AND DOES NOT HALT. A `gh` outage must never block completion
-    on healthy work (R1), and `recheck-criteria`'s exit 2 maps to warn per REQ-DATA-057.
+    AN `inconclusive` FROM A HALTING VERB HALTS (REQ-PLAN-085 (b), plan-071 Issue 4.3). A
+    landing that cannot evaluate its own criteria is not a clean landing. The row keeps its
+    honest `inconclusive` verdict — it is NOT coerced to `fail` (REQ-LAND-012) — and carries
+    `halt_reason: "inconclusive"`; `_land_execute` halts on `halting`, whatever the verdict.
+    An `inconclusive` from an ADVISORY verb is reported and does not halt.
 
     `CHANGED` is computed as `HEAD^1..HEAD` (Issue 1.4 / #303), never `<target>...HEAD`.
     """
@@ -9793,10 +9589,16 @@ def _land_l8_to_l11_close_chain(ctx: LandingContext) -> list[dict]:
             continue
         if rc == 2:
             out.append(_step(verb, "inconclusive",
-                             f"{verb} was INCONCLUSIVE (exit 2) — reported, NOT coerced to "
-                             f"fail and NOT halting",
-                             halting=False, exit_code=rc,
+                             f"{verb} was INCONCLUSIVE (exit 2) — "
+                             + ("HALTING: a halting verb that cannot judge establishes nothing, "
+                                "and completion stops here (REQ-PLAN-085 (b)). Not coerced to fail."
+                                if halting else "reported, NOT coerced to fail and NOT halting."),
+                             halting=halting, exit_code=rc,
+                             halt_reason="inconclusive" if halting else None,
+                             halt_class=LAND_HALT_MECHANICAL if halting else None,
                              output=(proc.stdout or proc.stderr)[-1500:]))
+            if halting:
+                return out
             continue
         out.append(_step(verb, "fail",
                          f"{verb} exited {rc}. "
@@ -10246,7 +10048,6 @@ LAND_EXECUTOR: tuple[tuple[str, str], ...] = (
     ("l2_merge",                "_land_l2_merge"),
     ("l3_validate_merged",      "_land_l3_validate_merged"),
     ("l4_commit_merge",         "_land_l4_commit_merge"),
-    ("l5_advisory_recheck",     "_land_l5_advisory_recheck"),
     ("l6_push_one",             "_land_l6_push_one"),
     ("l7_reconcile_writes",     "_land_l7_reconcile_writes"),
     ("l8_close_chain_head",     "_land_l8_to_l11_close_chain"),
@@ -10273,7 +10074,6 @@ LAND_STEP_JOURNAL: dict[str, str] = {
     "l1_down_merge": "L_DOWNMERGED",
     "l2_merge": "L_MERGED_UNCOMMITTED",
     "l4_commit_merge": "L_VALIDATED",
-    "l5_advisory_recheck": "L_PREPUSH_CHECKED",
     "l6_push_one": "L_PUSHED_1",
     "l7_reconcile_writes": "L_RECONCILED",
     "l13_complete_gate": "L_CLOSED",
@@ -10458,7 +10258,9 @@ def _land_execute(ctx: LandingContext, resume_from: str | None = None) -> dict:
         for r in batch:
             if r.get("journal"):
                 ctx.journal.write(r["journal"], step=r["step"])
-            if r["verdict"] == "fail" and r.get("halting"):
+            # A halting row halts on `fail` AND on `inconclusive` (REQ-PLAN-085 (b), plan-071):
+            # the verdict stays three-valued, the halt is keyed on `halting` alone.
+            if r.get("halting") and r["verdict"] in ("fail", "inconclusive"):
                 if r.get("journal") and r["journal"] in LAND_CONFLICT_STATES:
                     pass                       # the conflict state is already recorded above
                 halt_rec = _land_record_halt(ctx, r["step"])          # REQ-PLAN-084

@@ -51,9 +51,9 @@ Verification: `bash scripts/checks/check-pytest-ran.sh skills/yf-plan/scripts/te
 
 ## 2. The order
 
-REQ-LAND-004: A landing shall execute **20 logical steps, L0 through L19, carried by 15
-`LAND_EXECUTOR` keys** (L8–L11 are one key, `l8_close_chain_head`; L13–L15 are one key,
-`l13_complete_gate`), **in this order**. The order is normative: each row carries the edge that
+REQ-LAND-004: A landing shall execute **19 live logical steps, labelled L0 through L19 with L5
+retired, carried by 14 `LAND_EXECUTOR` keys** (L8–L11 are one key, `l8_close_chain_head`;
+L13–L15 are one key, `l13_complete_gate`), **in this order**. The order is normative: each row carries the edge that
 forces its position, and no step may be reordered without retiring the edge that pins it.
 
 | Step | Action | The edge that forces this position |
@@ -63,7 +63,7 @@ forces its position, and no step may be reordered without retiring the edge that
 | **L2** | checkout target; `pull --rebase`; `merge --no-ff` — **left uncommitted** | The merge must exist as a tree before L3 validates it, and stay uncommitted so a red L3 has something to fail closed onto. `--no-ff` keeps the landing one revertable commit. |
 | **L3** | `validate-merged` — **FULL tier** — **HALT WITH THE LOCK HELD** on fail | plan-009 INV-4: the FULL tier runs before anything irreversible, and the lock stays held so the operator repairs under serialization. |
 | **L4** | commit the merge; `landing-lock release` | The base is green; holding the global lock across the remaining steps would serialize them needlessly. |
-| **L5** | **ADVISORY** `recheck-criteria` on the merged tree — never halting | The last fully reversible point; the authoritative run is L11. |
+| **L5** | *(retired by plan-071 Issue 4.3)* | The advisory pre-push `recheck-criteria` run duplicated L11, cost the suite twice per landing and could not fail; it is deleted. The label is kept so L6–L19 keep their numbers; L4 is now the last fully reversible point. |
 | **L6** | **PUSH #1** | **The first IRREVERSIBLE step.** After L3 so what reaches the target is validated. **Every halt after L6 leaves the target already carrying the merge**, and the halt report shall say so; that is acceptable because L3 validated the code, and the later halts concern bookkeeping and upstream state, each repairable without a revert. |
 | **L7** | reconcile writes — `gh` comment/close, each verified by read-back (REQ-LAND-019) | **The first OUTWARD-FACING write.** After the push so the commits its comments reference are visible upstream. |
 | **L8** | close chain steps 1–5, with `CHANGED` computed as **`HEAD^1..HEAD`** — never `<target>...HEAD`, which is empty by construction once `HEAD == <target>` and makes `classify-deliverable`'s `path-backed` evidence unreachable (dixson3/yoshiko-flow#303) | The merge's first-parent range is what actually landed. |
@@ -102,8 +102,7 @@ extended in one way: **one state per conflict site**, of which there are **four*
 | `L_LOCKED` | landing lock held; no tree mutated | L0 |
 | `L_DOWNMERGED` | target down-merged into `<plan-id>-execute` | L1 |
 | `L_MERGED_UNCOMMITTED` | merge present on the target, **uncommitted** | L2 |
-| `L_VALIDATED` | FULL tier green; merge committed; lock released | L3, L4 |
-| `L_PREPUSH_CHECKED` | advisory criteria run complete — **the last fully reversible state** | L5 |
+| `L_VALIDATED` | FULL tier green; merge committed; lock released — **the last fully reversible state** | L3, L4 |
 | `L_PUSHED_1` | **push #1 done — the irreversible boundary has been crossed** | L6 |
 | `L_RECONCILED` | every enumerated `gh` write posted and verified by read-back | L7 |
 | `L_CLOSED` | close chain L8–L15 complete; `status: complete` written | L8–L15 |

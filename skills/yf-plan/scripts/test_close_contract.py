@@ -420,6 +420,12 @@ def _list_steps() -> list[str]:
 
 
 def _main(argv: list[str]) -> int:
+    if "--skill-md" in argv:
+        # plan-071 Issue 4.3: measure a HISTORICAL SKILL.md (a `git show` written to a temp
+        # file) so a bundle's cited close-chain figure can be pinned to the tree it quoted,
+        # on the `run-git-call-sites` precedent in plan-060's registry.
+        global _SKILL_MD
+        _SKILL_MD = Path(argv[argv.index("--skill-md") + 1])
     if "--list-steps" in argv:
         # SOLE STDOUT. Nothing else may be printed on this path.
         print(json.dumps({"steps": _list_steps()}, indent=2))

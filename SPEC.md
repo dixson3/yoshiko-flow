@@ -1354,7 +1354,8 @@
 >   smoke-run under `bash -c` (exit 126/127, timeout, usage/argparse errors fail; `No such file`
 >   fails unless the path is a declared deliverable named in `## Epics`, allow-list derived from
 >   `plan_extract.py`); `gate_consistency.py` runs at `ready-check` (#325); `stale_approved` is
->   surfaced. A halting close-chain verb's exit 2 **halts** (`halt_class: inconclusive`).
+>   surfaced. A halting close-chain verb's exit 2 **halts** (`halt_reason: inconclusive`, verdict
+>   kept three-valued).
 >
 >   **Added `REQ-PLAN-086`** (`skills/yf-plan/SPEC.md` §2.9) — **the freeze and the retention
 >   standard.** Live call path **and** a fixture-failing test, or it is deleted. The ceilings are

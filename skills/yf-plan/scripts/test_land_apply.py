@@ -152,7 +152,7 @@ def test_landing_spec_enumerates_steps_and_journal_states():
 def test_journal_recovery_every_state(repo):
     """SC19 / Issues 3.1, 3.7 / REQ-LAND-006.
 
-    TOTAL over the state set: every one of the seventeen is written and recovered. A recovery
+    TOTAL over the state set: every one of the sixteen is written and recovered. A recovery
     table that is total over 13 of 17 is the `okf_hygiene` S1 defect again.
     """
     j = pm.LandingJournal(repo, PLAN_ID)
@@ -899,14 +899,64 @@ def test_inconclusive_validation_is_not_coerced_to_fail(repo, monkeypatch):
 
 # -- SC23 / SC24 ---------------------------------------------------------------------------
 
-def test_prepush_recheck_is_advisory(repo):
-    """SC23 / Issue 4.2. L5 reports without halting — ADVISORY describes the VERDICT, not
-    whether it runs."""
-    out = pm._land_l5_advisory_recheck(_ctx(repo, FakeRunner()))
-    assert out["halting"] is False
-    assert out["verdict"] == "pass"
-    assert out["detail"]["advisory"] is True
-    assert out["journal"] == "L_PREPUSH_CHECKED"
+def test_l5_advisory_recheck_is_gone(repo):
+    """plan-071 Issue 4.3 (REQ-PLAN-086). L5 — the ADVISORY pre-push `recheck-criteria` run —
+    was a duplicate of the authoritative L11 run, cost the whole criteria suite twice per
+    landing, and could not fail by construction. It is deleted, not skipped: no executor key,
+    no journal state, no function."""
+    keys = [k for k, _ in pm.LAND_EXECUTOR]
+    assert "l5_advisory_recheck" not in keys
+    assert "l5_advisory_recheck" not in pm.LAND_STEPS
+    assert "l5_advisory_recheck" not in pm.LAND_NON_SKIPPABLE
+    assert "L_PREPUSH_CHECKED" not in pm.LAND_JOURNAL_STATES
+    assert "L_PREPUSH_CHECKED" not in pm.LAND_PROGRESS_ORDER
+    assert not hasattr(pm, "_land_l5_advisory_recheck")
+    # And the label numbering is stable: L6 still follows L4 in the executor order.
+    assert keys.index("l6_push_one") == keys.index("l4_commit_merge") + 1
+
+
+def test_halting_verb_exit_2_halts_chain(repo, monkeypatch):
+    """REQ-PLAN-085 (b) (plan-071 Issue 4.3). A HALTING close-chain verb that exits 2 halts the
+    chain — with its honest `inconclusive` verdict kept (REQ-LAND-012: never coerced to `fail`)
+    and `halt_reason: inconclusive` in the envelope. An ADVISORY verb's exit 2 still only reports.
+
+    Both arms are asserted: the halting verb stops the chain (no later verb runs), the advisory
+    one does not.
+    """
+    seen: list[str] = []
+
+    class _Proc:
+        def __init__(self, rc): self.returncode, self.stdout, self.stderr = rc, "", ""
+
+    def fake_run(prog, args, cwd=None, env=None):
+        verb = args[2] if len(args) > 2 else "?"
+        seen.append(verb)
+        if verb == "recheck-criteria":
+            return _Proc(2)                        # the halting verb cannot judge
+        if verb == "retrospective-report":
+            return _Proc(2)                        # the advisory verb cannot judge either
+        return _Proc(0)
+
+    ctx = _ctx(repo, FakeRunner())
+    monkeypatch.setattr(ctx, "run", fake_run)
+    monkeypatch.setattr(pm, "_land_changed_set", lambda root: [])
+    rows = pm._land_l8_to_l11_close_chain(ctx)
+    by = {r["step"]: r for r in rows}
+    adv = by["retrospective-report"]
+    assert adv["verdict"] == "inconclusive" and adv["halting"] is False, adv
+    halt = by["recheck-criteria"]
+    assert halt["verdict"] == "inconclusive", "the verdict is NOT coerced to fail (REQ-LAND-012)"
+    assert halt["halting"] is True
+    assert halt["detail"]["halt_reason"] == "inconclusive"
+    assert halt["detail"]["halt_class"] == pm.LAND_HALT_MECHANICAL
+    assert rows[-1]["step"] == "recheck-criteria", "the chain stopped at the halting verb"
+    # And `_land_execute`'s loop honours it: a halting inconclusive row halts the landing.
+    monkeypatch.setattr(pm, "_landing_lock_acquire", lambda p: {"acquired": True})
+    for key, fname in pm.LAND_EXECUTOR:
+        if fname != "_land_l8_to_l11_close_chain":
+            monkeypatch.setattr(pm, fname, lambda ctx, _k=key: _step_ok(_k, journal=pm.LAND_STEP_JOURNAL.get(_k)))
+    out = pm._land_execute(ctx)
+    assert out["halted"] is True and out["at"] == "recheck-criteria", out
 
 
 def test_push_one_is_gated_and_declared_irreversible(repo):
@@ -973,7 +1023,8 @@ def test_close_chain_exit_codes_read(repo):
     assert tbl["close-reconcile-step"] is True, "gate-before-close ordering is HALTING (#180)"
     assert tbl["verify-reconcile"] is True
     assert tbl["recheck-criteria"] is True
-    assert tbl["audit-close"] is False, "the close-time audit is ADVISORY"
+    assert "audit-close" not in tbl, "audit-close was deleted by plan-071 (REQ-PLAN-086)"
+    assert "judgement-never-fired-report" not in tbl, "folded into retrospective-report (plan-071)"
     assert tbl["retrospective-report"] is False
 
     # `CHANGED` is HEAD^1..HEAD, never <target>...HEAD (#303).

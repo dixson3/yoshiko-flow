@@ -195,7 +195,6 @@ skills/yf-plan/
 │   ├── plan_template.py                   # The canonical plan.md skeleton + producer constants (vendored
 │   ├── pour_fidelity.py
 │   ├── retrospective_fields.py            # prevention_formula enum check + prevention_vars (#196)
-│   ├── test_audit_close.py
 │   ├── test_autonomy.py
 │   ├── test_cascade_root_resolution.py
 │   ├── test_classify_deliverable.py

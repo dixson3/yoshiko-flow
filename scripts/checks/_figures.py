@@ -105,7 +105,20 @@ def f_close_chain_steps() -> int | str:
     """
     if not CLOSE_CONTRACT.is_file():
         return inconclusive(f"no test_close_contract.py at {CLOSE_CONTRACT}")
-    proc = subprocess.run(["uv", "run", str(CLOSE_CONTRACT), "--list-steps"],
+    # PINNED to plan-060's landing (plan-071 Issue 4.3): the chain is now the subject of a
+    # freeze that removed two of its steps, so a live count would report the freeze as drift
+    # of a figure plan-060 quoted as of its own landing. Same precedent as `cli-verbs`.
+    import tempfile
+    show = subprocess.run(
+        ["git", "show", f"{CLI_VERBS_BASELINE_REV}:skills/yf-plan/SKILL.md"],
+        capture_output=True, text=True, cwd=ROOT)
+    if show.returncode != 0 or not show.stdout:
+        return inconclusive(
+            f"the baseline commit {CLI_VERBS_BASELINE_REV[:10]} is not reachable in this "
+            f"clone — an unreachable baseline is INCONCLUSIVE, never a drift")
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+        fh.write(show.stdout); tmp = fh.name
+    proc = subprocess.run(["uv", "run", str(CLOSE_CONTRACT), "--skill-md", tmp, "--list-steps"],
                           capture_output=True, text=True, cwd=ROOT)
     if proc.returncode != 0:
         return inconclusive(f"--list-steps exited {proc.returncode}")

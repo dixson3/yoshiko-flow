@@ -406,13 +406,18 @@ def test_halt_class_is_present_only_on_a_halt():
 
 def test_step_and_journal_sets_are_the_declared_ones():
     """The two closed sets, asserted here so a silent edit to either is caught."""
-    assert len(pm.LAND_STEPS) == 20
+    # 20 labels L0..L19 minus the retired L5 (plan-071 Issue 4.3): the numbering is stable,
+    # the advisory duplicate is gone.
+    assert len(pm.LAND_STEPS) == 19
+    assert "l5_advisory_recheck" not in pm.LAND_STEPS
     assert pm.LAND_STEPS[0] == "l0_lock_acquire"
     assert pm.LAND_STEPS[-1] == "l19_redeploy"
     assert pm.LAND_NON_SKIPPABLE <= set(pm.LAND_STEPS)
     assert "l16_commit_and_push_two" in pm.LAND_NON_SKIPPABLE, (
         "skipping L16 reproduces D-2's residue exactly")
-    assert len(pm.LAND_JOURNAL_STATES) == 17
+    # 13 progress states + 4 conflict states before plan-071; L5's `L_PREPUSH_CHECKED` was
+    # retired with the step (Issue 4.3), so 12 + 4.
+    assert len(pm.LAND_JOURNAL_STATES) == 16
     assert pm.LAND_TERMINAL_STATE == "L_DONE"
     conflict = [s for s in pm.LAND_JOURNAL_STATES if "CONFLICT" in s or "REJECTED" in s]
     assert len(conflict) == 4, "one journal state per conflict site, and there are four"

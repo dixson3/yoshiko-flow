@@ -161,9 +161,8 @@ class SandboxRunner:
 #: `plan_manager.py` verbs the close chain and L13-L15 invoke. Enumerated so an argv the
 #: rehearsal has not been taught about FAILS rather than silently returning 0.
 _REHEARSAL_PM_VERBS = frozenset({
-    "audit-close", "retrospective-report", "judgement-never-fired-report",
-    "classify-deliverable", "close-reconcile-step", "verify-reconcile", "recheck-criteria",
-    "complete-gate", "update-status",
+    "retrospective-report", "classify-deliverable", "close-reconcile-step",
+    "verify-reconcile", "recheck-criteria", "complete-gate", "update-status",
 })
 
 #: Sibling scripts the L-steps shell out to.
@@ -189,7 +188,7 @@ _HONEST_SCOPE = {
         "fixture is out of scope; this is R7's 'a stub in a different costume', named rather "
         "than claimed as covered.",
         "the close chain's real VERDICTS. `uv run plan_manager.py <verb>` is intercepted, so "
-        "`audit-close`, `verify-reconcile`, `recheck-criteria` and `complete-gate` return a "
+        "`verify-reconcile`, `recheck-criteria` and `complete-gate` return a "
         "faked pass. What is exercised is that each is INVOKED with the right argv and that "
         "its exit code is READ (#180), not what it would have decided.",
         "L19 REDEPLOY. Skipped at the decision level — the sandbox has no `yf` binary, and "

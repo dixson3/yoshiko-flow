@@ -132,7 +132,9 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   amendment only `resume-scan` reported.
 
   **(b) At the close chain.** A **halting** close-chain verb that exits **2 (INCONCLUSIVE)** shall
-  **halt** the chain with `halt_class: inconclusive`. A landing that cannot evaluate its own
+  **halt** the chain: the row keeps its `inconclusive` verdict (REQ-LAND-012 — never coerced to
+  `fail`), carries `halt_reason: inconclusive` and the mechanical `halt_class` in its envelope, and
+  `_land_execute` halts on `halting` regardless of verdict. A landing that cannot evaluate its own
   criteria is not a clean landing. Because clause (a) makes the grammar mandatory before approval,
   the halt is reachable only by a plan approved before this amendment — that is deliberate.
   Rationale: #384 — a criterion could be green before its `Discharged-by` issues ran, and no command
@@ -338,7 +340,12 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `fail`, not `inconclusive`: a literal no producer offers is a typo in the table, and a
   fail-loud step must not silently pass one. No network in tests.
 
-- **REQ-PLAN-075** *(testable, plan-043 / #140)* on COMPLETE (the §6.4 ordered gate chain,
+- **REQ-PLAN-075** *(RETIRED by plan-071 Issue 4.3 under REQ-PLAN-086)* — the close-time
+  bundle-conformance audit. The `audit-close` verb ran the plan-phase `audit` engine a second time
+  at close and exited 0 unconditionally: a step that cannot fail certifies nothing, and the
+  retention standard deletes it. `ready-check` (REQ-PLAN-085) runs the audit before approval; a
+  close-time re-read is the operator's `/yf-plan capture`. The historical text follows for the
+  record. *(was:)* on COMPLETE (the §6.4 ordered gate chain,
   REQ-COMPLETE-001), yf-plan shall run the **bundle-conformance audit at close** via an
   `audit-close` verb that is an **`advisory`** step with **`prose`** remediation-kind, honouring
   the REQ-COMPLETE-003 envelope. It shall report the **absolute** finding set and shall **never**

@@ -177,17 +177,12 @@ def _bead_is_terminal(bead: dict) -> bool:
 
     An unsatisfied (open, unresolved) gate is NOT terminal — it is a genuine open child.
     """
-    if bead.get("status") == "closed":
-        return True
-    if bead.get("issue_type") == "gate":
-        # Forward-compat: a gate marked resolved/verified without status:closed.
-        for key in ("resolved", "verified", "gate_resolved"):
-            if bead.get(key) is True:
-                return True
-        gate_status = str(bead.get("gate_status", "")).lower()
-        if gate_status in ("resolved", "verified", "satisfied", "passed", "closed"):
-            return True
-    return False
+    # plan-071 Issue 4.3 (#394): `status == "closed"` is the ONLY terminal signal. `bd gate
+    # resolve` closes the gate bead; the former forward-compat arms (`resolved` / `verified` /
+    # `gate_resolved` / `gate_status`) matched keys bd never writes — EXP-002 measured zero
+    # occurrences over 232 gates — so they certified nothing and were deleted. This is the one
+    # definition; `plan_manager._gate_is_resolved` imports it rather than carrying a copy.
+    return bead.get("status") == "closed"
 
 
 def _bd_close(node_id: str, reason: str) -> tuple[bool, str]:

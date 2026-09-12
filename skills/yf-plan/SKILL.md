@@ -1683,64 +1683,33 @@ epics open under a closed molecule is exactly the #73 defect (stale "ready" cont
 `bd ready`). A container with any still-open child is a **hard failure** — the cascade exits
 non-zero and completion **halts** (never a silent close, never a silent `complete`).
 
-**Reconcile-time re-confirm of the deliverable class (C5, REQ-PLAN-069a).** Before the gate runs,
-the merged-tree changed paths are now available (they may have been absent at intake §4.1.5).
-Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
-present it and let the operator confirm/override:
-
-**Close-time bundle-conformance audit (ADVISORY, REQ-PLAN-075 / #140) — runs FIRST.** Its
-position is the chain's read-before-write constraint (REQ-COMPLETE-001 constraint 1): it must
-sit **above the `classify-deliverable` block below**, because that block contains the
-`set-deliverable-class` **plan.md dual-write**. Placing it merely above the `log.md` write is
-not enough, and placing it at the *bottom* of this block would make it judge artifacts the
-close step itself wrote microseconds earlier — a real, previously-observed failure.
-
-```bash
-AUDIT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py audit-close "${plan_dir}" --json)
-echo "$AUDIT"
-# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. Findings are a
-# recommendation to run `/yf-plan capture <plan-id>`, not a halt. Do NOT add a
-# `FAIL-LOUD:` banner here — that vocabulary is reserved for halting steps.
-```
-
-> **Grandfathering caveat.** The audit's legacy downgrade keys on `log.md`'s `scoping:`
-> entries. A `log.md` write that drops them silently promotes `warn` findings to `fail` — which
-> is another reason this step reads *before* the close step writes.
-
-**Close-time retrospective report (ADVISORY, 4.4) — runs before the `classify-deliverable`
-block below.** Its position is the same read-before-write constraint (REQ-COMPLETE-001
-constraint 1) that puts `audit-close` first: it is an **observing** step, and the block below
-contains the `set-deliverable-class` plan.md dual-write.
+**Close-time retrospective report (ADVISORY) — runs FIRST, above the `classify-deliverable`
+block below.** Its position is the chain's read-before-write constraint (REQ-COMPLETE-001
+constraint 1): it is an **observing** step, and the block below contains the
+`set-deliverable-class` **plan.md dual-write**. Placing an observing step at the *bottom* of this
+block would make it judge artifacts the close step itself wrote microseconds earlier — a real,
+previously-observed failure.
 
 ```bash
 RETRO=$(uv run ${SKILL_DIR}/scripts/plan_manager.py retrospective-report "${plan_dir}" --json)
 echo "$RETRO"
 # ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. An ABSENT
-# plan-retrospective.md is a legitimate state, not a finding. Do NOT add a `FAIL-LOUD:`
-# banner here — that vocabulary is reserved for halting steps.
+# plan-retrospective.md is a legitimate state, not a finding. The report also carries the
+# `judgement` (did the yf-judgement trigger leave an echo) and `escalations` (raised / open /
+# pushed) sections that used to be a separate verb. Do NOT add a `FAIL-LOUD:` banner here —
+# that vocabulary is reserved for halting steps.
 ```
 
-**Close-time yf-judgement never-fired report (ADVISORY, plan-059 Issue 5.2) — an OBSERVING
-step, so it sits in the same read-before-write band as the two above.**
+*(plan-071 Issue 4.3 / REQ-PLAN-086: the former `audit-close` step — the plan-phase `audit`
+engine run a second time at close, exit 0 unconditionally — and the former
+`judgement-never-fired-report` verb were removed. Neither could fail; the second is now a section
+of the report above. The `gate-consistency` engine takes the former `audit-close` slot in the
+chain as a **halting** regression guard, Issue 4.4.)*
 
-```bash
-JUDGEMENT=$(uv run ${SKILL_DIR}/scripts/plan_manager.py judgement-never-fired-report "${plan_dir}" --json)
-echo "$JUDGEMENT"
-# ADVISORY: exits 0 unconditionally and NEVER gates `set complete`. It answers "did the
-# trigger RUN", not "did it find anything" — a trigger that never fires and a trigger that is
-# not installed produce the same silence, and this repository has four recorded instances of
-# exactly that. Do NOT add a `FAIL-LOUD:` banner here — that vocabulary is reserved for
-# halting steps.
-```
-
-**Read the limits, which the verb states about itself.** This report is **defence in depth,
-not the primary remedy**. The load-bearing mechanism is the trigger writing its own
-`judgement:` echo to `log.md` on both the fired and not-fired paths — nothing has to remember
-for that to happen. Fronting the report as a `plan_manager.py` verb buys exactly one thing:
-`test_close_contract.py` enumerates this block from `SKILL.md`, so a step **added** without
-the envelope is detected. It does **not** detect a step **removed**, and it never establishes
-that §6.4 was run at all.
-
+**Reconcile-time re-confirm of the deliverable class (C5, REQ-PLAN-069a).** Before the gate runs,
+the merged-tree changed paths are now available (they may have been absent at intake §4.1.5).
+Re-run the classifier with those paths and, if the suggestion disagrees with the stored class,
+present it and let the operator confirm/override:
 
 ```bash
 # `HEAD^1..HEAD`, NEVER the three-dot symmetric-difference form against the merge target

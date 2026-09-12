@@ -313,7 +313,9 @@ def test_the_ast_check_passes_on_the_real_module():
     assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
     payload = json.loads(r.stdout)
     assert payload["verdict"] == "PASS"
-    assert payload["steps_checked"] >= 15, payload
+    # DERIVED from the executor table, never a literal: plan-071 retired L5 (14 keys), and a
+    # pinned `>= 15` would have failed on the deletion of a step the check never needed.
+    assert payload["steps_checked"] == len(pm.LAND_EXECUTOR), payload
     # NOT VACUOUS BY CONSTRUCTION: a check that inspected zero L-steps would "pass".
     assert payload["closure"], "the check saw an EMPTY closure — it proved nothing"
 
