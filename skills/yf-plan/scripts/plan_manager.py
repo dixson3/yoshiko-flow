@@ -6210,55 +6210,6 @@ def close_reconcile_step(plan_dir: str, reason: str, as_json: bool):
 _ESCALATION_OPEN_STATUSES = ("reconciling", "complete")
 
 
-def _land_epic_from_bd(plan_dir: Path, root: Path | None = None) -> str | None:
-    """The epic id for a bundle, resolved from `bd` rather than from a cwd-relative file.
-
-    Mirrors `_resume_scan`'s `epic_source=bd_metadata` route: the pour stamps the epic with
-    `metadata.plan_dir` (SKILL.md §5.2a step (a)) exactly so the linkage is findable when
-    plan.md carries no `**Epic:**` field. Reused here so the route-record check answers the
-    same in both address spaces.
-
-    `root` IS AN EXPLICIT ARGUMENT, not the seam (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less
-    clause). This function has no `ctx` in scope — it is reached from `audit-close`, not from
-    an L-step — so a `runner=` would have nothing to be given. What it needs is a declared
-    working directory, and `root=None` preserves today's behaviour exactly.
-
-    Why it matters even though `bd`'s Dolt DB is shared (INV-2): "reachable from anywhere" is
-    a property of a repository that HAS one. Launched with no `cwd` at all, this reads whatever
-    database the ambient working directory resolves to — which under `execute.worktree: false`
-    is one directory, and under a worktree invocation is another. The value it returns is the
-    epic id the route-record check keys every gate lookup on, so resolving the wrong database
-    does not error: it returns `None` and the caller reports a LOUD INCONCLUSIVE about a plan
-    whose epic exists perfectly well somewhere else.
-    """
-    want = plan_dir.as_posix().rstrip("/")
-    want_leaf = plan_dir.name
-    proc = subprocess.run(["bd", "list", "--all", "--limit", "5000", "--json"],
-                          capture_output=True, text=True,
-                          cwd=str(root) if root is not None else None)
-    if proc.returncode != 0:
-        return None
-    try:
-        data = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return None
-    if isinstance(data, dict):
-        data = data.get("issues") or []
-    for b in data if isinstance(data, list) else []:
-        meta = b.get("metadata") or {}
-        if isinstance(meta, str):
-            try:
-                meta = json.loads(meta)
-            except json.JSONDecodeError:
-                continue
-        pd = str(meta.get("plan_dir") or "").rstrip("/")
-        # Match on the full repo-relative path OR its leaf: the two address spaces agree on
-        # the leaf even where a caller passes an absolute or differently-rooted plan_dir.
-        if pd and (pd == want or Path(pd).name == want_leaf):
-            return str(b.get("id", "")).split(".")[0] or None
-    return None
-
-
 def _land_assert_primary_checkout() -> dict:
     """REQ-LAND-010 ENFORCED, not assumed: `--apply` runs from the PRIMARY checkout.
 
@@ -6285,121 +6236,6 @@ def _land_assert_primary_checkout() -> dict:
                    f"L2 cannot check out the merge target from a linked worktree anyway."),
         "remediation": f"cd {primary} && re-run the `apply_command` from `land --dry-run`.",
     }
-
-
-def _land_route_record_findings(plan_dir: Path, root: Path | None = None) -> list[dict]:
-    """`Type: human` gates whose ROUTE RECORD says an agent resolved them (REQ-LAND-015).
-
-    THE SIGNAL IS ASYMMETRIC, and the asymmetry is what makes a strippable marker useful:
-
-      * a CLEAN record is WEAK evidence of a human — anyone can strip a marker;
-      * a DIRTY record is STRONG evidence of an agent — nothing adds `CLAUDECODE` and
-        removes the controlling terminal by accident.
-
-    So this reports the dirty direction only. It never certifies that a gate WAS
-    human-resolved, and nothing here should be read as doing so. DETECTION, NOT PREVENTION.
-
-    `root` IS AN EXPLICIT ARGUMENT (plan-068 Issue 1.4 / REQ-LAND-037's ctx-less clause). Like
-    `_land_epic_from_bd`, this has no `ctx` in scope — `audit-close` calls it — so it takes a
-    declared working directory rather than a runner. `root=None` preserves today's behaviour.
-
-    Issue 1.3's AST check was originally scoped to leave these two ADVISORY, which would have
-    let this plan close #348's normative sentence while two `bd` calls still read a database
-    from the wrong cwd. The check now enforces the ctx-less clause, so an explicit root is what
-    satisfies it.
-    """
-    out: list[dict] = []
-
-    def _inconclusive(reason: str) -> list[dict]:
-        """A LOUD NO-OP. The check DID NOT RUN, and that is a different fact from `clean`.
-
-        Silence here was the third vacuity path in this control: `if not epic: return out`
-        returned an empty list, which every caller read as "checked and found nothing". A
-        control whose failure mode is indistinguishable from a clean result is the defect this
-        plan exists to remove (#263, #181).
-
-        `warn`, never `fail` — REQ-DATA-057's precedent: an INCONCLUSIVE is a statement about
-        the INSTRUMENT, not a verdict on the artifact, so it must not manufacture a failure.
-        """
-        return [{"item": "route-record check", "status": "warn", "class": "inconclusive",
-                 "detail": (f"ROUTE-RECORD CHECK DID NOT RUN: {reason}. This is NOT a clean "
-                            f"result — the REQ-LAND-015 detection control for #293 was not "
-                            f"evaluated. Distinguish it from a pass.")}]
-
-    # RESOLVE THE EPIC ID FROM A CWD-INDEPENDENT SOURCE FIRST.
-    #
-    # WHY: `plan_dir/plan.md` is read RELATIVE TO CWD, and the plan folder is PRIMARY-SIDE by
-    # the address-space model — so the worktree's copy predates every field the execution
-    # wrote. Measured on this very plan at 09c74f6: identical command, identical plan_dir,
-    # `fail` from the primary and `pass` from the worktree, because the `**Epic:**` field is
-    # present in one plan.md and absent in the other. TWO TRUTHS, and the wrong one was the
-    # silent pass.
-    #
-    # `bd` IS THE CWD-INDEPENDENT SOURCE and is the right one on the merits, not merely the
-    # convenient one: INV-2 makes the shared Dolt DB reachable identically from either address
-    # space, and the epic is STAMPED with `metadata.plan_dir` at pour time precisely so the
-    # linkage survives a plan.md that lacks the field — that is `_resume_scan`'s documented
-    # `epic_source=bd_metadata` fallback, reused here rather than reinvented.
-    #
-    # DELIBERATELY NOT CHOSEN: reading the PRIMARY's plan.md from a worktree invocation. It
-    # would work, and it is what this session reached for once already and was right to be
-    # corrected on — a check that silently reaches across the address-space boundary to find a
-    # more convenient answer is how the boundary stops meaning anything. `bd` is shared BY
-    # DESIGN; the other checkout is not.
-    if not shutil.which("bd"):
-        return _inconclusive("`bd` is not on PATH, so neither the epic id nor the gate list "
-                             "could be resolved")
-
-    epic = None
-    plan_md = plan_dir / "plan.md"
-    if plan_md.is_file():
-        epic = _read_plan_epic_field(plan_md.read_text(encoding="utf-8"))
-    if not epic:
-        epic = _land_epic_from_bd(plan_dir, root=root)
-    if not epic:
-        return _inconclusive(
-            f"could not resolve the epic id — it is absent from {plan_md} (which is read "
-            f"relative to cwd, and the plan folder is primary-side) and no bead carries "
-            f"`metadata.plan_dir == {plan_dir.as_posix()}`")
-
-    proc = subprocess.run(
-        ["bd", "list", "--all", "--type", "gate", "--limit", "500", "--json"],
-        capture_output=True, text=True,
-        cwd=str(root) if root is not None else None)
-    if proc.returncode != 0:
-        return out
-    try:
-        data = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return out
-    if isinstance(data, dict):
-        data = data.get("issues") or []
-    for g in data if isinstance(data, list) else []:
-        if not str(g.get("id", "")).startswith(epic):
-            continue
-        meta = g.get("metadata") or {}
-        if isinstance(meta, str):
-            try:
-                meta = json.loads(meta)
-            except json.JSONDecodeError:
-                meta = {}
-        if (meta.get("gate_type") or "human") != "human":
-            continue
-        rr = meta.get("route_record") or {}
-        if not rr:
-            continue
-        if _land_route_record_is_agent(rr):
-            out.append({
-                "item": f"gate {g.get('id')} route record",
-                "status": "fail",
-                "detail": (
-                    f"a `Type: human` gate carries a route record reading NO TTY with agent "
-                    f"marker(s) {rr.get('agent_markers')}. That is an executing agent "
-                    f"resolving a human consent gate — dixson3/yoshiko-flow#293. This is "
-                    f"DETECTION, not prevention: the record is strippable, so its absence "
-                    f"proves nothing, but its presence is strong evidence."),
-            })
-    return out
 
 
 @cli.command("config-resolve")
@@ -9543,6 +9379,7 @@ LAND_CLOSE_CHAIN: tuple[tuple[str, str, bool], ...] = (
     # plan-071 Issue 4.3: `audit-close` (the same engine as `audit`, run again at close) and
     # `judgement-never-fired-report` (folded into `retrospective-report`) are gone. Issue 4.4
     # puts `gate-consistency` in the former `audit-close` slot as a HALTING regression guard.
+    ("gate-consistency",              "l8_close_chain_head",     True),
     ("retrospective-report",          "l8_close_chain_head",     False),
     ("classify-deliverable",          "l8_close_chain_head",     False),
     ("close-reconcile-step",          "l9_close_reconcile_step", True),

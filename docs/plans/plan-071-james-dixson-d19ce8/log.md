@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-12
+- executing: REQ-LAND-015 branch: reader deleted (#393 closed by subtraction) — _land_route_record_findings and its four tests removed; the two route_record stamps (apply journal, tty-refusal envelope) are untouched
 - executing: ESC-002 resolved by the parent: plan-070 moved out of the working tree; okf-index-drift is clean again
 - executing: FAST tier caveat (ESC-002): okf-index-drift fails only on the untracked, deferred plan-070 bundle (5 members absent from its index.md); every other row is green. plan-070 is not touched; the landing gate will surface it to the operator
 - executing: D-10 measured: 2 ci-release bundles (plan-031, plan-041); subsystem retained — attest-validation now has a test (test_complete_gate.py, Issue 4.2)
