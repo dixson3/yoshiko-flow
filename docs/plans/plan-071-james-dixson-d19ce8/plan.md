@@ -69,6 +69,7 @@ which currently pays a review tax that does not buy landing fidelity.
 
 | Issue | Title | Disposition | Notes | Resolved By |
 | :-- | :-- | :-- | :-- | :-- |
+| [#397](https://github.com/dixson3/yoshiko-flow/issues/397) | plan-071-james-dixson-d19ce8 execution tracking | tracker | The single coarse tracking issue for this plan-scale effort (AGENTS.md convention); stamped onto the epic as `external_ref` at pour (REQ-PLAN-073) | — |
 | [#323](https://github.com/dixson3/yoshiko-flow/issues/323) | red-team: EXECUTE each success criterion at review time | include | The execution pass smoke-runs and evaluates every clause-form criterion | 2.1, 2.4 |
 | [#338](https://github.com/dixson3/yoshiko-flow/issues/338) | red-team runs NO mechanical checker | include | The execution pass runs every shipped bundle checker; the brief names them | 2.1 |
 | [#384](https://github.com/dixson3/yoshiko-flow/issues/384) | a criterion can be green before its Discharged-by issues ran; commands never smoke-run | include | Smoke-run at `ready-check`; `not-yet-dischargeable` reporting is out (execution-time, not review-time) — **partial** on defect 1, **include** on defect 2 | 2.4 |
