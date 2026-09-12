@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-12
+- complete: plan complete (landed by `land --apply`)
 - landing-halt: L_RECONCILED verify-reconcile irreversible=true (attempt 3: L7 closed 7 include issues without posting their drafted bodies and read back only state=CLOSED, so the closes were unattributed; recovered by posting each drafted body as a comment and reading back the attribution)
 - landing-halt: L_CONFLICT_MERGE l2_merge irreversible=false (L2 rebased local main onto origin while main was ahead with merge commits; recovered by resetting main to 68c63b7 from the reflog and pushing it; pre-push, no outward write)
 - review-pass: 6 (execution) — APPROVE, zero measured findings; post-execution recertification after the SC4 amendment (ESC-001); fingerprint refreshed f0822aa9 → ba0e9a44 on operator instruction ('recertify')
