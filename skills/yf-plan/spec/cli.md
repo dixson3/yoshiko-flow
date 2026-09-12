@@ -30,7 +30,9 @@ REQ-CLI-006: `plan_manager.py` exposes its subcommands **flat** — one `@cli.co
 
 > the set of verbs enumerated in this REQ **equals** the set of `@cli.command` names in `skills/yf-plan/scripts/plan_manager.py`.
 
-The enumeration (currently **40**): `json-get`, `init`, `scope`, `triage`, `list`, `parked`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `grant` (REQ-CLI-025), `ownership-report` (REQ-DATA-071), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `verify-beads` (#197), `clear-epic` (REQ-CLI-027), `index-add` (REQ-PLAN-081), `escalation-raise` (REQ-PORT-053), `escalation-resolve` (REQ-PORT-054), `escalation-report` (plan-059 Issue 3.5), `escalation-push` (plan-059 Issue 3.3), `judgement-echo-check` (plan-059 Issue 5.1), `judgement-never-fired-report` (plan-059 Issue 5.2), `land` (REQ-CLI-030).
+The enumeration (currently **33**): `json-get`, `init`, `scope`, `triage`, `list`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `audit-close`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `clear-epic` (REQ-CLI-027), `escalation-raise` (REQ-PORT-053), `escalation-resolve` (REQ-PORT-054), `escalation-push` (plan-059 Issue 3.3), `judgement-never-fired-report` (plan-059 Issue 5.2), `land` (REQ-CLI-030).
+
+*(plan-071 Issue 4.1 / REQ-PLAN-086 removed six verbs with no live caller — ownership-report, escalation-report, verify-beads, index-add, judgement-echo-check and grant — and folded the parked verb into a `list --parked` filter. The retired names are spelled bare here so the enumeration parser above does not count them.)*
 
 Adding a verb **requires** adding it here. The count is written as *currently N* precisely because it is a **derived** fact: the invariant is the set equality, and the number is a convenience that the executing check re-derives. Separately, `plan_manager.py` also exposes the click **groups** `fingerprint`, `worktree` and `landing-lock`, whose subcommands are registered on the group (`@fingerprint.command`, etc.) and are therefore **outside** both the enumeration and the check — which is why REQ-CLI-021 mandates the flat form.
 Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. This REQ has drifted **three times**: it read 10 while the script carried 21; plan-045 corrected it to 23, then to 24 when `review-loop-check` landed; and it was *still* wrong at 25 because `retrospective-report` was added in the same epic that fixed the previous drift. Each fix bumped a hardcoded literal, which is a repair that re-breaks on the very next verb.
@@ -169,38 +171,14 @@ REQ-CLI-023: `plan_manager.py review-loop-check <plan-dir> [--max-review-cycles 
 Rationale: Issue 2.4 grants the review loop autonomy in **Phase 3 — before intake, before the pour, before any bead exists** — so `yf_attempts` (bd metadata, incremented in the coordinator loop) structurally cannot bound it. Without a second, plan-phase counter the headline autonomy change would be unbounded, which is the shape D-8 forbids. The count reads pass **files** rather than `log.md` **bullets** because those are different numbers that can and do diverge, and a bound keyed on the wrong one would escalate on a bookkeeping artifact. The counter is monotonic and deliberately does **not** auto-reset: a plan that has burned `N` review cycles should not silently resume, so the per-invocation raise is the only exit and is recorded.
 Verification: a bundle with `N` pass files exits `3`; the same bundle with `--max-review-cycles N+1` exits `0` and appends a `log.md` entry; removing the raise re-escalates immediately; `test_cli_enumeration.py` asserts it is present in the REQ-CLI-006 enumeration.
 
-REQ-CLI-025: `plan_manager.py grant <plan-dir> [--json]` **generates** the upstream-write
-authorization grant from the plan's own **Upstream Issues** table — the set of upstream actions
-the plan's dispositions require, enumerated per row — and emits it as a **proposal**. It:
-
-- **never writes** the authorization file and never performs an upstream write;
-- **requires no network** to generate, so it is runnable before any `gh` call;
-- reads its per-disposition requirement from the **one shared table** keyed by the
-  `UPSTREAM_DISPOSITIONS` literals that `_verify_row` also reads, so generator and verifier
-  cannot disagree about what a disposition requires;
-- covers **every** literal in `UPSTREAM_DISPOSITIONS`, including `exclude`, `deferred` and
-  `tracker` — a generator that silently omits a disposition is #181's defect class in a new
-  place;
-- honours the REQ-COMPLETE-003 envelope and is registered **flat** as `@cli.command("grant")`
-  (REQ-CLI-021), so REQ-CLI-006's set-equality check sees it.
-
-Rationale: #178. plan-048 **halted its own reconcile** on an omitted `include` close: the grant
-was derived by hand from the table, one row was missed, and the omission surfaced only at
-`verify-reconcile` — a late halt after the outward-facing writes had begun. plan-049 avoided it
-only because the operator re-derived the grant by hand a second time. The two readers of the
-disposition→end-state map (what the grant asks for, and what the verifier requires) were separate
-prose derivations of the same rule; making them one table read is what removes the class rather
-than the instance. The extraction is a **separate step** from the generator because `_verify_row`
-as it stands cannot serve as the source: it returns no `required_action`, is network-bound
-(`gh issue view` per row), and returns `fail` on an `exclude` row handed to it directly — a
-literal that IS in the frozenset (measured, pass-3 C12).
-Verification: `ctl-178-grant` replays plan-048's **actual recorded grant with the `#172` close
-omitted** and drives the round-trip check non-zero; the shared read is asserted **behaviorally** —
-mutate one entry in a throwaway copy of the table, re-run `grant` and `_verify_row` with
-`_gh_issue_view` stubbed to a fixed payload, and assert **both** verdicts change; every literal
-in `UPSTREAM_DISPOSITIONS` has exactly one table entry; `test_cli_enumeration.py` asserts `grant`
-is present in the REQ-CLI-006 enumeration.
-
+REQ-CLI-025: *(RETIRED by plan-071 Issue 4.1 under REQ-PLAN-086)* The `grant` verb — the
+upstream-write authorization proposal generated from the plan's Upstream Issues table (#178) — was
+registered but invoked by no `SKILL.md` step, no agent brief and no chain row; its only test hits
+were its own contract tests. It was deleted, not deprecated. The one-table rule it existed to
+enforce is retained where it is live: `UPSTREAM_REQUIREMENTS` remains the single
+disposition→end-state map that `verify-reconcile`'s `_verify_row` reads, and
+`test_upstream_requirements.py` asserts that read behaviourally (mutate one entry, the verifier's
+verdict changes). This id is not reused.
 
 REQ-CLI-026: **`update-status` shall WARN on an unrecognised status, on stderr, and still exit
 0.** When the status argument is not in REQ-STATUS-001's vocabulary, `update-status` shall write
@@ -342,44 +320,28 @@ presence-only check.
 Rationale: plan-055 landed `_common.sh` plus three checks in `scripts/checks/`; this plan lands eight
 more. That makes the directory a real repo surface, and SPEC-first requires the surface be declared
 before it is populated — otherwise the epic that enforces SPEC-first would itself violate it.
-Verification: `scripts/checks/harness-selftest.sh --require 9` — every instrument returns non-zero
-on a deliberately broken input, and the selftest reports how many it checked, so a selftest covering
-2 of 10 is distinguishable from one covering 10.
+Verification: *(amended plan-071 Issue 4.5 / REQ-PLAN-086)* every instrument that remains in
+`scripts/checks/` is named in a `CHANGE-VALIDATION.md` row, a `.github/workflows/*` step or a
+`test_*.py`, or is imported by one that is — plan-071's SC12 loop asserts exactly that. The former
+`harness-selftest.sh --require N` binding, and the sixteen instruments it wrapped, were retired
+under the retention standard: the selftest ran in no CI row and no CHANGE-VALIDATION row, so its
+"every instrument returns non-zero on a broken input" claim was itself never executed. The
+negative-control discipline survives where it is wired: `scripts/checks/test_negative_controls.py`
+drives the web checkers RED, and each remaining instrument's own test file carries its controls.
 
-**Extension (plan-057 Issue 0.5): the contract binds EVERY instrument in the directory, including
-those a later plan adds.** plan-057 authors **seven** further instruments —
-`check-index-boilerplate-ratio.py`, `check-baseline-pin-contract.sh`, `check-skill-classified.sh`,
-`check-backfill-audit-delta.py`, `check-assets-decided.py`, `check-gates-poured-probe.sh`,
-`check-assess-verb-gone.sh` — and each shall satisfy (a), (b) and (c) above and carry a **named RED
-row** in `harness-selftest.sh`. The rationale is unchanged and is the reason this extension is a SPEC
-edit rather than a convention: a criterion adjudicated by an **unowned** script is a criterion whose
-instrument nobody is accountable for.
-
-Three properties this extension states that the original did not, each measured:
-
-**(d) An instrument that accepts a ROOT shall accept an ABSOLUTE one.** Measured 2026-08-29: a
-shipped driver handed `--root "$PWD/docs/plans/*"` raises an unhandled
-`NotImplementedError("Non-relative patterns are unsupported")` from `pathlib` and exits **1** — which
-under its own documented contract means *the criterion does not hold*. A **harness fault reported as
-a corpus finding** is worse than a bare traceback: the code is wrong but in-contract, so no reader
-can tell. Such a condition is `2`, per (a).
-
-**(e) `--require N` is a MINIMUM, and a minimum is the wrong comparator for a hand-maintained list.**
-The shipped comparison is `[ "${CHECKED}" -lt "${REQUIRE}" ]`, so a run that **skipped** an
-instrument still exits `0` whenever the remaining count clears the floor. Measured, the enumerated
-array has **already drifted by six** against instruments present on disk. A self-enumerating harness
-shall therefore assert **equality** (or expose an explicit `--exact`), because the list it enumerates
-is exactly the artifact known to drift.
-
-**(f) The enumerated array is a DELIBERATE, OWNED set — not everything on disk.** Six instruments
-present in `scripts/checks/` are unenumerated and **unowned**: they predate the plan that authored
-the current eight. Enumerating them opportunistically would either fail the gate outright (under
-equality) or re-open the vacuity (under the minimum: 22 enumerated, 16 required, and **all seven new
-instruments absent still exits 0**). Adding an instrument to the array is an act of taking ownership
-of it, and the count is the assertion.
-
-Verification of the extension: `scripts/checks/harness-selftest.sh --require 16` — 9 enumerated
-before this plan plus the 7 it authors, the selftest excluding itself from its own count.
+**Extension (plan-057 Issue 0.5), as amended by plan-071.** The contract binds every instrument in
+the directory, including those a later plan adds — but **only instruments that are wired** (a
+CHANGE-VALIDATION row, a CI step, or a test) are retained at all. plan-057's seven further
+instruments (`check-index-boilerplate-ratio.py`, `check-baseline-pin-contract.sh`,
+`check-skill-classified.sh`, `check-backfill-audit-delta.py`, `check-assets-decided.py`,
+`check-gates-poured-probe.sh`, `check-assess-verb-gone.sh`) and the nine before them were
+enumerated in `harness-selftest.sh` and nowhere else; measured by plan-071's EXP-002, none ran in
+any CI or CHANGE-VALIDATION row, so they were deleted rather than re-owned. Three properties the
+extension stated remain normative for what survives: **(d)** an instrument that accepts a root
+shall accept an absolute one (a `pathlib` "Non-relative patterns are unsupported" traceback is a
+harness fault and exits `2`); **(e)** a self-enumerating harness shall assert **equality**, never
+a minimum, because the enumerated list is the artifact known to drift; **(f)** an enumerated set is
+a deliberate, owned set — adding an instrument to it is an act of taking ownership.
 
 REQ-CLI-030: *(added plan-060 Issue 0.3)* **The `land` verb.** `plan_manager.py` shall expose
 `land` as a **flat** `@cli.command`, never a command group, with exactly three mutually exclusive

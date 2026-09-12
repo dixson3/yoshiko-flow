@@ -341,9 +341,11 @@ bracket the phases that create members: triage and references land by intake, `s
 The call is `reindex_write`, **not** `seed_index`: regeneration must preserve author prose
 (REQ-OKF-072), and `seed_index` overwrites the file wholesale.
 
-**(c) The public `index-add` verb.** `plan_manager.py` shall expose
-**`index-add <plan-dir> <path> <description>`**, mirroring the engine's `add_index_entry`, plus
-CLI-reachable index regeneration. This is a **new public surface** and shall therefore be registered
+**(c) CLI-reachable index maintenance.** *(amended plan-071 Issue 4.1 / REQ-PLAN-086: the
+public `index-add` verb was deleted — it had no caller in `SKILL.md`, an agent brief or a chain row.)*
+Index regeneration is reachable through the engine directly: `okf.py reindex --write <plan-dir>`
+regenerates the listing and `okf.py reindex --check` reports drift; `update-status` regenerates it at
+the three lifecycle moments (b) names. This is a **new public surface** and shall therefore be registered
 in the verb enumeration REQ-CLI-013 governs, and covered by
 `skills/yf-plan/scripts/test_cli_enumeration.py`'s set-equality test — a verb discoverable only via
 `--help` is not discoverable, since `--help` exits 0 for any parser.

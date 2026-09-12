@@ -1981,7 +1981,7 @@ Without plan-id: show all plans with bead counts.
 not executed) so an intake'd-but-unexecuted plan is never silently forgotten:
 
 ```bash
-PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
+PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py list --parked --json)
 COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
 ```
 
@@ -1996,7 +1996,7 @@ so an approved-but-unexecuted plan is caught before the session ends. This is a 
 documented script-verb step** — never a harness hook or scheduler:
 
 ```bash
-PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py parked --json)
+PARKED=$(uv run ${SKILL_DIR}/scripts/plan_manager.py list --parked --json)
 COUNT=$(echo "$PARKED" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get count)
 # COUNT > 0 → report: "N plan(s) approved but not executed — run /yf-plan execute <id>."
 ```

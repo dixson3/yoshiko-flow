@@ -1635,10 +1635,26 @@ def _enumerate_plans() -> list[dict]:
 
 
 @cli.command("list")
-@click.option("--json-output", "as_json", is_flag=True)
-def list_plans(as_json: bool):
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+@click.option("--parked", "parked_only", is_flag=True,
+              help="Only PARKED plans — approved but never executed (#86, REQ-PLAN-068). "
+                   "Emits {count, parked}; consumed by the status nudge and land-the-plane.")
+def list_plans(as_json: bool, parked_only: bool):
     """List all plans and research items, across vault-default + Incubator roots."""
     plans = _enumerate_plans()
+    if parked_only:
+        # plan-071 Issue 4.1: the former `parked` verb, folded in as a filter (REQ-PLAN-086).
+        parked = [p for p in plans if p.get("parked")]
+        if as_json:
+            click.echo(json.dumps({"count": len(parked), "parked": parked}, indent=2))
+            return
+        if not parked:
+            click.echo("No parked plans.")
+            return
+        click.echo(f"{len(parked)} plan(s) approved but not executed — run /yf-plan execute <id>:")
+        for p in parked:
+            click.echo(f"  {p['id']:<35} {p['objective']}")
+        return
 
     research = []
     for root in list_research_roots():
@@ -1690,29 +1706,6 @@ def list_plans(as_json: bool):
             )
 
 
-@cli.command("parked")
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def parked_cmd(as_json: bool):
-    """Enumerate parked plans — approved but never executed (#86, REQ-PLAN-068).
-
-    Consumed by the `/yf-plan status` nudge and the land-the-plane check.
-    """
-    parked = [p for p in _enumerate_plans() if p.get("parked")]
-    if as_json:
-        click.echo(json.dumps({"count": len(parked), "parked": parked}, indent=2))
-        return
-    if not parked:
-        click.echo("No parked plans.")
-        return
-    click.echo(f"{len(parked)} plan(s) approved but not executed — run /yf-plan execute <id>:")
-    for p in parked:
-        click.echo(f"  {p['id']:<35} {p['objective']}")
-
-
-#: The three lifecycle moments at which the reserved listing is regenerated
-#: (REQ-PLAN-081(b), plan-056 Issue 2.3). Three rather than one because the three bracket
-#: the phases that CREATE members: triage and `references/` land by intake; `scripts/` and
-#: `findings/` by execute-start; `plan-retrospective.md` and `reviews/` by close.
 _REINDEX_STATUSES: frozenset[str] = frozenset({"approved", "executing", "complete"})
 
 
@@ -2085,72 +2078,6 @@ def record_epic(plan_dir: str, epic_id: str):
         "epic_field": "written",
         "intake_log_entry": None if intake_present else intake_entry,
     }))
-
-
-@cli.command("index-add")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.argument("path")
-@click.argument("description", required=False, default=None)
-@click.option("--regenerate", is_flag=True,
-              help="Instead of adding one entry, regenerate the whole listing (reindex --write).")
-@click.option("--check", is_flag=True,
-              help="With --regenerate: report drift without writing (reindex --check).")
-@click.option("--json", "as_json", is_flag=True, help="Emit a JSON verdict.")
-def index_add(plan_dir: str, path: str, description: str | None,
-              regenerate: bool, check: bool, as_json: bool):
-    """Add one entry to a bundle's reserved `index.md`, or regenerate the listing.
-
-    REQ-PLAN-081(c). This is a NEW PUBLIC SURFACE, and it exists because index
-    regeneration was measured **unreachable from the CLI**: `seed_index` is callable only
-    from `init`, so an operator who noticed index drift had no supported repair short of
-    editing `index.md` by hand — which is how the nine drifting bundles came to drift.
-
-    `--regenerate` routes to the engine's `reindex_write`, never to `seed_index`:
-    regeneration must PRESERVE AUTHOR PROSE (REQ-OKF-072), and `seed_index` overwrites the
-    file wholesale.
-    """
-    pdir = Path(plan_dir)
-    if regenerate:
-        try:
-            res = (okf.reindex_check(pdir) if check
-                   else okf.reindex_write(pdir))
-        except okf.MarkerImbalanceError as exc:
-            out = {"verdict": "inconclusive", "reason": str(exc),
-                   "remediation": ("An unbalanced generated-region marker leaves the region "
-                                   "unbounded; regenerating would discard prose "
-                                   "unrecoverably. Balance the markers, then re-run.")}
-            click.echo(json.dumps(out, indent=1))
-            sys.exit(okf.REINDEX_EXIT["inconclusive"])
-        click.echo(json.dumps(res, indent=1))
-        sys.exit(res.get("exit", 0))
-
-    index = pdir / "index.md"
-    if not index.exists():
-        click.echo(json.dumps({"verdict": "inconclusive", "plan_dir": plan_dir,
-                               "reason": f"no reserved index.md under {plan_dir}",
-                               "remediation": "Run `/yf-okf migrate` or re-seed the bundle."},
-                              indent=1))
-        sys.exit(2)
-    target = pdir / path.rstrip("/")
-    if not target.exists():
-        # A LISTING MEMBER MUST EXIST. Listing something absent asserts a fact that is false
-        # in every clone, and generates the `empty-dir`/`ghost` drift `reindex` reports.
-        click.echo(json.dumps({"verdict": "fail", "plan_dir": plan_dir, "path": path,
-                               "reason": f"{path} does not exist in the bundle",
-                               "remediation": "Create the member first; an index never "
-                                              "asserts a path that is not there."}, indent=1))
-        sys.exit(1)
-    before = index.read_text(encoding="utf-8")
-    if f"]({path})" in before:
-        click.echo(json.dumps({"verdict": "pass", "plan_dir": plan_dir, "path": path,
-                               "added": False, "reason": "already listed (idempotent)"},
-                              indent=1))
-        sys.exit(0)
-    okf.add_index_entry(pdir, path, description or "")
-    click.echo(json.dumps({"verdict": "pass", "plan_dir": plan_dir, "path": path,
-                           "added": True,
-                           "description": (description or None)}, indent=1))
-    sys.exit(0)
 
 
 @cli.command("clear-epic")
@@ -2818,28 +2745,6 @@ def _verify_row(row: dict, plan_id: str) -> dict:
     return {"issue": number, "disposition": disp, "verdict": "pass", "detail": detail}
 
 
-def _grant_actions_for(req: dict) -> list[str]:
-    """The outward-facing actions a disposition requires, DERIVED from its own fields.
-
-    Derived rather than declared, and that is not tidiness — `ctl-178-grant`'s contrast arm
-    MEASURED the two halves diverging on the first run: `supersede` declared a `comment`
-    action while its own `requires_mention` is `False`, so the generator demanded an
-    authorization clause for something reconciliation would never check. A grant that asks
-    for MORE than the verifier requires is as wrong as one that asks for less; it just fails
-    in the direction that looks conservative.
-
-    Only the tracker filing is not derivable — a `tracker` row's action is to CREATE the
-    issue, which no end-state field can express — so it is carried as `extra_actions`.
-    """
-    acts: list[str] = []
-    if req["requires_mention"]:
-        acts.append("comment")
-    if req["end_state"] == "CLOSED":
-        acts.append("close-not-planned" if req["state_reason"] == "NOT_PLANNED" else "close")
-    acts.extend(req.get("extra_actions", []))
-    return acts
-
-
 _GRANT_ACTION_TEMPLATES = {
     "comment": ("gh issue comment {n} --body '<what {plan} did for #{n}>'",
                 "post a comment naming the full plan id"),
@@ -2852,228 +2757,6 @@ _GRANT_ACTION_TEMPLATES = {
 }
 
 
-def _grant_proposal(plan_md_text: str, plan_id: str) -> dict:
-    """The upstream-write proposal, DERIVED from the Upstream Issues table.
-
-    Reads `UPSTREAM_REQUIREMENTS` — the same table `_verify_row` reads — so what the operator
-    is asked to authorize and what reconciliation will later require are one derivation, not
-    two. Local only: no network, so it is runnable before any `gh` call and before any
-    authorization exists.
-    """
-    rows = parse_upstream_rows(plan_md_text)
-    items, unrecognised = [], []
-    for r in rows:
-        disp = r["disposition"]
-        req = UPSTREAM_REQUIREMENTS.get(disp)
-        if req is None:
-            unrecognised.append({"issue": r["issue"], "disposition": disp})
-            continue
-        actions = []
-        for kind in _grant_actions_for(req):
-            cmd, human = _GRANT_ACTION_TEMPLATES[kind]
-            actions.append({
-                "kind": kind,
-                "human": human,
-                "command": cmd.format(n=r["issue"], plan=plan_id),
-            })
-        items.append({
-            "issue": r["issue"], "disposition": disp,
-            "resolved_by": r.get("resolved_by") or "",
-            "actions": actions,
-            "end_state": req["end_state"], "state_reason": req["state_reason"],
-            "requires_mention": req["requires_mention"],
-            "why": req["why"],
-        })
-    return {"plan_id": plan_id, "rows": items, "unrecognised": unrecognised,
-            "actionable": [i for i in items if i["actions"]]}
-
-
-def _grant_coverage(proposal: dict, text: str) -> list[dict]:
-    """Which of the proposal's required actions an authorization text does NOT cover.
-
-    THE ROUND-TRIP CHECK, and the reason this verb exists. plan-048's grant was hand-derived
-    from the same table this generator reads, `#172`'s close was missed, and the omission
-    surfaced only at `verify-reconcile` — after the outward-facing writes had begun. The
-    amendment repairing it is still on disk and states the cause: *"an oversight in THIS
-    FILE."*
-
-    Coverage is judged per ACTION, not per issue: an `include` row needs BOTH a comment and a
-    close, and plan-048's omission was exactly a close on an issue the grant already
-    mentioned. A per-issue check would have passed it.
-    """
-    lowered = text.lower()
-    uncovered = []
-    for item in proposal["rows"]:
-        n = item["issue"]
-        # A `file-tracker` action is judged over the WHOLE text, never scoped to the issue
-        # number. The fixture's contrast arm caught this too: a grant written BEFORE the
-        # tracker exists CANNOT name its number, because the number is the thing being
-        # created. plan-048's real grant authorizes it as item 1, by plan id.
-        tracker_acts = [a for a in item["actions"] if a["kind"] == "file-tracker"]
-        if tracker_acts:
-            if not any(w in lowered for w in ("tracker", "gh issue create")):
-                uncovered.append({**tracker_acts[0], "issue": n,
-                                  "disposition": item["disposition"],
-                                  "reason": "no clause authorizes filing the coarse tracker"})
-            continue
-        # The issue must be named at all. `#172` and a bare `172` both count — an
-        # authorization is prose, and demanding one spelling would manufacture false gaps.
-        named = (f"#{n}" in text) or re.search(rf"(?<![\w#]){re.escape(str(n))}(?![\w])", text)
-        for act in item["actions"]:
-            kind = act["kind"]
-            if not named:
-                uncovered.append({**act, "issue": n, "disposition": item["disposition"],
-                                  "reason": f"#{n} is not named in the authorization at all"})
-                continue
-            # Scope the search to the sentence(s) naming this issue, so a `close` authorized
-            # for one issue cannot silently cover another.
-            window = " ".join(
-                ln for ln in lowered.splitlines()
-                if f"#{n}" in ln or re.search(rf"(?<![\w#]){re.escape(str(n))}(?![\w])", ln))
-            if kind in ("close", "close-not-planned"):
-                ok = "clos" in window
-                if kind == "close-not-planned":
-                    ok = ok and ("not planned" in window or "not_planned" in window
-                                 or "supersede" in window)
-            elif kind == "comment":
-                ok = "comment" in window or "post" in window
-            elif kind == "file-tracker":
-                ok = "file" in window or "creat" in window or "tracker" in window
-            else:
-                ok = False
-            if not ok:
-                uncovered.append({**act, "issue": n, "disposition": item["disposition"],
-                                  "reason": f"#{n} is named, but no clause authorizes: "
-                                            f"{act['human']}"})
-    return uncovered
-
-
-@cli.command("grant")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--check", "check_path", type=click.Path(),
-              help="Reconcile an EXISTING authorization file against the proposal and report "
-                   "every required action it does not cover. This is the round-trip check.")
-@click.option("--json-output", "--json", "as_json", is_flag=True,
-              help="Emit the structured verdict (default is also JSON).")
-def grant(plan_dir: str, check_path: str | None, as_json: bool):
-    """Generate the upstream-write authorization PROPOSAL from the plan's own table.
-
-    REQ-CLI-025 / #178. It emits a proposal and NOTHING ELSE: it never writes the
-    authorization file, never performs an upstream write, and needs no network — so it runs
-    before any `gh` call and before any authorization exists.
-
-    WHY THIS EXISTS. plan-048 HALTED ITS OWN RECONCILE on a hand-derived grant that missed
-    `#172`'s close. The amendment repairing it is still in that plan's
-    `assets/upstream-authorization.txt` and names the cause: *"Its omission from the original
-    list was an oversight in THIS FILE, not a decision to withhold."* plan-049 avoided the
-    same defect only because the operator derived the grant by hand a second time.
-
-    The generator and `_verify_row` read ONE table (`UPSTREAM_REQUIREMENTS`), so what the
-    operator is asked to authorize and what reconciliation will later require cannot drift.
-    Two prose derivations of the same rule is what produced the gap.
-
-    With `--check <file>`, additionally reconciles an existing authorization against the
-    proposal and fails on any uncovered action. Coverage is judged PER ACTION, not per issue:
-    plan-048's omission was a close on an issue the grant already mentioned, which a per-issue
-    check would have passed.
-    """
-    pdir = Path(plan_dir)
-    plan_md = pdir / "plan.md"
-    if not plan_md.exists():
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False,
-            "reason": f"plan.md not found under {plan_dir}",
-            "remediation": "Check the plan_dir argument.",
-        }))
-        sys.exit(1)
-
-    plan_id = _plan_id_from_dir(pdir)
-    proposal = _grant_proposal(plan_md.read_text(), plan_id)
-
-    if proposal["unrecognised"]:
-        bad = ", ".join(f"#{u['issue']}={u['disposition']!r}"
-                        for u in proposal["unrecognised"])
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "plan_id": plan_id,
-            "proposal": proposal,
-            "reason": f"unrecognised disposition(s) in the Upstream Issues table: {bad}",
-            "remediation": "Every Disposition cell must be one of "
-                           + "|".join(sorted(UPSTREAM_REQUIREMENTS))
-                           + ". A generator that silently skipped an unrecognised literal "
-                             "would omit exactly the row nobody checked.",
-        }, indent=2))
-        sys.exit(1)
-
-    if check_path is None:
-        click.echo(json.dumps({
-            "verdict": "pass", "passed": True, "plan_id": plan_id,
-            "proposal": proposal,
-            "reason": f"{len(proposal['actionable'])} of {len(proposal['rows'])} upstream "
-                      "row(s) require an outward-facing action",
-            "remediation": None,
-        }, indent=2))
-        return
-
-    cpath = Path(check_path)
-    if not cpath.exists():
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "plan_id": plan_id,
-            "proposal": proposal, "uncovered": [],
-            "reason": f"no authorization file at {check_path}",
-            "remediation": "Present the proposal above to the operator and record their "
-                           "explicit authorization before any upstream write.",
-        }, indent=2))
-        sys.exit(1)
-
-    uncovered = _grant_coverage(proposal, cpath.read_text(encoding="utf-8", errors="replace"))
-    if uncovered:
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "plan_id": plan_id,
-            "proposal": proposal, "uncovered": uncovered,
-            "reason": f"{len(uncovered)} required upstream action(s) are NOT covered by "
-                      f"{check_path}",
-            "remediation": "Do NOT proceed. Either extend the authorization to cover each "
-                           "action below, or change the row's disposition — those are the "
-                           "only two consistent states. This is the exact check plan-048 "
-                           "lacked when it halted its own reconcile on an omitted close:\n"
-                           + "\n".join(f"  #{u['issue']} ({u['disposition']}): {u['human']}"
-                                        f"\n    {u['command']}" for u in uncovered),
-        }, indent=2))
-        sys.exit(1)
-
-    click.echo(json.dumps({
-        "verdict": "pass", "passed": True, "plan_id": plan_id,
-        "proposal": proposal, "uncovered": [],
-        "reason": f"{check_path} covers all {len(proposal['actionable'])} actionable row(s)",
-        "remediation": None,
-    }, indent=2))
-
-
-# --- ownership-report — single-writer ownership over declared paths (Issue 1.5) --------
-#
-# REPORT-ONLY, PERMANENTLY (R1). It is never a gate and never blocks anything, because the
-# measurement it rests on is PARTIALLY CIRCULAR and the report says so in its own output: the
-# lever was derived from this corpus, and `ownership-report` is itself generated by one of the
-# five `plan_manager.py` writers it flags. A circular measurement is worth SURFACING and is
-# not worth ENFORCING.
-#
-# SIGNALS INCLUDED — and the two that are DELIBERATELY EXCLUDED, with the measurement:
-#
-#   S1  shared declared paths          INCLUDED — p = 3.4e-11, the strongest signal measured
-#   S3  DRIFT-CHECK.md edges           INCLUDED — a declared docs<->impl edge is a real
-#                                      co-writing relationship
-#   S2  CHANGE-VALIDATION.md rows      EXCLUDED — p = 0.85. Indistinguishable from noise; a
-#                                      recipe row groups files by WHO RUNS THEM, not by who
-#                                      writes them, so two issues sharing a row need not
-#                                      share a writer at all.
-#   S4  shared upstream refs           EXCLUDED — fired 0 times across the whole corpus. A
-#                                      signal with no positives contributes no information
-#                                      and cannot be validated in either direction.
-#
-# THE INCONCLUSIVE FLOOR IS A NUMBER: 80% path coverage. Below it the pairwise measurement
-# has too thin a denominator to mean anything, and the honest output is "I could not tell".
-# Reporting "orthogonal" on no input is the silent-green class in its ownership form — a
-# conclusion drawn from an empty set reads exactly like a clean bill of health.
 OWNERSHIP_COVERAGE_FLOOR = 80
 
 
@@ -3102,112 +2785,6 @@ def _run_plan_extract(plan_dir: Path) -> dict:
     return mod.extract(plan_dir / "plan.md")
 
 
-def _ownership_pairs(issues: list[dict]) -> tuple[list[dict], dict]:
-    """All unordered issue pairs sharing >= 1 declared path (S1). Pure."""
-    by_path: dict[str, list[str]] = {}
-    for i in issues:
-        for t in i.get("touches") or []:
-            by_path.setdefault(t, []).append(i["id"])
-    shared = {p: sorted(set(ids)) for p, ids in by_path.items() if len(set(ids)) > 1}
-    pairs: dict[tuple[str, str], list[str]] = {}
-    for path, ids in shared.items():
-        for a_i in range(len(ids)):
-            for b_i in range(a_i + 1, len(ids)):
-                pairs.setdefault((ids[a_i], ids[b_i]), []).append(path)
-    out = [{"a": a, "b": b, "paths": sorted(ps)} for (a, b), ps in sorted(pairs.items())]
-    return out, shared
-
-
-@cli.command("ownership-report")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "json_output", is_flag=True,
-              help="Emit the structured report (default is also JSON).")
-def ownership_report(plan_dir: str, json_output: bool):
-    """REPORT-ONLY single-writer ownership over a plan's declared paths (REQ-DATA-071).
-
-    Never a gate. Returns INCONCLUSIVE below the stated 80% path-coverage floor, and never
-    reports "orthogonal" on no input.
-    """
-    pdir = Path(plan_dir)
-    plan_md = pdir / "plan.md"
-    base = {
-        "report_only": True,
-        "coverage_floor": OWNERSHIP_COVERAGE_FLOOR,
-        "signals_included": ["shared-declared-paths", "drift-check-edges"],
-        "signals_excluded": {
-            "change-validation-rows": "p=0.85, indistinguishable from noise",
-            "shared-upstream-refs": "fired 0 times across the corpus",
-        },
-        "circularity": (
-            "PARTIALLY CIRCULAR: the ownership lever was derived from this corpus, and this "
-            "report is itself generated by one of the plan_manager.py writers it flags. "
-            "Surfaced deliberately; never enforced."
-        ),
-    }
-
-    if not plan_md.exists():
-        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE",
-                               "reason": f"plan.md not found under {plan_dir}"}))
-        sys.exit(0)
-
-    try:
-        docs = _run_plan_extract(pdir)
-    except Exception as e:  # noqa: BLE001 — any extractor failure is INCONCLUSIVE, not a finding
-        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE",
-                               "reason": f"plan_extract could not read the plan: {e}"}))
-        sys.exit(0)
-
-    issues = docs.get("issues") or []
-    if not issues:
-        click.echo(json.dumps({**base, "verdict": "INCONCLUSIVE", "coverage": 0.0,
-                               "reason": "the plan declares no issues"}))
-        sys.exit(0)
-
-    declared = [i for i in issues if i.get("touches")]
-    coverage = round(100.0 * len(declared) / len(issues), 1)
-
-    if coverage < OWNERSHIP_COVERAGE_FLOOR:
-        click.echo(json.dumps({
-            **base, "verdict": "INCONCLUSIVE", "coverage": coverage,
-            "issues": len(issues), "issues_declaring": len(declared),
-            "reason": (f"path coverage is {coverage}%, below the {OWNERSHIP_COVERAGE_FLOOR}% "
-                       f"floor — the pairwise measurement has too thin a denominator to "
-                       f"mean anything, so the honest answer is that it could not be told"),
-        }))
-        sys.exit(0)
-
-    pairs, shared = _ownership_pairs(issues)
-    click.echo(json.dumps({
-        **base, "verdict": "REPORT", "coverage": coverage,
-        "issues": len(issues), "issues_declaring": len(declared),
-        "shared_paths": {p: ids for p, ids in sorted(shared.items())},
-        "multi_writer_paths": len(shared),
-        "pairs": pairs,
-        "reason": (f"{len(shared)} declared path(s) have more than one writer across "
-                   f"{len(pairs)} issue pair(s); coverage {coverage}%"),
-    }, indent=1))
-    sys.exit(0)
-
-
-# --- recheck-criteria — completion-time re-check of Success Criteria (REQ-PLAN-080) ----
-#
-# THE TRIGGER, STATED AS A MEASUREMENT: plan-051 shipped `SC4b` measured green at the issue
-# that discharged it and FALSE two epics later — a file added downstream matched its pattern
-# and nothing re-ran the check. It was caught by an operator re-measurement, not by anything
-# the plan shipped. A criterion is only as good as the last time something re-ran it.
-#
-# `YF_RECHECK_DEPTH` IS THE LOAD-BEARING GUARD. The name-check below is BEST-EFFORT and scans
-# THE EXECUTED COMMAND STRING ONLY, never the criterion row — a criterion row may legitimately
-# *discuss* this verb, and in plan-052 every clause routes through `gate-run.sh` so no clause
-# contains the literal `recheck-criteria` at all. A name-check over rows would therefore be
-# both unnecessary and wrong.
-#
-# THE DEPTH RULE IS ABOUT WHAT EACH DEPTH MAY DO:
-#     depth 0 and depth 1 EVALUATE;  depth 2 returns exit 2 (INCONCLUSIVE) WITHOUT EXECUTING.
-# Depth 1 must evaluate because a criterion's command routes through the plan's own harness
-# and therefore runs one level down when this verb is invoked from the §6.4 close chain. A
-# guard that refused at depth 1 would make every fixture-driven control valid standalone and
-# INCONCLUSIVE under the chain — the exact state this plan exists to prevent.
 RECHECK_MAX_DEPTH = 2
 
 #: REQ-DATA-070's clause grammar, duplicated here rather than imported: `doc_lint` owns the
@@ -3290,32 +2867,6 @@ def _criteria_preamble(plan_md_text: str) -> str:
 def _criteria_command(preamble: str, cmd: str) -> str:
     """The `bash -c` program for one criterion: the preamble, then the command."""
     return f"{preamble}{cmd}" if preamble else cmd
-
-
-@cli.command("verify-beads")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--fixture", type=click.Path(), default=None,
-              help="pinned JSON bead snapshot instead of live bd state")
-@click.option("--json-output", "--json", "json_output", is_flag=True,
-              help="Emit the structured verdict (default is also JSON).")
-def verify_beads_cmd(plan_dir: str, fixture: str | None, json_output: bool):
-    """Emit injection-time verify beads for `plan-execute` (#197, Issue 5.2).
-
-    A thin wrapper over `verify_beads.py`. `plan-execute` declares ONE step and its real DAG
-    is built from plan.md, so there is nothing for an aspect to weave over — this is the
-    mechanism for that case, not the same mechanism applied twice.
-    """
-    engine = Path(__file__).resolve().parent / "verify_beads.py"
-    if not engine.is_file():
-        click.echo(json.dumps({"verdict": "INCONCLUSIVE",
-                               "reason": f"verify_beads.py not found at {engine}"}))
-        sys.exit(2)
-    args = ["uv", "run", str(engine), "--plan", _plan_id_from_dir(Path(plan_dir)), "--json"]
-    if fixture:
-        args += ["--fixture", fixture]
-    proc = subprocess.run(args, capture_output=True, text=True)
-    click.echo(proc.stdout.strip() or proc.stderr.strip())
-    sys.exit(proc.returncode)
 
 
 @cli.command("gate-consistency")
@@ -6739,10 +6290,9 @@ def judgement_never_fired_report(plan_dir: str, as_json: bool):
                   "is the whole point: a trigger whose non-firing looks like a quiet period "
                   "is not observable.")
         remediation = (
-            "Run `plan_manager.py judgement-echo-check <plan_dir> --json` — it invokes the "
-            "trigger and reports `lines_added` by diffing log.md, so it distinguishes the "
-            "two cases. If `lines_added` is 0, restore the `_judgement_echo` call in "
-            "`review-loop-check`. Advisory: completion is NOT blocked."
+            "The trigger's log echo and its `judgement-echo-check` probe were deleted by "
+            "plan-071 (REQ-PLAN-086: no live caller), so an absent echo is the EXPECTED state "
+            "on any bundle executed after it. Advisory: completion is NOT blocked."
         )
     else:
         verdict = "pass"
@@ -7567,39 +7117,6 @@ JUDGEMENT_FIRED = "judgement: fired"
 JUDGEMENT_NOT_FIRED = "judgement: not-fired"
 
 
-def _judgement_echo(plan_dir: Path, fired: bool, detail: str) -> dict:
-    """Write the trigger's own echo to `log.md`, on BOTH the fired and not-fired paths.
-
-    THIS IS THE LOAD-BEARING HALF OF EPIC 5, and the reason is the command-vs-obligation
-    law the plan is built on: only a step the SCRIPT performs is a step that survives.
-    Every other observability remedy in this plan — enumerating the report by name in the
-    close contract, a tagged test at the call site — is defence in depth that a removal
-    can walk past. This one writes itself.
-    
-    Without it, a trigger that never fires is INDISTINGUISHABLE FROM A QUIET PERIOD, and
-    plan-059 records four separate instances of exactly that failure (`closable`,
-    `plan_manager.py audit`, `retrospective_fields.py`, and #270's never-poured formula) —
-    every one found by hand, late, by someone who went looking.
-
-    The echo bullet is INERT to the lifecycle: it matches neither the `review:` count regex
-    (REQ-PORT-006) nor the `scoping:` grandfather-date regex, so it can never perturb an
-    audit. Returns ``{"appended", "line", "skipped_reason"}``.
-    """
-    plan_md = plan_dir / "plan.md"
-    status = None
-    if plan_md.exists():
-        status = _read_plan_status(plan_md.read_text(encoding="utf-8"))
-    if status in _JUDGEMENT_TERMINAL_STATUSES:
-        return {"appended": False, "line": None,
-                "skipped_reason": f"bundle status is `{status}` — its log is a closed record"}
-    bullet = f"{JUDGEMENT_FIRED if fired else JUDGEMENT_NOT_FIRED} — {detail}"
-    try:
-        okf.append_log(plan_dir, bullet, date=datetime.now().strftime("%Y-%m-%d"))
-    except Exception as exc:  # a broken log must not take the trigger down with it
-        return {"appended": False, "line": None, "skipped_reason": f"append_log failed: {exc}"}
-    return {"appended": True, "line": f"- {bullet}", "skipped_reason": None}
-
-
 def _review_loop_escalation(plan_dir: Path, escalates: bool, cycles: int, limit: int) -> dict:
     """The escalation PAYLOAD `review-loop-check` carries (REQ-PORT-054 shape).
 
@@ -7748,31 +7265,6 @@ def _escalation_report(plan_dir: Path) -> dict:
     }
 
 
-@cli.command("escalation-report")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def escalation_report(plan_dir: str, as_json: bool):
-    """Report the escalation instrumentation research 005 §8.4 names as missing (Issue 3.5).
-
-    Emits `raised`, `answered`, `no_answer_taken`, `open` and `pushes`, plus one row per
-    escalation recording when it was raised, whether it was answered, and whether its
-    `on_no_answer` default was taken instead.
-
-    **`raised` is CUMULATIVE** — every entry ever raised, whatever state it is in now — not
-    the number currently in `state: raised`, which is reported separately as `open`. The
-    distinction is load-bearing: the cost-ratio premise the whole escalation path rests on is
-    "how often does an answer arrive versus how often is the default silently taken", and a
-    count that shrinks as questions get answered cannot measure it.
-    """
-    result = _escalation_report(Path(plan_dir))
-    if as_json:
-        click.echo(json.dumps(result, indent=2))
-    else:
-        click.echo(f"raised={result['raised']} answered={result['answered']} "
-                   f"no_answer_taken={result['no_answer_taken']} open={result['open']} "
-                   f"pushes={result['pushes']}")
-
-
 @cli.command("escalation-push")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--pane", default=None,
@@ -7876,56 +7368,6 @@ def escalation_push(plan_dir: str, pane: str | None, dry_run: bool, as_json: boo
     click.echo(json.dumps(result, indent=2) if as_json else f"pushed {len(pending)} in 1 message")
 
 
-@cli.command("judgement-echo-check")
-@click.argument("plan_dir", type=click.Path(exists=True))
-@click.option("--json-output", "--json", "as_json", is_flag=True)
-def judgement_echo_check(plan_dir: str, as_json: bool):
-    """Prove the trigger echoes, by EXTERNAL OBSERVATION (Issue 5.1).
-
-    Reads `log.md`, invokes the trigger **as a subprocess**, reads `log.md` again, and
-    reports `lines_added` and `added_line` from the difference. Nothing here trusts anything
-    the trigger says about itself: a self-report from the component under test is exactly the
-    evidence standard `detected_by` exists to make visible.
-
-    The subprocess is deliberate rather than an in-process call. An in-process call would
-    still be green if `review-loop-check` stopped invoking the echo and this verb invoked it
-    directly — which is the removal Epic 5 exists to detect.
-    """
-    pdir = Path(plan_dir)
-    log = pdir / "log.md"
-    before = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-
-    proc = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "review-loop-check",
-         str(pdir), "--json"],
-        capture_output=True, text=True,
-    )
-    after = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-
-    # A MULTISET difference, not a membership test. `ln not in before` silently reports ZERO
-    # lines added when the appended line is IDENTICAL to one already in the log — which is the
-    # ordinary case, since a second invocation on the same day writes the same bullet. The
-    # membership form made this verb report its own failure on every re-run.
-    added = list((Counter(after) - Counter(before)).elements())
-    judgement_lines = [ln for ln in added if "judgement: " in ln]
-    result = {
-        "plan_dir": str(pdir),
-        "trigger": "review-loop-check",
-        "trigger_exit": proc.returncode,
-        "lines_added": len(judgement_lines),
-        "added_line": judgement_lines[0] if judgement_lines else None,
-        "all_added_lines": added,
-        "verdict": "PASS" if len(judgement_lines) == 1 else "FAIL",
-        "remediation": None if len(judgement_lines) == 1 else (
-            "the trigger wrote no `judgement:` echo to log.md. A trigger whose non-firing is "
-            "indistinguishable from a quiet period is not shippable (plan-059 SC6). Restore "
-            "the `_judgement_echo` call in `review-loop-check`."
-        ),
-    }
-    click.echo(json.dumps(result, indent=2))
-    raise SystemExit(0 if result["verdict"] == "PASS" else 1)
-
-
 @cli.command("review-loop-check")
 @click.argument("plan_dir", type=click.Path(exists=True))
 @click.option("--max-review-cycles", "raise_to", type=int, default=None,
@@ -7982,11 +7424,7 @@ def review_loop_check(plan_dir: str, raise_to: int | None, as_json: bool):
     # so its non-firing is distinguishable from a quiet period without anyone remembering to
     # look. This is the only remedy in Epic 5 that sits at the top of the
     # command-vs-obligation table.
-    result["judgement_echo"] = _judgement_echo(
-        pdir, escalates,
-        f"review-loop-check: {cycles}/{limit} cycle(s), "
-        f"{'ESCALATING (stop class 4)' if escalates else 'converging'}",
-    )
+
     if escalates:
         result["remediation"] = (
             f"the review loop has run {cycles} cycle(s), at or above the bound of {limit}. "
@@ -9528,7 +8966,6 @@ def _dirty_outside_plan_dir(plan_dir, root=None, runner=None) -> dict:
             staged.append(path)
     return {"dirty": bool(paths), "paths": sorted(paths), "staged": sorted(staged),
             "records": len(paths)}
-
 
 
 def _land_fsync_write(path: Path, text: str) -> None:
