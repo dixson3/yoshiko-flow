@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-12
+- landing-halt: L_CONFLICT_MERGE l2_merge irreversible=false (L2 rebased local main onto origin while main was ahead with merge commits; recovered by resetting main to 68c63b7 from the reflog and pushing it; pre-push, no outward write)
 - review-pass: 6 (execution) — APPROVE, zero measured findings; post-execution recertification after the SC4 amendment (ESC-001); fingerprint refreshed f0822aa9 → ba0e9a44 on operator instruction ('recertify')
 - autonomy: max-review-cycles raised to 6 for this invocation (cycles=5) — escalation override
 - reconciling: post-execution reconciliation
