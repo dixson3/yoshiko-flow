@@ -194,7 +194,6 @@ skills/yf-plan/
 │   ├── plan_manager.py                    # Plan CRUD, prerequisite checking, portability audit, crash-recovery
 │   ├── plan_template.py                   # The canonical plan.md skeleton + producer constants (vendored
 │   ├── pour_fidelity.py
-│   ├── repair_dangling_epics.py           # One-shot repair for epics orphaned by a crashed pour
 │   ├── retrospective_fields.py            # prevention_formula enum check + prevention_vars (#196)
 │   ├── test_audit_close.py
 │   ├── test_autonomy.py
@@ -211,7 +210,6 @@ skills/yf-plan/
 │   ├── test_gates.py
 │   ├── test_index_members.py
 │   ├── test_intake_lint_binding.py
-│   ├── test_judgement_trigger.py
 │   ├── test_land_apply.py
 │   ├── test_land_inplace.py               # `land` under `execute.worktree: false` (#331), incl. end-to-end
 │   ├── test_land_manifest.py

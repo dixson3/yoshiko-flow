@@ -41,3 +41,21 @@ warning, which would train a reader to ignore it.
 | `no_answer_taken` | yes |
 | `push_batch` | 20260912T112820-1 |
 
+## ESC-002
+
+| Field | Value |
+| :-- | :-- |
+| `question` | The untracked, deferred plan-070 bundle has root-index drift (5 members absent from its index.md), so CHANGE-VALIDATION's okf-index-drift row — scanning every docs/plans/* bundle in the working tree — fails on it. plan-071 was told not to touch plan-070. Every other FAST row passes. Which way? |
+| `alternatives` | operator moves or stashes the untracked docs/plans/plan-070-james-dixson-810177/ folder out of the working tree until plan-071 lands (it is untracked, so git is unaffected); operator authorizes plan-071 to regenerate plan-070's index.md listing (okf.py reindex --write), touching the deferred bundle; leave it — every FAST/FULL run that includes the okf-index-drift row stays red on plan-070 alone, and plan-071's 5.1 FULL gate and L3 validate-merged will halt on it |
+| `recommended` | operator moves or stashes the untracked docs/plans/plan-070-james-dixson-810177/ folder out of the working tree until plan-071 lands (it is untracked, so git is unaffected) |
+| `on_no_answer` | continue executing (all other rows green), record the single plan-070-caused red in log.md at each FAST/FULL run, and let the landing gate (operator-run) surface it — no plan-070 file is touched |
+| `detected_by` | mechanical-check |
+| `evidence` | uv run scripts/checks/check_okf_index_drift.py --min-roots 30 --json -> drifting: [docs/plans/plan-070-james-dixson-810177] (findings/exp-001, exp-002, references/upstream-230/263/266 absent from index.md); every other bundle clean |
+| `asked_of` |  |
+| `state` | raised |
+| `answer` |  |
+| `raised_when` | 2026-09-12 |
+| `resolved_when` |  |
+| `no_answer_taken` | no |
+| `push_batch` | 20260912T120513-1 |
+

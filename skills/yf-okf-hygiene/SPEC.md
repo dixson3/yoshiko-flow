@@ -363,15 +363,15 @@ the renamed index that `reindex --write` cannot repair. The correct transform is
 
 | Requirement | Verified by |
 | :-- | :-- |
-| REQ-OKFH-001 | `scripts/checks/check-assess-verb-gone.sh` — every engine-backed advertised verb dispatches, across **both** OKF skills |
-| REQ-OKFH-002 | `harness-selftest.sh` RED rows; absolute-root acceptance exercised per entry point |
+| REQ-OKFH-001 | **no executed verification** — the `check-assess-verb-gone.sh` instrument was retired by plan-071 under REQ-PLAN-086 (the instrument was wired into no CI row, no CHANGE-VALIDATION row and no test, so its Verification was prose); the property (every engine-backed advertised verb dispatches) is a stated hand-check |
+| REQ-OKFH-002 | **no executed verification** — the `harness-selftest.sh` RED rows were retired by plan-071 under REQ-PLAN-086 (the instrument was wired into no CI row, no CHANGE-VALIDATION row and no test, so its Verification was prose); absolute-root acceptance is a stated hand-check |
 | REQ-OKFH-003 | `test_okf_hygiene.py::audit_readonly_and_reindex_refusal` |
 | REQ-OKFH-004 | `test_okf_hygiene.py` fixture-driven classification core (two-variant equivalence) |
 | REQ-OKFH-005 | `test_okf_hygiene.py::root_detection_self_contained` |
 | REQ-OKFH-006 | `test_okf_hygiene.py::fingerprint_invariance` + the corpus run |
 | REQ-OKFH-007 | `test_okf_hygiene.py::plan030_hybrid_log_preserved` |
 | REQ-OKFH-008 | `test_okf_hygiene.py::crash_s1_bundle_present`, `::crash_s2_errno66`, `::crash_s3_recorded_physical_s2`, `::crash_s4_recorded_physical_s3`, `::crash_recovery_every_reachable_state_survives` — all driving the **real `backfill` swap** through a deterministic seam, covering each of the five **physical** states under the over-approximation reading in which `S1` is recovery-time-only and never written. "All states" means all PHYSICAL states, not all recorded labels: the recorded set is a proper subset, so a test enumerating recorded labels leaves the `S1` window — where the bundle is destroyed — unexercised. Detection is itself verified by `scripts/checks/check-crash-test-detects-lag.sh`. The superseded `::crash_recovery_all_states` is **not** named: measured, it hand-constructed each journal state, never invoked the swap, and was byte-identically green before and after the phase-ordering fix. |
-| REQ-OKFH-009 | `scripts/checks/check-backfill-audit-delta.py --record <path>` |
+| REQ-OKFH-009 | **no executed verification** — `check-backfill-audit-delta.py` was retired by plan-071 under REQ-PLAN-086 (the instrument was wired into no CI row, no CHANGE-VALIDATION row and no test, so its Verification was prose) |
 | REQ-OKFH-010 | `test_okf_hygiene.py::restore_record_driven` (the reversal is driven by the RECORDED op list, so a `restore` re-deriving from `rglob` + `git ls-files` FAILS it), `::restore_refuses_non_git`, `::restore_refuses_untracked`, `::restore_refuses_dirty`, `::restore_refuses_legacy_record`, `::restore_bundle_filter`, `::underscore_index_live_target`, `::audit_readonly_and_reindex_refusal`; detection verified by `scripts/checks/check-crash-test-detects-lag.sh --req REQ-OKFH-010`. The superseded `::restore_round_trip` is NOT named: measured, it exits 0 against the non-record-driven `restore` this requirement forbids, so naming it would carry a false green into the traceability table. |
 | REQ-OKFH-011 | `test_okf_hygiene.py::dry_run_predictive` |
 | REQ-OKFH-012 | `test_okf_hygiene.py::reconcile_objective` |

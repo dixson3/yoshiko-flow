@@ -1020,7 +1020,8 @@
 >   the call site instead of the callee" finding, recurring on a third engine. Pinning the new
 >   criteria to **new** test names prevents *inheriting* a false green but never *detects* one, so
 >   the plan additionally adds a **negative control** (`check-crash-test-detects-lag.sh`, with a
->   `--req` arm covering both) that reverts each fix in a sandbox and asserts the test **FAILS**.
+>   `--req` arm covering both) that reverts each fix in a sandbox and asserts the test **FAILS**
+>   (that control was never wired into CI or CHANGE-VALIDATION and was retired by plan-071).
 >
 >   **Declared `no-req-required` set: {1.7, 5.1, 5.2, 5.3, 5.4, 5.5}** — a `.gitignore` entry, two
 >   `CHANGE-VALIDATION.md` trigger-scope rows, and three upstream comment/issue/bead filings. None

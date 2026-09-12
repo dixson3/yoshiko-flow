@@ -33,7 +33,7 @@ else** on stdout. `check-cited-figures.py` runs each under `bash -c` — the sam
 | `herdr-schema-human` | 0 | `uv run scripts/checks/_figures.py herdr-schema-human` |
 | `herdr-schema-attached` | 0 | `uv run scripts/checks/_figures.py herdr-schema-attached` |
 
-**`cli-verbs` is 40, not 39, and the change is deliberate.** Epic 0 Issue 0.3 amended
+**`cli-verbs` is 40, not 39, and the change is deliberate — and since plan-071 the row is PINNED to this plan's landing commit** (`_figures.py CLI_VERBS_BASELINE_REV`), on the `run-git-call-sites` precedent below: plan-071 froze and pruned the verb set (REQ-PLAN-086), so a live count would report the freeze itself as drift of a figure this bundle only ever quoted as of its own landing. The successor value is measured live by `test_cli_enumeration.py`. Epic 0 Issue 0.3 amended
 `REQ-CLI-006`'s enumeration to add `land`, so the *spec* enumerates 40. The **source** carries 39
 until Issue 1.6 registers the verb, and `test_cli_enumeration.py` is correspondingly RED across
 that window — the SPEC-first ordering, recorded in `criteria-validation.md`. This row tracks the

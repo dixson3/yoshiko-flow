@@ -146,10 +146,10 @@ fi
 Non-engine-backed subcommands: none
 
 All engine-backed subcommands route to `scripts/okf_hygiene.py` via `uv run`. The marker line
-above is machine-read by `scripts/checks/check-assess-verb-gone.sh`, which asserts that every
-advertised engine-backed subcommand is dispatchable — so an advertised verb the script cannot
-dispatch is a red check, not a silent lie. Declaring the exemption set explicitly is the point:
-an *inferred* exemption is indistinguishable from an oversight.
+above is a declared exemption set: an advertised verb the script cannot dispatch is a defect,
+not a silent lie. (The `check-assess-verb-gone.sh` reader was retired by plan-071 as an unwired
+instrument; the marker stays because declaring the set explicitly is the point — an *inferred*
+exemption is indistinguishable from an oversight.)
 
 **`assess` is an alias, and that is the whole of D-3's "absorb".** `yf-okf` advertised an
 `assess` verb its engine never dispatched. The capability it advertised — discover bundles under
@@ -252,9 +252,9 @@ effect of an unrelated invocation is the class of surprise `--apply` is gated on
 > not do: `S2` was written *after* rename 1, so a crash in that window recorded `S1` and recovery
 > **deleted the transformed copy** while reporting `recovered: true`; and `recover()` had **no CLI
 > verb and no caller**, so a stale journal was never noticed by anything. The mechanism is now
-> what this section claims — and the claim is checked by
-> `scripts/checks/check-crash-test-detects-lag.sh`, which asserts the crash tests **fail** against
-> a tree with the phase ordering reverted.
+> what this section claims — and the claim is checked by `test_okf_hygiene.py`'s crash cases
+> (the `check-crash-test-detects-lag.sh` negative control that reverted the ordering in a sandbox
+> was retired by plan-071 as an unwired instrument).
 
 **Read the safety evidence precisely.** The `plan.md` content fingerprint is **not** the
 guarantee — it excludes `README.md`, `index.md` and `log.md`, i.e. *every file this transform
