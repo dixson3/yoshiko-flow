@@ -50,7 +50,7 @@ session until `yf self install --from-build --build` at land-the-plane.
 - Network: `gh` authenticated against `dixson3/yoshiko-flow`; upstream writes only via `/yf-beads-upstream` at land-the-plane. No Dolt remote.
 - Side effects: Epics 3–4 **delete** code, tests, formulas and check scripts. All deletions are git-reversible; none touch operator config or the installed skill copy.
 - The plan runs through the **installed (pre-change) yf-plan skill**; its own reconcile gate may be poured without `gate_type` metadata (#388) until plan-070 lands, in which case the operator resolves it by hand.
-- plan-070 (`ready-for-approval` at authoring) may land before or after this plan; Issue 3.2 branches on that.
+- plan-070 (`ready-for-approval`, untracked) is **deferred by operator decision (2026-09-12)** until this plan lands; it is then re-scoped against the pruned chain.
 
 ## Adjacent-concept glossary
 

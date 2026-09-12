@@ -1,6 +1,11 @@
 # Log
 
 ## 2026-09-12
+- approved: operator approved the re-scoped plan (plan-070 deferred; this plan goes first)
+- ready-for-approval: ready-check green after the plan-070-deferral re-scope — pass-5 (execution) APPROVE + audit pass
+- review-pass: 5 (execution) — APPROVE on the plan-070-deferral re-scope; re-certified against fingerprint 11310dcf (stored d623f106 was stale); 3 low notes actioned
+- judgement: not-fired — review-loop-check: 4/5 cycle(s), converging
+- review: operator deferred plan-070 until after this plan lands; D-5 re-scoped, plan-070 gate removed, 0.4/3.2/4.3 revised — re-review required (stale fingerprint)
 - approved: intake: tracker #397 filed; plan landed on main at 80a109c
 
 - approved: operator approved
