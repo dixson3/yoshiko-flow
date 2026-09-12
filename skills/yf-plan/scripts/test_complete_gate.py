@@ -271,3 +271,47 @@ def test_validated_bullet_is_non_status_token(plan_dir):
 if __name__ == "__main__":
     import sys
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# ---------------------------------------------------------------------------------------
+# plan-071 Issue 4.2 (D-10 revised, REQ-PLAN-086 leg (b)): `attest-validation` gets a test.
+# The subsystem STAYS — measured: plan-031 and plan-041 carry `deliverable_class: ci-release`
+# — and an operator-offered remediation verb counts as live under D-1 leg (a) because
+# `complete-gate`'s remediation text instructs the operator to run it; leg (b) is this.
+# ---------------------------------------------------------------------------------------
+
+def _gate(pd: Path) -> tuple[dict, int]:
+    r = CliRunner().invoke(pm.cli, ["complete-gate", str(pd), "--json"])
+    return json.loads(r.output), r.exit_code
+
+
+def test_attest_validation_writes_the_bullet_that_satisfies_complete_gate(plan_dir, monkeypatch):
+    _set_class(plan_dir, "ci-release")
+    monkeypatch.setattr(pm, "_open_deferred_validation_bead", lambda _pid: None)
+    out, code = _gate(plan_dir)
+    assert code != 0 and out["verdict"] == "fail", "control: the gate halts with no evidence"
+    assert "attest-validation" in out["remediation"], "the gate must OFFER the verb (D-10)"
+
+    r = CliRunner().invoke(pm.cli, ["attest-validation", str(plan_dir),
+                                    "https://example.invalid/runs/1", "--note", "test-build green"])
+    assert r.exit_code == 0, r.output
+    rec = json.loads(r.output)
+    assert rec["log_entry"].startswith("- validated: https://example.invalid/runs/1")
+    log = (plan_dir / "log.md").read_text(encoding="utf-8")
+    assert "- validated: https://example.invalid/runs/1 — test-build green" in log
+
+    out, code = _gate(plan_dir)
+    assert code == 0 and out["verdict"] == "pass" and out["evidence"] == "validated-bullet"
+
+
+def test_a_malformed_attestation_does_not_satisfy_complete_gate(plan_dir, monkeypatch):
+    """Only the recognised `- validated:` shape counts. A bullet that merely TALKS about
+    validation (`- note: validated the run`) is prose, and prose is not an attestation."""
+    _set_class(plan_dir, "ci-release")
+    monkeypatch.setattr(pm, "_open_deferred_validation_bead", lambda _pid: None)
+    (plan_dir / "log.md").write_text(
+        "# Log\n\n## 2026-01-01\n- note: validated the run by hand\n- executing: x\n",
+        encoding="utf-8")
+    assert pm._has_validated_bullet(plan_dir) is False
+    out, code = _gate(plan_dir)
+    assert code != 0 and out["verdict"] == "fail"
