@@ -9,7 +9,7 @@ author: james-dixson
 created: '2026-09-10'
 status: approved
 deliverable_class: standard
-fingerprint: d623f1066a0f9491c8f2319270f6eb0763b6e309db4d5f0a4db6118cfb4232d3
+fingerprint: f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
 ---
 # Plan: Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
 
@@ -18,7 +18,7 @@ fingerprint: d623f1066a0f9491c8f2319270f6eb0763b6e309db4d5f0a4db6118cfb4232d3
 **Created:** 2026-09-10
 **Status:** approved
 **Deliverable-class:** standard
-**Fingerprint:** d623f1066a0f9491c8f2319270f6eb0763b6e309db4d5f0a4db6118cfb4232d3
+**Fingerprint:** f0822aa96b40f03168d01d45e061d38fbed47ae18460f2904c259fb691db699c
 
 ## Objective
 Freeze yf-plan mechanism growth and convert the review loop from reading to executing, with an approval-to-landing fidelity metric and subtraction of declared-but-unenforced layers
@@ -74,7 +74,7 @@ which currently pays a review tax that does not buy landing fidelity.
 | [#338](https://github.com/dixson3/yoshiko-flow/issues/338) | red-team runs NO mechanical checker | include | The execution pass runs every shipped bundle checker; the brief names them | 2.1 |
 | [#384](https://github.com/dixson3/yoshiko-flow/issues/384) | a criterion can be green before its Discharged-by issues ran; commands never smoke-run | include | Smoke-run at `ready-check`; `not-yet-dischargeable` reporting is out (execution-time, not review-time) — **partial** on defect 1, **include** on defect 2 | 2.4 |
 | [#286](https://github.com/dixson3/yoshiko-flow/issues/286) | red-team passes need a CONVERGENCE STANDARD | include | Reading passes are capped at two; passes 3+ are execution-only with a closed finding vocabulary | 2.1, 2.2 |
-| [#392](https://github.com/dixson3/yoshiko-flow/issues/392) | META: declared in prose, acted on by code | partial | **In:** the backlog lens is applied to yf-plan's own review loop, the REQ-LAND set and the manager's checks (Epics 3, 4); this plan's own draft D-10 — a corpus grep declared in prose and never run — the pass-1 C1 resolution cell that described an edit only half made (#306), the draft SC3 whose grep could never go green (pass-3 C1), and a `cell-vocabulary` check that binds only the first table in a review file (pass-3 C3) are recorded as further instances. **Out:** the remaining members (#388/#389/#266/#387) — plan-070 owns #388/#389 | 0.4, 4.6, 4.7 |
+| [#392](https://github.com/dixson3/yoshiko-flow/issues/392) | META: declared in prose, acted on by code | partial | **In:** the backlog lens is applied to yf-plan's own review loop, the REQ-LAND set and the manager's checks (Epics 3, 4); this plan's own draft D-10 — a corpus grep declared in prose and never run — the pass-1 C1 resolution cell that described an edit only half made (#306), the draft SC3 whose grep could never go green (pass-3 C1), and a `cell-vocabulary` check that binds only the first table in a review file (pass-3 C3) are recorded as further instances. **Out:** the remaining members (#388/#389/#266/#387) — #388/#389 are re-examined with the deferred plan-070 after this plan lands | 0.4, 4.6, 4.7 |
 | [#364](https://github.com/dixson3/yoshiko-flow/issues/364) | recheck-criteria runs without the criteria preamble env | include | The one real oracle must evaluate what it is pointed at; preamble env established at every binding | 4.3 |
 | [#325](https://github.com/dixson3/yoshiko-flow/issues/325) | gate_consistency.py returns PASS on gates it cannot evaluate | include | Two facts, one signal: no-gates (PASS) vs none-evaluable (INCONCLUSIVE); engine runs at `ready-check` first, chain row is a regression guard | 2.4, 4.4 |
 | [#356](https://github.com/dixson3/yoshiko-flow/issues/356) | executable criterion can false-fail on an empty collection | partial | **In:** the smoke-run classifies an empty-collection false-fail as an authoring defect at review time. **Out:** a grammar extension | 2.4 |
@@ -84,7 +84,7 @@ which currently pays a review tax that does not buy landing fidelity.
 | [#289](https://github.com/dixson3/yoshiko-flow/issues/289) | no instrument compares cited figures against commands | exclude | Already shipped by plan-060 as `scripts/checks/check-cited-figures.py`; the execution pass merely runs it | — |
 | [#328](https://github.com/dixson3/yoshiko-flow/issues/328) | apply the measurement-ordering argument exhaustively | exclude | A red-team heuristic for reading passes; this plan reduces reading passes rather than improving them | — |
 | [#312](https://github.com/dixson3/yoshiko-flow/issues/312) | process-audit stage: make retrospective/landing/preflight BEADS | exclude | Adds mechanism; contradicts the freeze. Revisit after one clean landing | — |
-| [#395](https://github.com/dixson3/yoshiko-flow/issues/395) | bd mol pour drops the formula's declared gate type | exclude | plan-070's domain (gate metadata); not touched here | — |
+| [#395](https://github.com/dixson3/yoshiko-flow/issues/395) | bd mol pour drops the formula's declared gate type | exclude | gate metadata at pour; deferred with plan-070 and re-examined against the pruned chain | — |
 
 ## Investigation Findings
 
@@ -175,12 +175,19 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
   source). `landing-halt:` is an inert token like `intake:`. The intake commit is findable by its
   fixed subject `<plan-id>: INTAKE approved (awaiting /yf-plan execute)` (48 exist).
   `retrospective-report --fidelity` derives both; `retrospective-append --kind fidelity` records them.
-- **D-5 plan-070 lands first.** #388/#389/#393/#394/#395 stay there. A `probe` capability gate
-  ("plan-070 has landed") blocks 0.4 and 3.2, so `spec/landing.md` is rewritten once, on top of
-  070's amendments, and 070's `route_record` writer/reader pair is preserved. Ordering also removes
-  R4's hazard for free (pass-1 C12): 070 lands through the unchanged chain, so its 15 prose criteria
-  never meet the new INCONCLUSIVE halt; migrating them after approval would itself count as 15
-  `sc_flipped_post_approval` events.
+- **D-5 (revised after approval, operator decision 2026-09-12) plan-070 is DEFERRED; this plan
+  goes first.** The operator's concern: plan-070 is spinning on the class this plan addresses.
+  Consequences, all taken here rather than left implicit: (a) the plan-070 ordering gate is
+  removed; (b) `spec/landing.md` is rewritten from the tree as it is — `REQ-LAND-039` never
+  arrives, so the count is 39 − 3 − 14 = 22 unchanged; (c) REQ-LAND-015 is **narrowed** to the two
+  stamps that exist (apply journal + tty refusal envelope) and the writer-less reader
+  `_land_route_record_findings` is deleted under D-1 (#393 closes by subtraction, not by adding a
+  writer); (d) the dead forward-compat arms of `_gate_is_resolved` / `_bead_is_terminal` (#394)
+  collapse to `status == "closed"` in Issue 4.3 (14 lines, measured in EXP-002); (e) #388 and #389
+  stay open and are **re-examined against the pruned chain** when plan-070 is revisited — its 15
+  prose criteria must be converted to clause form before it can pass the new `ready-check`, and
+  that conversion happens before re-approval so it is not a post-approval flip. This plan's own
+  reconcile gate remains a #388 instance (R5) and is resolved by hand if poured `human`.
 - **D-6 The plan applies its rule to itself.** Its own review is two reading passes then an
   execution pass (SC9); its landing is the metric's first post-change data point.
 - **D-7 The REQ-LAND prune is compression and merge, not behaviour deletion** (EXP-001). 39 →
@@ -214,7 +221,7 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
 - Issue 0.1: Amend `REQ-PLAN-030` (review shape) and add `REQ-AGENT-066` (the execution-pass contract): passes 1–2 may read; pass ≥3 runs the shipped bundle checkers and every clause-form criterion, emits `Mode: reading|execution` in `pass-N.md`, and raises only `measured:` findings with command + exit code; `inferred:` findings cannot be `high`. Amendment-log entries in `SPEC.md` and `skills/yf-plan/SPEC.md`. **Cited, not amended:** REQ-AGENT-049, REQ-AGENT-043.
 - Issue 0.2: Add `REQ-PLAN-084` (the approval-to-landing fidelity metric: the two derived numbers, their sources, and the `fidelity` retrospective kind) and `REQ-PLAN-085` (`ready-check` requires every Success Criteria row to be clause-form or `manual:` and smoke-runs every command; INCONCLUSIVE from a halting close-chain verb halts). Amendment-log entries.
 - Issue 0.3: Add `REQ-PLAN-086` (the freeze and retention standard D-1/D-2/D-9 as a requirement, pinning the verb-count ceiling **32** and REQ-LAND-count ceiling **22** that `check-provably-necessary.py` reads; the arithmetic — 41 − 6 dead − `audit-close` − `parked` − `judgement-never-fired-report` = 32 — is stated in the requirement so slack of zero is visible). Amendment-log entry.
-- Issue 0.4: Rewrite `skills/yf-plan/spec/landing.md` to the EXP-001 pruned set **on top of plan-070's landed amendments** (the "plan-070 has landed" gate blocks this issue; `REQ-LAND-039` folds into the merged 004 L6 row and 070's amendments to 004/006/015/017a are carried into their merged destinations): keep 001, 006, 010, 013, 014, 017, 019, 026, 035 verbatim; merge 002+003+018+036 → one re-derivation/digest requirement; 004+005+025+023+031 → the order table (023/031's L18 rules become that row's text); 006+007+008+009 → one journal requirement; 011+029 → one resume requirement; 032+033 → one L16 requirement; 024+034+026 → one dry-run contract (mutates nothing, halting findings); rewrite 012, 017a, 020, 021, 022, 030, 037 (keep the `DERIVED:` fence), 038 as forward requirements; delete 016, 027, 028; keep 015 as plan-070 implemented it (writer + reader). State "20 logical steps, 15 executor keys" once. Every retained id keeps a one-line `Verification:` naming an existing test. Arithmetic: 39 ids − 3 deleted − 14 absorbed by the six merge groups = **22** survivors (the verbatim-keep list is 001, 006, 010, 013, 014, 017, 019, 035 plus the merged 026; 039 arrives inside 004's row). Target ≤22 ids, ≤350 lines. Amendment-log entry listing every merged/deleted id and its destination.
+- Issue 0.4: Rewrite `skills/yf-plan/spec/landing.md` to the EXP-001 pruned set from the tree as it is (plan-070 is deferred; `REQ-LAND-039` does not exist and is not allocated here): keep 001, 006, 010, 013, 014, 017, 019, 026, 035 verbatim; merge 002+003+018+036 → one re-derivation/digest requirement; 004+005+025+023+031 → the order table (023/031's L18 rules become that row's text); 006+007+008+009 → one journal requirement; 011+029 → one resume requirement; 032+033 → one L16 requirement; 024+034+026 → one dry-run contract (mutates nothing, halting findings); rewrite 012, 017a, 020, 021, 022, 030, 037 (keep the `DERIVED:` fence), 038 as forward requirements; delete 016, 027, 028; **narrow 015** to the two `route_record` stamps that exist (the `land` apply journal and the tty-refusal envelope) and drop the per-gate-close clause nothing writes (#393). State "20 logical steps, 15 executor keys" once. Every retained id keeps a one-line `Verification:` naming an existing test. Arithmetic: 39 ids − 3 deleted − 14 absorbed by the six merge groups = **22** survivors (the verbatim-keep list is 001, 006, 010, 013, 014, 017, 019, 035 plus the merged 026). Target ≤22 ids, ≤350 lines. Amendment-log entry listing every merged/deleted id and its destination.
   - depends-on: 0.3
 
 ### Epic 1: The fidelity metric
@@ -232,7 +239,7 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
   - depends-on: 0.1
 - Issue 2.3: `test_review_agent_contract.py` pins REQ-AGENT-066 (the `Mode` rule, the checker list, the `measured|inferred` column) with a negative control: a copy of `red-team.md` missing the rule fails the test.
   - depends-on: 2.1
-- Issue 2.4: `ready-check` enforces REQ-PLAN-085: runs `gate_consistency.py` over the bundle (FAIL blocks readiness; pass-1 C3 — the engine's first look must be pre-approval, not L8 after the push); every SC row clause-form or `manual:` (reuse `doc_lint`'s `_verification_clause_ok`, do not write a second grammar), and each command is smoke-run under `bash -c` with a 30s bound — exit 126/127, a timeout, or `usage:` / `unrecognized arguments` / `command not found` on stderr fails with the row id; a `No such file` is a failure **unless the missing path is named in the plan's `## Epics` text** (a declared deliverable that does not exist yet — measured on this plan: SC6, SC8, SC9, SC13 reference files Issues 2.4, 1.3, 2.1, 4.6 create). The allow-list is derived from `plan_extract.py` output, never hand-listed. New `test_ready_check_smoke.py` with a passing fixture and three failing fixtures (prose cell, `command not found`, argparse usage error).
+- Issue 2.4: `ready-check` enforces REQ-PLAN-085: runs `gate_consistency.py` over the bundle (FAIL blocks readiness; pass-1 C3 — the engine's first look must be pre-approval, not L8 after the push); every SC row clause-form or `manual:` (reuse `doc_lint`'s `_verification_clause_ok`, do not write a second grammar), surfaces `stale_approved` from the fingerprint check (pass-5 C2: today only `resume-scan` reports it); and each command is smoke-run under `bash -c` with a 30s bound — exit 126/127, a timeout, or `usage:` / `unrecognized arguments` / `command not found` on stderr fails with the row id; a `No such file` is a failure **unless the missing path is named in the plan's `## Epics` text** (a declared deliverable that does not exist yet — measured on this plan: SC6, SC8, SC9, SC13 reference files Issues 2.4, 1.3, 2.1, 4.6 create). The allow-list is derived from `plan_extract.py` output, never hand-listed. New `test_ready_check_smoke.py` with a passing fixture and three failing fixtures (prose cell, `command not found`, argparse usage error).
   - depends-on: 0.2
 - Issue 2.5: Delete `formulas/plan-review.formula.toml` and `formulas/verify-artifact.formula.toml`; remove them from `plan066_checks.py`/`plan067_checks.py` `SHIPPED_FORMULAS`, `test_retrospective_fields.py KNOWN`, the ctl-270-seam case in `test_judgement_trigger.py`, `README.md`, the web formula pages/diagram source, and `web/content/pages/formulas.md:61` ("The five shipped formulas" → "three"), which `scripts/checks/check_web_counts.py`'s `FORMULA_COUNT_RE` compares against `len(census["formulas"])`. `bd formula list` in a sandbox `bd init` shows neither. **No new REQ** — this is a bug fix to REQ-PLAN-030's shipped shape (an unpoured formula is dead code).
   - depends-on: 0.1
@@ -240,7 +247,7 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
 ### Epic 3: The REQ-LAND prune, code side
 - Issue 3.1: Rename `_land_l8_to_l15_close_chain` → `_land_l8_to_l11_close_chain`; update `LAND_EXECUTOR`, `derive_land_launchers.py`, `check_land_seam.py`, `land_rehearsal.py`, `test_land_*.py` and `lander.md`. Retag every test whose name or docstring cites a merged or deleted REQ-LAND id to the surviving id (mapping from Issue 0.4's amendment entry). `test_landing_spec_enumerates_steps_and_journal_states` additionally pins the id count ≤22.
   - depends-on: 0.4
-- Issue 3.2: REQ-LAND-015 continuity after plan-070. `audit-close` is deleted by Issue 4.3, so `_land_route_record_findings` needs a surviving caller: move its call into `land --dry-run` facts (which already read the epic via `_land_epic_from_bd`; `ready-check` is bd-free and stays so — pass-2 C3), keep plan-070's negative control green, and record `REQ-LAND-015 branch: reader relocated to <site>` in `log.md`.
+- Issue 3.2: REQ-LAND-015 subtraction. Delete `_land_route_record_findings` (119 lines; a reader whose metadata key nothing writes — #393) and its only call site in `audit-close` (itself deleted by 4.3); delete its test; leave the two existing `route_record` emitters (apply journal, tty-refusal envelope) untouched, matching the narrowed 015 from 0.4. Record `REQ-LAND-015 branch: reader deleted (#393 closed by subtraction)` in `log.md`. **No new REQ** — a bug fix to a shipped REQ.
   - depends-on: 0.4, 4.3
 - Issue 3.3: `SKILL.md` §6.0/§6.4 and `spec/phases.md` "Landing" section: replace every reference to a merged or deleted REQ-LAND id; `grep -o 'REQ-LAND-[0-9a]*' skills/ SPEC.md | sort -u` is a subset of the retained set.
   - depends-on: 3.1
@@ -250,7 +257,7 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
   - depends-on: 0.3
 - Issue 4.2: D-10 (revised). The subsystem stays (measured at pass 1: plan-031, plan-041 are `ci-release`). Give `attest-validation` a test (`test_complete_gate.py`: the attestation it writes satisfies `complete-gate`; a malformed attestation does not), so it meets D-1 leg (b). Record the measurement `D-10 measured: 2 ci-release bundles (plan-031, plan-041); subsystem retained` in `log.md` (REQ-PLAN-086).
   - depends-on: 0.3
-- Issue 4.3: Close-chain honesty: delete `_land_l5_advisory_recheck` and its `LAND_EXECUTOR`/journal entries; delete `audit-close` (same engine as `audit`) from the chain and as a verb; merge `judgement-never-fired-report` into `retrospective-report` (one advisory report; the escalation summary becomes a section; rewrite its caller at `SKILL.md:1705` and its `LAND_CLOSE_CHAIN` row); in `_land_l8_to_l11_close_chain` a halting verb's exit 2 halts (`halt_class: inconclusive`) per REQ-PLAN-085; lower `recheck-criteria`'s default per-criterion `--timeout` from 300s to 60s (pass-1 C7: no SC in this plan runs a multi-minute command; SC14 is `manual:` for that reason); tests in `test_land_apply.py` for the exit-2 halt and for L5's absence.
+- Issue 4.3: Close-chain honesty: delete `_land_l5_advisory_recheck` and its `LAND_EXECUTOR`/journal entries; delete `audit-close` (same engine as `audit`) from the chain and as a verb; merge `judgement-never-fired-report` into `retrospective-report` (one advisory report; the escalation summary becomes a section; rewrite its caller at `SKILL.md:1705` and its `LAND_CLOSE_CHAIN` row); in `_land_l8_to_l11_close_chain` a halting verb's exit 2 halts (`halt_class: inconclusive`) per REQ-PLAN-085; lower `recheck-criteria`'s default per-criterion `--timeout` from 300s to 60s (pass-1 C7: no SC in this plan runs a multi-minute command; SC14 is `manual:` for that reason); collapse the dead forward-compat arms of `_gate_is_resolved` (L6285-6292) and `close_cascade._bead_is_terminal` (L183-187) to `status == "closed"` and make the former import the latter (#394; EXP-002 measured zero `gate_status`/`resolved` keys over 232 gates); tests in `test_land_apply.py` for the exit-2 halt and for L5's absence.
   - depends-on: 0.2, 3.1
 - Issue 4.4: `gate_consistency.py` distinguishes two facts it currently collapses (#325, pass-1 C3): **no capability gate declared** → PASS, `gates: 0`, exit 0 (a legitimate plan, e.g. plan-069); **gates declared but none has an issue-kind `Blocks`** → exit 2 INCONCLUSIVE with `evaluated/total`. The existing `gate-consistency` verb wrapper is **kept** (it is the chain's only way to run the engine) and wired into `LAND_CLOSE_CHAIN` as halting in `audit-close`'s former row — a **regression guard**, because Issue 2.4 already ran the engine at `ready-check` before approval. `test_gate_consistency.py:109` asserts both cases; `test_close_contract.py` asserts the tuple `("gate-consistency", ..., True)`. **No new REQ** — a bug fix to a shipped check under REQ-PLAN-085's halting rule.
   - depends-on: 4.3
@@ -279,15 +286,6 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
 - test_class: probe
 - cwd: repo-root
 
-### Capability Gate: plan-070 has landed
-- Type: auto
-- Condition: plan-070-james-dixson-810177 is `complete` on `main`, so `spec/landing.md` carries its amendments before this plan rewrites the file
-- Test: git show main:docs/plans/plan-070-james-dixson-810177/plan.md 2>/dev/null | grep -q '^status: complete$'
-- Blocks: 0.4, 3.2
-- Instructions: Land plan-070 first (`/yf-plan execute plan-070-james-dixson-810177`, then its `land`; if its reconcile gate is poured `human` per its own R2, resolve it by hand as plan-068 did). This gate is world-state by design — it orders two plans — and is decidable at execute start, so the sweep frontloads it.
-- test_class: probe
-- cwd: repo-root
-
 ### Capability Gate: baseline suite is green before deletion begins
 - Type: auto
 - Condition: The land and review suites pass on the execute branch before any verb or chain step is removed
@@ -304,11 +302,11 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
 ## Risks & Mitigations
 | # | Risk | Severity | Mitigation |
 | :-- | :-- | :-- | :-- |
-| R1 | **Merge collision with plan-070.** Both touch `plan_manager.py`'s close chain and `spec/landing.md` (070 adds REQ-LAND-039 and amends 004/006/015/017a; 071 rewrites the file). | high | D-5 (revised): the "plan-070 has landed" gate blocks 0.4 and 3.2, so the rewrite happens once, on top of 070's amendments; 039 has a destination in the merge map. If the operator chooses to run 071 first anyway, the gate fails loudly at execute start rather than at merge time. |
+| R1 | **plan-070's draft is invalidated by this plan.** 070's Epics 3–4 build a `route_record` writer and collapse `_gate_is_resolved`; this plan deletes the reader and does the collapse itself, and rewrites the `spec/landing.md` 070 amends. | med | Operator decision (D-5 revised): 070 is deferred and re-scoped after this plan lands; its bundle is untouched (untracked, `ready-for-approval`) and its `log.md` records the deferral. #388/#389 remain open for that revisit; #393/#394 close here. |
 | R2 | **Web check ripple.** Deleting formulas and verbs changes counts that `check_web_counts`, `check_cli_to_page` and `check_required_set` compare; FAST/FULL go red mid-execution. | med | Issues 2.5 and 4.1 own the web-side edits in the same change. FULL runs once at 5.1 on the merged tree. |
 | R3 | **D-10 deletes a subsystem someone intends to use.** The ci-release completion gate has a spec and tests; removing it on "never used" may be premature. | med | The decision is measured (Issue 4.2), reversible (git), and flagged for the red-team to challenge. If any bundle carries `ci-release`, nothing is deleted. |
-| R4 | **INCONCLUSIVE-halts blocks landings of plans approved before this change** whose criteria are prose (plan-070 today: 0 of 15 evaluable). | low | Removed by ordering: the D-5 gate lands 070 through the unchanged chain before this plan deploys. `ready-check`'s mandatory grammar means no future plan reaches L11 in that state. Migrating 070's criteria instead would count as 15 post-approval flips under D-4. |
-| R5 | **This plan lands through the installed (old) skill** — the three-artifacts rule. Its own reconcile gate is a #388 instance if poured before 070 lands. | med | Pour-time metadata is set by hand per the existing §5.2a snippet; if the gate is poured `human`, the operator resolves it. Redeploy only at land-the-plane. |
+| R4 | **INCONCLUSIVE-halts blocks landings of plans approved before this change** whose criteria are prose (plan-070 today: 0 of 15 evaluable). | med | Deliberate. plan-070 is deferred and will be re-reviewed under the new `ready-check`, which forces its criteria into clause form **before** re-approval — so the conversion is not a post-approval flip. Any other pre-change plan that reaches L11 with prose criteria halts and must be re-approved. |
+| R5 | **This plan lands through the installed (old) skill** — the three-artifacts rule. Its own reconcile gate is a #388 instance (plan-070's fix is deferred). | med | Pour-time metadata is set by hand per the existing §5.2a snippet; if the gate is poured `human`, the operator resolves it. Redeploy only at land-the-plane. |
 | R6 | **Test churn.** Deleting verbs removes tests that `CHANGE-VALIDATION.md` rows name; the FAST tier goes red on the deletion commit. | med | Each deletion issue edits the CV row in the same commit. Issue 4.6's check is added last, after the tree it measures exists. |
 | R7 | **The freeze check is itself vacuous** — a caller-count check that matches prose mentions or enumeration lists certifies dead verbs as live/tested. | high | Invocation-form matching on both legs (`plan_manager.py <verb>` in argv or `CliRunner.invoke`, or the `LAND_*` tables), five negative controls, and the check reads its ceilings from the spec rather than a constant beside the code (#392 "derived not transcribed"). |
 | R8 | **The metric is gamed by amending criteria before landing** so nothing "flips". | med | The diff is against the intake commit, so an amendment is exactly what is counted. A `manual:` conversion counts as a flip. |
@@ -336,5 +334,5 @@ Decisions (D-1 to D-6 are from scoping; D-7 onward come from the findings):
 | SC16 | SKILL.md §6.4, `LAND_CLOSE_CHAIN` and the rehearsal verb list agree, and a reordered SKILL.md line fails the contract test | `grep -q 'LAND_CLOSE_CHAIN' skills/yf-plan/scripts/test_close_contract.py && uv run skills/yf-plan/scripts/test_close_contract.py` → exit 0 | 4.7 |
 | SC17 | Every REQ id named in Epic 0 carries an amendment-log bullet under this plan's entry, and every implementation issue reaches an Epic 0 REQ | `uv run scripts/check_amendment_log.py --plan plan-071-james-dixson-d19ce8` → exit 0 | 0.1, 0.2, 0.3, 0.4 |
 | SC18 | SKILL.md Phase 3 describes the two-then-execute shape and the `Mode:` line | `test $(grep -c 'Mode:' skills/yf-plan/SKILL.md) -ge 2 && grep -q 'execution pass' skills/yf-plan/SKILL.md` → exit 0 | 2.2 |
-| SC19 | The REQ-LAND-015 reader's relocated call site is recorded in the log | `grep -c 'REQ-LAND-015 branch:' docs/plans/plan-071-james-dixson-d19ce8/log.md` → exit 0 | 3.2 |
+| SC19 | The REQ-LAND-015 reader deletion is recorded in the log and the reader is gone | `grep -q 'REQ-LAND-015 branch:' docs/plans/plan-071-james-dixson-d19ce8/log.md && test $(grep -c '_land_route_record_findings' skills/yf-plan/scripts/plan_manager.py) -eq 0` → exit 0 | 3.2 |
 | SC20 | The D-10 corpus measurement and its outcome are recorded in the log | `grep -c 'D-10 measured:' docs/plans/plan-071-james-dixson-d19ce8/log.md` → exit 0 | 4.2 |
