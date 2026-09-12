@@ -192,8 +192,18 @@ def main() -> int:
     nxt = re.search(r"^> - \*\*", tail[1:], re.M)
     entry = tail[: nxt.start() + 1] if nxt else tail
 
+    # A RETAGGED citation still covers its id. plan-071 merged fourteen `REQ-LAND-*` ids into
+    # six survivors and retired three; its SC3 forbids the merged literals anywhere outside
+    # `spec/landing.md`, so historical amendment entries now cite them as
+    # `REQ-LAND-<new> (as merged by plan-071 from <old>)` or `the formerly reserved landing id
+    # <old>`. The entry still records the id — in the form the freeze allows — so A1 reads
+    # both spellings. The bare-number forms are recognised ONLY inside this plan's own entry
+    # text, never across the whole spec.
+    entry_ids = set(REQ_RE.findall(entry))
+    entry_ids |= {f"REQ-LAND-{n}" for n in re.findall(r"as merged by plan-071 from (\d{3})", entry)}
+    entry_ids |= {f"REQ-LAND-{n}" for n in re.findall(r"reserved landing id (\d{3})", entry)}
     rc = 0
-    missing = sorted(i for i in touched if i not in entry)
+    missing = sorted(i for i in touched if i not in entry_ids)
     if missing:
         rc = 1
         print(
