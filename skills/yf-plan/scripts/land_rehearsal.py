@@ -160,9 +160,13 @@ class SandboxRunner:
 
 #: `plan_manager.py` verbs the close chain and L13-L15 invoke. Enumerated so an argv the
 #: rehearsal has not been taught about FAILS rather than silently returning 0.
-_REHEARSAL_PM_VERBS = frozenset({
-    "retrospective-report", "classify-deliverable", "close-reconcile-step",
-    "verify-reconcile", "recheck-criteria", "complete-gate", "update-status",
+#: DERIVED FROM `LAND_CLOSE_CHAIN`, never copied (plan-071 Issue 4.7, #392): the chain was
+#: encoded three times — SKILL.md §6.4, this list, and `LAND_CLOSE_CHAIN` — with no test
+#: joining them, so a verb added to the chain silently went unfaked here and the rehearsal
+#: reported it as unrecognised. The two L13/L15 verbs outside the chain table are the only
+#: literals, and `test_close_contract.py` asserts SKILL.md's order against the same source.
+_REHEARSAL_PM_VERBS = frozenset(v for v, _, _ in _load_pm().LAND_CLOSE_CHAIN) | frozenset({
+    "complete-gate", "update-status",
 })
 
 #: Sibling scripts the L-steps shell out to.

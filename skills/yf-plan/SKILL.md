@@ -1683,7 +1683,24 @@ epics open under a closed molecule is exactly the #73 defect (stale "ready" cont
 `bd ready`). A container with any still-open child is a **hard failure** — the cascade exits
 non-zero and completion **halts** (never a silent close, never a silent `complete`).
 
-**Close-time retrospective report (ADVISORY) — runs FIRST, above the `classify-deliverable`
+**Gate consistency (HALTING, REQ-PLAN-085 / #325) — runs FIRST.** `ready-check` already ran this
+engine before approval (Issue 2.4), so at close it is a **regression guard**: a `## Gates` edit
+made during execution that contradicts a gate's own Blocks set halts here rather than surfacing
+as a wedged reconcile. It sits in the former `audit-close` slot (plan-071 Issue 4.4).
+
+```bash
+GATES=$(uv run ${SKILL_DIR}/scripts/plan_manager.py gate-consistency "${plan_dir}" --json)
+GATES_RC=$?
+echo "$GATES"
+if [ "$GATES_RC" -ne 0 ]; then
+  echo "FAIL-LOUD: gate-consistency did not pass (exit $GATES_RC — 1 is a contradicting gate,"
+  echo "2 means gates are declared but none could be evaluated). Completion HALTS; do NOT set"
+  echo "'complete'. Fix the plan's ## Gates, then re-run §6.4."
+  exit 1
+fi
+```
+
+**Close-time retrospective report (ADVISORY) — runs next, above the `classify-deliverable`
 block below.** Its position is the chain's read-before-write constraint (REQ-COMPLETE-001
 constraint 1): it is an **observing** step, and the block below contains the
 `set-deliverable-class` **plan.md dual-write**. Placing an observing step at the *bottom* of this

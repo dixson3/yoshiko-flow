@@ -108,6 +108,25 @@ check("ARM 2 ignores a prose GLOB rather than treating it as a control id",
 f = gc.check_plan(doc([gate("G", [], condition="ctl-x", instructions="1.1")], issues, []))
 check("a gate with an EMPTY Blocks set produces no finding", f == [], str(f))
 
+# --- plan-071 Issue 4.4 (#325): two facts, two signals ------------------------------------
+# no capability gate declared -> PASS, gates: 0, exit 0 (a legitimate plan, e.g. plan-069)
+v = gc.verdict_for(doc([], issues, []), [])
+check("no gates declared -> PASS, exit 0, gates 0", v == ("PASS", 0, 0, 0), str(v))
+# gates declared but none has an issue-kind Blocks -> INCONCLUSIVE, exit 2, evaluated/total
+d2 = doc([gate("G", [], condition="ctl-x", instructions="1.1"),
+          {"name": "H", "condition": "ctl-y", "instructions": "1.1", "test": "",
+           "blocks": [{"kind": "reconcile-step", "ref": "reconcile step"},
+                      {"kind": "epic", "ref": "epic:2"}]}], issues, [])
+v = gc.verdict_for(d2, gc.check_plan(d2))
+check("gates declared, none evaluable -> INCONCLUSIVE, exit 2", v[0] == "INCONCLUSIVE" and v[1] == 2, str(v))
+check("...and the verdict carries evaluated/total = 0/2", (v[2], v[3]) == (0, 2), str(v))
+# an evaluable gate with no findings is PASS with evaluated >= 1; with findings it is FAIL
+d3 = doc([gate("G", ["2.1"], condition="ctl-x", instructions="1.1")], issues, [])
+v = gc.verdict_for(d3, [])
+check("an evaluable clean gate -> PASS with evaluated 1/1", v == ("PASS", 0, 1, 1), str(v))
+v = gc.verdict_for(d3, [{"arm": 1, "detail": "x"}])
+check("an evaluable gate with a finding -> FAIL, exit 1", v[0] == "FAIL" and v[1] == 1, str(v))
+
 print()
 if FAILURES:
     print(f"{len(FAILURES)} failure(s)")
