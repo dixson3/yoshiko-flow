@@ -35,7 +35,6 @@ SCRIPTS = Path(__file__).resolve().parent
 REPO = SCRIPTS.parent.parent.parent
 PM = SCRIPTS / "plan_manager.py"
 BUNDLE = REPO / "docs/plans/plan-059-james-dixson-55137e"
-FORMULA = SCRIPTS.parent / "formulas" / "plan-review.formula.toml"
 
 #: The payload keys that are legal at all. Anything outside this set names a
 #: `review-loop-check` internal and would have to be redesigned to move onto the #270 gate.
@@ -119,9 +118,9 @@ with tempfile.TemporaryDirectory() as td:
         serialisable = False
     check("ctl-270-seam: the payload round-trips as JSON (so it can be gate metadata)",
           serialisable)
-    check("ctl-270-seam: the seam is NAMED in plan-review.formula.toml",
-          "#270 SEAM" in FORMULA.read_text(),
-          "a seam recorded only in the plan that made it is a seam the next reader re-derives")
+    # plan-071 Issue 2.5: the `plan-review` formula was deleted as dead code (zero pour
+    # callers), so the "seam is NAMED in the formula" case has no subject. The payload-shape
+    # cases above are what the seam actually requires; they stand.
 
     # ---- ctl-269-echo-external ----------------------------------------------------------
     r = subprocess.run(["uv", "run", str(PM), "judgement-echo-check", str(quiet_b), "--json"],

@@ -136,8 +136,7 @@ ARCH_D2 = "web/content/images/architecture.d2"
 # here, briefly, while repairing something else.
 FORMULAS_D2_HISTORICAL = "web/content/images/formulas.d2"
 FORMULAS_DIAGRAM = "web/content/images/formulas-map.d2"
-SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "plan-review",
-                    "verify-artifact", "yf-research"]
+SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "yf-research"]
 SKILL_GROUPS = ["beads", "markdown", "utility", "workflows"]
 
 # SC10 — the D7 pin and its flags. sha256 equality is FLAG-SENSITIVE, hence both are pinned.

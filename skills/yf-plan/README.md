@@ -118,9 +118,7 @@ skills/yf-plan/
 │       └── off-vocabulary-med.md
 ├── formulas/
 │   ├── plan-execute.formula.toml          # Beads molecule for execution pipeline
-│   ├── plan-investigate.formula.toml      # Beads molecule for investigation wisp
-│   ├── plan-review.formula.toml           # Beads molecule for the Phase-3 review loop (sequencing only)
-│   └── verify-artifact.formula.toml       # ASPECT woven over plan-review's steps at COOK time —
+│   └── plan-investigate.formula.toml      # Beads molecule for investigation wisp
 ├── protocols/
 │   ├── DOC-LINT.md                        # Document-lint on-edit trigger — fires the linter on a create or
 │   ├── manifest.json                      # Hash manifest for PLANS.md and DOC-LINT.md

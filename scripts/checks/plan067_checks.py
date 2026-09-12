@@ -102,8 +102,7 @@ AGENTS_SCOPE_SKILLS = ["yf-plan", "yf-research"]
 WORKFLOWS_PAGE = "web/content/pages/workflows.md"
 
 # SC21b — the shipped formulas, one diagram each; and the meta-diagram this plan REMOVES.
-SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "plan-review",
-                    "verify-artifact", "yf-research"]
+SHIPPED_FORMULAS = ["plan-execute", "plan-investigate", "yf-research"]
 REMOVED_META_DIAGRAM = "formulas.d2"
 
 # SC20 — the combined lifecycle's required content, and #375's literal.

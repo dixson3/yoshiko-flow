@@ -26,19 +26,6 @@ yfplan: {
     shape: rectangle
     style.fill: "#ede9fe"
   }
-  review: {
-    label: "plan-review"
-    workflow_vapor_wisp: "workflow · VAPOR (wisp)"
-    shape: rectangle
-    style.fill: "#ede9fe"
-  }
-  verify: {
-    label: "verify-artifact"
-    aspect_attaches_never_pours: "ASPECT — attaches, never pours"
-    shape: rectangle
-    style.fill: "#ecfeff"
-    style.stroke-dash: 3
-  }
 }
 
 yfresearch: {
@@ -81,20 +68,19 @@ research_agents: {
 }
 
 yfplan.investigate -> plan_agents.investigator: "one bead per experiment"
-yfplan.review -> plan_agents.reviewer: "step: conformance"
-yfplan.review -> plan_agents.redteam: "step: red-team"
 yfplan.execute -> plan_agents.coordinator: "drives the DAG"
 yfplan.execute -> plan_agents.reconciler: "injected reconcile step"
-yfplan.verify -> yfplan.review: "[compose] aspects" { style.stroke-dash: 3 }
 
 plan_agents.planner: {style.stroke-dash: 4}
+plan_agents.reviewer: {style.stroke-dash: 4}
+plan_agents.redteam: {style.stroke-dash: 4}
 plan_agents.captor: {style.stroke-dash: 4}
 plan_agents.lander: {style.stroke-dash: 4}
 
 note: {
-  label: "planner · captor · lander are dispatched by SKILL.md PROSE,"
+  label: "planner · reviewer · red-team · captor · lander are dispatched by SKILL.md PROSE,"
   not_by_a_formula_step_they_h: "not by a formula step — they have no formula edge, and that is"
-  correct_rather_than_a_gap: "correct rather than a gap."
+  correct_rather_than_a_gap: "correct rather than a gap (the Phase-3 review formula was unpoured dead code; plan-071 removed it)."
   shape: text
   near: bottom-center
 }
