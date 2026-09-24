@@ -1,0 +1,58 @@
+direction: right
+
+spec: "Epic 0 — SPEC first" {
+  embed7: "REQ-YF-EMBED-007\nfield limits"
+  sk61: "REQ-SKAUTH-061\nrating"
+  sk62: "REQ-SKAUTH-062\neval contract"
+}
+
+gate: "Epic 1 — hard gate" {
+  chk: "check_frontmatter.py\n≤1024 · name rules"
+  neg: "negative controls"
+  chk -> neg
+}
+
+evals: "Epic 2 — eval harness" {
+  run: "skill_trigger_eval.py\ncandidate | installed"
+  intents: "skills/*/evals/triggers.json"
+  full: "FULL-tier row\nall skills · both harnesses · 3 reps"
+  run -> full
+  intents -> full
+}
+
+trim: "Epic 3 — trim + rate" {
+  base: "baseline rating"
+  five: "5 over-cap → ≤1024"
+  rest: "15 others → ≤600\n(best effort)"
+  final: "ratings-final.md"
+  base -> five
+  base -> rest
+  five -> final
+  rest -> final
+}
+
+split: "Epic 4 — split proposals" {
+  prop: "proposal per\nnot-crisp skill"
+  hg: "human gate" {shape: diamond}
+  prop -> hg
+  hg -> "follow-on plan": approve
+  hg -> "satisfactory\n+ reason": decline
+}
+
+land: "Epic 5 — guidance + land" {
+  guide: "yf-skill-authoring\nguidance"
+  deploy: "redeploy from main"
+  verify: "pi: no [Skill conflicts]\nCC: no listing over budget"
+  guide -> deploy -> verify
+}
+
+spec.embed7 -> gate.chk
+spec.sk62 -> evals.run
+spec.sk62 -> evals.intents
+spec.sk61 -> land.guide
+gate.chk -> trim.five: "same change-set"
+evals.run -> trim.base
+evals.intents -> trim.base
+trim.final -> split.prop
+trim.final -> land.guide
+evals.full -> land.deploy

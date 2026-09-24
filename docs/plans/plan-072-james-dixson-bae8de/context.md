@@ -10,8 +10,14 @@ records the machine and date of capture._
 
 ## Project environment
 
-Describe the project this plan belongs to: what it does, what stack it uses,
-any non-obvious setup. A cold reader should not need to infer this from code.
+`yoshiko-flow` (`dixson3/yoshiko-flow`, working name `beads-skills`) is the source of the
+`yf` Rust CLI and the 20 skills under `skills/` that it embeds and installs into agent
+harnesses (claude-code at `.claude/skills`; pi, codex, opencode at `.agents/skills`).
+Skill helpers are Python run through `uv run` with PEP 723 headers. Validation is
+`CHANGE-VALIDATION.md` (FAST/FULL tiers, executed by the `yf-change-validation` engine);
+doc/spec agreement is `DRIFT-CHECK.md`. SPEC changes land first (AGENTS.md "SPEC-first").
+The running session reads **installed** skill copies, never `skills/`, so editing a
+description changes nothing live until redeploy (AGENTS.md "Three artifacts").
 
 ## Tool inventory
 
@@ -24,6 +30,9 @@ any non-obvious setup. A cold reader should not need to infer this from code.
 - `gh`: gh version 2.101.0 (2026-09-15)
 - `glab`: glab 1.119.0 (f5016eda2)
 - `claude`: 2.1.282 (Claude Code)
+- `pi`: 0.87.1 (`@earendil-works/pi-coding-agent`), provider `cliproxyapi`, model `claude-opus-5-5`
+- `herdr`: 0.9.1. Eval tabs `cc-eval` (`w1G:p2`) and `pi-eval` (`w1G:p3`) during investigation
+- `d2`: `/opt/homebrew/bin/d2`
 
 ## Paths
 
@@ -34,18 +43,35 @@ any non-obvious setup. A cold reader should not need to infer this from code.
 ## Operator identity
 
 - Git user: `james-dixson`
-- Attribution: fill in role, contact, and authority scope before intake.
+- Operator: James Dixson (GitHub `dixson3`), repo owner. Sole approver for every human gate
+  in this plan, and the only authority for outward-facing GitHub writes and redeploys.
 
 ## Runtime assumptions
 
-List the assumptions this plan makes about the environment it will execute in
-(OS, shell, network access, credentials, side-effect permissions). A cold
-reader on a different machine should be able to decide whether the plan is
-safe to run as-is.
+- **macOS, zsh.** Shell loops must be portable (AGENTS.md: zsh doesn't word-split).
+- **In-place execution** (`.yf/plan/config.local.json` → `execute.worktree: false`): one
+  address space, execute branch cut in the primary checkout (Issue 0.1).
+- **Live model credentials for both harnesses.** The trigger evals start real `claude -p`
+  and `pi -p` sessions, which cost money: the EXP-002 measurement was ~$0.22 per CC run,
+  and the FULL tier is ~360 runs per harness. Without auth, evals report INCONCLUSIVE.
+- **Scratch clones outside the repo** under `~/.cache/plan072-eval/` (investigation) and
+  `~/.cache/yf-trigger-eval/` (shipped harness), with the origin remote removed, so an
+  eval agent can't push. Eval agents run with the operator's permission mode (CC
+  `bypassPermissions`), and that is only safe inside those clones.
+- **Network:** `uv` resolves PEP 723 deps; `gh` needs auth for the upstream-write gate.
+- **Results depend on the machine**: installed-mode evals see the operator's full global
+  skill/rules/MCP config (EXP-003/004).
 
 ## Adjacent-concept glossary
 
-_Optional._ Terms, acronyms, or project-specific jargon the plan uses.
+- **Intent**: one eval prompt, optionally with a fixture (shell snippet that creates its
+  precondition in the scratch clone), labelled should-trigger (`expect: <skill>`) or near-miss
+  (`expect: null`, `near: [siblings]`).
+- **Activation**: a CC `Skill` tool call naming the skill, or any tool call whose arguments
+  touch an installed `skills/<n>/` path or run `yf skill-dir <n>` (EXP-003).
+- **Candidate / installed mode**: evaluating un-deployed description text in isolation
+  vs the deployed skills under full operator config (EXP-005).
+- **crisp / satisfactory / loose**: the description rating (D1, `REQ-SKAUTH-061`).
 
 ## Additional context
 
