@@ -28,3 +28,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/exp-003/run-cc.jsonl](assets/exp-003/run-cc.jsonl) - EXP-003 raw per-run results, claude-code
 - [assets/exp-003/run-pi.jsonl](assets/exp-003/run-pi.jsonl) - EXP-003 raw per-run results, pi
 - [diagrams/plan-072-structure.d2](diagrams/plan-072-structure.d2) - d2 source for the epic-structure diagram
+- [reviews/pass-1.md](reviews/pass-1.md) - [red-team pass 1, reading] REVISE: FULL row tests the OLD installed descriptions; as specified FULL almost never passes; <=1024-but-misses-an-intent has no rating; 14 concerns, 4 high

@@ -279,8 +279,10 @@ report progress. It must not silently weaken the tier.
 
 ### Capability Gate: split decisions
 - Type: human
+- Approvers: operator
 - Condition: The operator has decided approve or decline for every proposal in `assets/split-proposals/`
 - Test:
+  (none — consent gate; authorization has no runnable test, so the resolver treats an empty Test as INCONCLUSIVE and waits for the operator)
 - Blocks: 4.2
 - Instructions: Mid-DAG by necessity: which skills need a split proposal is only known after Epic 3 measures the trims, so this gate can't be decided at execute start. Review each proposal. Approve (a follow-on plan is filed) or decline with a reason (the skill is accepted as satisfactory). If 4.1 recorded no proposals, answer "none".
 - test_class: consent
@@ -288,8 +290,10 @@ report progress. It must not silently weaken the tier.
 
 ### Capability Gate: upstream writes
 - Type: human
+- Approvers: operator
 - Condition: The operator authorizes three classes of outward-facing GitHub write on dixson3/yoshiko-flow: filing follow-on issues for approved skill splits, filing the rules-aggregate asymmetry issue, and commenting the plan-number collision evidence on #302
 - Test:
+  (none — consent gate; authorization has no runnable test, so the resolver treats an empty Test as INCONCLUSIVE and waits for the operator)
 - Blocks: 4.2, 5.4, 5.5
 - Instructions: Consent class, decidable at execute start because it authorizes the classes of write, not specific issue text. Answer it with the Start Gate. Each write then goes through `/yf-beads-upstream`'s previewed push, or `gh issue comment` with a quoted-heredoc body, read back after posting.
 - test_class: consent
