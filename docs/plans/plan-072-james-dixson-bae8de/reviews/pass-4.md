@@ -123,8 +123,10 @@ mode: execution
 
 ## Resolutions
 
+**Status: all 3 resolved by the main session on 2026-09-24, with measured evidence. Pass 5 is an execution pass.**
+
 | Concern | Severity | Resolution | Actor | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| C1 | low-medium | | | unresolved |
-| C2 | low | | | unresolved |
-| C3 | low | | | unresolved |
+| C1 | low-medium | REQ-SKAUTH-062 now sums the main transcript plus every `<session-id>/subagents/*.jsonl`, each deduplicated by `message.id`, and prices five classes: input $4, cache-write 1h $8, cache-write 5m $5 (from `usage.cache_creation.ephemeral_*`), cache-read $0.20, output $20. measured: max abs error 5.6e-17 over the 13 runs, and main+subagents for D1-manual prices to $0.6732, equal to the recorded $0.6732. Issue 2.3 adds that fixture pair and uses a 1e-9 tolerance. | `main-session` | resolved |
+| C2 | low | The formula is restated as the two-stage expression q = Σ_{a≤1}Σ_{c≤2−a} Bin(3,a)·Bin(3,c), with rate 1 − (1 − q)^N. measured recompute: 0.0165 / 0.2186 at N=240, and the figures are updated to ≈1.65% / 21.9%. Issue 2.3 asserts 0.0165 ± 0.0005. | `main-session` | resolved |
+| C3 | low | Issue 2.5 now depends on 0.3, 1.2 and 2.3 as well as 2.1, 2.2 and 2.4, and states that its row goes after every other FULL row this plan adds. plan_extract reports 40 edges (was 37). The pass-4 Missing note is also added to 0.3: the `gate-plan072-*` rows are satisfiable only because execution is in-place, and they are removed after landing. | `main-session` | resolved |

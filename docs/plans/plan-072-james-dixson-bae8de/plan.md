@@ -194,16 +194,19 @@ _Experiments identified (pre-investigation checkpoint):_
        **spend ledger** (`--ledger <path>`, one JSON line per run) with harness, tokens (input /
        cache-write / cache-read / output) and `cc_usd` (a number, `0` for pi rows, never
        null). **CC token source:** the session **transcript**
-       `~/.claude/projects/<cwd-slug>/<session-id>.jsonl`, with the run started as
-       `--session-id <uuid>` and read after the process exits, **deduplicated by
-       `message.id`** (the last usage per id wins). It is **never** the stream's `result`
+       `~/.claude/projects/<cwd-slug>/<session-id>.jsonl` **plus every
+       `<session-id>/subagents/*.jsonl`** (pass-4 C1: a run that calls `Agent` puts those
+       tokens there; measured: main-only priced $0.288 against a recorded $0.673). The run is
+       started as `--session-id <uuid>` and read after the process exits, each file
+       **deduplicated by `message.id`** (the last usage per id wins). It is **never** the stream's `result`
        event, because a run killed at activation emits no `result` (measured: 50 of 63), and it
        is never the raw stream sum, because stream `usage` repeats per content block and
        carries placeholder output counts (measured: stream 8 output tokens vs transcript 204
-       for the same message). **CC USD** = tokens × the per-class rates the harness itself
-       reports: fitted exactly (max error 0.0) from the 13 completed EXP-003 runs'
-       `modelUsage.costUSD`, which gives $8.00/Mtok cache-write, $0.20/Mtok cache-read and
-       $20.00/Mtok output for `claude-opus-5-5`. The rates are stored in
+       for the same message). **CC USD** = tokens × per-class rates for `claude-opus-5-5`: input $4.00/Mtok, cache-write
+       **1h** $8.00, cache-write **5m** $5.00 (priced from `usage.cache_creation.ephemeral_{1h,5m}_input_tokens`),
+       cache-read $0.20, output $20.00. measured at pass-4: these reproduce all 13 completed
+       EXP-003 runs' `modelUsage.costUSD` (max abs error 5.6e-17) and the subagent run
+       (main + subagents, $0.6732 = recorded $0.6732). The rates are stored in
        `scripts/checks/trigger_eval_rates.json` keyed by model, and a model not in the table
        is INCONCLUSIVE, never $0. pi reports tokens only, because its provider returns
        `cost: 0`. `--budget-usd` reads the ledger's cumulative CC total, so the ceiling holds
@@ -214,8 +217,10 @@ _Experiments identified (pre-investigation checkpoint):_
        reps, then re-run 3 more reps for any cell below 0.5 **whose recorded rate was
        ≥0.5**. FAIL only if the pooled 6-rep rate is still <0.5, which is a regression.
        Cells recorded as operator-accepted misses never FAIL. **Stated false-FAIL rate, as a
-       function of the cell count N** (pass-3 C7): 1 − (1 − P[≤2 of 6 correct | p])^N. That is
-       ≈1.7% at N=240 and p=0.95, ≈22% at N=240 and p=0.90. `--report` prints the actual N
+       function of the cell count N** (pass-3 C7, formula corrected at pass-4 C2): a cell
+       false-FAILs when its first 3 reps have ≤1 correct (a) **and** the pooled 6 have ≤2
+       correct (a + c ≤ 2), so q = Σ_{a≤1} Σ_{c≤2−a} Bin(3,p)(a)·Bin(3,p)(c) and the rate is
+       1 − (1 − q)^N. That is ≈1.65% at N=240 and p=0.95, ≈21.9% at N=240 and p=0.90. `--report` prints the actual N
        and the implied rate at the measured per-run reliability.
      - *Other verdicts:* INCONCLUSIVE when a harness binary or its auth is missing, or on a
        staging mismatch. PASS only on a completed run.
@@ -275,7 +280,7 @@ silently weaken the tier.
 - Issue 0.1: Cut and check out `plan-072-james-dixson-bae8de-execute` from `main` in the primary checkout, and record the base SHA to `assets/execute-base.txt`. First, before every SPEC edit: in-place mode has one address space, so an earlier commit would land on `main`.
 - Issue 0.2: Confirm the four allocated ids are free (`REQ-YF-EMBED-007`, `REQ-SKAUTH-061`, `REQ-SKAUTH-062`, `REQ-ENGINE-011`) and record them in `assets/req-allocation.md`. If any is taken, allocate the next free one and record it. SC1 reads this file.
   - depends-on: 0.1
-- Issue 0.3: SPEC.md §3.2: add `REQ-YF-EMBED-007` (Agent Skills field rules on `skills/*/SKILL.md`; UTF-16 length unit; enforced by `scripts/check_frontmatter.py` in FAST+FULL; `agents/*.md` excluded, with the reason). Open the root `SPEC.md` **plan-072 amendment-log entry** citing #407, carrying **one bullet per Epic-0 id**: `REQ-YF-EMBED-007` (here), plus `REQ-SKAUTH-061`, `REQ-SKAUTH-062`, `REQ-ENGINE-011` and `REQ-SCHEMA-002` pointing to the skill SPEC that owns each one's text (0.4–0.6 add them). `check_amendment_log.py` reads only the root entry (pass-3 C2; precedent: the plan-06x root entries name skill-SPEC ids the same way). Add the recipe rows `gate-plan072-amendment` (`uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de`) and `gate-plan072-reqcoverage` (`uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de`) to FAST+FULL, with §3 rows for `SPEC.md`, `skills/yf-skill-authoring/SPEC.md`, `skills/yf-change-validation/spec/*.md` and `docs/plans/plan-072-james-dixson-bae8de/**`.
+- Issue 0.3: SPEC.md §3.2: add `REQ-YF-EMBED-007` (Agent Skills field rules on `skills/*/SKILL.md`; UTF-16 length unit; enforced by `scripts/check_frontmatter.py` in FAST+FULL; `agents/*.md` excluded, with the reason). Open the root `SPEC.md` **plan-072 amendment-log entry** citing #407, carrying **one bullet per Epic-0 id**: `REQ-YF-EMBED-007` (here), plus `REQ-SKAUTH-061`, `REQ-SKAUTH-062`, `REQ-ENGINE-011` and `REQ-SCHEMA-002` pointing to the skill SPEC that owns each one's text (0.4–0.6 add them). `check_amendment_log.py` reads only the root entry (pass-3 C2; precedent: the plan-06x root entries name skill-SPEC ids the same way). Add the recipe rows `gate-plan072-amendment` (`uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de`) and `gate-plan072-reqcoverage` (`uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de`) to FAST+FULL, with §3 rows for `SPEC.md`, `skills/yf-skill-authoring/SPEC.md`, `skills/yf-change-validation/spec/*.md` and `docs/plans/plan-072-james-dixson-bae8de/**`. These rows read the in-flight plan folder, so they are satisfiable only because this repo executes **in place** (`execute.worktree: false`), not from an execute worktree (CHANGE-VALIDATION §1; pass-4 Missing). Remove them after landing, as the plan-06x rows were.
   - depends-on: 0.2
   - resolves-upstream: #407 (include)
 - Issue 0.4: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-061`, the four-state rating (D1): crisp / satisfactory / unrouted / loose over recorded rates; operator-accepted misses and their display; new skills target crisp. Living-amendment entry.
@@ -310,7 +315,9 @@ silently weaken the tier.
   - the near-miss cell rate is the correct-outcome rate;
   - the ledger accumulates across invocations and `--budget-usd` trips on the cumulative total;
   - CC spend comes from a transcript fixture with a **killed run** (no `result`) and **duplicated `message.id`s**, and equals the deduplicated total;
-  - the per-class rates reproduce the 13 recorded `modelUsage.costUSD` values exactly;
+  - a **main + `subagents/`** transcript-pair fixture (from the pass-4 D1-manual run) prices to $0.6732, using the 5m and 1h cache-write classes;
+  - the per-class rates reproduce the 13 recorded `modelUsage.costUSD` values to within 1e-9;
+  - `--report`'s false-FAIL rate at N=240, p=0.95 is 0.0165 ± 0.0005, which is the two-stage formula;
   - a model missing from the rate table is INCONCLUSIVE;
   - the offline verbs `--validate-intents`, `--report`, `--require-rated`, `--forbid` and `--require-decision-for-noncrisp` each exit 1 on a fixture that violates them;
   - `--record` is the only writer.
@@ -319,8 +326,8 @@ silently weaken the tier.
   - depends-on: 2.2
 - Issue 2.4: Author `skills/<n>/evals/triggers.json` for all 20 skills. Each has ≥3 should-trigger intents (with fixtures where a precondition matters) and ≥3 near-miss intents naming siblings. The six from EXP-003 are seeded verbatim. Update each skill README's layout fence for `evals/` (the `e-readme-layout` check requires it).
   - depends-on: 0.5
-- Issue 2.5: Wire the FULL-tier row `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3`. It goes **last** in the FULL list, with `flags` `inconclusive-exit=4,stream` and `timeout` 21600 (6 h, about 2× the corrected projection). No FAST row. The FULL row writes no ledger and has no budget; D3's accepted cost governs it, not D9.
-  - depends-on: 2.1, 2.2, 2.4
+- Issue 2.5: Wire the FULL-tier row, **last**, after every other FULL row this plan adds (`gate-plan072-*` from 0.3, `frontmatter-tests` from 1.2, `trigger-eval-tests` from 2.3; pass-4 C3). The row is `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3`, with `flags` `inconclusive-exit=4,stream` and `timeout` 21600 (6 h, about 2× the corrected projection). No FAST row. The FULL row writes no ledger and has no budget; D3's accepted cost governs it, not D9.
+  - depends-on: 0.3, 1.2, 2.1, 2.2, 2.3, 2.4
 
 ### Epic 3: Trim and rate
 - Issue 3.0: Create the development spend ledger `assets/spend.jsonl`, used by every Epic 3 invocation via `--ledger`. **3.1, 3.2, 3.3 and 3.4 all count against D9's $200 CC list-rate ceiling.** Projected, 3.2 and 3.4 are the large items (two all-skill records), so the operator is likely to be asked at the ceiling during 3.3 (pass-2 C4). That is expected, not a failure.
@@ -408,7 +415,7 @@ silently weaken the tier.
 | :-- | :-- | :-- | :-- |
 | R1 | **FULL-tier cost and time (D3).** ~3.1 h wall and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, streamed stderr output (`REQ-ENGINE-011`) visible on direct runs (5.2) but **not at L3**, which captures the engine's output. Row placed last. Landing pays for FULL twice (rehearsal + L3), stated in 5.2. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
 | R2 | **A trim is "verified" against the old text.** CC silently shadows a project skill copy with the user-scope install (EXP-005), and the FULL row would read installed skills at L3, before redeploy (pass-1 C1). | high | The FULL row runs **candidate** mode, staged from the checkout under test. Before scoring, the harness verifies CC's init (`permissionMode`, `skills` ⊇ staged) and pi's description hash; a mismatch is INCONCLUSIVE. Installed mode runs only after deploy (5.3). Issue 2.3 tests each path. |
-| R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ≈1.7% at 240 cells and 95% per-run reliability, ≈22% at 90% (a function of N, printed by `--report`). Accepted misses never FAIL. |
+| R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ≈1.65% at 240 cells and 95% per-run reliability, ≈21.9% at 90% (the two-stage formula in REQ-SKAUTH-062, a function of N, printed by `--report`). Accepted misses never FAIL. |
 | R4 | **Candidate mode ≠ what users get.** It drops other skills and the CC rules aggregate (EXP-005). | med | Every rating records its mode. Installed mode verifies the shipped result on the operator's machine (5.3). |
 | R5 | **Runs without harness auth.** | med | Exit 4 → INCONCLUSIVE through `REQ-ENGINE-011`, and `_validate_merged` halts L3 on INCONCLUSIVE, so a FULL run whose evals could not run cannot land. CI (`ci.yml`) calls checkers by name and does not run the FULL tier, so it is unaffected. |
 | R6 | **The hard gate turns red when it lands.** | low | Resolved structurally (pass-1 C10): Issue 1.1 carries the checker and the five cap trims in one change-set. SC2 is checked on the merged tree. |
