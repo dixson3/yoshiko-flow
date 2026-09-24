@@ -16,7 +16,7 @@ run in parallel across the two harnesses. Projection: 20 skills × ~6 intents
 
 ## Result
 
-**measured** (EXP-003, 63 runs per harness):
+**measured:** EXP-003, 63 runs per harness:
 
 | harness | mean s/run | wall for 63 runs | cost |
 | :-- | :-- | :-- | :-- |
@@ -26,7 +26,7 @@ run in parallel across the two harnesses. Projection: 20 skills × ~6 intents
 Near-miss runs are the expensive ones: they can't stop early, so they run to the tool
 cap (CC N1 ≈ 66 s).
 
-**inferred** projection for D3 (every skill, every FULL run): 20 × 6 × 3 = 360 runs per
+**inferred:** projection for D3 (every skill, every FULL run): 20 × 6 × 3 = 360 runs per
 harness. That's ≈ 2.4 h CC + 1.3 h pi, ≈ 2.4 h wall if the harnesses run in parallel and each
 runs serially. CC cost ≈ 360 × ~$0.15–0.25 ≈ **$55–90 per FULL run** (an extrapolation from 13
 reported runs, most of them near-misses or non-early exits, so treat it as a rough range).

@@ -14,7 +14,7 @@ created: '2026-09-24'
   `yf-change-validation` / `yf-optimal-instructions` / `yf-skill-authoring`; (b) `yf-okf` /
   `yf-okf-hygiene`. All descriptions are the current `main` text (the installed copies are
   byte-identical to `skills/`).
-- **Intents:** 21 in [assets/exp-003/intents.json](../assets/exp-003/intents.json): 3 should-trigger
+- **Intents:** 21 in `assets/exp-003/intents.json`: 3 should-trigger
   per skill (18) + 3 near-miss should-not-trigger (N1–N3), each listing the siblings it must
   **not** fire. Where an intent's precondition matters (an edited SPEC, AGENTS.md, rules file,
   script), a **fixture** creates it in the clone first (the lesson from the EXP-001 pilot).
@@ -49,7 +49,7 @@ created: '2026-09-24'
 | H1–H3 | okf-hygiene | 9/9 | 9/9 |
 | N1–N3 | none of the near siblings | 9/9 | 9/9 |
 
-Full per-run signal table: [assets/exp-003/rescored.txt](../assets/exp-003/rescored.txt).
+Full per-run signal table: `assets/exp-003/rescored.txt`.
 Raw per-run JSONL: `run-cc.jsonl`, `run-pi.jsonl` in the same folder.
 
 **measured:** only one wrong-sibling activation in 126 runs: cc O2, where
