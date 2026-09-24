@@ -190,18 +190,33 @@ _Experiments identified (pre-investigation checkpoint):_
      - *Cell rate (pass-2 C6):* the fraction of reps with the **correct** outcome. For a
        should-trigger intent, the expected skill activated. For a near-miss, none of its named
        siblings activated.
-     - *Spend (pass-2 C4, C8):* every run appends to a persisted **spend ledger**
-       (`--ledger <path>`, one JSON line per run) with harness, tokens (input / cache-write /
-       cache-read / output) and CC list-rate USD. pi reports tokens only, since its provider
-       returns `cost: 0`. `--budget-usd` reads the ledger's cumulative CC total, so the
-       ceiling holds across invocations. The listing-budget WARN (EXP-004) is recorded **in
+     - *Spend (pass-2 C4, C8; source fixed at pass-3 C5):* every run appends to a persisted
+       **spend ledger** (`--ledger <path>`, one JSON line per run) with harness, tokens (input /
+       cache-write / cache-read / output) and `cc_usd` (a number, `0` for pi rows, never
+       null). **CC token source:** the session **transcript**
+       `~/.claude/projects/<cwd-slug>/<session-id>.jsonl`, with the run started as
+       `--session-id <uuid>` and read after the process exits, **deduplicated by
+       `message.id`** (the last usage per id wins). It is **never** the stream's `result`
+       event, because a run killed at activation emits no `result` (measured: 50 of 63), and it
+       is never the raw stream sum, because stream `usage` repeats per content block and
+       carries placeholder output counts (measured: stream 8 output tokens vs transcript 204
+       for the same message). **CC USD** = tokens × the per-class rates the harness itself
+       reports: fitted exactly (max error 0.0) from the 13 completed EXP-003 runs'
+       `modelUsage.costUSD`, which gives $8.00/Mtok cache-write, $0.20/Mtok cache-read and
+       $20.00/Mtok output for `claude-opus-5-5`. The rates are stored in
+       `scripts/checks/trigger_eval_rates.json` keyed by model, and a model not in the table
+       is INCONCLUSIVE, never $0. pi reports tokens only, because its provider returns
+       `cost: 0`. `--budget-usd` reads the ledger's cumulative CC total, so the ceiling holds
+       across invocations. The listing-budget WARN (EXP-004) is recorded **in
        installed mode only**, because a 20-skill candidate listing cannot reach the 30K budget
        (pass-2 C9).
      - **FULL-row verdict (D3, C2):** evaluate every cell (skill × intent × harness) at 3
        reps, then re-run 3 more reps for any cell below 0.5 **whose recorded rate was
        ≥0.5**. FAIL only if the pooled 6-rep rate is still <0.5, which is a regression.
-       Cells recorded as operator-accepted misses never FAIL. Stated false-FAIL rate: about
-       2% at 95% per-run reliability, about 26% at 90%.
+       Cells recorded as operator-accepted misses never FAIL. **Stated false-FAIL rate, as a
+       function of the cell count N** (pass-3 C7): 1 − (1 − P[≤2 of 6 correct | p])^N. That is
+       ≈1.7% at N=240 and p=0.95, ≈22% at N=240 and p=0.90. `--report` prints the actual N
+       and the implied rate at the measured per-run reliability.
      - *Other verdicts:* INCONCLUSIVE when a harness binary or its auth is missing, or on a
        staging mismatch. PASS only on a completed run.
    - `REQ-ENGINE-011` (`skills/yf-change-validation/spec/engine.md`, pass-1 C7, revised at
@@ -254,11 +269,13 @@ silently weaken the tier.
 > plan-068 Issue 0.1). Scratch eval clones live under `~/.cache/yf-trigger-eval/`, outside the
 > repo, with the origin remote removed.
 
+> **Declared REQ exemptions** (pass-3 C1): `no-req-required` {5.5}. Each member carries its reason in its own body.
+
 ### Epic 0: SPEC-first
 - Issue 0.1: Cut and check out `plan-072-james-dixson-bae8de-execute` from `main` in the primary checkout, and record the base SHA to `assets/execute-base.txt`. First, before every SPEC edit: in-place mode has one address space, so an earlier commit would land on `main`.
 - Issue 0.2: Confirm the four allocated ids are free (`REQ-YF-EMBED-007`, `REQ-SKAUTH-061`, `REQ-SKAUTH-062`, `REQ-ENGINE-011`) and record them in `assets/req-allocation.md`. If any is taken, allocate the next free one and record it. SC1 reads this file.
   - depends-on: 0.1
-- Issue 0.3: SPEC.md §3.2: add `REQ-YF-EMBED-007` (Agent Skills field rules on `skills/*/SKILL.md`; UTF-16 length unit; enforced by `scripts/check_frontmatter.py` in FAST+FULL; `agents/*.md` excluded, with the reason). Amendment-log entry citing #407.
+- Issue 0.3: SPEC.md §3.2: add `REQ-YF-EMBED-007` (Agent Skills field rules on `skills/*/SKILL.md`; UTF-16 length unit; enforced by `scripts/check_frontmatter.py` in FAST+FULL; `agents/*.md` excluded, with the reason). Open the root `SPEC.md` **plan-072 amendment-log entry** citing #407, carrying **one bullet per Epic-0 id**: `REQ-YF-EMBED-007` (here), plus `REQ-SKAUTH-061`, `REQ-SKAUTH-062`, `REQ-ENGINE-011` and `REQ-SCHEMA-002` pointing to the skill SPEC that owns each one's text (0.4–0.6 add them). `check_amendment_log.py` reads only the root entry (pass-3 C2; precedent: the plan-06x root entries name skill-SPEC ids the same way). Add the recipe rows `gate-plan072-amendment` (`uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de`) and `gate-plan072-reqcoverage` (`uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de`) to FAST+FULL, with §3 rows for `SPEC.md`, `skills/yf-skill-authoring/SPEC.md`, `skills/yf-change-validation/spec/*.md` and `docs/plans/plan-072-james-dixson-bae8de/**`.
   - depends-on: 0.2
   - resolves-upstream: #407 (include)
 - Issue 0.4: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-061`, the four-state rating (D1): crisp / satisfactory / unrouted / loose over recorded rates; operator-accepted misses and their display; new skills target crisp. Living-amendment entry.
@@ -277,9 +294,14 @@ silently weaken the tier.
 ### Epic 2: Trigger-eval harness
 - Issue 2.1: `skills/yf-change-validation/scripts/change_validation.py`: implement `REQ-ENGINE-011` + the `REQ-SCHEMA-002` fifth column, with tests in `test_change_validation.py`. The tests cover: a row flagged `inconclusive-exit=4` exiting 4 → tier `inconclusive`; an **unflagged** row exiting 4 → `fail` (the pytest moved-target case); a `stream` row whose output reaches **stderr** before the row finishes; and `run --tier full --json` with a streamed row whose stdout still parses as exactly one JSON document.
   - depends-on: 0.6
-- Issue 2.2: Ship `scripts/checks/skill_trigger_eval.py` implementing `REQ-SKAUTH-062`, promoted from `assets/exp-003/runner.py` + `rescore.py`. It takes `--mode candidate|installed`, `--harness pi|cc|both` (run in parallel), `--skills <csv>|all`, `--reps N`, `--record`, `--validate-intents`, `--report`, `--ledger PATH`, `--budget-usd N`, `--json`. Exit codes: 0 PASS, 1 FAIL, 4 INCONCLUSIVE. Scratch clones and staging go under `~/.cache/yf-trigger-eval/`, with origin removed and staging cleared on every reset. Progress goes to stderr; stdout carries only the result. Every run appends tokens and CC list-rate USD to the ledger. When the ledger's cumulative CC total reaches `--budget-usd`, the harness stops and exits 4 with the spend so far.
+- Issue 2.2: Ship `scripts/checks/skill_trigger_eval.py` implementing `REQ-SKAUTH-062`, promoted from `assets/exp-003/runner.py` + `rescore.py`. It takes `--mode candidate|installed`, `--harness pi|cc|both` (run in parallel), `--skills <csv>|all`, `--reps N`, `--record`, `--ledger PATH`, `--budget-usd N`, `--json`, and these **offline** (no model call) verbs:
+  - `--validate-intents --min-trigger N --min-nearmiss N`: schema + count check over every `triggers.json`;
+  - `--report`: computes each skill's four-state rating from `triggers.json`, plus the cell count N and the implied false-FAIL rate;
+  - `--require-rated`: `--report` exits 1 if any skill lacks a recorded rating;
+  - `--forbid <ratings csv>`: `--report` exits 1 if any skill's rating is in the set;
+  - `--require-decision-for-noncrisp`: `--report` exits 1 if a not-crisp skill has no recorded operator decision. Exit codes: 0 PASS, 1 FAIL, 4 INCONCLUSIVE. Scratch clones and staging go under `~/.cache/yf-trigger-eval/`, with origin removed and staging cleared on every reset. Progress goes to stderr; stdout carries only the result. Every run appends tokens and CC list-rate USD to the ledger. When the ledger's cumulative CC total reaches `--budget-usd`, the harness stops and exits 4 with the spend so far.
   - depends-on: 0.5
-- Issue 2.3: Tests that need no live model: commit trimmed EXP-003 fixtures to `scripts/checks/fixtures/trigger-eval/` (tool-call events only, first 8 per run). Rewrite absolute paths to `$HOME`/`$STAGING`/`$CLONE` placeholders so the detector is tested with injected roots (pass-2 Missing). Assert per-intent totals CC 59/63 and pi 57/63. Also test:
+- Issue 2.3: Tests that need no live model, in **`scripts/checks/test_skill_trigger_eval.py`**. Commit trimmed EXP-003 fixtures to `scripts/checks/fixtures/trigger-eval/` (tool-call events only, first 8 per run). Rewrite absolute paths to `$HOME`/`$STAGING`/`$CLONE` placeholders so the detector is tested with injected roots (pass-2 Missing). Assert per-intent totals CC 59/63 and pi 57/63. Also test:
   - a pi stream reading `<staging>/<n>/SKILL.md` counts as activation, and `skills/<n>/SKILL.md` does not;
   - staging is cleared on reset;
   - INCONCLUSIVE on a missing binary, on auth-failure text, on a CC init with `permissionMode != bypassPermissions`, on a CC debug log without `user: 0, project: <N>`, and on a pi description hash mismatch;
@@ -287,6 +309,10 @@ silently weaken the tier.
   - confirmation re-runs happen only for regressed cells;
   - the near-miss cell rate is the correct-outcome rate;
   - the ledger accumulates across invocations and `--budget-usd` trips on the cumulative total;
+  - CC spend comes from a transcript fixture with a **killed run** (no `result`) and **duplicated `message.id`s**, and equals the deduplicated total;
+  - the per-class rates reproduce the 13 recorded `modelUsage.costUSD` values exactly;
+  - a model missing from the rate table is INCONCLUSIVE;
+  - the offline verbs `--validate-intents`, `--report`, `--require-rated`, `--forbid` and `--require-decision-for-noncrisp` each exit 1 on a fixture that violates them;
   - `--record` is the only writer.
 
   FAST+FULL recipe row `trigger-eval-tests`.
@@ -325,7 +351,7 @@ silently weaken the tier.
   - depends-on: 3.1
 - Issue 5.6: File a follow-on upstream issue against yf-plan: `_validate_merged` falls through to tier 3 (`pass`, with a notice) when an **approved** manifest's engine output doesn't parse as JSON. Measured at pass-2: a red FULL can land green. It should be `fail`. Via `/yf-beads-upstream`.
   - depends-on: 2.1
-- Issue 5.5: Post the #302 evidence (plan-070 is absent, so `get_next_index()` returned 071 and collided with the landed plan-071-james-dixson-d19ce8 at this plan's init) as a comment on #302.
+- Issue 5.5: Post the #302 evidence (plan-070 is absent, so `get_next_index()` returned 071 and collided with the landed plan-071-james-dixson-d19ce8 at this plan's init) as a comment on #302. **No new REQ**: an upstream evidence comment changes no behavior in this repository (no-req-required).
   - depends-on: 0.1
 
 ## Gates
@@ -345,7 +371,7 @@ silently weaken the tier.
 ### Capability Gate: development eval spend ceiling
 - Type: auto
 - Condition: The development spend ledger's cumulative CC list-rate total is below the current ceiling ($200 per D9, or a higher ceiling the operator has approved and recorded in `assets/spend-ceiling.txt`)
-- Test: python3 -c "import json,pathlib as P;d=P.Path('docs/plans/plan-072-james-dixson-bae8de/assets');c=float((d/'spend-ceiling.txt').read_text()) if (d/'spend-ceiling.txt').exists() else 200.0;s=sum(json.loads(l).get('cc_usd',0) for l in (d/'spend.jsonl').read_text().splitlines() if l.strip()) if (d/'spend.jsonl').exists() else 0.0;raise SystemExit(0 if s<c else 1)"
+- Test: python3 -c "import json,pathlib as P;d=P.Path('docs/plans/plan-072-james-dixson-bae8de/assets');c=float((d/'spend-ceiling.txt').read_text()) if (d/'spend-ceiling.txt').exists() else 200.0;s=sum(float(json.loads(l).get('cc_usd') or 0) for l in (d/'spend.jsonl').read_text().splitlines() if l.strip()) if (d/'spend.jsonl').exists() else 0.0;raise SystemExit(0 if s<c else 1)"
 - Blocks: 3.4
 - Instructions: Auto while under the ceiling, so it normally never reaches the operator. When 3.3's harness exits 4 at the ceiling, this Test goes red. The operator then reviews the ledger's measured tokens next to the list-rate figure (D9: the subscription-plan cost may be much lower) and either writes a new ceiling to `assets/spend-ceiling.txt` (3.3 resumes) or stops. If they stop, the final record rates the texts accepted so far. Because of the ledger, this gate is decidable at any point in Epic 3.
 - test_class: probe
@@ -382,7 +408,7 @@ silently weaken the tier.
 | :-- | :-- | :-- | :-- |
 | R1 | **FULL-tier cost and time (D3).** ~3.1 h wall and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, streamed stderr output (`REQ-ENGINE-011`) visible on direct runs (5.2) but **not at L3**, which captures the engine's output. Row placed last. Landing pays for FULL twice (rehearsal + L3), stated in 5.2. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
 | R2 | **A trim is "verified" against the old text.** CC silently shadows a project skill copy with the user-scope install (EXP-005), and the FULL row would read installed skills at L3, before redeploy (pass-1 C1). | high | The FULL row runs **candidate** mode, staged from the checkout under test. Before scoring, the harness verifies CC's init (`permissionMode`, `skills` ⊇ staged) and pi's description hash; a mismatch is INCONCLUSIVE. Installed mode runs only after deploy (5.3). Issue 2.3 tests each path. |
-| R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ~2% at 95% per-run reliability, ~26% at 90%. Accepted misses never FAIL. |
+| R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ≈1.7% at 240 cells and 95% per-run reliability, ≈22% at 90% (a function of N, printed by `--report`). Accepted misses never FAIL. |
 | R4 | **Candidate mode ≠ what users get.** It drops other skills and the CC rules aggregate (EXP-005). | med | Every rating records its mode. Installed mode verifies the shipped result on the operator's machine (5.3). |
 | R5 | **Runs without harness auth.** | med | Exit 4 → INCONCLUSIVE through `REQ-ENGINE-011`, and `_validate_merged` halts L3 on INCONCLUSIVE, so a FULL run whose evals could not run cannot land. CI (`ci.yml`) calls checkers by name and does not run the FULL tier, so it is unaffected. |
 | R6 | **The hard gate turns red when it lands.** | low | Resolved structurally (pass-1 C10): Issue 1.1 carries the checker and the five cap trims in one change-set. SC2 is checked on the merged tree. |
@@ -400,10 +426,10 @@ silently weaken the tier.
 | SC1b | SPEC commits precede code commits on the execute branch | `B=$(cat docs/plans/plan-072-james-dixson-bae8de/assets/execute-base.txt); fs=$(git log --format=%H --reverse "$B..HEAD" -- SPEC.md skills/yf-skill-authoring/SPEC.md skills/yf-change-validation/spec/engine.md \| head -1); fc=$(git log --format=%H --reverse "$B..HEAD" -- scripts/check_frontmatter.py scripts/checks/skill_trigger_eval.py skills/yf-change-validation/scripts/change_validation.py \| head -1); test -n "$fs" && { test -z "$fc" \|\| git merge-base --is-ancestor "$fs" "$fc"; }` -> exit 0 | 0.1, 0.3, 0.5, 0.6 |
 | SC2 | Every skill is within the hard limits, and the check enforces the tagged rule (pass-1 C9: not vacuously green) | `grep -q 'REQ-YF-EMBED-007' scripts/check_frontmatter.py && uv run scripts/check_frontmatter.py` -> exit 0 | 1.1 |
 | SC3 | The hard gate is observed to fail on each rule | `uv run scripts/test_check_frontmatter.py` -> exit 0 | 1.2 |
-| SC4 | The engine maps exit 4 to inconclusive and streams opted-in rows | `uv run skills/yf-change-validation/scripts/test_change_validation.py` -> exit 0 | 2.1 |
+| SC4 | The engine maps a flagged row's exit 4 to inconclusive and streams opted-in rows, tested (pass-3 C3: not pre-green) | `grep -q 'REQ-ENGINE-011' skills/yf-change-validation/scripts/change_validation.py && grep -q 'inconclusive-exit' skills/yf-change-validation/scripts/test_change_validation.py && uv run skills/yf-change-validation/scripts/test_change_validation.py` -> exit 0 | 2.1 |
 | SC5 | The eval harness is tested without live models and reproduces the EXP-003 scoring from committed fixtures | `uv run scripts/checks/test_skill_trigger_eval.py` -> exit 0 | 2.2, 2.3 |
 | SC6 | Every skill has an intent set with ≥3 trigger and ≥3 near-miss intents | `uv run scripts/checks/skill_trigger_eval.py --validate-intents --min-trigger 3 --min-nearmiss 3` -> exit 0 | 2.4 |
-| SC7 | The FULL tier carries the candidate-mode eval row, last, streamed, with a timeout | `grep -F 'skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3' CHANGE-VALIDATION.md` -> exit 0 | 2.5 |
+| SC7 | The FULL tier's **last** row is the candidate-mode eval row, flagged and with its timeout (pass-3 C8) | `python3 -c "import sys;P=chr(124);t=open('CHANGE-VALIDATION.md').read();b=t.split('### full',1)[1].split(chr(10)+'## ',1)[0];r=[l for l in b.splitlines() if l.startswith(P+' ') and chr(96) in l];x=r[-1] if r else '';sys.exit(0 if all(s in x for s in ('skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3','inconclusive-exit=4','stream','21600')) else 1)"` -> exit 0 | 2.5 |
 | SC8 | The wording-lever check is recorded | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/wording-lever.md` -> exit 0 | 3.1 |
 | SC9 | No skill is loose or unaccepted-unrouted, and every skill has a recorded rating | `uv run scripts/checks/skill_trigger_eval.py --report --require-rated --forbid loose,unrouted` -> exit 0 | 3.2, 3.3, 3.4 |
 | SC10 | Every not-crisp skill carries an operator decision | `uv run scripts/checks/skill_trigger_eval.py --report --require-decision-for-noncrisp` -> exit 0 | 4.1, 4.2 |
@@ -412,4 +438,4 @@ silently weaken the tier.
 | SC13 | The authoring guidance is in the conventions skill | `grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SKILL.md && grep -q 'skill_trigger_eval' skills/yf-skill-authoring/SKILL.md` -> exit 0 | 5.1 |
 | SC14 | FULL tier green on the merged tree | manual: land's L3 validate-merged reports PASS for the FULL tier, including the eval row, which is a ~3 h run and so is not smoke-runnable by ready-check | 5.2 |
 | SC15 | The follow-ons are filed | manual: the rules-asymmetry issue (5.4) and the unparseable-output fall-through issue (5.6) exist, and #302 carries the collision evidence comment (5.5), all read back after posting | 5.4, 5.5, 5.6 |
-| SC16 | Development spend is ledgered and stayed within the approved ceiling | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/spend.jsonl` -> exit 0 | 3.0 |
+| SC16 | Development spend is ledgered and stayed within the approved ceiling (pass-3 C6) | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/spend.jsonl && python3 -c "import json,pathlib as P;d=P.Path('docs/plans/plan-072-james-dixson-bae8de/assets');c=float((d/'spend-ceiling.txt').read_text()) if (d/'spend-ceiling.txt').exists() else 200.0;s=sum(float(json.loads(l).get('cc_usd') or 0) for l in (d/'spend.jsonl').read_text().splitlines() if l.strip());raise SystemExit(0 if s<=c else 1)"` -> exit 0 | 3.0, 3.3 |

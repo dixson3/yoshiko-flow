@@ -116,13 +116,15 @@ mode: execution
 
 ## Resolutions
 
+**Status: all 8 resolved by the main session on 2026-09-24, each with measured evidence. None changes an operator decision. The Missing items (cost source, 5.5 exemption, root bullets, verb home, gate rows) are covered by C5, C1, C2, C4 and C2. Pass 4 is an execution pass.**
+
 | Concern | Severity | Resolution | Actor | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| C1 | medium | | | unresolved |
-| C2 | medium | | | unresolved |
-| C3 | medium | | | unresolved |
-| C4 | medium | | | unresolved |
-| C5 | medium-high | | | unresolved |
-| C6 | low-medium | | | unresolved |
-| C7 | low | | | unresolved |
-| C8 | low | | | unresolved |
+| C1 | medium | Issue 5.5 now carries `**No new REQ**: … (no-req-required)`, and a plan-level `` `no-req-required` {5.5} `` declaration sits above Epic 0. measured: `check-req-coverage.py --min-issues 20` → exit 0, and 5.5 is `declared-bugfix`. | `main-session` | resolved |
+| C2 | medium | Issue 0.3 now requires the root plan-072 entry to carry one bullet per Epic-0 id (5), each pointing to its owning skill SPEC, and it adds `gate-plan072-amendment` and `gate-plan072-reqcoverage` rows (FAST+FULL) with §3 scope. measured: `check_amendment_log.py --spec <sandbox with that entry>` → exit 0, "5 amended id(s) all carry … all 19 non-exempt … reach". This removed a stray `REQ-ENGINE-008` mention the check had picked up from the plan's own precedent note. | `main-session` | resolved |
+| C3 | medium | SC4 is prefixed with `grep -q REQ-ENGINE-011 change_validation.py && grep -q inconclusive-exit test_change_validation.py`, so it is red before any work. | `main-session` | resolved |
+| C4 | medium | Issue 2.2 lists the offline verbs `--validate-intents --min-trigger --min-nearmiss`, `--report`, `--require-rated`, `--forbid` and `--require-decision-for-noncrisp` with their semantics. Issue 2.3 names `scripts/checks/test_skill_trigger_eval.py`, and each verb gets a violating-fixture test. | `main-session` | resolved |
+| C5 | medium-high | The CC token source is the session **transcript** (`--session-id`, read after exit, deduplicated by `message.id`). It is never `result` and never the raw stream. measured: stream 8 output vs transcript 204 for the same message, and SIGINT/SIGTERM both yield no `result`. USD = tokens × per-class rates fitted **exactly** (max err 0.0) from the 13 recorded `modelUsage.costUSD`: $8/Mtok cache-write, $0.20 cache-read, $20 output. They are stored in `trigger_eval_rates.json`; an unknown model → INCONCLUSIVE. `cc_usd` is never null. The gate Test coerces `None` → 0. Issue 2.3 adds killed-run, duplicated-id and rate-reproduction fixtures. | `main-session` | resolved |
+| C6 | low-medium | SC16 now runs the ledger-vs-ceiling probe as well as `test -s`. Discharged by 3.0 and 3.3. | `main-session` | resolved |
+| C7 | low | The false-FAIL rate is restated as the formula 1 − (1 − P[≤2/6 correct])^N, ≈1.7%/22% at N=240, and `--report` prints the real N and rate. R3 is updated to match. | `main-session` | resolved |
+| C8 | low | SC7 now parses the `### full` table and requires its **last** row to carry the command, `inconclusive-exit=4`, `stream` and `21600`, written without `|` characters so it fits the table. measured: exit 1 today, 0 with the row last and flagged, 1 without the flags, 1 when another row follows it. | `main-session` | resolved |
