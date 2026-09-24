@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-24
+- review-pass: 2 (reading) — REVISE, 10 concerns (2 high): CC init lists only user-invocable skills, so the ⊇ check would make every candidate run INCONCLUSIVE; a streamed row could corrupt --json and land a red FULL as pass
 - review-pass: 1 (reading) — REVISE, 14 concerns (4 high): FULL row would test the old installed text; FULL near-certain to fail as specified; unnamed rating state; SC4 fixtures absent
 - review: plan v1 presented
 - drafting: plan v1 synthesized from EXP-001..005
