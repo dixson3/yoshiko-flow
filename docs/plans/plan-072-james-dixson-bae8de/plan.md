@@ -1,7 +1,7 @@
 ---
 type: Plan
 okf_spec: OKF-PLAN
-description: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/loose
+description: Enforce the Agent Skills 1024-char description cap, add a four-state crisp/satisfactory/unrouted/loose
   description rating with cross-harness trigger evals, and bring skill descriptions
   toward 600 chars (#407)
 id: plan-072-james-dixson-bae8de
@@ -9,7 +9,7 @@ author: james-dixson
 created: '2026-09-24'
 status: review
 ---
-# Plan: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/loose description rating with cross-harness trigger evals, and bring skill descriptions toward 600 chars (#407)
+# Plan: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/unrouted/loose description rating with cross-harness trigger evals, and bring skill descriptions toward 600 chars (#407)
 
 **ID:** plan-072-james-dixson-bae8de
 **Author:** james-dixson
@@ -24,13 +24,14 @@ shipped skill:
    `name` meets the Agent Skills spec (≤64, `[a-z0-9-]`, no leading/trailing/double hyphen,
    equals the parent dir). Enforced mechanically by `scripts/check_frontmatter.py` in the
    FAST and FULL validation tiers.
-2. **Rating:** a three-tier description rating judged by *measured* trigger behaviour, not
-   length alone:
-   - **crisp** — description ≤600 chars AND triggers correctly on every declared intent;
-   - **satisfactory** — description ≤1024 chars AND triggers correctly on every declared intent;
-   - **loose** — description >1024 chars (fails the hard gate).
-   New skills target crisp. Satisfactory is accepted only with a recorded operator decision
-   that a split/refactor is not approved.
+2. **Rating:** a four-state description rating judged by *measured* trigger behaviour, not
+   length alone (D1, revised at pass-1):
+   - **crisp**: description ≤600 chars AND triggers correctly on every declared intent;
+   - **satisfactory**: description ≤1024 chars AND triggers correctly on every declared intent;
+   - **unrouted**: description ≤1024 chars but some intent triggers below 0.5 on some harness;
+   - **loose**: description >1024 chars (fails the hard gate).
+   New skills target crisp. A not-crisp or unrouted skill goes to a split proposal. If the
+   operator declines it, it is accepted as satisfactory, with any missed intents named.
 3. **Trigger evals:** a per-skill intent set (should-trigger + near-miss should-not-trigger)
    run against both **pi** and **claude-code**, producing the rating.
 4. **Remediation:** trim all five over-cap descriptions below 1024, make a best effort to bring
@@ -99,8 +100,10 @@ call, 11 were direct script use via `yf skill-dir` (the skill in use without a `
 call). Intents need fixture state.
 
 **EXP-002 (partial)** — [findings/exp-002-eval-cost-and-runtime.md](findings/exp-002-eval-cost-and-runtime.md).
-CC 23.6 s/run, about $0.22/run; pi 13.3 s/run. Projection for D3 as decided: about 2.4 h wall and about
-$55–90 (CC) per FULL run. The operator re-confirmed D3 with these numbers (see D3).
+CC 23.6 s/run, about $0.22/run; pi 13.3 s/run on EXP-003's 14%-near-miss mix. The operator first
+confirmed D3 on that projection (~2.4 h, ~$55–90). **Corrected at pass-1 C8** for D3's 50/50 mix: CC
+31.4 s/run and pi 21.8 s/run, which gives ~3.1 h wall and ~$75–110 CC at list rates per FULL run. The operator
+re-confirmed D3 at the corrected cost (see D3).
 
 **EXP-001 pilot (preliminary, superseded)** — [findings/exp-001-pilot-herdr-trigger-observation.md](findings/exp-001-pilot-herdr-trigger-observation.md).
 herdr tabs `cc-eval` (claude-code) and `pi-eval` (pi) are live, and their session JSONL is a
@@ -172,13 +175,28 @@ _Experiments identified (pre-investigation checkpoint):_
        fresh staging dir, and the staging dir is cleared at every reset (C12). pi runs
        `--no-skills --skill <staging>/<n>` for each skill. CC runs with staging at
        `<clone>/.claude/skills/`, `--setting-sources project` and
-       `--permission-mode bypassPermissions`. The harness reads CC's init event and
-       requires `permissionMode == bypassPermissions` and `skills` ⊇ the staged names. pi's
-       stream carries the description text, so the harness hashes it against the staged
-       file. Any mismatch is INCONCLUSIVE (C6, C11). **installed** mode uses full operator
-       config and is used only after deploy.
-     - *Budget:* each CC run records the listing-budget WARN (EXP-004) and its token usage
-       plus cost at list rates (D9).
+       `--permission-mode bypassPermissions` and `--debug-file`. **CC load verification
+       (revised at pass-2 C1).** CC's init `skills` lists only user-invocable skills, and five
+       yf skills are `user-invocable: false`, so it cannot be the check. The harness instead
+       requires, from the run's own debug log, the line
+       `Loaded <N> unique skills (… user: 0, project: <N> …)` with N = the staged count
+       (measured: `user: 0, project: 20` isolated vs `user: 39, project: 20` without
+       `--setting-sources project`). It also requires init `permissionMode == bypassPermissions`,
+       init `skills` ⊇ the staged user-invocable names, and a sha256 of every staged file taken
+       immediately before launch. pi's stream carries each description, so pi is hashed
+       directly. Any mismatch is INCONCLUSIVE. **Stated limitation:** on CC this proves the
+       staged *files* were loaded and nothing else was, not the literal text the model saw.
+       **installed** mode uses full operator config and is used only after deploy.
+     - *Cell rate (pass-2 C6):* the fraction of reps with the **correct** outcome. For a
+       should-trigger intent, the expected skill activated. For a near-miss, none of its named
+       siblings activated.
+     - *Spend (pass-2 C4, C8):* every run appends to a persisted **spend ledger**
+       (`--ledger <path>`, one JSON line per run) with harness, tokens (input / cache-write /
+       cache-read / output) and CC list-rate USD. pi reports tokens only, since its provider
+       returns `cost: 0`. `--budget-usd` reads the ledger's cumulative CC total, so the
+       ceiling holds across invocations. The listing-budget WARN (EXP-004) is recorded **in
+       installed mode only**, because a 20-skill candidate listing cannot reach the 30K budget
+       (pass-2 C9).
      - **FULL-row verdict (D3, C2):** evaluate every cell (skill × intent × harness) at 3
        reps, then re-run 3 more reps for any cell below 0.5 **whose recorded rate was
        ≥0.5**. FAIL only if the pooled 6-rep rate is still <0.5, which is a regression.
@@ -186,12 +204,20 @@ _Experiments identified (pre-investigation checkpoint):_
        2% at 95% per-run reliability, about 26% at 90%.
      - *Other verdicts:* INCONCLUSIVE when a harness binary or its auth is missing, or on a
        staging mismatch. PASS only on a completed run.
-   - `REQ-ENGINE-011` (`skills/yf-change-validation/spec/engine.md`, pass-1 C7). The engine
-     maps a row's **exit 4 to `inconclusive`** (today every non-zero is `fail`), and a row
-     may set **`stream: yes`** to pass its output through live instead of capturing it, so
-     the operator sees the ~3 h row's progress. `_validate_merged` is **unchanged**. It
-     already treats an INCONCLUSIVE tier as a halt at L3, and that stays correct here: a
-     FULL run whose evals could not run must not land.
+   - `REQ-ENGINE-011` (`skills/yf-change-validation/spec/engine.md`, pass-1 C7, revised at
+     pass-2 C2/C3). Two **per-row, opt-in** attributes in a new fifth §1 column `flags`
+     (REQ-SCHEMA-002 amended; an absent column means no flags):
+     - `inconclusive-exit=4` maps that row's exit 4 to `inconclusive`. **Only the eval row
+       sets it.** Every other row keeps exit 4 = `fail`, which preserves plan-046's rule
+       that pytest's exit 4 on a moved target is a loud failure.
+     - `stream` tees the row's output live to the engine's **stderr only**. `--json` stdout
+       remains exactly one JSON document, which protects `_validate_merged`'s
+       `json.loads(stdout)`. Measured at pass-2: a progress line on stdout made an engine
+       FAIL parse as unparseable, fall through to tier 3, and land as `pass`.
+     `_validate_merged` is **unchanged**, and an INCONCLUSIVE tier still halts L3. **Stated
+     limitation (R1):** `_validate_merged` captures the engine's output, so live progress is
+     visible when the operator runs the FULL tier directly (Issue 5.2), not at L3. The
+     tier-3 fall-through on unparseable output is filed as a follow-on (Issue 5.6).
 2. **Hard gate + the five cap trims, one change-set (Epic 1, pass-1 C10).** Extend
    `check_frontmatter.py` and trim the five over-cap descriptions to ≤1024 in the same
    issue, so no commit leaves the tree red. This first trim is a mechanical cut
@@ -237,9 +263,9 @@ silently weaken the tier.
   - resolves-upstream: #407 (include)
 - Issue 0.4: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-061`, the four-state rating (D1): crisp / satisfactory / unrouted / loose over recorded rates; operator-accepted misses and their display; new skills target crisp. Living-amendment entry.
   - depends-on: 0.2
-- Issue 0.5: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-062`, the eval contract exactly as the Approach states it (schema, detector with explicit staging root, stop rule, candidate/installed modes with CC `--setting-sources project` + `--permission-mode bypassPermissions` and the init/hash verification, per-run budget + token capture, the FULL regression-with-confirmation verdict and its stated false-FAIL rate, INCONCLUSIVE cases, `--record` as the only writer). Plus the SPEC.md amendment-log line that the FULL tier carries the eval row (D3).
+- Issue 0.5: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-062`, the eval contract exactly as the Approach states it (schema; detector with explicit staging root; stop rule; correct-outcome cell rate; candidate/installed modes with CC `--setting-sources project` + `--permission-mode bypassPermissions` + the debug-log `user: 0, project: N` load check, the stated limitation, and pi description hashing; the spend ledger; the listing WARN in installed mode only; the FULL regression-with-confirmation verdict and its stated false-FAIL rate; INCONCLUSIVE cases; `--record` as the only writer). Plus the SPEC.md amendment-log line that the FULL tier carries the eval row (D3).
   - depends-on: 0.2
-- Issue 0.6: `skills/yf-change-validation/spec/engine.md`: add `REQ-ENGINE-011` (a row's exit 4 → `inconclusive`; opt-in `stream: yes` output passthrough; a streamed row's `output_tail` is empty by design). Amendment entry in that skill's SPEC.
+- Issue 0.6: `skills/yf-change-validation/spec/engine.md`: add `REQ-ENGINE-011` (per-row opt-in `flags` column: `inconclusive-exit=4` and `stream`, which goes to stderr only with `--json` stdout staying one document). Amend `REQ-SCHEMA-002` in `spec/schema.md` for the fifth column. Amendment entry in that skill's SPEC.
   - depends-on: 0.2
 
 ### Epic 1: Hard gate and the five cap trims
@@ -249,25 +275,37 @@ silently weaken the tier.
   - depends-on: 1.1
 
 ### Epic 2: Trigger-eval harness
-- Issue 2.1: `skills/yf-change-validation/scripts/change_validation.py`: implement `REQ-ENGINE-011` (exit 4 → inconclusive; `stream: yes` passthrough) with tests in `test_change_validation.py`, including a row exiting 4 that yields tier `inconclusive` and a streamed row whose output reaches stdout before the row finishes.
+- Issue 2.1: `skills/yf-change-validation/scripts/change_validation.py`: implement `REQ-ENGINE-011` + the `REQ-SCHEMA-002` fifth column, with tests in `test_change_validation.py`. The tests cover: a row flagged `inconclusive-exit=4` exiting 4 → tier `inconclusive`; an **unflagged** row exiting 4 → `fail` (the pytest moved-target case); a `stream` row whose output reaches **stderr** before the row finishes; and `run --tier full --json` with a streamed row whose stdout still parses as exactly one JSON document.
   - depends-on: 0.6
-- Issue 2.2: Ship `scripts/checks/skill_trigger_eval.py` implementing `REQ-SKAUTH-062`, promoted from `assets/exp-003/runner.py` + `rescore.py`. It takes `--mode candidate|installed`, `--harness pi|cc|both` (run in parallel), `--skills <csv>|all`, `--reps N`, `--record`, `--validate-intents`, `--report`, `--budget-usd N`, `--json`. Exit codes: 0 PASS, 1 FAIL, 4 INCONCLUSIVE. Scratch clones and staging go under `~/.cache/yf-trigger-eval/`, with origin removed and staging cleared on every reset. CC runs record token usage and list-rate cost. At `--budget-usd`, the harness stops and exits 4 with the spend so far.
+- Issue 2.2: Ship `scripts/checks/skill_trigger_eval.py` implementing `REQ-SKAUTH-062`, promoted from `assets/exp-003/runner.py` + `rescore.py`. It takes `--mode candidate|installed`, `--harness pi|cc|both` (run in parallel), `--skills <csv>|all`, `--reps N`, `--record`, `--validate-intents`, `--report`, `--ledger PATH`, `--budget-usd N`, `--json`. Exit codes: 0 PASS, 1 FAIL, 4 INCONCLUSIVE. Scratch clones and staging go under `~/.cache/yf-trigger-eval/`, with origin removed and staging cleared on every reset. Progress goes to stderr; stdout carries only the result. Every run appends tokens and CC list-rate USD to the ledger. When the ledger's cumulative CC total reaches `--budget-usd`, the harness stops and exits 4 with the spend so far.
   - depends-on: 0.5
-- Issue 2.3: Tests that need no live model: commit trimmed EXP-003 fixtures to `scripts/checks/fixtures/trigger-eval/` (tool-call events only, first 8 per run). Assert per-intent totals CC 59/63 and pi 57/63. Also test: a pi stream reading `<staging>/<n>/SKILL.md` counts as activation; `skills/<n>/SKILL.md` does not; staging is cleared on reset; INCONCLUSIVE on a missing binary, on auth-failure text, on a CC init with `permissionMode != bypassPermissions` or a missing staged skill, and on a pi description hash mismatch; confirmation re-runs happen only for regressed cells; `--record` is the only writer. FAST+FULL recipe row `trigger-eval-tests`.
+- Issue 2.3: Tests that need no live model: commit trimmed EXP-003 fixtures to `scripts/checks/fixtures/trigger-eval/` (tool-call events only, first 8 per run). Rewrite absolute paths to `$HOME`/`$STAGING`/`$CLONE` placeholders so the detector is tested with injected roots (pass-2 Missing). Assert per-intent totals CC 59/63 and pi 57/63. Also test:
+  - a pi stream reading `<staging>/<n>/SKILL.md` counts as activation, and `skills/<n>/SKILL.md` does not;
+  - staging is cleared on reset;
+  - INCONCLUSIVE on a missing binary, on auth-failure text, on a CC init with `permissionMode != bypassPermissions`, on a CC debug log without `user: 0, project: <N>`, and on a pi description hash mismatch;
+  - a **real** CC init event (captured at pass-2: 15 yf names with 20 staged) passes the user-invocable subset check;
+  - confirmation re-runs happen only for regressed cells;
+  - the near-miss cell rate is the correct-outcome rate;
+  - the ledger accumulates across invocations and `--budget-usd` trips on the cumulative total;
+  - `--record` is the only writer.
+
+  FAST+FULL recipe row `trigger-eval-tests`.
   - depends-on: 2.2
 - Issue 2.4: Author `skills/<n>/evals/triggers.json` for all 20 skills. Each has ≥3 should-trigger intents (with fixtures where a precondition matters) and ≥3 near-miss intents naming siblings. The six from EXP-003 are seeded verbatim. Update each skill README's layout fence for `evals/` (the `e-readme-layout` check requires it).
   - depends-on: 0.5
-- Issue 2.5: Wire the FULL-tier row `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3`. It goes **last** in the FULL list, with `stream: yes` and `timeout` 21600 (6 h, about 2× the corrected projection). No FAST row.
+- Issue 2.5: Wire the FULL-tier row `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3`. It goes **last** in the FULL list, with `flags` `inconclusive-exit=4,stream` and `timeout` 21600 (6 h, about 2× the corrected projection). No FAST row. The FULL row writes no ledger and has no budget; D3's accepted cost governs it, not D9.
   - depends-on: 2.1, 2.2, 2.4
 
 ### Epic 3: Trim and rate
+- Issue 3.0: Create the development spend ledger `assets/spend.jsonl`, used by every Epic 3 invocation via `--ledger`. **3.1, 3.2, 3.3 and 3.4 all count against D9's $200 CC list-rate ceiling.** Projected, 3.2 and 3.4 are the large items (two all-skill records), so the operator is likely to be asked at the ceiling during 3.3 (pass-2 C4). That is expected, not a failure.
+  - depends-on: 2.2
 - Issue 3.1: Wording-lever check (EXP-003's recommendation): re-run pi D3, pi O1 and CC O2 in candidate mode with **only** TRIGGER wording changed on `yf-drift-check` / `yf-optimal-instructions`, 3 reps each. Record in `assets/wording-lever.md` whether the misses respond. If they don't, record that the lever is the rules aggregate (Issue 5.4), not the description.
-  - depends-on: 2.2, 2.4
+  - depends-on: 2.4, 3.0
 - Issue 3.2: Baseline `--record`: candidate mode, all 20 skills (post-1.1 text), both harnesses, 3 reps. Snapshot to `assets/ratings-baseline.json` with token usage and list-rate cost. This is the first spend against D9's ceiling.
   - depends-on: 1.1, 2.2, 2.4, 3.1
-- Issue 3.3: Best-effort trim of all 20 toward ≤600, unrouted skills first (TRIGGER wording before length). Each attempt re-rates the edited skill's intents plus every near-miss that names it (D9 scoped). Accept a text only if no intent drops below 0.5 on either harness versus the baseline. Record the shortest accepted text per skill. Track cumulative spend. **At $200 list-rate, stop and ask the operator** whether to continue (D9); record the real token usage next to it.
+- Issue 3.3: Best-effort trim of all 20 toward ≤600, unrouted skills first (TRIGGER wording before length). Each attempt re-rates the edited skill's intents, every near-miss that names it, **and every intent of each skill that lists it as a sibling** (pass-2 C6: catches a trim that takes over a neighbour's intents). Accept a text only if no cell drops below 0.5 on either harness versus the baseline. Record the shortest accepted text per skill. **When the ledger reaches $200 CC list-rate, the harness exits 4**, the spend-ceiling gate asks the operator, and 3.3 resumes on approval (D9).
   - depends-on: 3.2
-- Issue 3.4: Final all-skill candidate `--record` of the accepted texts, then `assets/ratings-final.md`: before/after chars and the four-state rating per harness for all 20, the list of not-crisp and unrouted skills with the measured reason (intent, harness, rate), and total spend (tokens + list-rate).
+- Issue 3.4: Final all-skill candidate `--record` of the accepted texts. **If any cell regresses against the baseline** (pass-2 C6), revert that skill to its last accepted text and re-record that skill and its siblings, at most twice. If it still regresses, it goes to the split gate as unrouted. Then write `assets/ratings-final.md`: before/after chars and the four-state rating per harness for all 20, the list of not-crisp and unrouted skills with the measured reason (intent, harness, rate), and the ledger totals (CC tokens + list-rate USD, pi tokens).
   - depends-on: 3.3
 
 ### Epic 4: Split proposals
@@ -279,12 +317,14 @@ silently weaken the tier.
 ### Epic 5: Guidance, follow-ons and landing
 - Issue 5.1: `skills/yf-skill-authoring/SKILL.md` + reference: the length rules (`REQ-YF-EMBED-007`), the four-state rating (`REQ-SKAUTH-061`), how to run and `--record` the eval for a new or edited skill (`REQ-SKAUTH-062`), and the point that the description is routing, not documentation. Keep its own description within its rating.
   - depends-on: 0.4, 0.5, 3.4
-- Issue 5.2: README/docs updates the drift manifest requires for the new script, the new recipe rows, `REQ-ENGINE-011`, and the `evals/` convention. Run the FULL tier on the execute branch before landing.
+- Issue 5.2: README/docs updates the drift manifest requires for the new script, the new recipe rows, `REQ-ENGINE-011`, and the `evals/` convention. Run the FULL tier on the execute branch before landing, **directly** (`change_validation.py run --tier full`), so the operator sees the streamed eval progress. This is the rehearsal of L3's run. A landing therefore pays for FULL **twice** (~6 h, ~$150–220 CC list-rate). That is stated and accepted under D3, not avoided by skipping the rehearsal (pass-2 C10).
   - depends-on: 1.2, 2.3, 2.5, 3.4, 5.1
 - Issue 5.3: After landing and redeploy from clean `main` (the AGENTS.md preconditions), verify on the operator's machine: pi startup shows no `[Skill conflicts]`, the CC `--debug-file` log has no `Skill listing over budget` line, and an **installed-mode** eval run passes. Record the outputs in `assets/post-deploy.md`.
   - depends-on: 5.2
 - Issue 5.4: File a follow-on upstream issue for the rules-aggregate asymmetry (pi carries 4 yf protocol blocks, CC carries 9; EXP-003), with the 3.1 wording-lever result as evidence. Via `/yf-beads-upstream`.
   - depends-on: 3.1
+- Issue 5.6: File a follow-on upstream issue against yf-plan: `_validate_merged` falls through to tier 3 (`pass`, with a notice) when an **approved** manifest's engine output doesn't parse as JSON. Measured at pass-2: a red FULL can land green. It should be `fail`. Via `/yf-beads-upstream`.
+  - depends-on: 2.1
 - Issue 5.5: Post the #302 evidence (plan-070 is absent, so `get_next_index()` returned 071 and collided with the landed plan-071-james-dixson-d19ce8 at this plan's init) as a comment on #302.
   - depends-on: 0.1
 
@@ -303,14 +343,12 @@ silently weaken the tier.
 - cwd: repo-root
 
 ### Capability Gate: development eval spend ceiling
-- Type: human
-- Approvers: operator
-- Condition: Cumulative Epic 3 eval spend has reached the D9 ceiling ($200 at API list rates), and the operator decides whether to continue, and to what new ceiling
-- Test:
-  (none — consent gate. Only the operator can decide to spend past the ceiling; `skill_trigger_eval.py --budget-usd` enforces the stop)
+- Type: auto
+- Condition: The development spend ledger's cumulative CC list-rate total is below the current ceiling ($200 per D9, or a higher ceiling the operator has approved and recorded in `assets/spend-ceiling.txt`)
+- Test: python3 -c "import json,pathlib as P;d=P.Path('docs/plans/plan-072-james-dixson-bae8de/assets');c=float((d/'spend-ceiling.txt').read_text()) if (d/'spend-ceiling.txt').exists() else 200.0;s=sum(json.loads(l).get('cc_usd',0) for l in (d/'spend.jsonl').read_text().splitlines() if l.strip()) if (d/'spend.jsonl').exists() else 0.0;raise SystemExit(0 if s<c else 1)"
 - Blocks: 3.4
-- Instructions: Mid-DAG by necessity: it can only arise once spend accumulates in 3.2–3.3. It fires only if the ceiling is reached; otherwise answer "not reached". Review the measured token usage next to the list-rate figure (D9: the subscription-plan cost may be much lower), then continue with a new ceiling or stop and rate with what has been accepted so far.
-- test_class: consent
+- Instructions: Auto while under the ceiling, so it normally never reaches the operator. When 3.3's harness exits 4 at the ceiling, this Test goes red. The operator then reviews the ledger's measured tokens next to the list-rate figure (D9: the subscription-plan cost may be much lower) and either writes a new ceiling to `assets/spend-ceiling.txt` (3.3 resumes) or stops. If they stop, the final record rates the texts accepted so far. Because of the ledger, this gate is decidable at any point in Epic 3.
+- test_class: probe
 - cwd: repo-root
 
 ### Capability Gate: split decisions
@@ -327,10 +365,10 @@ silently weaken the tier.
 ### Capability Gate: upstream writes
 - Type: human
 - Approvers: operator
-- Condition: The operator authorizes three classes of outward-facing GitHub write on dixson3/yoshiko-flow: filing follow-on issues for approved skill splits, filing the rules-aggregate asymmetry issue, and commenting the plan-number collision evidence on #302
+- Condition: The operator authorizes three classes of outward-facing GitHub write on dixson3/yoshiko-flow: filing follow-on issues for approved skill splits, filing the rules-aggregate asymmetry issue, filing the validate_merged unparseable-output issue, and commenting the plan-number collision evidence on #302
 - Test:
   (none — consent gate; authorization has no runnable test, so the resolver treats an empty Test as INCONCLUSIVE and waits for the operator)
-- Blocks: 4.2, 5.4, 5.5
+- Blocks: 4.2, 5.4, 5.5, 5.6
 - Instructions: Consent class, decidable at execute start because it authorizes the classes of write, not specific issue text. Answer it with the Start Gate. Each write then goes through `/yf-beads-upstream`'s previewed push, or `gh issue comment` with a quoted-heredoc body, read back after posting.
 - test_class: consent
 - cwd: repo-root
@@ -342,7 +380,7 @@ silently weaken the tier.
 ## Risks & Mitigations
 | # | Risk | Severity | Mitigation |
 | :-- | :-- | :-- | :-- |
-| R1 | **FULL-tier cost and time (D3).** ~3.1 h wall and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, live streamed output (`REQ-ENGINE-011`), row placed last. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
+| R1 | **FULL-tier cost and time (D3).** ~3.1 h wall and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, streamed stderr output (`REQ-ENGINE-011`) visible on direct runs (5.2) but **not at L3**, which captures the engine's output. Row placed last. Landing pays for FULL twice (rehearsal + L3), stated in 5.2. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
 | R2 | **A trim is "verified" against the old text.** CC silently shadows a project skill copy with the user-scope install (EXP-005), and the FULL row would read installed skills at L3, before redeploy (pass-1 C1). | high | The FULL row runs **candidate** mode, staged from the checkout under test. Before scoring, the harness verifies CC's init (`permissionMode`, `skills` ⊇ staged) and pi's description hash; a mismatch is INCONCLUSIVE. Installed mode runs only after deploy (5.3). Issue 2.3 tests each path. |
 | R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ~2% at 95% per-run reliability, ~26% at 90%. Accepted misses never FAIL. |
 | R4 | **Candidate mode ≠ what users get.** It drops other skills and the CC rules aggregate (EXP-005). | med | Every rating records its mode. Installed mode verifies the shipped result on the operator's machine (5.3). |
@@ -350,7 +388,9 @@ silently weaken the tier.
 | R6 | **The hard gate turns red when it lands.** | low | Resolved structurally (pass-1 C10): Issue 1.1 carries the checker and the five cap trims in one change-set. SC2 is checked on the merged tree. |
 | R7 | **Trims drop deliberate negative routing.** | med | Measured accept rule (no intent below 0.5 versus the baseline, on either harness); near-miss intents name siblings; 1.1's mechanical cut moves SKIP rationale into the SKILL.md body instead of deleting it; Epic 3 re-rates 1.1's text. |
 | R8 | **Self-modification.** | low | AGENTS.md three-artifacts rule: no `yf skills install` / `yf self install` mid-execution. Redeploy only in 5.3, from clean `main`. |
-| R9 | **Development spend runs away.** | med | D9: scoped re-rates, $200 list-rate ceiling enforced by `--budget-usd`, and a human gate to go past it, with measured tokens reported. |
+| R9 | **Development spend runs away.** | med | D9: scoped re-rates, a persisted ledger, a $200 CC list-rate ceiling enforced cumulatively by `--budget-usd`, and an auto gate that reaches the operator only at the ceiling. The ledger reports measured tokens for both harnesses. |
+| R11 | **CC candidate verification proves which files loaded, not the text the model saw** (pass-2 C1). | low | Stated as a limitation in REQ-SKAUTH-062. The `user: 0, project: N` debug-log line plus pre-launch hashes rule out the measured failure (shadowing by the user-scope install). pi hashes the text itself, so the stricter harness covers the gap. |
+| R12 | **A new per-row `flags` column changes the manifest schema** for every consumer. | low | Optional fifth column; absent = no flags. REQ-SCHEMA-002 amended SPEC-first (0.6). The unflagged-exit-4 test (2.1) guards the existing rows. |
 | R10 | **Candidate-mode CC runs with `bypassPermissions`** outside the operator's settings. | med | Only inside scratch clones under `~/.cache/yf-trigger-eval/` with origin removed, and sessions are killed at activation or 6 tool calls. Recorded in context.md Runtime assumptions. |
 
 ## Success Criteria
@@ -371,4 +411,5 @@ silently weaken the tier.
 | SC12 | pi and CC start clean on the operator's machine after redeploy, and installed mode passes | manual: assets/post-deploy.md shows pi startup with no [Skill conflicts] block, a CC --debug-file log with no "Skill listing over budget" line, and an installed-mode eval PASS, all captured after the Issue 5.3 redeploy | 5.3 |
 | SC13 | The authoring guidance is in the conventions skill | `grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SKILL.md && grep -q 'skill_trigger_eval' skills/yf-skill-authoring/SKILL.md` -> exit 0 | 5.1 |
 | SC14 | FULL tier green on the merged tree | manual: land's L3 validate-merged reports PASS for the FULL tier, including the eval row, which is a ~3 h run and so is not smoke-runnable by ready-check | 5.2 |
-| SC15 | The follow-ons are filed | manual: the rules-asymmetry issue (5.4) exists and #302 carries the collision evidence comment (5.5), both read back after posting | 5.4, 5.5 |
+| SC15 | The follow-ons are filed | manual: the rules-asymmetry issue (5.4) and the unparseable-output fall-through issue (5.6) exist, and #302 carries the collision evidence comment (5.5), all read back after posting | 5.4, 5.5, 5.6 |
+| SC16 | Development spend is ledgered and stayed within the approved ceiling | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/spend.jsonl` -> exit 0 | 3.0 |

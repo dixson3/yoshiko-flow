@@ -63,15 +63,17 @@ mode: reading
 
 ## Resolutions
 
+**Status: all 10 resolved by the main session on 2026-09-24. None required an operator decision, because each one implements D1/D3/D9 and doesn't change them. Missing-section items: CC verification (C1); stream target and test (C2); ledger (C4); 3.4 regression loop (C6); fixture path placeholders (Issue 2.3). Pass 3 is an execution pass.**
+
 | Concern | Severity | Resolution | Actor | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| C1 | high | | | unresolved |
-| C2 | high | | | unresolved |
-| C3 | medium-high | | | unresolved |
-| C4 | medium | | | unresolved |
-| C5 | medium | | | unresolved |
-| C6 | medium | | | unresolved |
-| C7 | low-medium | | | unresolved |
-| C8 | low-medium | | | unresolved |
-| C9 | low | | | unresolved |
-| C10 | low | | | unresolved |
+| C1 | high | Measured a replacement: the CC `--debug-file` line `Loaded N unique skills (… user: 0, project: N …)`. With 20 staged and `--setting-sources project`, it reads `user: 0, project: 20`; without the flag, `user: 39, project: 20`. That line plus init `permissionMode`, init `skills` ⊇ the **user-invocable** staged names, and pre-launch sha256 of every staged file (REQ-SKAUTH-062 in the Approach, Issue 0.5). The limitation (files loaded, not text seen) is stated, R11. Issue 2.3 tests against a real init event. | `main-session` | resolved |
+| C2 | high | REQ-ENGINE-011 revised: `stream` goes to **stderr only**, and `--json` stdout stays one document. Issue 2.1 adds a parse test on stdout. R1 now says live progress shows on direct runs (5.2) and not at L3. The fall-through is filed as Issue 5.6, with SC15 and the upstream gate extended to cover it. | `main-session` | resolved |
+| C3 | medium-high | The mapping is per row and opt-in through a new fifth §1 column, `flags` (`inconclusive-exit=4`), set only on the eval row. `REQ-SCHEMA-002` is amended in 0.6. Issue 2.1 tests that an unflagged exit 4 still yields `fail` (pytest's moved-target case). R12 added. | `main-session` | resolved |
+| C4 | medium | Issue 3.0 adds a persisted ledger, `assets/spend.jsonl`. `--budget-usd` enforces the **cumulative** total from it. 3.1–3.4 all count, and 3.0 records the expectation that the ceiling will fire during 3.3. The operator's D9 decision (ask at $200) is unchanged. | `main-session` | resolved |
+| C5 | medium | The spend gate is now `auto` with a ledger-reading probe Test (below the ceiling in `assets/spend-ceiling.txt`, default 200); it measured exit 0 on the empty ledger. It reaches the operator only at the ceiling, and it is decidable at any point. | `main-session` | resolved |
+| C6 | medium | The cell rate is defined as the correct-outcome rate for both intent kinds. The 3.3 scope is widened to every intent of each sibling skill. On a 3.4 regression: revert to the last accepted text and re-record, at most twice, otherwise the skill goes to the split gate as unrouted. | `main-session` | resolved |
+| C7 | low-medium | Frontmatter description, H1, Objective §2 and the EXP-002 paragraph are updated to four states and the corrected cost, with the pass-1 correction noted. | `main-session` | resolved |
+| C8 | low-medium | The ledger records pi token counts (tokens only, because the provider reports `cost: 0`). D9's ceiling is CC list-rate, and pi is reported as tokens (REQ-SKAUTH-062 spend clause). | `main-session` | resolved |
+| C9 | low | The listing-budget WARN is recorded in installed mode only (REQ-SKAUTH-062). | `main-session` | resolved |
+| C10 | low | Stated in Issue 5.2: the direct FULL run is the rehearsal, it is where streamed progress is visible, and a landing pays for FULL twice (~6 h, ~$150–220 CC list-rate), accepted under D3. The rehearsal is kept rather than skipped. | `main-session` | resolved |
