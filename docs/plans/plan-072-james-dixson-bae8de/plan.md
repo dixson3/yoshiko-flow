@@ -1,20 +1,20 @@
 ---
 type: Plan
 okf_spec: OKF-PLAN
-description: Enforce the Agent Skills 1024-char description cap, add a four-state crisp/satisfactory/unrouted/loose
-  description rating with cross-harness trigger evals, and bring skill descriptions
-  toward 600 chars (#407)
+description: Enforce the Agent Skills 1024-char description cap, add a four-state
+  crisp/satisfactory/unrouted/loose description rating with cross-harness trigger
+  evals, and bring skill descriptions toward 600 chars (#407)
 id: plan-072-james-dixson-bae8de
 author: james-dixson
 created: '2026-09-24'
-status: review
+status: ready-for-approval
 ---
 # Plan: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/unrouted/loose description rating with cross-harness trigger evals, and bring skill descriptions toward 600 chars (#407)
 
 **ID:** plan-072-james-dixson-bae8de
 **Author:** james-dixson
 **Created:** 2026-09-24
-**Status:** review
+**Status:** ready-for-approval
 
 ## Objective
 Make skill `description` size a specified, enforced, and measured property of every
@@ -432,14 +432,14 @@ silently weaken the tier.
 | SC1 | The four REQs are in their SPECs, as recorded in the allocation file | `test -r docs/plans/plan-072-james-dixson-bae8de/assets/req-allocation.md && grep -q 'REQ-YF-EMBED-007' SPEC.md && grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SPEC.md && grep -q 'REQ-SKAUTH-062' skills/yf-skill-authoring/SPEC.md && grep -q 'REQ-ENGINE-011' skills/yf-change-validation/spec/engine.md` -> exit 0 | 0.2, 0.3, 0.4, 0.5, 0.6 |
 | SC1b | SPEC commits precede code commits on the execute branch | `B=$(cat docs/plans/plan-072-james-dixson-bae8de/assets/execute-base.txt); fs=$(git log --format=%H --reverse "$B..HEAD" -- SPEC.md skills/yf-skill-authoring/SPEC.md skills/yf-change-validation/spec/engine.md \| head -1); fc=$(git log --format=%H --reverse "$B..HEAD" -- scripts/check_frontmatter.py scripts/checks/skill_trigger_eval.py skills/yf-change-validation/scripts/change_validation.py \| head -1); test -n "$fs" && { test -z "$fc" \|\| git merge-base --is-ancestor "$fs" "$fc"; }` -> exit 0 | 0.1, 0.3, 0.5, 0.6 |
 | SC2 | Every skill is within the hard limits, and the check enforces the tagged rule (pass-1 C9: not vacuously green) | `grep -q 'REQ-YF-EMBED-007' scripts/check_frontmatter.py && uv run scripts/check_frontmatter.py` -> exit 0 | 1.1 |
-| SC3 | The hard gate is observed to fail on each rule | `uv run scripts/test_check_frontmatter.py` -> exit 0 | 1.2 |
+| SC3 | The hard gate is observed to fail on each rule | `test -f scripts/test_check_frontmatter.py && uv run scripts/test_check_frontmatter.py` -> exit 0 | 1.2 |
 | SC4 | The engine maps a flagged row's exit 4 to inconclusive and streams opted-in rows, tested (pass-3 C3: not pre-green) | `grep -q 'REQ-ENGINE-011' skills/yf-change-validation/scripts/change_validation.py && grep -q 'inconclusive-exit' skills/yf-change-validation/scripts/test_change_validation.py && uv run skills/yf-change-validation/scripts/test_change_validation.py` -> exit 0 | 2.1 |
-| SC5 | The eval harness is tested without live models and reproduces the EXP-003 scoring from committed fixtures | `uv run scripts/checks/test_skill_trigger_eval.py` -> exit 0 | 2.2, 2.3 |
-| SC6 | Every skill has an intent set with ≥3 trigger and ≥3 near-miss intents | `uv run scripts/checks/skill_trigger_eval.py --validate-intents --min-trigger 3 --min-nearmiss 3` -> exit 0 | 2.4 |
+| SC5 | The eval harness is tested without live models and reproduces the EXP-003 scoring from committed fixtures | `test -f scripts/checks/test_skill_trigger_eval.py && uv run scripts/checks/test_skill_trigger_eval.py` -> exit 0 | 2.2, 2.3 |
+| SC6 | Every skill has an intent set with ≥3 trigger and ≥3 near-miss intents | `test -f scripts/checks/skill_trigger_eval.py && uv run scripts/checks/skill_trigger_eval.py --validate-intents --min-trigger 3 --min-nearmiss 3` -> exit 0 | 2.4 |
 | SC7 | The FULL tier's **last** row is the candidate-mode eval row, flagged and with its timeout (pass-3 C8) | `python3 -c "import sys;P=chr(124);t=open('CHANGE-VALIDATION.md').read();b=t.split('### full',1)[1].split(chr(10)+'## ',1)[0];r=[l for l in b.splitlines() if l.startswith(P+' ') and chr(96) in l];x=r[-1] if r else '';sys.exit(0 if all(s in x for s in ('skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3','inconclusive-exit=4','stream','21600')) else 1)"` -> exit 0 | 2.5 |
 | SC8 | The wording-lever check is recorded | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/wording-lever.md` -> exit 0 | 3.1 |
-| SC9 | No skill is loose or unaccepted-unrouted, and every skill has a recorded rating | `uv run scripts/checks/skill_trigger_eval.py --report --require-rated --forbid loose,unrouted` -> exit 0 | 3.2, 3.3, 3.4 |
-| SC10 | Every not-crisp skill carries an operator decision | `uv run scripts/checks/skill_trigger_eval.py --report --require-decision-for-noncrisp` -> exit 0 | 4.1, 4.2 |
+| SC9 | No skill is loose or unaccepted-unrouted, and every skill has a recorded rating | `test -f scripts/checks/skill_trigger_eval.py && uv run scripts/checks/skill_trigger_eval.py --report --require-rated --forbid loose,unrouted` -> exit 0 | 3.2, 3.3, 3.4 |
+| SC10 | Every not-crisp skill carries an operator decision | `test -f scripts/checks/skill_trigger_eval.py && uv run scripts/checks/skill_trigger_eval.py --report --require-decision-for-noncrisp` -> exit 0 | 4.1, 4.2 |
 | SC11 | Aggregate description size fell, and spend is reported | manual: assets/ratings-final.md shows the corpus description total below the 16,898-char baseline with a per-skill before/after table, plus total eval spend as tokens and list-rate USD | 3.4 |
 | SC12 | pi and CC start clean on the operator's machine after redeploy, and installed mode passes | manual: assets/post-deploy.md shows pi startup with no [Skill conflicts] block, a CC --debug-file log with no "Skill listing over budget" line, and an installed-mode eval PASS, all captured after the Issue 5.3 redeploy | 5.3 |
 | SC13 | The authoring guidance is in the conventions skill | `grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SKILL.md && grep -q 'skill_trigger_eval' skills/yf-skill-authoring/SKILL.md` -> exit 0 | 5.1 |

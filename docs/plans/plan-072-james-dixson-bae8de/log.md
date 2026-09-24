@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-24
+- ready-for-approval: ready-check green — pass-5 (execution) APPROVE + audit pass
+- review: post-APPROVE mechanical edit. SC3/SC5/SC6/SC9/SC10 prefixed `test -f <script> &&` so ready-check's smoke run sees a clean exit 1, not uv's unparseable spawn error ('cause: No such file', misread as path `cause`). Criterion semantics are unchanged, and each is still red pre-work
 - review-pass: 5 (execution) — APPROVE, zero measured findings; all 35 prior resolutions re-verified by running their evidence
 - review-pass: 4 (execution) — REVISE, 3 low concerns: CC spend misses subagent transcripts + 2 price classes; false-FAIL formula vs figures; FULL-row issue ordering. All 32 prior resolutions re-verified
 - review-pass: 3 (execution) — REVISE, 8 concerns (0 high): all 24 prior resolutions re-verified; ledger USD source undercounts killed runs; 5.5 fails SPEC-first checkers; SC5/6/9/10 flags absent from Epics; SC4 pre-green
