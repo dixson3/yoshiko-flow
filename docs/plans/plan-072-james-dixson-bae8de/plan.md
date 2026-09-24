@@ -70,7 +70,26 @@ Review of #407 (corrections and gaps) is posted as issuecomment-5822003298.
 The remaining 38 keyword matches from the triage scan (`upstream-triage.md`) are unrelated and excluded.
 
 ## Investigation Findings
-**EXP-001 pilot (preliminary)** — [findings/exp-001-pilot-herdr-trigger-observation.md](findings/exp-001-pilot-herdr-trigger-observation.md).
+**EXP-003 baseline (complete)** — [findings/exp-003-baseline-trigger-fidelity.md](findings/exp-003-baseline-trigger-fidelity.md).
+21 intents × 3 reps × 2 harnesses against the current descriptions of the six sibling
+skills: **CC 59/63, pi 57/63, near-misses 18/18, one wrong-sibling activation in 126
+runs.** All misses are "agent did the task without a skill" (pi D3, O1; CC O2), not
+confusion between siblings, so on this evidence none of the six is a split candidate.
+The harnesses load different always-on surfaces: CC's rules aggregate has 9 yf protocol
+blocks (including the drift-check / change-validation / instructions triggers), pi's has 4. So a
+pi pass is the stricter test of the description alone. "Triggers on all intents" needs a
+rate threshold, not 3/3.
+
+**EXP-001 (resolved by EXP-003).** Detector: CC `Skill` tool_use, or tool arguments referencing an
+installed `skills/<n>/` path, or `yf skill-dir <n>`. On CC, 39 of 50 passes were a `Skill`
+call, 11 were direct script use via `yf skill-dir` (the skill in use without a `Skill`
+call). Intents need fixture state.
+
+**EXP-002 (partial)** — [findings/exp-002-eval-cost-and-runtime.md](findings/exp-002-eval-cost-and-runtime.md).
+CC 23.6 s/run, about $0.22/run; pi 13.3 s/run. Projection for D3 as decided: about 2.4 h wall and about
+$55–90 (CC) per FULL run. **D3 needs operator re-decision with these numbers.**
+
+**EXP-001 pilot (preliminary, superseded)** — [findings/exp-001-pilot-herdr-trigger-observation.md](findings/exp-001-pilot-herdr-trigger-observation.md).
 herdr tabs `cc-eval` (claude-code) and `pi-eval` (pi) are live, and their session JSONL is a
 reliable activation signal. One drift-check intent: pi read `yf-drift-check/SKILL.md` first.
 CC routed toward it but made no `Skill` call because the intent's precondition (a real

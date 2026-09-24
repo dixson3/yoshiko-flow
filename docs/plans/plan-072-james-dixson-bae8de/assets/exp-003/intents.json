@@ -1,0 +1,141 @@
+[
+ {
+  "id": "D1",
+  "expect": "yf-drift-check",
+  "fixture": "sed -i '' 's/shall carry a well-formed, \\*\\*terminated\\*\\* YAML frontmatter block/shall carry a well-formed YAML frontmatter block (terminated or not)/' SPEC.md",
+  "prompt": "I just reworded REQ-YF-EMBED-003 in SPEC.md. Do the implementation and the docs still agree with it?"
+ },
+ {
+  "id": "D2",
+  "expect": "yf-drift-check",
+  "fixture": "",
+  "prompt": "Is the DRIFT-CHECK.md manifest still in sync with the repo?"
+ },
+ {
+  "id": "D3",
+  "expect": "yf-drift-check",
+  "fixture": "f=$(ls skills/yf-okf/spec/*.md | head -1); printf '\\nThe engine SHALL reject any bundle whose index.md lacks a title.\\n' >> \"$f\"",
+  "prompt": "I added a sentence to one of the spec files under skills/yf-okf/spec/. Make sure nothing else in the repo now contradicts it."
+ },
+ {
+  "id": "V1",
+  "expect": "yf-change-validation",
+  "fixture": "printf '\\n# touched\\n' >> scripts/check_frontmatter.py",
+  "prompt": "I tweaked scripts/check_frontmatter.py. Run whatever validation this repo requires for that change and tell me whether it passes."
+ },
+ {
+  "id": "V2",
+  "expect": "yf-change-validation",
+  "fixture": "",
+  "prompt": "I'm about to push to main. Run the full validation tier first."
+ },
+ {
+  "id": "V3",
+  "expect": "yf-change-validation",
+  "fixture": "f=$(git ls-files 'yf/src/*.rs' | head -1); printf '\\n// touched\\n' >> \"$f\"",
+  "prompt": "does my change under yf/src still build and pass tests?"
+ },
+ {
+  "id": "O1",
+  "expect": "yf-optimal-instructions",
+  "fixture": "printf '\\n## Notes on commits\\n\\nIt is really very important that when you are making commits you should always make sure that you are writing a good commit message, because a good commit message is really very helpful to everyone who reads the history later on, and it is important to be thorough about it at all times.\\n' >> AGENTS.md",
+  "prompt": "I just added a section to AGENTS.md. Can you tighten it up?"
+ },
+ {
+  "id": "O2",
+  "expect": "yf-optimal-instructions",
+  "fixture": "",
+  "prompt": "Add a rule to CLAUDE.md telling agents to always run cargo fmt before committing."
+ },
+ {
+  "id": "O3",
+  "expect": "yf-optimal-instructions",
+  "fixture": "mkdir -p .agents/rules && printf '# Testing rule\\n\\nPlease always, in every single case without exception, remember to run the tests, because running the tests is a thing that should always be done before you say you are finished.\\n' > .agents/rules/TESTING-RULE.md",
+  "prompt": "review the new rules file I dropped in .agents/rules/"
+ },
+ {
+  "id": "S1",
+  "expect": "yf-skill-authoring",
+  "fixture": "",
+  "prompt": "Create a new skill in skills/ called yf-changelog that drafts CHANGELOG entries from git log."
+ },
+ {
+  "id": "S2",
+  "expect": "yf-skill-authoring",
+  "fixture": "",
+  "prompt": "Add a Python helper script to skills/yf-markdown-lint/scripts that counts headings in a file. It needs a PEP 723 header so it runs with uv."
+ },
+ {
+  "id": "S3",
+  "expect": "yf-skill-authoring",
+  "fixture": "",
+  "prompt": "The agent prompt files in skills/yf-plan/agents/ are verbose. Tidy them up."
+ },
+ {
+  "id": "N1",
+  "expect": null,
+  "near": [
+   "yf-change-validation",
+   "yf-drift-check"
+  ],
+  "fixture": "",
+  "prompt": "There's a failing test somewhere in tests/. Find it and fix it."
+ },
+ {
+  "id": "N2",
+  "expect": null,
+  "near": [
+   "yf-optimal-instructions",
+   "yf-drift-check",
+   "yf-skill-authoring"
+  ],
+  "fixture": "",
+  "prompt": "Update README.md to document the yf harness tune command for end users."
+ },
+ {
+  "id": "K1",
+  "expect": "yf-okf",
+  "fixture": "",
+  "prompt": "Does docs/plans/plan-069-james-dixson-9d2878 conform to the OKF model?"
+ },
+ {
+  "id": "K2",
+  "expect": "yf-okf",
+  "fixture": "",
+  "prompt": "Migrate docs/research/001-okf-compliance-delta to the index.md + log.md bundle layout."
+ },
+ {
+  "id": "K3",
+  "expect": "yf-okf",
+  "fixture": "printf '\\n- stray-file.md\\n' >> docs/plans/plan-068-james-dixson-8ae0e1/index.md",
+  "prompt": "I hand-edited the index.md in docs/plans/plan-068-james-dixson-8ae0e1. Is that bundle still valid?"
+ },
+ {
+  "id": "H1",
+  "expect": "yf-okf-hygiene",
+  "fixture": "",
+  "prompt": "How many of the plan and research bundles in this repo are still in a legacy layout?"
+ },
+ {
+  "id": "H2",
+  "expect": "yf-okf-hygiene",
+  "fixture": "",
+  "prompt": "Backfill all the legacy plan folders to the current OKF layout."
+ },
+ {
+  "id": "H3",
+  "expect": "yf-okf-hygiene",
+  "fixture": "",
+  "prompt": "Some of the bundle indexes across the repo are stale. Rebuild them all."
+ },
+ {
+  "id": "N3",
+  "expect": null,
+  "near": [
+   "yf-okf",
+   "yf-okf-hygiene"
+  ],
+  "fixture": "",
+  "prompt": "Write a short note in docs/ about how prompt caching affects cost in pi."
+ }
+]

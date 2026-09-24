@@ -1,0 +1,24 @@
+id   expect                   cc       pi        cc-signals / pi-signals
+D1   yf-drift-check           3/3      3/3       yf-drift-check:skill_tool@2 | yf-drift-check:skill_tool@2 | yf-drift-check:skill_tool@2  //  yf-drift-check:skill_md@1 | yf-drift-check:skill_md@1 | yf-drift-check:skill_md@1
+D2   yf-drift-check           3/3      3/3       yf-drift-check:skill_tool@1 | yf-drift-check:skill_tool@1 | yf-drift-check:skill_tool@1  //  yf-drift-check:skill_md@1 | yf-drift-check:skill_md@1 | yf-drift-check:skill_md@1
+D3   yf-drift-check           3/3      0/3       yf-drift-check:skill_tool@2 | yf-drift-check:skill_tool@2 | yf-drift-check:skill_tool@3  //  - | - | -
+V1   yf-change-validation     3/3      3/3       yf-change-validation:skill_dir_q@2 | yf-change-validation:skill_dir_q@2 | yf-change-validation:skill_dir_q@2  //  yf-change-validation:skill_md@2 | yf-change-validation:skill_md@2 | yf-change-validation:skill_md@1
+V2   yf-change-validation     3/3      3/3       yf-change-validation:skill_dir_q@1 | yf-change-validation:skill_tool@1 | yf-change-validation:skill_dir_q@1  //  yf-change-validation:skill_md@1 | yf-change-validation:skill_md@1 | yf-change-validation:skill_md@1
+V3   yf-change-validation     3/3      3/3       yf-change-validation:skill_dir_q@2 | yf-change-validation:skill_dir_q@2 | yf-change-validation:skill_dir@2  //  yf-change-validation:skill_md@3 | yf-change-validation:skill_md@3 | yf-change-validation:skill_md@4
+O1   yf-optimal-instructions  2/3      0/3       - | yf-optimal-instructions:skill_tool@2 | yf-optimal-instructions:skill_tool@2  //  - | - | -
+O2   yf-optimal-instructions  0/3      3/3       - | - | yf-markdown-lint:skill_dir_q@5,yf-change-validation:skill_dir_q@6  //  yf-optimal-instructions:skill_md@3 | yf-optimal-instructions:skill_md@3 | yf-optimal-instructions:skill_md@2
+O3   yf-optimal-instructions  3/3      3/3       yf-optimal-instructions:skill_tool@4 | yf-optimal-instructions:skill_tool@4 | yf-optimal-instructions:skill_tool@3  //  yf-optimal-instructions:skill_md@3 | yf-optimal-instructions:skill_md@3 | yf-optimal-instructions:skill_md@3
+S1   yf-skill-authoring       3/3      3/3       yf-skill-authoring:skill_tool@2 | yf-skill-authoring:skill_tool@1 | yf-skill-authoring:skill_tool@1  //  yf-skill-authoring:skill_md@1 | yf-skill-authoring:skill_md@1 | yf-skill-authoring:skill_md@2
+S2   yf-skill-authoring       3/3      3/3       yf-skill-authoring:skill_tool@1 | yf-skill-authoring:skill_tool@1 | yf-skill-authoring:skill_tool@1  //  yf-skill-authoring:skill_md@2 | yf-skill-authoring:skill_md@1 | yf-skill-authoring:skill_md@1
+S3   yf-skill-authoring       3/3      3/3       yf-skill-authoring:skill_tool@2 | yf-skill-authoring:skill_tool@1 | yf-skill-authoring:skill_tool@2  //  yf-skill-authoring:skill_md@1 | yf-skill-authoring:skill_md@2 | yf-skill-authoring:skill_md@2
+N1   None                     3/3      3/3       - | - | -  //  - | - | -
+N2   None                     3/3      3/3       - | - | -  //  - | - | -
+K1   yf-okf                   3/3      3/3       yf-okf:skill_tool@1 | yf-okf:skill_tool@1 | yf-okf:skill_tool@1  //  yf-okf:skill_md@1 | yf-okf:skill_md@1 | yf-okf:skill_md@1
+K2   yf-okf                   3/3      3/3       yf-okf:skill_tool@1 | yf-okf:skill_tool@1 | yf-okf:skill_tool@1  //  yf-okf:skill_md@1 | yf-okf:skill_md@1 | yf-okf:skill_md@1
+K3   yf-okf                   3/3      3/3       yf-okf:skill_dir_q@1,yf-plan:skill_dir_q@1,yf-markdown-lint:skill_dir@3 | yf-plan:skill_dir@2,yf-okf:skill_dir@2,yf-markdown-lint:skill_dir@3 | yf-okf:skill_dir@2,yf-plan:skill_dir@2,yf-markdown-lint:skill_dir_q@4  //  yf-okf:skill_md@1 | yf-okf:skill_md@1 | yf-okf:skill_md@1
+H1   yf-okf-hygiene           3/3      3/3       yf-okf-hygiene:skill_tool@1 | yf-okf-hygiene:skill_tool@1 | yf-okf-hygiene:skill_tool@1  //  yf-okf-hygiene:skill_md@1 | yf-okf-hygiene:skill_md@1 | yf-okf-hygiene:skill_md@1
+H2   yf-okf-hygiene           3/3      3/3       yf-okf-hygiene:skill_tool@1 | yf-okf-hygiene:skill_tool@1 | yf-okf-hygiene:skill_tool@1  //  yf-okf-hygiene:skill_md@1 | yf-okf-hygiene:skill_md@1 | yf-okf-hygiene:skill_md@1
+H3   yf-okf-hygiene           3/3      3/3       yf-okf-hygiene:skill_tool@1 | yf-okf-hygiene:skill_tool@1 | yf-okf-hygiene:skill_tool@1  //  yf-okf-hygiene:skill_md@1 | yf-okf-hygiene:skill_md@1 | yf-okf-hygiene:skill_md@1
+N3   None                     3/3      3/3       - | - | -  //  - | - | -
+TOTAL cc: 59/63
+TOTAL pi: 57/63
