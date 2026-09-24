@@ -30,3 +30,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [diagrams/plan-072-structure.d2](diagrams/plan-072-structure.d2) - d2 source for the epic-structure diagram
 - [reviews/pass-1.md](reviews/pass-1.md) - [red-team pass 1, reading] REVISE: FULL row tests the OLD installed descriptions; as specified FULL almost never passes; <=1024-but-misses-an-intent has no rating; 14 concerns, 4 high
 - [reviews/pass-2.md](reviews/pass-2.md) - [red-team pass 2, reading] REVISE: pass-1 fixes all landed; CC init lists only user-invocable skills (candidate check would always be INCONCLUSIVE); streamed row can corrupt --json into a false landing pass; 10 concerns, 2 high
+- [reviews/pass-3.md](reviews/pass-3.md) - [red-team pass 3, execution] REVISE: 24 prior resolutions re-verified; 8 concerns, 0 high — ledger USD source, 5.5 REQ exemption, root amendment bullets, SC flags/paths absent from Epics, SC4 pre-green
