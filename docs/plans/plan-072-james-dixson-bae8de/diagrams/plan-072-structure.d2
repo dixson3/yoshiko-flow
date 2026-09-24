@@ -2,57 +2,60 @@ direction: right
 
 spec: "Epic 0 — SPEC first" {
   embed7: "REQ-YF-EMBED-007\nfield limits"
-  sk61: "REQ-SKAUTH-061\nrating"
+  sk61: "REQ-SKAUTH-061\n4-state rating"
   sk62: "REQ-SKAUTH-062\neval contract"
+  eng11: "REQ-ENGINE-011\nexit 4 · stream"
 }
 
-gate: "Epic 1 — hard gate" {
-  chk: "check_frontmatter.py\n≤1024 · name rules"
+gate: "Epic 1 — hard gate + cap trims" {
+  chk: "check_frontmatter.py ≤1024\n+ 5 mechanical trims\n(one change-set)"
   neg: "negative controls"
   chk -> neg
 }
 
 evals: "Epic 2 — eval harness" {
+  eng: "change_validation.py\nexit 4 → inconclusive"
   run: "skill_trigger_eval.py\ncandidate | installed"
+  fx: "fixtures (no live model)"
   intents: "skills/*/evals/triggers.json"
-  full: "FULL-tier row\nall skills · both harnesses · 3 reps"
+  full: "FULL row, last, streamed\ncandidate mode · all skills\nregression + confirm"
+  run -> fx
+  eng -> full
   run -> full
   intents -> full
 }
 
 trim: "Epic 3 — trim + rate" {
-  base: "baseline rating"
-  five: "5 over-cap → ≤1024"
-  rest: "15 others → ≤600\n(best effort)"
-  final: "ratings-final.md"
-  base -> five
-  base -> rest
-  five -> final
-  rest -> final
+  lever: "wording-lever check"
+  base: "baseline --record"
+  loop: "scoped trim / re-rate\nUSD 200 ceiling → ask"
+  final: "final --record\nratings-final.md"
+  lever -> base -> loop -> final
 }
 
 split: "Epic 4 — split proposals" {
-  prop: "proposal per\nnot-crisp skill"
+  prop: "not-crisp / unrouted"
   hg: "human gate" {shape: diamond}
   prop -> hg
   hg -> "follow-on plan": approve
-  hg -> "satisfactory\n+ reason": decline
+  hg -> "satisfactory\n(+ accepted misses)": decline
 }
 
 land: "Epic 5 — guidance + land" {
   guide: "yf-skill-authoring\nguidance"
   deploy: "redeploy from main"
-  verify: "pi: no [Skill conflicts]\nCC: no listing over budget"
+  verify: "installed mode · pi clean\nCC under listing budget"
   guide -> deploy -> verify
 }
 
 spec.embed7 -> gate.chk
+spec.eng11 -> evals.eng
 spec.sk62 -> evals.run
 spec.sk62 -> evals.intents
 spec.sk61 -> land.guide
-gate.chk -> trim.five: "same change-set"
-evals.run -> trim.base
-evals.intents -> trim.base
+gate.chk -> trim.base
+evals.run -> trim.lever
+evals.intents -> trim.lever
 trim.final -> split.prop
 trim.final -> land.guide
 evals.full -> land.deploy

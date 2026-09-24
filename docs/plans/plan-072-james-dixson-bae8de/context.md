@@ -52,12 +52,19 @@ description changes nothing live until redeploy (AGENTS.md "Three artifacts").
 - **In-place execution** (`.yf/plan/config.local.json` → `execute.worktree: false`): one
   address space, execute branch cut in the primary checkout (Issue 0.1).
 - **Live model credentials for both harnesses.** The trigger evals start real `claude -p`
-  and `pi -p` sessions, which cost money: the EXP-002 measurement was ~$0.22 per CC run,
-  and the FULL tier is ~360 runs per harness. Without auth, evals report INCONCLUSIVE.
+  and `pi -p` sessions. At API list rates that's ~$0.05–0.41 per completed CC run
+  (EXP-002/pass-1), ~360 runs per harness per FULL tier, and a $200 development ceiling
+  for Epic 3 (D9). Both harnesses run on subscription plans here, so the real marginal cost
+  depends on when usage crosses into billed extra usage, which isn't observable. The plan
+  reports measured tokens next to the list-rate figure. Without auth, evals report
+  INCONCLUSIVE.
 - **Scratch clones outside the repo** under `~/.cache/plan072-eval/` (investigation) and
   `~/.cache/yf-trigger-eval/` (shipped harness), with the origin remote removed, so an
-  eval agent can't push. Eval agents run with the operator's permission mode (CC
-  `bypassPermissions`), and that is only safe inside those clones.
+  eval agent can't push. Eval agents run with CC `bypassPermissions`: inherited from
+  the operator's settings in installed mode, and passed explicitly with
+  `--permission-mode bypassPermissions` in candidate mode, where `--setting-sources project`
+  drops user settings (pass-1 C6). That is only safe inside those clones, and sessions are
+  killed at activation or 6 tool calls.
 - **Network:** `uv` resolves PEP 723 deps; `gh` needs auth for the upstream-write gate.
 - **Results depend on the machine**: installed-mode evals see the operator's full global
   skill/rules/MCP config (EXP-003/004).

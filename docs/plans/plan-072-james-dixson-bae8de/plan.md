@@ -137,130 +137,155 @@ _Experiments identified (pre-investigation checkpoint):_
 
 | # | Decision | Choice |
 | :-- | :-- | :-- |
-| D1 | Rating tiers | crisp (≤600 + all intents), satisfactory (≤1024 + all intents), loose (>1024) |
+| D1 | Rating tiers | **Revised after pass-1 C3, operator.** Four states, computed from measured trigger rates: **crisp** (≤600 chars, every intent ≥0.5 on both harnesses); **satisfactory** (≤1024, every intent ≥0.5); **unrouted** (≤1024, some intent <0.5 on some harness); **loose** (>1024). Epic 3 tries TRIGGER-wording fixes on an unrouted skill first. If it's still unrouted, it goes to the split gate. If the operator declines the split, they accept the specific missed intents with a reason, and the skill reports as `satisfactory (accepted misses: <ids>)`, so the misses stay visible |
 | D2 | Hard gate | 1024-char description + full Agent Skills `name` rule in `check_frontmatter.py`, FAST+FULL tiers, `SKILL.md` only (not `agents/*.md`) |
-| D3 | Eval placement | **FULL tier, always**: every FULL run re-evaluates every skill on both harnesses, 3 reps. **Re-confirmed 2026-09-24 after EXP-002**: the operator chose this over hash-scoped and reduced-rep alternatives with the measured cost in hand (~360 runs per harness, ~2.4 h wall, ~$55–90 CC per FULL run). Unattended/CI runs without harness credentials report INCONCLUSIVE, never PASS |
-| D4 | Rating home | per-skill `skills/<name>/evals/triggers.json`: intents + last measured result per harness + description hash; the rating is derived, never hand-asserted |
+| D3 | Eval placement | **FULL tier, always**: every FULL run re-evaluates every skill on both harnesses, 3 reps. Re-confirmed twice by the operator with measured cost: after EXP-002, and **again after pass-1 C8 corrected the projection** to the 50/50 trigger/near-miss mix. Corrected cost: CC 31.4 s/run and pi 21.8 s/run, measured, giving ~3.1 h wall in parallel and ~$75–110 CC at API list rates per FULL run. **Verdict rule revised after pass-1 C2 (operator):** regression plus confirmation. See REQ-SKAUTH-062 in the approach. Runs without harness credentials report INCONCLUSIVE, never PASS |
+| D4 | Rating home | per-skill `skills/<name>/evals/triggers.json`: intents + last **recorded** result per harness + description hash + operator acceptances. The rating is derived, never hand-asserted. **Only an explicit `--record` run writes it.** The FULL row is read-only (pass-1 C13) |
 | D5 | Trim scope | all 20 skills: five over-cap must reach ≤1024; best effort toward ≤600 for all, each verified by evals |
-| D6 | Split handling | a skill that cannot reach crisp without losing fidelity gets a recorded split proposal at a human gate; approved splits file a follow-on plan; declined → accepted as satisfactory with the reason recorded |
+| D6 | Split handling | a skill that is not crisp after its best-effort trim, or that is unrouted, gets a recorded split proposal at a human gate. Approve → follow-on plan. Decline → satisfactory (or satisfactory-with-accepted-misses, D1), reason recorded |
 | D7 | Harnesses | pi and claude-code, both required |
 | D8 | Ordering | SPEC-first: `REQ-*` for gate, rating, and evals land before any checker/eval/trim code |
+| D9 | Development eval spend | **Added after pass-1 C8 (operator).** Epic 3 re-rates are **scoped**: the edited skill's intents plus every near-miss that names it. One all-skill candidate run at the end. **Ceiling $200 at API list rates, measured, not estimated.** At the ceiling, execution **stops and asks the operator** whether to continue. The operator expects the real cost to be lower: the harnesses run on subscription plans where it isn't known when usage crosses into billed extra usage. So the plan measures actual token usage per run and reports it next to the list-rate figure, and treats the list-rate figure as the cautious upper bound until real usage is measured |
 
 ### Chosen approach
 
 ![plan-072 structure](diagrams/plan-072-structure.png)
 
-1. **SPEC first (Epic 0).** Three requirements, homed where their siblings live:
+1. **SPEC first (Epic 0).** Four requirements, homed where their siblings live:
    - `REQ-YF-EMBED-007` (SPEC.md §3.2, next to `-003`, which already owns the frontmatter
      invariant and names `check_frontmatter.py` as its enforcer). The Agent Skills field
-     rules on every `skills/*/SKILL.md`: `description` 1–1024 chars; `name` 1–64 chars,
-     `[a-z0-9-]`, no leading/trailing hyphen, no `--`, equal to the parent directory name.
-     Scoped to `SKILL.md` only. `agents/*.md` are not Agent Skills (D2).
-   - `REQ-SKAUTH-061` (`skills/yf-skill-authoring/SPEC.md`, the conventions skill). The
-     **description rating**: crisp / satisfactory / loose (D1), "triggers on all intents"
-     defined as per-intent trigger rate ≥ 0.5 over ≥3 reps on **both** harnesses (EXP-003:
-     3/3 would flap). The rating is **derived** from `evals/triggers.json` and never
-     hand-asserted (D4). New skills target crisp. Satisfactory needs a recorded operator
-     decision (D6).
-   - `REQ-SKAUTH-062`. The **trigger-eval contract**: intent-set schema (should-trigger
-     with fixtures + near-miss with named siblings), the activation detector (EXP-001/003),
-     the two modes and the candidate-verification step (EXP-005), the per-run
-     listing-budget capture (EXP-004), and the verdicts. PASS only on a completed run.
-     INCONCLUSIVE when a harness binary or its auth is absent (EXP-002: CI has neither),
-     never PASS.
-2. **Hard gate (Epic 1).** Extend `check_frontmatter.py`, the existing gated check (FAST+FULL,
-   CHANGE-VALIDATION §3 rows for both skill globs), so it needs no new recipe row or glob.
-   Negative controls: a fixture the check must **fail** on for every rule. The gate cannot
-   turn on while five skills are over, so Epic 1 lands the check in the same change-set as
-   Epic 3's five over-cap trims, ahead of the rest of the trim work.
-3. **Eval harness (Epic 2).** Promote the EXP-003 scratch tooling (`assets/exp-003/`) to a
-   shipped `scripts/checks/skill_trigger_eval.py` plus per-skill `skills/<n>/evals/triggers.json`,
-   seeded from the EXP-003 intents for the six siblings and authored fresh for the other
-   14. Wired as a FULL-tier row (D3: every skill, 3 reps, both harnesses, every FULL run).
-4. **Trim + rate (Epic 3).** Per skill: candidate-mode rating of the current text (baseline),
-   trim, candidate-mode re-rate, keep the shortest text whose rating does not regress.
-   EXP-003 shows the current misses are "did it without the skill", so where fidelity is
-   short the lever is TRIGGER wording, not a split.
-5. **Split gate (Epic 4).** Any skill still not crisp after its best-effort trim gets a
-   written split proposal. One human gate covers all of them (D6): approve → follow-on
-   plan filed; decline → satisfactory with the reason recorded in its `triggers.json`.
-6. **Guidance + land (Epic 5).** `yf-skill-authoring` gains the length rules and the rating
-   procedure (it is 295 over the cap itself and carries no length guidance today). Redeploy
-   from `main`, then prove it on the operator's machine: pi startup shows no skill
-   diagnostics (#407's own check) and CC's debug log has no `Skill listing over budget`
-   line (EXP-004).
+     rules on every `skills/*/SKILL.md`: `description` 1–1024, `name` 1–64, `[a-z0-9-]`, no
+     leading/trailing hyphen, no `--`, equal to the parent directory name. **Length unit:
+     UTF-16 code units of the parsed YAML scalar**, because pi measures JS `String.length`
+     (pass-1 C14; equal to code points for all 20 today). Scoped to `SKILL.md` only (D2).
+   - `REQ-SKAUTH-061` (`skills/yf-skill-authoring/SPEC.md`). The **four-state rating** (D1),
+     defined over the *recorded* per-intent rates in `triggers.json` (≥3 reps, both
+     harnesses, candidate mode), including operator-accepted misses and how they display.
+   - `REQ-SKAUTH-062`. The **trigger-eval contract**:
+     - *Intent schema:* should-trigger with an optional fixture, and near-miss naming its
+       siblings.
+     - *Detector:* a CC `Skill` tool call, or tool args touching `<staging-root>/<n>/`, an
+       installed `skills/<n>/`, or `yf skill-dir <n>`. The staging root is an explicit
+       detector input, and the repo's own `skills/<n>/` is never counted (pass-1 C5).
+     - *Stop rule:* stop on activation, or at 6 tool calls, or at 150 s.
+     - *Modes:* **candidate** stages every `skills/*/` from the checkout under test into a
+       fresh staging dir, and the staging dir is cleared at every reset (C12). pi runs
+       `--no-skills --skill <staging>/<n>` for each skill. CC runs with staging at
+       `<clone>/.claude/skills/`, `--setting-sources project` and
+       `--permission-mode bypassPermissions`. The harness reads CC's init event and
+       requires `permissionMode == bypassPermissions` and `skills` ⊇ the staged names. pi's
+       stream carries the description text, so the harness hashes it against the staged
+       file. Any mismatch is INCONCLUSIVE (C6, C11). **installed** mode uses full operator
+       config and is used only after deploy.
+     - *Budget:* each CC run records the listing-budget WARN (EXP-004) and its token usage
+       plus cost at list rates (D9).
+     - **FULL-row verdict (D3, C2):** evaluate every cell (skill × intent × harness) at 3
+       reps, then re-run 3 more reps for any cell below 0.5 **whose recorded rate was
+       ≥0.5**. FAIL only if the pooled 6-rep rate is still <0.5, which is a regression.
+       Cells recorded as operator-accepted misses never FAIL. Stated false-FAIL rate: about
+       2% at 95% per-run reliability, about 26% at 90%.
+     - *Other verdicts:* INCONCLUSIVE when a harness binary or its auth is missing, or on a
+       staging mismatch. PASS only on a completed run.
+   - `REQ-ENGINE-011` (`skills/yf-change-validation/spec/engine.md`, pass-1 C7). The engine
+     maps a row's **exit 4 to `inconclusive`** (today every non-zero is `fail`), and a row
+     may set **`stream: yes`** to pass its output through live instead of capturing it, so
+     the operator sees the ~3 h row's progress. `_validate_merged` is **unchanged**. It
+     already treats an INCONCLUSIVE tier as a halt at L3, and that stays correct here: a
+     FULL run whose evals could not run must not land.
+2. **Hard gate + the five cap trims, one change-set (Epic 1, pass-1 C10).** Extend
+   `check_frontmatter.py` and trim the five over-cap descriptions to ≤1024 in the same
+   issue, so no commit leaves the tree red. This first trim is a mechanical cut
+   (redundancy, restated axes, rationale moved into the SKILL.md body). It is **rated
+   later** in Epic 3, which can still revise it. Negative controls for every rule.
+3. **Eval harness (Epic 2).** Promote the EXP-003 tooling to `scripts/checks/skill_trigger_eval.py`
+   with committed, trimmed fixtures (tool-call events only, ~115 KB for all 126 runs) so its
+   tests need no live model and no `~/.cache` (pass-1 C4). Author
+   `skills/*/evals/triggers.json` for all 20 skills. Wire the FULL row as **candidate mode**
+   against the checkout under test (pass-1 C1). It goes **last** in the FULL list, with
+   `stream: yes` and an explicit `timeout`.
+4. **Trim + rate (Epic 3).** First, the check EXP-003 recommended: re-run the three known
+   misses (pi D3, pi O1, CC O2) with only TRIGGER wording changed, to confirm wording is the
+   lever. Then the baseline `--record`, then scoped trim/re-rate loops under the D9 ceiling,
+   then one all-skill final `--record`.
+5. **Split gate (Epic 4).** For not-crisp and unrouted skills (D6).
+6. **Guidance + land (Epic 5).** `yf-skill-authoring` guidance; redeploy from `main`;
+   installed-mode verification on the operator's machine (pi: no `[Skill conflicts]`; CC:
+   no `Skill listing over budget`).
 
 **Deliberately out of scope:** closing the pi-vs-CC rules-aggregate asymmetry (EXP-003
-implication 3). It changes what the evals measure, so it is filed as a follow-on issue
-(Issue 5.4), not fixed silently. Also out of scope: skill splits themselves (D6: they go to
-a follow-on plan).
+implication 3). It changes what the evals measure, so it is filed as a follow-on (Issue 5.4).
+Skill splits themselves go to follow-on plans (D6).
 
-D3 is settled (re-confirmed after EXP-002). Its cost is a known, accepted property of the FULL
-tier, not a risk to mitigate by scoping it down. The plan still has to make that cost
-*bearable*: run the two harnesses in parallel, stop each session on activation, and
-report progress. It must not silently weaken the tier.
+D3 is settled. Its cost is an accepted property of the FULL tier, not a risk to scope down.
+The plan makes it *bearable*: the two harnesses run in parallel, sessions stop on activation,
+output streams live, and confirmation re-runs happen only for regressions. It must not
+silently weaken the tier.
 
 ## Epics
 
 > **Execution mode is in-place** (`.yf/plan/config.local.json` → `execute.worktree: false`),
 > so Issue 0.1 cuts and checks out the execute branch before any SPEC commit (precedent:
-> plan-068 Issue 0.1). Scratch eval clones live under `~/.cache/plan072-eval/`, outside the
+> plan-068 Issue 0.1). Scratch eval clones live under `~/.cache/yf-trigger-eval/`, outside the
 > repo, with the origin remote removed.
 
 ### Epic 0: SPEC-first
 - Issue 0.1: Cut and check out `plan-072-james-dixson-bae8de-execute` from `main` in the primary checkout, and record the base SHA to `assets/execute-base.txt`. First, before every SPEC edit: in-place mode has one address space, so an earlier commit would land on `main`.
-- Issue 0.2: Confirm the three allocated ids are free (`REQ-YF-EMBED-007`, `REQ-SKAUTH-061`, `REQ-SKAUTH-062`) and record them in `assets/req-allocation.md`. If any is taken, allocate the next free one and record it; SC1b reads this file.
+- Issue 0.2: Confirm the four allocated ids are free (`REQ-YF-EMBED-007`, `REQ-SKAUTH-061`, `REQ-SKAUTH-062`, `REQ-ENGINE-011`) and record them in `assets/req-allocation.md`. If any is taken, allocate the next free one and record it. SC1 reads this file.
   - depends-on: 0.1
-- Issue 0.3: SPEC.md §3.2: add `REQ-YF-EMBED-007` (Agent Skills field rules on `skills/*/SKILL.md`: description 1–1024; name 1–64, `[a-z0-9-]`, no edge or double hyphen, equals parent dir; enforced by `scripts/check_frontmatter.py` FAST+FULL; `agents/*.md` excluded with the reason). Amendment-log entry citing #407.
+- Issue 0.3: SPEC.md §3.2: add `REQ-YF-EMBED-007` (Agent Skills field rules on `skills/*/SKILL.md`; UTF-16 length unit; enforced by `scripts/check_frontmatter.py` in FAST+FULL; `agents/*.md` excluded, with the reason). Amendment-log entry citing #407.
   - depends-on: 0.2
   - resolves-upstream: #407 (include)
-- Issue 0.4: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-061` (the rating: crisp ≤600 / satisfactory ≤1024 / loose >1024; "all intents" = every intent's trigger rate ≥0.5 over ≥3 reps on pi AND claude-code; derived from `evals/triggers.json`; new skills target crisp; satisfactory requires a recorded operator decline of a split). Living-amendment entry.
+- Issue 0.4: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-061`, the four-state rating (D1): crisp / satisfactory / unrouted / loose over recorded rates; operator-accepted misses and their display; new skills target crisp. Living-amendment entry.
   - depends-on: 0.2
-- Issue 0.5: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-062` (trigger-eval contract: `triggers.json` schema; detector = CC `Skill` call or tool args touching an installed `skills/<n>/` path or `yf skill-dir <n>`; stop rule; candidate vs installed mode; mandatory loaded-text verification before scoring; per-CC-run listing-budget capture; verdict PASS / FAIL / INCONCLUSIVE, where missing harness binary or auth = INCONCLUSIVE). Plus the `SPEC.md` amendment-log line that the FULL tier now carries the eval row (D3).
+- Issue 0.5: `skills/yf-skill-authoring/SPEC.md`: add `REQ-SKAUTH-062`, the eval contract exactly as the Approach states it (schema, detector with explicit staging root, stop rule, candidate/installed modes with CC `--setting-sources project` + `--permission-mode bypassPermissions` and the init/hash verification, per-run budget + token capture, the FULL regression-with-confirmation verdict and its stated false-FAIL rate, INCONCLUSIVE cases, `--record` as the only writer). Plus the SPEC.md amendment-log line that the FULL tier carries the eval row (D3).
+  - depends-on: 0.2
+- Issue 0.6: `skills/yf-change-validation/spec/engine.md`: add `REQ-ENGINE-011` (a row's exit 4 → `inconclusive`; opt-in `stream: yes` output passthrough; a streamed row's `output_tail` is empty by design). Amendment entry in that skill's SPEC.
   - depends-on: 0.2
 
-### Epic 1: Hard gate
-- Issue 1.1: Extend `scripts/check_frontmatter.py` to enforce `REQ-YF-EMBED-007` on `skills/*/SKILL.md` only, measuring the parsed YAML scalar (what harnesses measure). Report every violation with its count, e.g. `description 1325 > 1024 (over by 301)`. Tag the code with the REQ id.
+### Epic 1: Hard gate and the five cap trims
+- Issue 1.1: In one change-set: (a) extend `scripts/check_frontmatter.py` to enforce `REQ-YF-EMBED-007` on `skills/*/SKILL.md` only, measuring the parsed scalar in UTF-16 units, reporting `description 1325 > 1024 (over by 301)`-style lines, and tagged with the REQ id; (b) trim `yf-drift-check`, `yf-skill-authoring`, `yf-okf`, `yf-beads-upstream` and `yf-change-validation` to ≤1024 by mechanical cuts only (restated axes, parentheticals, rationale moved into the SKILL.md body; no TRIGGER/SKIP clause deleted outright). The tree stays green at every commit.
   - depends-on: 0.3
-- Issue 1.2: Negative controls: `scripts/test_check_frontmatter.py` with one fixture per rule (description >1024, empty description, name >64, bad charset, leading hyphen, `--`, name ≠ dir) that the check must FAIL, plus an `agents/*.md` with a 2000-char description that it must PASS. Add a FAST+FULL recipe row `frontmatter-tests` and a §3 glob for the test file.
+- Issue 1.2: Negative controls: `scripts/test_check_frontmatter.py` with one fixture per rule (description >1024 in UTF-16 units, including an astral-character case; empty description; name >64; bad charset; leading hyphen; `--`; name ≠ dir) that the check must FAIL, plus an `agents/*.md` with a 2000-char description that it must PASS. FAST+FULL recipe row `frontmatter-tests` and a §3 glob for the test file.
   - depends-on: 1.1
 
 ### Epic 2: Trigger-eval harness
-- Issue 2.1: Ship `scripts/checks/skill_trigger_eval.py`, promoted from `assets/exp-003/runner.py` + `rescore.py` and implementing `REQ-SKAUTH-062`. `--mode candidate|installed`, `--harness pi|cc|both` (parallel), `--skills <csv>|all`, `--reps N` (default 3), `--json`. Scratch clones under `~/.cache/yf-trigger-eval/`, origin removed. Exit 0 PASS / 1 FAIL / 4 INCONCLUSIVE (matching `change_validation.py`'s `EXIT_INCONCLUSIVE`). Before scoring, the candidate mode **must** verify the loaded description text equals the staged candidate (EXP-005) and fail INCONCLUSIVE on mismatch.
+- Issue 2.1: `skills/yf-change-validation/scripts/change_validation.py`: implement `REQ-ENGINE-011` (exit 4 → inconclusive; `stream: yes` passthrough) with tests in `test_change_validation.py`, including a row exiting 4 that yields tier `inconclusive` and a streamed row whose output reaches stdout before the row finishes.
+  - depends-on: 0.6
+- Issue 2.2: Ship `scripts/checks/skill_trigger_eval.py` implementing `REQ-SKAUTH-062`, promoted from `assets/exp-003/runner.py` + `rescore.py`. It takes `--mode candidate|installed`, `--harness pi|cc|both` (run in parallel), `--skills <csv>|all`, `--reps N`, `--record`, `--validate-intents`, `--report`, `--budget-usd N`, `--json`. Exit codes: 0 PASS, 1 FAIL, 4 INCONCLUSIVE. Scratch clones and staging go under `~/.cache/yf-trigger-eval/`, with origin removed and staging cleared on every reset. CC runs record token usage and list-rate cost. At `--budget-usd`, the harness stops and exits 4 with the spend so far.
   - depends-on: 0.5
-- Issue 2.2: Tests for the harness that need no live model: detector unit tests over the recorded EXP-003 streams (they must reproduce `assets/exp-003/rescored.txt` exactly), fixture-application and reset tests, and the INCONCLUSIVE paths (binary absent on PATH, auth failure text, candidate-hash mismatch). Recipe row `trigger-eval-tests` in FAST+FULL.
-  - depends-on: 2.1
-- Issue 2.3: Author `skills/<n>/evals/triggers.json` for all 20 skills: ≥3 should-trigger (with fixtures where a precondition matters) + ≥3 near-miss naming the siblings, the six from EXP-003 seeded verbatim. Update each skill README's layout fence for the new `evals/` file (the `e-readme-layout` mechanical check requires it).
+- Issue 2.3: Tests that need no live model: commit trimmed EXP-003 fixtures to `scripts/checks/fixtures/trigger-eval/` (tool-call events only, first 8 per run). Assert per-intent totals CC 59/63 and pi 57/63. Also test: a pi stream reading `<staging>/<n>/SKILL.md` counts as activation; `skills/<n>/SKILL.md` does not; staging is cleared on reset; INCONCLUSIVE on a missing binary, on auth-failure text, on a CC init with `permissionMode != bypassPermissions` or a missing staged skill, and on a pi description hash mismatch; confirmation re-runs happen only for regressed cells; `--record` is the only writer. FAST+FULL recipe row `trigger-eval-tests`.
+  - depends-on: 2.2
+- Issue 2.4: Author `skills/<n>/evals/triggers.json` for all 20 skills. Each has ≥3 should-trigger intents (with fixtures where a precondition matters) and ≥3 near-miss intents naming siblings. The six from EXP-003 are seeded verbatim. Update each skill README's layout fence for `evals/` (the `e-readme-layout` check requires it).
   - depends-on: 0.5
-- Issue 2.4: Wire `uv run scripts/checks/skill_trigger_eval.py --mode installed --skills all --harness both --reps 3` as a FULL-tier recipe row (D3). The row runs from the checkout under test and never on the FAST tier.
-  - depends-on: 2.1, 2.3
+- Issue 2.5: Wire the FULL-tier row `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3`. It goes **last** in the FULL list, with `stream: yes` and `timeout` 21600 (6 h, about 2× the corrected projection). No FAST row.
+  - depends-on: 2.1, 2.2, 2.4
 
 ### Epic 3: Trim and rate
-- Issue 3.1: Baseline: candidate-mode rating of all 20 **current** descriptions, both harnesses, 3 reps. Record per skill in `triggers.json` (per-harness per-intent rates, description sha256, harness versions, mode) and snapshot to `assets/ratings-baseline.json`.
-  - depends-on: 2.1, 2.3
-- Issue 3.2: Trim the five over-cap descriptions (`yf-drift-check`, `yf-skill-authoring`, `yf-okf`, `yf-beads-upstream`, `yf-change-validation`) to ≤1024, aiming ≤600. Where a TRIGGER/SKIP clause is dropped, put the rationale into the SKILL.md body rather than deleting it. Re-rate in candidate mode. Accept a trim only if no intent's rate falls below 0.5 on either harness. After this issue, `check_frontmatter.py` is green on the tree.
-  - depends-on: 1.1, 3.1
-- Issue 3.3: Best-effort trim of the other 15 toward ≤600 (starting with `yf-okf-hygiene` at 997, the nearest to the cap). Same accept rule. A skill whose baseline already misses an intent gets TRIGGER-wording changes first (EXP-003 implication 2). Record, for each, the shortest accepted text and its rating.
-  - depends-on: 3.1
-- Issue 3.4: Write `assets/ratings-final.md`: the before/after table (chars, rating per harness) for all 20, and the list of skills still not crisp with the measured reason (which intent, which harness, what rate).
-  - depends-on: 3.2, 3.3
+- Issue 3.1: Wording-lever check (EXP-003's recommendation): re-run pi D3, pi O1 and CC O2 in candidate mode with **only** TRIGGER wording changed on `yf-drift-check` / `yf-optimal-instructions`, 3 reps each. Record in `assets/wording-lever.md` whether the misses respond. If they don't, record that the lever is the rules aggregate (Issue 5.4), not the description.
+  - depends-on: 2.2, 2.4
+- Issue 3.2: Baseline `--record`: candidate mode, all 20 skills (post-1.1 text), both harnesses, 3 reps. Snapshot to `assets/ratings-baseline.json` with token usage and list-rate cost. This is the first spend against D9's ceiling.
+  - depends-on: 1.1, 2.2, 2.4, 3.1
+- Issue 3.3: Best-effort trim of all 20 toward ≤600, unrouted skills first (TRIGGER wording before length). Each attempt re-rates the edited skill's intents plus every near-miss that names it (D9 scoped). Accept a text only if no intent drops below 0.5 on either harness versus the baseline. Record the shortest accepted text per skill. Track cumulative spend. **At $200 list-rate, stop and ask the operator** whether to continue (D9); record the real token usage next to it.
+  - depends-on: 3.2
+- Issue 3.4: Final all-skill candidate `--record` of the accepted texts, then `assets/ratings-final.md`: before/after chars and the four-state rating per harness for all 20, the list of not-crisp and unrouted skills with the measured reason (intent, harness, rate), and total spend (tokens + list-rate).
+  - depends-on: 3.3
 
 ### Epic 4: Split proposals
-- Issue 4.1: For each not-crisp skill in 3.4, write `assets/split-proposals/<skill>.md`: what the description is carrying that won't fit, the proposed split lines, and which intents each half would own. If 3.4 lists none, record that and close.
+- Issue 4.1: For each not-crisp or unrouted skill in 3.4, write `assets/split-proposals/<skill>.md`: what the description carries that won't fit, the proposed split lines, and which intents each half would own. If 3.4 lists none, record that and close.
   - depends-on: 3.4
-- Issue 4.2: Apply the operator's decisions from the split gate. **Approve** → file a follow-on upstream issue (via `/yf-beads-upstream`, not a hand-run `gh`) and leave the skill satisfactory pending it. **Decline** → record `accepted: satisfactory` + reason + date in the skill's `triggers.json`.
+- Issue 4.2: Apply the operator's decisions from the split gate. **Approve** → file a follow-on upstream issue via `/yf-beads-upstream`. **Decline** → record `accepted` (+ accepted-miss intent ids for an unrouted skill) + reason + date in the skill's `triggers.json`.
   - depends-on: 4.1
 
 ### Epic 5: Guidance, follow-ons and landing
-- Issue 5.1: `skills/yf-skill-authoring/SKILL.md` + reference: the length rules (`REQ-YF-EMBED-007`), the rating (`REQ-SKAUTH-061`), and how to run the eval for a new or edited skill (`REQ-SKAUTH-062`), with the pointer that the description is routing, not documentation. Keep its own description within its rating.
-  - depends-on: 0.4, 0.5, 3.2
-- Issue 5.2: README/docs touch-ups the drift manifest requires for the new script, the new recipe rows, and the `evals/` convention. Run the FULL tier on the execute branch before landing.
-  - depends-on: 1.2, 2.4, 3.3, 5.1
-- Issue 5.3: After landing and redeploy from clean `main` (the AGENTS.md preconditions), verify on the operator's machine: pi startup lists no `[Skill conflicts]`, the CC `--debug-file` log has no `Skill listing over budget` line, and an installed-mode eval run passes. Record the outputs in `assets/post-deploy.md`.
+- Issue 5.1: `skills/yf-skill-authoring/SKILL.md` + reference: the length rules (`REQ-YF-EMBED-007`), the four-state rating (`REQ-SKAUTH-061`), how to run and `--record` the eval for a new or edited skill (`REQ-SKAUTH-062`), and the point that the description is routing, not documentation. Keep its own description within its rating.
+  - depends-on: 0.4, 0.5, 3.4
+- Issue 5.2: README/docs updates the drift manifest requires for the new script, the new recipe rows, `REQ-ENGINE-011`, and the `evals/` convention. Run the FULL tier on the execute branch before landing.
+  - depends-on: 1.2, 2.3, 2.5, 3.4, 5.1
+- Issue 5.3: After landing and redeploy from clean `main` (the AGENTS.md preconditions), verify on the operator's machine: pi startup shows no `[Skill conflicts]`, the CC `--debug-file` log has no `Skill listing over budget` line, and an **installed-mode** eval run passes. Record the outputs in `assets/post-deploy.md`.
   - depends-on: 5.2
-- Issue 5.4: File a follow-on upstream issue for the rules-aggregate asymmetry (pi's `~/.pi/agent/AGENTS.md` carries 4 yf protocol blocks and CC's `YOSHIKO_FLOW.md` carries 9; EXP-003), stating the measured effect on the drift-check/instructions misses. Via `/yf-beads-upstream`.
-  - depends-on: 3.4
-- Issue 5.5: Post the #302 evidence (plan-070 is absent, so `get_next_index()` returned 071, colliding with the landed plan-071-james-dixson-d19ce8 at this plan's init) as a comment on #302.
+- Issue 5.4: File a follow-on upstream issue for the rules-aggregate asymmetry (pi carries 4 yf protocol blocks, CC carries 9; EXP-003), with the 3.1 wording-lever result as evidence. Via `/yf-beads-upstream`.
+  - depends-on: 3.1
+- Issue 5.5: Post the #302 evidence (plan-070 is absent, so `get_next_index()` returned 071 and collided with the landed plan-071-james-dixson-d19ce8 at this plan's init) as a comment on #302.
   - depends-on: 0.1
 
 ## Gates
@@ -272,19 +297,30 @@ report progress. It must not silently weaken the tier.
 - Type: auto
 - Condition: `claude -p` and `pi -p` each complete a trivial prompt non-interactively on this machine
 - Test: claude -p "Reply ok." >/dev/null 2>&1 && pi -p --no-session "Reply ok." >/dev/null 2>&1
-- Blocks: 3.1, 2.4
-- Instructions: Frontloaded to execute start: every live eval depends on it, and it's decidable before any code runs. On failure, log in to the failing harness (`claude` → `/login`, `pi` → provider auth) and re-run.
+- Blocks: 3.1, 3.2, 2.5
+- Instructions: Frontloaded to execute start: every live eval depends on it, and it is decidable before any code runs. On failure, log in to the failing harness (`claude` → `/login`, `pi` → provider auth) and re-run.
 - test_class: probe
+- cwd: repo-root
+
+### Capability Gate: development eval spend ceiling
+- Type: human
+- Approvers: operator
+- Condition: Cumulative Epic 3 eval spend has reached the D9 ceiling ($200 at API list rates), and the operator decides whether to continue, and to what new ceiling
+- Test:
+  (none — consent gate. Only the operator can decide to spend past the ceiling; `skill_trigger_eval.py --budget-usd` enforces the stop)
+- Blocks: 3.4
+- Instructions: Mid-DAG by necessity: it can only arise once spend accumulates in 3.2–3.3. It fires only if the ceiling is reached; otherwise answer "not reached". Review the measured token usage next to the list-rate figure (D9: the subscription-plan cost may be much lower), then continue with a new ceiling or stop and rate with what has been accepted so far.
+- test_class: consent
 - cwd: repo-root
 
 ### Capability Gate: split decisions
 - Type: human
 - Approvers: operator
-- Condition: The operator has decided approve or decline for every proposal in `assets/split-proposals/`
+- Condition: The operator has decided approve or decline for every proposal in `assets/split-proposals/`, and for each unrouted skill declined, which missed intents are accepted
 - Test:
   (none — consent gate; authorization has no runnable test, so the resolver treats an empty Test as INCONCLUSIVE and waits for the operator)
 - Blocks: 4.2
-- Instructions: Mid-DAG by necessity: which skills need a split proposal is only known after Epic 3 measures the trims, so this gate can't be decided at execute start. Review each proposal. Approve (a follow-on plan is filed) or decline with a reason (the skill is accepted as satisfactory). If 4.1 recorded no proposals, answer "none".
+- Instructions: Mid-DAG by necessity: which skills need proposals is only known after Epic 3 measures the trims. Approve (a follow-on plan is filed) or decline with a reason (satisfactory, or satisfactory with named accepted misses for an unrouted skill). If 4.1 recorded no proposals, answer "none".
 - test_class: consent
 - cwd: repo-root
 
@@ -306,30 +342,33 @@ report progress. It must not silently weaken the tier.
 ## Risks & Mitigations
 | # | Risk | Severity | Mitigation |
 | :-- | :-- | :-- | :-- |
-| R1 | **FULL-tier cost and time (D3).** ~360 runs per harness, ~2.4 h wall, ~$55–90 CC per FULL run, every land-the-plane. | high | Accepted by the operator with the numbers (D3 re-confirmation). Made bearable, not reduced: parallel harnesses, stop-on-activation, progress output. The row is FULL-only, never FAST. |
-| R2 | **A trim is "verified" against the old text.** CC silently shadows a project skill copy with the user-scope install (EXP-005). | high | Candidate mode uses `--setting-sources project`, and the harness **verifies** the loaded description equals the staged candidate before scoring; a mismatch is INCONCLUSIVE. Issue 2.2 tests that path. |
-| R3 | **Nondeterministic evals flap ratings and the FULL tier.** | med | Rate threshold ≥0.5 over ≥3 reps (REQ-SKAUTH-061), not all-pass. The EXP-003 baseline measured 116/126 with a known miss set, which calibrates what "normal" looks like. |
-| R4 | **Candidate mode ≠ what users get.** Isolated runs drop other skills and the CC rules aggregate (EXP-005). | med | Every rating records its mode. The FULL-tier row runs installed mode after deploy (Issue 5.3), so the shipped result is also measured under full config. |
-| R5 | **Unattended FULL runs have no harness auth.** | med | INCONCLUSIVE, never PASS (REQ-SKAUTH-062), matching `change_validation.py`'s existing fail-closed contract. CI (`ci.yml`) calls checkers by name and does not run the FULL tier, so it is unaffected. |
-| R6 | **The hard gate goes red on the tree the moment it lands.** Five skills are over. | med | Issue 3.2 (the five trims) lands in the same change-set as 1.1, and SC3 is checked on the merged tree, not per issue. |
-| R7 | **Trims drop deliberate negative routing.** | med | The accept rule is measured (no intent below 0.5 on either harness), near-miss intents name the siblings, and a dropped SKIP clause moves into the SKILL.md body instead of being deleted. |
-| R8 | **Self-modification.** The plan edits skills (including `yf-skill-authoring`) while the session runs installed copies. | low | AGENTS.md three-artifacts rule: no `yf skills install` / `yf self install` mid-execution. Redeploy only in Issue 5.3, from clean `main`. |
-| R9 | **Eval outcomes depend on the machine.** CC's listing drop order depends on usage history (EXP-004). | low | Each CC run captures whether the budget WARN fired, and candidate mode is unaffected (14-skill listing, far under budget). |
+| R1 | **FULL-tier cost and time (D3).** ~3.1 h wall and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, live streamed output (`REQ-ENGINE-011`), row placed last. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
+| R2 | **A trim is "verified" against the old text.** CC silently shadows a project skill copy with the user-scope install (EXP-005), and the FULL row would read installed skills at L3, before redeploy (pass-1 C1). | high | The FULL row runs **candidate** mode, staged from the checkout under test. Before scoring, the harness verifies CC's init (`permissionMode`, `skills` ⊇ staged) and pi's description hash; a mismatch is INCONCLUSIVE. Installed mode runs only after deploy (5.3). Issue 2.3 tests each path. |
+| R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ~2% at 95% per-run reliability, ~26% at 90%. Accepted misses never FAIL. |
+| R4 | **Candidate mode ≠ what users get.** It drops other skills and the CC rules aggregate (EXP-005). | med | Every rating records its mode. Installed mode verifies the shipped result on the operator's machine (5.3). |
+| R5 | **Runs without harness auth.** | med | Exit 4 → INCONCLUSIVE through `REQ-ENGINE-011`, and `_validate_merged` halts L3 on INCONCLUSIVE, so a FULL run whose evals could not run cannot land. CI (`ci.yml`) calls checkers by name and does not run the FULL tier, so it is unaffected. |
+| R6 | **The hard gate turns red when it lands.** | low | Resolved structurally (pass-1 C10): Issue 1.1 carries the checker and the five cap trims in one change-set. SC2 is checked on the merged tree. |
+| R7 | **Trims drop deliberate negative routing.** | med | Measured accept rule (no intent below 0.5 versus the baseline, on either harness); near-miss intents name siblings; 1.1's mechanical cut moves SKIP rationale into the SKILL.md body instead of deleting it; Epic 3 re-rates 1.1's text. |
+| R8 | **Self-modification.** | low | AGENTS.md three-artifacts rule: no `yf skills install` / `yf self install` mid-execution. Redeploy only in 5.3, from clean `main`. |
+| R9 | **Development spend runs away.** | med | D9: scoped re-rates, $200 list-rate ceiling enforced by `--budget-usd`, and a human gate to go past it, with measured tokens reported. |
+| R10 | **Candidate-mode CC runs with `bypassPermissions`** outside the operator's settings. | med | Only inside scratch clones under `~/.cache/yf-trigger-eval/` with origin removed, and sessions are killed at activation or 6 tool calls. Recorded in context.md Runtime assumptions. |
 
 ## Success Criteria
 | # | Criterion | Verification | Discharged-by |
 | :-- | :-- | :-- | :-- |
-| SC1 | The three REQs are in the SPECs | `grep -q 'REQ-YF-EMBED-007' SPEC.md && grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SPEC.md && grep -q 'REQ-SKAUTH-062' skills/yf-skill-authoring/SPEC.md` -> exit 0 | 0.3, 0.4, 0.5 |
-| SC1b | SPEC commits precede code commits on the execute branch | `B=$(cat docs/plans/plan-072-james-dixson-bae8de/assets/execute-base.txt); fs=$(git log --format=%H --reverse "$B..HEAD" -- SPEC.md skills/yf-skill-authoring/SPEC.md \| head -1); fc=$(git log --format=%H --reverse "$B..HEAD" -- scripts/check_frontmatter.py scripts/checks/skill_trigger_eval.py \| head -1); test -n "$fs" && { test -z "$fc" \|\| git merge-base --is-ancestor "$fs" "$fc"; }` -> exit 0 | 0.1, 0.2, 0.3, 0.5 |
-| SC2 | Every skill is within the hard limits | `uv run scripts/check_frontmatter.py` -> exit 0 | 1.1, 3.2 |
+| SC1 | The four REQs are in their SPECs, as recorded in the allocation file | `test -r docs/plans/plan-072-james-dixson-bae8de/assets/req-allocation.md && grep -q 'REQ-YF-EMBED-007' SPEC.md && grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SPEC.md && grep -q 'REQ-SKAUTH-062' skills/yf-skill-authoring/SPEC.md && grep -q 'REQ-ENGINE-011' skills/yf-change-validation/spec/engine.md` -> exit 0 | 0.2, 0.3, 0.4, 0.5, 0.6 |
+| SC1b | SPEC commits precede code commits on the execute branch | `B=$(cat docs/plans/plan-072-james-dixson-bae8de/assets/execute-base.txt); fs=$(git log --format=%H --reverse "$B..HEAD" -- SPEC.md skills/yf-skill-authoring/SPEC.md skills/yf-change-validation/spec/engine.md \| head -1); fc=$(git log --format=%H --reverse "$B..HEAD" -- scripts/check_frontmatter.py scripts/checks/skill_trigger_eval.py skills/yf-change-validation/scripts/change_validation.py \| head -1); test -n "$fs" && { test -z "$fc" \|\| git merge-base --is-ancestor "$fs" "$fc"; }` -> exit 0 | 0.1, 0.3, 0.5, 0.6 |
+| SC2 | Every skill is within the hard limits, and the check enforces the tagged rule (pass-1 C9: not vacuously green) | `grep -q 'REQ-YF-EMBED-007' scripts/check_frontmatter.py && uv run scripts/check_frontmatter.py` -> exit 0 | 1.1 |
 | SC3 | The hard gate is observed to fail on each rule | `uv run scripts/test_check_frontmatter.py` -> exit 0 | 1.2 |
-| SC4 | The eval harness is tested without live models and reproduces the EXP-003 scoring | `uv run scripts/checks/test_skill_trigger_eval.py` -> exit 0 | 2.1, 2.2 |
-| SC5 | Every skill has an intent set with ≥3 trigger and ≥3 near-miss intents | `uv run scripts/checks/skill_trigger_eval.py --validate-intents --min-trigger 3 --min-nearmiss 3` -> exit 0 | 2.3 |
-| SC6 | The FULL tier carries the eval row for every skill, both harnesses | `grep -F 'skill_trigger_eval.py --mode installed --skills all --harness both --reps 3' CHANGE-VALIDATION.md` -> exit 0 | 2.4 |
-| SC7 | No skill is loose, and every skill has a recorded rating | `uv run scripts/checks/skill_trigger_eval.py --report --require-rated --max-rating satisfactory` -> exit 0 | 3.1, 3.2, 3.3, 3.4 |
-| SC8 | Every not-crisp skill carries an operator decision | `uv run scripts/checks/skill_trigger_eval.py --report --require-decision-for-noncrisp` -> exit 0 | 4.1, 4.2 |
-| SC9 | Aggregate description size fell | manual: assets/ratings-final.md shows the corpus description total below the 16,898-char baseline, with a per-skill before/after table | 3.4 |
-| SC10 | pi and CC start clean on the operator's machine after redeploy | manual: assets/post-deploy.md shows pi's startup with no [Skill conflicts] block and a CC --debug-file log with no "Skill listing over budget" line (EXP-004), both from after the Issue 5.3 redeploy | 5.3 |
-| SC11 | The authoring guidance is in the conventions skill | `grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SKILL.md && grep -q 'skill_trigger_eval' skills/yf-skill-authoring/SKILL.md` -> exit 0 | 5.1 |
-| SC12 | FULL tier green on the merged tree | manual: land's L3 validate-merged reports PASS for the FULL tier, including the eval row | 5.2 |
-| SC13 | The follow-ons are filed | manual: the rules-asymmetry issue (5.4) exists and #302 carries the collision evidence comment (5.5) | 5.4, 5.5 |
+| SC4 | The engine maps exit 4 to inconclusive and streams opted-in rows | `uv run skills/yf-change-validation/scripts/test_change_validation.py` -> exit 0 | 2.1 |
+| SC5 | The eval harness is tested without live models and reproduces the EXP-003 scoring from committed fixtures | `uv run scripts/checks/test_skill_trigger_eval.py` -> exit 0 | 2.2, 2.3 |
+| SC6 | Every skill has an intent set with ≥3 trigger and ≥3 near-miss intents | `uv run scripts/checks/skill_trigger_eval.py --validate-intents --min-trigger 3 --min-nearmiss 3` -> exit 0 | 2.4 |
+| SC7 | The FULL tier carries the candidate-mode eval row, last, streamed, with a timeout | `grep -F 'skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3' CHANGE-VALIDATION.md` -> exit 0 | 2.5 |
+| SC8 | The wording-lever check is recorded | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/wording-lever.md` -> exit 0 | 3.1 |
+| SC9 | No skill is loose or unaccepted-unrouted, and every skill has a recorded rating | `uv run scripts/checks/skill_trigger_eval.py --report --require-rated --forbid loose,unrouted` -> exit 0 | 3.2, 3.3, 3.4 |
+| SC10 | Every not-crisp skill carries an operator decision | `uv run scripts/checks/skill_trigger_eval.py --report --require-decision-for-noncrisp` -> exit 0 | 4.1, 4.2 |
+| SC11 | Aggregate description size fell, and spend is reported | manual: assets/ratings-final.md shows the corpus description total below the 16,898-char baseline with a per-skill before/after table, plus total eval spend as tokens and list-rate USD | 3.4 |
+| SC12 | pi and CC start clean on the operator's machine after redeploy, and installed mode passes | manual: assets/post-deploy.md shows pi startup with no [Skill conflicts] block, a CC --debug-file log with no "Skill listing over budget" line, and an installed-mode eval PASS, all captured after the Issue 5.3 redeploy | 5.3 |
+| SC13 | The authoring guidance is in the conventions skill | `grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SKILL.md && grep -q 'skill_trigger_eval' skills/yf-skill-authoring/SKILL.md` -> exit 0 | 5.1 |
+| SC14 | FULL tier green on the merged tree | manual: land's L3 validate-merged reports PASS for the FULL tier, including the eval row, which is a ~3 h run and so is not smoke-runnable by ready-check | 5.2 |
+| SC15 | The follow-ons are filed | manual: the rules-asymmetry issue (5.4) exists and #302 carries the collision evidence comment (5.5), both read back after posting | 5.4, 5.5 |

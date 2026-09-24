@@ -74,19 +74,21 @@ mode: reading
 
 ## Resolutions
 
+**Status: all 14 resolved on 2026-09-24. C2, C3 and C8 were resolved by operator decision, the rest by the main session. Missing-section items: the verdict rule and the unnamed state (C2, C3); the Epic 3 budget (D9); the `triggers.json` writer (C13); the timeout and position (Issue 2.5); the wording-lever check (Issue 3.1). Gate items: new spend-ceiling gate; the split gate covers accepted misses. Pass 2 verifies.**
+
 | Concern | Severity | Resolution | Actor | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| C1 | high | | | unresolved |
-| C2 | high | | | unresolved |
-| C3 | high | | | unresolved |
-| C4 | high | | | unresolved |
-| C5 | medium-high | | | unresolved |
-| C6 | medium-high | | | unresolved |
-| C7 | medium-high | | | unresolved |
-| C8 | medium | | | unresolved |
-| C9 | medium | | | unresolved |
-| C10 | medium | | | unresolved |
-| C11 | medium | | | unresolved |
-| C12 | low-medium | | | unresolved |
-| C13 | low-medium | | | unresolved |
-| C14 | low | | | unresolved |
+| C1 | high | FULL row switched to `--mode candidate`, staged from the checkout under test (Issue 2.5, SC7). Installed mode is used only post-deploy (5.3, SC12). R2/R4 rewritten; the R4 self-contradiction is removed. | `main-session` | resolved |
+| C2 | high | Operator decision: regression plus confirmation. A cell FAILs only if it was recorded ≥0.5 and the pooled 6-rep rate is <0.5; accepted misses never FAIL. Stated false-FAIL rate ~2% at 95% per-run reliability and ~26% at 90% (computed binomially), written into REQ-SKAUTH-062 (Approach 1, D3, R3). | `main-session` + `operator` | resolved |
+| C3 | high | Operator decision: added a fourth state, **unrouted** (D1, REQ-SKAUTH-061). Wording fixes come first, then the split gate. A decline accepts the named missed intents, displayed as `satisfactory (accepted misses: …)`. SC9 forbids loose and unaccepted-unrouted; the split gate's condition covers accepted misses. | `main-session` + `operator` | resolved |
+| C4 | high | Issue 2.3 commits trimmed fixtures (tool-call events only, first 8 per run; 115,167 bytes measured for all 126 runs) under `scripts/checks/fixtures/trigger-eval/` and asserts the per-intent totals 59/63 and 57/63 instead of comparing a text file. SC5 reworded. | `main-session` | resolved |
+| C5 | medium-high | The staging root is an explicit detector input in REQ-SKAUTH-062. pi candidates are staged under `<staging>/<n>/`, never the clone's `skills/<n>/`. Issue 2.3 tests both the positive and the negative path. | `main-session` | resolved |
+| C6 | medium-high | Candidate-mode CC passes `--permission-mode bypassPermissions`, and the harness requires init `permissionMode == bypassPermissions` or reports INCONCLUSIVE (REQ-SKAUTH-062, Issue 2.3). context.md runtime assumptions and R10 record it. | `main-session` | resolved |
+| C7 | medium-high | New `REQ-ENGINE-011` (Issue 0.6, SPEC-first in yf-change-validation) and Issue 2.1: exit 4 → inconclusive, plus an opt-in `stream: yes` passthrough. The row goes last, with `timeout` 21600. Verified that `_validate_merged` already halts L3 on INCONCLUSIVE, which is the intended outcome and left unchanged. R5 corrected. | `main-session` | resolved |
+| C8 | medium | Re-projected from the measured split (CC trigger 20.4 s, near-miss 42.5 s → 31.4 s/run → 3.14 h; pi 21.8 s → 2.18 h). The operator re-confirmed D3 at the corrected cost. New D9 (operator): scoped re-rates, a $200 list-rate ceiling enforced by `--budget-usd`, and a new human gate to exceed it. Tokens are reported next to list-rate, because subscription billing makes the real cost unknown. | `main-session` + `operator` | resolved |
+| C9 | medium | SC2 now requires `grep -q REQ-YF-EMBED-007 scripts/check_frontmatter.py` as well as a green check, so it cannot pass on an untouched tree. | `main-session` | resolved |
+| C10 | medium | The checker and the five mechanical cap trims are now a single Issue 1.1 (one change-set), and Epic 3 re-rates that text. R6 downgraded to low, and its SC reference fixed. | `main-session` | resolved |
+| C11 | medium | CC verification specified: init `skills` ⊇ staged names, `permissionMode` asserted, `--setting-sources project`. pi: hash of the description text from its own stream against the staged file. The tools-off quote is dropped as a per-run mechanism (REQ-SKAUTH-062). | `main-session` | resolved |
+| C12 | low-medium | The staging dir is cleared at every reset (REQ-SKAUTH-062, Issue 2.2), with a test in 2.3. | `main-session` | resolved |
+| C13 | low-medium | D4 and REQ-SKAUTH-062: only an explicit `--record` run writes `triggers.json`, and the FULL row is read-only. Tested in 2.3. | `main-session` | resolved |
+| C14 | low | Length unit pinned to UTF-16 code units of the parsed scalar in REQ-YF-EMBED-007; Issue 1.2 adds an astral-character fixture. | `main-session` | resolved |
