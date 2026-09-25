@@ -33,11 +33,11 @@ warning, which would train a reader to ignore it.
 | `on_no_answer` | Keep 21600 s with --deadline-seconds 21000: a FULL run that cannot finish stops INCONCLUSIVE instead of being killed and scored FAIL. SC7 stays green, and Issue 5.2 surfaces it at landing |
 | `detected_by` | self-report |
 | `evidence` | 720/150*3600=17280 s base; +24 confirm cells*3/150*3600=1728 s gives 19008 s before backoff; per-run tail up to 150 s; backoff bound 1800 s gives worst ~20900 s. SC7 command exits 1 with timeout 28800 (measured). |
-| `asked_of` |  |
-| `state` | raised |
-| `answer` |  |
+| `asked_of` | operator |
+| `state` | resolved |
+| `answer` | Alternative A — operator: "lets do A" (relayed from parent pane w1G:p1). Amend SC7 + D3 to 28800 s timeout with --deadline-seconds 25200, via re-approval. |
 | `raised_when` | 2026-09-25 |
-| `resolved_when` |  |
+| `resolved_when` | 2026-09-25 |
 | `no_answer_taken` | no |
 | `push_batch` | 20260925T135511-1 |
 
