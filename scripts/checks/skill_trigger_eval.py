@@ -512,7 +512,8 @@ def cmd_live(args, root: Path) -> int:
         return core.EXIT_INCONCLUSIVE
     tag = uuid.uuid4().hex[:8]
     throttle = core.Throttle(args.max_runs_per_hour, args.max_backoff_seconds,
-                             clock=time.monotonic, sleep=time.sleep)
+                             clock=time.monotonic, sleep=time.sleep,
+                             deadline_s=args.deadline_seconds)
     done = core.load_results(Path(args.resume)) if args.resume else {}
     res_path = Path(args.results) if args.results else (Path(args.resume) if args.resume else None)
     store = Results(res_path, done)
@@ -573,7 +574,7 @@ def cmd_live(args, root: Path) -> int:
                "runs": sum(len(v) for v in results.values()),
                "budget_tripped": budget.tripped, "ledger_cc_usd": round(budget.total, 4),
                "throttle": {"final_per_hour": throttle.per_hour, "backoff_s": throttle.backoff_total,
-                            "exhausted": throttle.exhausted},
+                            "exhausted": throttle.exhausted, "deadline_hit": throttle.deadline_hit},
                "cells": {f"{i}:{h}": {"rate": core.rate(c["first"]), "verdict": verdicts[(i, h)],
                                       "inconclusive": c["inconclusive"]}
                          for (i, h), c in cells.items()},
@@ -649,6 +650,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="GLOBAL run-start ceiling across both harnesses (shared quota)")
     ap.add_argument("--max-backoff-seconds", type=float, default=4 * 3600.0,
                     help="bound on total rate-limit pause; exceeding it exits 4")
+    ap.add_argument("--deadline-seconds", type=float, default=None,
+                    help="wall-clock bound; stop at exit 4 before an outer timeout would kill the run")
     ap.add_argument("--results", default=None, help="append valid per-run results here")
     ap.add_argument("--resume", default=None,
                     help="skip runs already in this results jsonl (and keep appending to it)")

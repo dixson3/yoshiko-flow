@@ -631,3 +631,16 @@
 {"ts": "2026-09-25T13:49:27", "harness": "pi", "intent": "R-N3", "tokens": {"input": 4, "output": 107, "cache_read": 72650, "cache_write": 49790}, "cc_usd": 0.0, "model": null}
 {"ts": "2026-09-25T13:49:41", "harness": "cc", "intent": "P-N2", "tokens": {"input": 6, "cache_write_1h": 35188, "cache_write_5m": 0, "cache_read": 98993, "output": 695}, "cc_usd": 0.31522659999999997, "model": "claude-opus-5-5"}
 {"ts": "2026-09-25T13:49:45", "harness": "pi", "intent": "P-N2", "tokens": {"input": 6, "output": 946, "cache_read": 138666, "cache_write": 55174}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:50:11", "harness": "cc", "intent": "P-N2", "tokens": {"input": 6, "cache_write_1h": 36691, "cache_write_5m": 0, "cache_read": 97535, "output": 791}, "cc_usd": 0.328879, "model": "claude-opus-5-5"}
+{"ts": "2026-09-25T13:50:27", "harness": "pi", "intent": "R-N3", "tokens": {"input": 4, "output": 108, "cache_read": 72650, "cache_write": 49835}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:50:55", "harness": "cc", "intent": "P-N3", "tokens": {"input": 6, "cache_write_1h": 30472, "cache_write_5m": 0, "cache_read": 94244, "output": 415}, "cc_usd": 0.2709488, "model": "claude-opus-5-5"}
+{"ts": "2026-09-25T13:51:15", "harness": "pi", "intent": "S1", "tokens": {"input": 2, "output": 398, "cache_read": 36130, "cache_write": 25135}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:51:36", "harness": "cc", "intent": "R1", "tokens": {"input": 2, "cache_write_1h": 27882, "cache_write_5m": 0, "cache_read": 12094, "output": 94}, "cc_usd": 0.22736279999999998, "model": "claude-opus-5-5"}
+{"ts": "2026-09-25T13:52:03", "harness": "pi", "intent": "S2", "tokens": {"input": 2, "output": 357, "cache_read": 36130, "cache_write": 25153}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:52:24", "harness": "cc", "intent": "R2", "tokens": {"input": 2, "cache_write_1h": 27872, "cache_write_5m": 0, "cache_read": 12094, "output": 83}, "cc_usd": 0.22706279999999998, "model": "claude-opus-5-5"}
+{"ts": "2026-09-25T13:52:50", "harness": "pi", "intent": "S3", "tokens": {"input": 2, "output": 271, "cache_read": 36130, "cache_write": 25133}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:53:43", "harness": "cc", "intent": "R3", "tokens": {"input": 10, "cache_write_1h": 42612, "cache_write_5m": 0, "cache_read": 221094, "output": 1572}, "cc_usd": 0.4165948, "model": "claude-opus-5-5"}
+{"ts": "2026-09-25T13:54:01", "harness": "pi", "intent": "S-N2", "tokens": {"input": 12, "output": 1534, "cache_read": 340729, "cache_write": 61963}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:54:24", "harness": "cc", "intent": "R-N1", "tokens": {"input": 10, "cache_write_1h": 78784, "cache_write_5m": 0, "cache_read": 321667, "output": 1715}, "cc_usd": 0.7289454000000001, "model": "claude-opus-5-5"}
+{"ts": "2026-09-25T13:54:38", "harness": "pi", "intent": "S-N3", "tokens": {"input": 8, "output": 1217, "cache_read": 205287, "cache_write": 57046}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-25T13:55:06", "harness": "cc", "intent": "R-N2", "tokens": {"input": 8, "cache_write_1h": 37091, "cache_write_5m": 0, "cache_read": 146775, "output": 1369}, "cc_usd": 0.353495, "model": "claude-opus-5-5"}

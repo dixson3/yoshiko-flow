@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-09-25
+- executing: D3 FULL-row timeout re-check (operator step d): at the throttled 150/h global, 720 runs = 4.8 h and ~5.3 h with 10% confirmations — does NOT fit 21600 s. SC7 asserts the literal 21600 and plan.md content is fingerprinted, so the outer timeout is KEPT at 21600 and the row gains --deadline-seconds 21000 (stop before any run could be cut off; exit 4 → INCONCLUSIVE via inconclusive-exit=4, never a timeout FAIL) + --max-backoff-seconds 1800. Consequence: an unthrottled-free FULL run can report INCONCLUSIVE, which halts L3. Escalated: amend SC7/D3 to 28800 s (--deadline-seconds 25200) at the next re-approval
 - executing: OPERATOR DECISION: D9 dev spend ceiling raised $200 → $600 CC list-rate via assets/spend-ceiling.txt (plan text keeps $200 as the approved default). Reason: 'we have not come close to reaching the subscription limit on token spend' — the incident was a request-rate limit, not spend. All Epic 3 runs now pass --budget-usd 600
 - executing: 3.2 incident: baseline tripped the shared model-account RATE limit (~381 runs/h for 1.6h; pi reaches the same account via cliproxyapi); last 14 CC runs were 0-token rate-limited and mis-scored; kill() PermissionError aborted the run, nothing recorded. OPERATOR DECISION: 'throttle the runs — there are always other sessions active' → REQ-SKAUTH-062 amended (0-token/429 INCONCLUSIVE, global --max-runs-per-hour default 150, adaptive backoff, --results/--resume); baseline resumed, not restarted
 - executing: start gate resolved

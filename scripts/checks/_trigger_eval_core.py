@@ -244,7 +244,7 @@ class Throttle:
     `clock` and `sleep` are injectable so the spacing is testable without waiting."""
 
     def __init__(self, per_hour: float, max_backoff_s: float, clock, sleep,
-                 min_per_hour: float = 10.0):
+                 min_per_hour: float = 10.0, deadline_s: float | None = None):
         self.per_hour = per_hour * 1.0  # numeric by signature
         self.min_per_hour = min_per_hour
         self.max_backoff_s = max_backoff_s
@@ -254,6 +254,10 @@ class Throttle:
         self.backoff_total = 0.0
         self.consecutive = 0
         self.exhausted = False
+        # Wall-clock bound: stop (INCONCLUSIVE) rather than let an outer timeout kill the run,
+        # which the engine would score FAIL. A throttle-slowed run measured nothing wrong.
+        self.deadline = (clock() + deadline_s) if deadline_s else None
+        self.deadline_hit = False
         import threading as _t
         self.lock = _t.Lock()
 
@@ -268,6 +272,10 @@ class Throttle:
                 return False
             now = self.clock()
             start = max(now, self.next_start, self.paused_until)
+            # A run may take up to TIMEOUT_S once started; do not start one that cannot finish.
+            if self.deadline is not None and start + TIMEOUT_S > self.deadline:
+                self.exhausted = self.deadline_hit = True
+                return False
             self.next_start = start + self.interval
         wait = start - now
         if wait > 0:

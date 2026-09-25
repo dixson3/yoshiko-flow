@@ -451,6 +451,15 @@ def test_backoff_exponential_without_reset_and_bounded():
     assert th.exhausted and not th.acquire()
 
 
+def test_deadline_stops_before_outer_timeout():
+    fc = FakeClock()
+    th = core.Throttle(3600, 99999, fc.clock, fc.sleep, deadline_s=core.TIMEOUT_S + 10)
+    assert th.acquire()          # t=0: 0+150 <= 160
+    fc.t = 20.0
+    assert not th.acquire()      # 20+150 > 160: would be killed mid-run
+    assert th.exhausted and th.deadline_hit
+
+
 def test_resume_skips_completed_runs(tmp_path):
     rp = tmp_path / "results.jsonl"
     rows = [{"harness": "pi", "intent": "K1", "rep": 0, "correct": True},

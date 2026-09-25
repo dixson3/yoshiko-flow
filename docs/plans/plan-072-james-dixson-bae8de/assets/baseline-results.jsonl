@@ -577,3 +577,16 @@
 {"harness": "cc", "intent": "P2", "rep": 2, "correct": true, "cc_usd": 0.22636679999999998, "source": "baseline-log-seed"}
 {"harness": "cc", "intent": "P3", "rep": 2, "correct": false, "cc_usd": 0.678479, "source": "baseline-log-seed"}
 {"harness": "cc", "intent": "P-N1", "rep": 2, "correct": true, "cc_usd": 0.4924938, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "exit", "n_tools": 2, "secs": 15.8, "cc_usd": 0.328879, "session_id": "8c22a69c-6ba2-46e6-aa4d-49c7e252ccd2", "source": null}
+{"harness": "pi", "intent": "R-N3", "rep": 1, "correct": true, "activated": [], "stop": "exit", "n_tools": 1, "secs": 7.0, "cc_usd": 0.0, "session_id": "21c0352d-d6ad-4f94-ba01-0ca47b1e468a", "source": null}
+{"harness": "cc", "intent": "P-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 11.8, "cc_usd": 0.2709488, "session_id": "70dccc96-f0e5-4933-9a3f-eced42053e97", "source": null}
+{"harness": "pi", "intent": "S1", "rep": 1, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 7.2, "cc_usd": 0.0, "session_id": "bdc4b4c6-35e0-40e9-a09d-ae5abb03f9be", "source": null}
+{"harness": "cc", "intent": "R1", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.22736279999999998, "session_id": "f401d0b0-aca9-4376-89bc-7aca5b42fdf1", "source": null}
+{"harness": "pi", "intent": "S2", "rep": 1, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 7.2, "cc_usd": 0.0, "session_id": "7f3114cd-6aca-4005-b31d-d852b9da865e", "source": null}
+{"harness": "cc", "intent": "R2", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 4.5, "cc_usd": 0.22706279999999998, "session_id": "aaf63865-f050-4ec1-8d16-43caac655850", "source": null}
+{"harness": "pi", "intent": "S3", "rep": 1, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 6.4, "cc_usd": 0.0, "session_id": "9b8e7e30-51f5-4436-8a56-421e9e15423f", "source": null}
+{"harness": "cc", "intent": "R3", "rep": 2, "correct": false, "activated": [], "stop": "exit", "n_tools": 4, "secs": 35.8, "cc_usd": 0.4165948, "session_id": "79ad4500-52b3-4443-ae0c-374e7632b0eb", "source": null}
+{"harness": "pi", "intent": "S-N2", "rep": 1, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 7, "secs": 29.2, "cc_usd": 0.0, "session_id": "aba28195-9bcc-459b-a92b-7a3da26cd3b7", "source": null}
+{"harness": "cc", "intent": "R-N1", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "exit", "n_tools": 4, "secs": 28.1, "cc_usd": 0.7289454000000001, "session_id": "6846649e-e6cc-410c-8bfc-48b2e232e521", "source": null}
+{"harness": "pi", "intent": "S-N3", "rep": 1, "correct": false, "activated": ["yf-optimal-instructions", "yf-skill-authoring"], "stop": "max_tools", "n_tools": 7, "secs": 18.7, "cc_usd": 0.0, "session_id": "c77a6b90-57e1-4794-9d3e-004f3da33195", "source": null}
+{"harness": "cc", "intent": "R-N2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "exit", "n_tools": 3, "secs": 22.8, "cc_usd": 0.353495, "session_id": "d7feeaaa-062b-48b3-ad43-8d39ce122c2d", "source": null}
