@@ -45,5 +45,73 @@
     "yf-markdown-format"
    ]
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "97bac1cc4c68939c63fee279f90a707bfd96985e11bcf1f9054391e81f43a0e5",
+  "description_chars": 582,
+  "cells": {
+   "MF1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }

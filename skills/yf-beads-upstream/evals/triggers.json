@@ -44,5 +44,73 @@
     "yf-beads-upstream"
    ]
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "fd3596f930327b750ed5074978a50498913003265b6a4b574cd3a97e6e84dd06",
+  "description_chars": 949,
+  "cells": {
+   "BU1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }

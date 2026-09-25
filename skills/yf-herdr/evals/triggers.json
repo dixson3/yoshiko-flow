@@ -44,5 +44,73 @@
     "yf-herdr"
    ]
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "d60b65669782cecb80d0ecd4f49ae7f6e0a708fc7e383d97c0c2080297a9c230",
+  "description_chars": 848,
+  "cells": {
+   "HR1:pi": {
+    "rate": 0.6666666666666666,
+    "correct": 2,
+    "reps": 3
+   },
+   "HR1:cc": {
+    "rate": 0.0,
+    "correct": 0,
+    "reps": 3
+   },
+   "HR2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }

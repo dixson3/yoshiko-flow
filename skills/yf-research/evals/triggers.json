@@ -44,5 +44,73 @@
     "yf-research"
    ]
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "8f616c747ad279d00dfce7dabe9730c550a6f4dfea7a10463d2753523a09b5d5",
+  "description_chars": 718,
+  "cells": {
+   "R1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R3:cc": {
+    "rate": 0.0,
+    "correct": 0,
+    "reps": 3
+   },
+   "R-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "R-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }

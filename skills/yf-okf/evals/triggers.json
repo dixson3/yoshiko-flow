@@ -46,5 +46,73 @@
     "yf-okf"
    ]
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "85950b50161bc986bbbf38dba4a1650adda5e9cf2b9360976baeb3cd848b62b1",
+  "description_chars": 989,
+  "cells": {
+   "K1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K-N4:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K-N4:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K-N5:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "K-N5:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }

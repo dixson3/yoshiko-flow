@@ -46,5 +46,73 @@
     "yf-skill-authoring"
    ]
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "7bae06a34cc0c62107c54c06d0f549f1f2952bfe555fa78ce6165e1ccdf7e8a3",
+  "description_chars": 947,
+  "cells": {
+   "S1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N3:pi": {
+    "rate": 0.3333333333333333,
+    "correct": 1,
+    "reps": 3
+   },
+   "S-N3:cc": {
+    "rate": 0.6666666666666666,
+    "correct": 2,
+    "reps": 3
+   },
+   "S-N4:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N4:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }

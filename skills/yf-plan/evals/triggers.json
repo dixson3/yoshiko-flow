@@ -45,5 +45,73 @@
    ],
    "fixture": "printf '\\n- recieve\\n' >> CHANGELOG.md"
   }
- ]
+ ],
+ "recorded": {
+  "date": "2026-09-25",
+  "mode": "candidate",
+  "description_sha256": "8e901a3c76c2e909fcda43505da193188bcb9a057ca29644c87611e19864b8a9",
+  "description_chars": 331,
+  "cells": {
+   "P1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P3:pi": {
+    "rate": 0.6666666666666666,
+    "correct": 2,
+    "reps": 3
+   },
+   "P3:cc": {
+    "rate": 0.3333333333333333,
+    "correct": 1,
+    "reps": 3
+   },
+   "P-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "P-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
 }
