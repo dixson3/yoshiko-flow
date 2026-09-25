@@ -46,8 +46,7 @@
    "kind": "near-miss",
    "prompt": "Run the fast validation tier for my change to _shared/sync.py.",
    "siblings": [
-    "yf-drift-check",
-    "yf-change-validation"
+    "yf-drift-check"
    ]
   }
  ]

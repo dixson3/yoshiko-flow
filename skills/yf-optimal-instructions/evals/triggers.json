@@ -37,8 +37,7 @@
    "kind": "near-miss",
    "prompt": "Tighten the wording of skills/yf-markdown-lint/SKILL.md; it's too verbose.",
    "siblings": [
-    "yf-optimal-instructions",
-    "yf-skill-authoring"
+    "yf-optimal-instructions"
    ]
   },
   {

@@ -35,8 +35,7 @@
    "kind": "near-miss",
    "prompt": "How many plan bundles in this repo are still in a legacy layout?",
    "siblings": [
-    "yf-okf",
-    "yf-okf-hygiene"
+    "yf-okf"
    ]
   },
   {
@@ -44,8 +43,7 @@
    "kind": "near-miss",
    "prompt": "Check that SPEC.md and the yf-okf spec files still agree with each other.",
    "siblings": [
-    "yf-okf",
-    "yf-drift-check"
+    "yf-okf"
    ]
   }
  ]

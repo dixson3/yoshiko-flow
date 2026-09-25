@@ -36,8 +36,7 @@
    "kind": "near-miss",
    "prompt": "Is DRIFT-CHECK.md still in agreement with the files it covers?",
    "siblings": [
-    "yf-change-validation",
-    "yf-drift-check"
+    "yf-change-validation"
    ]
   },
   {

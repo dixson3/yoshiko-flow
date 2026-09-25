@@ -34,8 +34,7 @@
    "kind": "near-miss",
    "prompt": "Does docs/plans/plan-069-james-dixson-9d2878 alone conform to the OKF model?",
    "siblings": [
-    "yf-okf-hygiene",
-    "yf-okf"
+    "yf-okf-hygiene"
    ]
   },
   {
@@ -43,8 +42,7 @@
    "kind": "near-miss",
    "prompt": "Clean up the orphaned beads in this repo.",
    "siblings": [
-    "yf-okf-hygiene",
-    "yf-beads-hygiene"
+    "yf-okf-hygiene"
    ]
   }
  ]
