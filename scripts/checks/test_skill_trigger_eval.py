@@ -114,6 +114,9 @@ def test_near_miss_cell_rate_is_correct_outcome_rate():
     assert core.correct(nm, []) is True
     assert core.correct(nm, ["yf-okf-hygiene"]) is True  # a different, correct route
     assert core.correct(nm, ["yf-okf"]) is False
+    # first-activation-routes: a sibling read only AFTER the correct route is not a misroute
+    assert core.correct(nm, ["yf-okf-hygiene", "yf-okf"]) is True
+    assert core.correct(nm, ["yf-okf", "yf-okf-hygiene"]) is False
     tr = {"id": "T", "kind": "trigger", "skill": "yf-okf"}
     assert core.correct(tr, ["yf-plan", "yf-okf"]) is True
     assert core.correct(tr, ["yf-plan"]) is False

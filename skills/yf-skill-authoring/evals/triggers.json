@@ -94,13 +94,13 @@
     "reps": 3
    },
    "S-N3:pi": {
-    "rate": 0.3333333333333333,
-    "correct": 1,
+    "rate": 1.0,
+    "correct": 3,
     "reps": 3
    },
    "S-N3:cc": {
-    "rate": 0.6666666666666666,
-    "correct": 2,
+    "rate": 1.0,
+    "correct": 3,
     "reps": 3
    },
    "S-N4:pi": {

@@ -142,7 +142,9 @@ def correct(intent: dict, activated: list[str]) -> bool:
     Near-miss: none of its named siblings activated."""
     if intent["kind"] == "trigger":
         return intent["skill"] in activated
-    return not (set(activated) & set(intent.get("siblings") or []))
+    # First-activation-routes (REQ-SKAUTH-062 as amended): a sibling read AFTER the route was
+    # taken (a skill consulting a sibling's conventions) is not a misroute.
+    return not activated or activated[0] not in set(intent.get("siblings") or [])
 
 
 # ---------------------------------------------------------------------------

@@ -1410,6 +1410,10 @@
     counts as activation. The eval env simulates herdr (`HERDR_ENV=1`, with
     `HERDR_SOCKET_PATH` set to a nonexistent path) so herdr-scoped routing is measurable without
     reaching a live server.
+  - **Amended `REQ-SKAUTH-062`** (Issue 3.3, measured): near-miss scoring is
+    **first-activation-routes**. A named sibling that activates only after the correct route
+    (a skill reading a sibling's conventions) is not a misroute. Should-trigger scoring is
+    unchanged.
 >   - **Added `REQ-ENGINE-011`** (`skills/yf-change-validation/spec/engine.md`): a per-row,
 >     opt-in `flags` column with `inconclusive-exit=4` and `stream`.
 >   - **Amended `REQ-SCHEMA-002`** (`skills/yf-change-validation/spec/schema.md`): the §1 recipe

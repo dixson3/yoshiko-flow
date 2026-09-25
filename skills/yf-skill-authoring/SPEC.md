@@ -173,7 +173,14 @@ deliberate negative routing between siblings, so a trim is measured, not assumed
     configuration and is used only after deploy.
   - **Cell rate.** A cell is (skill × intent × harness). Its rate is the fraction of reps with
     the **correct** outcome: for a should-trigger intent, the expected skill activated; for a
-    near-miss, none of its named siblings activated.
+    near-miss, none of its named siblings activated **as the route**. *(Amended plan-072 Issue
+    3.3, measured.)* Activation is **first-activation-routes**: the skill a run activates first is
+    its route. A named sibling that activates only **after** the correct route did not take the
+    route. A skill that is routed to correctly often reads a sibling's conventions (for example,
+    `yf-optimal-instructions` reading `yf-skill-authoring`'s token-efficiency section), and that
+    read is not a misroute. So a near-miss is wrong only when a named sibling is the **first**
+    activation. Should-trigger scoring is unchanged: the expected skill activating at any point is
+    correct.
   - **Spend ledger.** Every run appends one JSON line to `--ledger <path>`: harness, tokens
     (input / cache-write / cache-read / output) and `cc_usd` (a number, `0` for pi rows, never
     null). **CC tokens** come from the session transcript
