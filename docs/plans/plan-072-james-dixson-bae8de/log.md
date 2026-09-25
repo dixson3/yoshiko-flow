@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-25
+- executing: fingerprint refreshed on OPERATOR instruction (ESC-001 'lets do A'): recertified by red-team execution passes 6 (REVISE) → 7 (REVISE) → 8 (APPROVE, zero measured findings); ready-check green before the write
+- review-pass: 8 (execution) — APPROVE, zero measured findings; ESC-001 amendment recertified
 - review-pass: 7 (execution) — REVISE, all pass-6 resolutions + 35 prior measured holding; 1 low: index.md lacks the pass-6 entry (reindex --check exit 1)
 - review-pass: 6 (execution) — REVISE, ESC-001 recertification: amendment consistent; 1 high (2 post-pass-5 assets lack frontmatter → audit exit 1), 3 low (halved rate persists after a 429; SC14 ~3 h; SC7 does not pin --deadline-seconds)
 - executing: ESC-001 answered by operator: 'lets do A'. plan.md amended (D3 row, Issue 2.5, SC7 command 21600→28800, 5.2 and R1 time figures) and the CHANGE-VALIDATION.md trigger-eval row set to timeout 28800 / --deadline-seconds 25200. Fingerprint now stale by design; re-approval via red-team execution pass-6

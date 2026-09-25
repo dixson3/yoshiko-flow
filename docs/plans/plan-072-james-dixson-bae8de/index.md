@@ -35,4 +35,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-5.md](reviews/pass-5.md) - [red-team pass 5, execution] APPROVE: zero measured findings; all 35 prior resolutions re-verified; checkers green; CC pricing exact incl. subagents
 - [reviews/pass-6.md](reviews/pass-6.md) - [red-team pass 6, execution] REVISE: ESC-001 amendment (28800 s / --deadline-seconds 25200) consistent; 1 high (2 assets lacked frontmatter, audit exit 1) + 3 low, all resolved in d0d3ecb
 - [reviews/pass-7.md](reviews/pass-7.md) - [red-team pass 7, execution] REVISE: all pass-6 and 35 prior resolutions measured holding; 1 low, index.md lacked the pass-6 entry
+- [reviews/pass-8.md](reviews/pass-8.md) - [red-team pass 8, execution] APPROVE: zero measured findings; ESC-001 amendment recertified
 - [escalations.md](escalations.md) - Open questions raised to the upstream controller during execution (`## ESC-NNN` entries), each with its alternatives, its recommended default, and what happens if no answer arrives. PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding of any severity (REQ-PORT-ACT-ESCALATION).

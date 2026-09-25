@@ -9,7 +9,7 @@ author: james-dixson
 created: '2026-09-24'
 status: executing
 deliverable_class: standard
-fingerprint: dcbd16e3cbc5f42f9050deff697c61611005ab4501941a694d7707a3154d5545
+fingerprint: 5360aeec2d14f385dd89e5452e89a58b221a7d1323569c13732e6cdbf94ce95e
 epic: yf-mol-t42s
 ---
 # Plan: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/unrouted/loose description rating with cross-harness trigger evals, and bring skill descriptions toward 600 chars (#407)
@@ -20,7 +20,7 @@ epic: yf-mol-t42s
 **Status:** executing
 **Deliverable-class:** standard
 **Epic:** yf-mol-t42s
-**Fingerprint:** dcbd16e3cbc5f42f9050deff697c61611005ab4501941a694d7707a3154d5545
+**Fingerprint:** 5360aeec2d14f385dd89e5452e89a58b221a7d1323569c13732e6cdbf94ce95e
 
 ## Objective
 Make skill `description` size a specified, enforced, and measured property of every
