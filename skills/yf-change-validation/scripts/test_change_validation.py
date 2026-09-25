@@ -45,12 +45,12 @@ def git_repo(tmp_path):
     return Path(os.path.realpath(tmp_path))
 
 
-def run_engine(repo: Path, *args, changed=None):
+def run_engine(repo: Path, *args, changed=None) -> tuple[int, dict]:
     """Invoke the engine as a subprocess from inside `repo`; return (rc, json)."""
     argv = [sys.executable, str(ENGINE), *args, "--json"]
     proc = subprocess.run(argv, cwd=str(repo), capture_output=True, text=True)
     try:
-        payload = json.loads(proc.stdout)
+        payload: dict = json.loads(proc.stdout)
     except json.JSONDecodeError:
         payload = {"_raw_stdout": proc.stdout, "_stderr": proc.stderr}
     return proc.returncode, payload
@@ -285,6 +285,93 @@ def _write_manifest(repo: Path, *, approved=True, fast_rows=(), full_rows=(),
         L.append(f"| `{glob}` | {', '.join(f'`{i}`' for i in ids)} |")
     L.append("")
     (repo / cv.MANIFEST_NAME).write_text("\n".join(L))
+
+
+# ---------------------------------------------------------------------------
+# REQ-ENGINE-011 — per-row opt-in `flags` (inconclusive-exit=4, stream)
+# ---------------------------------------------------------------------------
+
+def _write_flagged_full(repo: Path, rows):
+    """A manifest whose FULL table has the optional fifth `flags` column.
+    rows: [(cmd, flags, timeout)]"""
+    L = ["# CHANGE-VALIDATION.md", "", "## 0. Status", "", "approved: yes", "",
+         "## 1. Tiers", "", "### fast", "", "| id | cmd | cwd | timeout |", "|:--|:--|:--|--:|",
+         "", "### full", "", "| id | cmd | cwd | timeout | flags |", "|:--|:--|:--|--:|:--|"]
+    for cmd, flags, tmo in rows:
+        L.append(f"|  | `{cmd}` |  | {tmo or ''} | {flags} |")
+    L += ["", "## 2. Signal Fingerprint", "", "| source-path | parsed-value-or-hash |", "|:--|:--|",
+          "", "## 3. Trigger Scope", "", "| changed-path glob | scopes to (FAST ids) |", "|:--|:--|", ""]
+    (repo / cv.MANIFEST_NAME).write_text("\n".join(L))
+
+
+def test_flagged_exit4_is_inconclusive(git_repo):
+    _write_flagged_full(git_repo, [("true", "", None), ("sh -c 'exit 4'", "`inconclusive-exit=4`", None)])
+    rc, out = run_engine(git_repo, "run", "--tier", "full")
+    assert rc == cv.EXIT_INCONCLUSIVE
+    assert out["status"] == "inconclusive"
+    assert out["commands"][1]["status"] == "inconclusive"
+
+
+def test_unflagged_exit4_is_fail(git_repo):
+    # pytest's exit 4 on a moved/missing target must stay a LOUD failure.
+    _write_flagged_full(git_repo, [("sh -c 'exit 4'", "", None)])
+    rc, out = run_engine(git_repo, "run", "--tier", "full")
+    assert rc == cv.EXIT_FAIL
+    assert out["status"] == "fail"
+
+
+def test_flagged_row_other_nonzero_is_still_fail(git_repo):
+    _write_flagged_full(git_repo, [("sh -c 'exit 1'", "`inconclusive-exit=4`", None)])
+    rc, out = run_engine(git_repo, "run", "--tier", "full")
+    assert rc == cv.EXIT_FAIL
+
+
+def test_unknown_flag_fails_not_refused(git_repo):
+    _write_flagged_full(git_repo, [("true", "`bogus-flag`", None)])
+    rc, out = run_engine(git_repo, "run", "--tier", "full")
+    assert rc == cv.EXIT_FAIL
+    assert out["status"] == "fail"
+    assert "bogus-flag" in out["first_failure"]["output_tail"]
+
+
+def test_four_column_manifest_unchanged(git_repo):
+    _write_manifest(git_repo, full_rows=["sh -c 'exit 4'"])
+    rc, out = run_engine(git_repo, "run", "--tier", "full")
+    assert rc == cv.EXIT_FAIL
+
+
+def test_stream_reaches_stderr_before_row_finishes(git_repo):
+    # The row prints a marker, then blocks until a sentinel file appears. We create the
+    # sentinel only AFTER reading the marker from the engine's stderr, so the marker cannot
+    # have arrived via end-of-row buffering.
+    sentinel = git_repo / "go"
+    cmd = f"echo STREAM-MARKER; while [ ! -e {sentinel} ]; do sleep 0.1; done; echo done"
+    _write_flagged_full(git_repo, [(cmd, "`stream`", 30)])
+    proc = subprocess.Popen([sys.executable, str(ENGINE), "run", "--tier", "full", "--json"],
+                            cwd=str(git_repo), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True)
+    first = proc.stderr.readline()
+    assert proc.poll() is None, "row finished before its streamed output was observed"
+    assert "STREAM-MARKER" in first
+    sentinel.write_text("")
+    stdout, _ = proc.communicate(timeout=30)
+    assert proc.returncode == cv.EXIT_OK
+    json.loads(stdout)
+
+
+def test_stream_keeps_json_stdout_one_document(git_repo):
+    _write_flagged_full(git_repo, [("echo progress-line-1; echo progress-line-2 >&2", "`stream`", None),
+                                   ("sh -c 'exit 4'", "`inconclusive-exit=4,stream`", None)])
+    proc = subprocess.run([sys.executable, str(ENGINE), "run", "--tier", "full", "--json"],
+                          cwd=str(git_repo), capture_output=True, text=True)
+    # EXACTLY one JSON document: raw_decode must consume all of stdout (modulo whitespace).
+    # (A substring check would be wrong: the row's `cmd`, which names the marker, is echoed
+    # inside the JSON.)
+    doc, end = json.JSONDecoder().raw_decode(proc.stdout)
+    assert proc.stdout[end:].strip() == ""
+    assert doc["status"] == "inconclusive"
+    assert "progress-line-1\n" in proc.stderr and "progress-line-2\n" in proc.stderr
+    assert "progress-line-1\n" not in proc.stdout.replace("\\n", "")
 
 
 def test_run_pass(git_repo):
