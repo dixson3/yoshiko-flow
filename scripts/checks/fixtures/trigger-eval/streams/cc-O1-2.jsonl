@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "git diff AGENTS.md", "description": "Show uncommitted AGENTS.md changes"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-optimal-instructions", "args": "AGENTS.md \u2014 tighten the newly added \"## Notes on commits\" section (end of file)"}}]}}

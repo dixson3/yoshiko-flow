@@ -1,0 +1,1 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-skill-authoring", "args": "Create a new skill skills/yf-changelog that drafts CHANGELOG entries from git log"}}]}}

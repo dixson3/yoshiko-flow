@@ -1,0 +1,376 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pytest", "pyyaml>=6"]
+# ///
+"""Offline tests for `skill_trigger_eval.py` (REQ-SKAUTH-061 / REQ-SKAUTH-062, plan-072 Issue 2.3).
+
+No live model, no network, no `~/.cache`. Fixtures under `fixtures/trigger-eval/` are trimmed
+from plan-072's EXP-003 runs:
+
+- `streams/<h>-<id>-<n>.jsonl`: tool-call events only, the first 8 per run, with absolute paths
+  rewritten to `$HOME` / `$CLONE`. EXP-003 ran INSTALLED mode, so its activations are reads
+  of `$HOME/.agents|.claude/skills/<n>/`. The detector is exercised with injected roots.
+- `transcripts/`: 13 completed CC runs, the D1-manual main + subagent pair, and one KILLED run
+  (no `result`, duplicated `message.id`s), reduced to the assistant usage records the pricer
+  reads. `manifest.json` carries each run's recorded `modelUsage.costUSD`.
+
+Run:  uv run scripts/checks/test_skill_trigger_eval.py
+"""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import _trigger_eval_core as core  # noqa: E402
+import skill_trigger_eval as ste  # noqa: E402
+
+FIX = HERE / "fixtures" / "trigger-eval"
+EXP_INTENTS = json.loads((HERE.parent.parent / "docs/plans/plan-072-james-dixson-bae8de/assets/"
+                          "exp-003/intents.json").read_text()) if (HERE.parent.parent /
+                          "docs/plans/plan-072-james-dixson-bae8de/assets/exp-003/intents.json").exists() else None
+RATES = core.load_rates(HERE / "trigger_eval_rates.json")
+HOME = "/home/test"
+
+
+def stream(path: Path, home=HOME, clone="/clone"):
+    for line in path.read_text().splitlines():
+        if line.strip():
+            yield json.loads(line.replace("$HOME", home).replace("$CLONE", clone))
+
+
+# ---------------------------------------------------------------------------
+# EXP-003 reproduction
+# ---------------------------------------------------------------------------
+
+def test_exp003_totals_reproduce():
+    """Per-intent totals from committed fixtures: CC 59/63, pi 57/63 (EXP-003's rescore)."""
+    if EXP_INTENTS is None:
+        pytest.skip("plan-072 EXP-003 intents.json absent (bundle archived); fixture arms below still run")
+    intents = {i["id"]: i for i in EXP_INTENTS}
+    tot = {"cc": [0, 0], "pi": [0, 0]}
+    for p in sorted((FIX / "streams").glob("*.jsonl")):
+        h, iid = p.stem.split("-")[:2]
+        it = intents[iid]
+        # EXP-003 had no staging root: installed mode.
+        acts = core.score_stream(h, stream(p), staging_root=None)["activated"]
+        exp = it.get("expect")
+        ok = (exp in acts) if exp else not (set(acts) & set(it.get("near") or []))
+        tot[h][0] += ok
+        tot[h][1] += 1
+    assert tot["cc"] == [59, 63]
+    assert tot["pi"] == [57, 63]
+
+
+# ---------------------------------------------------------------------------
+# detector
+# ---------------------------------------------------------------------------
+
+def _pi_read(path):
+    return {"type": "message_end", "message": {"role": "assistant", "content": [
+        {"type": "toolCall", "name": "read", "arguments": {"path": path}}]}}
+
+
+def test_pi_staging_read_counts_repo_read_does_not():
+    st = "/cache/staging-x"
+    assert core.score_stream("pi", [_pi_read(f"{st}/yf-okf/SKILL.md")], st)["activated"] == ["yf-okf"]
+    assert core.score_stream("pi", [_pi_read("/clone/skills/yf-okf/SKILL.md")], st)["activated"] == []
+    assert core.score_stream("pi", [_pi_read("skills/yf-okf/SKILL.md")], st)["activated"] == []
+
+
+def test_cc_skill_tool_and_yf_skill_dir_count():
+    ev = {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "Skill", "input": {"skill": "yf-drift-check"}},
+        {"type": "tool_use", "name": "Bash", "input": {"command": "D=$(yf skill-dir yf-okf)"}}]}}
+    assert core.score_stream("cc", [ev], None)["activated"] == ["yf-drift-check", "yf-okf"]
+
+
+def test_detector_stops_at_max_tools():
+    evs = [_pi_read("/x/a") for _ in range(core.MAX_TOOLS)] + [_pi_read("/st/yf-okf/SKILL.md")]
+    assert core.score_stream("pi", evs, "/st")["activated"] == []
+
+
+def test_near_miss_cell_rate_is_correct_outcome_rate():
+    nm = {"id": "N", "kind": "near-miss", "siblings": ["yf-okf"]}
+    assert core.correct(nm, []) is True
+    assert core.correct(nm, ["yf-okf-hygiene"]) is True  # a different, correct route
+    assert core.correct(nm, ["yf-okf"]) is False
+    tr = {"id": "T", "kind": "trigger", "skill": "yf-okf"}
+    assert core.correct(tr, ["yf-plan", "yf-okf"]) is True
+    assert core.correct(tr, ["yf-plan"]) is False
+
+
+# ---------------------------------------------------------------------------
+# load verification → INCONCLUSIVE
+# ---------------------------------------------------------------------------
+
+REAL_CC_INIT = {  # captured at pass-2: 15 yf names with 20 staged (5 are user-invocable: false)
+    "type": "system", "subtype": "init", "permissionMode": "bypassPermissions",
+    "skills": ["yf-beads-hygiene", "yf-beads-init", "yf-beads-upstream", "yf-change-validation",
+               "yf-diagram-authoring", "yf-herdr", "yf-incubator", "yf-markdown-format",
+               "yf-markdown-html", "yf-markdown-lint", "yf-markdown-pdf", "yf-okf",
+               "yf-okf-hygiene", "yf-plan", "yf-research", "update-config", "debug"]}
+USER_INVOCABLE = set(REAL_CC_INIT["skills"]) - {"update-config", "debug"}
+
+
+def test_real_cc_init_passes_user_invocable_subset():
+    assert len(USER_INVOCABLE) == 15
+    ok, why = core.cc_init_ok(REAL_CC_INIT, USER_INVOCABLE)
+    assert ok, why
+
+
+def test_cc_init_wrong_permission_mode_inconclusive():
+    ok, why = core.cc_init_ok(dict(REAL_CC_INIT, permissionMode="default"), USER_INVOCABLE)
+    assert not ok and "permissionMode" in why
+
+
+def test_cc_debug_log_load_line():
+    good = "... Loaded 20 unique skills (20 unconditional, 0 conditional, managed: 0, user: 0, project: 20, additional: 0)"
+    shadowed = "Loaded 59 unique skills (59 unconditional, 0 conditional, managed: 0, user: 39, project: 20, additional: 0)"
+    assert core.cc_debug_load_ok(good, 20)[0]
+    assert not core.cc_debug_load_ok(shadowed, 20)[0]
+    assert not core.cc_debug_load_ok("no load line here", 20)[0]
+    assert not core.cc_debug_load_ok(good, 19)[0]
+
+
+def _pi_system(skills: dict):
+    body = "".join(f"<skill>\n<name>{n}</name>\n<description>{core.html.escape(d)}</description>\n"
+                   f"<location>/x/{n}/SKILL.md</location>\n</skill>\n" for n, d in skills.items())
+    return {"type": "message_end", "message": {"role": "system", "sections": {
+        "skills": f"<skills>\n<available_skills>\n{body}</available_skills>\n</skills>"}}}
+
+
+def test_pi_description_hash_match_and_mismatch():
+    want = {"yf-okf": "Checks one bundle's 'OKF' conformance & more."}
+    assert core.pi_load_ok([_pi_system(want)], want)[0]
+    # a trailing block-scalar newline must not count as a mismatch
+    assert core.pi_load_ok([_pi_system({"yf-okf": want["yf-okf"] + "\n"})], want)[0]
+    ok, why = core.pi_load_ok([_pi_system({"yf-okf": "OLD INSTALLED TEXT"})], want)
+    assert not ok and "hash mismatch" in why
+    assert not core.pi_load_ok([_pi_system({})], want)[0]
+
+
+def test_auth_failure_text_detected():
+    assert core.looks_like_auth_failure("Not logged in · Please run /login")
+    assert not core.looks_like_auth_failure("some other stderr")
+
+
+def test_missing_binary_inconclusive(monkeypatch):
+    monkeypatch.setattr(ste.shutil, "which", lambda b: None)
+    assert ste.harness_available("cc") == "claude not on PATH"
+    assert ste.main(["--harness", "pi", "--skills", "yf-okf", "--reps", "1"]) == core.EXIT_INCONCLUSIVE
+
+
+# ---------------------------------------------------------------------------
+# staging, confirmation, verdict, false-FAIL rate
+# ---------------------------------------------------------------------------
+
+def test_staging_cleared_on_reset(tmp_path):
+    root = tmp_path / "repo"
+    (root / "skills" / "a").mkdir(parents=True)
+    (root / "skills" / "a" / "SKILL.md").write_text("---\nname: a\ndescription: x\n---\n")
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    st, h1 = ste.stage(clone, root, "cc", ["a"])
+    (st / "a" / "STRAY").write_text("left behind by a run")
+    (st / "zzz").mkdir()
+    st2, h2 = ste.stage(clone, root, "cc", ["a"])
+    assert not (st2 / "a" / "STRAY").exists() and not (st2 / "zzz").exists()
+    assert h1 == h2
+    (st2 / "a" / "SKILL.md").write_text("tampered")
+    assert not ste.verify_staged(st2, h2)[0]
+
+
+def test_confirmation_only_for_regressed_cells():
+    miss3 = [False, False, True]
+    assert core.cell_verdict([True, True, False], None, 1.0, False) == "pass"
+    assert core.cell_verdict(miss3, None, 1.0, False) == "needs-confirm"   # regressed
+    assert core.cell_verdict(miss3, None, 0.33, False) == "pass"           # never passed
+    assert core.cell_verdict(miss3, None, None, False) == "pass"           # never recorded
+    assert core.cell_verdict(miss3, None, 1.0, True) == "pass"             # accepted miss
+    assert core.cell_verdict(miss3, [True, True, False], 1.0, False) == "pass"   # pooled 3/6
+    assert core.cell_verdict(miss3, [False, True, False], 1.0, False) == "fail"  # pooled 2/6
+
+
+def test_false_fail_rate_two_stage_formula():
+    assert abs(core.false_fail_rate(240, 0.95) - 0.0165) <= 0.0005
+    assert abs(core.false_fail_rate(240, 0.90) - 0.219) <= 0.0005
+
+
+def test_rating_four_states():
+    its = [{"id": "T1"}, {"id": "N1"}]
+
+    def rec(r):
+        return {"cells": {f"{i}:{h}": {"rate": r.get(i, 1.0)} for i in ("T1", "N1") for h in ("pi", "cc")}}
+    assert core.rating(1100, rec({}), [], its)["rating"] == "loose"
+    assert core.rating(500, rec({}), [], its)["rating"] == "crisp"
+    assert core.rating(800, rec({}), [], its)["rating"] == "satisfactory"
+    assert core.rating(500, rec({"T1": 0.33}), [], its)["rating"] == "unrouted"
+    acc = core.rating(500, rec({"T1": 0.33}), ["T1"], its)
+    assert acc["rating"] == "satisfactory" and core.display(acc) == "satisfactory (accepted misses: T1)"
+    assert core.rating(500, None, [], its)["rating"] is None
+
+
+# ---------------------------------------------------------------------------
+# spend
+# ---------------------------------------------------------------------------
+
+def _lines(name):
+    return (FIX / "transcripts" / name).read_text().splitlines()
+
+
+def test_rates_reproduce_recorded_costs():
+    manifest = json.loads((FIX / "transcripts" / "manifest.json").read_text())
+    runs = [m for m in manifest if m["run"] not in ("killed", "cc-D1-manual")]
+    assert len(runs) == 13
+    for m in runs:
+        got = core.price_session(_lines(f"{m['run']}.jsonl"), [], RATES)
+        assert abs(got["usd"] - m["recorded_cost_usd"]) < 1e-9, m["run"]
+
+
+def test_main_plus_subagents_prices_manual_run():
+    main, sub = _lines("cc-D1-manual.jsonl"), _lines("cc-D1-manual.sub0.jsonl")
+    got = core.price_session(main, [sub], RATES)
+    assert round(got["usd"], 4) == 0.6732
+    assert got["tokens"]["cache_write_1h"] > 0 and got["tokens"]["cache_write_5m"] > 0
+    assert core.price_session(main, [], RATES)["usd"] < 0.5  # main-only undercounts
+
+
+def test_killed_run_dedup_by_message_id():
+    lines = _lines("killed.jsonl")
+    ids = [json.loads(x)["message"]["id"] for x in lines]
+    assert len(ids) > len(set(ids)), "fixture must carry duplicated message.ids"
+    by, _ = core.transcript_usage(lines)
+    last = {}
+    for x in lines:
+        e = json.loads(x)
+        last[e["message"]["id"]] = e["message"]["usage"]
+    want, _ = core.price_usage(list(last.values()), RATES["claude-opus-5-5"])
+    got = core.price_session(lines, [], RATES)
+    assert len(by) == len(set(ids))
+    assert abs(got["usd"] - want) < 1e-12
+
+
+def test_unknown_model_inconclusive():
+    lines = [x.replace("claude-opus-5-5", "claude-future-9") for x in _lines("cc-V1-1790284984.jsonl")]
+    assert "inconclusive" in core.price_session(lines, [], RATES)
+
+
+def test_ledger_accumulates_and_budget_trips(tmp_path):
+    led = tmp_path / "spend.jsonl"
+    b = ste.Budget(led, 1.0)
+    b.record({"harness": "cc", "intent": "X", "cc_usd": 0.6})
+    b.record({"harness": "pi", "intent": "Y", "cc_usd": 0.0})
+    assert b.check()
+    b2 = ste.Budget(led, 1.0)  # a NEW invocation reads the cumulative total
+    assert abs(b2.total - 0.6) < 1e-12
+    b2.record({"harness": "cc", "intent": "Z", "cc_usd": 0.5})
+    assert not b2.check() and b2.tripped
+    assert all(isinstance(json.loads(x)["cc_usd"], float) for x in led.read_text().splitlines())
+
+
+def test_cc_project_slug():
+    assert core.cc_project_slug("/Users/james/.cache/plan072-eval/clone-cc") == \
+        "-Users-james--cache-plan072-eval-clone-cc"
+
+
+# ---------------------------------------------------------------------------
+# offline verbs (each exits 1 on a violating fixture), and --record as sole writer
+# ---------------------------------------------------------------------------
+
+def _mini_repo(tmp_path, desc="Short. TRIGGER when: x. SKIP for: y.", recorded=True, decision=None,
+               rate_t=1.0, n_t=3, n_n=3):
+    root = tmp_path / "r"
+    for name in ("sk-a", "sk-b"):
+        d = root / "skills" / name
+        (d / "evals").mkdir(parents=True)
+        (d / "SKILL.md").write_text(f'---\nname: {name}\ndescription: "{desc}"\n---\n')
+        other = "sk-b" if name == "sk-a" else "sk-a"
+        its = [{"id": f"{name}-T{i}", "kind": "trigger", "skill": name, "prompt": "p"} for i in range(n_t)]
+        its += [{"id": f"{name}-N{i}", "kind": "near-miss", "siblings": [name, other], "prompt": "p"}
+                for i in range(n_n)]
+        doc = {"skill": name, "intents": its}
+        if recorded:
+            doc["recorded"] = {"description_sha256": core.sha256_text(desc), "cells": {
+                f"{i['id']}:{h}": {"rate": rate_t if i["kind"] == "trigger" else 1.0, "correct": 3, "reps": 3}
+                for i in its for h in ("pi", "cc")}}
+        if decision:
+            doc["decision"] = decision
+        (d / "evals" / "triggers.json").write_text(json.dumps(doc))
+    return root
+
+
+def _run(root, *args):
+    return ste.main(["--root", str(root), *args])
+
+
+def test_validate_intents_verb(tmp_path):
+    assert _run(_mini_repo(tmp_path), "--validate-intents") == 0
+    assert _run(_mini_repo(tmp_path / "x", n_n=2), "--validate-intents") == 1
+
+
+def test_require_rated_verb(tmp_path):
+    assert _run(_mini_repo(tmp_path), "--report", "--require-rated") == 0
+    assert _run(_mini_repo(tmp_path / "x", recorded=False), "--report", "--require-rated") == 1
+
+
+def test_require_rated_flags_stale_record(tmp_path):
+    root = _mini_repo(tmp_path)
+    p = root / "skills" / "sk-a" / "SKILL.md"
+    p.write_text('---\nname: sk-a\ndescription: "Edited after the record."\n---\n')
+    assert _run(root, "--report", "--require-rated") == 1
+
+
+def test_forbid_verb(tmp_path):
+    assert _run(_mini_repo(tmp_path), "--report", "--forbid", "loose,unrouted") == 0
+    assert _run(_mini_repo(tmp_path / "x", rate_t=0.33), "--report", "--forbid", "loose,unrouted") == 1
+    long = "x" * 1100
+    assert _run(_mini_repo(tmp_path / "y", desc=long), "--report", "--forbid", "loose,unrouted") == 1
+
+
+def test_require_decision_for_noncrisp_verb(tmp_path):
+    long = "y" * 700  # satisfactory, not crisp
+    assert _run(_mini_repo(tmp_path, desc=long), "--report", "--require-decision-for-noncrisp") == 1
+    dec = {"status": "accepted", "reason": "r", "date": "2026-09-25"}
+    assert _run(_mini_repo(tmp_path / "x", desc=long, decision=dec), "--report",
+                "--require-decision-for-noncrisp") == 0
+    assert _run(_mini_repo(tmp_path / "y"), "--report", "--require-decision-for-noncrisp") == 0
+
+
+def test_record_is_the_only_writer(tmp_path):
+    """Offline verbs never write; only write_record (reached only via --record) does."""
+    root = _mini_repo(tmp_path)
+    before = {p: p.read_bytes() for p in root.rglob("triggers.json")}
+    for args in (["--validate-intents"], ["--report", "--require-rated"], ["--report", "--json"]):
+        _run(root, *args)
+    assert before == {p: p.read_bytes() for p in root.rglob("triggers.json")}
+    src = (HERE / "skill_trigger_eval.py").read_text()
+    writes = [ln for ln in src.splitlines() if "triggers_path(" in ln and ".write_text(" in ln]
+    assert len(writes) == 1
+    assert "if args.record and not budget.tripped:" in src
+
+
+def test_report_prints_n_and_rate(tmp_path, capsys):
+    _run(_mini_repo(tmp_path), "--report")
+    out = capsys.readouterr().out
+    assert "cells N=24" in out and "false-FAIL rate" in out
+
+
+def test_eval_env_strips_outward_write_credentials(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "secret")
+    monkeypatch.setenv("HERDR_PANE_ID", "w1:p1")
+    monkeypatch.setenv("YF_PARENT_PANE", "w1:p1")
+    env = ste.eval_env()
+    assert env["GITHUB_TOKEN"] == "" and env["GH_TOKEN"] == ""
+    assert "HERDR_PANE_ID" not in env and "YF_PARENT_PANE" not in env
+    assert env["GH_CONFIG_DIR"].endswith("gh-empty")
+
+
+if __name__ == "__main__":
+    sys.exit(subprocess.call([sys.executable, "-m", "pytest", __file__, "-q"]))

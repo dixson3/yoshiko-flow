@@ -1,0 +1,1 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-skill-authoring", "args": "Add a Python helper script to skills/yf-markdown-lint/scripts that counts headings in a file, with a PEP 723 header for uv."}}]}}

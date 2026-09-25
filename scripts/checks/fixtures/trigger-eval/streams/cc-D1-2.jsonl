@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "git diff SPEC.md; ls DRIFT-CHECK.md 2>/dev/null && grep -n -i \"approved\" DRIFT-CHECK.md | head", "description": "Show SPEC diff and check drift manifest"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-drift-check", "args": "SPEC.md changed: REQ-YF-EMBED-003 reworded (\"terminated\" \u2192 \"(terminated or not)\"). Check agreement with implementation and docs."}}]}}

@@ -1,0 +1,1 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-drift-check", "args": "verify the DRIFT-CHECK.md manifest is in sync with the repo"}}]}}
