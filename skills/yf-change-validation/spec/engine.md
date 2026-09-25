@@ -81,6 +81,29 @@ makes the skill portable (mirrors drift-check REQ-ENGINE-006). Verification: gre
 repo-specific tokens (`cargo`, `pytest`, `_shared/sync.py`, `skills/<skill>/`) → none as
 load-bearing references; illustrative examples in prose are permitted but must be labelled.
 
+**REQ-ENGINE-011: Per-row opt-in `flags` (added plan-072 / #407).** A §1 row may carry a
+comma-separated `flags` cell (the optional fifth column, `REQ-SCHEMA-002`). An absent column or an
+empty cell means no flags. An unknown flag makes the manifest fail to parse. It is never silently
+ignored. Two flags are defined:
+
+- **`inconclusive-exit=4`**: that row's exit code 4 maps to **INCONCLUSIVE** instead of FAIL, and
+  the tier result is INCONCLUSIVE unless another row FAILs. This is **per row and opt-in**: every
+  unflagged row keeps exit 4 = FAIL. That preserves the rule that pytest's exit 4 on a moved or
+  missing target is a loud failure, not a known-unknown.
+- **`stream`**: the row's combined output is teed **live to the engine's stderr** as it is
+  produced, as well as captured for the result. It is **never** written to stdout. Under `--json`,
+  stdout stays exactly one JSON document. A caller that runs `json.loads(stdout)`, such as
+  yf-plan's `validate-merged`, must never see progress text there. That would make an engine
+  FAIL unparseable, and an unparseable result can fall through to a weaker validation tier.
+
+Rationale: a long, credential-dependent row (a live model eval, for instance) needs to report
+"could not run" distinctly from "ran and failed", and needs to show progress during an hours-long
+run, without changing semantics for any other row. *Stated limitation:* a caller that captures the
+engine's stderr (as `validate-merged` does) does not show the live stream. Progress is visible when
+the operator runs the tier directly. Verification: a flagged row exiting 4 yields `inconclusive`;
+an unflagged row exiting 4 yields `fail`; a `stream` row's output reaches stderr before the row
+finishes; `run --json` stdout with a streamed row parses as exactly one JSON document.
+
 ## Out of scope (honest limits — REQ-ENGINE-010)
 
 - **Auto-fix.** The engine runs and reports; it never repairs a failing command.

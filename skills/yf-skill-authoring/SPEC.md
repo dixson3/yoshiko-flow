@@ -109,6 +109,96 @@ is `yf-drift-check`'s axis.
   `yf-optimal-instructions`**; this skill owns only **skill-dir** instruction files. The two
   skills' `description` fields are mutually exclusive on this axis.
 
+### 2.8 Description rating & trigger evals (added plan-072 / #407)
+
+The hard length limits are root `SPEC.md` `REQ-YF-EMBED-007` (description ≤1024, the Agent
+Skills `name` rule). The two requirements below cover the next question: **does the description
+still route correctly?** The description is the routing surface. Several descriptions carry
+deliberate negative routing between siblings, so a trim is measured, not assumed.
+
+- **REQ-SKAUTH-061** *(testable, added plan-072)* every shipped skill shall carry a
+  **four-state description rating**. It is derived from the recorded per-intent trigger rates in
+  `skills/<name>/evals/triggers.json` (≥3 reps per intent, both harnesses, candidate mode, per
+  `REQ-SKAUTH-062`). It is never hand-asserted:
+
+  | Rating | Description length | Trigger rates |
+  | :-- | :-- | :-- |
+  | **crisp** | ≤600 | every intent ≥0.5 on both harnesses |
+  | **satisfactory** | ≤1024 | every intent ≥0.5 on both harnesses |
+  | **unrouted** | ≤1024 | some intent <0.5 on some harness |
+  | **loose** | >1024 | (fails `REQ-YF-EMBED-007`) |
+
+  Length uses `REQ-YF-EMBED-007`'s unit (UTF-16 code units of the parsed scalar). **New skills
+  shall target crisp.** A skill that is not crisp after a best-effort trim, or that is unrouted,
+  gets a recorded **split proposal** put to the operator. On decline, the operator's decision is
+  recorded in `triggers.json` with a reason and date. For an unrouted skill, the decision also
+  names the **accepted-miss intent ids**. Such a skill reports as
+  `satisfactory (accepted misses: <ids>)`, so the misses stay visible, and its accepted cells
+  never fail the FULL tier.
+
+- **REQ-SKAUTH-062** *(testable, added plan-072)* the **trigger-eval contract**, implemented by
+  `scripts/checks/skill_trigger_eval.py`:
+  - **Intent schema.** Per skill, `evals/triggers.json` lists *should-trigger* intents (a prompt,
+    optionally a fixture establishing a precondition) and *near-miss* intents (a prompt that
+    should **not** activate the named sibling skills). It also holds the last **recorded**
+    per-harness rates, the sha256 of the description they were measured against, and operator
+    acceptances.
+  - **Detector.** A skill counts as activated when the run makes a CC `Skill` tool call naming
+    it, or a tool call whose arguments touch `<staging-root>/<n>/`, an installed `skills/<n>/`,
+    or `yf skill-dir <n>`. The staging root is an explicit detector input. The repository's own
+    `skills/<n>/` is **never** counted, because reading source is not activation.
+  - **Stop rule.** A run stops on activation, at 6 tool calls, or at 150 s, so the eval measures
+    routing rather than doing the task.
+  - **Modes.** **candidate** stages every `skills/*/` from the checkout under test into a fresh
+    staging directory, cleared at every reset. pi runs `--no-skills --skill <staging>/<n>` per
+    skill. CC runs with the staging directory at `<clone>/.claude/skills/`, plus
+    `--setting-sources project --permission-mode bypassPermissions --debug-file <log>`. **CC load
+    verification:** the run's debug log shall contain `Loaded <N> unique skills (… user: 0,
+    project: <N> …)` with N equal to the staged count. The init event shall report
+    `permissionMode == bypassPermissions`, and its `skills` shall be a superset of the staged
+    **user-invocable** names. That is a subset check, because init lists only user-invocable
+    skills. A sha256 of every staged file shall be taken immediately before launch. pi's stream
+    carries each description, so pi is hashed directly. Any mismatch is INCONCLUSIVE. *Stated
+    limitation:* on CC this proves the staged **files** loaded and nothing else did. It does not
+    prove the literal text the model saw. **installed** mode uses the operator's full
+    configuration and is used only after deploy.
+  - **Cell rate.** A cell is (skill × intent × harness). Its rate is the fraction of reps with
+    the **correct** outcome: for a should-trigger intent, the expected skill activated; for a
+    near-miss, none of its named siblings activated.
+  - **Spend ledger.** Every run appends one JSON line to `--ledger <path>`: harness, tokens
+    (input / cache-write / cache-read / output) and `cc_usd` (a number, `0` for pi rows, never
+    null). **CC tokens** come from the session transcript
+    `~/.claude/projects/<cwd-slug>/<session-id>.jsonl` **plus every
+    `<session-id>/subagents/*.jsonl`**. The run is started with `--session-id <uuid>` and read
+    after exit. Each file is deduplicated by `message.id`, with the last usage per id winning.
+    They are never taken from the stream `result` event, which a killed run does not emit, and
+    never from the raw stream sum, which repeats usage per content block. **CC USD** = tokens ×
+    per-class rates from `scripts/checks/trigger_eval_rates.json`, keyed by model. For
+    `claude-opus-5-5` the rates are: input $4.00/Mtok, cache-write 1h $8.00, cache-write 5m
+    $5.00 (from `usage.cache_creation.ephemeral_{1h,5m}_input_tokens`), cache-read $0.20, output
+    $20.00. A model absent from the table is INCONCLUSIVE, never $0. pi reports tokens only.
+    `--budget-usd N` reads the ledger's **cumulative** CC total, so a ceiling holds across
+    invocations. On reaching it the harness stops and exits 4.
+  - **Listing budget.** Claude Code's `Skill listing over budget` WARN is recorded in **installed
+    mode only**: a 20-skill candidate listing cannot reach the budget.
+  - **FULL-row verdict.** Evaluate every cell at 3 reps. Re-run 3 more reps for any cell below
+    0.5 **whose recorded rate was ≥0.5**. FAIL only if the pooled 6-rep rate is still <0.5, which
+    is a regression. Cells recorded as operator-accepted misses never FAIL. **Stated false-FAIL
+    rate:** a cell false-FAILs when its first 3 reps have a ≤ 1 correct outcomes and the pooled 6
+    have a + c ≤ 2 (c = correct outcomes in the 3 confirmation reps). So q = Σ_{a≤1} Σ_{c≤2−a} Bin(3,p)(a)·Bin(3,p)(c), and the tier rate is
+    1 − (1 − q)^N over N cells. That is ≈1.65% at N=240, p=0.95, and ≈21.9% at N=240, p=0.90.
+    `--report` prints the actual N and the implied rate.
+  - **Other verdicts.** INCONCLUSIVE (exit 4) when a harness binary or its auth is missing, or on
+    any staging or load-verification mismatch. PASS (exit 0) only on a completed run. FAIL is
+    exit 1.
+  - **Writers.** Only an explicit `--record` run writes `triggers.json`. The FULL-tier row is
+    read-only.
+
+  **The FULL validation tier carries this eval** (candidate mode, every skill, both harnesses, 3
+  reps) as its last row, flagged `inconclusive-exit=4,stream` (`REQ-ENGINE-011`). That is
+  roughly 3 h and $75–110 at CC list rates per FULL run. The cost is operator-accepted: a trim
+  that silently loses routing is invisible without it.
+
 ## 3. Interfaces
 
 - **CLI / scripts:** `scripts/manifest_update.py` — recomputes companion-rule sha256, bumps semver,
@@ -153,3 +243,9 @@ is `yf-drift-check`'s axis.
   factoring test, front-matter schema, role table).
 - `skills/yf-skill-authoring/agents/*.md` (the review agents); `scripts/manifest_update.py`.
 - Root `SPEC.md` §4 (SKAUTH) and `GUARDRAILS.md` (GR-006, per-skill guardrails note).
+
+## 7. Amendment log
+
+- **plan-072 (2026-09-25, #407):** added `REQ-SKAUTH-061` (the four-state description rating)
+  and `REQ-SKAUTH-062` (the trigger-eval contract, including the FULL-tier eval row). Root
+  `SPEC.md` carries the matching entry, along with `REQ-YF-EMBED-007`, the hard length rule.
