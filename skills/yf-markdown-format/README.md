@@ -157,6 +157,8 @@ None. This is a tool/reference skill with no phases or state transitions.
 
 ```text
 skills/yf-markdown-format/
+├── evals/                         # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── convert_wikilinks.py       # Obsidian -> GFM wiki-link migrator (dry-run / in-place)
 │   ├── md_table_align.py          # strict GFM table aligner (--check / --write / stdout)

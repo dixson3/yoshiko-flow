@@ -36,6 +36,8 @@ None. This is an instruction-only reference skill with no phases or state transi
 
 ```
 skills/yf-beads-extra/
+├── evals/                 # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── spec/
 │   ├── cli.md             # CLI behavioral contracts verified against bd 1.0.5, re-certified 1.1.0 (REQ-CLI-*).
 │   └── json-and-scope.md  # defensive JSON-parsing contract + the corrects-the-plugin / citation boundary (REQ-JSON-*, REQ-DOC-*).

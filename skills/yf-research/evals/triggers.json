@@ -1,0 +1,48 @@
+{
+ "skill": "yf-research",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "R1",
+   "kind": "trigger",
+   "prompt": "Research how pi, Claude Code and opencode each measure and cap skill description length. I want a cited, tracked report.",
+   "skill": "yf-research"
+  },
+  {
+   "id": "R2",
+   "kind": "trigger",
+   "prompt": "Do a deep, citation-backed research project on prompt-cache pricing across providers.",
+   "skill": "yf-research"
+  },
+  {
+   "id": "R3",
+   "kind": "trigger",
+   "prompt": "/yf-research status",
+   "skill": "yf-research"
+  },
+  {
+   "id": "R-N1",
+   "kind": "near-miss",
+   "prompt": "Let's plan the implementation of a yf doctor --fix flag.",
+   "siblings": [
+    "yf-research"
+   ]
+  },
+  {
+   "id": "R-N2",
+   "kind": "near-miss",
+   "prompt": "Park this caching sidequest as an incubator.",
+   "siblings": [
+    "yf-research"
+   ]
+  },
+  {
+   "id": "R-N3",
+   "kind": "near-miss",
+   "prompt": "What does `git rev-parse --show-toplevel` print? One line.",
+   "siblings": [
+    "yf-research"
+   ]
+  }
+ ]
+}

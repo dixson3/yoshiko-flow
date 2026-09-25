@@ -125,6 +125,8 @@ SKILL.md for the full workflow, the trade-off table, location conventions, and d
 
 ```
 skills/yf-diagram-authoring/
+├── evals/              # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── render.py       # PEP 723 helper: preflight / render / render-dir / check-dir / embed / lift / inline
 │   └── test_render.py  # pytest: embed/lift/inline parsing + the round-trip guarantee

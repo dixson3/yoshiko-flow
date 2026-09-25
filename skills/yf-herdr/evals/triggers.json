@@ -1,0 +1,48 @@
+{
+ "skill": "yf-herdr",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "HR1",
+   "kind": "trigger",
+   "prompt": "Plan plan-069 is approved. Execute it in a new session.",
+   "skill": "yf-herdr"
+  },
+  {
+   "id": "HR2",
+   "kind": "trigger",
+   "prompt": "Run the approved plan in a fresh herdr tab and watch it.",
+   "skill": "yf-herdr"
+  },
+  {
+   "id": "HR3",
+   "kind": "trigger",
+   "prompt": "Kick off execution of the gated research project in a new session and observe it.",
+   "skill": "yf-herdr"
+  },
+  {
+   "id": "HR-N1",
+   "kind": "near-miss",
+   "prompt": "Let's plan a new feature: a yf doctor --fix flag.",
+   "siblings": [
+    "yf-herdr"
+   ]
+  },
+  {
+   "id": "HR-N2",
+   "kind": "near-miss",
+   "prompt": "List the herdr panes in this workspace.",
+   "siblings": [
+    "yf-herdr"
+   ]
+  },
+  {
+   "id": "HR-N3",
+   "kind": "near-miss",
+   "prompt": "What is the status of plan-069?",
+   "siblings": [
+    "yf-herdr"
+   ]
+  }
+ ]
+}

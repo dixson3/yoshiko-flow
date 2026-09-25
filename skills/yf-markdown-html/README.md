@@ -130,6 +130,8 @@ None. This is a tool/reference skill with no phases or state transitions.
 
 ```text
 skills/yf-markdown-html/
+├── evals/                # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── criticmarkup.lua  # opt-in Inlines filter: CriticMarkup -> styled HTML
 │   ├── default.css       # broad-coverage default stylesheet (incl. cm-* classes)

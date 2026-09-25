@@ -1,0 +1,51 @@
+{
+ "skill": "yf-okf-hygiene",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "H1",
+   "kind": "trigger",
+   "prompt": "How many of the plan and research bundles in this repo are still in a legacy layout?",
+   "skill": "yf-okf-hygiene"
+  },
+  {
+   "id": "H2",
+   "kind": "trigger",
+   "prompt": "Backfill all the legacy plan folders to the current OKF layout.",
+   "skill": "yf-okf-hygiene"
+  },
+  {
+   "id": "H3",
+   "kind": "trigger",
+   "prompt": "Some of the bundle indexes across the repo are stale. Rebuild them all.",
+   "skill": "yf-okf-hygiene"
+  },
+  {
+   "id": "H-N3",
+   "kind": "near-miss",
+   "prompt": "Write a short note in docs/ about how prompt caching affects cost in pi.",
+   "siblings": [
+    "yf-okf",
+    "yf-okf-hygiene"
+   ]
+  },
+  {
+   "id": "H-N4",
+   "kind": "near-miss",
+   "prompt": "Does docs/plans/plan-069-james-dixson-9d2878 alone conform to the OKF model?",
+   "siblings": [
+    "yf-okf-hygiene",
+    "yf-okf"
+   ]
+  },
+  {
+   "id": "H-N5",
+   "kind": "near-miss",
+   "prompt": "Clean up the orphaned beads in this repo.",
+   "siblings": [
+    "yf-okf-hygiene",
+    "yf-beads-hygiene"
+   ]
+  }
+ ]
+}

@@ -116,6 +116,8 @@ out leaves every created file behind and reports success.
 
 ```
 skills/yf-okf-hygiene/
+├── evals/                   # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── okf.py               # the per-bundle OKF engine, vendored from yf-okf
 │   ├── okf_hygiene.py       # PEP 723 corpus engine: audit / backfill / reindex / restore

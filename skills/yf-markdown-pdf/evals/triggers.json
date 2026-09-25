@@ -1,0 +1,48 @@
+{
+ "skill": "yf-markdown-pdf",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "MP1",
+   "kind": "trigger",
+   "prompt": "Export README.md to PDF.",
+   "skill": "yf-markdown-pdf"
+  },
+  {
+   "id": "MP2",
+   "kind": "trigger",
+   "prompt": "Make a PDF of docs/research/001-okf-compliance-delta's report.",
+   "skill": "yf-markdown-pdf"
+  },
+  {
+   "id": "MP3",
+   "kind": "trigger",
+   "prompt": "I need SPEC.md as a PDF to share.",
+   "skill": "yf-markdown-pdf"
+  },
+  {
+   "id": "MP-N1",
+   "kind": "near-miss",
+   "prompt": "Export README.md to a self-contained HTML file.",
+   "siblings": [
+    "yf-markdown-pdf"
+   ]
+  },
+  {
+   "id": "MP-N2",
+   "kind": "near-miss",
+   "prompt": "Check README.md is valid GFM.",
+   "siblings": [
+    "yf-markdown-pdf"
+   ]
+  },
+  {
+   "id": "MP-N3",
+   "kind": "near-miss",
+   "prompt": "Render the d2 diagrams under skills/yf-plan/spec/ to PNG.",
+   "siblings": [
+    "yf-markdown-pdf"
+   ]
+  }
+ ]
+}

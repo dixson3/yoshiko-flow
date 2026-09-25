@@ -1,0 +1,48 @@
+{
+ "skill": "yf-incubator",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "IN1",
+   "kind": "trigger",
+   "prompt": "Let's park this sidequest about caching as an incubator and come back to it later.",
+   "skill": "yf-incubator"
+  },
+  {
+   "id": "IN2",
+   "kind": "trigger",
+   "prompt": "What incubators do we have, and which one should I work on next?",
+   "skill": "yf-incubator"
+  },
+  {
+   "id": "IN3",
+   "kind": "trigger",
+   "prompt": "Start a new incubator to investigate cross-harness rule loading.",
+   "skill": "yf-incubator"
+  },
+  {
+   "id": "IN-N1",
+   "kind": "near-miss",
+   "prompt": "Let's plan the implementation of a yf doctor --fix flag.",
+   "siblings": [
+    "yf-incubator"
+   ]
+  },
+  {
+   "id": "IN-N2",
+   "kind": "near-miss",
+   "prompt": "Fix the typo in README.md's first paragraph.",
+   "siblings": [
+    "yf-incubator"
+   ]
+  },
+  {
+   "id": "IN-N3",
+   "kind": "near-miss",
+   "prompt": "Research how pi measures description length and give me a cited report.",
+   "siblings": [
+    "yf-incubator"
+   ]
+  }
+ ]
+}

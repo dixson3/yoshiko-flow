@@ -145,6 +145,8 @@ a live DB.
 
 ```
 skills/yf-beads-hygiene/
+├── evals/                     # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── beads_hygiene.py       # PEP 723 engine: audit / reconcile / repair / restore
 │   └── test_beads_hygiene.py  # four-class + #29 regression + reconcile active-set tests

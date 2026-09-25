@@ -1,0 +1,48 @@
+{
+ "skill": "yf-beads-init",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BI1",
+   "kind": "trigger",
+   "prompt": "bd status errors out but bd ready and bd list work fine. Repair the beads setup.",
+   "skill": "yf-beads-init"
+  },
+  {
+   "id": "BI2",
+   "kind": "trigger",
+   "prompt": "Set up beads in this repository and make sure it's configured correctly.",
+   "skill": "yf-beads-init"
+  },
+  {
+   "id": "BI3",
+   "kind": "trigger",
+   "prompt": "bd doctor is reporting errors. Verify and fix the beads configuration.",
+   "skill": "yf-beads-init"
+  },
+  {
+   "id": "BI-N1",
+   "kind": "near-miss",
+   "prompt": "Find and remove orphaned beads.",
+   "siblings": [
+    "yf-beads-init"
+   ]
+  },
+  {
+   "id": "BI-N2",
+   "kind": "near-miss",
+   "prompt": "Show me the ready beads.",
+   "siblings": [
+    "yf-beads-init"
+   ]
+  },
+  {
+   "id": "BI-N3",
+   "kind": "near-miss",
+   "prompt": "Push open beads to GitHub issues.",
+   "siblings": [
+    "yf-beads-init"
+   ]
+  }
+ ]
+}

@@ -110,6 +110,8 @@ invokes the other.
 
 ```
 skills/yf-change-validation/
+├── evals/                            # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── protocols/
 │   ├── CHANGE-VALIDATION-TRIGGER.md  # always-loaded on-edit (FAST) + pre-push (FULL) firing surface
 │   └── manifest.json

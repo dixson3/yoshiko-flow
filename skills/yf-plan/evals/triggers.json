@@ -1,0 +1,49 @@
+{
+ "skill": "yf-plan",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "P1",
+   "kind": "trigger",
+   "prompt": "Let's plan a yf doctor --fix flag that repairs the common misconfigurations.",
+   "skill": "yf-plan"
+  },
+  {
+   "id": "P2",
+   "kind": "trigger",
+   "prompt": "How should we build support for a sixth harness? Let's design it.",
+   "skill": "yf-plan"
+  },
+  {
+   "id": "P3",
+   "kind": "trigger",
+   "prompt": "/yf-plan status",
+   "skill": "yf-plan"
+  },
+  {
+   "id": "P-N1",
+   "kind": "near-miss",
+   "prompt": "Research how other agent harnesses load skills and give me a cited report.",
+   "siblings": [
+    "yf-plan"
+   ]
+  },
+  {
+   "id": "P-N2",
+   "kind": "near-miss",
+   "prompt": "Park this topic about caching as an incubator.",
+   "siblings": [
+    "yf-plan"
+   ]
+  },
+  {
+   "id": "P-N3",
+   "kind": "near-miss",
+   "prompt": "Fix the typo 'recieve' in CHANGELOG.md.",
+   "siblings": [
+    "yf-plan"
+   ],
+   "fixture": "printf '\\n- recieve\\n' >> CHANGELOG.md"
+  }
+ ]
+}

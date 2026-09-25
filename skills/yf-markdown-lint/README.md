@@ -130,6 +130,8 @@ None. This is a tool/reference skill with no phases or state transitions.
 
 ```text
 skills/yf-markdown-lint/
+├── evals/                      # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── fixtures/
 │   ├── images/
 │   │   └── x.png

@@ -134,6 +134,8 @@ It is not a repo-tracked file, so retirement is a documented manual step, not a 
 
 ```
 skills/yf-beads-init/
+├── evals/             # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── protocols/
 │   ├── BEADS_INIT.md  # always-loaded trigger contract (installed to rules/)
 │   └── manifest.json  # rule hash/version manifest

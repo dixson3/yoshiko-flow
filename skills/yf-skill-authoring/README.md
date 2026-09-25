@@ -81,6 +81,8 @@ skills/yf-skill-authoring/
 │   ├── reviewer-python.md     # Python helper review
 │   ├── reviewer-tokens.md     # token-efficiency reviewer (skill-dir instruction files)
 │   └── reviewer.md            # general skill review
+├── evals/                     # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── reference/
 │   ├── AGENT_ROLES.md         # canonical agent role vocabulary + factoring test + role table
 │   ├── PIPELINE.md            # multi-agent skill conventions

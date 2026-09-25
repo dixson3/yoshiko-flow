@@ -1,0 +1,48 @@
+{
+ "skill": "yf-beads-hygiene",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BH1",
+   "kind": "trigger",
+   "prompt": "Clean up the orphaned beads in this repo.",
+   "skill": "yf-beads-hygiene"
+  },
+  {
+   "id": "BH2",
+   "kind": "trigger",
+   "prompt": "Are there any dangling dependency edges in the beads graph?",
+   "skill": "yf-beads-hygiene"
+  },
+  {
+   "id": "BH3",
+   "kind": "trigger",
+   "prompt": "Audit the beads graph and tell me what's broken, but don't change anything yet.",
+   "skill": "yf-beads-hygiene"
+  },
+  {
+   "id": "BH-N1",
+   "kind": "near-miss",
+   "prompt": "bd status errors out but bd ready works. Fix the beads setup.",
+   "siblings": [
+    "yf-beads-hygiene"
+   ]
+  },
+  {
+   "id": "BH-N2",
+   "kind": "near-miss",
+   "prompt": "Close bead yf-xxxx; it's done.",
+   "siblings": [
+    "yf-beads-hygiene"
+   ]
+  },
+  {
+   "id": "BH-N3",
+   "kind": "near-miss",
+   "prompt": "Some of the OKF bundle indexes across the repo are stale. Rebuild them.",
+   "siblings": [
+    "yf-beads-hygiene"
+   ]
+  }
+ ]
+}

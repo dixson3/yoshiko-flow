@@ -1,0 +1,48 @@
+{
+ "skill": "yf-markdown-html",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "MH1",
+   "kind": "trigger",
+   "prompt": "Export README.md to a self-contained HTML file.",
+   "skill": "yf-markdown-html"
+  },
+  {
+   "id": "MH2",
+   "kind": "trigger",
+   "prompt": "Make a single-file web page from docs/research/001-okf-compliance-delta's report.",
+   "skill": "yf-markdown-html"
+  },
+  {
+   "id": "MH3",
+   "kind": "trigger",
+   "prompt": "Render SPEC.md to HTML with all images embedded.",
+   "skill": "yf-markdown-html"
+  },
+  {
+   "id": "MH-N1",
+   "kind": "near-miss",
+   "prompt": "Export README.md to PDF.",
+   "siblings": [
+    "yf-markdown-html"
+   ]
+  },
+  {
+   "id": "MH-N2",
+   "kind": "near-miss",
+   "prompt": "Check README.md for broken relative links.",
+   "siblings": [
+    "yf-markdown-html"
+   ]
+  },
+  {
+   "id": "MH-N3",
+   "kind": "near-miss",
+   "prompt": "Align the tables in README.md.",
+   "siblings": [
+    "yf-markdown-html"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,51 @@
+{
+ "skill": "yf-skill-authoring",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "S1",
+   "kind": "trigger",
+   "prompt": "Create a new skill in skills/ called yf-changelog that drafts CHANGELOG entries from git log.",
+   "skill": "yf-skill-authoring"
+  },
+  {
+   "id": "S2",
+   "kind": "trigger",
+   "prompt": "Add a Python helper script to skills/yf-markdown-lint/scripts that counts headings in a file. It needs a PEP 723 header so it runs with uv.",
+   "skill": "yf-skill-authoring"
+  },
+  {
+   "id": "S3",
+   "kind": "trigger",
+   "prompt": "The agent prompt files in skills/yf-plan/agents/ are verbose. Tidy them up.",
+   "skill": "yf-skill-authoring"
+  },
+  {
+   "id": "S-N2",
+   "kind": "near-miss",
+   "prompt": "Update README.md to document the yf harness tune command for end users.",
+   "siblings": [
+    "yf-optimal-instructions",
+    "yf-drift-check",
+    "yf-skill-authoring"
+   ]
+  },
+  {
+   "id": "S-N3",
+   "kind": "near-miss",
+   "prompt": "Our root AGENTS.md is getting long. Trim it.",
+   "siblings": [
+    "yf-skill-authoring",
+    "yf-optimal-instructions"
+   ]
+  },
+  {
+   "id": "S-N4",
+   "kind": "near-miss",
+   "prompt": "Write a short Python script at scripts/count_lines.py that counts lines in every .rs file.",
+   "siblings": [
+    "yf-skill-authoring"
+   ]
+  }
+ ]
+}

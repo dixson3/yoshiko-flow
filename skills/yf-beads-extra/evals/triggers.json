@@ -1,0 +1,49 @@
+{
+ "skill": "yf-beads-extra",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BE1",
+   "kind": "trigger",
+   "prompt": "My script calls `bd dep add A B` and then `bd show A --json`, but the dependency isn't there. What's going on?",
+   "skill": "yf-beads-extra"
+  },
+  {
+   "id": "BE2",
+   "kind": "trigger",
+   "prompt": "Write a Python helper that parses `bd list --json` output defensively; sometimes it isn't a single JSON document.",
+   "skill": "yf-beads-extra"
+  },
+  {
+   "id": "BE3",
+   "kind": "trigger",
+   "prompt": "How do I create 40 beads and their dependency edges in one transaction from a script?",
+   "skill": "yf-beads-extra"
+  },
+  {
+   "id": "BE-N1",
+   "kind": "near-miss",
+   "prompt": "What should I work on next? Check bd.",
+   "siblings": [
+    "yf-beads-extra",
+    "yf-beads-authoring"
+   ]
+  },
+  {
+   "id": "BE-N2",
+   "kind": "near-miss",
+   "prompt": "Design the formula and coordinator loop for a new beads-backed skill.",
+   "siblings": [
+    "yf-beads-extra"
+   ]
+  },
+  {
+   "id": "BE-N3",
+   "kind": "near-miss",
+   "prompt": "Are there orphaned or dangling beads in this repo?",
+   "siblings": [
+    "yf-beads-extra"
+   ]
+  }
+ ]
+}

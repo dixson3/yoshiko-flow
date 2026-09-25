@@ -1,0 +1,48 @@
+{
+ "skill": "yf-beads-upstream",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BU1",
+   "kind": "trigger",
+   "prompt": "Push the open beads upstream to GitHub.",
+   "skill": "yf-beads-upstream"
+  },
+  {
+   "id": "BU2",
+   "kind": "trigger",
+   "prompt": "Set up upstream tracking for this repo.",
+   "skill": "yf-beads-upstream"
+  },
+  {
+   "id": "BU3",
+   "kind": "trigger",
+   "prompt": "What does the upstream worklist look like? Which GitHub issues are open for us?",
+   "skill": "yf-beads-upstream"
+  },
+  {
+   "id": "BU-N1",
+   "kind": "near-miss",
+   "prompt": "Run `bd dolt push` to replicate the beads database.",
+   "siblings": [
+    "yf-beads-upstream"
+   ]
+  },
+  {
+   "id": "BU-N2",
+   "kind": "near-miss",
+   "prompt": "Close bead yf-xxxx locally; it's finished.",
+   "siblings": [
+    "yf-beads-upstream"
+   ]
+  },
+  {
+   "id": "BU-N3",
+   "kind": "near-miss",
+   "prompt": "Clean up dangling beads edges.",
+   "siblings": [
+    "yf-beads-upstream"
+   ]
+  }
+ ]
+}
