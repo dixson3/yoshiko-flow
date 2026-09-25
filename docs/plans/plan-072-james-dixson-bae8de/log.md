@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-25
+
+- approved: operator approved
+
 ## 2026-09-24
 - ready-for-approval: ready-check green — pass-5 (execution) APPROVE + audit pass
 - review: post-APPROVE mechanical edit. SC3/SC5/SC6/SC9/SC10 prefixed `test -f <script> &&` so ready-check's smoke run sees a clean exit 1, not uv's unparseable spawn error ('cause: No such file', misread as path `cause`). Criterion semantics are unchanged, and each is still red pre-work

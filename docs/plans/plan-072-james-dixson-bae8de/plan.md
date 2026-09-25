@@ -7,14 +7,18 @@ description: Enforce the Agent Skills 1024-char description cap, add a four-stat
 id: plan-072-james-dixson-bae8de
 author: james-dixson
 created: '2026-09-24'
-status: ready-for-approval
+status: approved
+deliverable_class: standard
+fingerprint: dcbd16e3cbc5f42f9050deff697c61611005ab4501941a694d7707a3154d5545
 ---
 # Plan: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/unrouted/loose description rating with cross-harness trigger evals, and bring skill descriptions toward 600 chars (#407)
 
 **ID:** plan-072-james-dixson-bae8de
 **Author:** james-dixson
 **Created:** 2026-09-24
-**Status:** ready-for-approval
+**Status:** approved
+**Deliverable-class:** standard
+**Fingerprint:** dcbd16e3cbc5f42f9050deff697c61611005ab4501941a694d7707a3154d5545
 
 ## Objective
 Make skill `description` size a specified, enforced, and measured property of every
