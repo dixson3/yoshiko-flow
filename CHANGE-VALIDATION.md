@@ -157,6 +157,7 @@ approved: yes
 | `uv-yf-cascade-root` | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 | `uv-yf-epic-ref` | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 | `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
+| `frontmatter-tests` | `uv run scripts/test_check_frontmatter.py` |  |  |
 | `skill-script-refs` | `uv run scripts/check_skill_script_refs.py` |  |  |
 | `skill-script-refs-tests` | `uv run scripts/test_check_skill_script_refs.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
@@ -259,6 +260,7 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 |  | `uv run scripts/check_frontmatter.py` |  |  |
+| `frontmatter-tests` | `uv run scripts/test_check_frontmatter.py` |  |  |
 |  | `uv run scripts/check_skill_script_refs.py` |  |  |
 |  | `uv run scripts/test_check_skill_script_refs.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
@@ -499,7 +501,8 @@ approved: yes
 | `skills/yf-plan/scripts/fixtures/classify/**` | `uv-yf-classify` |
 | `skills/*/SKILL.md` | `frontmatter` |
 | `skills/*/agents/*.md` | `frontmatter` |
-| `scripts/check_frontmatter.py` | `frontmatter` |
+| `scripts/check_frontmatter.py` | `frontmatter`, `frontmatter-tests` |
+| `scripts/test_check_frontmatter.py` | `frontmatter-tests` |
 | `skills/*/SKILL.md` | `skill-script-refs` |
 | `skills/*/README.md` | `skill-script-refs` |
 | `skills/*/agents/*.md` | `skill-script-refs` |
