@@ -108,6 +108,35 @@ def score_stream(harness: str, events, staging_root: str | None,
     return {"activated": acts, "n_tools": n}
 
 
+CMD_NAME_RE = re.compile(r"<command-name>/([a-z0-9-]+)</command-name>")
+
+
+def transcript_activations(lines, staging_root: str | None) -> list[str]:
+    """CC slash-command expansions (never a tool call, so absent from the stream): the
+    transcript's `<command-name>/<n>` and the expanded `Base directory for this skill:
+    <staging-root>/<n>`. Only USER-side records count, so a model that merely QUOTES a slash
+    command in its own text does not activate anything."""
+    out: list[str] = []
+    base_re = (re.compile(r"Base directory for this skill: " + re.escape(staging_root.rstrip("/"))
+                          + r"/([a-z0-9-]+)") if staging_root else None)
+    for line in lines:
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if e.get("type") != "user":
+            continue
+        blob = json.dumps((e.get("message") or {}).get("content"))
+        for n in CMD_NAME_RE.findall(blob):
+            if n not in out:
+                out.append(n)
+        if base_re:
+            for n in base_re.findall(blob):
+                if n not in out:
+                    out.append(n)
+    return out
+
+
 def correct(intent: dict, activated: list[str]) -> bool:
     """REQ-SKAUTH-062 cell outcome. Should-trigger: the expected skill activated.
     Near-miss: none of its named siblings activated."""

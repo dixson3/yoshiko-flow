@@ -1405,6 +1405,11 @@
     account quota. A rate-limit pauses both harnesses (`reset_seconds`, else exponential),
     halves the rate and retries, with the total wait bounded (exit 4 past the bound). Results
     are crash-safe via `--results` / `--resume`.
+  - **Amended `REQ-SKAUTH-062`** (Issue 3.3, measured): on CC a slash-command expansion, which
+    the transcript records as `<command-name>/<n>` or `Base directory for this skill: …/<n>`,
+    counts as activation. The eval env simulates herdr (`HERDR_ENV=1`, with
+    `HERDR_SOCKET_PATH` set to a nonexistent path) so herdr-scoped routing is measurable without
+    reaching a live server.
 >   - **Added `REQ-ENGINE-011`** (`skills/yf-change-validation/spec/engine.md`): a per-row,
 >     opt-in `flags` column with `inconclusive-exit=4` and `stream`.
 >   - **Amended `REQ-SCHEMA-002`** (`skills/yf-change-validation/spec/schema.md`): the §1 recipe

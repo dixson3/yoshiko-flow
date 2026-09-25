@@ -146,7 +146,16 @@ deliberate negative routing between siblings, so a trim is measured, not assumed
   - **Detector.** A skill counts as activated when the run makes a CC `Skill` tool call naming
     it, or a tool call whose arguments touch `<staging-root>/<n>/`, an installed `skills/<n>/`,
     or `yf skill-dir <n>`. The staging root is an explicit detector input. The repository's own
-    `skills/<n>/` is **never** counted, because reading source is not activation.
+    `skills/<n>/` is **never** counted, because reading source is not activation. *(Amended
+    plan-072 Issue 3.3, measured.)* On CC, a **slash-command expansion** is also activation: the
+    session transcript records `<command-name>/<n></command-name>`, or the expanded body's
+    `Base directory for this skill: <staging-root>/<n>`. Neither appears in the stream as a tool
+    call, so the detector reads the transcript for it after the run exits.
+  - **Eval environment.** The run cannot make an outward-facing write: `gh` gets an empty config
+    and no token. *(Amended plan-072 Issue 3.3.)* herdr is **simulated, not reachable**:
+    `HERDR_ENV=1` is set, because that is the precondition a herdr-scoped skill routes on in real
+    use, and `HERDR_SOCKET_PATH` points at a path that does not exist, so no herdr command reaches
+    a live server.
   - **Stop rule.** A run stops on activation, at 6 tool calls, or at 150 s, so the eval measures
     routing rather than doing the task.
   - **Modes.** **candidate** stages every `skills/*/` from the checkout under test into a fresh

@@ -231,6 +231,10 @@ def eval_env() -> dict:
     yf-herdr intent cannot drive real panes. Model auth (claude/pi) is untouched."""
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("HERDR", "YF_PARENT", "GH_", "GITHUB_"))}
+    # herdr is SIMULATED, not reachable (REQ-SKAUTH-062 as amended): a herdr-scoped skill routes
+    # on HERDR_ENV=1 in real use, so it must be set for its intents to be measurable, while the
+    # socket points nowhere so no herdr command can drive a live pane.
+    env.update({"HERDR_ENV": "1", "HERDR_SOCKET_PATH": str(CACHE / "no-herdr.sock")})
     ghdir = CACHE / "gh-empty"
     ghdir.mkdir(parents=True, exist_ok=True)
     env.update({"GH_CONFIG_DIR": str(ghdir), "GH_TOKEN": "", "GITHUB_TOKEN": "",
@@ -331,6 +335,10 @@ def run_once(harness: str, clone: Path, st: Path, names: list[str], intent: dict
         main = pdir / f"{sid}.jsonl"
         subs = sorted((pdir / sid / "subagents").glob("*.jsonl")) if (pdir / sid).exists() else []
         if main.exists():
+            for a in core.transcript_activations(main.read_text().splitlines(),
+                                                 str(st) if mode == "candidate" else None):
+                if a not in acts:
+                    acts.append(a)
             priced = core.price_session(main.read_text().splitlines(),
                                         [s.read_text().splitlines() for s in subs], rates)
         else:

@@ -97,6 +97,18 @@ def test_detector_stops_at_max_tools():
     assert core.score_stream("pi", evs, "/st")["activated"] == []
 
 
+def test_cc_slash_command_expansion_counts_from_transcript():
+    st = "/cache/clone/.claude/skills"
+    user_cmd = json.dumps({"type": "user", "message": {"role": "user", "content":
+        "<command-message>yf-research</command-message>\n<command-name>/yf-research</command-name>"}})
+    user_base = json.dumps({"type": "user", "message": {"role": "user", "content": [{"type": "text",
+        "text": f"Base directory for this skill: {st}/yf-plan\n\n# yf-plan"}]}})
+    quoted = json.dumps({"type": "assistant", "message": {"content": [{"type": "text",
+        "text": "you could run <command-name>/yf-herdr</command-name>"}]}})
+    assert core.transcript_activations([user_cmd, user_base, quoted], st) == ["yf-research", "yf-plan"]
+    assert core.transcript_activations([quoted], st) == []
+
+
 def test_near_miss_cell_rate_is_correct_outcome_rate():
     nm = {"id": "N", "kind": "near-miss", "siblings": ["yf-okf"]}
     assert core.correct(nm, []) is True
@@ -370,6 +382,7 @@ def test_eval_env_strips_outward_write_credentials(monkeypatch):
     env = ste.eval_env()
     assert env["GITHUB_TOKEN"] == "" and env["GH_TOKEN"] == ""
     assert "HERDR_PANE_ID" not in env and "YF_PARENT_PANE" not in env
+    assert env["HERDR_ENV"] == "1" and not Path(env["HERDR_SOCKET_PATH"]).exists()
     assert env["GH_CONFIG_DIR"].endswith("gh-empty")
 
 
