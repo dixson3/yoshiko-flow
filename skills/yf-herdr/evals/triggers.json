@@ -5,8 +5,9 @@
   {
    "id": "HR1",
    "kind": "trigger",
-   "prompt": "Plan plan-069 is approved. Execute it in a new session.",
-   "skill": "yf-herdr"
+   "prompt": "Plan plan-068-james-dixson-8ae0e1 is ready. Execute it in a new session.",
+   "skill": "yf-herdr",
+   "fixture": "sed -i '' 's/^status: .*/status: approved/;s/^\\*\\*Status:\\*\\* .*/**Status:** approved/' docs/plans/plan-068-james-dixson-8ae0e1/plan.md"
   },
   {
    "id": "HR2",
@@ -51,16 +52,6 @@
   "description_sha256": "d60b65669782cecb80d0ecd4f49ae7f6e0a708fc7e383d97c0c2080297a9c230",
   "description_chars": 848,
   "cells": {
-   "HR1:pi": {
-    "rate": 0.6666666666666666,
-    "correct": 2,
-    "reps": 3
-   },
-   "HR1:cc": {
-    "rate": 0.0,
-    "correct": 0,
-    "reps": 3
-   },
    "HR2:pi": {
     "rate": 1.0,
     "correct": 3,

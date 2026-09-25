@@ -23,7 +23,7 @@
   {
    "id": "ML-N1",
    "kind": "near-miss",
-   "prompt": "Align the GFM tables in SPEC.md in place.",
+   "prompt": "Export SPEC.md to a self-contained HTML file.",
    "siblings": [
     "yf-markdown-lint"
    ]
@@ -79,16 +79,6 @@
    "ML3:cc": {
     "rate": 0.0,
     "correct": 0,
-    "reps": 3
-   },
-   "ML-N1:pi": {
-    "rate": 1.0,
-    "correct": 3,
-    "reps": 3
-   },
-   "ML-N1:cc": {
-    "rate": 0.3333333333333333,
-    "correct": 1,
     "reps": 3
    },
    "ML-N2:pi": {
