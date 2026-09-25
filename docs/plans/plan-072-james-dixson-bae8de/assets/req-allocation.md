@@ -1,3 +1,8 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Issue 0.2 REQ id allocation: the four plan-072 ids verified free and where each is homed"
+---
 # REQ allocation — plan-072
 
 Issue 0.2. Verified free on 2026-09-25 by `grep -rln` for each id across `*.md`/`*.py`

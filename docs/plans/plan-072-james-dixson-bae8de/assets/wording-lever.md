@@ -1,3 +1,8 @@
+---
+type: Asset
+okf_spec: OKF-PLAN
+description: "Issue 3.1 wording-lever check: pi D3 0/3 to 3/3 on TRIGGER wording alone; pi O1 and CC O2 pass in candidate mode"
+---
 # Wording-lever check (Issue 3.1)
 
 EXP-003 recommended checking whether its three misses respond to **TRIGGER wording alone**
