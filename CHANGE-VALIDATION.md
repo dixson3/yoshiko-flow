@@ -230,8 +230,8 @@ approved: yes
 
 ### full
 
-| id | cmd | cwd | timeout |
-|:--|:--|:--|--:|
+| id | cmd | cwd | timeout | flags |
+|:--|:--|:--|--:|:--|
 |  | `cargo fmt --all -- --check` |  |  |
 |  | `cargo clippy --workspace --all-targets -- -D warnings` |  |  |
 |  | `cargo test --workspace` |  |  |
@@ -334,6 +334,7 @@ approved: yes
 |  | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 | `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
 | `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
+| `trigger-eval` | `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3` |  | 21600 | `inconclusive-exit=4,stream` |
 
 ## 2. Signal Fingerprint
 
