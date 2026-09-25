@@ -395,8 +395,16 @@ def test_429_signatures_are_inconclusive_with_reset():
     assert core.run_validity("", PI_429, {"input": 0}) == ("rate-limited", 10491)
     v, reset = core.run_validity(CC_LIMIT_TEXT, "", {})
     assert v == "rate-limited" and reset is None
-    # A rate-limit signature wins even if some tokens were counted.
+    # A stderr 429 wins even if some tokens were counted.
     assert core.run_validity("", PI_429, {"input": 50})[0] == "rate-limited"
+
+
+def test_rate_limit_phrase_in_served_stream_is_not_a_limit():
+    """Measured false positive: pi's system prompt (tool docs) says 'rate limit'. A run that
+    was served (tokens > 0) must not be classed rate-limited from stream text."""
+    served = '{"type":"message_end","message":{"role":"system","sections":{"tools":"lower the value when the target host enforces a per-IP rate limit you cannot raise"}}}'
+    assert core.run_validity(served, "", {"input": 4, "output": 108}) == ("ok", None)
+    assert core.run_validity(served, "", {})[0] == "rate-limited"  # zero tokens: suspicious
 
 
 class FakeClock:

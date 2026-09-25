@@ -220,11 +220,20 @@ def run_validity(stream_text: str, stderr: str, tokens: dict | None) -> tuple[st
     """'ok' | 'rate-limited' | 'zero-tokens', plus reset_seconds for a rate limit.
 
     A run that spent nothing measured nothing: it is never scored and never recorded.
+
+    WHERE the signature is looked for is load-bearing (measured false positive): the stream
+    carries the system prompt and tool docs, and pi's include the phrase "rate limit". So the
+    signature is read from STDERR (pi's `429: {...}` lands there) always, and from the stream
+    text ONLY when the run consumed zero tokens (CC's "You've hit your session limit" is an
+    assistant text with no usage). A run that spent tokens was served, so it was not limited.
     """
-    limited, reset = rate_limit_signature((stream_text or "") + "\n" + (stderr or ""))
+    zero = tokens_consumed(tokens) == 0
+    limited, reset = rate_limit_signature(stderr or "")
+    if not limited and zero:
+        limited, reset = rate_limit_signature(stream_text or "")
     if limited:
         return "rate-limited", reset
-    if tokens_consumed(tokens) == 0:
+    if zero:
         return "zero-tokens", None
     return "ok", None
 
