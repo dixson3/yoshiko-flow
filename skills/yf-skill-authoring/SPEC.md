@@ -191,6 +191,26 @@ deliberate negative routing between siblings, so a trim is measured, not assumed
   - **Other verdicts.** INCONCLUSIVE (exit 4) when a harness binary or its auth is missing, or on
     any staging or load-verification mismatch. PASS (exit 0) only on a completed run. FAIL is
     exit 1.
+  - **Throttling and invalid runs** *(amended plan-072 Issue 3.2 incident, operator decision
+    "throttle the runs — there are always other sessions active")*. The two harnesses and any
+    other session on the machine can share **one model-account quota**. Measured: pi reaches the
+    same Claude account through a proxy, and an unthrottled baseline at ~381 runs/h tripped it
+    after 1.6 h. The harness had then scored 14 rate-limited CC runs (0 tokens, ~1.6 s) as real
+    outcomes. Four rules follow:
+    - *(i) A run that measured nothing is INCONCLUSIVE, structurally.* A run that consumed
+      **zero tokens**, or whose output carries a rate-limit / HTTP 429 / cooldown signature, is
+      never scored and never recorded.
+    - *(ii) One global throttle.* `--max-runs-per-hour N` bounds run **starts** across both
+      harnesses together, because they share the quota. The default is conservative (150/h,
+      about 40% of the rate that tripped) to leave headroom for other sessions.
+    - *(iii) Adaptive backoff.* On a rate-limit signature, **both** harnesses pause. The pause is
+      the `reset_seconds` from the 429 body when present, otherwise exponential backoff. The rate
+      is then halved, and the run is retried rather than recorded. The total wait is bounded by
+      `--max-backoff-seconds`. Exceeding the bound stops the run at exit 4 (INCONCLUSIVE).
+    - *(iv) Crash-safe resume.* Every valid per-run result is appended to `--results <jsonl>` as
+      it completes. `--resume <jsonl>` skips runs already present there, keyed by (harness,
+      intent, rep), and counts them toward the cells, so an interrupted baseline continues
+      rather than restarts. A process-group kill of an already-exited run is not an error.
   - **Writers.** Only an explicit `--record` run writes `triggers.json`. The FULL-tier row is
     read-only.
 

@@ -241,11 +241,15 @@ def eval_env() -> dict:
 def kill(p: subprocess.Popen) -> None:
     if p.poll() is not None:
         return
+    # PermissionError is what macOS raises for killpg on a group whose leader already exited
+    # (measured: it aborted the Issue 3.2 baseline). Either error means "nothing left to kill".
     try:
         os.killpg(p.pid, signal.SIGTERM)
         p.wait(10)
-    except (ProcessLookupError, subprocess.TimeoutExpired):
-        with contextlib.suppress(ProcessLookupError):
+    except (ProcessLookupError, PermissionError):
+        return
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
             os.killpg(p.pid, signal.SIGKILL)
 
 
@@ -273,8 +277,11 @@ def run_once(harness: str, clone: Path, st: Path, names: list[str], intent: dict
     th.start()
     timer = threading.Timer(core.TIMEOUT_S, lambda: kill(p))
     timer.start()
+    text_tail: list[str] = []
     try:
         for line in p.stdout or []:
+            text_tail.append(line)
+            del text_tail[:-40]
             try:
                 ev = json.loads(line)
             except ValueError:
@@ -345,6 +352,12 @@ def run_once(harness: str, clone: Path, st: Path, names: list[str], intent: dict
         res["cc_usd"], res["tokens"] = 0.0, tok
     if debug.exists():
         debug.unlink()
+    # A run that spent nothing measured nothing (REQ-SKAUTH-062 as amended): never scored.
+    validity, reset_s = core.run_validity("".join(text_tail), stderr_tail, res.get("tokens"))
+    if validity != "ok":
+        res["invalid"] = validity
+        res["reset_seconds"] = reset_s
+        res.setdefault("inconclusive", f"{harness} run {validity}")
     res["correct"] = core.correct(intent, acts) if "inconclusive" not in res else None
     return res
 
@@ -385,7 +398,31 @@ def harness_available(h: str) -> str | None:
     return None if shutil.which(binary) else f"{binary} not on PATH"
 
 
-def run_harness(h, root, names, work, reps, mode, budget, rates, run_tag):
+class Results:
+    """Crash-safe append-only per-run results (REQ-SKAUTH-062 as amended)."""
+
+    def __init__(self, path: Path | None, done: dict[str, dict]):
+        self.path, self.done = path, done
+        self.lock = threading.Lock()
+
+    def has(self, h, iid, rep) -> bool:
+        return core.run_key(h, iid, rep) in self.done
+
+    def add(self, r: dict) -> None:
+        if r.get("correct") is None:
+            return  # only VALID results are persisted
+        with self.lock:
+            self.done[core.run_key(r["harness"], r["intent"], int(r["rep"]))] = r
+            if self.path:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                with self.path.open("a") as f:
+                    f.write(json.dumps({k: r.get(k) for k in (
+                        "harness", "intent", "rep", "correct", "activated", "stop", "n_tools",
+                        "secs", "cc_usd", "session_id", "source")}) + "\n")
+
+
+def run_harness(h, root, names, work, reps, mode, budget, rates, run_tag, throttle=None,
+                results=None, rep_offset=0):
     """Run every (intent, rep) for one harness sequentially in its own clone."""
     clone = prepare_clone(root, h, run_tag)
     st, hashes = stage(clone, root, h, names) if mode == "candidate" else (clone / ".none", {})
@@ -393,29 +430,53 @@ def run_harness(h, root, names, work, reps, mode, budget, rates, run_tag):
     expected = {n: str(fm[n].get("description") or "") for n in names}
     user_inv = {n for n in names if fm[n].get("user-invocable", True) not in (False, "false")}
     out = []
-    for rep in range(reps):
+    for rep in range(rep_offset, rep_offset + reps):
         for intent in work:
-            if not budget.check():
-                return out
-            reset(clone, intent.get("fixture"))
-            if mode == "candidate":
-                st, hashes2 = stage(clone, root, h, names)  # staging cleared every reset
-                ok, why = verify_staged(st, hashes2)
-                if not ok or hashes2 != hashes:
-                    r = {"harness": h, "intent": intent["id"], "inconclusive": why if not ok
-                         else "staged tree differs from the first staging", "correct": None}
-                    out.append(r)
-                    continue
-            r = run_once(h, clone, st, names, intent, expected, user_inv, rates, mode)
-            r["rep"] = rep
-            budget.record(r)
+            if results is not None and results.has(h, intent["id"], rep):
+                out.append(dict(results.done[core.run_key(h, intent["id"], rep)]))
+                continue
+            while True:
+                if not budget.check():
+                    return out
+                if throttle is not None and not throttle.acquire():
+                    return out
+                r = run_one(h, clone, root, st, hashes, names, intent, expected, user_inv,
+                            rates, mode)
+                r["rep"] = rep
+                budget.record(r)
+                if r.get("invalid") == "rate-limited" and throttle is not None:
+                    ok = throttle.rate_limited(r.get("reset_seconds"))
+                    log(f"[{h}] {intent['id']} r{rep} RATE-LIMITED (reset_seconds="
+                        f"{r.get('reset_seconds')}); both harnesses pause, rate now "
+                        f"{throttle.per_hour:.0f}/h, backoff so far {throttle.backoff_total:.0f}s"
+                        + ("" if ok else " — BACKOFF BOUND EXCEEDED, stopping"))
+                    if not ok:
+                        return out
+                    continue  # retry the same run, never record it
+                if throttle is not None and not r.get("invalid"):
+                    throttle.succeeded()
+                break
             out.append(r)
+            if results is not None:
+                results.add(r)
             mark = ("INCONCLUSIVE " + r["inconclusive"]) if r.get("inconclusive") else \
                 ("ok" if r["correct"] else "MISS")
             log(f"[{h}] {intent['id']} r{rep} {mark} acts={r.get('activated')} "
                 f"stop={r.get('stop')} {r.get('secs')}s ${usd(r):.4f} "
                 f"(ledger ${budget.total:.2f})")
     return out
+
+
+def run_one(h, clone, root, st, hashes, names, intent, expected, user_inv, rates, mode):
+    reset(clone, intent.get("fixture"))
+    if mode == "candidate":
+        st2, hashes2 = stage(clone, root, h, names)  # staging cleared every reset
+        ok, why = verify_staged(st2, hashes2)
+        if not ok or hashes2 != hashes:
+            return {"harness": h, "intent": intent["id"], "correct": None,
+                    "inconclusive": why if not ok else "staged tree differs from the first staging"}
+        st = st2
+    return run_once(h, clone, st, names, intent, expected, user_inv, rates, mode)
 
 
 def cmd_live(args, root: Path) -> int:
@@ -450,14 +511,28 @@ def cmd_live(args, root: Path) -> int:
                           "ledger_cc_usd": budget.total}))
         return core.EXIT_INCONCLUSIVE
     tag = uuid.uuid4().hex[:8]
+    throttle = core.Throttle(args.max_runs_per_hour, args.max_backoff_seconds,
+                             clock=time.monotonic, sleep=time.sleep)
+    done = core.load_results(Path(args.resume)) if args.resume else {}
+    res_path = Path(args.results) if args.results else (Path(args.resume) if args.resume else None)
+    store = Results(res_path, done)
+    total = len(work) * args.reps * len(harnesses)
+    already = sum(store.has(h, w["id"], r) for h in harnesses for w in work for r in range(args.reps))
     log(f"eval: mode={args.mode} harness={','.join(harnesses)} skills={len(targets)} "
-        f"intents={len(work)} reps={args.reps} ({len(work) * args.reps * len(harnesses)} runs)")
+        f"intents={len(work)} reps={args.reps} ({total} runs; {already} already in results, "
+        f"{total - already} to run) throttle={args.max_runs_per_hour:.0f}/h global")
     with ThreadPoolExecutor(max_workers=len(harnesses)) as ex:
         futs = {h: ex.submit(run_harness, h, root, names, work, args.reps, args.mode, budget,
-                             rates, f"{tag}-{h}") for h in harnesses}
+                             rates, f"{tag}-{h}", throttle, store) for h in harnesses}
         results = {h: f.result() for h, f in futs.items()}
     # Confirmation re-runs: a cell <0.5 whose RECORDED rate was >=0.5 gets 3 more reps.
     cells = aggregate(results)
+    for h in harnesses:  # a cell short of its reps (budget/backoff stop) is not a measurement
+        for w in work:
+            c = cells.setdefault((w["id"], h), {"first": [], "confirm": [], "inconclusive": None,
+                                                "rows": []})
+            if not c["inconclusive"] and len(c["first"]) < args.reps:
+                c["inconclusive"] = f"only {len(c['first'])}/{args.reps} valid reps"
     confirm = []
     for (iid, h), c in cells.items():
         owner = next(w["owner"] for w in work if w["id"] == iid)
@@ -470,7 +545,8 @@ def cmd_live(args, root: Path) -> int:
         with ThreadPoolExecutor(max_workers=len(harnesses)) as ex:
             futs = {h: ex.submit(run_harness, h, root, names,
                                  [w for w in work if (w["id"], h) in set(confirm)], 3,
-                                 args.mode, budget, rates, f"{tag}-{h}-c")
+                                 args.mode, budget, rates, f"{tag}-{h}-c", throttle, store,
+                                 args.reps)
                     for h in {h for _, h in confirm}}
             for h, f in futs.items():
                 for r in f.result():
@@ -487,18 +563,21 @@ def cmd_live(args, root: Path) -> int:
     status = "pass"
     if any(v == "fail" for v in verdicts.values()):
         status = "fail"
-    elif any(v in ("inconclusive", "needs-confirm") for v in verdicts.values()) or budget.tripped:
+    elif (any(v in ("inconclusive", "needs-confirm") for v in verdicts.values()) or budget.tripped
+          or throttle.exhausted):
         status = "inconclusive"
-    if args.record and not budget.tripped:
+    if args.record and not budget.tripped and not throttle.exhausted:
         for n in targets:
             write_record(root, n, docs[n], cells, args.mode)
     summary = {"status": status, "mode": args.mode, "harnesses": harnesses,
                "runs": sum(len(v) for v in results.values()),
                "budget_tripped": budget.tripped, "ledger_cc_usd": round(budget.total, 4),
+               "throttle": {"final_per_hour": throttle.per_hour, "backoff_s": throttle.backoff_total,
+                            "exhausted": throttle.exhausted},
                "cells": {f"{i}:{h}": {"rate": core.rate(c["first"]), "verdict": verdicts[(i, h)],
                                       "inconclusive": c["inconclusive"]}
                          for (i, h), c in cells.items()},
-               "recorded": bool(args.record and not budget.tripped)}
+               "recorded": bool(args.record and not budget.tripped and not throttle.exhausted)}
     print(json.dumps(summary, indent=1) if args.json else
           f"trigger-eval: {status} ({summary['runs']} runs, CC ${budget.total:.2f} ledger)")
     if budget.tripped:
@@ -566,6 +645,13 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--ledger", default=None)
     ap.add_argument("--budget-usd", type=float, default=None)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--max-runs-per-hour", type=float, default=150.0,
+                    help="GLOBAL run-start ceiling across both harnesses (shared quota)")
+    ap.add_argument("--max-backoff-seconds", type=float, default=4 * 3600.0,
+                    help="bound on total rate-limit pause; exceeding it exits 4")
+    ap.add_argument("--results", default=None, help="append valid per-run results here")
+    ap.add_argument("--resume", default=None,
+                    help="skip runs already in this results jsonl (and keep appending to it)")
     ap.add_argument("--validate-intents", action="store_true")
     ap.add_argument("--min-trigger", type=int, default=3)
     ap.add_argument("--min-nearmiss", type=int, default=3)

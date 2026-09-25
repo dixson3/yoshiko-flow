@@ -882,6 +882,7 @@ def cmd_run(args) -> int:
             sys.stdout.write(f"{refusal['status']}: {refusal['reason']} "
                              f"({refusal.get('detail','')})\n")
         return EXIT_REFUSED
+    assert manifest is not None  # parse_manifest returns exactly one of (manifest, refusal)
 
     tier = args.tier
     rows = manifest["tiers"].get(tier, [])

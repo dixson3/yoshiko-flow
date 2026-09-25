@@ -1399,6 +1399,12 @@
 >     contract implemented by `scripts/checks/skill_trigger_eval.py`. **The FULL validation tier
 >     carries the candidate-mode eval row** (every skill, both harnesses, 3 reps), and it is the
 >     last FULL row. This is a deliberate, operator-accepted cost of roughly 3 h per FULL run.
+  - **Amended `REQ-SKAUTH-062`** (execution, Issue 3.2 incident; operator: "throttle the
+    runs"). A zero-token or rate-limited run is INCONCLUSIVE and never recorded. There is one
+    global `--max-runs-per-hour` throttle (default 150) across both harnesses, which share one
+    account quota. A rate-limit pauses both harnesses (`reset_seconds`, else exponential),
+    halves the rate and retries, with the total wait bounded (exit 4 past the bound). Results
+    are crash-safe via `--results` / `--resume`.
 >   - **Added `REQ-ENGINE-011`** (`skills/yf-change-validation/spec/engine.md`): a per-row,
 >     opt-in `flags` column with `inconclusive-exit=4` and `stream`.
 >   - **Amended `REQ-SCHEMA-002`** (`skills/yf-change-validation/spec/schema.md`): the §1 recipe

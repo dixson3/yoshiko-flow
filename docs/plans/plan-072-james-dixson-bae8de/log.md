@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-09-25
+- executing: OPERATOR DECISION: D9 dev spend ceiling raised $200 → $600 CC list-rate via assets/spend-ceiling.txt (plan text keeps $200 as the approved default). Reason: 'we have not come close to reaching the subscription limit on token spend' — the incident was a request-rate limit, not spend. All Epic 3 runs now pass --budget-usd 600
+- executing: 3.2 incident: baseline tripped the shared model-account RATE limit (~381 runs/h for 1.6h; pi reaches the same account via cliproxyapi); last 14 CC runs were 0-token rate-limited and mis-scored; kill() PermissionError aborted the run, nothing recorded. OPERATOR DECISION: 'throttle the runs — there are always other sessions active' → REQ-SKAUTH-062 amended (0-token/429 INCONCLUSIVE, global --max-runs-per-hour default 150, adaptive backoff, --results/--resume); baseline resumed, not restarted
 - executing: start gate resolved
 - intake: epic yf-mol-t42s poured
 

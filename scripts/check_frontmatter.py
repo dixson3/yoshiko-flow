@@ -137,7 +137,8 @@ def check(path: Path) -> str | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(
+        description="Frontmatter guard (REQ-YF-EMBED-003 / REQ-YF-EMBED-007).")
     ap.add_argument("--root", type=Path, default=REPO,
                     help="repo root holding skills/ (default: this repo)")
     args = ap.parse_args(argv)

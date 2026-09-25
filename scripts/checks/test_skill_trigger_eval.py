@@ -24,12 +24,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
+import pytest  # pyright: ignore[reportMissingImports]  (PEP 723 dependency)
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import _trigger_eval_core as core  # noqa: E402
-import skill_trigger_eval as ste  # noqa: E402
+import _trigger_eval_core as core  # noqa: E402  # pyright: ignore[reportMissingImports]
+import skill_trigger_eval as ste  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 FIX = HERE / "fixtures" / "trigger-eval"
 EXP_INTENTS = json.loads((HERE.parent.parent / "docs/plans/plan-072-james-dixson-bae8de/assets/"
@@ -53,6 +53,7 @@ def test_exp003_totals_reproduce():
     """Per-intent totals from committed fixtures: CC 59/63, pi 57/63 (EXP-003's rescore)."""
     if EXP_INTENTS is None:
         pytest.skip("plan-072 EXP-003 intents.json absent (bundle archived); fixture arms below still run")
+    assert EXP_INTENTS is not None
     intents = {i["id"]: i for i in EXP_INTENTS}
     tot = {"cc": [0, 0], "pi": [0, 0]}
     for p in sorted((FIX / "streams").glob("*.jsonl")):
@@ -353,7 +354,7 @@ def test_record_is_the_only_writer(tmp_path):
     src = (HERE / "skill_trigger_eval.py").read_text()
     writes = [ln for ln in src.splitlines() if "triggers_path(" in ln and ".write_text(" in ln]
     assert len(writes) == 1
-    assert "if args.record and not budget.tripped:" in src
+    assert "if args.record and not budget.tripped and not throttle.exhausted:" in src
 
 
 def test_report_prints_n_and_rate(tmp_path, capsys):
@@ -370,6 +371,134 @@ def test_eval_env_strips_outward_write_credentials(monkeypatch):
     assert env["GITHUB_TOKEN"] == "" and env["GH_TOKEN"] == ""
     assert "HERDR_PANE_ID" not in env and "YF_PARENT_PANE" not in env
     assert env["GH_CONFIG_DIR"].endswith("gh-empty")
+
+
+# ---------------------------------------------------------------------------
+# throttling + invalid runs (REQ-SKAUTH-062 as amended at the Issue 3.2 incident)
+# ---------------------------------------------------------------------------
+
+# The two measured signatures, verbatim from the incident.
+CC_LIMIT_TEXT = ('{"type":"assistant","message":{"content":[{"type":"text","text":'
+                 '"You\'ve hit your session limit \u00b7 resets 1:30pm (America/Los_Angeles)"}]}}')
+PI_429 = ('Error: 429: {"code":"model_cooldown","last_upstream_error":"rate_limit_error: This request '
+          'would exceed your account\'s rate limit.","model":"claude-opus-5-5","provider":"claude",'
+          '"reset_seconds":10491,"reset_time":"2h54m51s"}')
+
+
+def test_zero_token_run_is_inconclusive():
+    assert core.run_validity("", "", {}) == ("zero-tokens", None)
+    assert core.run_validity("", "", {"input": 0, "output": 0, "cache_read": 0}) == ("zero-tokens", None)
+    assert core.run_validity("", "", {"input": 2, "output": 90}) == ("ok", None)
+
+
+def test_429_signatures_are_inconclusive_with_reset():
+    assert core.run_validity("", PI_429, {"input": 0}) == ("rate-limited", 10491)
+    v, reset = core.run_validity(CC_LIMIT_TEXT, "", {})
+    assert v == "rate-limited" and reset is None
+    # A rate-limit signature wins even if some tokens were counted.
+    assert core.run_validity("", PI_429, {"input": 50})[0] == "rate-limited"
+
+
+class FakeClock:
+    def __init__(self):
+        self.t = 0.0
+        self.slept = []
+
+    def clock(self):
+        return self.t
+
+    def sleep(self, s):
+        self.slept.append(s)
+        self.t += s
+
+
+def test_throttle_spacing_is_global():
+    fc = FakeClock()
+    th = core.Throttle(150, 3600, fc.clock, fc.sleep)
+    starts = []
+    for _ in range(4):  # both harnesses draw from the same instance
+        assert th.acquire()
+        starts.append(fc.t)
+    gaps = [b - a for a, b in zip(starts, starts[1:], strict=False)]
+    assert all(abs(g - 24.0) < 1e-9 for g in gaps)  # 3600/150
+
+
+def test_backoff_honours_reset_seconds_and_halves_rate():
+    fc = FakeClock()
+    th = core.Throttle(150, 99999, fc.clock, fc.sleep)
+    th.acquire()
+    assert th.rate_limited(600)
+    assert th.per_hour == 75
+    th.acquire()
+    assert fc.t >= 605  # reset_seconds + 5 s margin, for BOTH harnesses (shared pause)
+
+
+def test_backoff_exponential_without_reset_and_bounded():
+    fc = FakeClock()
+    th = core.Throttle(150, 60 + 120 + 240, fc.clock, fc.sleep)
+    assert th.rate_limited(None) and th.backoff_total == 60
+    assert th.rate_limited(None) and th.backoff_total == 180
+    assert th.rate_limited(None) and th.backoff_total == 420
+    assert not th.rate_limited(None)  # 480 more would exceed the bound
+    assert th.exhausted and not th.acquire()
+
+
+def test_resume_skips_completed_runs(tmp_path):
+    rp = tmp_path / "results.jsonl"
+    rows = [{"harness": "pi", "intent": "K1", "rep": 0, "correct": True},
+            {"harness": "cc", "intent": "K1", "rep": 0, "correct": None},  # invalid: never loaded
+            {"harness": "pi", "intent": "K1", "rep": 1, "correct": False}]
+    rp.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    done = core.load_results(rp)
+    assert set(done) == {"pi|K1|0", "pi|K1|1"}
+    store = ste.Results(rp, done)
+    assert store.has("pi", "K1", 0) and not store.has("cc", "K1", 0)
+    store.add({"harness": "cc", "intent": "K1", "rep": 0, "correct": True})
+    store.add({"harness": "cc", "intent": "K1", "rep": 1, "correct": None})  # not persisted
+    assert set(core.load_results(rp)) == {"pi|K1|0", "pi|K1|1", "cc|K1|0"}
+
+
+def test_run_harness_resume_and_ratelimit_retry(tmp_path, monkeypatch):
+    """Resumed runs are not re-run; a rate-limited run is retried, never recorded."""
+    calls = []
+    seq = iter([{"invalid": "rate-limited", "reset_seconds": 1, "correct": None, "inconclusive": "x"},
+                {"correct": True, "activated": ["sk"], "cc_usd": 0.0, "tokens": {"input": 1}}])
+
+    def fake_run_one(h, clone, root, st, hashes, names, intent, *a):
+        calls.append(intent["id"])
+        return dict(next(seq), harness=h, intent=intent["id"])
+    monkeypatch.setattr(ste, "run_one", fake_run_one)
+    monkeypatch.setattr(ste, "prepare_clone", lambda root, h, tag: tmp_path)
+    monkeypatch.setattr(ste, "stage", lambda *a: (tmp_path, {}))
+    monkeypatch.setattr(ste, "frontmatter", lambda p: {"description": "d"})
+    fc = FakeClock()
+    th = core.Throttle(3600, 999, fc.clock, fc.sleep)
+    store = ste.Results(tmp_path / "r.jsonl", {"pi|A|0": {"harness": "pi", "intent": "A", "rep": 0,
+                                                           "correct": True}})
+    out = ste.run_harness("pi", tmp_path, ["sk"], [{"id": "A"}, {"id": "B"}], 1, "candidate",
+                          ste.Budget(None, None), {}, "t", th, store)
+    assert calls == ["B", "B"]  # A resumed; B retried once after the rate limit
+    assert [r["intent"] for r in out] == ["A", "B"] and all(r["correct"] for r in out)
+    assert th.per_hour == 1800 and fc.t >= 6
+    assert set(core.load_results(tmp_path / "r.jsonl")) == {"pi|B|0"}
+
+
+class _Exited:
+    pid = 999999
+
+    def poll(self):
+        return None  # looks alive, but the group is gone
+
+    def wait(self, t=None):
+        return 0
+
+
+@pytest.mark.parametrize("exc", [ProcessLookupError, PermissionError])
+def test_kill_tolerates_gone_group(monkeypatch, exc):
+    def boom(pid, sig):
+        raise exc()
+    monkeypatch.setattr(ste.os, "killpg", boom)
+    ste.kill(_Exited())  # type: ignore[arg-type]  # a Popen stand-in; must not raise
 
 
 if __name__ == "__main__":

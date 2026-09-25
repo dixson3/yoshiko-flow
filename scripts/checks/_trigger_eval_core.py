@@ -187,6 +187,126 @@ def looks_like_auth_failure(text: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# rate limits and throttling (REQ-SKAUTH-062 as amended at the Issue 3.2 incident)
+# ---------------------------------------------------------------------------
+
+# Measured signatures. CC: an assistant TEXT "You've hit your session limit · resets 1:30pm
+# (America/Los_Angeles)" with zero usage. pi (via cliproxyapi): `429: {"code":"model_cooldown",
+# ... "rate_limit_error" ... "reset_seconds":10491 ...}`.
+RATE_LIMIT_RE = re.compile(r"\b429\b|rate[_ ]limit|model_cooldown|cooldown|hit your (session|usage) "
+                           r"limit|usage limit|too many requests|overloaded", re.I)
+RESET_SECONDS_RE = re.compile(r'"?reset_seconds"?\s*[:=]\s*(\d+)')
+
+
+def rate_limit_signature(text: str) -> tuple[bool, int | None]:
+    """(is_rate_limited, reset_seconds or None) from a run's stdout text + stderr."""
+    t = text or ""
+    if not RATE_LIMIT_RE.search(t):
+        return False, None
+    m = RESET_SECONDS_RE.search(t)
+    if not m:
+        return True, None
+    secs = 0
+    for ch in m.group(1):  # the capture is `\d+`; accumulate without a throwing conversion
+        secs = secs * 10 + (ord(ch) - 48)
+    return True, secs
+
+
+def tokens_consumed(tokens: dict | None) -> float:
+    return sum((v for v in (tokens or {}).values() if isinstance(v, (int, float))), 0.0)
+
+
+def run_validity(stream_text: str, stderr: str, tokens: dict | None) -> tuple[str, int | None]:
+    """'ok' | 'rate-limited' | 'zero-tokens', plus reset_seconds for a rate limit.
+
+    A run that spent nothing measured nothing: it is never scored and never recorded.
+    """
+    limited, reset = rate_limit_signature((stream_text or "") + "\n" + (stderr or ""))
+    if limited:
+        return "rate-limited", reset
+    if tokens_consumed(tokens) == 0:
+        return "zero-tokens", None
+    return "ok", None
+
+
+class Throttle:
+    """One GLOBAL start-rate limiter shared by both harnesses, which share one quota.
+
+    `clock` and `sleep` are injectable so the spacing is testable without waiting."""
+
+    def __init__(self, per_hour: float, max_backoff_s: float, clock, sleep,
+                 min_per_hour: float = 10.0):
+        self.per_hour = per_hour * 1.0  # numeric by signature
+        self.min_per_hour = min_per_hour
+        self.max_backoff_s = max_backoff_s
+        self.clock, self.sleep = clock, sleep
+        self.next_start = 0.0
+        self.paused_until = 0.0
+        self.backoff_total = 0.0
+        self.consecutive = 0
+        self.exhausted = False
+        import threading as _t
+        self.lock = _t.Lock()
+
+    @property
+    def interval(self) -> float:
+        return 3600.0 / self.per_hour
+
+    def acquire(self) -> bool:
+        """Block until a run may start. False once the backoff bound is exceeded."""
+        with self.lock:
+            if self.exhausted:
+                return False
+            now = self.clock()
+            start = max(now, self.next_start, self.paused_until)
+            self.next_start = start + self.interval
+        wait = start - now
+        if wait > 0:
+            self.sleep(wait)
+        return not self.exhausted
+
+    def rate_limited(self, reset_seconds: int | None) -> bool:
+        """Pause everyone, halve the rate. False if the total wait bound is exceeded."""
+        with self.lock:
+            self.consecutive += 1
+            if reset_seconds:
+                pause = reset_seconds + 5.0
+            else:
+                pause = min(60.0 * 2 ** (self.consecutive - 1), 1800.0)
+            if self.backoff_total + pause > self.max_backoff_s:
+                self.exhausted = True
+                return False
+            self.backoff_total += pause
+            self.paused_until = max(self.paused_until, self.clock() + pause)
+            self.per_hour = max(self.min_per_hour, self.per_hour / 2)
+            return True
+
+    def succeeded(self) -> None:
+        with self.lock:
+            self.consecutive = 0
+
+
+def run_key(harness: str, intent: str, rep: int) -> str:
+    return f"{harness}|{intent}|{rep}"
+
+
+def load_results(path: Path) -> dict[str, dict]:
+    """{run_key: row} of VALID results from a --results jsonl (last write per key wins)."""
+    out: dict[str, dict] = {}
+    if not path.exists():
+        return out
+    try:
+        for line in path.read_text().splitlines():
+            if line.strip():
+                r = json.loads(line)
+                if r.get("correct") is not None:
+                    out[run_key(r["harness"], r["intent"], int(r["rep"]))] = r
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise EvalInconclusive(f"cannot read results file {path}: {e}") from e
+    return out
+
+
+# ---------------------------------------------------------------------------
 # CC spend (REQ-SKAUTH-062 "Spend ledger")
 # ---------------------------------------------------------------------------
 
