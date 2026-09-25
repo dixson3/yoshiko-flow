@@ -1382,6 +1382,29 @@
 >   retained id keeps a one-line `Verification:` naming an existing test.
 >
 >   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendments.
+>
+> - **plan-072 (2026-09-25, #407):** **make skill `description` size a specified, enforced and
+>   measured property.** Five shipped skills exceeded the Agent Skills 1024-char `description`
+>   cap, which pi v0.87.1 enforces (`MAX_DESCRIPTION_LENGTH = 1024`) and Claude Code does not.
+>   Nothing in the repo checked field lengths. One root id, three skill-SPEC ids, one amendment:
+>
+>   - **Added `REQ-YF-EMBED-007`** (§3.2 below): the Agent Skills `name`/`description` field
+>     rules on every `skills/*/SKILL.md`, measured in UTF-16 code units of the parsed YAML scalar,
+>     enforced by `scripts/check_frontmatter.py` in the FAST and FULL tiers. `agents/*.md` is
+>     excluded.
+>   - **Added `REQ-SKAUTH-061`** (`skills/yf-skill-authoring/SPEC.md`): the four-state
+>     description rating (crisp / satisfactory / unrouted / loose), derived from recorded trigger
+>     rates.
+>   - **Added `REQ-SKAUTH-062`** (`skills/yf-skill-authoring/SPEC.md`): the trigger-eval
+>     contract implemented by `scripts/checks/skill_trigger_eval.py`. **The FULL validation tier
+>     carries the candidate-mode eval row** (every skill, both harnesses, 3 reps), and it is the
+>     last FULL row. This is a deliberate, operator-accepted cost of roughly 3 h per FULL run.
+>   - **Added `REQ-ENGINE-011`** (`skills/yf-change-validation/spec/engine.md`): a per-row,
+>     opt-in `flags` column with `inconclusive-exit=4` and `stream`.
+>   - **Amended `REQ-SCHEMA-002`** (`skills/yf-change-validation/spec/schema.md`): the §1 recipe
+>     table gains an optional fifth `flags` column. An absent column means no flags.
+>
+>   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendments.
 
 ## 1. Purpose & scope
 
@@ -1608,6 +1631,31 @@ requirement lives only in code (GUARDRAILS GR-010).
   harness but claude-code. The key is retained for claude-code's benefit; no requirement in this
   spec shall depend on it for a portability, safety, or scoping guarantee, and any such guarantee
   shall be specified by a harness-independent mechanism instead.
+
+- **REQ-YF-EMBED-007** *(testable, added plan-072 / #407)* every `skills/*/SKILL.md` frontmatter
+  shall meet the Agent Skills specification's field rules:
+  - `description` is a non-empty string of **at most 1024** characters;
+  - `name` is **1–64** characters of `[a-z0-9-]`, does not start or end with `-`, contains no
+    `--`, and **equals the name of the skill's parent directory**.
+
+  **The length unit is UTF-16 code units of the parsed YAML scalar**, not bytes and not the raw
+  source text. pi measures JavaScript `String.length`, which counts UTF-16 code units, and it is
+  the harness that enforces the cap. A folded (`>`) scalar is measured after YAML folding, which
+  is what the harness receives. For every shipped skill at adoption, UTF-16 units equal code
+  points; the unit is still pinned so that an astral character counts as two.
+
+  A repo check (`scripts/check_frontmatter.py`) shall enforce this across the whole `skills/` tree
+  in the fast and full validation tiers, reporting each violation with the measured length and the
+  overshoot (`description 1325 > 1024 (over by 301)`).
+
+  **Scoped to `SKILL.md` only.** `skills/*/agents/*.md` frontmatter keeps `REQ-YF-EMBED-003`'s
+  structural rule but not these field rules: an agent file is not a skill, no harness lists it in
+  a skill catalogue, and no harness enforces a cap on it.
+
+  Rationale: Claude Code does not enforce the 1024 cap, so five skills drifted to 1136–1325
+  characters unnoticed, and pi warned about all five on every startup. Length also costs where it
+  is not enforced. Every description loads into every session's system prompt, and Claude Code
+  silently drops listing entries when the whole listing overflows its budget.
 
 ### 3.3 Install / groups / dependency closure (`REQ-YF-INSTALL`)
 

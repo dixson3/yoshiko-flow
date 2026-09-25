@@ -223,6 +223,8 @@ approved: yes
 | `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
 | `skill-diagrams` | `uv run web/plugins/skill_diagrams.py --check` |  |  |
 | `diagrams-published` | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
+| `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
+| `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
 
 ### full
 
@@ -326,6 +328,8 @@ approved: yes
 |  | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 |  | `uv run web/plugins/skill_diagrams.py --check` |  |  |
 |  | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
+| `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
+| `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
 
 ## 2. Signal Fingerprint
 
@@ -390,7 +394,10 @@ approved: yes
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home`, `gate-plan072-amendment` |
+| `skills/yf-skill-authoring/SPEC.md` | `gate-plan072-amendment` |
+| `skills/yf-change-validation/spec/*.md` | `gate-plan072-amendment` |
+| `docs/plans/plan-072-james-dixson-bae8de/**` | `okf-index-drift`, `gate-plan072-amendment`, `gate-plan072-reqcoverage` |
 | `skills/yf-okf/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-okf-hygiene/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |
