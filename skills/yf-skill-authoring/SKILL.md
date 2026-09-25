@@ -1,22 +1,17 @@
 ---
 name: yf-skill-authoring
-description: 'Conventions for authoring Claude Code skills, agents, and instruction
-  files. Covers directory layout, the inline-vs-script threshold, modularization,
-  token-efficient writing rules, AND Python helper scripts for skills (uv invocation
-  discipline, PEP 723 inline deps, argument parsers). TRIGGER when: creating or editing
-  a skill under `.{claude,agents}/skills/*` (user `~/` or project `<git-root>/`), scaffolding
-  agents, authoring a skill''s `SKILL.md` / agent prompt content, writing/editing a `.py` script
-  under `.{claude,agents}/skills/*` to
-  run via `uv run`, adding PEP 723 inline metadata, or asking how to structure skill
-  helpers and instruction files. SKIP for: project-root instruction files (CLAUDE.md,
-  AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to yf-optimal-instructions;
-  writing application code outside skills, end-user docs, or notes; planning a skill''s
-  design beyond conventions (use the project planning skill); backend-specific protocol
-  surfaces (verbs, invocation, translation tables — use the relevant protocol skill);
-  meta-reviewers that overlay these conventions for a specific protocol (use the
-  protocol-specific authoring skill after applying these conventions). Distinguishing
-  axis: yf-skill-authoring owns skill-dir instruction files; yf-optimal-instructions owns
-  project-root ones.'
+description: >-
+  Conventions for authoring skills, agents, and skill instruction files: layout, the
+  inline-vs-script threshold, modularization, token-efficient writing, AND Python helper scripts
+  (uv invocation, PEP 723 inline deps, argument parsers). TRIGGER when: creating or editing a
+  skill under `.{claude,agents}/skills/*` (user `~/` or project `<git-root>/`), scaffolding
+  agents, authoring a skill's `SKILL.md` / agent prompt, writing/editing a `.py` script under
+  `.{claude,agents}/skills/*` run via `uv run`, adding PEP 723 inline metadata, or asking how to
+  structure skill helpers and instruction files. SKIP for: project-root instruction files
+  (CLAUDE.md, AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to
+  yf-optimal-instructions; application code outside skills, end-user docs, or notes; planning a
+  skill's design (use the planning skill); backend-specific protocol surfaces and
+  protocol-specific meta-reviewers (use that protocol's own skill).
 user-invocable: false
 skill-group: utility
 depends-on-tool: [uv]
@@ -27,6 +22,11 @@ tags: []
 ---
 
 # yf-skill-authoring
+
+**Distinguishing axis** (moved from the description, plan-072): yf-skill-authoring owns
+**skill-dir** instruction files; yf-optimal-instructions owns **project-root** ones. "Backend-specific
+protocol surfaces" means verbs, invocation and translation tables. A protocol-specific
+meta-reviewer overlays these conventions and is applied after them.
 
 Rules for Claude Code skills and instruction files. Background and worked example: see [README](README.md) and [reference/SURFACE_CONVENTION.md](reference/SURFACE_CONVENTION.md).
 

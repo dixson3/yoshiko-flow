@@ -1,20 +1,17 @@
 ---
 name: yf-beads-upstream
-description: >
-  Configurable, GitHub-first upstream-tracking skill for beads. Pushes open/deferred
-  beads to GitHub Issues as a land-the-plane step, and enumerates
-  upstream issues as the authoritative worklist on status/pull.
-  TRIGGER when: /yf-beads-upstream invoked; "set up upstream tracking" / "configure upstream"
-  (init); mid-session intent to send beads to the issue tracker — "push beads upstream" /
-  "push open work to GitHub" / "push/sync upstream" / "sync issues upstream" / "mirror this bead
-  upstream" / "file/hoist this as a GitHub issue"; asking for project status, available work, or
-  the worklist when upstream tracking is configured (status/pull).
-  NOTE: "push/sync upstream" here means THIS `gh`-based issue mirror, which is ORTHOGONAL to
-  `bd dolt push` (Dolt DB replication) — on push-upstream intent do NOT reach for `bd dolt push`.
-  SKIP for: routine local `bd ready` / `bd show` / `bd close` (use `beads`); direct-CLI
-  `bd` scripting gotchas (use `yf-beads-extra`); authoring beads-backed skills
-  (use `yf-beads-authoring`). The close-time / land-the-plane push trigger is NOT carried in
-  this description — it lives in the always-loaded companion rule (protocols/UPSTREAM_TRACKING.md).
+description: >-
+  Configurable, GitHub-first upstream-tracking skill for beads. Pushes open/deferred beads to
+  GitHub Issues as a land-the-plane step, and enumerates upstream issues as the authoritative
+  worklist on status/pull. TRIGGER when: /yf-beads-upstream invoked; "set up upstream tracking" /
+  "configure upstream" (init); mid-session intent to send beads to the issue tracker — "push beads
+  upstream" / "push open work to GitHub" / "push/sync upstream" / "sync issues upstream" / "mirror
+  this bead upstream" / "file/hoist this as a GitHub issue"; asking for project status, available
+  work, or the worklist when upstream tracking is configured (status/pull). NOTE: "push/sync
+  upstream" means THIS `gh`-based issue mirror, ORTHOGONAL to `bd dolt push` (Dolt DB
+  replication). SKIP for: routine local `bd ready` / `bd show` / `bd close` (use `beads`);
+  direct-CLI `bd` scripting gotchas (use `yf-beads-extra`); authoring beads-backed skills (use
+  `yf-beads-authoring`).
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, gh]
@@ -36,6 +33,10 @@ preflight:
 ---
 
 # yf-beads-upstream
+
+**Routing notes** (moved from the description, plan-072): on push-upstream intent, do NOT reach
+for `bd dolt push`. The close-time / land-the-plane push trigger is NOT carried in the description.
+It lives in the always-loaded companion rule (`protocols/UPSTREAM_TRACKING.md`).
 
 A **utility skill** (no formula / `bd mol pour` / coordinator) that binds a beads workspace
 to an upstream issue tracker. It owns three operations: `init` (configure a backend), the

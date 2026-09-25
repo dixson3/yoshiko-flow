@@ -1,18 +1,16 @@
 ---
 name: yf-change-validation
-description: "Runs a repo's recorded VALIDATION RECIPE (build/test/lint) over a change-set or
-  merged tree by EXECUTING the commands and reporting PASS / FAIL / INCONCLUSIVE + the first
-  failing command; never auto-fixes and never auto-rewrites the manifest. Driven by a per-repo
-  CHANGE-VALIDATION.md inferred from the toolchain, operator-approved, then re-proposed on
-  drift. TRIGGER when: /yf-change-validation invoked; a file covered by an approved
-  CHANGE-VALIDATION.md §3 glob is created or modified (run the FAST tier); a pre-push /
-  land-the-plane FULL-tier validation; or a manifest is being bootstrapped on first install.
-  SKIP for: repos with no approved CHANGE-VALIDATION.md (silent no-op — no nag, no bootstrap on
-  every edit); any request to FIX a failing command rather than report it; checking CONTENT
-  AGREEMENT across docs/spec/impl edges — that is yf-drift-check (a prose/LLM trigger), an
-  orthogonal axis this engine never invokes. Distinguishing axis: yf-change-validation proves a
-  change-set is BEHAVIORALLY valid by running commands (exit code = verdict); yf-drift-check
-  proves already-written artifacts AGREE. Neither invokes the other."
+description: >-
+  Runs a repo's recorded VALIDATION RECIPE (build/test/lint) over a change-set or merged tree by
+  EXECUTING the commands and reporting PASS / FAIL / INCONCLUSIVE + the first failing command;
+  never auto-fixes and never auto-rewrites the manifest. Driven by a per-repo CHANGE-VALIDATION.md
+  inferred from the toolchain, operator-approved, then re-proposed on drift. TRIGGER when:
+  /yf-change-validation invoked; a file covered by an approved CHANGE-VALIDATION.md §3 glob is
+  created or modified (run the FAST tier); a pre-push / land-the-plane FULL-tier validation; or a
+  manifest is being bootstrapped on first install. SKIP for: repos with no approved
+  CHANGE-VALIDATION.md (silent no-op — no nag, no bootstrap on every edit); any request to FIX a
+  failing command rather than report it; checking CONTENT AGREEMENT across docs/spec/impl edges —
+  that is yf-drift-check, an orthogonal axis.
 user-invocable: true
 skill-group: utility
 depends-on-tool: [uv]
@@ -32,6 +30,10 @@ tags: []
 ---
 
 # yf-change-validation
+
+**Distinguishing axis** (moved from the description, plan-072): yf-change-validation proves a
+change-set is BEHAVIORALLY valid by running commands (exit code = verdict); yf-drift-check (a
+prose/LLM trigger) proves already-written artifacts AGREE. Neither invokes the other.
 
 Repo-agnostic engine that runs a repo's **recorded validation recipe** (build / test / lint)
 over a change-set or merged tree and reports **PASS / FAIL / INCONCLUSIVE** plus the first
