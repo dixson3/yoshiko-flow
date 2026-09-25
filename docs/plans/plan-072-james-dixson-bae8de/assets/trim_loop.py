@@ -105,8 +105,8 @@ def rate(skills, ids, tag) -> dict:
     cmd = ["uv", "run", str(EVAL), "--root", str(TRIM), "--mode", "candidate", "--harness", "both",
            "--skills", ",".join(skills), "--intents", ",".join(ids), "--reps", "3",
            "--ledger", str(LEDGER), "--budget-usd", budget, "--max-runs-per-hour", "150", "--json"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    sys.stderr.write(r.stderr[-3000:])
+    # stderr streams live (progress lines) instead of being buffered until the child exits
+    r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=None, text=True)
     out: dict = {"status": "unparseable", "raw": r.stdout[-500:]}
     try:
         out = dict(json.loads(r.stdout))
