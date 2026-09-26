@@ -1,16 +1,13 @@
 ---
 name: yf-drift-check
 description: >-
-  Verifies CONTENT AGREEMENT across a repository's declared source-of-truth edges (implementation
-  ↔ docs ↔ spec) and returns PASS / FAIL / INCONCLUSIVE / CONFLICT; never authors, optimizes,
-  restructures, or auto-fixes. On edit of a file matching the repo's DRIFT-CHECK.md manifest
-  globs, dispatches an isolated, report-only sub-agent that checks each scoped edge. TRIGGER when:
-  a file covered by an approved DRIFT-CHECK.md manifest is created or modified; the operator asks
-  to check drift / verify the manifest is in sync; or a manifest is being bootstrapped on first
-  install. SKIP for: repos with no approved DRIFT-CHECK.md (silent no-op — no nag, no bootstrap on
-  every edit); authoring or optimizing instruction files — skill-dir instruction files route to
-  yf-skill-authoring, project-root CLAUDE.md / AGENTS.md route to yf-optimal-instructions; any
-  request to FIX rather than report drift.
+  Verifies CONTENT AGREEMENT across a repo's declared source-of-truth edges (impl ↔ docs ↔ spec)
+  via a report-only sub-agent; never fixes. TRIGGER when: a file covered by an approved
+  DRIFT-CHECK.md is created or modified; the operator asks to check drift or whether the manifest
+  is in sync; the operator edited a spec, doc or SPEC.md requirement and asks whether anything
+  else still agrees with it or now contradicts it; or bootstrapping a manifest. SKIP for: repos
+  with no approved DRIFT-CHECK.md; authoring instruction files (`yf-skill-authoring`,
+  `yf-optimal-instructions`); requests to FIX drift.
 user-invocable: false
 skill-group: utility
 depends-on-tool: []
