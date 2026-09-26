@@ -21,6 +21,7 @@ Writes/extends assets/trim-log.jsonl (one line per attempt).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import subprocess
 import sys
@@ -108,10 +109,8 @@ def rate(skills, ids, tag) -> dict:
     # stderr streams live (progress lines) instead of being buffered until the child exits
     r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=None, text=True)
     out: dict = {"status": "unparseable", "raw": r.stdout[-500:]}
-    try:
+    with contextlib.suppress(ValueError):
         out = dict(json.loads(r.stdout))
-    except ValueError:
-        pass
     out["_rc"] = r.returncode
     return out
 
