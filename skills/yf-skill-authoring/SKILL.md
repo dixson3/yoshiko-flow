@@ -1,17 +1,13 @@
 ---
 name: yf-skill-authoring
 description: >-
-  Conventions for authoring skills, agents, and skill instruction files: layout, the
-  inline-vs-script threshold, modularization, token-efficient writing, AND Python helper scripts
-  (uv invocation, PEP 723 inline deps, argument parsers). TRIGGER when: creating or editing a
-  skill under `.{claude,agents}/skills/*` (user `~/` or project `<git-root>/`), scaffolding
-  agents, authoring a skill's `SKILL.md` / agent prompt, writing/editing a `.py` script under
-  `.{claude,agents}/skills/*` run via `uv run`, adding PEP 723 inline metadata, or asking how to
-  structure skill helpers and instruction files. SKIP for: project-root instruction files
-  (CLAUDE.md, AGENTS.md, AGENTS/* NOT inside a skill dir) — those route to
-  yf-optimal-instructions; application code outside skills, end-user docs, or notes; planning a
-  skill's design (use the planning skill); backend-specific protocol surfaces and
-  protocol-specific meta-reviewers (use that protocol's own skill).
+  Conventions for authoring SKILL-DIR files: skills, agents, SKILL.md, layout, the
+  inline-vs-script threshold, token-efficient writing, and Python helpers (uv, PEP 723, argument
+  parsers). TRIGGER when: creating or editing a skill under `.{claude,agents}/skills/*`,
+  scaffolding agents, writing a SKILL.md or agent prompt, writing a `.py` helper under a skill run
+  via `uv run`, or asking how to structure skill helpers. SKIP for: project-root CLAUDE.md,
+  AGENTS.md, AGENTS/* (`yf-optimal-instructions`); application code outside skills; skill design
+  planning (`yf-plan`); protocol-specific surfaces.
 user-invocable: false
 skill-group: utility
 depends-on-tool: [uv]
