@@ -47,11 +47,21 @@
   }
  ],
  "recorded": {
-  "date": "2026-09-25",
+  "date": "2026-09-26",
   "mode": "candidate",
-  "description_sha256": "d60b65669782cecb80d0ecd4f49ae7f6e0a708fc7e383d97c0c2080297a9c230",
-  "description_chars": 848,
+  "description_sha256": "7f55735ac6b2bbcc544c8af68e252f0201f4818e3d86c00a08e314dd7cd2d396",
+  "description_chars": 514,
   "cells": {
+   "HR1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "HR1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
    "HR2:pi": {
     "rate": 1.0,
     "correct": 3,
