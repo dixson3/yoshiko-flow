@@ -1993,3 +1993,111 @@
 {"ts": "2026-09-26T00:36:43", "harness": "pi", "intent": "S-N3", "tokens": {"input": 10, "output": 1579, "cache_read": 268338, "cache_write": 54930}, "cc_usd": 0.0, "model": null}
 {"ts": "2026-09-26T00:37:33", "harness": "cc", "intent": "S-N4", "tokens": {"input": 12, "cache_write_1h": 4748, "cache_write_5m": 0, "cache_read": 244228, "output": 1364}, "cc_usd": 0.11415760000000001, "model": "claude-opus-5-5"}
 {"ts": "2026-09-26T00:38:10", "harness": "pi", "intent": "S-N4", "tokens": {"input": 8, "output": 700, "cache_read": 132218, "cache_write": 47999}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:00:41", "harness": "pi", "intent": "D1", "tokens": {"input": 2, "output": 149, "cache_read": 36346, "cache_write": 23183}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:01:01", "harness": "cc", "intent": "D1", "tokens": {"input": 2, "cache_write_1h": 27746, "cache_write_5m": 0, "cache_read": 10588, "output": 159}, "cc_usd": 0.2272736, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:01:26", "harness": "pi", "intent": "D2", "tokens": {"input": 2, "output": 133, "cache_read": 36330, "cache_write": 23183}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:01:47", "harness": "cc", "intent": "D2", "tokens": {"input": 2, "cache_write_1h": 26221, "cache_write_5m": 0, "cache_read": 12094, "output": 54}, "cc_usd": 0.2132748, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:02:14", "harness": "pi", "intent": "D3", "tokens": {"input": 2, "output": 345, "cache_read": 36349, "cache_write": 23150}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:02:35", "harness": "cc", "intent": "D3", "tokens": {"input": 2, "cache_write_1h": 26260, "cache_write_5m": 0, "cache_read": 12094, "output": 180}, "cc_usd": 0.2161068, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:04:12", "harness": "pi", "intent": "D-N1", "tokens": {"input": 10, "output": 980, "cache_read": 258445, "cache_write": 51763}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:04:25", "harness": "cc", "intent": "D-N1", "tokens": {"input": 12, "cache_write_1h": 36602, "cache_write_5m": 0, "cache_read": 230497, "output": 1092}, "cc_usd": 0.3608034, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:04:42", "harness": "pi", "intent": "D-N2", "tokens": {"input": 12, "output": 1199, "cache_read": 341182, "cache_write": 61911}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:05:16", "harness": "cc", "intent": "D-N2", "tokens": {"input": 10, "cache_write_1h": 45739, "cache_write_5m": 0, "cache_read": 194375, "output": 1031}, "cc_usd": 0.425447, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:05:26", "harness": "pi", "intent": "D-N4", "tokens": {"input": 8, "output": 1283, "cache_read": 204770, "cache_write": 53667}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:05:40", "harness": "cc", "intent": "D-N4", "tokens": {"input": 6, "cache_write_1h": 35542, "cache_write_5m": 0, "cache_read": 96990, "output": 514}, "cc_usd": 0.314038, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:05:55", "harness": "pi", "intent": "O1", "tokens": {"input": 2, "output": 314, "cache_read": 36326, "cache_write": 23260}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:06:18", "harness": "cc", "intent": "O1", "tokens": {"input": 2, "cache_write_1h": 26298, "cache_write_5m": 0, "cache_read": 12094, "output": 149}, "cc_usd": 0.21579079999999998, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:06:46", "harness": "pi", "intent": "O2", "tokens": {"input": 2, "output": 295, "cache_read": 36334, "cache_write": 23150}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:07:05", "harness": "cc", "intent": "O2", "tokens": {"input": 2, "cache_write_1h": 26225, "cache_write_5m": 0, "cache_read": 12094, "output": 233}, "cc_usd": 0.2168868, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:07:43", "harness": "pi", "intent": "O3", "tokens": {"input": 4, "output": 468, "cache_read": 72642, "cache_write": 46393}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:07:59", "harness": "cc", "intent": "O3", "tokens": {"input": 4, "cache_write_1h": 28540, "cache_write_5m": 0, "cache_read": 50402, "output": 302}, "cc_usd": 0.2444564, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:08:42", "harness": "pi", "intent": "O-N2", "tokens": {"input": 12, "output": 1193, "cache_read": 385080, "cache_write": 15479}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:09:03", "harness": "cc", "intent": "O-N2", "tokens": {"input": 12, "cache_write_1h": 12940, "cache_write_5m": 0, "cache_read": 262519, "output": 1086}, "cc_usd": 0.1777918, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:09:29", "harness": "pi", "intent": "O-N3", "tokens": {"input": 10, "output": 1010, "cache_read": 290574, "cache_write": 60700}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:09:51", "harness": "cc", "intent": "O-N3", "tokens": {"input": 12, "cache_write_1h": 46925, "cache_write_5m": 0, "cache_read": 267142, "output": 1207}, "cc_usd": 0.45301640000000004, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:10:11", "harness": "pi", "intent": "O-N4", "tokens": {"input": 10, "output": 579, "cache_read": 251526, "cache_write": 46754}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:10:26", "harness": "cc", "intent": "O-N4", "tokens": {"input": 6, "cache_write_1h": 28695, "cache_write_5m": 0, "cache_read": 90965, "output": 370}, "cc_usd": 0.255177, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:10:43", "harness": "pi", "intent": "S1", "tokens": {"input": 2, "output": 336, "cache_read": 36338, "cache_write": 23150}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:11:06", "harness": "cc", "intent": "S1", "tokens": {"input": 2, "cache_write_1h": 26229, "cache_write_5m": 0, "cache_read": 12094, "output": 142}, "cc_usd": 0.21509879999999998, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:11:31", "harness": "pi", "intent": "S2", "tokens": {"input": 2, "output": 340, "cache_read": 36356, "cache_write": 23150}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:11:53", "harness": "cc", "intent": "S2", "tokens": {"input": 2, "cache_write_1h": 26247, "cache_write_5m": 0, "cache_read": 12094, "output": 169}, "cc_usd": 0.2157828, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:12:18", "harness": "pi", "intent": "S3", "tokens": {"input": 2, "output": 283, "cache_read": 36336, "cache_write": 23150}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:12:42", "harness": "cc", "intent": "S3", "tokens": {"input": 2, "cache_write_1h": 26227, "cache_write_5m": 0, "cache_read": 12094, "output": 154}, "cc_usd": 0.21532279999999998, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:13:21", "harness": "pi", "intent": "S-N2", "tokens": {"input": 12, "output": 1069, "cache_read": 378917, "cache_write": 11480}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:13:46", "harness": "cc", "intent": "S-N2", "tokens": {"input": 10, "cache_write_1h": 11137, "cache_write_5m": 0, "cache_read": 210975, "output": 853}, "cc_usd": 0.148391, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:14:06", "harness": "pi", "intent": "S-N3", "tokens": {"input": 8, "output": 1094, "cache_read": 201387, "cache_write": 53061}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:14:43", "harness": "cc", "intent": "S-N3", "tokens": {"input": 12, "cache_write_1h": 41925, "cache_write_5m": 0, "cache_read": 239791, "output": 1668}, "cc_usd": 0.41676620000000003, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:14:56", "harness": "pi", "intent": "S-N4", "tokens": {"input": 8, "output": 766, "cache_read": 131987, "cache_write": 47296}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:15:24", "harness": "cc", "intent": "S-N4", "tokens": {"input": 10, "cache_write_1h": 31621, "cache_write_5m": 0, "cache_read": 177408, "output": 1334}, "cc_usd": 0.3151696, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:15:29", "harness": "pi", "intent": "D1", "tokens": {"input": 2, "output": 154, "cache_read": 59529, "cache_write": 0}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:15:53", "harness": "cc", "intent": "D1", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38334, "output": 176}, "cc_usd": 0.0111948, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:16:18", "harness": "pi", "intent": "D2", "tokens": {"input": 2, "output": 156, "cache_read": 59513, "cache_write": 0}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:16:40", "harness": "cc", "intent": "D2", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38315, "output": 54}, "cc_usd": 0.008751, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:17:06", "harness": "pi", "intent": "D3", "tokens": {"input": 2, "output": 314, "cache_read": 59499, "cache_write": 0}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:17:30", "harness": "cc", "intent": "D3", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38354, "output": 183}, "cc_usd": 0.0113388, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:18:48", "harness": "pi", "intent": "D-N1", "tokens": {"input": 12, "output": 1244, "cache_read": 372314, "cache_write": 6114}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:19:12", "harness": "pi", "intent": "D-N2", "tokens": {"input": 12, "output": 1341, "cache_read": 380000, "cache_write": 13850}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:19:20", "harness": "cc", "intent": "D-N1", "tokens": {"input": 12, "cache_write_1h": 9745, "cache_write_5m": 0, "cache_read": 255254, "output": 1489}, "cc_usd": 0.1588388, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:19:33", "harness": "pi", "intent": "D-N4", "tokens": {"input": 8, "output": 1429, "cache_read": 250960, "cache_write": 7635}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:20:00", "harness": "cc", "intent": "D-N2", "tokens": {"input": 10, "cache_write_1h": 14309, "cache_write_5m": 0, "cache_read": 212476, "output": 1020}, "cc_usd": 0.17740720000000001, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:20:06", "harness": "pi", "intent": "O1", "tokens": {"input": 2, "output": 328, "cache_read": 59586, "cache_write": 0}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:20:39", "harness": "cc", "intent": "D-N4", "tokens": {"input": 6, "cache_write_1h": 1040, "cache_write_5m": 0, "cache_read": 131482, "output": 636}, "cc_usd": 0.047360400000000004, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:20:56", "harness": "pi", "intent": "O2", "tokens": {"input": 2, "output": 309, "cache_read": 36334, "cache_write": 23227}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:21:18", "harness": "cc", "intent": "O1", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38392, "output": 235}, "cc_usd": 0.012386400000000002, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:21:47", "harness": "pi", "intent": "O3", "tokens": {"input": 4, "output": 454, "cache_read": 72642, "cache_write": 46539}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:22:06", "harness": "cc", "intent": "O2", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38319, "output": 206}, "cc_usd": 0.0117918, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:22:46", "harness": "pi", "intent": "O-N2", "tokens": {"input": 12, "output": 949, "cache_read": 335892, "cache_write": 58952}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:22:58", "harness": "cc", "intent": "O3", "tokens": {"input": 4, "cache_write_1h": 2316, "cache_write_5m": 0, "cache_read": 76616, "output": 289}, "cc_usd": 0.0396472, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:23:34", "harness": "pi", "intent": "O-N3", "tokens": {"input": 8, "output": 1119, "cache_read": 218506, "cache_write": 61671}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:24:20", "harness": "cc", "intent": "O-N2", "tokens": {"input": 12, "cache_write_1h": 16958, "cache_write_5m": 0, "cache_read": 266904, "output": 1173}, "cc_usd": 0.2125528, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:24:20", "harness": "pi", "intent": "O-N4", "tokens": {"input": 8, "output": 417, "cache_read": 191900, "cache_write": 46784}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:24:55", "harness": "pi", "intent": "S1", "tokens": {"input": 2, "output": 312, "cache_read": 36338, "cache_write": 23227}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:25:07", "harness": "cc", "intent": "O-N3", "tokens": {"input": 12, "cache_write_1h": 19770, "cache_write_5m": 0, "cache_read": 291376, "output": 3508}, "cc_usd": 0.2866432, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:25:20", "harness": "pi", "intent": "S2", "tokens": {"input": 2, "output": 342, "cache_read": 36356, "cache_write": 23227}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:26:07", "harness": "pi", "intent": "S3", "tokens": {"input": 2, "output": 237, "cache_read": 36336, "cache_write": 23227}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:26:07", "harness": "cc", "intent": "O-N4", "tokens": {"input": 12, "cache_write_1h": 5611, "cache_write_5m": 0, "cache_read": 244240, "output": 1424}, "cc_usd": 0.122264, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:26:47", "harness": "pi", "intent": "S-N2", "tokens": {"input": 12, "output": 1135, "cache_read": 380735, "cache_write": 12641}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:26:56", "harness": "cc", "intent": "S1", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38323, "output": 206}, "cc_usd": 0.0117926, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:27:37", "harness": "pi", "intent": "S-N3", "tokens": {"input": 8, "output": 1776, "cache_read": 202014, "cache_write": 53513}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:27:41", "harness": "cc", "intent": "S2", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38341, "output": 164}, "cc_usd": 0.010956200000000001, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:28:20", "harness": "pi", "intent": "S-N4", "tokens": {"input": 8, "output": 727, "cache_read": 132064, "cache_write": 47450}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:28:30", "harness": "cc", "intent": "S3", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38321, "output": 144}, "cc_usd": 0.010552200000000001, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:28:54", "harness": "pi", "intent": "D1", "tokens": {"input": 2, "output": 156, "cache_read": 36346, "cache_write": 23260}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:29:39", "harness": "cc", "intent": "S-N2", "tokens": {"input": 12, "cache_write_1h": 13093, "cache_write_5m": 0, "cache_read": 259028, "output": 1025}, "cc_usd": 0.1770976, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:29:42", "harness": "pi", "intent": "D2", "tokens": {"input": 2, "output": 156, "cache_read": 36330, "cache_write": 23260}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:30:31", "harness": "pi", "intent": "D3", "tokens": {"input": 2, "output": 288, "cache_read": 36349, "cache_write": 23227}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:30:45", "harness": "cc", "intent": "S-N3", "tokens": {"input": 12, "cache_write_1h": 12397, "cache_write_5m": 0, "cache_read": 263161, "output": 4191}, "cc_usd": 0.2356762, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:31:37", "harness": "cc", "intent": "S-N4", "tokens": {"input": 10, "cache_write_1h": 5347, "cache_write_5m": 0, "cache_read": 203758, "output": 1276}, "cc_usd": 0.1090876, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:31:42", "harness": "cc", "intent": "D1", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38334, "output": 184}, "cc_usd": 0.0113548, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:32:05", "harness": "cc", "intent": "D2", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38315, "output": 54}, "cc_usd": 0.008751, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:32:30", "harness": "pi", "intent": "D-N1", "tokens": {"input": 12, "output": 1058, "cache_read": 321408, "cache_write": 52472}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:32:30", "harness": "cc", "intent": "D3", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38354, "output": 179}, "cc_usd": 0.0112588, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:33:11", "harness": "pi", "intent": "D-N2", "tokens": {"input": 10, "output": 1244, "cache_read": 312139, "cache_write": 10852}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:33:59", "harness": "pi", "intent": "D-N4", "tokens": {"input": 8, "output": 1389, "cache_read": 205007, "cache_write": 53788}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:34:07", "harness": "pi", "intent": "O1", "tokens": {"input": 2, "output": 319, "cache_read": 36326, "cache_write": 23337}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:34:21", "harness": "cc", "intent": "D-N1", "tokens": {"input": 12, "cache_write_1h": 9788, "cache_write_5m": 0, "cache_read": 256184, "output": 1305}, "cc_usd": 0.1556888, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:34:32", "harness": "pi", "intent": "O2", "tokens": {"input": 2, "output": 306, "cache_read": 36334, "cache_write": 23304}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:35:12", "harness": "cc", "intent": "D-N2", "tokens": {"input": 10, "cache_write_1h": 14495, "cache_write_5m": 0, "cache_read": 217142, "output": 997}, "cc_usd": 0.17936839999999998, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:35:36", "harness": "pi", "intent": "O3", "tokens": {"input": 8, "output": 929, "cache_read": 193422, "cache_write": 47929}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:35:51", "harness": "cc", "intent": "D-N4", "tokens": {"input": 6, "cache_write_1h": 1066, "cache_write_5m": 0, "cache_read": 131482, "output": 602}, "cc_usd": 0.046888400000000004, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:36:24", "harness": "pi", "intent": "O-N2", "tokens": {"input": 12, "output": 1034, "cache_read": 332204, "cache_write": 57521}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:36:30", "harness": "cc", "intent": "O1", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38392, "output": 140}, "cc_usd": 0.010486400000000002, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:37:13", "harness": "pi", "intent": "O-N3", "tokens": {"input": 10, "output": 1289, "cache_read": 291337, "cache_write": 61443}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:37:18", "harness": "cc", "intent": "O2", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38319, "output": 209}, "cc_usd": 0.0118518, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:37:54", "harness": "pi", "intent": "O-N4", "tokens": {"input": 8, "output": 436, "cache_read": 191983, "cache_write": 46913}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:38:12", "harness": "cc", "intent": "O3", "tokens": {"input": 4, "cache_write_1h": 2361, "cache_write_5m": 0, "cache_read": 76616, "output": 334}, "cc_usd": 0.0409072, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:38:32", "harness": "pi", "intent": "S1", "tokens": {"input": 2, "output": 357, "cache_read": 36338, "cache_write": 23304}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:39:18", "harness": "cc", "intent": "O-N2", "tokens": {"input": 12, "cache_write_1h": 17009, "cache_write_5m": 0, "cache_read": 268915, "output": 1470}, "cc_usd": 0.219303, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:39:20", "harness": "pi", "intent": "S2", "tokens": {"input": 2, "output": 305, "cache_read": 36356, "cache_write": 23304}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:40:07", "harness": "pi", "intent": "S3", "tokens": {"input": 2, "output": 257, "cache_read": 36336, "cache_write": 23304}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:40:22", "harness": "cc", "intent": "O-N3", "tokens": {"input": 12, "cache_write_1h": 24200, "cache_write_5m": 0, "cache_read": 294440, "output": 3475}, "cc_usd": 0.322036, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:40:48", "harness": "pi", "intent": "S-N2", "tokens": {"input": 12, "output": 1308, "cache_read": 381769, "cache_write": 13567}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:41:18", "harness": "cc", "intent": "O-N4", "tokens": {"input": 10, "cache_write_1h": 7329, "cache_write_5m": 0, "cache_read": 206536, "output": 1645}, "cc_usd": 0.1328792, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:41:41", "harness": "pi", "intent": "S-N3", "tokens": {"input": 10, "output": 1532, "cache_read": 268400, "cache_write": 54825}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:41:42", "harness": "cc", "intent": "S1", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38323, "output": 141}, "cc_usd": 0.0104926, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:42:29", "harness": "pi", "intent": "S-N4", "tokens": {"input": 12, "output": 1190, "cache_read": 191616, "cache_write": 49074}, "cc_usd": 0.0, "model": null}
+{"ts": "2026-09-26T01:42:30", "harness": "cc", "intent": "S2", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38341, "output": 169}, "cc_usd": 0.0110562, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:42:54", "harness": "cc", "intent": "S3", "tokens": {"input": 2, "cache_write_1h": 0, "cache_write_5m": 0, "cache_read": 38321, "output": 149}, "cc_usd": 0.0106522, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:43:36", "harness": "cc", "intent": "S-N2", "tokens": {"input": 10, "cache_write_1h": 17565, "cache_write_5m": 0, "cache_read": 217478, "output": 817}, "cc_usd": 0.2003956, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:44:30", "harness": "cc", "intent": "S-N3", "tokens": {"input": 12, "cache_write_1h": 13187, "cache_write_5m": 0, "cache_read": 266775, "output": 5250}, "cc_usd": 0.263899, "model": "claude-opus-5-5"}
+{"ts": "2026-09-26T01:44:55", "harness": "cc", "intent": "S-N4", "tokens": {"input": 8, "cache_write_1h": 6221, "cache_write_5m": 0, "cache_read": 161669, "output": 1331}, "cc_usd": 0.1087538, "model": "claude-opus-5-5"}
