@@ -419,8 +419,11 @@ class Results:
     def add(self, r: dict) -> None:
         if r.get("correct") is None:
             return  # only VALID results are persisted
+        rep = r.get("rep")
+        if not isinstance(rep, int):
+            return  # run_harness always sets an int rep; anything else is not a result
         with self.lock:
-            self.done[core.run_key(r["harness"], r["intent"], int(r["rep"]))] = r
+            self.done[core.run_key(r["harness"], r["intent"], rep)] = r
             if self.path:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with self.path.open("a") as f:
