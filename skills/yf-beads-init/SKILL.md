@@ -1,15 +1,12 @@
 ---
 name: yf-beads-init
-description: >
-  Verify, initialize, and repair a functioning beads (`bd`) configuration in a repository,
-  and the shared dependency-verification home that other beads skills' preflights route to.
-  TRIGGER when: /yf-beads-init invoked; a repository is being set up for beads and `bd` is
-  present but the repo's beads configuration is **non-existent, incorrect, or appears
-  corrupted** (e.g. `bd status` errors, `bd doctor` reports errors, a wedged schema
-  migration, or `bd ready`/`bd list` work while `bd status` does not); or another beads
-  skill's preflight reports `system_deps_missing` / `bd_not_initialized` / a corrupted DB.
-  SKIP when: bd is healthy (`yf preflight yf-beads-init --json` returns `ok`) and you only
-  need routine issue operations (use the `beads` skill); for direct-CLI gotchas use `yf-beads-extra`.
+description: >-
+  Verify, initialize and repair a repo's beads (`bd`) configuration; the dependency-verification
+  home other beads skills' preflights route to. TRIGGER when: /yf-beads-init; setting up beads in
+  a repo; the config is missing, incorrect or corrupted (`bd status` errors, `bd doctor` errors, a
+  wedged migration, or `bd ready`/`bd list` work while `bd status` does not); or a beads preflight
+  reports `system_deps_missing` / `bd_not_initialized`. SKIP when bd is healthy and you need
+  routine issue work (`beads`); CLI gotchas (`yf-beads-extra`).
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, git]
