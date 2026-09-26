@@ -1,17 +1,12 @@
 ---
 name: yf-beads-upstream
 description: >-
-  Configurable, GitHub-first upstream-tracking skill for beads. Pushes open/deferred beads to
-  GitHub Issues as a land-the-plane step, and enumerates upstream issues as the authoritative
-  worklist on status/pull. TRIGGER when: /yf-beads-upstream invoked; "set up upstream tracking" /
-  "configure upstream" (init); mid-session intent to send beads to the issue tracker — "push beads
-  upstream" / "push open work to GitHub" / "push/sync upstream" / "sync issues upstream" / "mirror
-  this bead upstream" / "file/hoist this as a GitHub issue"; asking for project status, available
-  work, or the worklist when upstream tracking is configured (status/pull). NOTE: "push/sync
-  upstream" means THIS `gh`-based issue mirror, ORTHOGONAL to `bd dolt push` (Dolt DB
-  replication). SKIP for: routine local `bd ready` / `bd show` / `bd close` (use `beads`);
-  direct-CLI `bd` scripting gotchas (use `yf-beads-extra`); authoring beads-backed skills (use
-  `yf-beads-authoring`).
+  GitHub-first upstream tracking for beads: pushes open/deferred beads to GitHub Issues and reads
+  upstream issues as the worklist. TRIGGER when: /yf-beads-upstream; "set up / configure upstream
+  tracking"; "push beads upstream", "push open work to GitHub", "push/sync upstream", "file this
+  as a GitHub issue"; asking for status or the worklist when upstream is configured. NOTE: this is
+  the `gh` issue mirror, NOT `bd dolt push`. SKIP for: routine local `bd` use (`beads`); CLI
+  gotchas (`yf-beads-extra`); authoring beads skills (`yf-beads-authoring`).
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, gh]
