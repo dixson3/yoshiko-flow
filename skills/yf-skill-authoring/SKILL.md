@@ -107,6 +107,60 @@ fi
 - Entry point: `SKILL.md`.
 - Helpers and modules adjacent to `SKILL.md`.
 - Optional: `README.md` (one paragraph), `agents/`, `protocols/`, `hooks/`, `reference/`, `scripts/`.
+- `evals/triggers.json`: the skill's trigger-eval intent set plus its recorded rating (see
+  *Description* below). Required for shipped skills.
+
+## Description
+
+The `description` is **routing, not documentation**. Every session loads every description into
+its system prompt, and the model picks the skill from that text alone. So each clause either helps
+the right intent find this skill or keeps a sibling's intent away from it. Rationale, history and
+how-it-works belong in the SKILL.md body. The five 1,100–1,300-char descriptions plan-072 trimmed
+were long mostly because they carried that material.
+
+**Hard limits (`REQ-YF-EMBED-007`, enforced by `scripts/check_frontmatter.py` in FAST+FULL).**
+`description` is 1–1024 chars, measured in UTF-16 code units of the parsed YAML scalar (pi's
+`String.length`). `name` is 1–64 chars of `[a-z0-9-]`, with no leading or trailing `-`, no `--`,
+and equal to the directory name. Use a `>-` folded scalar, because `>` keeps a trailing newline
+that counts toward the limit.
+
+**Rating (`REQ-SKAUTH-061`),** derived from recorded trigger rates and never hand-asserted:
+
+| Rating | Length | Every intent ≥0.5 on both harnesses? |
+| :-- | :-- | :-- |
+| **crisp** | ≤600 | yes |
+| **satisfactory** | ≤1024 | yes |
+| **unrouted** | ≤1024 | no |
+| **loose** | >1024 | (fails the hard limit) |
+
+**New skills target crisp.** A skill that cannot reach crisp without losing a routed intent is
+probably covering too much. That is a split proposal for the operator, not a wording problem.
+On decline, record the decision and any accepted-miss intent ids in `triggers.json`.
+
+What moved the needle in plan-072, measured: a misrouted intent is usually fixed by **naming the
+intent's shape in TRIGGER** (for example "asks whether anything else still agrees with it", or
+"including `/yf-plan status`"), not by adding length elsewhere. Keep every SKIP route: the SKIP
+list is what keeps siblings apart.
+
+**Measure it (`REQ-SKAUTH-062`).** `scripts/checks/skill_trigger_eval.py` runs each intent as a
+fresh headless session on pi and claude-code and records which skill each run activated first.
+It is a **yoshiko-flow repo tool**, not shipped inside this skill. Run it from a yoshiko-flow
+checkout, where it rates that checkout's `skills/`. It does not exist in other repos.
+
+<!-- skill-script-refs: allow the eval harness is a yoshiko-flow repo-level tool (scripts/checks/), run from that checkout's root, deliberately not vendored into this skill -->
+```bash
+# author >=3 should-trigger + >=3 near-miss intents (near-misses name the siblings that must NOT fire)
+uv run scripts/checks/skill_trigger_eval.py --validate-intents
+# rate a new or edited skill in candidate mode (stages the checkout's skills/, not the installed copy)
+uv run scripts/checks/skill_trigger_eval.py --mode candidate --harness both \
+  --skills <name>,<siblings> --reps 3 --record --ledger <spend.jsonl> --budget-usd <N>
+uv run scripts/checks/skill_trigger_eval.py --report   # four-state rating per skill
+```
+
+Only `--record` writes the rating. Editing a description makes its recorded rating **stale**, and
+`--report --require-rated` fails until it is re-recorded. Runs share one model-account quota with
+every other session, so keep the default `--max-runs-per-hour 150`. A zero-token or rate-limited
+run is INCONCLUSIVE and is never scored. The FULL validation tier re-runs the whole eval (~5.3 h).
 
 ## Spec diagrams
 
