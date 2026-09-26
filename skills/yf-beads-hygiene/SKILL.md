@@ -1,17 +1,12 @@
 ---
 name: yf-beads-hygiene
-description: >
-  Safe, read-only-first audit and gated repair of a beads (`bd`) dependency graph: finds
-  orphaned beads and dangling dependency edges, and correctly classifies gate-typed edges so
-  live gates are never mistaken for dangling. The canonical trigger for any "clean up beads"
-  request.
-  TRIGGER when: /yf-beads-hygiene invoked; "clean up" / "cleanup" open or orphaned beads;
-  "are there orphaned/dangling beads"; "audit the beads graph"; or a dependency-edge removal
-  is being considered.
-  SKIP for: verifying/repairing beads CONFIG or DB health — a wedged/corrupted DB or
-  uninitialized repo routes to `yf-beads-init` (this skill operates on the graph CONTENT of an
-  already-healthy DB); routine `bd ready`/`bd show`/`bd close` (the `beads` skill); direct-CLI
-  gotchas (`yf-beads-extra`); authoring beads-backed skills (`yf-beads-authoring`).
+description: >-
+  Read-only-first audit and gated repair of a beads (`bd`) dependency graph: orphaned beads,
+  dangling edges, with live gates never mistaken for dangling. TRIGGER when: /yf-beads-hygiene;
+  "clean up" open or orphaned beads; "are there orphaned/dangling beads"; "audit the beads graph";
+  or a dependency-edge removal is being considered. SKIP for: beads CONFIG or DB health — a wedged
+  DB or uninitialized repo (`yf-beads-init`); routine `bd` use (`beads`); CLI gotchas
+  (`yf-beads-extra`); authoring beads skills (`yf-beads-authoring`).
 user-invocable: true
 skill-group: beads
 depends-on-tool: [bd, uv, git]
