@@ -4,17 +4,12 @@ user-invocable: true
 skill-group: markdown
 depends-on-tool: [uv, pandoc]
 depends-on-skill: []
-description: >
-  Render a Markdown file to a single, self-contained HTML file via pandoc —
-  standalone document, all resources embedded (images, CSS, fonts), a
-  broad-coverage default stylesheet, relative image paths (`![](diagrams/x.png)`)
-  resolved against the source file's directory, self-contained math (MathML, no
-  CDN), and opt-in CriticMarkup rendering.
-  TRIGGER when: /yf-markdown-html invoked; the user wants an HTML file
-  created/generated from a `.md` file; "export this report to HTML", "make a
-  self-contained web page from this note".
-  SKIP for: PDF output (use `yf-markdown-pdf`); slide decks; linting markdown
-  (use `yf-markdown-lint`); reformatting markdown (use `yf-markdown-format`).
+description: >-
+  Render a Markdown file to one self-contained HTML file via pandoc: resources embedded, default
+  stylesheet, relative images resolved, MathML, opt-in CriticMarkup. TRIGGER when:
+  /yf-markdown-html; the user wants HTML generated from a `.md`; "export this to HTML", "make a
+  self-contained web page from this note". SKIP for: PDF (`yf-markdown-pdf`); slide decks; linting
+  (`yf-markdown-lint`); reformatting (`yf-markdown-format`).
 ---
 
 # yf-markdown-html
