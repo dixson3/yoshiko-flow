@@ -214,7 +214,12 @@ distinguishes the `§0 approved: no` clean refusal from a real FAIL).
   tail) and stops reporting that tier failed. It **never** edits source to make a command pass.
 - **INCONCLUSIVE** (fail-closed) — a required tool is absent from `PATH`; the engine marks the
   command and the tier INCONCLUSIVE rather than skipping it and calling the tier PASS. This is
-  the deliberate contrast with a static `validate-cmd`, which **fails open**.
+  the deliberate contrast with a static `validate-cmd`, which **fails open**. A row flagged
+  `inconclusive-exit=4` also maps its own exit 4 to INCONCLUSIVE (`REQ-ENGINE-011`). An unflagged
+  exit 4 stays FAIL.
+- **Per-row `flags`** (optional fifth column, `REQ-ENGINE-011`): `inconclusive-exit=4`, and
+  `stream`, which tees the row's output live to **stderr** so `--json` stdout stays one document.
+  An unknown flag FAILs the run and is never ignored.
 - **`§0 approved: no` refusal** — an unapproved or absent manifest yields a structured clean
   refusal, never a stack trace.
 

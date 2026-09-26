@@ -25,7 +25,9 @@ Two ordered command lists. **Row order is run order.** Every `cmd` runs via shel
 Columns: `id` (optional — a short stable identifier §3 references; omit for FULL-only rows no §3
 glob selects), `cmd` (**required** — the shell command string), `cwd` (optional — working
 directory relative to repo root; defaults to repo root), `timeout` (optional — seconds; the
-engine kills and FAILs the command after this so a hung test cannot wedge land-the-plane).
+engine kills and FAILs the command after this so a hung test cannot wedge land-the-plane), and an
+optional fifth `flags` column (`inconclusive-exit=4`, `stream`; REQ-ENGINE-011). Omit the column
+entirely when no row needs flags.
 
 Executable-only: every row is a runnable shell command. Do **not** list `yf-drift-check` (or any
 other prose/LLM trigger) as a row — it is not a shell command, it has no exit code to read as a
