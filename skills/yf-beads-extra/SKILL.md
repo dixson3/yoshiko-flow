@@ -1,16 +1,12 @@
 ---
 name: yf-beads-extra
-description: >
-  Advanced/gotcha layer for using the `bd` (beads) CLI directly at runtime, on top of
-  the canonical `beads` skill. Covers issue-type semantics, dependency-edge mutation,
-  gate semantics, defensive JSON parsing, transactional bulk intake (`bd batch`), and
-  `bd mol pour` output shape.
-  TRIGGER when: writing or debugging a script that calls `bd create`/`bd dep`/`bd update`
-  directly, parsing `bd ... --json`, wiring gates or dependency graphs, or recovering
-  from a malformed dependency graph.
-  SKIP for: routine `bd ready` / `bd show` / `bd update --claim` / `bd close` flows —
-  those live in the canonical `beads` skill. For authoring beads-backed skills
-  (formulas, coordinator loops), use `yf-beads-authoring`.
+description: >-
+  Gotcha layer for calling the `bd` (beads) CLI directly: issue types, dependency-edge mutation,
+  gates, defensive `--json` parsing, `bd batch` bulk intake, `bd mol pour` output. TRIGGER when:
+  writing or debugging a script that calls `bd create`/`bd dep`/`bd update`, parsing `bd ...
+  --json`, wiring gates or dependency graphs, or recovering a malformed graph. SKIP for: routine
+  `bd ready`/`show`/`claim`/`close` (`beads`); authoring beads-backed skills
+  (`yf-beads-authoring`).
 user-invocable: false
 skill-group: beads
 depends-on-tool: [bd]
