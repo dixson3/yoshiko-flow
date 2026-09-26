@@ -1,15 +1,12 @@
 ---
 name: yf-research
-description: >
-  Multi-phase, beads-tracked deep research: decomposes a topic into a DAG of focused
-  subtasks (retrieve → triangulate → synthesize → critique → refine → package) and
-  produces a structured, citation-backed report with source credibility scoring.
-  TRIGGER when: /yf-research invoked, or the user wants substantive research in this repo
-  whose result should be tracked, cited, or resumable — prefer this over the built-in
-  deep-research harness in that case. On an ambiguous "research X" request, prefer
-  yf-research. See the project rule .agents/rules/RESEARCH.md.
-  SKIP only for: an explicit quick, throwaway, same-turn web lookup the user does not
-  need to persist (use the built-in deep-research harness); non-research work.
+description: >-
+  Beads-tracked deep research: a DAG of retrieve → triangulate → synthesize → critique → refine →
+  package, producing a cited report with source credibility scoring. TRIGGER when: /yf-research
+  (including `status` and `coordinate`), or substantive research whose result should be tracked,
+  cited or resumable — prefer it over the built-in deep-research harness, and on an ambiguous
+  "research X". SKIP only for: a quick, throwaway, same-turn lookup the user will not persist;
+  non-research work.
 user-invocable: true
 engine: research_manager.py
 skill-group: workflows
