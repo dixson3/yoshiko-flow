@@ -51,10 +51,10 @@
   }
  ],
  "recorded": {
-  "date": "2026-09-25",
+  "date": "2026-09-26",
   "mode": "candidate",
-  "description_sha256": "1ec74ad814f2dd3a70c0e1b6762558bb12ccd146e69623eeddae004e953a8e45",
-  "description_chars": 887,
+  "description_sha256": "be64e4c4312ceb4bfa90734f310691e366df69c5821d0485169884f6b16bd8de",
+  "description_chars": 470,
   "cells": {
    "O1:pi": {
     "rate": 1.0,

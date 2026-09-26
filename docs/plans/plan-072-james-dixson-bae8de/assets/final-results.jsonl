@@ -716,3 +716,5 @@
 {"harness": "pi", "intent": "S-N2", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 21.5, "cc_usd": 0.0, "session_id": "172d1f7a-241f-4410-9c1a-f02e7005314e", "source": null}
 {"harness": "pi", "intent": "S-N3", "rep": 2, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "max_tools", "n_tools": 6, "secs": 72.9, "cc_usd": 0.0, "session_id": "c8d566a6-8a40-4880-a764-e671afd21196", "source": null}
 {"harness": "pi", "intent": "S-N4", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 20.6, "cc_usd": 0.0, "session_id": "7cba0cd7-6d68-4bc2-928d-5512355a57e4", "source": null}
+{"harness": "cc", "intent": "O1", "rep": 0, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "target", "n_tools": 2, "secs": 5.5, "cc_usd": 0.2284496, "session_id": "00d01cc6-f438-4edc-9e99-c616e2b8df6a", "source": null}
+{"harness": "cc", "intent": "O1", "rep": 1, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "target", "n_tools": 2, "secs": 4.6, "cc_usd": 0.0134252, "session_id": "302ed1c7-daa0-4940-80d6-2cd43d172c8f", "source": null}
