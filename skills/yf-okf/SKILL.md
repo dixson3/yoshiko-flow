@@ -1,18 +1,12 @@
 ---
 name: yf-okf
-description: "Constructs, manages, and conformance-checks the OKF-compatible artifact folders
-  ('bundles') that yf artifact-producing skills emit (yf-plan, yf-research, yf-incubator), and
-  owns the versioned OKF-* spec family (BASELINE + YF-EXTENSIONS + per-skill OKF-EXTENSION). The
-  engine (okf.py) composes the effective ruleset and runs check (report-only conformance) and
-  migrate (opt-in, per-folder, in-place). TRIGGER when: /yf-okf invoked (init | check | migrate);
-  checking whether an artifact folder conforms to the OKF model; migrating a legacy
-  plan/research/incubator folder to the reserved index.md + log.md + frontmatter+type model. SKIP for:
-  CORPUS-scale work — which bundles exist in a repo, classifying the whole population, the legacy
-  BACKFILL, or undoing one (that is yf-okf-hygiene; yf-okf owns ONE bundle at a time); authoring third-party
-  OKF linters / validators / MCP servers (yf-okf is a producer/manager plus a conformance
-  self-check, not a third-party validator); checking that already-written docs AGREE across
-  declared edges (that is yf-drift-check, an orthogonal axis); running a repo's build/test/lint
-  recipe (yf-change-validation). yf-okf never fires on an ordinary edit — it is operator-invoked."
+description: >-
+  Constructs, manages and conformance-checks ONE OKF artifact bundle (yf-plan, yf-research,
+  yf-incubator folders) and owns the OKF-* spec family; okf.py runs check (report-only) and
+  migrate (opt-in, in place). TRIGGER when: /yf-okf (init | check | migrate); does a folder
+  conform to the OKF model; migrating a legacy folder to the index.md + log.md + frontmatter
+  model. SKIP for: CORPUS-scale work — inventory, backfill, undo (`yf-okf-hygiene`); third-party
+  OKF validators; whether docs AGREE (`yf-drift-check`). Operator-invoked only.
 user-invocable: true
 skill-group: utility
 depends-on-tool: [uv]
@@ -32,6 +26,11 @@ tags: []
 ---
 
 # yf-okf
+
+**Scope notes** (moved from the description, plan-072): the OKF-* spec family is BASELINE +
+YF-EXTENSIONS + per-skill OKF-EXTENSION, and the engine composes the effective ruleset from them.
+yf-okf is a producer/manager plus a conformance self-check, not a third-party validator.
+Content agreement across edges (yf-drift-check) is an orthogonal axis.
 
 Repo-agnostic engine that **constructs, manages, and conformance-checks** the artifact folders
 ("bundles") the yf artifact-producing skills emit (`yf-plan`, `yf-research`, `yf-incubator`, and

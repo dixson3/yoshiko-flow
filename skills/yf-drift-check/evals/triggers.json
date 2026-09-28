@@ -1,0 +1,121 @@
+{
+ "skill": "yf-drift-check",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "D1",
+   "kind": "trigger",
+   "prompt": "I just reworded REQ-YF-EMBED-003 in SPEC.md. Do the implementation and the docs still agree with it?",
+   "fixture": "sed -i '' 's/shall carry a well-formed, \\*\\*terminated\\*\\* YAML frontmatter block/shall carry a well-formed YAML frontmatter block (terminated or not)/' SPEC.md",
+   "skill": "yf-drift-check"
+  },
+  {
+   "id": "D2",
+   "kind": "trigger",
+   "prompt": "Is the DRIFT-CHECK.md manifest still in sync with the repo?",
+   "skill": "yf-drift-check"
+  },
+  {
+   "id": "D3",
+   "kind": "trigger",
+   "prompt": "I added a sentence to one of the spec files under skills/yf-okf/spec/. Make sure nothing else in the repo now contradicts it.",
+   "fixture": "f=$(ls skills/yf-okf/spec/*.md | head -1); printf '\\nThe engine SHALL reject any bundle whose index.md lacks a title.\\n' >> \"$f\"",
+   "skill": "yf-drift-check"
+  },
+  {
+   "id": "D-N1",
+   "kind": "near-miss",
+   "prompt": "There's a failing test somewhere in tests/. Find it and fix it.",
+   "siblings": [
+    "yf-change-validation",
+    "yf-drift-check"
+   ]
+  },
+  {
+   "id": "D-N2",
+   "kind": "near-miss",
+   "prompt": "Update README.md to document the yf harness tune command for end users.",
+   "siblings": [
+    "yf-optimal-instructions",
+    "yf-drift-check",
+    "yf-skill-authoring"
+   ]
+  },
+  {
+   "id": "D-N4",
+   "kind": "near-miss",
+   "prompt": "Run the fast validation tier for my change to _shared/sync.py.",
+   "siblings": [
+    "yf-drift-check"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "e78c53ff6fcfd8d722776c6fd1798aa70d405212d26deeaf5ece1e55426ca611",
+  "description_chars": 598,
+  "cells": {
+   "D1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D-N4:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "D-N4:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

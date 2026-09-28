@@ -1,0 +1,117 @@
+{
+ "skill": "yf-okf-hygiene",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "H1",
+   "kind": "trigger",
+   "prompt": "How many of the plan and research bundles in this repo are still in a legacy layout?",
+   "skill": "yf-okf-hygiene"
+  },
+  {
+   "id": "H2",
+   "kind": "trigger",
+   "prompt": "Backfill all the legacy plan folders to the current OKF layout.",
+   "skill": "yf-okf-hygiene"
+  },
+  {
+   "id": "H3",
+   "kind": "trigger",
+   "prompt": "Some of the bundle indexes across the repo are stale. Rebuild them all.",
+   "skill": "yf-okf-hygiene"
+  },
+  {
+   "id": "H-N3",
+   "kind": "near-miss",
+   "prompt": "Write a short note in docs/ about how prompt caching affects cost in pi.",
+   "siblings": [
+    "yf-okf",
+    "yf-okf-hygiene"
+   ]
+  },
+  {
+   "id": "H-N4",
+   "kind": "near-miss",
+   "prompt": "Does docs/plans/plan-069-james-dixson-9d2878 alone conform to the OKF model?",
+   "siblings": [
+    "yf-okf-hygiene"
+   ]
+  },
+  {
+   "id": "H-N5",
+   "kind": "near-miss",
+   "prompt": "Clean up the orphaned beads in this repo.",
+   "siblings": [
+    "yf-okf-hygiene"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "d422568661ed75b3aa0e98271d44b4de7a3a47b463b3dd8a42ae662de33979ac",
+  "description_chars": 531,
+  "cells": {
+   "H1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H-N4:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H-N4:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H-N5:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "H-N5:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

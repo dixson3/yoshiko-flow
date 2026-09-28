@@ -69,6 +69,8 @@ surface change report
 skills/yf-optimal-instructions/
 ├── agents/
 │   └── instruction-optimizer.md  # apply agent: K1 auto + K2 proposal + change report
+├── evals/                        # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── protocols/
 │   ├── INSTRUCTIONS.md           # always-loaded companion rule (installed to rules surface)
 │   └── manifest.json             # hash/version manifest for INSTRUCTIONS.md

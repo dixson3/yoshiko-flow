@@ -71,6 +71,8 @@ dispatch drift-verifier sub-agent over the scoped edges (report-only, evidence s
 skills/yf-drift-check/
 ├── agents/
 │   └── drift-verifier.md       # isolated report-only verifier: scoped edges, evidence standard, PASS/FAIL/INCONCLUSIVE/CONFLICT
+├── evals/                      # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── protocols/
 │   └── DRIFT-CHECK-TRIGGER.md  # always-loaded companion rule (installed to rules surface): the firing surface
 ├── spec/

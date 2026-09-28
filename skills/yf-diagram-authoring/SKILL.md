@@ -1,14 +1,11 @@
 ---
 name: yf-diagram-authoring
-description: "Generate light-mode, white-background diagram PNGs from d2 source, keeping the
-  .d2 source beside every .png render. Standardizes d2 (not mermaid) as the single, local,
-  offline diagram engine: write .d2 -> render .png (theme 0, elk) -> verify by Read. TRIGGER
-  when: the operator asks to author/render/regenerate a diagram, or a content-producing skill
-  (yf-plan, yf-research, yf-skill-authoring) generates a structural diagram for a plan, research
-  report, or skill spec. SKIP for: non-diagram image work; mermaid-specific workflows; any task
-  that does not produce a d2 diagram. Output locations are caller-supplied (the skill is
-  location-agnostic); consumers set their own convention (plan_dir/diagrams, research_dir/
-  diagrams, skill spec/ co-resident, project docs/diagrams)."
+description: >-
+  Author diagrams as d2 source rendered to light-mode PNG (theme 0, elk), keeping the .d2 beside
+  every .png. TRIGGER when: the operator asks to author, render or regenerate a diagram, or a
+  content skill (yf-plan, yf-research, yf-skill-authoring) needs a structural diagram. SKIP for:
+  non-diagram image work; Mermaid workflows; anything that produces no d2 diagram. Output paths
+  are caller-supplied.
 user-invocable: true
 skill-group: utility
 depends-on-tool: [d2]

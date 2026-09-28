@@ -65,6 +65,8 @@ skills/yf-research/
 │   ├── synthesizer.md              # assemble cited findings.
 │   ├── toolsmith.md                # generate per-run helper scripts from the plan's tooling needs.
 │   └── triangulator.md             # cross-reference claims, score credibility, flag contradictions.
+├── evals/                          # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── formulas/
 │   └── yf-research.formula.toml    # the fixed DAG skeleton (gate → tooling → triangulate → synthesize → critique → refine → package).
 ├── protocols/

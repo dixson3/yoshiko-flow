@@ -1,0 +1,116 @@
+{
+ "skill": "yf-incubator",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "IN1",
+   "kind": "trigger",
+   "prompt": "Let's park this sidequest about caching as an incubator and come back to it later.",
+   "skill": "yf-incubator"
+  },
+  {
+   "id": "IN2",
+   "kind": "trigger",
+   "prompt": "What incubators do we have, and which one should I work on next?",
+   "skill": "yf-incubator"
+  },
+  {
+   "id": "IN3",
+   "kind": "trigger",
+   "prompt": "Start a new incubator to investigate cross-harness rule loading.",
+   "skill": "yf-incubator"
+  },
+  {
+   "id": "IN-N1",
+   "kind": "near-miss",
+   "prompt": "Let's plan the implementation of a yf doctor --fix flag.",
+   "siblings": [
+    "yf-incubator"
+   ]
+  },
+  {
+   "id": "IN-N2",
+   "kind": "near-miss",
+   "prompt": "Fix the typo in README.md's first paragraph.",
+   "siblings": [
+    "yf-incubator"
+   ]
+  },
+  {
+   "id": "IN-N3",
+   "kind": "near-miss",
+   "prompt": "Research how pi measures description length and give me a cited report.",
+   "siblings": [
+    "yf-incubator"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "18868a8bb9f0b552e7b3935b3a13ecd68b45243f88d02caa012c951dbf8ebefd",
+  "description_chars": 489,
+  "cells": {
+   "IN1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "IN-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

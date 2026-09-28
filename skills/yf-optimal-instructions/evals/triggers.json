@@ -1,0 +1,121 @@
+{
+ "skill": "yf-optimal-instructions",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "O1",
+   "kind": "trigger",
+   "prompt": "I just added a section to AGENTS.md. Can you tighten it up?",
+   "fixture": "printf '\\n## Notes on commits\\n\\nIt is really very important that when you are making commits you should always make sure that you are writing a good commit message, because a good commit message is really very helpful to everyone who reads the history later on, and it is important to be thorough about it at all times.\\n' >> AGENTS.md",
+   "skill": "yf-optimal-instructions"
+  },
+  {
+   "id": "O2",
+   "kind": "trigger",
+   "prompt": "Add a rule to CLAUDE.md telling agents to always run cargo fmt before committing.",
+   "skill": "yf-optimal-instructions"
+  },
+  {
+   "id": "O3",
+   "kind": "trigger",
+   "prompt": "review the new rules file I dropped in .agents/rules/",
+   "fixture": "mkdir -p .agents/rules && printf '# Testing rule\\n\\nPlease always, in every single case without exception, remember to run the tests, because running the tests is a thing that should always be done before you say you are finished.\\n' > .agents/rules/TESTING-RULE.md",
+   "skill": "yf-optimal-instructions"
+  },
+  {
+   "id": "O-N2",
+   "kind": "near-miss",
+   "prompt": "Update README.md to document the yf harness tune command for end users.",
+   "siblings": [
+    "yf-optimal-instructions",
+    "yf-drift-check",
+    "yf-skill-authoring"
+   ]
+  },
+  {
+   "id": "O-N3",
+   "kind": "near-miss",
+   "prompt": "Tighten the wording of skills/yf-markdown-lint/SKILL.md; it's too verbose.",
+   "siblings": [
+    "yf-optimal-instructions"
+   ]
+  },
+  {
+   "id": "O-N4",
+   "kind": "near-miss",
+   "prompt": "Fix the typo 'teh' anywhere it appears in CHANGELOG.md.",
+   "siblings": [
+    "yf-optimal-instructions"
+   ],
+   "fixture": "printf '\\n- teh fix\\n' >> CHANGELOG.md"
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "be64e4c4312ceb4bfa90734f310691e366df69c5821d0485169884f6b16bd8de",
+  "description_chars": 470,
+  "cells": {
+   "O1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O-N4:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "O-N4:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

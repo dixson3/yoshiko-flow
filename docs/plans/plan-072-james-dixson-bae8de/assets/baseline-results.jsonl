@@ -1,0 +1,720 @@
+{"harness": "cc", "intent": "BA1", "rep": 0, "correct": true, "cc_usd": 0.2397256, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA2", "rep": 0, "correct": true, "cc_usd": 0.2260988, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA3", "rep": 0, "correct": true, "cc_usd": 0.22787079999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N1", "rep": 0, "correct": true, "cc_usd": 0.3595912, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N2", "rep": 0, "correct": true, "cc_usd": 0.3183434, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N3", "rep": 0, "correct": true, "cc_usd": 0.42927, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE1", "rep": 0, "correct": true, "cc_usd": 0.2280668, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE2", "rep": 0, "correct": true, "cc_usd": 0.2279108, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE3", "rep": 0, "correct": true, "cc_usd": 0.2275748, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N1", "rep": 0, "correct": true, "cc_usd": 0.3538862, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N2", "rep": 0, "correct": true, "cc_usd": 0.434322, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N3", "rep": 0, "correct": true, "cc_usd": 0.36564620000000003, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH1", "rep": 0, "correct": true, "cc_usd": 0.2259028, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH2", "rep": 0, "correct": true, "cc_usd": 0.22592679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH3", "rep": 0, "correct": true, "cc_usd": 0.22664279999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N1", "rep": 0, "correct": true, "cc_usd": 0.3717362, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N2", "rep": 0, "correct": true, "cc_usd": 0.276724, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N3", "rep": 0, "correct": true, "cc_usd": 0.4451814, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI1", "rep": 0, "correct": true, "cc_usd": 0.22669879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI2", "rep": 0, "correct": true, "cc_usd": 0.2258828, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI3", "rep": 0, "correct": true, "cc_usd": 0.2259148, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N1", "rep": 0, "correct": true, "cc_usd": 0.35582240000000004, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N2", "rep": 0, "correct": true, "cc_usd": 0.277749, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N3", "rep": 0, "correct": true, "cc_usd": 0.427157, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU1", "rep": 0, "correct": true, "cc_usd": 0.009525, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU2", "rep": 0, "correct": true, "cc_usd": 0.22628679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU3", "rep": 0, "correct": true, "cc_usd": 0.2263748, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N1", "rep": 0, "correct": true, "cc_usd": 0.28286940000000005, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N2", "rep": 0, "correct": true, "cc_usd": 0.2771304, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N3", "rep": 0, "correct": true, "cc_usd": 0.35115359999999995, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V1", "rep": 0, "correct": true, "cc_usd": 0.25903560000000003, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V2", "rep": 0, "correct": true, "cc_usd": 0.22636679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V3", "rep": 0, "correct": true, "cc_usd": 0.2591098, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N1", "rep": 0, "correct": true, "cc_usd": 0.3377758, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N2", "rep": 0, "correct": true, "cc_usd": 0.49647040000000003, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N3", "rep": 0, "correct": true, "cc_usd": 0.22769879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA1", "rep": 0, "correct": true, "cc_usd": 0.22603879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA2", "rep": 0, "correct": true, "cc_usd": 0.22783879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA3", "rep": 0, "correct": true, "cc_usd": 0.2279028, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N1", "rep": 0, "correct": true, "cc_usd": 0.38283659999999997, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N2", "rep": 0, "correct": true, "cc_usd": 0.2715322, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N3", "rep": 0, "correct": true, "cc_usd": 0.4440788, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D1", "rep": 0, "correct": true, "cc_usd": 0.2284428, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D2", "rep": 0, "correct": true, "cc_usd": 0.2259308, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D3", "rep": 0, "correct": true, "cc_usd": 0.262114, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N1", "rep": 0, "correct": true, "cc_usd": 0.11148839999999999, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N2", "rep": 0, "correct": true, "cc_usd": 0.3747382, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N4", "rep": 0, "correct": true, "cc_usd": 0.3295148, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR1", "rep": 0, "correct": false, "cc_usd": 0.3271104, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR2", "rep": 0, "correct": true, "cc_usd": 0.22587079999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR3", "rep": 0, "correct": true, "cc_usd": 0.2274628, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N1", "rep": 0, "correct": true, "cc_usd": 0.7206106, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D-N4", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N2", "rep": 0, "correct": true, "cc_usd": 0.3098606, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR1", "rep": 0, "correct": false, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N3", "rep": 0, "correct": true, "cc_usd": 0.751887, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN1", "rep": 0, "correct": true, "cc_usd": 0.22656679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN2", "rep": 0, "correct": true, "cc_usd": 0.2265708, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN3", "rep": 0, "correct": true, "cc_usd": 0.2264628, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N1", "rep": 0, "correct": true, "cc_usd": 0.7014701999999999, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N2", "rep": 0, "correct": true, "cc_usd": 0.2936922, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N3", "rep": 0, "correct": true, "cc_usd": 0.39623240000000004, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF1", "rep": 0, "correct": true, "cc_usd": 0.2264628, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF2", "rep": 0, "correct": true, "cc_usd": 0.2274708, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF3", "rep": 0, "correct": true, "cc_usd": 0.22736279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N1", "rep": 0, "correct": true, "cc_usd": 0.3066502, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N2", "rep": 0, "correct": true, "cc_usd": 0.32122459999999997, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N3", "rep": 0, "correct": true, "cc_usd": 0.3288844, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH1", "rep": 0, "correct": true, "cc_usd": 0.0095452, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH2", "rep": 0, "correct": true, "cc_usd": 0.22669879999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH3", "rep": 0, "correct": true, "cc_usd": 0.2264068, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N1", "rep": 0, "correct": true, "cc_usd": 0.3134006, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N2", "rep": 0, "correct": true, "cc_usd": 0.3240916, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N3", "rep": 0, "correct": true, "cc_usd": 0.33549559999999995, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML1", "rep": 0, "correct": true, "cc_usd": 0.2263588, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML2", "rep": 0, "correct": true, "cc_usd": 0.2267108, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML3", "rep": 0, "correct": false, "cc_usd": 0.2619654, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N1", "rep": 0, "correct": true, "cc_usd": 0.348636, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N2", "rep": 0, "correct": true, "cc_usd": 0.036491600000000006, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N3", "rep": 0, "correct": true, "cc_usd": 0.3016626, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP1", "rep": 0, "correct": true, "cc_usd": 0.009584, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP2", "rep": 0, "correct": true, "cc_usd": 0.22670279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP3", "rep": 0, "correct": true, "cc_usd": 0.22642279999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML3", "rep": 0, "correct": false, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N1", "rep": 0, "correct": true, "cc_usd": 0.039577600000000004, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N2", "rep": 0, "correct": true, "cc_usd": 0.30689459999999996, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N3", "rep": 0, "correct": true, "cc_usd": 0.36777879999999996, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K1", "rep": 0, "correct": true, "cc_usd": 0.2275988, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K2", "rep": 0, "correct": true, "cc_usd": 0.22717479999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K3", "rep": 0, "correct": true, "cc_usd": 0.2290668, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N3", "rep": 0, "correct": true, "cc_usd": 0.4255862, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N4", "rep": 0, "correct": true, "cc_usd": 0.3767862, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N5", "rep": 0, "correct": true, "cc_usd": 0.44180620000000004, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H1", "rep": 0, "correct": true, "cc_usd": 0.22733479999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H2", "rep": 0, "correct": true, "cc_usd": 0.22703079999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H3", "rep": 0, "correct": true, "cc_usd": 0.2283228, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K-N4", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N3", "rep": 0, "correct": true, "cc_usd": 0.20231960000000002, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K-N5", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N4", "rep": 0, "correct": true, "cc_usd": 0.41693040000000003, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N5", "rep": 0, "correct": true, "cc_usd": 0.1365896, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O1", "rep": 0, "correct": true, "cc_usd": 0.2590056, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O2", "rep": 0, "correct": true, "cc_usd": 0.23122279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O3", "rep": 0, "correct": true, "cc_usd": 0.2575048, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H-N4", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N2", "rep": 0, "correct": true, "cc_usd": 0.1773584, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H-N5", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N3", "rep": 0, "correct": true, "cc_usd": 0.5215228, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N4", "rep": 0, "correct": true, "cc_usd": 0.2700086, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P1", "rep": 0, "correct": true, "cc_usd": 0.2272668, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P2", "rep": 0, "correct": true, "cc_usd": 0.22680679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P3", "rep": 0, "correct": true, "cc_usd": 0.6075548000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N1", "rep": 0, "correct": true, "cc_usd": 0.38367840000000003, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O-N4", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N2", "rep": 0, "correct": true, "cc_usd": 0.3139642, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N3", "rep": 0, "correct": true, "cc_usd": 0.3868988, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R1", "rep": 0, "correct": true, "cc_usd": 0.2268308, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R2", "rep": 0, "correct": true, "cc_usd": 0.22651079999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R3", "rep": 0, "correct": false, "cc_usd": 0.36584520000000004, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R-N1", "rep": 0, "correct": true, "cc_usd": 0.4876284, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R-N2", "rep": 0, "correct": true, "cc_usd": 0.3910046, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R-N3", "rep": 0, "correct": true, "cc_usd": 0.25282920000000003, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R-N1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S1", "rep": 0, "correct": true, "cc_usd": 0.2289348, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S2", "rep": 0, "correct": true, "cc_usd": 0.22905879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S3", "rep": 0, "correct": true, "cc_usd": 0.2279988, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "S1", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S-N2", "rep": 0, "correct": true, "cc_usd": 0.185634, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "S2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "S3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "S-N2", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S-N3", "rep": 0, "correct": true, "cc_usd": 0.5022148, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S-N4", "rep": 0, "correct": true, "cc_usd": 0.3027152, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA1", "rep": 1, "correct": true, "cc_usd": 0.0107496, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA2", "rep": 1, "correct": true, "cc_usd": 0.0091106, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "S-N3", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed+rescored-first-route", "activated": ["yf-optimal-instructions", "yf-skill-authoring"]}
+{"harness": "cc", "intent": "BA3", "rep": 1, "correct": true, "cc_usd": 0.011310400000000002, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "S-N4", "rep": 0, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N1", "rep": 1, "correct": true, "cc_usd": 0.1419338, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N2", "rep": 1, "correct": true, "cc_usd": 0.1004332, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N3", "rep": 1, "correct": true, "cc_usd": 0.068345, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE1", "rep": 1, "correct": true, "cc_usd": 0.0109698, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE2", "rep": 1, "correct": true, "cc_usd": 0.010889400000000002, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE3", "rep": 1, "correct": true, "cc_usd": 0.010707, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N1", "rep": 1, "correct": true, "cc_usd": 0.2036046, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BA-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N2", "rep": 1, "correct": true, "cc_usd": 0.1736998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N3", "rep": 1, "correct": true, "cc_usd": 0.0914166, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH1", "rep": 1, "correct": true, "cc_usd": 0.0091252, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH2", "rep": 1, "correct": true, "cc_usd": 0.0091258, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH3", "rep": 1, "correct": true, "cc_usd": 0.0097672, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N1", "rep": 1, "correct": true, "cc_usd": 0.092226, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N2", "rep": 1, "correct": true, "cc_usd": 0.06176260000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BE-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N3", "rep": 1, "correct": true, "cc_usd": 0.110053, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI1", "rep": 1, "correct": true, "cc_usd": 0.0090676, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI2", "rep": 1, "correct": true, "cc_usd": 0.0090662, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI3", "rep": 1, "correct": true, "cc_usd": 0.009067, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N1", "rep": 1, "correct": true, "cc_usd": 0.07451580000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N2", "rep": 1, "correct": true, "cc_usd": 0.059644199999999994, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BH-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N3", "rep": 1, "correct": true, "cc_usd": 0.2114728, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU1", "rep": 1, "correct": true, "cc_usd": 0.009525, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU2", "rep": 1, "correct": true, "cc_usd": 0.0095248, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU3", "rep": 1, "correct": true, "cc_usd": 0.009527, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N1", "rep": 1, "correct": true, "cc_usd": 0.0821924, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N2", "rep": 1, "correct": true, "cc_usd": 0.0743914, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BI-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N3", "rep": 1, "correct": true, "cc_usd": 0.0815766, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V1", "rep": 1, "correct": true, "cc_usd": 0.09856960000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V2", "rep": 1, "correct": true, "cc_usd": 0.0095658, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V3", "rep": 1, "correct": true, "cc_usd": 0.042702, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N1", "rep": 1, "correct": true, "cc_usd": 0.09184, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "BU-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N2", "rep": 1, "correct": true, "cc_usd": 0.2679132, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N3", "rep": 1, "correct": true, "cc_usd": 0.0110896, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA1", "rep": 1, "correct": true, "cc_usd": 0.0101686, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA2", "rep": 1, "correct": true, "cc_usd": 0.0107086, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA3", "rep": 1, "correct": true, "cc_usd": 0.0109692, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N1", "rep": 1, "correct": true, "cc_usd": 0.0965682, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N2", "rep": 1, "correct": true, "cc_usd": 0.03641760000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N3", "rep": 1, "correct": true, "cc_usd": 0.212407, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "V-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D1", "rep": 1, "correct": true, "cc_usd": 0.0473944, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D2", "rep": 1, "correct": true, "cc_usd": 0.009987400000000002, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D3", "rep": 1, "correct": true, "cc_usd": 0.0490144, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "DA-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N1", "rep": 1, "correct": true, "cc_usd": 0.1786294, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N2", "rep": 1, "correct": true, "cc_usd": 0.1914574, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D3", "rep": 1, "correct": false, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N4", "rep": 1, "correct": true, "cc_usd": 0.04726960000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR1", "rep": 1, "correct": false, "cc_usd": 0.10634320000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR2", "rep": 1, "correct": true, "cc_usd": 0.009046400000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR3", "rep": 1, "correct": true, "cc_usd": 0.0105862, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N1", "rep": 1, "correct": true, "cc_usd": 0.4785698, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N2", "rep": 1, "correct": true, "cc_usd": 0.09204939999999999, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "D-N4", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N3", "rep": 1, "correct": true, "cc_usd": 0.5304582, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN1", "rep": 1, "correct": true, "cc_usd": 0.009606799999999999, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN2", "rep": 1, "correct": true, "cc_usd": 0.009765400000000002, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN3", "rep": 1, "correct": true, "cc_usd": 0.0096462, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N1", "rep": 1, "correct": true, "cc_usd": 0.0927538, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N2", "rep": 1, "correct": true, "cc_usd": 0.0719452, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "HR-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N3", "rep": 1, "correct": true, "cc_usd": 0.1703414, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF1", "rep": 1, "correct": true, "cc_usd": 0.009685200000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF2", "rep": 1, "correct": true, "cc_usd": 0.009888400000000002, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF3", "rep": 1, "correct": true, "cc_usd": 0.0104682, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N1", "rep": 1, "correct": true, "cc_usd": 0.0550548, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N2", "rep": 1, "correct": true, "cc_usd": 0.03753360000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N3", "rep": 1, "correct": true, "cc_usd": 0.17871979999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH1", "rep": 1, "correct": true, "cc_usd": 0.0095452, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH2", "rep": 1, "correct": true, "cc_usd": 0.0098276, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH3", "rep": 1, "correct": true, "cc_usd": 0.0096058, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "IN-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N1", "rep": 1, "correct": true, "cc_usd": 0.0379316, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N2", "rep": 1, "correct": true, "cc_usd": 0.133218, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N3", "rep": 1, "correct": true, "cc_usd": 0.1655706, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MF-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML1", "rep": 1, "correct": true, "cc_usd": 0.0095656, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML2", "rep": 1, "correct": true, "cc_usd": 0.009847400000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML3", "rep": 1, "correct": false, "cc_usd": 0.042909199999999995, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N1", "rep": 1, "correct": false, "cc_usd": 0.1519128, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N2", "rep": 1, "correct": true, "cc_usd": 0.036359600000000006, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MH-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N3", "rep": 1, "correct": true, "cc_usd": 0.0662018, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP1", "rep": 1, "correct": true, "cc_usd": 0.009584, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP2", "rep": 1, "correct": true, "cc_usd": 0.0098472, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML3", "rep": 1, "correct": false, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP3", "rep": 1, "correct": true, "cc_usd": 0.009645200000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N1", "rep": 1, "correct": true, "cc_usd": 0.05289, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N2", "rep": 1, "correct": true, "cc_usd": 0.0383192, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "ML-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N3", "rep": 1, "correct": true, "cc_usd": 0.1511326, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K1", "rep": 1, "correct": true, "cc_usd": 0.0106686, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K2", "rep": 1, "correct": true, "cc_usd": 0.010309, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K3", "rep": 1, "correct": true, "cc_usd": 0.0110558, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N3", "rep": 1, "correct": true, "cc_usd": 0.2365496, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N4", "rep": 1, "correct": true, "cc_usd": 0.068835, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "MP-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N5", "rep": 1, "correct": true, "cc_usd": 0.3668344, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H1", "rep": 1, "correct": true, "cc_usd": 0.010547, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H2", "rep": 1, "correct": true, "cc_usd": 0.0101664, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H3", "rep": 1, "correct": true, "cc_usd": 0.010287200000000002, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N3", "rep": 1, "correct": true, "cc_usd": 0.1711056, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K-N4", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "K-N5", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N4", "rep": 1, "correct": true, "cc_usd": 0.193736, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N5", "rep": 1, "correct": true, "cc_usd": 0.082406, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O1", "rep": 1, "correct": true, "cc_usd": 0.010902799999999999, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O2", "rep": 1, "correct": true, "cc_usd": 0.0137082, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O3", "rep": 1, "correct": true, "cc_usd": 0.040596, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N2", "rep": 1, "correct": true, "cc_usd": 0.159575, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H-N4", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "H-N5", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N3", "rep": 1, "correct": true, "cc_usd": 0.3314468, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N4", "rep": 1, "correct": true, "cc_usd": 0.05254760000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P1", "rep": 1, "correct": true, "cc_usd": 0.010267799999999999, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P2", "rep": 1, "correct": true, "cc_usd": 0.0096058, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P3", "rep": 1, "correct": false, "cc_usd": 0.09109360000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N1", "rep": 1, "correct": true, "cc_usd": 0.1712424, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N2", "rep": 1, "correct": true, "cc_usd": 0.20323739999999998, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "O-N4", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N3", "rep": 1, "correct": true, "cc_usd": 0.1049978, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R1", "rep": 1, "correct": true, "cc_usd": 0.009889400000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R2", "rep": 1, "correct": true, "cc_usd": 0.009647400000000002, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P3", "rep": 1, "correct": false, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R3", "rep": 1, "correct": false, "cc_usd": 0.09056320000000001, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R-N1", "rep": 1, "correct": true, "cc_usd": 0.473306, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "P-N3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R-N2", "rep": 1, "correct": true, "cc_usd": 0.1549296, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "R-N3", "rep": 1, "correct": true, "cc_usd": 0.036088800000000004, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R3", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S1", "rep": 1, "correct": true, "cc_usd": 0.012369, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S2", "rep": 1, "correct": true, "cc_usd": 0.0114126, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S3", "rep": 1, "correct": true, "cc_usd": 0.0111486, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R-N1", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S-N2", "rep": 1, "correct": true, "cc_usd": 0.1887412, "source": "baseline-log-seed"}
+{"harness": "pi", "intent": "R-N2", "rep": 1, "correct": true, "cc_usd": 0.0, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S-N3", "rep": 1, "correct": true, "cc_usd": 0.27136740000000004, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "S-N4", "rep": 1, "correct": true, "cc_usd": 0.1468352, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA1", "rep": 2, "correct": true, "cc_usd": 0.0107296, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA2", "rep": 2, "correct": true, "cc_usd": 0.0091106, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA3", "rep": 2, "correct": true, "cc_usd": 0.011310400000000002, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N1", "rep": 2, "correct": true, "cc_usd": 0.065713, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N2", "rep": 2, "correct": true, "cc_usd": 0.0986132, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BA-N3", "rep": 2, "correct": true, "cc_usd": 0.0700128, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE1", "rep": 2, "correct": true, "cc_usd": 0.011089799999999999, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE2", "rep": 2, "correct": true, "cc_usd": 0.010649400000000002, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE3", "rep": 2, "correct": true, "cc_usd": 0.010747, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N1", "rep": 2, "correct": true, "cc_usd": 0.1734308, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N2", "rep": 2, "correct": true, "cc_usd": 0.2203328, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BE-N3", "rep": 2, "correct": true, "cc_usd": 0.093236, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH1", "rep": 2, "correct": true, "cc_usd": 0.0091252, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH2", "rep": 2, "correct": true, "cc_usd": 0.0091258, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH3", "rep": 2, "correct": true, "cc_usd": 0.009787200000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N1", "rep": 2, "correct": true, "cc_usd": 0.116074, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N2", "rep": 2, "correct": true, "cc_usd": 0.3038092, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BH-N3", "rep": 2, "correct": true, "cc_usd": 0.3891662, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI1", "rep": 2, "correct": true, "cc_usd": 0.22553879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI2", "rep": 2, "correct": true, "cc_usd": 0.22548279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI3", "rep": 2, "correct": true, "cc_usd": 0.2255148, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N1", "rep": 2, "correct": true, "cc_usd": 0.3548666, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N2", "rep": 2, "correct": true, "cc_usd": 0.2873194, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BI-N3", "rep": 2, "correct": true, "cc_usd": 0.4578408, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU1", "rep": 2, "correct": true, "cc_usd": 0.22589479999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU2", "rep": 2, "correct": true, "cc_usd": 0.2258868, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU3", "rep": 2, "correct": true, "cc_usd": 0.22597479999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N1", "rep": 2, "correct": true, "cc_usd": 0.375444, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N2", "rep": 2, "correct": true, "cc_usd": 0.28559640000000003, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "BU-N3", "rep": 2, "correct": true, "cc_usd": 0.372402, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V1", "rep": 2, "correct": true, "cc_usd": 0.2588496, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V2", "rep": 2, "correct": true, "cc_usd": 0.2259668, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V3", "rep": 2, "correct": true, "cc_usd": 0.2587158, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N1", "rep": 2, "correct": true, "cc_usd": 0.356959, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N2", "rep": 2, "correct": true, "cc_usd": 0.49467079999999997, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "V-N3", "rep": 2, "correct": true, "cc_usd": 0.2271388, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA1", "rep": 2, "correct": true, "cc_usd": 0.2270788, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA2", "rep": 2, "correct": true, "cc_usd": 0.22677879999999997, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA3", "rep": 2, "correct": true, "cc_usd": 0.2274428, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N1", "rep": 2, "correct": true, "cc_usd": 0.3721512, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N2", "rep": 2, "correct": true, "cc_usd": 0.279504, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "DA-N3", "rep": 2, "correct": true, "cc_usd": 0.419486, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D1", "rep": 2, "correct": true, "cc_usd": 0.2293228, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D2", "rep": 2, "correct": true, "cc_usd": 0.22553079999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D3", "rep": 2, "correct": true, "cc_usd": 0.264792, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N1", "rep": 2, "correct": true, "cc_usd": 0.1516382, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N2", "rep": 2, "correct": true, "cc_usd": 0.4177126, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "D-N4", "rep": 2, "correct": true, "cc_usd": 0.3658936, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR1", "rep": 2, "correct": false, "cc_usd": 0.7355224, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR2", "rep": 2, "correct": true, "cc_usd": 0.2254708, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR3", "rep": 2, "correct": true, "cc_usd": 0.2270828, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N1", "rep": 2, "correct": true, "cc_usd": 0.7110436, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N2", "rep": 2, "correct": true, "cc_usd": 0.30897820000000004, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "HR-N3", "rep": 2, "correct": true, "cc_usd": 0.754989, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN1", "rep": 2, "correct": true, "cc_usd": 0.2260468, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN2", "rep": 2, "correct": true, "cc_usd": 0.2261308, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN3", "rep": 2, "correct": true, "cc_usd": 0.22606279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N1", "rep": 2, "correct": true, "cc_usd": 0.8075128, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N2", "rep": 2, "correct": true, "cc_usd": 0.2930076, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "IN-N3", "rep": 2, "correct": true, "cc_usd": 0.3857502, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF1", "rep": 2, "correct": true, "cc_usd": 0.22606279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF2", "rep": 2, "correct": true, "cc_usd": 0.2270708, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF3", "rep": 2, "correct": true, "cc_usd": 0.2271828, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N1", "rep": 2, "correct": true, "cc_usd": 0.30687020000000004, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N2", "rep": 2, "correct": true, "cc_usd": 0.3050482, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MF-N3", "rep": 2, "correct": true, "cc_usd": 0.3267, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH1", "rep": 2, "correct": true, "cc_usd": 0.0095352, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH2", "rep": 2, "correct": true, "cc_usd": 0.2262988, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH3", "rep": 2, "correct": true, "cc_usd": 0.22600679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N1", "rep": 2, "correct": true, "cc_usd": 0.31261259999999996, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N2", "rep": 2, "correct": true, "cc_usd": 0.347068, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MH-N3", "rep": 2, "correct": true, "cc_usd": 0.38696559999999997, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML1", "rep": 2, "correct": true, "cc_usd": 0.2259588, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML2", "rep": 2, "correct": true, "cc_usd": 0.22631079999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML3", "rep": 2, "correct": false, "cc_usd": 0.2601594, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N1", "rep": 2, "correct": false, "cc_usd": 0.381992, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N2", "rep": 2, "correct": true, "cc_usd": 0.0383416, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "ML-N3", "rep": 2, "correct": true, "cc_usd": 0.2943402, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP1", "rep": 2, "correct": true, "cc_usd": 0.009574, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP2", "rep": 2, "correct": true, "cc_usd": 0.2263028, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP3", "rep": 2, "correct": true, "cc_usd": 0.2260228, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N1", "rep": 2, "correct": true, "cc_usd": 0.03826360000000001, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N2", "rep": 2, "correct": true, "cc_usd": 0.30589059999999996, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "MP-N3", "rep": 2, "correct": true, "cc_usd": 0.3663554, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K1", "rep": 2, "correct": true, "cc_usd": 0.22719879999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K2", "rep": 2, "correct": true, "cc_usd": 0.22689479999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K3", "rep": 2, "correct": true, "cc_usd": 0.2284868, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N3", "rep": 2, "correct": true, "cc_usd": 0.47555179999999997, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N4", "rep": 2, "correct": true, "cc_usd": 0.3712588, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "K-N5", "rep": 2, "correct": true, "cc_usd": 0.5844524, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H1", "rep": 2, "correct": true, "cc_usd": 0.22697479999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H2", "rep": 2, "correct": true, "cc_usd": 0.22601079999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H3", "rep": 2, "correct": true, "cc_usd": 0.2267628, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N3", "rep": 2, "correct": true, "cc_usd": 0.486794, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N4", "rep": 2, "correct": true, "cc_usd": 0.3991706, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "H-N5", "rep": 2, "correct": true, "cc_usd": 0.417815, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O1", "rep": 2, "correct": true, "cc_usd": 0.2283268, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O2", "rep": 2, "correct": true, "cc_usd": 0.23036279999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O3", "rep": 2, "correct": true, "cc_usd": 0.2906138, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N2", "rep": 2, "correct": true, "cc_usd": 0.1549982, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N3", "rep": 2, "correct": true, "cc_usd": 0.5079932, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "O-N4", "rep": 2, "correct": true, "cc_usd": 0.2705528, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P1", "rep": 2, "correct": true, "cc_usd": 0.2266868, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P2", "rep": 2, "correct": true, "cc_usd": 0.22636679999999998, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P3", "rep": 2, "correct": false, "cc_usd": 0.678479, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N1", "rep": 2, "correct": true, "cc_usd": 0.4924938, "source": "baseline-log-seed"}
+{"harness": "cc", "intent": "P-N2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "exit", "n_tools": 2, "secs": 15.8, "cc_usd": 0.328879, "session_id": "8c22a69c-6ba2-46e6-aa4d-49c7e252ccd2", "source": null}
+{"harness": "pi", "intent": "R-N3", "rep": 1, "correct": true, "activated": [], "stop": "exit", "n_tools": 1, "secs": 7.0, "cc_usd": 0.0, "session_id": "21c0352d-d6ad-4f94-ba01-0ca47b1e468a", "source": null}
+{"harness": "cc", "intent": "P-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 11.8, "cc_usd": 0.2709488, "session_id": "70dccc96-f0e5-4933-9a3f-eced42053e97", "source": null}
+{"harness": "pi", "intent": "S1", "rep": 1, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 7.2, "cc_usd": 0.0, "session_id": "bdc4b4c6-35e0-40e9-a09d-ae5abb03f9be", "source": null}
+{"harness": "cc", "intent": "R1", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.22736279999999998, "session_id": "f401d0b0-aca9-4376-89bc-7aca5b42fdf1", "source": null}
+{"harness": "pi", "intent": "S2", "rep": 1, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 7.2, "cc_usd": 0.0, "session_id": "7f3114cd-6aca-4005-b31d-d852b9da865e", "source": null}
+{"harness": "cc", "intent": "R2", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 4.5, "cc_usd": 0.22706279999999998, "session_id": "aaf63865-f050-4ec1-8d16-43caac655850", "source": null}
+{"harness": "pi", "intent": "S3", "rep": 1, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 6.4, "cc_usd": 0.0, "session_id": "9b8e7e30-51f5-4436-8a56-421e9e15423f", "source": null}
+{"harness": "cc", "intent": "R3", "rep": 2, "correct": false, "activated": [], "stop": "exit", "n_tools": 4, "secs": 35.8, "cc_usd": 0.4165948, "session_id": "79ad4500-52b3-4443-ae0c-374e7632b0eb", "source": null}
+{"harness": "pi", "intent": "S-N2", "rep": 1, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 7, "secs": 29.2, "cc_usd": 0.0, "session_id": "aba28195-9bcc-459b-a92b-7a3da26cd3b7", "source": null}
+{"harness": "cc", "intent": "R-N1", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "exit", "n_tools": 4, "secs": 28.1, "cc_usd": 0.7289454000000001, "session_id": "6846649e-e6cc-410c-8bfc-48b2e232e521", "source": null}
+{"harness": "pi", "intent": "S-N3", "rep": 1, "correct": true, "activated": ["yf-optimal-instructions", "yf-skill-authoring"], "stop": "max_tools", "n_tools": 7, "secs": 18.7, "cc_usd": 0.0, "session_id": "c77a6b90-57e1-4794-9d3e-004f3da33195", "source": "+rescored-first-route"}
+{"harness": "cc", "intent": "R-N2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "exit", "n_tools": 3, "secs": 22.8, "cc_usd": 0.353495, "session_id": "d7feeaaa-062b-48b3-ad43-8d39ce122c2d", "source": null}
+{"harness": "pi", "intent": "S-N4", "rep": 1, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 14.9, "cc_usd": 0.0, "session_id": "90b0c87a-8d91-4079-97e4-6cf682ffbfc3", "source": null}
+{"harness": "cc", "intent": "R-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 1, "secs": 6.6, "cc_usd": 0.253479, "session_id": "8915c17c-f408-474a-aeef-096b86e3bf39", "source": null}
+{"harness": "pi", "intent": "BA1", "rep": 2, "correct": true, "activated": ["yf-beads-authoring"], "stop": "target", "n_tools": 2, "secs": 5.7, "cc_usd": 0.0, "session_id": "cecca9cf-1908-4715-938a-bd159b5842b9", "source": null}
+{"harness": "cc", "intent": "S1", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 1, "secs": 5.9, "cc_usd": 0.22952679999999998, "session_id": "531ca242-414f-4f9c-bf8f-d9d5989ec34a", "source": null}
+{"harness": "pi", "intent": "BA2", "rep": 2, "correct": true, "activated": ["yf-beads-authoring"], "stop": "target", "n_tools": 1, "secs": 5.2, "cc_usd": 0.0, "session_id": "beb065b3-6758-431d-a5e0-082b8e246de0", "source": null}
+{"harness": "cc", "intent": "S2", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.2298308, "session_id": "89c89076-5a55-421b-80ec-3a72497b7daf", "source": null}
+{"harness": "pi", "intent": "BA3", "rep": 2, "correct": true, "activated": ["yf-beads-authoring"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.0, "session_id": "dfcd2181-aca1-47f4-b208-78a7bd4c7044", "source": null}
+{"harness": "cc", "intent": "S3", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.2283508, "session_id": "3fbcb05f-f30d-4a04-91cd-291c89bf23fa", "source": null}
+{"harness": "pi", "intent": "BA-N1", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 21.8, "cc_usd": 0.0, "session_id": "e3d0bef1-229c-4123-a2cb-e68d13f829ed", "source": null}
+{"harness": "cc", "intent": "S-N2", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 21.0, "cc_usd": 0.40863059999999995, "session_id": "5d134f17-7cb7-4d7c-8760-606de5bcb58f", "source": null}
+{"harness": "pi", "intent": "BA-N2", "rep": 2, "correct": true, "activated": ["yf-beads-extra"], "stop": "exit", "n_tools": 3, "secs": 33.6, "cc_usd": 0.0, "session_id": "ebb8678e-0251-4f12-a1f6-cb182ccb9c36", "source": null}
+{"harness": "pi", "intent": "BA-N3", "rep": 2, "correct": true, "activated": ["yf-beads-upstream"], "stop": "exit", "n_tools": 4, "secs": 23.6, "cc_usd": 0.0, "session_id": "9560abd3-81fd-43bd-b0a8-be375bfbd456", "source": null}
+{"harness": "cc", "intent": "S-N3", "rep": 2, "correct": true, "activated": ["yf-optimal-instructions", "yf-skill-authoring", "yf-markdown-lint"], "stop": "max_tools", "n_tools": 6, "secs": 48.1, "cc_usd": 0.476146, "session_id": "98b18df4-7017-4805-a84e-a17231feefc3", "source": "+rescored-first-route"}
+{"harness": "pi", "intent": "BE1", "rep": 2, "correct": true, "activated": ["yf-beads-extra"], "stop": "target", "n_tools": 1, "secs": 4.8, "cc_usd": 0.0, "session_id": "7fb57692-26b8-411e-a6e3-85ed7a01bf12", "source": null}
+{"harness": "cc", "intent": "S-N4", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 4, "secs": 23.2, "cc_usd": 0.3360632, "session_id": "bfc492b5-9672-4c96-b7b6-22fae3b09de3", "source": null}
+{"harness": "pi", "intent": "BE2", "rep": 2, "correct": true, "activated": ["yf-beads-extra"], "stop": "target", "n_tools": 1, "secs": 4.9, "cc_usd": 0.0, "session_id": "cf856885-db50-474e-9795-b10ab39e29e6", "source": null}
+{"harness": "pi", "intent": "BE3", "rep": 2, "correct": true, "activated": ["yf-beads-extra"], "stop": "target", "n_tools": 1, "secs": 4.6, "cc_usd": 0.0, "session_id": "50655c14-0627-41f8-9116-adcfd0841333", "source": null}
+{"harness": "pi", "intent": "BE-N1", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 5, "secs": 40.3, "cc_usd": 0.0, "session_id": "297e9c71-b102-4a8e-b936-9b972370f9be", "source": null}
+{"harness": "pi", "intent": "BE-N2", "rep": 2, "correct": true, "activated": ["yf-beads-authoring"], "stop": "exit", "n_tools": 5, "secs": 56.7, "cc_usd": 0.0, "session_id": "88613401-24be-4cf9-be03-f4c8842a113e", "source": null}
+{"harness": "pi", "intent": "BE-N3", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene"], "stop": "exit", "n_tools": 3, "secs": 17.4, "cc_usd": 0.0, "session_id": "8d5b0186-1757-4da4-9b3b-c75083c730a9", "source": null}
+{"harness": "pi", "intent": "BH1", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene"], "stop": "target", "n_tools": 1, "secs": 4.2, "cc_usd": 0.0, "session_id": "16d28f47-66b3-42ba-9c0b-eb97335fde5c", "source": null}
+{"harness": "pi", "intent": "BH2", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene"], "stop": "target", "n_tools": 1, "secs": 5.3, "cc_usd": 0.0, "session_id": "e1bfb9bf-3ea7-4c20-919b-fd63197c4fc6", "source": null}
+{"harness": "pi", "intent": "BH3", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene"], "stop": "target", "n_tools": 1, "secs": 4.6, "cc_usd": 0.0, "session_id": "d5735fd8-a45f-4bb0-b06d-8e2372bb00c1", "source": null}
+{"harness": "pi", "intent": "BH-N1", "rep": 2, "correct": true, "activated": ["yf-beads-init"], "stop": "exit", "n_tools": 4, "secs": 25.1, "cc_usd": 0.0, "session_id": "3704a769-b8ac-4523-8dbe-beabfca3a410", "source": null}
+{"harness": "pi", "intent": "BH-N2", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 20.2, "cc_usd": 0.0, "session_id": "9f0a0af4-256c-4f5f-a59b-ef4bf2ce8665", "source": null}
+{"harness": "pi", "intent": "BH-N3", "rep": 2, "correct": true, "activated": ["yf-okf-hygiene"], "stop": "max_tools", "n_tools": 6, "secs": 23.2, "cc_usd": 0.0, "session_id": "bcb4df3a-3ac5-406f-b198-931c434ebf6f", "source": null}
+{"harness": "pi", "intent": "BI1", "rep": 2, "correct": true, "activated": ["yf-beads-init"], "stop": "target", "n_tools": 1, "secs": 4.5, "cc_usd": 0.0, "session_id": "8e4965de-badc-4168-830f-791d35b39157", "source": null}
+{"harness": "pi", "intent": "BI2", "rep": 2, "correct": true, "activated": ["yf-beads-init"], "stop": "target", "n_tools": 1, "secs": 4.1, "cc_usd": 0.0, "session_id": "04ab4fe2-9a55-4027-889f-efdc93e78b1f", "source": null}
+{"harness": "pi", "intent": "BI3", "rep": 2, "correct": true, "activated": ["yf-beads-init"], "stop": "target", "n_tools": 1, "secs": 4.6, "cc_usd": 0.0, "session_id": "0191a053-c16c-4998-a2cf-3101f49dc1bc", "source": null}
+{"harness": "pi", "intent": "BI-N1", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene"], "stop": "exit", "n_tools": 3, "secs": 17.9, "cc_usd": 0.0, "session_id": "9987b0d0-d23d-45fb-b59f-dcc5b448b9e8", "source": null}
+{"harness": "pi", "intent": "BI-N2", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 26.7, "cc_usd": 0.0, "session_id": "5dd7cb5c-fb53-4e55-b9e3-0674294f0ed2", "source": null}
+{"harness": "pi", "intent": "BI-N3", "rep": 2, "correct": true, "activated": ["yf-beads-upstream"], "stop": "exit", "n_tools": 3, "secs": 20.7, "cc_usd": 0.0, "session_id": "f644366e-cc77-4a61-8344-f7a4b2df6416", "source": null}
+{"harness": "pi", "intent": "BU1", "rep": 2, "correct": true, "activated": ["yf-beads-upstream"], "stop": "target", "n_tools": 1, "secs": 4.1, "cc_usd": 0.0, "session_id": "aef3d5a9-502e-491a-872f-11c450bfa9a4", "source": null}
+{"harness": "pi", "intent": "BU2", "rep": 2, "correct": true, "activated": ["yf-beads-upstream"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.0, "session_id": "39bee416-1475-4f10-91f4-a3cbca2ed29a", "source": null}
+{"harness": "pi", "intent": "BU3", "rep": 2, "correct": true, "activated": ["yf-beads-upstream"], "stop": "target", "n_tools": 1, "secs": 5.6, "cc_usd": 0.0, "session_id": "64c1708f-0f33-4ca2-827d-550068437fe6", "source": null}
+{"harness": "pi", "intent": "BU-N1", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 17.1, "cc_usd": 0.0, "session_id": "8ae56ea9-4d8b-419b-8cd4-5445f06e9a63", "source": null}
+{"harness": "pi", "intent": "BU-N2", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 16.1, "cc_usd": 0.0, "session_id": "0d51677c-eb11-4dd2-8e65-a27a5769b1e3", "source": null}
+{"harness": "pi", "intent": "BU-N3", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene"], "stop": "exit", "n_tools": 4, "secs": 20.2, "cc_usd": 0.0, "session_id": "c355a97a-df97-49c7-b336-9b83c6e8664a", "source": null}
+{"harness": "pi", "intent": "V1", "rep": 2, "correct": true, "activated": ["yf-change-validation"], "stop": "target", "n_tools": 2, "secs": 7.8, "cc_usd": 0.0, "session_id": "5c635c00-f782-4daf-8bcf-2bd2bc87fa79", "source": null}
+{"harness": "pi", "intent": "V2", "rep": 2, "correct": true, "activated": ["yf-change-validation"], "stop": "target", "n_tools": 1, "secs": 4.6, "cc_usd": 0.0, "session_id": "a4ac9977-36d0-421e-9e9b-886df5e726e9", "source": null}
+{"harness": "pi", "intent": "V3", "rep": 2, "correct": true, "activated": ["yf-change-validation"], "stop": "target", "n_tools": 2, "secs": 5.8, "cc_usd": 0.0, "session_id": "e011d873-2e74-4c8a-ae5b-aaed8c964fc6", "source": null}
+{"harness": "pi", "intent": "V-N1", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 44.4, "cc_usd": 0.0, "session_id": "5e8f8e9e-6f8a-4ef3-9990-cb01dda2536d", "source": null}
+{"harness": "pi", "intent": "V-N2", "rep": 2, "correct": true, "activated": ["yf-drift-check"], "stop": "max_tools", "n_tools": 9, "secs": 42.3, "cc_usd": 0.0, "session_id": "f78e7061-a997-485b-a7de-c7f7a7a52676", "source": null}
+{"harness": "pi", "intent": "V-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 0, "secs": 5.2, "cc_usd": 0.0, "session_id": "f4e152b2-addf-47f0-b167-c1556287ad6f", "source": null}
+{"harness": "pi", "intent": "DA1", "rep": 2, "correct": true, "activated": ["yf-diagram-authoring"], "stop": "target", "n_tools": 1, "secs": 4.7, "cc_usd": 0.0, "session_id": "b9018adb-1704-4cf3-b062-69f8d1895645", "source": null}
+{"harness": "pi", "intent": "DA2", "rep": 2, "correct": true, "activated": ["yf-diagram-authoring"], "stop": "target", "n_tools": 2, "secs": 4.8, "cc_usd": 0.0, "session_id": "3ac51c29-d966-409e-b739-c6c8689462a5", "source": null}
+{"harness": "pi", "intent": "DA3", "rep": 2, "correct": true, "activated": ["yf-diagram-authoring"], "stop": "target", "n_tools": 2, "secs": 5.6, "cc_usd": 0.0, "session_id": "c63e9f78-a326-4edb-9a06-3f68e4e79135", "source": null}
+{"harness": "pi", "intent": "DA-N1", "rep": 2, "correct": true, "activated": ["yf-markdown-pdf"], "stop": "max_tools", "n_tools": 6, "secs": 19.5, "cc_usd": 0.0, "session_id": "71251655-d5ee-4dec-a290-c9744ce72524", "source": null}
+{"harness": "pi", "intent": "DA-N2", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 14.8, "cc_usd": 0.0, "session_id": "147ec158-147a-43aa-b431-deb8171c8672", "source": null}
+{"harness": "pi", "intent": "DA-N3", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 22.6, "cc_usd": 0.0, "session_id": "27c7ba88-659a-4249-ac98-e189ea55e13d", "source": null}
+{"harness": "pi", "intent": "D1", "rep": 2, "correct": true, "activated": ["yf-drift-check"], "stop": "target", "n_tools": 1, "secs": 4.9, "cc_usd": 0.0, "session_id": "5db1b2e8-3792-46f0-9021-a21f0dc93aed", "source": null}
+{"harness": "pi", "intent": "D2", "rep": 2, "correct": true, "activated": ["yf-drift-check"], "stop": "target", "n_tools": 1, "secs": 4.5, "cc_usd": 0.0, "session_id": "39b80a1d-9726-4e68-9c2b-231e0d941436", "source": null}
+{"harness": "pi", "intent": "D3", "rep": 2, "correct": false, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 14.7, "cc_usd": 0.0, "session_id": "9048f76f-487d-457a-9ede-a5ee400e6539", "source": null}
+{"harness": "pi", "intent": "D-N1", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 45.3, "cc_usd": 0.0, "session_id": "c1267a5d-a7d6-4bda-9fc1-6f3f557fff88", "source": null}
+{"harness": "pi", "intent": "D-N2", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 22.7, "cc_usd": 0.0, "session_id": "57067c2c-3421-4ea3-8782-5756ff11249a", "source": null}
+{"harness": "pi", "intent": "D-N4", "rep": 2, "correct": true, "activated": ["yf-change-validation"], "stop": "exit", "n_tools": 4, "secs": 22.0, "cc_usd": 0.0, "session_id": "a770814b-db7f-4f49-b3ea-88761916b877", "source": null}
+{"harness": "pi", "intent": "HR1", "rep": 2, "correct": true, "activated": ["yf-herdr"], "stop": "target", "n_tools": 2, "secs": 6.3, "cc_usd": 0.0, "session_id": "45c6354e-434d-49d3-8f02-3d62a0118b4b", "source": null}
+{"harness": "pi", "intent": "HR2", "rep": 2, "correct": true, "activated": ["yf-herdr"], "stop": "target", "n_tools": 1, "secs": 5.6, "cc_usd": 0.0, "session_id": "e04b6bd5-4b79-4d0b-ae8d-501bc3ff3fc0", "source": null}
+{"harness": "pi", "intent": "HR3", "rep": 2, "correct": true, "activated": ["yf-herdr"], "stop": "target", "n_tools": 1, "secs": 4.9, "cc_usd": 0.0, "session_id": "949d0e33-d0f5-4acd-affc-c1e966044647", "source": null}
+{"harness": "pi", "intent": "HR-N1", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "exit", "n_tools": 3, "secs": 25.1, "cc_usd": 0.0, "session_id": "7e0cbfa4-a3a9-4965-b4cf-88c44b9d8915", "source": null}
+{"harness": "pi", "intent": "HR-N2", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 21.5, "cc_usd": 0.0, "session_id": "e741d29c-a5bc-4ced-8db4-7699ea5b406c", "source": null}
+{"harness": "pi", "intent": "HR-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 5, "secs": 61.3, "cc_usd": 0.0, "session_id": "4470e186-fc51-433f-9deb-bd80f7d9e4c1", "source": null}
+{"harness": "pi", "intent": "IN1", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "target", "n_tools": 1, "secs": 6.9, "cc_usd": 0.0, "session_id": "92c55183-b75b-458b-8798-40635f8638cc", "source": null}
+{"harness": "pi", "intent": "IN2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "target", "n_tools": 1, "secs": 5.8, "cc_usd": 0.0, "session_id": "8a394f3c-37dc-4251-9473-6f859917ab3c", "source": null}
+{"harness": "pi", "intent": "IN3", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "target", "n_tools": 1, "secs": 5.3, "cc_usd": 0.0, "session_id": "0e2316d8-b736-43ff-9a94-40cee3ee7c19", "source": null}
+{"harness": "pi", "intent": "IN-N1", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "exit", "n_tools": 4, "secs": 33.4, "cc_usd": 0.0, "session_id": "d19c3af4-03f3-4d0e-93cc-68bf8cff6320", "source": null}
+{"harness": "pi", "intent": "IN-N2", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 4, "secs": 24.7, "cc_usd": 0.0, "session_id": "19f61040-99ba-446b-ad26-c528e535a150", "source": null}
+{"harness": "pi", "intent": "IN-N3", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "max_tools", "n_tools": 7, "secs": 28.9, "cc_usd": 0.0, "session_id": "4848214b-122c-49f1-866d-cd3c4898c714", "source": null}
+{"harness": "pi", "intent": "MF1", "rep": 2, "correct": true, "activated": ["yf-markdown-format"], "stop": "target", "n_tools": 1, "secs": 5.5, "cc_usd": 0.0, "session_id": "540b4afc-ad51-4d87-ba5b-ffbc5572978d", "source": null}
+{"harness": "pi", "intent": "MF2", "rep": 2, "correct": true, "activated": ["yf-markdown-format"], "stop": "target", "n_tools": 2, "secs": 6.3, "cc_usd": 0.0, "session_id": "05da733c-66e9-4ebe-8c30-05bc256ada2f", "source": null}
+{"harness": "pi", "intent": "MF3", "rep": 2, "correct": true, "activated": ["yf-markdown-format"], "stop": "target", "n_tools": 2, "secs": 6.1, "cc_usd": 0.0, "session_id": "66e09c22-87b1-4839-b1fe-714c16f00b96", "source": null}
+{"harness": "pi", "intent": "MF-N1", "rep": 2, "correct": true, "activated": ["yf-markdown-lint"], "stop": "exit", "n_tools": 2, "secs": 13.6, "cc_usd": 0.0, "session_id": "9976bb76-ce56-4b83-b9ed-366d968b7691", "source": null}
+{"harness": "pi", "intent": "MF-N2", "rep": 2, "correct": true, "activated": ["yf-markdown-html"], "stop": "exit", "n_tools": 3, "secs": 16.6, "cc_usd": 0.0, "session_id": "d7e0c954-c635-4cf2-a828-bd7ac852d52a", "source": null}
+{"harness": "pi", "intent": "MF-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 14.1, "cc_usd": 0.0, "session_id": "a7878006-e1d6-4a7d-97d3-0aadf20a06ff", "source": null}
+{"harness": "pi", "intent": "MH1", "rep": 2, "correct": true, "activated": ["yf-markdown-html"], "stop": "target", "n_tools": 1, "secs": 4.9, "cc_usd": 0.0, "session_id": "54cf77f5-f246-4fc9-ad05-c95d69835fb1", "source": null}
+{"harness": "pi", "intent": "MH2", "rep": 2, "correct": true, "activated": ["yf-markdown-html"], "stop": "target", "n_tools": 2, "secs": 6.2, "cc_usd": 0.0, "session_id": "3afb86d9-31ed-43e0-b7c4-6d92336bc6cc", "source": null}
+{"harness": "pi", "intent": "MH3", "rep": 2, "correct": true, "activated": ["yf-markdown-html"], "stop": "target", "n_tools": 1, "secs": 5.7, "cc_usd": 0.0, "session_id": "b7142734-9251-405f-a956-64f58377a418", "source": null}
+{"harness": "pi", "intent": "MH-N1", "rep": 2, "correct": true, "activated": ["yf-markdown-pdf"], "stop": "exit", "n_tools": 2, "secs": 18.8, "cc_usd": 0.0, "session_id": "f28c1432-e3a2-41e4-865b-d43783254aba", "source": null}
+{"harness": "pi", "intent": "MH-N2", "rep": 2, "correct": true, "activated": ["yf-markdown-lint"], "stop": "exit", "n_tools": 5, "secs": 22.5, "cc_usd": 0.0, "session_id": "bf58a6f4-1248-4f06-a5e7-296eb196b4b2", "source": null}
+{"harness": "pi", "intent": "MH-N3", "rep": 2, "correct": true, "activated": ["yf-markdown-format"], "stop": "exit", "n_tools": 3, "secs": 16.7, "cc_usd": 0.0, "session_id": "30037958-95aa-48a7-a562-25b66adae417", "source": null}
+{"harness": "pi", "intent": "ML1", "rep": 2, "correct": true, "activated": ["yf-markdown-lint"], "stop": "target", "n_tools": 1, "secs": 7.3, "cc_usd": 0.0, "session_id": "756b18a8-af77-4db1-bd64-0737718b14e1", "source": null}
+{"harness": "pi", "intent": "ML2", "rep": 2, "correct": true, "activated": ["yf-markdown-lint"], "stop": "target", "n_tools": 1, "secs": 5.6, "cc_usd": 0.0, "session_id": "f591f69f-e871-4478-8cc6-d8efc4adda74", "source": null}
+{"harness": "pi", "intent": "ML3", "rep": 2, "correct": false, "activated": [], "stop": "exit", "n_tools": 1, "secs": 10.6, "cc_usd": 0.0, "session_id": "58ea3276-d745-4d9a-870f-227a6bda3dea", "source": null}
+{"harness": "pi", "intent": "ML-N1", "rep": 2, "correct": true, "activated": ["yf-markdown-format"], "stop": "exit", "n_tools": 3, "secs": 16.2, "cc_usd": 0.0, "session_id": "859420a4-cdae-43aa-9f3f-4808db3622a9", "source": null}
+{"harness": "pi", "intent": "ML-N2", "rep": 2, "correct": true, "activated": ["yf-markdown-pdf"], "stop": "exit", "n_tools": 2, "secs": 17.4, "cc_usd": 0.0, "session_id": "6f8cff02-f12d-4d0d-b0aa-2953e6818261", "source": null}
+{"harness": "pi", "intent": "ML-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 27.4, "cc_usd": 0.0, "session_id": "6a58c958-15be-4a52-9700-0cb29f54597f", "source": null}
+{"harness": "pi", "intent": "MP1", "rep": 2, "correct": true, "activated": ["yf-markdown-pdf"], "stop": "target", "n_tools": 1, "secs": 5.2, "cc_usd": 0.0, "session_id": "1ab0192b-fbf3-42e0-b7e9-3d8899d3a64e", "source": null}
+{"harness": "pi", "intent": "MP2", "rep": 2, "correct": true, "activated": ["yf-markdown-pdf"], "stop": "target", "n_tools": 2, "secs": 6.6, "cc_usd": 0.0, "session_id": "ed8b7cec-eb6a-484b-817e-26a08a104f22", "source": null}
+{"harness": "pi", "intent": "MP3", "rep": 2, "correct": true, "activated": ["yf-markdown-pdf"], "stop": "target", "n_tools": 1, "secs": 5.4, "cc_usd": 0.0, "session_id": "f8ca4554-e97a-49c3-b55d-4e4fefc11e5e", "source": null}
+{"harness": "pi", "intent": "MP-N1", "rep": 2, "correct": true, "activated": ["yf-markdown-html"], "stop": "exit", "n_tools": 2, "secs": 13.7, "cc_usd": 0.0, "session_id": "2642ba6f-d393-4d29-9405-b54361beceea", "source": null}
+{"harness": "pi", "intent": "MP-N2", "rep": 2, "correct": true, "activated": ["yf-markdown-lint"], "stop": "exit", "n_tools": 2, "secs": 14.3, "cc_usd": 0.0, "session_id": "1ccc92e5-a525-4910-b443-78b2dd2f717f", "source": null}
+{"harness": "pi", "intent": "MP-N3", "rep": 2, "correct": true, "activated": ["yf-diagram-authoring"], "stop": "exit", "n_tools": 4, "secs": 22.4, "cc_usd": 0.0, "session_id": "ce41b851-2f27-4ce8-827e-1b55a89fc58b", "source": null}
+{"harness": "pi", "intent": "K1", "rep": 2, "correct": true, "activated": ["yf-okf"], "stop": "target", "n_tools": 2, "secs": 6.3, "cc_usd": 0.0, "session_id": "6c2e01f8-437f-4c52-b8ea-26bbda4f0e45", "source": null}
+{"harness": "pi", "intent": "K2", "rep": 2, "correct": true, "activated": ["yf-okf"], "stop": "target", "n_tools": 2, "secs": 6.6, "cc_usd": 0.0, "session_id": "7950ff45-fcbc-4ca5-97dc-6f59303e3878", "source": null}
+{"harness": "pi", "intent": "K3", "rep": 2, "correct": true, "activated": ["yf-okf"], "stop": "target", "n_tools": 2, "secs": 6.4, "cc_usd": 0.0, "session_id": "6de61190-622c-4726-a505-3d0ca4d1caaf", "source": null}
+{"harness": "pi", "intent": "K-N3", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 7, "secs": 50.9, "cc_usd": 0.0, "session_id": "ef300862-6804-42ed-b358-437d2542704e", "source": null}
+{"harness": "pi", "intent": "K-N4", "rep": 2, "correct": true, "activated": ["yf-okf-hygiene"], "stop": "exit", "n_tools": 4, "secs": 20.3, "cc_usd": 0.0, "session_id": "a9293cf1-941a-44f7-8917-6ddf32695572", "source": null}
+{"harness": "pi", "intent": "K-N5", "rep": 2, "correct": true, "activated": ["yf-drift-check"], "stop": "max_tools", "n_tools": 6, "secs": 30.6, "cc_usd": 0.0, "session_id": "5eb1e0b5-974f-425d-bbcc-ef135e4a78d8", "source": null}
+{"harness": "pi", "intent": "H1", "rep": 2, "correct": true, "activated": ["yf-okf-hygiene"], "stop": "target", "n_tools": 1, "secs": 6.8, "cc_usd": 0.0, "session_id": "c8c1daed-2d6a-4ac8-9111-8e17ddf45475", "source": null}
+{"harness": "pi", "intent": "H2", "rep": 2, "correct": true, "activated": ["yf-okf-hygiene"], "stop": "target", "n_tools": 1, "secs": 5.8, "cc_usd": 0.0, "session_id": "20855543-73ef-44cf-8b9e-628de13cae1c", "source": null}
+{"harness": "pi", "intent": "H3", "rep": 2, "correct": true, "activated": ["yf-okf-hygiene"], "stop": "target", "n_tools": 1, "secs": 6.9, "cc_usd": 0.0, "session_id": "709e15cd-2343-4bf6-86b1-894fe5f58b92", "source": null}
+{"harness": "pi", "intent": "H-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 5, "secs": 55.3, "cc_usd": 0.0, "session_id": "7bf3770b-7ece-4c5f-8f52-cad5a3012815", "source": null}
+{"harness": "pi", "intent": "H-N4", "rep": 2, "correct": true, "activated": ["yf-okf", "yf-plan"], "stop": "max_tools", "n_tools": 6, "secs": 23.2, "cc_usd": 0.0, "session_id": "3a8719a1-153a-4a42-ab7b-2fe7ed3da2b5", "source": null}
+{"harness": "pi", "intent": "H-N5", "rep": 2, "correct": true, "activated": ["yf-beads-hygiene", "yf-beads-init"], "stop": "exit", "n_tools": 5, "secs": 25.7, "cc_usd": 0.0, "session_id": "b5f60366-3ac5-4ea6-86a3-6c90b3d299a7", "source": null}
+{"harness": "pi", "intent": "O1", "rep": 2, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "target", "n_tools": 2, "secs": 7.2, "cc_usd": 0.0, "session_id": "c9fe7665-2676-4c29-bfe9-9a855b59aa00", "source": null}
+{"harness": "pi", "intent": "O2", "rep": 2, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "target", "n_tools": 2, "secs": 7.3, "cc_usd": 0.0, "session_id": "07ff97f4-87ca-443e-a15c-7d268301fc89", "source": null}
+{"harness": "pi", "intent": "O3", "rep": 2, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "target", "n_tools": 3, "secs": 13.5, "cc_usd": 0.0, "session_id": "ddc0a2b8-6644-4339-9b7d-fcb883a15930", "source": null}
+{"harness": "pi", "intent": "O-N2", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 6, "secs": 40.3, "cc_usd": 0.0, "session_id": "394dabc9-167e-4e02-8e14-cab8f60b1ab1", "source": null}
+{"harness": "pi", "intent": "O-N3", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "max_tools", "n_tools": 6, "secs": 23.6, "cc_usd": 0.0, "session_id": "42f2f00c-084e-474f-9704-e05b8f23a1ea", "source": null}
+{"harness": "pi", "intent": "O-N4", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 4, "secs": 20.7, "cc_usd": 0.0, "session_id": "0236e0c0-f483-438f-b0fd-fbb5bf15836d", "source": null}
+{"harness": "pi", "intent": "P1", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "target", "n_tools": 1, "secs": 6.3, "cc_usd": 0.0, "session_id": "9813f16c-b04a-41ba-ab79-53c1bdcf1eba", "source": null}
+{"harness": "pi", "intent": "P2", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "target", "n_tools": 1, "secs": 5.7, "cc_usd": 0.0, "session_id": "9bf5314a-62c1-4b5a-84cd-9c3012a72067", "source": null}
+{"harness": "pi", "intent": "P3", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "target", "n_tools": 1, "secs": 5.9, "cc_usd": 0.0, "session_id": "3d79dcd7-26ad-4d87-9241-40ab8f256da3", "source": null}
+{"harness": "pi", "intent": "P-N1", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "exit", "n_tools": 3, "secs": 27.6, "cc_usd": 0.0, "session_id": "ed295f41-4b81-42db-bcb5-c0c36014434b", "source": null}
+{"harness": "pi", "intent": "P-N2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "exit", "n_tools": 2, "secs": 16.3, "cc_usd": 0.0, "session_id": "e3bf7407-7152-4cbb-8b0f-8c1004941fd2", "source": null}
+{"harness": "pi", "intent": "P-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 3, "secs": 19.4, "cc_usd": 0.0, "session_id": "99e676b0-5262-4adf-9c0f-1bd67014d117", "source": null}
+{"harness": "pi", "intent": "R1", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 6.1, "cc_usd": 0.0, "session_id": "8c73df63-4545-46dc-88d3-7a4bb0fed8be", "source": null}
+{"harness": "pi", "intent": "R2", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 5.7, "cc_usd": 0.0, "session_id": "13db0280-6268-42ed-860a-ccdbc176b286", "source": null}
+{"harness": "pi", "intent": "R3", "rep": 2, "correct": true, "activated": ["yf-research"], "stop": "target", "n_tools": 1, "secs": 6.2, "cc_usd": 0.0, "session_id": "a01304bf-3cd8-4a0b-bedc-7063288d0472", "source": null}
+{"harness": "pi", "intent": "R-N1", "rep": 2, "correct": true, "activated": ["yf-plan"], "stop": "exit", "n_tools": 5, "secs": 40.3, "cc_usd": 0.0, "session_id": "87c82e3b-9b1d-408f-b802-801914c5a529", "source": null}
+{"harness": "pi", "intent": "R-N2", "rep": 2, "correct": true, "activated": ["yf-incubator"], "stop": "exit", "n_tools": 2, "secs": 19.8, "cc_usd": 0.0, "session_id": "e4a24c72-6170-4c86-9c8d-a08f8bf653bb", "source": null}
+{"harness": "pi", "intent": "R-N3", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 1, "secs": 7.5, "cc_usd": 0.0, "session_id": "12d275de-3277-4686-b238-f5265900dc20", "source": null}
+{"harness": "pi", "intent": "S1", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 6.6, "cc_usd": 0.0, "session_id": "a31a9f84-0012-49c8-ae25-b4a5e2a7d052", "source": null}
+{"harness": "pi", "intent": "S2", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 8.2, "cc_usd": 0.0, "session_id": "c2e73348-c56e-4646-bc0f-ed0de8c61e66", "source": null}
+{"harness": "pi", "intent": "S3", "rep": 2, "correct": true, "activated": ["yf-skill-authoring"], "stop": "target", "n_tools": 2, "secs": 5.8, "cc_usd": 0.0, "session_id": "1d9c0e3e-3b5c-4f25-9981-44a36989f812", "source": null}
+{"harness": "pi", "intent": "S-N2", "rep": 2, "correct": true, "activated": [], "stop": "max_tools", "n_tools": 7, "secs": 24.8, "cc_usd": 0.0, "session_id": "b16608bf-8583-4a7f-af03-4ccbb474a417", "source": null}
+{"harness": "pi", "intent": "S-N3", "rep": 2, "correct": true, "activated": ["yf-optimal-instructions"], "stop": "max_tools", "n_tools": 6, "secs": 27.8, "cc_usd": 0.0, "session_id": "c2e68c52-e865-4203-9cb9-33bc6fa54ee2", "source": null}
+{"harness": "pi", "intent": "S-N4", "rep": 2, "correct": true, "activated": [], "stop": "exit", "n_tools": 2, "secs": 16.7, "cc_usd": 0.0, "session_id": "a31bd687-a61d-4e53-9d70-a24c07aeebcf", "source": null}

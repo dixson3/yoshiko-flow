@@ -1,0 +1,116 @@
+{
+ "skill": "yf-markdown-lint",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "ML1",
+   "kind": "trigger",
+   "prompt": "Check that README.md is valid GFM with no broken links.",
+   "skill": "yf-markdown-lint"
+  },
+  {
+   "id": "ML2",
+   "kind": "trigger",
+   "prompt": "Lint the markdown files under docs/research/001-okf-compliance-delta/.",
+   "skill": "yf-markdown-lint"
+  },
+  {
+   "id": "ML3",
+   "kind": "trigger",
+   "prompt": "Are there any Obsidian wiki-links left in SPEC.md?",
+   "skill": "yf-markdown-lint"
+  },
+  {
+   "id": "ML-N1",
+   "kind": "near-miss",
+   "prompt": "Export SPEC.md to a self-contained HTML file.",
+   "siblings": [
+    "yf-markdown-lint"
+   ]
+  },
+  {
+   "id": "ML-N2",
+   "kind": "near-miss",
+   "prompt": "Export README.md to PDF.",
+   "siblings": [
+    "yf-markdown-lint"
+   ]
+  },
+  {
+   "id": "ML-N3",
+   "kind": "near-miss",
+   "prompt": "Lint the Rust code under yf/src.",
+   "siblings": [
+    "yf-markdown-lint"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "cd0ccf2d1aa4a8f06eea5592748f233f4ff4e53c247cf0eeb1a91f5d6d2209f2",
+  "description_chars": 549,
+  "cells": {
+   "ML1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "ML-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

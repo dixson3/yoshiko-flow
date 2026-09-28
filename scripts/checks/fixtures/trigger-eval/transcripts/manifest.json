@@ -1,0 +1,78 @@
+[
+ {
+  "run": "cc-D1-manual",
+  "recorded_cost_usd": 0.6731752000000001,
+  "subagents": 1
+ },
+ {
+  "run": "cc-K3-1790285413",
+  "recorded_cost_usd": 0.4116454,
+  "subagents": 0
+ },
+ {
+  "run": "cc-K3-1790285830",
+  "recorded_cost_usd": 0.1566628,
+  "subagents": 0
+ },
+ {
+  "run": "cc-K3-1790286340",
+  "recorded_cost_usd": 0.1546652,
+  "subagents": 0
+ },
+ {
+  "run": "cc-O1-1790285215",
+  "recorded_cost_usd": 0.2894704,
+  "subagents": 0
+ },
+ {
+  "run": "cc-O2-1790285230",
+  "recorded_cost_usd": 0.32133019999999995,
+  "subagents": 0
+ },
+ {
+  "run": "cc-O2-1790285649",
+  "recorded_cost_usd": 0.0971856,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V1-1790284984",
+  "recorded_cost_usd": 0.3260318,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V1-1790285534",
+  "recorded_cost_usd": 0.1450648,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V1-1790285953",
+  "recorded_cost_usd": 0.1424774,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V2-1790285005",
+  "recorded_cost_usd": 0.3809214,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V3-1790285140",
+  "recorded_cost_usd": 0.3102122,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V3-1790285566",
+  "recorded_cost_usd": 0.0519268,
+  "subagents": 0
+ },
+ {
+  "run": "cc-V3-1790286081",
+  "recorded_cost_usd": 0.07377600000000001,
+  "subagents": 0
+ },
+ {
+  "run": "killed",
+  "source": "cc-D1-1790284952.jsonl",
+  "raw_lines": 5,
+  "unique_ids": 2
+ }
+]

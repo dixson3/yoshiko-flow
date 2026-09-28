@@ -135,6 +135,8 @@ None. This is a tool/reference skill with no phases or state transitions.
 
 ```text
 skills/yf-markdown-pdf/
+├── evals/                         # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── blocks.lua                 # render-time filter: d2 fences -> PDF, csv -> table
 │   ├── caption_from_title.lua

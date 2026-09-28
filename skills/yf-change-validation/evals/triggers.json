@@ -1,0 +1,119 @@
+{
+ "skill": "yf-change-validation",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "V1",
+   "kind": "trigger",
+   "prompt": "I tweaked scripts/check_frontmatter.py. Run whatever validation this repo requires for that change and tell me whether it passes.",
+   "fixture": "printf '\\n# touched\\n' >> scripts/check_frontmatter.py",
+   "skill": "yf-change-validation"
+  },
+  {
+   "id": "V2",
+   "kind": "trigger",
+   "prompt": "I'm about to push to main. Run the full validation tier first.",
+   "skill": "yf-change-validation"
+  },
+  {
+   "id": "V3",
+   "kind": "trigger",
+   "prompt": "does my change under yf/src still build and pass tests?",
+   "fixture": "f=$(git ls-files 'yf/src/*.rs' | head -1); printf '\\n// touched\\n' >> \"$f\"",
+   "skill": "yf-change-validation"
+  },
+  {
+   "id": "V-N1",
+   "kind": "near-miss",
+   "prompt": "There's a failing test somewhere in tests/. Find it and fix it.",
+   "siblings": [
+    "yf-change-validation",
+    "yf-drift-check"
+   ]
+  },
+  {
+   "id": "V-N2",
+   "kind": "near-miss",
+   "prompt": "Is DRIFT-CHECK.md still in agreement with the files it covers?",
+   "siblings": [
+    "yf-change-validation"
+   ]
+  },
+  {
+   "id": "V-N3",
+   "kind": "near-miss",
+   "prompt": "Explain in two sentences what a FAST tier is versus a FULL tier in general CI practice. Don't run anything.",
+   "siblings": [
+    "yf-change-validation"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "ba7fcc16f6cfe899ab678571e9ff48eecd9d5864221d1ac9b8685213d5063346",
+  "description_chars": 532,
+  "cells": {
+   "V1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "V-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

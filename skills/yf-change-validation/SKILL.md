@@ -1,18 +1,12 @@
 ---
 name: yf-change-validation
-description: "Runs a repo's recorded VALIDATION RECIPE (build/test/lint) over a change-set or
-  merged tree by EXECUTING the commands and reporting PASS / FAIL / INCONCLUSIVE + the first
-  failing command; never auto-fixes and never auto-rewrites the manifest. Driven by a per-repo
-  CHANGE-VALIDATION.md inferred from the toolchain, operator-approved, then re-proposed on
-  drift. TRIGGER when: /yf-change-validation invoked; a file covered by an approved
-  CHANGE-VALIDATION.md §3 glob is created or modified (run the FAST tier); a pre-push /
-  land-the-plane FULL-tier validation; or a manifest is being bootstrapped on first install.
-  SKIP for: repos with no approved CHANGE-VALIDATION.md (silent no-op — no nag, no bootstrap on
-  every edit); any request to FIX a failing command rather than report it; checking CONTENT
-  AGREEMENT across docs/spec/impl edges — that is yf-drift-check (a prose/LLM trigger), an
-  orthogonal axis this engine never invokes. Distinguishing axis: yf-change-validation proves a
-  change-set is BEHAVIORALLY valid by running commands (exit code = verdict); yf-drift-check
-  proves already-written artifacts AGREE. Neither invokes the other."
+description: >-
+  Runs a repo's recorded validation recipe (build/test/lint) from an approved CHANGE-VALIDATION.md
+  and reports PASS / FAIL / INCONCLUSIVE + the first failing command; never auto-fixes. TRIGGER
+  when: /yf-change-validation; a file covered by the manifest's §3 globs is created or modified
+  (FAST tier); a pre-push / land-the-plane FULL-tier run; or bootstrapping a manifest. SKIP for:
+  repos with no approved CHANGE-VALIDATION.md (silent no-op); requests to FIX a failing command;
+  checking whether docs/spec/impl AGREE (`yf-drift-check`).
 user-invocable: true
 skill-group: utility
 depends-on-tool: [uv]
@@ -32,6 +26,10 @@ tags: []
 ---
 
 # yf-change-validation
+
+**Distinguishing axis** (moved from the description, plan-072): yf-change-validation proves a
+change-set is BEHAVIORALLY valid by running commands (exit code = verdict); yf-drift-check (a
+prose/LLM trigger) proves already-written artifacts AGREE. Neither invokes the other.
 
 Repo-agnostic engine that runs a repo's **recorded validation recipe** (build / test / lint)
 over a change-set or merged tree and reports **PASS / FAIL / INCONCLUSIVE** plus the first
@@ -216,7 +214,12 @@ distinguishes the `§0 approved: no` clean refusal from a real FAIL).
   tail) and stops reporting that tier failed. It **never** edits source to make a command pass.
 - **INCONCLUSIVE** (fail-closed) — a required tool is absent from `PATH`; the engine marks the
   command and the tier INCONCLUSIVE rather than skipping it and calling the tier PASS. This is
-  the deliberate contrast with a static `validate-cmd`, which **fails open**.
+  the deliberate contrast with a static `validate-cmd`, which **fails open**. A row flagged
+  `inconclusive-exit=4` also maps its own exit 4 to INCONCLUSIVE (`REQ-ENGINE-011`). An unflagged
+  exit 4 stays FAIL.
+- **Per-row `flags`** (optional fifth column, `REQ-ENGINE-011`): `inconclusive-exit=4`, and
+  `stream`, which tees the row's output live to **stderr** so `--json` stdout stays one document.
+  An unknown flag FAILs the run and is never ignored.
 - **`§0 approved: no` refusal** — an unapproved or absent manifest yields a structured clean
   refusal, never a stack trace.
 

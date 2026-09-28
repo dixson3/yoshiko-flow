@@ -1,0 +1,1604 @@
+{
+ "_about": "Issue 3.2 baseline --record (candidate mode, post-1.1 text, 3 reps, both harnesses). Resumed after the rate-limit incident: 579 seeded + 141 fresh valid runs; 14 invalid CC runs dropped.",
+ "report": {
+  "skills": [
+   {
+    "skill": "yf-beads-authoring",
+    "chars": 768,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-beads-extra",
+    "chars": 705,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-beads-hygiene",
+    "chars": 829,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-beads-init",
+    "chars": 798,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-beads-upstream",
+    "chars": 949,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-change-validation",
+    "chars": 879,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-diagram-authoring",
+    "chars": 774,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-drift-check",
+    "chars": 890,
+    "rating": "unrouted",
+    "display": "unrouted",
+    "misses": [
+     "D3"
+    ],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-herdr",
+    "chars": 848,
+    "rating": "unrouted",
+    "display": "unrouted",
+    "misses": [
+     "HR1"
+    ],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-incubator",
+    "chars": 489,
+    "rating": "crisp",
+    "display": "crisp",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-markdown-format",
+    "chars": 582,
+    "rating": "crisp",
+    "display": "crisp",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-markdown-html",
+    "chars": 677,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-markdown-lint",
+    "chars": 512,
+    "rating": "unrouted",
+    "display": "unrouted",
+    "misses": [
+     "ML-N1",
+     "ML3"
+    ],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-markdown-pdf",
+    "chars": 515,
+    "rating": "crisp",
+    "display": "crisp",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-okf",
+    "chars": 989,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-okf-hygiene",
+    "chars": 997,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-optimal-instructions",
+    "chars": 887,
+    "rating": "satisfactory",
+    "display": "satisfactory",
+    "misses": [],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-plan",
+    "chars": 331,
+    "rating": "unrouted",
+    "display": "unrouted",
+    "misses": [
+     "P3"
+    ],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-research",
+    "chars": 718,
+    "rating": "unrouted",
+    "display": "unrouted",
+    "misses": [
+     "R3"
+    ],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   },
+   {
+    "skill": "yf-skill-authoring",
+    "chars": 947,
+    "rating": "unrouted",
+    "display": "unrouted",
+    "misses": [
+     "S-N3"
+    ],
+    "decision": null,
+    "recorded_stale": false,
+    "cells": 12
+   }
+  ],
+  "n_cells": 240,
+  "reliability": 0.9680555555555556,
+  "reliability_source": "measured",
+  "false_fail_rate": 0.0028530052997555178,
+  "failures": []
+ },
+ "recorded": {
+  "yf-beads-authoring": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "02476e9e71b498851a53cb31a7ea086b5f4181c2d17af88ee4ad300781d9c2cc",
+   "description_chars": 768,
+   "cells": {
+    "BA1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BA-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-beads-extra": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "f3d6d9dcaf4cc4b5b3b6639b0b712e96dad6c9943354aca42ac9c2e5a6e145ed",
+   "description_chars": 705,
+   "cells": {
+    "BE1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BE-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-beads-hygiene": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "ba21aee6ac2681908a14860d9c902cb381fa59b9a27eaf0cd94b95e87ea20b85",
+   "description_chars": 829,
+   "cells": {
+    "BH1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BH-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-beads-init": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "a4c88f7024ac2506c02e61835265de0189ac4fabb8f51bed074c64e6fca73e90",
+   "description_chars": 798,
+   "cells": {
+    "BI1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BI-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-beads-upstream": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "fd3596f930327b750ed5074978a50498913003265b6a4b574cd3a97e6e84dd06",
+   "description_chars": 949,
+   "cells": {
+    "BU1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "BU-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-change-validation": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "017a5742ac75247d3e6c539e18dcaf7c1bafa8413c7c2eff5ebe7fb5a90030f0",
+   "description_chars": 879,
+   "cells": {
+    "V1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "V-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-diagram-authoring": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "3866098c6276ca0077b4d853892b11dc56fc63494cc7bdd93acb59f90c865f7e",
+   "description_chars": 774,
+   "cells": {
+    "DA1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "DA-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-drift-check": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "112f4551c27283cfc2dcb8746def55d961f456059310fc610683f568e22360f0",
+   "description_chars": 890,
+   "cells": {
+    "D1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D3:pi": {
+     "rate": 0.3333333333333333,
+     "correct": 1,
+     "reps": 3
+    },
+    "D3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D-N4:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "D-N4:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-herdr": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "d60b65669782cecb80d0ecd4f49ae7f6e0a708fc7e383d97c0c2080297a9c230",
+   "description_chars": 848,
+   "cells": {
+    "HR1:pi": {
+     "rate": 0.6666666666666666,
+     "correct": 2,
+     "reps": 3
+    },
+    "HR1:cc": {
+     "rate": 0.0,
+     "correct": 0,
+     "reps": 3
+    },
+    "HR2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "HR-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-incubator": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "18868a8bb9f0b552e7b3935b3a13ecd68b45243f88d02caa012c951dbf8ebefd",
+   "description_chars": 489,
+   "cells": {
+    "IN1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "IN-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-markdown-format": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "97bac1cc4c68939c63fee279f90a707bfd96985e11bcf1f9054391e81f43a0e5",
+   "description_chars": 582,
+   "cells": {
+    "MF1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MF-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-markdown-html": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "9a1b4fda5a3ddc1d1f6fd79af2545365aba87ebda8832cc4084ff15593f9ea95",
+   "description_chars": 677,
+   "cells": {
+    "MH1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MH-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-markdown-lint": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "3503112be8e89879ec538a17f4036cce403d00b8e9b5cb45edc6ac5da146ecc7",
+   "description_chars": 512,
+   "cells": {
+    "ML1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML3:pi": {
+     "rate": 0.0,
+     "correct": 0,
+     "reps": 3
+    },
+    "ML3:cc": {
+     "rate": 0.0,
+     "correct": 0,
+     "reps": 3
+    },
+    "ML-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML-N1:cc": {
+     "rate": 0.3333333333333333,
+     "correct": 1,
+     "reps": 3
+    },
+    "ML-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "ML-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-markdown-pdf": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "588e992bebbeadfcabd65b01d34ec38d9d0a4f713dbe7ce8df58ff4731199618",
+   "description_chars": 515,
+   "cells": {
+    "MP1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "MP-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-okf-hygiene": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "f537818f3f0156a248e06cfed04005d49d37723743079e8bc331dccdd7ed9425",
+   "description_chars": 997,
+   "cells": {
+    "H1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H-N4:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H-N4:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H-N5:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "H-N5:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-okf": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "85950b50161bc986bbbf38dba4a1650adda5e9cf2b9360976baeb3cd848b62b1",
+   "description_chars": 989,
+   "cells": {
+    "K1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K-N4:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K-N4:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K-N5:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "K-N5:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-optimal-instructions": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "1ec74ad814f2dd3a70c0e1b6762558bb12ccd146e69623eeddae004e953a8e45",
+   "description_chars": 887,
+   "cells": {
+    "O1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O-N4:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "O-N4:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-plan": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "8e901a3c76c2e909fcda43505da193188bcb9a057ca29644c87611e19864b8a9",
+   "description_chars": 331,
+   "cells": {
+    "P1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P3:pi": {
+     "rate": 0.6666666666666666,
+     "correct": 2,
+     "reps": 3
+    },
+    "P3:cc": {
+     "rate": 0.3333333333333333,
+     "correct": 1,
+     "reps": 3
+    },
+    "P-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "P-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-research": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "8f616c747ad279d00dfce7dabe9730c550a6f4dfea7a10463d2753523a09b5d5",
+   "description_chars": 718,
+   "cells": {
+    "R1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R3:cc": {
+     "rate": 0.0,
+     "correct": 0,
+     "reps": 3
+    },
+    "R-N1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R-N1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R-N3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "R-N3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  },
+  "yf-skill-authoring": {
+   "date": "2026-09-25",
+   "mode": "candidate",
+   "description_sha256": "7bae06a34cc0c62107c54c06d0f549f1f2952bfe555fa78ce6165e1ccdf7e8a3",
+   "description_chars": 947,
+   "cells": {
+    "S1:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S1:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S3:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S3:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S-N2:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S-N2:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S-N3:pi": {
+     "rate": 0.3333333333333333,
+     "correct": 1,
+     "reps": 3
+    },
+    "S-N3:cc": {
+     "rate": 0.6666666666666666,
+     "correct": 2,
+     "reps": 3
+    },
+    "S-N4:pi": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    },
+    "S-N4:cc": {
+     "rate": 1.0,
+     "correct": 3,
+     "reps": 3
+    }
+   }
+  }
+ },
+ "ledger": {
+  "rows": 774,
+  "cc_usd": 82.0506,
+  "cc_tokens": {
+   "input": 2134,
+   "cache_write_1h": 8405320,
+   "cache_write_5m": 173621,
+   "cache_read": 42190332,
+   "output": 274667
+  },
+  "pi_tokens": {
+   "input": 2120,
+   "output": 299245,
+   "cache_read": 58883156,
+   "cache_write": 10187423
+  }
+ }
+}

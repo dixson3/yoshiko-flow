@@ -33,11 +33,14 @@ structured row.** Each tier is a markdown table; the row order **is** the run or
 | `cmd` | **yes** | the shell command string. Run **via shell** (`sh -c`) so the PEP-723 two-idiom (`uv run --script` vs project pytest) and the `cd website && …` cases work as written. |
 | `cwd` | optional | working directory the `cmd` runs in (relative to repo root); defaults to repo root. |
 | `timeout` | optional | seconds; the engine kills the command after this and marks it FAIL — a hung test must not wedge land-the-plane. |
+| `flags` | optional | *(amended plan-072)* comma-separated per-row flags (`inconclusive-exit=4`, `stream`) per REQ-ENGINE-011. The whole column may be absent; a four-column table means no row has flags. |
 
 Rationale: a structured row (not a bare string) lets the engine scope by `id`, set a working
 directory, and bound runtime. Running via shell keeps the recipe author's exact invocation intact.
 Verification: every §1 table row has a non-empty `cmd`; `id`/`cwd`/`timeout` parse as
-identifier/path/positive-integer when present.
+identifier/path/positive-integer when present; every `flags` token, when present, is a flag
+REQ-ENGINE-011 defines. *(Amended plan-072 / #407: the fifth `flags` column. Four-column
+manifests are unchanged.)*
 
 Example table shape (illustrative — values are repo-specific, supplied by inference, not by this
 spec):

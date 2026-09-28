@@ -1,15 +1,12 @@
 ---
 name: yf-optimal-instructions
-description: 'Auto-fix skill for project instruction files. On create/modify of a project
-  CLAUDE.md, AGENTS.md, AGENTS/*, or repo-root .{claude,agents}/rules/* file, reads it,
-  auto-applies token-efficiency cuts, and proposes structural fixes — AGENTS.md primary,
-  CLAUDE.md a thin @-include index, behavioral rules in the project rules surface — then
-  reports what changed. TRIGGER when: a project-root instruction file (CLAUDE.md, AGENTS.md,
-  AGENTS/*, or repo-root .{claude,agents}/rules/*) is created or modified. SKIP for: instruction
-  files INSIDE a skill directory under .{claude,agents}/skills/<skill>/ (a skill''s SKILL.md,
-  agents/*.md, its own rules) — those route to yf-skill-authoring; also application code, end-user
-  docs, notes. Distinguishing axis: this skill owns project-root instruction files (in both the
-  .claude and .agents surfaces); yf-skill-authoring owns skill-dir instruction files.'
+description: >-
+  Auto-fix for PROJECT-ROOT instruction files: applies token-efficiency cuts and proposes
+  structure (AGENTS.md primary, CLAUDE.md a thin @-include index, rules in the rules surface).
+  TRIGGER when: a project CLAUDE.md, AGENTS.md, AGENTS/* or repo-root .{claude,agents}/rules/*
+  file is created or modified. SKIP for: instruction files inside a skill dir
+  (.{claude,agents}/skills/<skill>/ SKILL.md, agents/*.md) — `yf-skill-authoring`; application
+  code, end-user docs, notes.
 user-invocable: false
 skill-group: utility
 depends-on-tool: [uv]

@@ -113,6 +113,8 @@ skills/yf-plan/
 │   ├── reconciler.md                      # Updates upstream issues per dispositions
 │   ├── red-team.md                        # Adversarial plan review before approval (drives the phase transition)
 │   └── reviewer.md                        # Conformance/completeness plan check (PASS|INCOMPLETE), runs first
+├── evals/                                 # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── fixtures/
 │   └── severity-vocabulary/
 │       └── off-vocabulary-med.md

@@ -1,0 +1,116 @@
+{
+ "skill": "yf-beads-upstream",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BU1",
+   "kind": "trigger",
+   "prompt": "Push the open beads upstream to GitHub.",
+   "skill": "yf-beads-upstream"
+  },
+  {
+   "id": "BU2",
+   "kind": "trigger",
+   "prompt": "Set up upstream tracking for this repo.",
+   "skill": "yf-beads-upstream"
+  },
+  {
+   "id": "BU3",
+   "kind": "trigger",
+   "prompt": "What does the upstream worklist look like? Which GitHub issues are open for us?",
+   "skill": "yf-beads-upstream"
+  },
+  {
+   "id": "BU-N1",
+   "kind": "near-miss",
+   "prompt": "Run `bd dolt push` to replicate the beads database.",
+   "siblings": [
+    "yf-beads-upstream"
+   ]
+  },
+  {
+   "id": "BU-N2",
+   "kind": "near-miss",
+   "prompt": "Close bead yf-xxxx locally; it's finished.",
+   "siblings": [
+    "yf-beads-upstream"
+   ]
+  },
+  {
+   "id": "BU-N3",
+   "kind": "near-miss",
+   "prompt": "Clean up dangling beads edges.",
+   "siblings": [
+    "yf-beads-upstream"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "ede8c2d59b598fade30e1b310654255a6cc2bb142598e0e302787591c1d6eff7",
+  "description_chars": 549,
+  "cells": {
+   "BU1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BU-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

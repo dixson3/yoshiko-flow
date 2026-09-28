@@ -76,6 +76,8 @@ refused.
 
 ```
 skills/yf-herdr/
+├── evals/                       # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── test_herdr_channel.py
 │   └── test_launch_contract.py

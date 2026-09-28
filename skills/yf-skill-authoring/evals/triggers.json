@@ -1,0 +1,118 @@
+{
+ "skill": "yf-skill-authoring",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "S1",
+   "kind": "trigger",
+   "prompt": "Create a new skill in skills/ called yf-changelog that drafts CHANGELOG entries from git log.",
+   "skill": "yf-skill-authoring"
+  },
+  {
+   "id": "S2",
+   "kind": "trigger",
+   "prompt": "Add a Python helper script to skills/yf-markdown-lint/scripts that counts headings in a file. It needs a PEP 723 header so it runs with uv.",
+   "skill": "yf-skill-authoring"
+  },
+  {
+   "id": "S3",
+   "kind": "trigger",
+   "prompt": "The agent prompt files in skills/yf-plan/agents/ are verbose. Tidy them up.",
+   "skill": "yf-skill-authoring"
+  },
+  {
+   "id": "S-N2",
+   "kind": "near-miss",
+   "prompt": "Update README.md to document the yf harness tune command for end users.",
+   "siblings": [
+    "yf-optimal-instructions",
+    "yf-drift-check",
+    "yf-skill-authoring"
+   ]
+  },
+  {
+   "id": "S-N3",
+   "kind": "near-miss",
+   "prompt": "Our root AGENTS.md is getting long. Trim it.",
+   "siblings": [
+    "yf-skill-authoring"
+   ]
+  },
+  {
+   "id": "S-N4",
+   "kind": "near-miss",
+   "prompt": "Write a short Python script at scripts/count_lines.py that counts lines in every .rs file.",
+   "siblings": [
+    "yf-skill-authoring"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "226cf5254c61e8e7055d1566b0c65d5b2e7d6356b521b3b70a8b61ece41e3836",
+  "description_chars": 594,
+  "cells": {
+   "S1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N4:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "S-N4:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

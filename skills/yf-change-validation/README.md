@@ -59,7 +59,7 @@ section-by-heading model, but the recipe is executable):
 - **§0 Status** — the `approved: yes|no` gate. Inert until `approved: yes`; setting it back to
   `no` is the one-edit rollback lever.
 - **§1 Tiers** — a `fast` and a `full` ordered command list, each a table of structured rows
-  (`id`, `cmd`, `cwd`, `timeout`). FULL is a superset of CI ∪ repo-checks.
+  (`id`, `cmd`, `cwd`, `timeout`, optional `flags`). FULL is a superset of CI ∪ repo-checks.
 - **§2 Signal Fingerprint** — the `{source-path, parsed-value-or-hash}` of the toolchain
   signals the recipe was inferred from; what `check-drift` re-reads.
 - **§3 Trigger Scope** — each changed-path glob → the FAST command ids it selects
@@ -110,6 +110,8 @@ invokes the other.
 
 ```
 skills/yf-change-validation/
+├── evals/                            # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── protocols/
 │   ├── CHANGE-VALIDATION-TRIGGER.md  # always-loaded on-edit (FAST) + pre-push (FULL) firing surface
 │   └── manifest.json

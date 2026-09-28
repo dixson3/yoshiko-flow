@@ -1,0 +1,116 @@
+{
+ "skill": "yf-beads-hygiene",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BH1",
+   "kind": "trigger",
+   "prompt": "Clean up the orphaned beads in this repo.",
+   "skill": "yf-beads-hygiene"
+  },
+  {
+   "id": "BH2",
+   "kind": "trigger",
+   "prompt": "Are there any dangling dependency edges in the beads graph?",
+   "skill": "yf-beads-hygiene"
+  },
+  {
+   "id": "BH3",
+   "kind": "trigger",
+   "prompt": "Audit the beads graph and tell me what's broken, but don't change anything yet.",
+   "skill": "yf-beads-hygiene"
+  },
+  {
+   "id": "BH-N1",
+   "kind": "near-miss",
+   "prompt": "bd status errors out but bd ready works. Fix the beads setup.",
+   "siblings": [
+    "yf-beads-hygiene"
+   ]
+  },
+  {
+   "id": "BH-N2",
+   "kind": "near-miss",
+   "prompt": "Close bead yf-xxxx; it's done.",
+   "siblings": [
+    "yf-beads-hygiene"
+   ]
+  },
+  {
+   "id": "BH-N3",
+   "kind": "near-miss",
+   "prompt": "Some of the OKF bundle indexes across the repo are stale. Rebuild them.",
+   "siblings": [
+    "yf-beads-hygiene"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "cad88a365e2e01a78a0068c3e43733a10283c032f3e0017a65bd81fa63b4a91c",
+  "description_chars": 529,
+  "cells": {
+   "BH1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BH-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

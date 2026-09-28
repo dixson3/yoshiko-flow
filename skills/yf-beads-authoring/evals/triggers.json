@@ -1,0 +1,117 @@
+{
+ "skill": "yf-beads-authoring",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BA1",
+   "kind": "trigger",
+   "prompt": "Author a new beads formula .formula.toml for a two-phase review workflow in skills/yf-research/formulas/.",
+   "skill": "yf-beads-authoring"
+  },
+  {
+   "id": "BA2",
+   "kind": "trigger",
+   "prompt": "I'm writing a coordinator agent for a new beads-backed skill. How should crash recovery and the stuck-bead sweep work?",
+   "skill": "yf-beads-authoring"
+  },
+  {
+   "id": "BA3",
+   "kind": "trigger",
+   "prompt": "Wire `bd mol pour` into a new skill's SKILL.md so each run pours a molecule with dynamic fan-out.",
+   "skill": "yf-beads-authoring"
+  },
+  {
+   "id": "BA-N1",
+   "kind": "near-miss",
+   "prompt": "Show me what beads are ready to work on.",
+   "siblings": [
+    "yf-beads-authoring"
+   ]
+  },
+  {
+   "id": "BA-N2",
+   "kind": "near-miss",
+   "prompt": "My script calls `bd dep add` and the edge isn't showing up in `bd show --json`. Why?",
+   "siblings": [
+    "yf-beads-authoring"
+   ]
+  },
+  {
+   "id": "BA-N3",
+   "kind": "near-miss",
+   "prompt": "Push the open beads upstream to GitHub.",
+   "siblings": [
+    "yf-beads-authoring",
+    "yf-beads-extra"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "ff7181a22f785f114f2384dcb458c6e21fcc2a19cc5a16537ca1699c1fdc8dca",
+  "description_chars": 543,
+  "cells": {
+   "BA1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BA-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

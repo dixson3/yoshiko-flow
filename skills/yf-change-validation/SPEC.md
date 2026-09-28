@@ -66,7 +66,8 @@ of scope — the engine routes **as a skill** (crate GR-005 kernel/skill boundar
   (REQ-SCHEMA-001).
 - **REQ-CHGVAL-011** *(testable)* §1 shall define a `fast` and a `full` **ordered command list**;
   each command shall be a **structured row** with columns `id` (optional, referenced by §3), `cmd`
-  (shell string), `cwd` (optional), `timeout` (optional, seconds) — REQ-SCHEMA-002.
+  (shell string), `cwd` (optional), `timeout` (optional, seconds), and an optional fifth `flags`
+  column *(amended plan-072)* — REQ-SCHEMA-002, REQ-ENGINE-011.
 - **REQ-CHGVAL-012** *(testable)* every §1 row shall be a **runnable shell command** (the recipe is
   executable-only); `yf-drift-check` shall **never** appear as a row — it is a prose/LLM trigger,
   not a command (REQ-SCHEMA-003).
@@ -162,3 +163,10 @@ of scope — the engine routes **as a skill** (crate GR-005 kernel/skill boundar
 - `protocols/CHANGE-VALIDATION-TRIGGER.md` (on-edit / pre-push trigger).
 - Root `SPEC.md` §4 (CHGVAL) and `GUARDRAILS.md`. Sibling: `skills/yf-drift-check/SPEC.md` (the
   mirrored conventions; orthogonal axis).
+
+## 7. Amendment log
+
+- **plan-072 (2026-09-25, #407):** added `REQ-ENGINE-011` (`spec/engine.md`), a per-row opt-in
+  `flags` column: `inconclusive-exit=4` maps that row's exit 4 to INCONCLUSIVE, and `stream` tees
+  the row's output live to stderr only, with `--json` stdout staying one document. Amended
+  `REQ-SCHEMA-002` (`spec/schema.md`) and `REQ-CHGVAL-011` for the optional fifth column.

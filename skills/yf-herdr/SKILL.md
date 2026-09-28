@@ -1,16 +1,12 @@
 ---
 name: yf-herdr
-description: >
-  Delegate an approved yf-plan or a gated yf-research project to a NEW herdr tab running a fresh
-  session of the same agent kind, then observe that subordinate session and mine its deviations for
-  process improvements.
-  TRIGGER when: /yf-herdr invoked; or the operator asks to "execute the plan" / "execute the
-  research" / "run it in a new session" AND this session is running inside herdr (HERDR_ENV=1) AND
-  this session has recently asserted that a specific plan or research project is ready to execute.
-  SKIP for: sessions not under herdr (say so and hand the command to the operator); a fresh session
-  that did no planning work (execute in place — a tab buys nothing); any request to CREATE or
-  APPROVE a plan (that is yf-plan) or to drive panes for unrelated reasons (that is the herdr
-  skill). This skill never authors plans and never resolves a gate.
+description: >-
+  Delegate an approved yf-plan or gated yf-research project to a NEW herdr tab running a fresh
+  session, then observe it and mine its deviations. TRIGGER when: /yf-herdr; or the operator asks
+  to "execute the plan/research" or "run it in a new session" AND HERDR_ENV=1 AND this session
+  recently asserted a specific plan or research is ready. SKIP for: sessions not under herdr; a
+  fresh session that did no planning (execute in place); creating or approving plans (`yf-plan`);
+  driving panes for other reasons (`herdr`).
 user-invocable: true
 skill-group: utility
 depends-on-tool: [herdr, uv]

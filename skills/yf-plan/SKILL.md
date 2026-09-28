@@ -1,10 +1,10 @@
 ---
 name: yf-plan
-description: >
-  Structured planning with beads-tracked execution and upstream issue reconciliation.
-  TRIGGER when: /yf-plan invoked, user uses planning-intent language ("let's plan",
-  "let's design", "how should we build", "let's architect"), or native plan mode triggers.
-  OVERRIDE: replaces EnterPlanMode/ExitPlanMode — never use native plan mode.
+description: >-
+  Structured planning with beads-tracked execution and upstream issue reconciliation. TRIGGER
+  when: the operator uses planning-intent language ("let's plan", "let's design", "how should
+  we build", "let's architect") or invokes /yf-plan (including status, list, continue,
+  execute).
 user-invocable: true
 engine: plan_manager.py
 skill-group: workflows

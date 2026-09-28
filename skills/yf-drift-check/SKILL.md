@@ -1,20 +1,13 @@
 ---
 name: yf-drift-check
-description: "Verifies CONTENT AGREEMENT across a repository's declared source-of-truth
-  edges (implementation ↔ docs ↔ spec); never authors, optimizes, restructures, or
-  auto-fixes. On edit of a file matching the repo's DRIFT-CHECK.md manifest globs, dispatches
-  an isolated, report-only sub-agent that checks each scoped edge under a strict evidence
-  standard and returns PASS / FAIL / INCONCLUSIVE / CONFLICT. TRIGGER when: a file covered by an approved
-  DRIFT-CHECK.md manifest is created or modified; or the operator asks to check drift / verify
-  the manifest is in sync; or a manifest is being bootstrapped on first install. SKIP for:
-  repos with no approved DRIFT-CHECK.md (silent no-op — no nag, no bootstrap on every edit);
-  authoring or optimizing instruction files — skill-dir instruction files route to
-  yf-skill-authoring (authoring conventions, a different axis from cross-edge agreement) and
-  project-root CLAUDE.md / AGENTS.md route to yf-optimal-instructions (the project-root axis); any
-  request to FIX rather than report drift. Distinguishing axis: yf-drift-check verifies that
-  already-written artifacts AGREE across declared edges; yf-skill-authoring and yf-optimal-instructions
-  WRITE and optimize instruction files. yf-drift-check never lists CLAUDE.md / AGENTS.md as nodes,
-  so it is structurally silent on the project-root axis."
+description: >-
+  Verifies CONTENT AGREEMENT across a repo's declared source-of-truth edges (impl ↔ docs ↔ spec)
+  via a report-only sub-agent; never fixes. TRIGGER when: a file covered by an approved
+  DRIFT-CHECK.md is created or modified; the operator asks to check drift or whether the manifest
+  is in sync; the operator edited a spec, doc or SPEC.md requirement and asks whether anything
+  else still agrees with it or now contradicts it; or bootstrapping a manifest. SKIP for: repos
+  with no approved DRIFT-CHECK.md; authoring instruction files (`yf-skill-authoring`,
+  `yf-optimal-instructions`); requests to FIX drift.
 user-invocable: false
 skill-group: utility
 depends-on-tool: []
@@ -34,6 +27,12 @@ tags: []
 ---
 
 # yf-drift-check
+
+**Distinguishing axis** (moved from the description, plan-072): yf-drift-check verifies that
+already-written artifacts AGREE across declared edges; yf-skill-authoring and
+yf-optimal-instructions WRITE and optimize instruction files. yf-drift-check never lists
+`CLAUDE.md` / `AGENTS.md` as nodes, so it is structurally silent on the project-root axis. The
+sub-agent checks each edge under a strict evidence standard.
 
 Repo-agnostic engine that detects **drift between a source of truth and its derivatives**
 (implementation ↔ docs ↔ spec) on edit, via an isolated, evidence-based verification pass.

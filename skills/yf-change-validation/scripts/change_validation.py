@@ -732,8 +732,8 @@ def parse_manifest(root: Path):
             sub_buf[cur].append(line)
     for tier in ("fast", "full"):
         for cells in _parse_table_rows("\n".join(sub_buf[tier])):
-            # columns: id | cmd | cwd | timeout
-            cells = (cells + ["", "", "", ""])[:4]
+            # columns: id | cmd | cwd | timeout [| flags]  (flags: REQ-ENGINE-011, optional)
+            cells = (cells + ["", "", "", "", ""])[:5]
             rid = _strip_code(cells[0]) or None
             cmd = _strip_code(cells[1])
             cwd = _strip_code(cells[2]) or None
@@ -741,8 +741,13 @@ def parse_manifest(root: Path):
             timeout = int(tmo) if tmo.isdigit() else None
             if not cmd:
                 continue
+            flags, bad = _parse_flags(cells[4])
+            if bad:
+                # An unknown flag is a manifest error, never silently ignored (REQ-ENGINE-011).
+                return None, {"status": "refused", "reason": "malformed manifest",
+                              "detail": f"unknown flag(s) {bad} on row {rid or cmd!r}"}
             tiers[tier].append({"id": rid, "cmd": cmd, "cwd": cwd,
-                                "timeout": timeout})
+                                "timeout": timeout, "flags": flags})
 
     # §3 trigger scope
     scope = []
@@ -773,6 +778,44 @@ def _scoped_ids(scope, changed: list[str]) -> set:
     return selected
 
 
+# REQ-ENGINE-011 — per-row, opt-in flags (the optional fifth §1 column).
+KNOWN_FLAGS = {"inconclusive-exit=4", "stream"}
+
+
+def _parse_flags(cell: str) -> tuple[set, list]:
+    """(flags, unknown) from a comma-separated `flags` cell; an empty cell is no flags."""
+    toks = [_strip_code(x).strip() for x in cell.split(",")]
+    toks = [x for x in toks if x]
+    return {x for x in toks if x in KNOWN_FLAGS}, [x for x in toks if x not in KNOWN_FLAGS]
+
+
+def _run_streamed(cmd: str, cwd: Path, timeout) -> tuple[int | None, str]:
+    """Run `sh -c cmd`, teeing combined output LIVE to stderr (never stdout — REQ-ENGINE-011:
+    `--json` stdout must stay exactly one JSON document). Returns (returncode|None, output);
+    returncode is None on timeout."""
+    import threading
+    proc = subprocess.Popen(["sh", "-c", cmd], cwd=str(cwd), stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True, bufsize=1)
+    buf: list[str] = []
+
+    def pump():
+        for line in proc.stdout:  # type: ignore[union-attr]
+            buf.append(line)
+            sys.stderr.write(line)
+            sys.stderr.flush()
+
+    th = threading.Thread(target=pump, daemon=True)
+    th.start()
+    try:
+        rc = proc.wait(timeout=timeout or None)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        rc = None
+    th.join(timeout=5)
+    return rc, "".join(buf)
+
+
 def run_command(row: dict, root: Path) -> dict:
     """Run one row via `sh -c`. Fail-closed: missing tool ⇒ inconclusive."""
     cmd = row["cmd"]
@@ -784,28 +827,54 @@ def run_command(row: dict, root: Path) -> dict:
                        "output_tail": f"required tool not on PATH: {tok}"})
         return result
     cwd = root / row["cwd"] if row.get("cwd") else root
-    try:
-        proc = subprocess.run(
-            ["sh", "-c", cmd], cwd=str(cwd),
-            capture_output=True, text=True,
-            timeout=row.get("timeout") or None,
-        )
-        tail = (proc.stdout + proc.stderr).strip().splitlines()[-20:]
-        result.update({
-            "ok": proc.returncode == 0,
-            "returncode": proc.returncode,
-            "status": "pass" if proc.returncode == 0 else "fail",
-            "output_tail": "\n".join(tail),
-        })
-    except subprocess.TimeoutExpired:
-        result.update({"ok": False, "returncode": None, "status": "fail",
-                       "output_tail": f"timeout after {row.get('timeout')}s"})
+    flags = row.get("flags") or set()
+    if "stream" in flags:
+        rc, output = _run_streamed(cmd, cwd, row.get("timeout"))
+        if rc is None:
+            result.update({"ok": False, "returncode": None, "status": "fail",
+                           "output_tail": f"timeout after {row.get('timeout')}s"})
+            return result
+    else:
+        try:
+            proc = subprocess.run(
+                ["sh", "-c", cmd], cwd=str(cwd),
+                capture_output=True, text=True,
+                timeout=row.get("timeout") or None,
+            )
+        except subprocess.TimeoutExpired:
+            result.update({"ok": False, "returncode": None, "status": "fail",
+                           "output_tail": f"timeout after {row.get('timeout')}s"})
+            return result
+        rc, output = proc.returncode, proc.stdout + proc.stderr
+    if rc == 0:
+        status = "pass"
+    elif rc == 4 and "inconclusive-exit=4" in flags:
+        status = "inconclusive"  # opt-in per row only; unflagged exit 4 stays FAIL
+    else:
+        status = "fail"
+    result.update({
+        "ok": rc == 0,
+        "returncode": rc,
+        "status": status,
+        "output_tail": "\n".join(output.strip().splitlines()[-20:]),
+    })
     return result
 
 
 def cmd_run(args) -> int:
     root = repo_root()
     manifest, refusal = parse_manifest(root)
+    if refusal is not None and refusal.get("reason") == "malformed manifest":
+        # An APPROVED manifest that does not parse is a FAIL, not a refusal: a caller
+        # treats `refused` as "no manifest" and falls through to a weaker tier
+        # (REQ-ENGINE-011 — an unknown flag is never silently ignored).
+        payload = {"tier": args.tier, "status": "fail", "commands": [],
+                   "first_failure": {"cmd": None, "output_tail": refusal["detail"]}}
+        if args.json:
+            out_json(payload)
+        else:
+            sys.stdout.write(f"tier={args.tier} status=fail ({refusal['detail']})\n")
+        return EXIT_FAIL
     if refusal is not None:
         if args.json:
             out_json(refusal)
@@ -813,6 +882,7 @@ def cmd_run(args) -> int:
             sys.stdout.write(f"{refusal['status']}: {refusal['reason']} "
                              f"({refusal.get('detail','')})\n")
         return EXIT_REFUSED
+    assert manifest is not None  # parse_manifest returns exactly one of (manifest, refusal)
 
     tier = args.tier
     rows = manifest["tiers"].get(tier, [])

@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "ls -la skills/yf-plan/agents/ && wc -l -w skills/yf-plan/agents/*", "description": "List yf-plan agent prompt files with sizes"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-skill-authoring"}}]}}

@@ -71,6 +71,8 @@ worktree and installed address spaces.
 
 ```
 skills/yf-okf/
+├── evals/                    # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   └── okf.py                # vendored engine (Issue 1.6 registers the sync); canonical: _shared/okf.py
 ├── spec/

@@ -7,18 +7,20 @@ description: Enforce the Agent Skills 1024-char description cap, add a four-stat
 id: plan-072-james-dixson-bae8de
 author: james-dixson
 created: '2026-09-24'
-status: approved
+status: executing
 deliverable_class: standard
-fingerprint: dcbd16e3cbc5f42f9050deff697c61611005ab4501941a694d7707a3154d5545
+fingerprint: 5360aeec2d14f385dd89e5452e89a58b221a7d1323569c13732e6cdbf94ce95e
+epic: yf-mol-t42s
 ---
 # Plan: Enforce the Agent Skills 1024-char description cap, add a crisp/satisfactory/unrouted/loose description rating with cross-harness trigger evals, and bring skill descriptions toward 600 chars (#407)
 
 **ID:** plan-072-james-dixson-bae8de
 **Author:** james-dixson
 **Created:** 2026-09-24
-**Status:** approved
+**Status:** executing
 **Deliverable-class:** standard
-**Fingerprint:** dcbd16e3cbc5f42f9050deff697c61611005ab4501941a694d7707a3154d5545
+**Epic:** yf-mol-t42s
+**Fingerprint:** 5360aeec2d14f385dd89e5452e89a58b221a7d1323569c13732e6cdbf94ce95e
 
 ## Objective
 Make skill `description` size a specified, enforced, and measured property of every
@@ -146,7 +148,7 @@ _Experiments identified (pre-investigation checkpoint):_
 | :-- | :-- | :-- |
 | D1 | Rating tiers | **Revised after pass-1 C3, operator.** Four states, computed from measured trigger rates: **crisp** (≤600 chars, every intent ≥0.5 on both harnesses); **satisfactory** (≤1024, every intent ≥0.5); **unrouted** (≤1024, some intent <0.5 on some harness); **loose** (>1024). Epic 3 tries TRIGGER-wording fixes on an unrouted skill first. If it's still unrouted, it goes to the split gate. If the operator declines the split, they accept the specific missed intents with a reason, and the skill reports as `satisfactory (accepted misses: <ids>)`, so the misses stay visible |
 | D2 | Hard gate | 1024-char description + full Agent Skills `name` rule in `check_frontmatter.py`, FAST+FULL tiers, `SKILL.md` only (not `agents/*.md`) |
-| D3 | Eval placement | **FULL tier, always**: every FULL run re-evaluates every skill on both harnesses, 3 reps. Re-confirmed twice by the operator with measured cost: after EXP-002, and **again after pass-1 C8 corrected the projection** to the 50/50 trigger/near-miss mix. Corrected cost: CC 31.4 s/run and pi 21.8 s/run, measured, giving ~3.1 h wall in parallel and ~$75–110 CC at API list rates per FULL run. **Verdict rule revised after pass-1 C2 (operator):** regression plus confirmation. See REQ-SKAUTH-062 in the approach. Runs without harness credentials report INCONCLUSIVE, never PASS |
+| D3 | Eval placement | **FULL tier, always**: every FULL run re-evaluates every skill on both harnesses, 3 reps. Re-confirmed twice by the operator with measured cost: after EXP-002, and **again after pass-1 C8 corrected the projection** to the 50/50 trigger/near-miss mix. Corrected cost: CC 31.4 s/run and pi 21.8 s/run, measured, giving ~3.1 h wall in parallel and ~$75–110 CC at API list rates per FULL run. **Throttled at execution (ESC-001, operator):** the harnesses share one model-account quota, so the FULL row runs at a global 150 runs/h (`--max-runs-per-hour 150`), which puts a FULL run at ~5.3 h (720 runs + confirmations, before backoff). The row therefore has `timeout` 28800 and `--deadline-seconds 25200`, so a slow run stops INCONCLUSIVE rather than being killed. A rate-limit event halves the rate for the rest of the run, so a 429 in roughly the first 55% of a FULL run makes the row INCONCLUSIVE (it fails safe, never FAIL), and an INCONCLUSIVE row halts L3 (pass-6 C2). **Verdict rule revised after pass-1 C2 (operator):** regression plus confirmation. See REQ-SKAUTH-062 in the approach. Runs without harness credentials report INCONCLUSIVE, never PASS |
 | D4 | Rating home | per-skill `skills/<name>/evals/triggers.json`: intents + last **recorded** result per harness + description hash + operator acceptances. The rating is derived, never hand-asserted. **Only an explicit `--record` run writes it.** The FULL row is read-only (pass-1 C13) |
 | D5 | Trim scope | all 20 skills: five over-cap must reach ≤1024; best effort toward ≤600 for all, each verified by evals |
 | D6 | Split handling | a skill that is not crisp after its best-effort trim, or that is unrouted, gets a recorded split proposal at a human gate. Approve → follow-on plan. Decline → satisfactory (or satisfactory-with-accepted-misses, D1), reason recorded |
@@ -330,7 +332,7 @@ silently weaken the tier.
   - depends-on: 2.2
 - Issue 2.4: Author `skills/<n>/evals/triggers.json` for all 20 skills. Each has ≥3 should-trigger intents (with fixtures where a precondition matters) and ≥3 near-miss intents naming siblings. The six from EXP-003 are seeded verbatim. Update each skill README's layout fence for `evals/` (the `e-readme-layout` check requires it).
   - depends-on: 0.5
-- Issue 2.5: Wire the FULL-tier row, **last**, after every other FULL row this plan adds (`gate-plan072-*` from 0.3, `frontmatter-tests` from 1.2, `trigger-eval-tests` from 2.3; pass-4 C3). The row is `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3`, with `flags` `inconclusive-exit=4,stream` and `timeout` 21600 (6 h, about 2× the corrected projection). No FAST row. The FULL row writes no ledger and has no budget; D3's accepted cost governs it, not D9.
+- Issue 2.5: Wire the FULL-tier row, **last**, after every other FULL row this plan adds (`gate-plan072-*` from 0.3, `frontmatter-tests` from 1.2, `trigger-eval-tests` from 2.3; pass-4 C3). The row is `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3 --max-runs-per-hour 150 --max-backoff-seconds 1800 --deadline-seconds 25200`, with `flags` `inconclusive-exit=4,stream` and `timeout` 28800 (8 h: the throttled ~5.3 h projection plus backoff headroom; ESC-001, operator). No FAST row. The FULL row writes no ledger and has no budget; D3's accepted cost governs it, not D9.
   - depends-on: 0.3, 1.2, 2.1, 2.2, 2.3, 2.4
 
 ### Epic 3: Trim and rate
@@ -354,7 +356,7 @@ silently weaken the tier.
 ### Epic 5: Guidance, follow-ons and landing
 - Issue 5.1: `skills/yf-skill-authoring/SKILL.md` + reference: the length rules (`REQ-YF-EMBED-007`), the four-state rating (`REQ-SKAUTH-061`), how to run and `--record` the eval for a new or edited skill (`REQ-SKAUTH-062`), and the point that the description is routing, not documentation. Keep its own description within its rating.
   - depends-on: 0.4, 0.5, 3.4
-- Issue 5.2: README/docs updates the drift manifest requires for the new script, the new recipe rows, `REQ-ENGINE-011`, and the `evals/` convention. Run the FULL tier on the execute branch before landing, **directly** (`change_validation.py run --tier full`), so the operator sees the streamed eval progress. This is the rehearsal of L3's run. A landing therefore pays for FULL **twice** (~6 h, ~$150–220 CC list-rate). That is stated and accepted under D3, not avoided by skipping the rehearsal (pass-2 C10).
+- Issue 5.2: README/docs updates the drift manifest requires for the new script, the new recipe rows, `REQ-ENGINE-011`, and the `evals/` convention. Run the FULL tier on the execute branch before landing, **directly** (`change_validation.py run --tier full`), so the operator sees the streamed eval progress. This is the rehearsal of L3's run. A landing therefore pays for FULL **twice** (~11 h at the ESC-001 throttle, ~$150–220 CC list-rate). That is stated and accepted under D3, not avoided by skipping the rehearsal (pass-2 C10).
   - depends-on: 1.2, 2.3, 2.5, 3.4, 5.1
 - Issue 5.3: After landing and redeploy from clean `main` (the AGENTS.md preconditions), verify on the operator's machine: pi startup shows no `[Skill conflicts]`, the CC `--debug-file` log has no `Skill listing over budget` line, and an **installed-mode** eval run passes. Record the outputs in `assets/post-deploy.md`.
   - depends-on: 5.2
@@ -417,7 +419,7 @@ silently weaken the tier.
 ## Risks & Mitigations
 | # | Risk | Severity | Mitigation |
 | :-- | :-- | :-- | :-- |
-| R1 | **FULL-tier cost and time (D3).** ~3.1 h wall and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, streamed stderr output (`REQ-ENGINE-011`) visible on direct runs (5.2) but **not at L3**, which captures the engine's output. Row placed last. Landing pays for FULL twice (rehearsal + L3), stated in 5.2. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
+| R1 | **FULL-tier cost and time (D3).** ~3.1 h wall unthrottled, ~5.3 h at the ESC-001 150 runs/h throttle, and ~$75–110 CC at list rates per FULL run (corrected, pass-1 C8), every land-the-plane. | high | Accepted by the operator twice with measured numbers. Made bearable, not reduced: parallel harnesses, stop-on-activation, confirmation re-runs only for regressed cells, streamed stderr output (`REQ-ENGINE-011`) visible on direct runs (5.2) but **not at L3**, which captures the engine's output. Row placed last. Landing pays for FULL twice (rehearsal + L3), stated in 5.2. Each run reports token usage next to list-rate cost, so the real subscription-plan cost can be measured (D9). |
 | R2 | **A trim is "verified" against the old text.** CC silently shadows a project skill copy with the user-scope install (EXP-005), and the FULL row would read installed skills at L3, before redeploy (pass-1 C1). | high | The FULL row runs **candidate** mode, staged from the checkout under test. Before scoring, the harness verifies CC's init (`permissionMode`, `skills` ⊇ staged) and pi's description hash; a mismatch is INCONCLUSIVE. Installed mode runs only after deploy (5.3). Issue 2.3 tests each path. |
 | R3 | **Nondeterministic evals flap the FULL tier** (pass-1 C2: ~0.17 all-pass at 95%). | high | Regression-with-confirmation verdict (REQ-SKAUTH-062): stated false-FAIL rate ≈1.65% at 240 cells and 95% per-run reliability, ≈21.9% at 90% (the two-stage formula in REQ-SKAUTH-062, a function of N, printed by `--report`). Accepted misses never FAIL. |
 | R4 | **Candidate mode ≠ what users get.** It drops other skills and the CC rules aggregate (EXP-005). | med | Every rating records its mode. Installed mode verifies the shipped result on the operator's machine (5.3). |
@@ -440,13 +442,13 @@ silently weaken the tier.
 | SC4 | The engine maps a flagged row's exit 4 to inconclusive and streams opted-in rows, tested (pass-3 C3: not pre-green) | `grep -q 'REQ-ENGINE-011' skills/yf-change-validation/scripts/change_validation.py && grep -q 'inconclusive-exit' skills/yf-change-validation/scripts/test_change_validation.py && uv run skills/yf-change-validation/scripts/test_change_validation.py` -> exit 0 | 2.1 |
 | SC5 | The eval harness is tested without live models and reproduces the EXP-003 scoring from committed fixtures | `test -f scripts/checks/test_skill_trigger_eval.py && uv run scripts/checks/test_skill_trigger_eval.py` -> exit 0 | 2.2, 2.3 |
 | SC6 | Every skill has an intent set with ≥3 trigger and ≥3 near-miss intents | `test -f scripts/checks/skill_trigger_eval.py && uv run scripts/checks/skill_trigger_eval.py --validate-intents --min-trigger 3 --min-nearmiss 3` -> exit 0 | 2.4 |
-| SC7 | The FULL tier's **last** row is the candidate-mode eval row, flagged and with its timeout (pass-3 C8) | `python3 -c "import sys;P=chr(124);t=open('CHANGE-VALIDATION.md').read();b=t.split('### full',1)[1].split(chr(10)+'## ',1)[0];r=[l for l in b.splitlines() if l.startswith(P+' ') and chr(96) in l];x=r[-1] if r else '';sys.exit(0 if all(s in x for s in ('skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3','inconclusive-exit=4','stream','21600')) else 1)"` -> exit 0 | 2.5 |
+| SC7 | The FULL tier's **last** row is the candidate-mode eval row, flagged and with its timeout (pass-3 C8) | `python3 -c "import sys;P=chr(124);t=open('CHANGE-VALIDATION.md').read();b=t.split('### full',1)[1].split(chr(10)+'## ',1)[0];r=[l for l in b.splitlines() if l.startswith(P+' ') and chr(96) in l];x=r[-1] if r else '';sys.exit(0 if all(s in x for s in ('skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3','inconclusive-exit=4','stream','28800','--deadline-seconds 25200')) else 1)"` -> exit 0 | 2.5 |
 | SC8 | The wording-lever check is recorded | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/wording-lever.md` -> exit 0 | 3.1 |
 | SC9 | No skill is loose or unaccepted-unrouted, and every skill has a recorded rating | `test -f scripts/checks/skill_trigger_eval.py && uv run scripts/checks/skill_trigger_eval.py --report --require-rated --forbid loose,unrouted` -> exit 0 | 3.2, 3.3, 3.4 |
 | SC10 | Every not-crisp skill carries an operator decision | `test -f scripts/checks/skill_trigger_eval.py && uv run scripts/checks/skill_trigger_eval.py --report --require-decision-for-noncrisp` -> exit 0 | 4.1, 4.2 |
 | SC11 | Aggregate description size fell, and spend is reported | manual: assets/ratings-final.md shows the corpus description total below the 16,898-char baseline with a per-skill before/after table, plus total eval spend as tokens and list-rate USD | 3.4 |
 | SC12 | pi and CC start clean on the operator's machine after redeploy, and installed mode passes | manual: assets/post-deploy.md shows pi startup with no [Skill conflicts] block, a CC --debug-file log with no "Skill listing over budget" line, and an installed-mode eval PASS, all captured after the Issue 5.3 redeploy | 5.3 |
 | SC13 | The authoring guidance is in the conventions skill | `grep -q 'REQ-SKAUTH-061' skills/yf-skill-authoring/SKILL.md && grep -q 'skill_trigger_eval' skills/yf-skill-authoring/SKILL.md` -> exit 0 | 5.1 |
-| SC14 | FULL tier green on the merged tree | manual: land's L3 validate-merged reports PASS for the FULL tier, including the eval row, which is a ~3 h run and so is not smoke-runnable by ready-check | 5.2 |
+| SC14 | FULL tier green on the merged tree | manual: land's L3 validate-merged reports PASS for the FULL tier, including the eval row, which is a ~5.3 h run at the ESC-001 throttle and so is not smoke-runnable by ready-check | 5.2 |
 | SC15 | The follow-ons are filed | manual: the rules-asymmetry issue (5.4) and the unparseable-output fall-through issue (5.6) exist, and #302 carries the collision evidence comment (5.5), all read back after posting | 5.4, 5.5, 5.6 |
 | SC16 | Development spend is ledgered and stayed within the approved ceiling (pass-3 C6) | `test -s docs/plans/plan-072-james-dixson-bae8de/assets/spend.jsonl && python3 -c "import json,pathlib as P;d=P.Path('docs/plans/plan-072-james-dixson-bae8de/assets');c=float((d/'spend-ceiling.txt').read_text()) if (d/'spend-ceiling.txt').exists() else 200.0;s=sum(float(json.loads(l).get('cc_usd') or 0) for l in (d/'spend.jsonl').read_text().splitlines() if l.strip());raise SystemExit(0 if s<=c else 1)"` -> exit 0 | 3.0, 3.3 |

@@ -1,16 +1,12 @@
 ---
 name: yf-okf-hygiene
-description: "Corpus-level OKF health for a repository of artifact bundles: read-only discovery
-  and classification (conformant | legacy-readme | legacy-underscore-index | hybrid-partial |
-  unclassifiable), the three-step legacy BACKFILL with a crash-recovery journal, index repair,
-  and record-driven reversal. TRIGGER when: /yf-okf-hygiene invoked (audit | assess | backfill |
-  reindex | restore); asking which bundles in a repo are still legacy, or how many; backfilling
-  legacy plan/research folders to the reserved index.md + log.md + frontmatter model at CORPUS
-  scale; or undoing such a backfill. SKIP for: checking or migrating ONE bundle (that is yf-okf,
-  which owns the per-bundle engine this skill calls); verifying that already-written docs AGREE
-  across declared edges (yf-drift-check, an orthogonal axis); running a repo's build/test/lint
-  recipe (yf-change-validation). Never fires on an ordinary edit — it is operator-invoked, and
-  `backfill --apply` is consent-gated because it rewrites bundles in place."
+description: >-
+  Corpus-level OKF health for a repo's artifact bundles: read-only discovery and classification,
+  the legacy BACKFILL with a crash-recovery journal, index repair, and reversal. TRIGGER when:
+  /yf-okf-hygiene (audit | assess | backfill | reindex | restore); which or how many bundles are
+  still legacy; backfilling legacy plan/research folders at CORPUS scale; undoing a backfill. SKIP
+  for: ONE bundle (`yf-okf`); whether docs AGREE across edges (`yf-drift-check`); running a build
+  recipe (`yf-change-validation`). Operator-invoked only.
 user-invocable: true
 skill-group: utility
 depends-on-tool: [uv, git]

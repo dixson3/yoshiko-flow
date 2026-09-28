@@ -42,6 +42,8 @@ None. This is an instruction-only reference skill with no phases or state transi
 skills/yf-beads-authoring/
 ├── agents/
 │   └── reviewer.md       # read-only anti-patterns checklist; one audit item per rule in SKILL.md.
+├── evals/                # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── spec/
 │   ├── formulas.md       # formula authoring: gate two-bead gotcha, right-sizing, flat-structure limit, fan-out (REQ-FORMULA-*).
 │   ├── orchestration.md  # post-pour metadata, coordinator loop, the resilience contract (resume detection, stuck-bead sweep, stale-run threshold, blocked-gate draining, discovered-work re-entry, completion/git-handoff), coordinate subcommand, gate auto-detection (REQ-ORCH-*).

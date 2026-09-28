@@ -1,17 +1,12 @@
 ---
 name: yf-beads-authoring
-description: >
-  Conventions for building Claude Code skills that orchestrate work through beads (bd):
-  formula authoring (.formula.toml), `bd mol pour` lifecycle, dynamic fan-out, agent
-  metadata wiring, the coordinator dispatch loop, the coordinator resilience contract
-  (crash/resume recovery, stuck-bead sweep, completion handoff), and the `coordinate`
-  subcommand with gate auto-detection.
-  TRIGGER when: creating or modifying a beads-backed skill, authoring a `.formula.toml`,
-  wiring `bd mol pour` into a SKILL.md, implementing a coordinator agent, designing
-  crash-recovery/resume for a re-invokable coordinator, or designing gate-resolution flow
-  for a multi-session skill.
-  SKIP for: routine `bd` CLI use (use `beads`), direct-CLI gotchas (use `yf-beads-extra`),
-  or non-beads skills.
+description: >-
+  Conventions for skills that orchestrate work through beads (bd): `.formula.toml` authoring, `bd
+  mol pour` lifecycle and fan-out, agent metadata, the coordinator loop and its crash/resume
+  contract, and the `coordinate` subcommand. TRIGGER when: creating or modifying a beads-backed
+  skill, authoring a `.formula.toml`, wiring `bd mol pour` into a SKILL.md, implementing a
+  coordinator agent or its crash recovery, or designing gate resolution for a multi-session skill.
+  SKIP for: routine `bd` use (`beads`); direct-CLI gotchas (`yf-beads-extra`).
 user-invocable: false
 skill-group: beads
 depends-on-tool: [bd]

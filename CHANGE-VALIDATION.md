@@ -157,6 +157,8 @@ approved: yes
 | `uv-yf-cascade-root` | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 | `uv-yf-epic-ref` | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 | `frontmatter` | `uv run scripts/check_frontmatter.py` |  |  |
+| `frontmatter-tests` | `uv run scripts/test_check_frontmatter.py` |  |  |
+| `trigger-eval-tests` | `uv run scripts/checks/test_skill_trigger_eval.py` |  |  |
 | `skill-script-refs` | `uv run scripts/check_skill_script_refs.py` |  |  |
 | `skill-script-refs-tests` | `uv run scripts/test_check_skill_script_refs.py` |  |  |
 | `uv-research` | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
@@ -223,11 +225,13 @@ approved: yes
 | `plan067-verbs` | `uv run scripts/checks/plan067_checks.py verbs-match` |  |  |
 | `skill-diagrams` | `uv run web/plugins/skill_diagrams.py --check` |  |  |
 | `diagrams-published` | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
+| `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
+| `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
 
 ### full
 
-| id | cmd | cwd | timeout |
-|:--|:--|:--|--:|
+| id | cmd | cwd | timeout | flags |
+|:--|:--|:--|--:|:--|
 |  | `cargo fmt --all -- --check` |  |  |
 |  | `cargo clippy --workspace --all-targets -- -D warnings` |  |  |
 |  | `cargo test --workspace` |  |  |
@@ -257,6 +261,8 @@ approved: yes
 |  | `uv run skills/yf-plan/scripts/test_cascade_root_resolution.py` |  |  |
 |  | `uv run skills/yf-plan/scripts/test_epic_ref_audit.py` |  |  |
 |  | `uv run scripts/check_frontmatter.py` |  |  |
+| `frontmatter-tests` | `uv run scripts/test_check_frontmatter.py` |  |  |
+| `trigger-eval-tests` | `uv run scripts/checks/test_skill_trigger_eval.py` |  |  |
 |  | `uv run scripts/check_skill_script_refs.py` |  |  |
 |  | `uv run scripts/test_check_skill_script_refs.py` |  |  |
 |  | `uv run skills/yf-research/scripts/test_link_normalizer.py` |  |  |
@@ -326,6 +332,9 @@ approved: yes
 |  | `uv run scripts/checks/test_negative_controls.py --require check_web_counts.py,check_required_set.py,check_cli_to_page.py,check_agents_set.py` |  |  |
 |  | `uv run web/plugins/skill_diagrams.py --check` |  |  |
 |  | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
+| `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
+| `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
+| `trigger-eval` | `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3 --max-runs-per-hour 150 --max-backoff-seconds 1800 --deadline-seconds 25200` |  | 28800 | `inconclusive-exit=4,stream` |
 
 ## 2. Signal Fingerprint
 
@@ -390,7 +399,10 @@ approved: yes
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home`, `gate-plan072-amendment` |
+| `skills/yf-skill-authoring/SPEC.md` | `gate-plan072-amendment` |
+| `skills/yf-change-validation/spec/*.md` | `gate-plan072-amendment` |
+| `docs/plans/plan-072-james-dixson-bae8de/**` | `okf-index-drift`, `gate-plan072-amendment`, `gate-plan072-reqcoverage` |
 | `skills/yf-okf/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-okf-hygiene/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |
@@ -492,7 +504,14 @@ approved: yes
 | `skills/yf-plan/scripts/fixtures/classify/**` | `uv-yf-classify` |
 | `skills/*/SKILL.md` | `frontmatter` |
 | `skills/*/agents/*.md` | `frontmatter` |
-| `scripts/check_frontmatter.py` | `frontmatter` |
+| `scripts/check_frontmatter.py` | `frontmatter`, `frontmatter-tests` |
+| `scripts/test_check_frontmatter.py` | `frontmatter-tests` |
+| `scripts/checks/skill_trigger_eval.py` | `trigger-eval-tests` |
+| `scripts/checks/_trigger_eval_core.py` | `trigger-eval-tests` |
+| `scripts/checks/trigger_eval_rates.json` | `trigger-eval-tests` |
+| `scripts/checks/test_skill_trigger_eval.py` | `trigger-eval-tests` |
+| `scripts/checks/fixtures/trigger-eval/**` | `trigger-eval-tests` |
+| `skills/*/evals/triggers.json` | `trigger-eval-tests` |
 | `skills/*/SKILL.md` | `skill-script-refs` |
 | `skills/*/README.md` | `skill-script-refs` |
 | `skills/*/agents/*.md` | `skill-script-refs` |

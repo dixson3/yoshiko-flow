@@ -271,6 +271,14 @@ added or regrouped.
 | `user-invocable` | bool | Whether the skill is a slash-command entry point. **TRI-STATE at the source** — `yf/src/frontmatter.rs` types it `Option<bool>`, where ABSENT means UNKNOWN, not `false`. It is populated on every shipped skill and asserted by `scripts/checks/check_user_invocable.py` (`REQ-CHECK-012`), because a consumer-side default is a second, undeclared source of truth: four skills once rendered as "auto (fires from its description conditions)" while their own descriptions declared a slash trigger. |
 | `engine` | string | **Optional, and read only by the SITE**, not by `frontmatter.rs`: names the skill's primary wrappered script when the two derivation signals disagree. Needed by exactly three skills (`yf-plan`, `yf-research`, `yf-markdown-format`); the other seventeen derive correctly, so this names the RANK, never the SET. A key enumerating every wrappered script was deliberately NOT added — that set derives at 85%, and a hand-listed one goes stale. |
 
+**`name` and `description` are length-limited and rated.** Both follow the Agent Skills spec
+(`REQ-YF-EMBED-007`): `description` is ≤1024 chars and `name` is `[a-z0-9-]`, ≤64, equal to the
+directory. `scripts/check_frontmatter.py` enforces both in the FAST and FULL tiers. Each skill also
+carries `evals/triggers.json`, an intent set plus a **recorded rating**
+(crisp / satisfactory / unrouted / loose, `REQ-SKAUTH-061`) measured on pi and claude-code by
+`scripts/checks/skill_trigger_eval.py` (`REQ-SKAUTH-062`). The FULL validation tier re-runs that
+eval, rate-throttled to 150 runs/h, at roughly 5.3 h. See `yf-skill-authoring` → *Description*.
+
 **Groups.** `workflows` are the end-to-end, beads-tracked skills you invoke to get work done
 (`yf-plan`, `yf-research`, `yf-incubator`); `beads` are the `bd` support skills the workflows build
 on (`yf-beads-init`, `-extra`, `-authoring`, `-hygiene`, `-upstream`); `utility` skills

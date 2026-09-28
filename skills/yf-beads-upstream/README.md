@@ -89,6 +89,8 @@ Safety invariant (everywhere): never a bare `bd <backend> sync`; always `--push-
 
 ```
 skills/yf-beads-upstream/
+├── evals/                                # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── protocols/
 │   ├── manifest.json                     # hash/version manifest for UPSTREAM_TRACKING.md
 │   └── UPSTREAM_TRACKING.md              # always-loaded companion rule (close-time trigger + safety invariant)

@@ -1,0 +1,117 @@
+{
+ "skill": "yf-markdown-format",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "MF1",
+   "kind": "trigger",
+   "prompt": "Align the GFM tables in SPEC.md.",
+   "skill": "yf-markdown-format"
+  },
+  {
+   "id": "MF2",
+   "kind": "trigger",
+   "prompt": "Convert the [[wiki-links]] in docs/notes.md to GFM links.",
+   "fixture": "mkdir -p docs && printf '# Notes\\n\\nSee [[SPEC]] and [[README]].\\n' > docs/notes.md",
+   "skill": "yf-markdown-format"
+  },
+  {
+   "id": "MF3",
+   "kind": "trigger",
+   "prompt": "The tables in CHANGE-VALIDATION.md are misaligned. Fix them in place.",
+   "skill": "yf-markdown-format"
+  },
+  {
+   "id": "MF-N1",
+   "kind": "near-miss",
+   "prompt": "Is README.md valid GFM? Just check it, don't change it.",
+   "siblings": [
+    "yf-markdown-format"
+   ]
+  },
+  {
+   "id": "MF-N2",
+   "kind": "near-miss",
+   "prompt": "Export README.md to a self-contained HTML file.",
+   "siblings": [
+    "yf-markdown-format"
+   ]
+  },
+  {
+   "id": "MF-N3",
+   "kind": "near-miss",
+   "prompt": "Add a new section to README.md describing the install steps.",
+   "siblings": [
+    "yf-markdown-format"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "97bac1cc4c68939c63fee279f90a707bfd96985e11bcf1f9054391e81f43a0e5",
+  "description_chars": 582,
+  "cells": {
+   "MF1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "MF-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

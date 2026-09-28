@@ -4,14 +4,13 @@ user-invocable: true
 skill-group: markdown
 depends-on-tool: [uv]
 depends-on-skill: []
-description: >
-  Conventional GitHub-Flavored-Markdown linter. Checks that documents are valid
-  GFM with well-formed, resolvable links — no Obsidian wiki-links (`[[...]]`) or
-  embeds (`![[...]]`), valid relative links/anchors, and consistent tables.
-  TRIGGER when: /yf-markdown-lint invoked; checking markdown validity; verifying a
-  generated/edited `.md` file is clean GFM; after a generator skill writes
-  markdown. SKIP for: non-markdown files; Obsidian-specific wiki-link tooling
-  (plain GFM is the convention this linter enforces).
+description: >-
+  Conventional GitHub-Flavored-Markdown linter: flags Obsidian wiki-links (`[[...]]`) and embeds
+  (`![[...]]`), broken relative links/anchors, and inconsistent tables. TRIGGER when:
+  /yf-markdown-lint; checking whether a `.md` file is valid GFM; asking whether a file still
+  contains wiki-links, embeds or broken links; verifying a generated or edited `.md` is clean;
+  after a generator skill writes markdown. SKIP for: non-markdown files; rewriting markdown in
+  place (`yf-markdown-format`); rendering to PDF/HTML (`yf-markdown-pdf` / `yf-markdown-html`).
 ---
 
 # yf-markdown-lint

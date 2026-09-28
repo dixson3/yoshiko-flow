@@ -79,6 +79,8 @@ incubators and biasing toward the most active (bookpipe, gloak, yoshiko-flow):
 
 ```
 skills/yf-incubator/
+├── evals/                       # trigger-eval intent set + recorded rating (REQ-SKAUTH-062)
+│   └── triggers.json
 ├── scripts/
 │   ├── incubator-index.py       # `uv` PEP-723 script; classifies managed vs
 │   ├── okf.py

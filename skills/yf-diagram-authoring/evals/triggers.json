@@ -1,0 +1,116 @@
+{
+ "skill": "yf-diagram-authoring",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "DA1",
+   "kind": "trigger",
+   "prompt": "Draw a diagram of the yf install flow and save it as docs/diagrams/install-flow.png.",
+   "skill": "yf-diagram-authoring"
+  },
+  {
+   "id": "DA2",
+   "kind": "trigger",
+   "prompt": "Render the .d2 files under skills/yf-plan/spec/ again; the PNGs are stale.",
+   "skill": "yf-diagram-authoring"
+  },
+  {
+   "id": "DA3",
+   "kind": "trigger",
+   "prompt": "Make an architecture diagram of the three artifacts (repo source, embedded tree, installed skill) for the README.",
+   "skill": "yf-diagram-authoring"
+  },
+  {
+   "id": "DA-N1",
+   "kind": "near-miss",
+   "prompt": "Convert docs/research/001-okf-compliance-delta/report.md to PDF.",
+   "siblings": [
+    "yf-diagram-authoring"
+   ]
+  },
+  {
+   "id": "DA-N2",
+   "kind": "near-miss",
+   "prompt": "Resize assets/logo.png to 256x256.",
+   "siblings": [
+    "yf-diagram-authoring"
+   ]
+  },
+  {
+   "id": "DA-N3",
+   "kind": "near-miss",
+   "prompt": "Add a Mermaid sequenceDiagram to the README describing the push flow.",
+   "siblings": [
+    "yf-diagram-authoring"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "8543c8e20a420862bbdcbc0c34593cdb05b6514ebe1e237c8b3839cae8b93dfc",
+  "description_chars": 396,
+  "cells": {
+   "DA1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA-N2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA-N2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "DA-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

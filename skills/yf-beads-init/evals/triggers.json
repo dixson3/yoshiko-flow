@@ -1,0 +1,116 @@
+{
+ "skill": "yf-beads-init",
+ "_about": "REQ-SKAUTH-062 intent set. `recorded` is written ONLY by skill_trigger_eval.py --record; `decision` records the operator's split-gate answer (REQ-SKAUTH-061).",
+ "intents": [
+  {
+   "id": "BI1",
+   "kind": "trigger",
+   "prompt": "bd status errors out but bd ready and bd list work fine. Repair the beads setup.",
+   "skill": "yf-beads-init"
+  },
+  {
+   "id": "BI2",
+   "kind": "trigger",
+   "prompt": "Set up beads in this repository and make sure it's configured correctly.",
+   "skill": "yf-beads-init"
+  },
+  {
+   "id": "BI3",
+   "kind": "trigger",
+   "prompt": "bd doctor is reporting errors. Verify and fix the beads configuration.",
+   "skill": "yf-beads-init"
+  },
+  {
+   "id": "BI-N1",
+   "kind": "near-miss",
+   "prompt": "Find and remove orphaned beads.",
+   "siblings": [
+    "yf-beads-init"
+   ]
+  },
+  {
+   "id": "BI-N2",
+   "kind": "near-miss",
+   "prompt": "Show me the ready beads.",
+   "siblings": [
+    "yf-beads-init"
+   ]
+  },
+  {
+   "id": "BI-N3",
+   "kind": "near-miss",
+   "prompt": "Push open beads to GitHub issues.",
+   "siblings": [
+    "yf-beads-init"
+   ]
+  }
+ ],
+ "recorded": {
+  "date": "2026-09-26",
+  "mode": "candidate",
+  "description_sha256": "611d081bfa0ea5d1cda9102d41244b263a7ae94290677dff572ef52abff0bc59",
+  "description_chars": 537,
+  "cells": {
+   "BI1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI2:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI2:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI-N1:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI-N1:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI-N2:pi": {
+    "rate": 0.6666666666666666,
+    "correct": 2,
+    "reps": 3
+   },
+   "BI-N2:cc": {
+    "rate": 0.6666666666666666,
+    "correct": 2,
+    "reps": 3
+   },
+   "BI-N3:pi": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   },
+   "BI-N3:cc": {
+    "rate": 1.0,
+    "correct": 3,
+    "reps": 3
+   }
+  }
+ }
+}

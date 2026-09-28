@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "git diff && ls DRIFT-CHECK.md CHANGE-VALIDATION.md 2>&1; grep -n \"approved\" DRIFT-CHECK.md 2>/dev/null | head", "description": "Show the spec diff and check for drift manifest"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Skill", "input": {"skill": "yf-drift-check", "args": "changed: skills/yf-okf/spec/OKF-BASELINE.md (added normative sentence: \"The engine SHALL reject any bundle whose index.md lacks a title.\")"}}]}}
