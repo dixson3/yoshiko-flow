@@ -247,7 +247,8 @@ def tokens_consumed(tokens: dict | None) -> float:
     return sum((v for v in (tokens or {}).values() if isinstance(v, (int, float))), 0.0)
 
 
-def run_validity(stream_text: str, stderr: str, tokens: dict | None) -> tuple[str, int | None]:
+def run_validity(stream_text: str, stderr: str, tokens: dict | None,
+                 harness: str = "cc") -> tuple[str, int | None]:
     """'ok' | 'rate-limited' | 'zero-tokens', plus reset_seconds for a rate limit.
 
     A run that spent nothing measured nothing: it is never scored and never recorded.
@@ -255,12 +256,14 @@ def run_validity(stream_text: str, stderr: str, tokens: dict | None) -> tuple[st
     WHERE the signature is looked for is load-bearing (measured false positive): the stream
     carries the system prompt and tool docs, and pi's include the phrase "rate limit". So the
     signature is read from STDERR (pi's `429: {...}` lands there) always, and from the stream
-    text ONLY when the run consumed zero tokens (CC's "You've hit your session limit" is an
-    assistant text with no usage). A run that spent tokens was served, so it was not limited.
+    text ONLY when the run consumed zero tokens AND the harness is CC (CC's "You've hit your
+    session limit" is an assistant text with no usage). pi reports all 429s on stderr — its
+    stream text is never checked for rate-limit signatures. A run that spent tokens was served,
+    so it was not limited.
     """
     zero = tokens_consumed(tokens) == 0
     limited, reset = rate_limit_signature(stderr or "")
-    if not limited and zero:
+    if not limited and zero and harness == "cc":
         limited, reset = rate_limit_signature(stream_text or "")
     if limited:
         return "rate-limited", reset

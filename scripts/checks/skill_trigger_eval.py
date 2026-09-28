@@ -258,7 +258,8 @@ def kill(p: subprocess.Popen) -> None:
 
 
 def run_once(harness: str, clone: Path, st: Path, names: list[str], intent: dict,
-             expected_desc: dict, user_invocable: set[str], rates: dict, mode: str) -> dict:
+             expected_desc: dict, user_invocable: set[str], rates: dict, mode: str,
+             pi_model: str | None = None) -> dict:
     sid = str(uuid.uuid4())
     debug = CACHE / f"debug-{sid}.log"
     if harness == "cc":
@@ -269,6 +270,8 @@ def run_once(harness: str, clone: Path, st: Path, names: list[str], intent: dict
                     "--debug-file", str(debug)]
     else:
         cmd = ["pi", "-p", "--mode", "json", "--no-session"]
+        if pi_model:
+            cmd += ["--model", pi_model]
         if mode == "candidate":
             cmd += ["--no-skills"] + [a for n in names for a in ("--skill", str(st / n))]
         cmd.append(intent["prompt"])
@@ -361,7 +364,8 @@ def run_once(harness: str, clone: Path, st: Path, names: list[str], intent: dict
     if debug.exists():
         debug.unlink()
     # A run that spent nothing measured nothing (REQ-SKAUTH-062 as amended): never scored.
-    validity, reset_s = core.run_validity("".join(text_tail), stderr_tail, res.get("tokens"))
+    validity, reset_s = core.run_validity("".join(text_tail), stderr_tail, res.get("tokens"),
+                                          harness=harness)
     if validity != "ok":
         res["invalid"] = validity
         res["reset_seconds"] = reset_s
@@ -433,7 +437,7 @@ class Results:
 
 
 def run_harness(h, root, names, work, reps, mode, budget, rates, run_tag, throttle=None,
-                results=None, rep_offset=0):
+                results=None, rep_offset=0, pi_model=None):
     """Run every (intent, rep) for one harness sequentially in its own clone."""
     clone = prepare_clone(root, h, run_tag)
     st, hashes = stage(clone, root, h, names) if mode == "candidate" else (clone / ".none", {})
@@ -452,7 +456,7 @@ def run_harness(h, root, names, work, reps, mode, budget, rates, run_tag, thrott
                 if throttle is not None and not throttle.acquire():
                     return out
                 r = run_one(h, clone, root, st, hashes, names, intent, expected, user_inv,
-                            rates, mode)
+                            rates, mode, pi_model=pi_model)
                 r["rep"] = rep
                 budget.record(r)
                 if r.get("invalid") == "rate-limited" and throttle is not None:
@@ -478,7 +482,8 @@ def run_harness(h, root, names, work, reps, mode, budget, rates, run_tag, thrott
     return out
 
 
-def run_one(h, clone, root, st, hashes, names, intent, expected, user_inv, rates, mode):
+def run_one(h, clone, root, st, hashes, names, intent, expected, user_inv, rates, mode,
+           pi_model=None):
     reset(clone, intent.get("fixture"))
     if mode == "candidate":
         st2, hashes2 = stage(clone, root, h, names)  # staging cleared every reset
@@ -487,7 +492,8 @@ def run_one(h, clone, root, st, hashes, names, intent, expected, user_inv, rates
             return {"harness": h, "intent": intent["id"], "correct": None,
                     "inconclusive": why if not ok else "staged tree differs from the first staging"}
         st = st2
-    return run_once(h, clone, st, names, intent, expected, user_inv, rates, mode)
+    return run_once(h, clone, st, names, intent, expected, user_inv, rates, mode,
+                    pi_model=pi_model)
 
 
 def cmd_live(args, root: Path) -> int:
@@ -535,7 +541,8 @@ def cmd_live(args, root: Path) -> int:
         f"{total - already} to run) throttle={args.max_runs_per_hour:.0f}/h global")
     with ThreadPoolExecutor(max_workers=len(harnesses)) as ex:
         futs = {h: ex.submit(run_harness, h, root, names, work, args.reps, args.mode, budget,
-                             rates, f"{tag}-{h}", throttle, store) for h in harnesses}
+                             rates, f"{tag}-{h}", throttle, store,
+                             pi_model=args.pi_model) for h in harnesses}
         results = {h: f.result() for h, f in futs.items()}
     # Confirmation re-runs: a cell <0.5 whose RECORDED rate was >=0.5 gets 3 more reps.
     cells = aggregate(results)
@@ -558,7 +565,7 @@ def cmd_live(args, root: Path) -> int:
             futs = {h: ex.submit(run_harness, h, root, names,
                                  [w for w in work if (w["id"], h) in set(confirm)], 3,
                                  args.mode, budget, rates, f"{tag}-{h}-c", throttle, store,
-                                 args.reps)
+                                 args.reps, pi_model=args.pi_model)
                     for h in {h for _, h in confirm}}
             for h, f in futs.items():
                 for r in f.result():
@@ -663,6 +670,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="bound on total rate-limit pause; exceeding it exits 4")
     ap.add_argument("--deadline-seconds", type=float, default=None,
                     help="wall-clock bound; stop at exit 4 before an outer timeout would kill the run")
+    ap.add_argument("--pi-model", default=None,
+                    help="model override for pi harness (e.g. cliproxyapi/claude-opus-5.5)")
     ap.add_argument("--results", default=None, help="append valid per-run results here")
     ap.add_argument("--resume", default=None,
                     help="skip runs already in this results jsonl (and keep appending to it)")
