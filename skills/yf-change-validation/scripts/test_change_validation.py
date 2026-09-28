@@ -526,5 +526,50 @@ def test_check_drift_no_manifest_is_clean_noop(git_repo):
     assert out["drift"] is False
 
 
+def test_read_package_json_root(tmp_path):
+    """Root-level package.json: commands are plain npm ci / npm run, cwd is empty."""
+    (tmp_path / "package.json").write_text(
+        '{"scripts": {"lint": "eslint .", "test": "jest", "build": "tsc"}}'
+    )
+    sig = cv.read_package_json(tmp_path)
+    assert sig is not None
+    assert sig["cwd"] == ""
+    assert sig["commands"] == ["npm ci", "npm run lint", "npm run test", "npm run build"]
+    # no cd && prefix
+    assert all("cd " not in c for c in sig["commands"])
+
+
+def test_read_package_json_subdir(tmp_path):
+    """Website/package.json: commands are plain, cwd is 'website' — caller passes it to add()."""
+    web = tmp_path / "website"
+    web.mkdir()
+    (web / "package.json").write_text(
+        '{"scripts": {"test": "vitest"}}'
+    )
+    sig = cv.read_package_json(tmp_path)
+    assert sig is not None
+    assert sig["cwd"] == "website"
+    assert sig["commands"] == ["npm ci", "npm run test"]
+    assert all("cd " not in c for c in sig["commands"])
+
+
+def test_build_recipe_package_json_cwd_propagates(tmp_path):
+    """When package_json signal has a non-empty cwd, it reaches the FULL-tier row."""
+    signals = {
+        "package_json": {
+            "source": "website/package.json",
+            "cwd": "website",
+            "scripts": ["test"],
+            "fingerprint": "abc123",
+            "commands": ["npm ci", "npm run test"],
+        }
+    }
+    recipe = cv.build_recipe(signals)
+    full = recipe["full"]
+    assert len(full) == 2
+    assert full[0] == {"cmd": "npm ci", "cwd": "website"}
+    assert full[1] == {"cmd": "npm run test", "cwd": "website"}
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

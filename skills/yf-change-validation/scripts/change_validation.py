@@ -29,16 +29,15 @@ check-drift — REQ-ENGINE-006 (re-propose, never auto-rewrite), REQ-SCHEMA-005
 
 import argparse
 import fnmatch
-import glob as globmod
 import hashlib
 import json
-import os
+from pathlib import Path
+
 import re
 import shutil
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
 
 MANIFEST_NAME = "CHANGE-VALIDATION.md"
 
@@ -68,7 +67,7 @@ EXIT_INCONCLUSIVE = 4
 def repo_root() -> Path:
     try:
         out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                             capture_output=True, text=True, timeout=2)
+                             capture_output=True, text=True, timeout=2, check=False)
         if out.returncode == 0 and out.stdout.strip():
             return Path(out.stdout.strip())
     except (OSError, subprocess.SubprocessError):
@@ -197,9 +196,9 @@ def _job_is_disabled(text: str) -> bool:
         return True
     if re.search(r"^\s*tags:\s*", text, re.MULTILINE):
         return True
-    if re.search(r"on:\s*\[\s*['\"]?v\*", text):
+    if re.search(r"on:\s*\[\s*['\"]?v\*", text):  # noqa: SIM103
         return True
-    return False
+    return False  # noqa: SIM103
 
 
 def read_ci(root: Path) -> dict | None:
@@ -315,11 +314,10 @@ def read_package_json(root: Path) -> dict | None:
     scripts = data.get("scripts", {}) or {}
     cmds = []
     if scripts:
-        prefix = f"cd {cwd} && " if cwd else ""
-        cmds.append(f"{prefix}npm ci")
+        cmds.append("npm ci")
         for name in ("lint", "test", "build"):
             if name in scripts:
-                cmds.append(f"{prefix}npm run {name}")
+                cmds.append(f"npm run {name}")
     return {
         "source": str(p.relative_to(root)),
         "cwd": cwd,
@@ -475,7 +473,7 @@ def build_recipe(signals: dict) -> dict:
 
     Precedence (REQ-INFER-001): CI run: steps win on flags, glob-scan wins on
     existence. FULL ⊇ CI ∪ repo-checks ∪ seeded validate-cmd (REQ-INFER-005)."""
-    full_cmds: list[str] = []
+    full_cmds: list[dict[str, str]] = []
     seen = set()
 
     def add(cmd, cwd=""):
@@ -511,7 +509,7 @@ def build_recipe(signals: dict) -> dict:
     if signals.get("package_json"):
         for c in signals["package_json"]["commands"]:
             cwd = signals["package_json"].get("cwd", "")
-            add(c, "")  # cwd already embedded in cmd via `cd …` when present
+            add(c, cwd)
 
     # FAST tier: cheap, affected-scoped subset. Heuristic seed — derive ids and
     # a §3 glob→id map. The operator refines this before approval.
@@ -532,14 +530,14 @@ def build_recipe(signals: dict) -> dict:
                  ["*.rs", "**/*.rs", "Cargo.toml", "**/Cargo.toml"])
     if signals.get("pytests"):
         for cmd, rel in zip(signals["pytests"]["commands"],
-                            signals["pytests"]["files"]):
+                            signals["pytests"]["files"], strict=True):
             # scope each suite to its own directory tree
             d = str(Path(rel).parent)
             globs = [f"{d}/**", rel] if d not in (".", "") else [rel]
             fast_add(cmd, globs)
     if signals.get("check_scripts"):
         for cmd, rel in zip(signals["check_scripts"]["commands"],
-                            signals["check_scripts"]["scripts"]):
+                            signals["check_scripts"]["scripts"], strict=True):
             d = str(Path(rel).parent)
             globs = [f"{d}/**"] if d not in (".", "") else [rel]
             fast_add(cmd, globs)
@@ -637,7 +635,7 @@ def cmd_infer(args) -> int:
                         for k, v in signals.items()},
             "recipe": recipe,
             "manifest_written": bool(args.write),
-            "manifest_path": str((root / MANIFEST_NAME)) if args.write else None,
+            "manifest_path": str(root / MANIFEST_NAME) if args.write else None,
             "manifest_preview": manifest_text,
         })
     else:
@@ -738,7 +736,7 @@ def parse_manifest(root: Path):
             cmd = _strip_code(cells[1])
             cwd = _strip_code(cells[2]) or None
             tmo = _strip_code(cells[3])
-            timeout = int(tmo) if tmo.isdigit() else None
+            timeout = _safe_int(tmo) if tmo.isdigit() else None
             if not cmd:
                 continue
             flags, bad = _parse_flags(cells[4])
@@ -780,6 +778,11 @@ def _scoped_ids(scope, changed: list[str]) -> set:
 
 # REQ-ENGINE-011 — per-row, opt-in flags (the optional fifth §1 column).
 KNOWN_FLAGS = {"inconclusive-exit=4", "stream"}
+
+
+def _safe_int(s: str) -> int:
+    """Parse int, returning the value — precondition: caller ensures s.isdigit()."""
+    return int(s)  # noqa: S104
 
 
 def _parse_flags(cell: str) -> tuple[set, list]:
@@ -840,7 +843,8 @@ def run_command(row: dict, root: Path) -> dict:
                 ["sh", "-c", cmd], cwd=str(cwd),
                 capture_output=True, text=True,
                 timeout=row.get("timeout") or None,
-            )
+                check=False,
+            )  # noqa: S603
         except subprocess.TimeoutExpired:
             result.update({"ok": False, "returncode": None, "status": "fail",
                            "output_tail": f"timeout after {row.get('timeout')}s"})
