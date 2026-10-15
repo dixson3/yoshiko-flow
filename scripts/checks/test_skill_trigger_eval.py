@@ -497,7 +497,7 @@ def test_run_harness_resume_and_ratelimit_retry(tmp_path, monkeypatch):
     seq = iter([{"invalid": "rate-limited", "reset_seconds": 1, "correct": None, "inconclusive": "x"},
                 {"correct": True, "activated": ["sk"], "cc_usd": 0.0, "tokens": {"input": 1}}])
 
-    def fake_run_one(h, clone, root, st, hashes, names, intent, *a):
+    def fake_run_one(h, clone, root, st, hashes, names, intent, *a, **kw):
         calls.append(intent["id"])
         return dict(next(seq), harness=h, intent=intent["id"])
     monkeypatch.setattr(ste, "run_one", fake_run_one)
