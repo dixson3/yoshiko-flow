@@ -42,6 +42,8 @@ __pycache__/
 
 # beads-init: required exclusions
 .beads/proxieddb/
+# bd >= 1.3 runtime gate lock, recreated at the repo root on every bd call
+/.beads.gate.lock
 
 # yf-okf-hygiene scaffolding (plan-064 Issue 1.7 / #294).
 #
