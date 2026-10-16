@@ -7,14 +7,14 @@ description: 'Release yf 0.6.0: yf doctor warns (not errors) on missing optional
 id: plan-073-james-dixson-cc76de
 author: james-dixson
 created: '2026-10-15'
-status: review
+status: ready-for-approval
 ---
 # Plan: Release yf 0.6.0: yf doctor warns (not errors) on missing optional-skill tools such as herdr, beads gate-lock exclusion (yf-htws), yf-research fixes #410 #411 #412
 
 **ID:** plan-073-james-dixson-cc76de
 **Author:** james-dixson
 **Created:** 2026-10-15
-**Status:** review
+**Status:** ready-for-approval
 
 ## Objective
 
@@ -558,10 +558,10 @@ yf-diagram-authoring currently declares `[d2]` only, but `render.py` runs via `u
 | SC5 | `yf doctor` with only bd/uv/git on `PATH` has no failing skill-deps axis | `cargo test -p yf -- --list 2>/dev/null \| grep -q 'doctor_green_without_optional_tools: test' && cargo test -p yf doctor_green_without_optional_tools` → exit 0 | 1.5 |
 | SC6 | The README contract enforces the union and the optional marker, and the generated "At a glance" data still passes | `grep -q 'def test_optional_tool_must_be_marked_optional' scripts/checks/test_check_skill_readme_contract.py && uv run --with pytest python3 -m pytest scripts/checks/test_check_skill_readme_contract.py -q && uv run scripts/checks/check_skill_readme_contract.py && uv run scripts/checks/check_required_set.py` → exit 0 | 1.6, 4.1 |
 | SC7 | The beads kernel tops up and verify-reports `/.beads.gate.lock` | `grep -q '"/.beads.gate.lock"' yf/src/beads_init.rs && cargo test -p yf -- --list 2>/dev/null \| grep -q 'verify_reports_unignored_gate_lock: test' && cargo test -p yf ensure_gitignore_idempotent && cargo test -p yf verify_reports_unignored_gate_lock` → exit 0 | 2.1 |
-| SC8 | `check-quotes`, legacy-quote handling and idempotent `all` exist and are tested | `uv run skills/yf-research/scripts/link_normalizer.py check-quotes --help && for t in test_check_quotes_traced test_check_quotes_untraced_reports_id test_legacy_quote_normalized test_check_quotes_ellipsis_split test_all_idempotent; do grep -q "def $t" skills/yf-research/scripts/test_link_normalizer.py \|\| exit 1; done && uv run skills/yf-research/scripts/test_link_normalizer.py` → exit 0 | 3.1, 3.4 |
+| SC8 | `check-quotes`, legacy-quote handling and idempotent `all` exist and are tested | `for t in test_check_quotes_traced test_check_quotes_untraced_reports_id test_legacy_quote_normalized test_check_quotes_ellipsis_split test_all_idempotent; do grep -q "def $t" skills/yf-research/scripts/test_link_normalizer.py \|\| exit 1; done && uv run skills/yf-research/scripts/link_normalizer.py check-quotes --help && uv run skills/yf-research/scripts/test_link_normalizer.py` → exit 0 | 3.1, 3.4 |
 | SC9 | The agent briefs, data spec and README carry the evidence store and `sources.md`-at-synthesize | `R=skills/yf-research && grep -q 'check-quotes' $R/agents/red-team.md && grep -q 'sources.md' $R/agents/red-team.md && grep -q 'link_normalizer.py all' $R/agents/synthesizer.md && grep -q 'quotes\[\]' $R/agents/retriever.md && grep -q 'quotes\[\]' $R/agents/triangulator.md && grep -q 'quotes\[\]' $R/agents/synthesizer.md && grep -q 'quotes\[\]' $R/spec/data.md && grep -q 'quotes\[\]' $R/README.md && grep -q 'peer-reviewed' $R/README.md` → exit 0 | 3.2, 3.3, 3.4, 4.2 |
 | SC10 | Preprints score Tier 4 by default, `--peer-reviewed` restores Tier 1, and registry/mirror `.dev` URLs do not get Tier 2 | `for t in test_preprint_tier4 test_osf_preprints_path_match test_peer_reviewed_restores_tier1 test_dev_registry_not_tier2 test_dev_docs_stays_tier2; do grep -q "def $t" skills/yf-research/scripts/test_credibility_scorer.py \|\| exit 1; done && uv run skills/yf-research/scripts/test_credibility_scorer.py` → exit 0 | 3.5 |
 | SC11 | The CHANGELOG v0.6.0 section cites every `complete` plan 055–071 plus 072 and 073, and every version literal reads 0.6.0 | `grep -q '^version = "0.6.0"' yf/Cargo.toml && grep -q 'YOSHIKOFLOW_RELEASE = "v0.6.0"' web/pelicanconf.py && uv run python -c 'import re,pathlib,sys;t=pathlib.Path("CHANGELOG.md").read_text();s=t.split("## v0.6.0",1)[1].split("\n## v",1)[0];ids=sorted({int(p.name[5:8]) for p in pathlib.Path("docs/plans").glob("plan-0*") if 55<=int(p.name[5:8])<=71 and re.search(r"(?m)^status: complete$",(p/"plan.md").read_text())}\|{72,73});sys.exit(1 if [i for i in ids if not re.search(r"\bplan-0*%d\b"%i,s)] else 0)'` → exit 0 | 5.1 |
-| SC12 | **Regression guard, not delivery evidence** (green before execution; pass-2 C9): the FAST tier is green on the execute branch at completion. The landing's L3 runs FULL on the merged tree | `uv run skills/yf-change-validation/scripts/change_validation.py run --tier fast` → exit 0 | 1.6, 2.1, 3.5, 5.1 |
+| SC12 | **Regression guard, not delivery evidence** (green before execution; pass-2 C9): the FAST tier is green on the execute branch at completion. The landing's L3 runs FULL on the merged tree | manual: `uv run skills/yf-change-validation/scripts/change_validation.py run --tier fast` exits 0 on the execute branch at completion (about 180 s, over ready-check's 30 s smoke bound, so recorded as manual) | 1.6, 2.1, 3.5, 5.1 |
 | SC13 | **Regression guard, not delivery evidence** (green before execution; pass-2 C9): every SKILL.md frontmatter, including the new key, passes the repo guard | `uv run scripts/check_frontmatter.py` → exit 0 | 1.4 |
 | SC14 | The release follow-on bead exists, stays open, and sits outside the plan subtree | `bd list --status open --json \| uv run python -c 'import json,sys;sys.exit(0 if any(i["title"].startswith("Cut v0.6.0") for i in json.load(sys.stdin)) else 1)'` → exit 0 | 5.2 |
