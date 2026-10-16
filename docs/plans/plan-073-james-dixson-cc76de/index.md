@@ -17,3 +17,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/upstream-410.md](references/upstream-410.md) - Full body of #410 (red-team false 'untraceable quote' findings): the defect behind the quotes[] evidence-store change.
 - [references/upstream-411.md](references/upstream-411.md) - Full body of #411 (red-team flags every citation as broken because sources.md is packager-generated).
 - [references/upstream-412.md](references/upstream-412.md) - Full body of #412 (credibility_scorer over-scores arXiv preprints and third-party .dev hosts).
+- [reviews/pass-1.md](reviews/pass-1.md) - [red-team pass 1, reading] REVISE: preflight never enforced herdr; Epic 5 tag/verify deadlocked the landing close chain; four SCs green-before-work or unpassable; doctor still failed without d2/pandoc; 12 concerns, all resolved in plan v2
+- [reviews/pass-2.md](reviews/pass-2.md) - [red-team pass 2, reading] REVISE: pass-1 resolutions hold; moving herdr broke un-amended REQ-HERDR-040; README marker landed after its checker; fail-closed clause untested; tagged tree differed from the L3 tree; 11 concerns, all resolved in plan v3

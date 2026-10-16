@@ -27,6 +27,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [assets/exp-003/rescored.txt](assets/exp-003/rescored.txt) - EXP-003 per-intent results and signal table (CC 59/63, pi 57/63)
 - [assets/exp-003/run-cc.jsonl](assets/exp-003/run-cc.jsonl) - EXP-003 raw per-run results, claude-code
 - [assets/exp-003/run-pi.jsonl](assets/exp-003/run-pi.jsonl) - EXP-003 raw per-run results, pi
+- [assets/landing-handoff.md](assets/landing-handoff.md) - Landing handoff (2026-10-16): attempt 4 halted at L3 on a pi trigger-eval FAIL; the held pi-only diagnostic eval with persisted results, then the re-land procedure
 - [diagrams/plan-072-structure.d2](diagrams/plan-072-structure.d2) - d2 source for the epic-structure diagram
 - [reviews/pass-1.md](reviews/pass-1.md) - [red-team pass 1, reading] REVISE: FULL row tests the OLD installed descriptions; as specified FULL almost never passes; <=1024-but-misses-an-intent has no rating; 14 concerns, 4 high
 - [reviews/pass-2.md](reviews/pass-2.md) - [red-team pass 2, reading] REVISE: pass-1 fixes all landed; CC init lists only user-invocable skills (candidate check would always be INCONCLUSIVE); streamed row can corrupt --json into a false landing pass; 10 concerns, 2 high
