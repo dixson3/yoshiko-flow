@@ -1,6 +1,8 @@
 # Log
 
 ## 2026-10-16
+- review: plan v4 — pass-3 C1 (SC11 complete-plans only) and C2 (R10: wait for plan-072's green L3) resolved; Issue 1.2 test renamed
+- review-pass: 3 (execution) — REVISE, 2 concerns (0 high): all 23 prior resolutions re-verified, checkers clean; SC11 forces citing unshipped plan-069; plan-072 trigger-eval FAIL inherited, unnamed in Risks
 - review: plan v3 — all 11 pass-2 concerns resolved (REQ-HERDR-040 + sibling SPEC literals in new Issue 0.7; README markers moved into 1.6; fail-closed test; L4-merge tree precondition; release follow-on bead 5.2)
 - review-pass: 2 (reading) — REVISE, 11 concerns (1 high): moving herdr breaks un-amended REQ-HERDR-040 + 3 sibling SPEC literals; README marker after its checker; fail-closed clause untested; tagged tree != L3 tree; post-landing release untracked
 
