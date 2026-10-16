@@ -1,5 +1,11 @@
 # Log
 
+## 2026-10-15
+- landing-halt: L_MERGED_UNCOMMITTED l3_validate_merged irreversible=false
+- landing-halt: L_MERGED_UNCOMMITTED l3_validate_merged irreversible=false
+
+- landing-halt: L_MERGED_UNCOMMITTED l3_validate_merged irreversible=false
+
 ## 2026-09-25
 - executing: fingerprint refreshed on OPERATOR instruction (ESC-001 'lets do A'): recertified by red-team execution passes 6 (REVISE) → 7 (REVISE) → 8 (APPROVE, zero measured findings); ready-check green before the write
 - review-pass: 8 (execution) — APPROVE, zero measured findings; ESC-001 amendment recertified
