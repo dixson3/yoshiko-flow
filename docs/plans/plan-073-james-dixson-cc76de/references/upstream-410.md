@@ -9,8 +9,8 @@ description: 'Upstream issue #410 - yf-research red-team: quote check reads only
 
 - **Number:** 410
 - **Title:** yf-research red-team: quote check reads only sources.json, but synthesizer quotes from cluster artifacts — false 'untraceable quote' [high] findings
-- **URL:** 
-- **State:** OPEN
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/410
+- **State:** CLOSED
 - **Labels:** priority::medium, type::bug
 
 ## Body

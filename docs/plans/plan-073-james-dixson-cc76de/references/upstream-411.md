@@ -8,7 +8,7 @@ description: 'Upstream issue #411 - yf-research red-team runs before packager ge
 
 - **Number:** 411
 - **Title:** yf-research red-team runs before packager generates sources.md — every citation reported as a broken link
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/411
 - **State:** OPEN
 - **Labels:** priority::medium, type::bug
 

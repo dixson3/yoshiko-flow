@@ -21,3 +21,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/pass-2.md](reviews/pass-2.md) - [red-team pass 2, reading] REVISE: pass-1 resolutions hold; moving herdr broke un-amended REQ-HERDR-040; README marker landed after its checker; fail-closed clause untested; tagged tree differed from the L3 tree; 11 concerns, all resolved in plan v3
 - [reviews/pass-3.md](reviews/pass-3.md) - [red-team pass 3, execution] REVISE: all 23 prior resolutions re-verified, checkers clean, 12/14 SCs red-before-work; SC11 forced citing unshipped plan-069; plan-072 trigger-eval FAIL inherited; 2 concerns, both resolved in plan v4
 - [reviews/pass-4.md](reviews/pass-4.md) - [red-team pass 4, execution] APPROVE: converged, zero measured findings; all 25 prior resolutions re-verified; checkers clean
+- [references/upstream-442.md](references/upstream-442.md) - Full body of #442, this plan's coarse execution tracker (filed at intake)

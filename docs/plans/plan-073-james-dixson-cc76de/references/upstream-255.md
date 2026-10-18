@@ -8,8 +8,8 @@ description: 'Upstream issue #255 - Cut the v0.5.0 release: push the tag (deferr
 
 - **Number:** 255
 - **Title:** Cut the v0.5.0 release: push the tag (deferred from plan-054, everything else staged and green)
-- **URL:** 
-- **State:** OPEN
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/255
+- **State:** CLOSED
 - **Labels:** 
 
 ## Body

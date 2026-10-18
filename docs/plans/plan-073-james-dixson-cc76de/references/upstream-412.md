@@ -9,7 +9,7 @@ description: 'Upstream issue #412 - yf-research credibility_scorer.py over-score
 
 - **Number:** 412
 - **Title:** yf-research credibility_scorer.py over-scores: arxiv.org is Tier 1 (rubric says preprints Tier 4), .dev bump promotes third-party registries/mirrors
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/412
 - **State:** OPEN
 - **Labels:** priority::medium, type::bug
 

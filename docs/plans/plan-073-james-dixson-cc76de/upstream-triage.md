@@ -11,6 +11,15 @@ Add notes as needed. When done, say "triage ready".
 
 _Full issue bodies are inlined under `references/upstream-<N>.md` (regenerated on re-triage)._
 
+## #442 — plan-073-james-dixson-cc76de execution tracking
+Labels: type::epic, priority::high
+> Coarse tracking issue for **plan-073-james-dixson-cc76de** (AGENTS.md convention: one issue per plan-scale effort). Resolves #410 and #411. Partially resolves #412.
+
+**Plan:** `docs/plans/plan-073-jam...
+
+**Disposition:**
+**Notes:**
+
 ## #412 — yf-research credibility_scorer.py over-scores: arxiv.org is Tier 1 (rubric says preprints Tier 4), .dev bump promotes third-party registries/mirrors
 Labels: priority::medium, type::bug
 > ## Problem

@@ -9,7 +9,7 @@ description: 'Upstream issue #302 - yf-plan: plan-folder location and plan NUMBE
 
 - **Number:** 302
 - **Title:** yf-plan: plan-folder location and plan NUMBER are both unenforced claims — 'stays primary-side' is false in a worktree, and get_next_index() is count-based so numbers collide across checkouts
-- **URL:** 
+- **URL:** https://github.com/dixson3/yoshiko-flow/issues/302
 - **State:** OPEN
 - **Labels:** type::bug, priority::high
 
