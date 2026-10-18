@@ -7,14 +7,18 @@ description: 'Release yf 0.6.0: yf doctor warns (not errors) on missing optional
 id: plan-073-james-dixson-cc76de
 author: james-dixson
 created: '2026-10-15'
-status: ready-for-approval
+status: approved
+deliverable_class: standard
+fingerprint: c11fa7375e7e37ef713013ea3f4c7c31d579787c38e888920c5bf695500b6070
 ---
 # Plan: Release yf 0.6.0: yf doctor warns (not errors) on missing optional-skill tools such as herdr, beads gate-lock exclusion (yf-htws), yf-research fixes #410 #411 #412
 
 **ID:** plan-073-james-dixson-cc76de
 **Author:** james-dixson
 **Created:** 2026-10-15
-**Status:** ready-for-approval
+**Status:** approved
+**Deliverable-class:** standard
+**Fingerprint:** c11fa7375e7e37ef713013ea3f4c7c31d579787c38e888920c5bf695500b6070
 
 ## Objective
 

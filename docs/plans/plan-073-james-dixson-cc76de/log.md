@@ -1,5 +1,9 @@
 # Log
 
+## 2026-10-18
+
+- approved: operator approved
+
 ## 2026-10-16
 - ready-for-approval: ready-check green — pass-4 (execution) APPROVE + audit pass; execution gated on plan-072 landing (R10)
 - review: post-APPROVE mechanical edit, flagged by ready-check. SC8 reordered so the test-name greps run before `check-quotes --help`; pre-work it now exits 1 cleanly instead of printing click's `usage:` (read as unrunnable). SC12 (a FAST-tier regression guard, ~180 s) recorded as `manual:` because it exceeds the 30 s smoke bound. Criterion semantics are unchanged
