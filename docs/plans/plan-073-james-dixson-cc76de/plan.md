@@ -86,6 +86,7 @@ untracked file blocked plan-072's landing (`primary-checkout-dirty-outside-plan-
 | #410 | yf-research red-team quote check reads only sources.json | include | Operator chose option 1: a `quotes[]` evidence store | 0.4, 3.1, 3.2, 3.3 |
 | #411 | yf-research red-team runs before packager generates sources.md | include | Operator chose option 1: build `sources.md` at synthesize | 0.5, 3.4 |
 | #412 | yf-research credibility_scorer over-scores arXiv and .dev | partial | Operator scoped two of three parts: preprints → Tier 4, and a restricted `.dev` bump. The **undated-source currency** part is out of scope, so #412 stays OPEN | 0.6, 3.5 |
+| #442 | plan-073-james-dixson-cc76de execution tracking | tracker | Coarse tracker (https://github.com/dixson3/yoshiko-flow/issues/442), filed at intake | - |
 | #255 | Cut the v0.5.0 release | exclude | Closed 2026-10-15; the release precedent this plan's post-landing tag follows | - |
 | #302 | plan-number collisions across checkouts | exclude | Context only. plan-073's number was allocated past a placeholder (`log.md`) | - |
 
