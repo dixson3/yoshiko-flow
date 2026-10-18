@@ -6,6 +6,9 @@ tags: [grite, plan-outline]
 
 # Grite migration plan outline
 
+> **Status (2026-10-18):** parked. The `grite-migration` integration branch described below is
+> deprecated until P-0 is resolved; until then, grite plans land per the vault default (`main`).
+
 Draft sequence of yf-plans. Each plan is scoped and approved through `/yf-plan` when it starts, so
 this outline fixes order and intent, not content. Plans execute on short-lived branches cut from
 `grite-migration` and merge back into it. The exception is **P-0**, which lands on `main` because
