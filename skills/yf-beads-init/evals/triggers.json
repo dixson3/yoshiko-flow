@@ -32,6 +32,7 @@
    "id": "BI-N2",
    "kind": "near-miss",
    "prompt": "Show me the ready beads.",
+   "fixture": "bd init -q --non-interactive --skip-hooks --skip-agents -p evalfx",
    "siblings": [
     "yf-beads-init"
    ]
