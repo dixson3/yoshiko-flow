@@ -34,4 +34,6 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/reproduction.md](references/reproduction.md) - Portable offline baseline reproduction, genuine native fixture controls and artifact-provenance limits.
 - [references/readiness.md](references/readiness.md) - Exact reviewed hashes, mechanical readiness, unapproved B0/B1/B2 decisions and no-authority handoff.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
-- [references/operator-decisions.json](references/operator-decisions.json)
+- [references/operator-decisions.json](references/operator-decisions.json) - Exact later operator approval, accepted B0, conditional B1 and external-only B2; live PIM writes/resumption remain forbidden.
+- [references/upstream-456.md](references/upstream-456.md) - Full verified OPEN coarse tracker body; intake mirror is not an execution epic.
+- [references/intake-handoff.md](references/intake-handoff.md) - Approved intake, tracker #456, unchanged fingerprint and master-only fresh-executor handoff. Read this after the historical readiness report.

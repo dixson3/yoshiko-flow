@@ -55,3 +55,24 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `sc_flipped_post_approval` |  |
 | `halts_post_irreversible` |  |
 
+## RE-003
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-10-29 |
+| `stop_class` | 5 |
+| `asked` | Intake ready-check failed on missing non-exclude tracker body |
+| `answered` | Retained exact verified #456 body and indexed it; rerun audit/readiness before publication |
+| `frontloadable` | yes |
+| `detected_by` | mechanical-check |
+| `evidence` | audit: references/upstream-456.md missing body after adding tracker row; no scope/content change |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+| `sc_flipped_post_approval` |  |
+| `halts_post_irreversible` |  |
+

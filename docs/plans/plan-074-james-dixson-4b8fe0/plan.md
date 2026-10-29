@@ -31,6 +31,7 @@ PIM H0 plan-012 remains held after code and packaging verification. Its unchange
 | #417 | Start resolver cannot find native gate-typed Begin wrapper | include | Reuse existing defect for resolver and fidelity; local mirror yf-05k1. Original body preserved with bounded planning note. | 3.3 |
 | #445 | Standing fidelity override request | exclude | Evidence only; no waiver or consent adopted. | — |
 | #414 | Fidelity after cascade ordering | exclude | Related ordering facts only; general landing overhaul excluded. | — |
+| #456 | plan-074-james-dixson-4b8fe0 execution tracking | tracker | https://github.com/dixson3/yoshiko-flow/issues/456 — intake mirror yf-kfjd; no execution molecule poured. | execute/reconcile |
 
 No matching open plan was found. Plans 047/050/053 are historical predecessors; open 069/072/073 have different scopes. This bundle is not a second execution of those plans.
 
