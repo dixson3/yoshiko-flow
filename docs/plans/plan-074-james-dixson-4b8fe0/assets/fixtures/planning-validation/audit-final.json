@@ -1,0 +1,34 @@
+{
+  "status": "pass",
+  "findings": [
+    {
+      "item": "doc-lint/required-sections",
+      "status": "warn",
+      "detail": "[R] missing section(s): Strengths, Concerns, Missing, Gate Assessment, Upstream Assessment"
+    },
+    {
+      "item": "doc-lint/verdict-declared",
+      "status": "warn",
+      "detail": "[R] required pattern absent: (?m)^#{1,6} +Verdict: +(APPROVE|REVISE|INVESTIGATE-MORE)\\b|^\\*\\*Verdict:\\*\\* *(APPROVE|REVISE|INVESTIGATE-MORE)\\b"
+    },
+    {
+      "item": "doc-lint/resolutions-table",
+      "status": "warn",
+      "detail": "[R] required pattern absent: (?m)^\\| *Concern *\\|"
+    },
+    {
+      "item": "doc-lint/cell-vocabulary",
+      "status": "warn",
+      "detail": "[R] section not found: Concerns"
+    },
+    {
+      "item": "doc-lint/disposition-alphabet-offered",
+      "status": "warn",
+      "detail": "[R] required pattern absent: include, exclude, partial, supersede, deferred"
+    }
+  ],
+  "report": "Portability audit: docs/plans/plan-074-james-dixson-4b8fe0\n\n  [warn] doc-lint/required-sections: [R] missing section(s): Strengths, Concerns, Missing, Gate Assessment, Upstream Assessment\n  [warn] doc-lint/verdict-declared: [R] required pattern absent: (?m)^#{1,6} +Verdict: +(APPROVE|REVISE|INVESTIGATE-MORE)\\b|^\\*\\*Verdict:\\*\\* *(APPROVE|REVISE|INVESTIGATE-MORE)\\b\n  [warn] doc-lint/resolutions-table: [R] required pattern absent: (?m)^\\| *Concern *\\|\n  [warn] doc-lint/cell-vocabulary: [R] section not found: Concerns\n  [warn] doc-lint/disposition-alphabet-offered: [R] required pattern absent: include, exclude, partial, supersede, deferred",
+  "grandfathered": false,
+  "okf_native": true,
+  "retro": false
+}

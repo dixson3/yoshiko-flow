@@ -30,5 +30,7 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [reviews/conformance.md](reviews/conformance.md) - Independent six-item mechanical PASS; not adversarial approval.
 - [reviews/pass-1.md](reviews/pass-1.md) - Independent REVISE found a missing own-intake bridge; resolved in the unapproved B0 proposal and re-reviewed.
 - [reviews/pass-2.md](reviews/pass-2.md) - Independent reading APPROVE verifies the revised allocation, not bootstrap feasibility or operator consent.
+- [reviews/pass-3.md](reviews/pass-3.md) - Independent execution-mode APPROVE; checks and prior resolution re-run, future implementation/authority not claimed.
 - [references/reproduction.md](references/reproduction.md) - Portable offline baseline reproduction, genuine native fixture controls and artifact-provenance limits.
+- [references/readiness.md](references/readiness.md) - Exact reviewed hashes, mechanical readiness, unapproved B0/B1/B2 decisions and no-authority handoff.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
