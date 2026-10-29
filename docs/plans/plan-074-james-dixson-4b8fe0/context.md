@@ -5,7 +5,7 @@ okf_spec: OKF-PLAN
 # Project Environment Context
 
 ## Project environment
-Yoshiko Flow is a Rust CLI distributing Python manager scripts and markdown skills. Repo source, binary-embedded tree and session-installed skill are three independent artifacts. This plan repairs the yf-plan/native-bd gate-step seam; it does not repair PIM or its H0 implementation.
+Yoshiko Flow is a Rust CLI distributing Python manager scripts and markdown skills. Repo source, binary-embedded tree and session-installed skill are three independent artifacts. This plan repairs the yf-plan/native-bd gate-step seam; it does not repair PIM or its H0 implementation. H0 code was independently verified at `b1c6096de6411b254a6da10e35eb512f98bb9120`; packaging at `157bc8c443dee78d9dfea223b58eb66feefc45cc`. Round-4's packaging-red observation is historical and superseded by the byte-preserving relocation pass; its fidelity-red result remains current.
 
 ## Tool inventory
 <!-- snapshot: host=d3-mbp-m5.local date=2026-10-29 -->

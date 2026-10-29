@@ -1,0 +1,54 @@
+{
+  "tier": "fast",
+  "status": "fail",
+  "commands": [
+    {
+      "id": "doclint",
+      "cmd": "uv run _shared/doc_lint.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "W docs/research/004-plan-process-defect-mining/artifacts/cluster-history-and-upstream.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/004-plan-process-defect-mining/artifacts/cluster-yf-corpus-reviews.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/004-plan-process-defect-mining/artifacts/cluster-yf-corpus.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/004-plan-process-defect-mining/artifacts/critique.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/004-plan-process-defect-mining/artifacts/triangulation.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-execution-telemetry.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-git-churn-signatures.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-herdr-repo-interrogation.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-operator-breakthrough-turns.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-prior-art.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/cluster-review-pass-recurrence.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/critique.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/tooling-notes.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/005-thrash-detection-and-operator-judgement/artifacts/triangulation.md: [linked-citations] required pattern absent: \\[[^\\]]+\\]\\(https?://\nW docs/research/001-okf-compliance-delta/sources.md: [has-sources] required pattern absent: \\[[^\\]]+\\]\\(https?://|^\\| *[Ss]ource\nW docs/research/003-graph-engineering-hypothesis/sources.md: [has-sources] required pattern absent: \\[[^\\]]+\\]\\(https?://|^\\| *[Ss]ource\nW docs/research/001-okf-compliance-delta/Summary.md: [absence-declared] required pattern absent: (?im)^#{1,3} .*(not established|could not establish|absence)\nW docs/research/002-harness-global-rule-minimization/Summary.md: [absence-declared] required pattern absent: (?im)^#{1,3} .*(not established|could not establish|absence)\nW skills/yf-herdr/SKILL.md: [depends-on-skill-declared] missing frontmatter key(s): depends-on-skill\nPASS: 1656 file(s), 0 error(s), 688 warning(s), 1882 report-only"
+    },
+    {
+      "id": "doclint-tests",
+      "cmd": "uv run _shared/test_doc_lint.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   SC19 [047]: excluded == unexcluded - that plan's own contribution (derived; no literal appears in this assertion)\nok   SC19 [047]: the arm is not vacuous \u2014 the plan really does contribute\nok   SC19: `--exclude` is honoured even under `--no-exclude` \u2014 the schema's carve-outs and a caller's self-exclusion are different kinds of thing\nok   SC20: the rule fires on ZERO of the finished corpus plans\nok   SC20: ...and DOES fire on the same bundle in-flight \u2014 so the silence above is scoping, not a dead rule\nok   SC20: it stays at its declared `W` even at `review` \u2014 a HINT must never hard-fail intake (check-level `promote = false`)\nok   SC20: and the bundle's error count is unaffected by it\nok   SC20: findings/ and reviews/ are skipped \u2014 a writeup and a review verdict are point-in-time records BY CONSTRUCTION\nok   SC21: the DENOMINATOR-ONLY blind spot is stated where a reader meets it \u2014 in the finding text itself\nok   SC21: ...and in the check's own declaration, so an author reading the schema meets it\nok   SC21: ...and in the engine's own docstring for the kind\nok   check-level `promote = false` is SURGICAL \u2014 only the hint opts out\nok   ARM 0 (baseline): a `drafting` plan with placeholders has W findings and 0 errors\nok   ARM 1: a PRESENT but UNRECOGNISED status fails CLOSED (W promoted to E)\nok   ARM 2 (invariant): bundle_status is genuinely None for the null fixture\nok   ARM 2 (invariant): the null fixture really carries a `W` finding\nok   ARM 2 (invariant): a NULL-`bundle_status` document is UNCHANGED (0 errors)\nok   the None and present-but-unrecognised branches are DISTINGUISHABLE\n\nall passed"
+    },
+    {
+      "id": "plan-extract",
+      "cmd": "uv run _shared/test_plan_extract.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   plan-047 extracts with ZERO unparsed\nok   plan-047 has 11 epics / 77 issues / 75 edges / 6 gates\nok   REQ-DATA-052: a declaration at the end of the ISSUE BULLET is recovered\nok   REQ-DATA-052: a declaration at the end of a CONTINUATION LINE is recovered\nok   REQ-DATA-052: the PARENTHESISED trailing form is recovered\nok   REQ-DATA-052: the recovery is AUDITABLE \u2014 each carries a before/after pair\nok   REQ-DATA-052: recovering adds NO residue when every referent resolves\nok   REQ-DATA-052: LETTERED referents are recovered, not silently skipped\nok   SC6 negative: a MID-LINE declaration with a prose tail materialises NO edge (where the list ends is unknowable)\nok   SC6 negative: and the refusal is REPORTED, not silently dropped\nok   SC6 negative: a declaration on a NESTED SUB-BULLET is not attributed to the issue (the mis-attribution a naive 'any indented line' rule would make)\nok   SC6 negative: a declaration under a column-0 bullet that is not an issue is refused (the preceding issue is no longer in scope)\nok   SC6 negative: ALL-OR-NOTHING holds for the trailing form too \u2014 one unresolvable referent refuses the whole declaration, rather than recovering the readable half\nok   SC6 negative: and that refusal is reported with its referent named\nok   SC5: at least 60 of the measured 89 inline declarations are recovered as edges\nok   SC5: the recovery is spread across all five affected plans, not concentrated in one\nok   SC8: 006 no longer reports 0 edges while carrying declarations\nok   SC8: 007 no longer reports 0 edges while carrying declarations\n\nall passed"
+    },
+    {
+      "id": "dag-guard",
+      "cmd": "uv run _shared/test_dag_guard.py",
+      "ok": true,
+      "returncode": 0,
+      "status": "pass",
+      "output_tail": "ok   mutant D: `okf.py migrate` ran over the whole corpus\n     [measured] mutant D: 228 differing path(s) across 73 bundles\nok   SC3 mutant D: a real corpus-wide migrate exits 0 \u2014 the guard is not FAIL-happy\n     [measured] mutant F: 11 plan(s) fanned out -> +278 invented edges, L3 unchanged (2502 -> 2502)\nok   mutant F really invents edges (else the arm is vacuous)\nok   mutant F leaves the RAW TOKEN STREAM untouched \u2014 no document was edited, so no new declaration licenses these edges\nok   SC38 mutant F: LOSS-ONLY containment passes it cleanly \u2014 which is the whole argument for a paired upper bound\nok   SC38 mutant F: the count-only straw man passes it too \u2014 invention is not a loss under ANY loss-only reading\nok   SC38 mutant F: the UPPER BOUND exits 1 on the same snapshot pair\nok   SC38 mutant F: the bound names the offending plans with their headroom\nok   SC38: the upper bound does NOT fire on the real migrate (mutant D stays 0)\nok   SC38: nor on the DAG-preserving write (mutant C stays 0)\nok   SC38: and it never DOWNGRADES a verdict \u2014 mutant A still exits 1\nok   SC26: `snapshot` and `verify` are both exposed\nok   SC26: a plan that VANISHES from the population exits 2 (INCONCLUSIVE), never 1\nok   SC26: and the vanished plan is named\nok   SC26: an unreadable --pre snapshot exits 2, not 1\nok   SC26: an identical pre/post pair exits 0\n\nall passed"
+    },
+    {
+      "id": "okf-index-drift",
+      "cmd": "uv run scripts/checks/check_okf_index_drift.py --min-roots 30",
+      "ok": false,
+      "returncode": 1,
+      "status": "fail",
+      "output_tail": "   \"bundle\": \"docs/plans/plan-074-james-dixson-4b8fe0\",\n   \"verdict\": \"drift\",\n   \"counts\": {\n    \"ghost\": 0,\n    \"missing\": 1,\n    \"empty-dir\": 0\n   },\n   \"findings\": [\n    {\n     \"kind\": \"missing\",\n     \"entry\": \"assets/\",\n     \"target\": \"assets/\",\n     \"detail\": \"present in the bundle but absent from index.md\"\n    }\n   ]\n  }\n ],\n \"reason\": \"1 bundle(s) have root-index drift\",\n \"remediation\": \"Author real descriptions for the missing members. `reindex --write` will satisfy the gate with BARE bullets, which degrades the artifact while passing the check \\u2014 it is not the operator remediation.\"\n}"
+    }
+  ],
+  "first_failure": {
+    "id": "okf-index-drift",
+    "cmd": "uv run scripts/checks/check_okf_index_drift.py --min-roots 30",
+    "ok": false,
+    "returncode": 1,
+    "status": "fail",
+    "output_tail": "   \"bundle\": \"docs/plans/plan-074-james-dixson-4b8fe0\",\n   \"verdict\": \"drift\",\n   \"counts\": {\n    \"ghost\": 0,\n    \"missing\": 1,\n    \"empty-dir\": 0\n   },\n   \"findings\": [\n    {\n     \"kind\": \"missing\",\n     \"entry\": \"assets/\",\n     \"target\": \"assets/\",\n     \"detail\": \"present in the bundle but absent from index.md\"\n    }\n   ]\n  }\n ],\n \"reason\": \"1 bundle(s) have root-index drift\",\n \"remediation\": \"Author real descriptions for the missing members. `reindex --write` will satisfy the gate with BARE bullets, which degrades the artifact while passing the check \\u2014 it is not the operator remediation.\"\n}"
+  }
+}
