@@ -1,0 +1,13 @@
+{
+  "command": "reindex",
+  "mode": "check",
+  "bundle": "docs/plans/plan-074-james-dixson-4b8fe0",
+  "verdict": "clean",
+  "findings": [],
+  "counts": {
+    "ghost": 0,
+    "missing": 0,
+    "empty-dir": 0
+  },
+  "exit": 0
+}

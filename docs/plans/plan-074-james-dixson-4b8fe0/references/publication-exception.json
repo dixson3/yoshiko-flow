@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-29T21:46:09.762792+00:00",
+  "planId": "plan-074-james-dixson-4b8fe0",
+  "exactAnswer": "Allow plan-only publication exception (Recommended)",
+  "scope": "Approved plan bundle publication only; rerun applicable artifact/readiness checks and verify every unpublished change remains within this bundle",
+  "masterCheckedHead": "f1f381b7ed6fbf326d1d3693f5b63fc1040136d5",
+  "masterCheckedChangedFiles": 188,
+  "masterCheckedOutsideBundle": [],
+  "masterCheckedClean": true,
+  "fullValidation": "INCONCLUSIVE due tool timeout; never PASS",
+  "implementationMergedTreeAndB1FullRequirementsWaived": false,
+  "manifestChangesAuthorized": false
+}

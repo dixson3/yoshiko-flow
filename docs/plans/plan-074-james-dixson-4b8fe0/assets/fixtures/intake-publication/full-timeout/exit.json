@@ -1,0 +1,1 @@
+{"process_exit_code":null,"tool_outcome":"timeout","timeout_ms":1800000,"verdict":"inconclusive","note":"Execution tool timed out before shell could capture runner exit. No runner JSON was emitted; do not treat timeout as a repository test failure."}

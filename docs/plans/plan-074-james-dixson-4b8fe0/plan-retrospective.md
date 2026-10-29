@@ -76,3 +76,24 @@ rather than detect one. A state assertion with no evidence is a narration, not a
 | `sc_flipped_post_approval` |  |
 | `halts_post_irreversible` |  |
 
+## RE-004
+
+| field | value |
+| :-- | :-- |
+| `kind` | stop |
+| `when` | 2026-10-29 |
+| `stop_class` | 5 |
+| `asked` | FULL validation timed out at 1800s during a row with a declared 28800s timeout; publication held |
+| `answered` | Allow plan-only publication exception (Recommended) |
+| `frontloadable` | partial |
+| `detected_by` | mechanical-check |
+| `evidence` | references/publication-exception.json; preserved invocation-error and full-timeout receipts; FULL INCONCLUSIVE, process exit unknown, never pass |
+| `escape_class` |  |
+| `adjudication` |  |
+| `origin` |  |
+| `culpability` |  |
+| `prevention` |  |
+| `cost` |  |
+| `sc_flipped_post_approval` |  |
+| `halts_post_irreversible` |  |
+

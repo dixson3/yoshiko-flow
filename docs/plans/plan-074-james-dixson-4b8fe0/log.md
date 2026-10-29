@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-10-29
+- approved: Operator explicitly allowed plan-only publication exception. FULL remains INCONCLUSIVE due execution-tool timeout; only artifact/affected FAST-checked bundle publication allowed. Implementation/merged-tree/B1 FULL and H0 hold unchanged.
 - approved: Explicit operator approval in master bound to reviewed fingerprint and proposal hashes; exact answers and conditional B1/external-only B2 limits recorded in references/operator-decisions.json. Intake only; master launches executor.
 - ready-for-approval: Independent execution pass3 APPROVE, portability audit pass and ready-check green. B0/B1/B2 UNAPPROVED; no execution-readiness or live authority claimed.
 - review-pass: 3 — independent redteam-3 APPROVE (execution), zero measured planning findings; actual bootstrap and consent remain unproved.

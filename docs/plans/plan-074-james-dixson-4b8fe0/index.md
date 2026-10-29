@@ -37,3 +37,5 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/operator-decisions.json](references/operator-decisions.json) - Exact later operator approval, accepted B0, conditional B1 and external-only B2; live PIM writes/resumption remain forbidden.
 - [references/upstream-456.md](references/upstream-456.md) - Full verified OPEN coarse tracker body; intake mirror is not an execution epic.
 - [references/intake-handoff.md](references/intake-handoff.md) - Approved intake, tracker #456, unchanged fingerprint and master-only fresh-executor handoff. Read this after the historical readiness report.
+- [references/publication-exception.json](references/publication-exception.json) - Exact operator answer authorizing only plan-bundle publication with FULL still INCONCLUSIVE.
+- [references/publication-exception.md](references/publication-exception.md) - Invocation/timeout provenance, preserved receipts, required publication checks and explicit non-waivers.
