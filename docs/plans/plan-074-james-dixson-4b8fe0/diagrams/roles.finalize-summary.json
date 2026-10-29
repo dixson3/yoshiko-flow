@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "workflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.json",
+    "sha256": "70d650d33ab3bb1f3df2166c6e3dba83a3ed67dc698a3dc51be2c7e4da0c7bdb",
+    "bytes": 2469
+  },
+  "artifact": {
+    "path": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.html",
+    "sha256": "adb2ea41763880b6f59af89b2b48b5429f524b4b2447f631b98a6e8a45767074",
+    "bytes": 819575
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.finalize.json",
+    "summaryReceipt": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.finalize-summary.json",
+    "browserCheckReceipt": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-29T03:17:16.484Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5689,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

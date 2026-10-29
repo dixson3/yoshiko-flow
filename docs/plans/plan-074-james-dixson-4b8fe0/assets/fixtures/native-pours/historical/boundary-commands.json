@@ -1,0 +1,116 @@
+[
+  {
+    "label": "preflight",
+    "argv": [
+      "/Users/james/.local/bin/yf",
+      "preflight",
+      "yf-beads-init",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 1
+  },
+  {
+    "label": "early-close-pour",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "mol",
+      "pour",
+      "plan-execute",
+      "--var",
+      "objective=EXP001 early-close",
+      "--var",
+      "plan_dir=docs/plans/exp001",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 0
+  },
+  {
+    "label": "early-close-attempt",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "close",
+      "probe-mol-5fq",
+      "--reason",
+      "EXP001 premature closure boundary",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 1
+  },
+  {
+    "label": "early-close-wrapper",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "show",
+      "probe-mol-5fq",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 0
+  },
+  {
+    "label": "early-close-gate",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "show",
+      "probe-mol-69k",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 0
+  },
+  {
+    "label": "resolve-wrapper-pour",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "mol",
+      "pour",
+      "plan-execute",
+      "--var",
+      "objective=EXP001 resolve-wrapper",
+      "--var",
+      "plan_dir=docs/plans/exp001",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 0
+  },
+  {
+    "label": "resolve-wrapper-attempt",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "gate",
+      "resolve",
+      "probe-mol-odh",
+      "--reason",
+      "EXP001 wrong gate boundary",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 1
+  },
+  {
+    "label": "resolve-wrapper-wrapper",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "show",
+      "probe-mol-odh",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 0
+  },
+  {
+    "label": "resolve-wrapper-gate",
+    "argv": [
+      "/tmp/yf-exp001.dpIeDn/older/bd",
+      "show",
+      "probe-mol-aii",
+      "--json"
+    ],
+    "cwd": "/tmp/yf-exp001.dpIeDn/historical/repo",
+    "exit": 0
+  }
+]

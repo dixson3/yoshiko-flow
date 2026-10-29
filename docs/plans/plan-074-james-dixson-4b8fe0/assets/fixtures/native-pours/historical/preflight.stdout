@@ -1,0 +1,10 @@
+{
+  "status": "system_deps_missing",
+  "missing": [
+    "uv"
+  ],
+  "instructions": [
+    "Install uv: https://docs.astral.sh/uv/"
+  ],
+  "rule": null
+}

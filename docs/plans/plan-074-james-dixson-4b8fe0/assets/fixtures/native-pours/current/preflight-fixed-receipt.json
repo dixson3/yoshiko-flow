@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/Users/james/.local/bin/yf",
+    "preflight",
+    "yf-beads-init",
+    "--json"
+  ],
+  "cwd": "/tmp/yf-exp001.dpIeDn/current/repo",
+  "env_allowlist": {
+    "PATH": "/Users/james/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "HOME": "/tmp/yf-exp001.dpIeDn/current/home",
+    "TMPDIR": "/tmp/yf-exp001.dpIeDn/current",
+    "USER": "exp001",
+    "BD_NON_INTERACTIVE": "1"
+  },
+  "exit": 1
+}

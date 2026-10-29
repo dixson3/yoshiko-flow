@@ -1,0 +1,42 @@
+[
+  {
+    "id": "probe-mol-tkr",
+    "title": "Begin: EXP001 owned native pour",
+    "description": "Start gate. Resolve in a new session via /yf-plan execute.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "gate",
+    "created_at": "2026-10-29T20:13:30Z",
+    "updated_at": "2026-10-29T20:13:30Z",
+    "dependencies": [
+      {
+        "id": "probe-mol-j1z",
+        "title": "Gate: human",
+        "description": "Async gate for step start-gate",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "gate",
+        "created_at": "2026-10-29T20:13:30Z",
+        "updated_at": "2026-10-29T20:13:30Z",
+        "await_type": "human",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "probe-mol-5eu",
+        "title": "plan-execute",
+        "description": "Plan execution pipeline with upstream reconciliation",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "molecule",
+        "created_at": "2026-10-29T20:13:30Z",
+        "updated_at": "2026-10-29T20:13:30Z",
+        "dependency_type": "parent-child"
+      }
+    ],
+    "parent": "probe-mol-5eu",
+    "dependent_count": 0,
+    "dependency_count": 2,
+    "comment_count": 0,
+    "revision": "-6454293502045519610"
+  }
+]

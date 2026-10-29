@@ -1,0 +1,14 @@
+[
+  {
+    "id": "probe-mol-tkr",
+    "title": "Begin: EXP001 owned native pour",
+    "description": "Start gate. Resolve in a new session via /yf-plan execute.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "gate",
+    "created_at": "2026-10-29T20:13:30Z",
+    "updated_at": "2026-10-29T20:13:33Z",
+    "closed_at": "2026-10-29T20:13:33Z",
+    "close_reason": "EXP001 scratch wrapper closure"
+  }
+]

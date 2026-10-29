@@ -1,0 +1,20 @@
+{
+  "current": {
+    "wrapper_type": "gate",
+    "gate_await_type": "human",
+    "wrapper_after_real_resolution": "open",
+    "real_gate_after_resolution": "closed",
+    "early_close_wrapper": "open",
+    "wrong_resolve_wrapper": "closed",
+    "wrong_resolve_actual_gate": "open"
+  },
+  "historical": {
+    "wrapper_type": "task",
+    "gate_await_type": "human",
+    "wrapper_after_real_resolution": "open",
+    "real_gate_after_resolution": "closed",
+    "early_close_wrapper": "open",
+    "wrong_resolve_wrapper": "open",
+    "wrong_resolve_actual_gate": "open"
+  }
+}

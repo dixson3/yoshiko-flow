@@ -1,0 +1,14 @@
+  Repository ID: c75af884
+  Clone ID: a2a95d6fe2bbb0c2
+  ✓ Committed beads files to git
+
+✓ bd initialized successfully!
+
+  Backend: dolt
+  Mode: embedded
+  Database: probe
+  Issue prefix: probe
+  Issues will be named: probe-<hash> (e.g., probe-a3f2dd)
+
+Run bd quickstart to get started.
+

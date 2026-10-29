@@ -1,0 +1,48 @@
+528: // gateResolveCmd manually closes a gate
+529: var gateResolveCmd = &cobra.Command{
+530: 	Use:   "resolve <gate-id>",
+531: 	Short: "Manually resolve (close) a gate",
+532: 	Long: `Close a gate issue to unblock the step waiting on it.
+533: 
+534: This is equivalent to 'bd close <gate-id>' but with a more explicit name.
+535: Use --reason to provide context for why the gate was resolved.`,
+536: 	Args:          cobra.ExactArgs(1),
+537: 	SilenceUsage:  true,
+538: 	SilenceErrors: true,
+539: 	RunE: func(cmd *cobra.Command, args []string) error {
+540: 		if usesProxiedServer() {
+541: 			return runGateResolveProxiedServer(cmd, rootCtx, args)
+542: 		}
+543: 		CheckReadonly("gate resolve")
+544: 
+545: 		evt := metrics.NewCommandEvent("gate-resolve")
+546: 		defer func() {
+547: 			if c := metrics.Global(); c != nil {
+548: 				c.CloseEventAndAdd(evt)
+549: 			}
+550: 		}()
+551: 
+552: 		gateID := args[0]
+553: 		reason, _ := cmd.Flags().GetString("reason")
+554: 
+555: 		ctx := rootCtx
+556: 		var issue *types.Issue
+557: 		var err error
+558: 
+559: 		issue, err = store.GetIssue(ctx, gateID)
+560: 		if err != nil {
+561: 			return HandleError("gate not found: %s", gateID)
+562: 		}
+563: 
+564: 		if issue.IssueType != "gate" {
+565: 			return HandleError("%s is not a gate issue (type=%s)", gateID, issue.IssueType)
+566: 		}
+567: 
+568: 		if err := store.CloseIssue(ctx, gateID, reason, actor, ""); err != nil {
+569: 			return HandleError("closing gate: %v", err)
+570: 		}
+571: 
+572: 		commandDidWrite.Store(true)
+573: 
+574: 		renderGateResolved(gateID, reason)
+575: 		return nil

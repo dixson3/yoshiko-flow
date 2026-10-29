@@ -1,0 +1,44 @@
+5896: def _find_start_gate_pair(epic: str) -> tuple[dict | None, dict | None, str | None]:
+5897:     """`(wrapper, gate, error)` for the plan-execute start gate under `epic`.
+5898: 
+5899:     The pour expands ONE `type = "gate"` formula step into TWO beads (REQ-PLAN-077): a
+5900:     wrapper TASK (`plan-execute.start-gate`, titled `Begin: <objective>`) that entry issues
+5901:     take as a `--deps` predecessor, and the real GATE (`plan-execute.gate-start-gate`).
+5902: 
+5903:     The wrapper does NOT carry a dotted child id under the epic — the pour allocates it a
+5904:     sibling id — so it is found by PARENT EDGE, never by an id prefix. Reading it by prefix
+5905:     is how a derivation silently finds nothing and reports success on an empty set.
+5906: 
+5907:     The gate is then resolved from the wrapper's own `blocks` dependency rather than by
+5908:     title, because `Gate: human` is the formula's generic title and would match any human
+5909:     gate under the same epic.
+5910:     """
+5911:     children = _bd_children(epic)
+5912:     if not children:
+5913:         return (None, None, f"no children under {epic} (bd may be unavailable)")
+5914: 
+5915:     wrappers = [c for c in children
+5916:                 if (c.get("issue_type") or c.get("type")) == "task"
+5917:                 and str(c.get("title", "")).startswith("Begin:")]
+5918:     if not wrappers:
+5919:         return (None, None,
+5920:                 f"no start-gate wrapper task (title `Begin: …`) under {epic}")
+5921:     if len(wrappers) > 1:
+5922:         return (None, None,
+5923:                 "more than one start-gate wrapper under "
+5924:                 f"{epic}: {[w.get('id') for w in wrappers]} — refusing to guess")
+5925: 
+5926:     wrapper = _bd_show_one(str(wrappers[0].get("id"))) or wrappers[0]
+5927: 
+5928:     gates = [d for d in (wrapper.get("dependencies") or [])
+5929:              if d.get("issue_type") == "gate"]
+5930:     if not gates:
+5931:         gates = [c for c in children if (c.get("issue_type") or c.get("type")) == "gate"
+5932:                  and str(c.get("title", "")).startswith("Gate:")]
+5933:     if len(gates) != 1:
+5934:         return (wrapper, None,
+5935:                 f"expected exactly one start gate for wrapper {wrapper.get('id')}, "
+5936:                 f"found {len(gates)}")
+5937: 
+5938:     gate = _bd_show_one(str(gates[0].get("id"))) or gates[0]
+5939:     return (wrapper, gate, None)

@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {"title": "Proposed native gate-role boundary — not yet implemented", "locale": "en", "quality_profile": "showcase", "output": "docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.html"},
+  "lanes": [{"id":"evidence","label":"Identity evidence"},{"id":"checks","label":"Shared validation"},{"id":"consumers","label":"Separate outcomes"}],
+  "mainPath":["native","receipt","roles","fidelity"],
+  "nodes":[
+    {"id":"native","lane":"evidence","col":0,"type":"database","label":"Native captures","sublabel":"task or gate wrapper"},
+    {"id":"receipt","lane":"evidence","col":1,"type":"security","label":"Bound receipt","sublabel":"plan + root + fingerprint"},
+    {"id":"graph","lane":"checks","col":0,"type":"database","label":"Complete graph","sublabel":"include real gates"},
+    {"id":"roles","lane":"checks","col":1,"type":"backend","label":"Validate roles","sublabel":"identity + edges + await"},
+    {"id":"reject","lane":"checks","col":2,"type":"security","label":"Fail or unknown","sublabel":"no exclusion or writes"},
+    {"id":"fidelity","lane":"consumers","col":1,"type":"backend","label":"Graph fidelity","sublabel":"all actual gates retained"},
+    {"id":"authority","lane":"evidence","col":3,"type":"external","label":"Operator consent","sublabel":"separate authorization"},
+    {"id":"resolve","lane":"consumers","col":3,"type":"security","label":"Resolve real gate","sublabel":"then ordinary wrapper close"}
+  ],
+  "edges":[
+    {"from":"native","to":"receipt","label":"retain"},
+    {"from":"receipt","to":"roles","label":"bind","variant":"security"},
+    {"from":"graph","to":"roles","label":"normalize"},
+    {"from":"roles","to":"reject","label":"invalid","variant":"security","role":"error"},
+    {"from":"roles","to":"fidelity","label":"proven pair","variant":"emphasis"},
+    {"from":"roles","to":"resolve","label":"proven pair","variant":"default"},
+    {"from":"authority","to":"resolve","label":"required","variant":"security"}
+  ],
+  "cards":[
+    {"dot":"amber","title":"Proposal, not authorization","items":["A closed wrapper is not human consent.","Receipt digests prove bytes, not authorship.","Missing trustworthy evidence stays inconclusive."]},
+    {"dot":"cyan","title":"Independent bootstrap decision","items":["Early promotion remains UNAPPROVED.","Sandbox rehearsal must establish a safe route.","Actual installed fidelity must pass before completion."]}
+  ]
+}

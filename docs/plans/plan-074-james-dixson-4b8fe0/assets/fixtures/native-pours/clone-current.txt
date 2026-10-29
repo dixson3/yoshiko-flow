@@ -1,0 +1,81 @@
+668: func cloneSubgraphInto(ctx context.Context, w molWriter, subgraph *TemplateSubgraph, opts CloneOptions) (*InstantiateResult, error) {
+669: 	if err := flattenUnregisteredIssueTypes(ctx, w, subgraph.Issues, subgraph.Dependencies); err != nil {
+670: 		return nil, fmt.Errorf("checking custom types for subgraph: %w", err)
+671: 	}
+672: 
+673: 	idMapping := make(map[string]string)
+674: 
+675: 	// First pass: create all issues with new IDs
+676: 	for _, oldIssue := range subgraph.Issues {
+677: 		// RootOnly: skip child issues, only create the root
+678: 		if opts.RootOnly && oldIssue.ID != subgraph.Root.ID {
+679: 			continue
+680: 		}
+681: 		// Determine assignee: use override for root epic, otherwise keep template's
+682: 		issueAssignee := oldIssue.Assignee
+683: 		if oldIssue.ID == subgraph.Root.ID && opts.Assignee != "" {
+684: 			issueAssignee = opts.Assignee
+685: 		}
+686: 
+687: 		newIssue := &types.Issue{
+688: 			// ID will be set below based on bonding options
+689: 			Title:              substituteVariables(oldIssue.Title, opts.Vars),
+690: 			Description:        substituteVariables(oldIssue.Description, opts.Vars),
+691: 			Design:             substituteVariables(oldIssue.Design, opts.Vars),
+692: 			AcceptanceCriteria: substituteVariables(oldIssue.AcceptanceCriteria, opts.Vars),
+693: 			Notes:              substituteVariables(oldIssue.Notes, opts.Vars),
+694: 			Status:             types.StatusOpen, // Always start fresh
+695: 			Priority:           oldIssue.Priority,
+696: 			IssueType:          oldIssue.IssueType,
+697: 			Assignee:           issueAssignee,
+698: 			EstimatedMinutes:   oldIssue.EstimatedMinutes,
+699: 			Ephemeral:          opts.Ephemeral, // mark for cleanup when closed
+700: 			IDPrefix:           opts.Prefix,    // distinct prefixes for mols/wisps
+701: 			// Gate fields (for async coordination)
+702: 			AwaitType: oldIssue.AwaitType,
+703: 			AwaitID:   substituteVariables(oldIssue.AwaitID, opts.Vars),
+704: 			Timeout:   oldIssue.Timeout,
+705: 			Labels:    oldIssue.Labels,
+706: 			Metadata:  substituteMetadataRepo(oldIssue.Metadata, oldIssue.AwaitType, opts.Vars),
+707: 			CreatedAt: time.Now(),
+708: 			UpdatedAt: time.Now(),
+709: 		}
+710: 
+711: 		// Generate custom ID for dynamic bonding if ParentID is set
+712: 		if opts.ParentID != "" {
+713: 			bondedID, err := generateBondedID(oldIssue.ID, subgraph.Root.ID, opts)
+714: 			if err != nil {
+715: 				return nil, fmt.Errorf("failed to generate bonded ID for %s: %w", oldIssue.ID, err)
+716: 			}
+717: 			newIssue.ID = bondedID
+718: 		}
+719: 
+720: 		if err := w.CreateIssue(ctx, newIssue, opts.Actor); err != nil {
+721: 			return nil, fmt.Errorf("failed to create issue from %s: %w", oldIssue.ID, err)
+722: 		}
+723: 
+724: 		idMapping[oldIssue.ID] = newIssue.ID
+725: 	}
+726: 
+727: 	// Second pass: recreate dependencies with new IDs
+728: 	for _, dep := range subgraph.Dependencies {
+729: 		newFromID, ok1 := idMapping[dep.IssueID]
+730: 		newToID, ok2 := idMapping[dep.DependsOnID]
+731: 		if !ok1 || !ok2 {
+732: 			continue // Skip if either end is outside the subgraph
+733: 		}
+734: 
+735: 		newDep := &types.Dependency{
+736: 			IssueID:     newFromID,
+737: 			DependsOnID: newToID,
+738: 			Type:        dep.Type,
+739: 			Metadata:    dep.Metadata,
+740: 		}
+741: 		if err := w.AddDependency(ctx, newDep, opts.Actor); err != nil {
+742: 			return nil, fmt.Errorf("failed to create dependency: %w", err)
+743: 		}
+744: 	}
+745: 
+746: 	// Atomic attachment: link spawned root to target molecule within
+747: 	// the same transaction (bd-wvplu: prevents orphaned spawns)
+748: 	if opts.AttachToID != "" {

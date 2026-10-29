@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "summary": {
+    "average_lead_time_hours": 0,
+    "blocked_issues": 0,
+    "closed_issues": 0,
+    "deferred_issues": 0,
+    "epics_eligible_for_closure": 0,
+    "in_progress_issues": 0,
+    "open_issues": 0,
+    "pinned_issues": 0,
+    "ready_issues": 0,
+    "total_issues": 0
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "source_commit": "8c97581e85fd48ebdfac45866b03fd213b9a783a",
+  "yf_version": "yf 0.5.0 (5677780-dirty)",
+  "bd_version": "bd version 1.3.1 (Homebrew)",
+  "digests": [
+    {
+      "path": "_shared/pour_fidelity.py",
+      "sha256": "e65f03cf3231e97a3313746dcbdf62b384fcdd99c4d26f5f4f0af3c71375106a"
+    },
+    {
+      "path": "skills/yf-plan/scripts/plan_manager.py",
+      "sha256": "1b1cd81c86234121c32a3bcfdb2f66b315dff299881825d6ac356524aa643085"
+    },
+    {
+      "path": "skills/yf-plan/scripts/pour_fidelity.py",
+      "sha256": "e65f03cf3231e97a3313746dcbdf62b384fcdd99c4d26f5f4f0af3c71375106a"
+    },
+    {
+      "path": "skills/yf-plan/scripts/plan_extract.py",
+      "sha256": "ed1c1eb6a41550391b785108eb0adf81330e020b902fab3107b18dfeac453222"
+    },
+    {
+      "path": "skills/yf-plan/formulas/plan-execute.formula.toml",
+      "sha256": "792fa24f8f707be7bc46b8031053d2f5b19066b994ec592c61d76dc7af31d65c"
+    },
+    {
+      "path": "/Users/james/.agents/skills/yf-plan/scripts/plan_manager.py",
+      "sha256": "1b1cd81c86234121c32a3bcfdb2f66b315dff299881825d6ac356524aa643085"
+    },
+    {
+      "path": "/Users/james/.agents/skills/yf-plan/scripts/pour_fidelity.py",
+      "sha256": "e65f03cf3231e97a3313746dcbdf62b384fcdd99c4d26f5f4f0af3c71375106a"
+    },
+    {
+      "path": "/Users/james/.agents/skills/yf-plan/scripts/plan_extract.py",
+      "sha256": "ed1c1eb6a41550391b785108eb0adf81330e020b902fab3107b18dfeac453222"
+    },
+    {
+      "path": "/Users/james/.local/bin/yf",
+      "sha256": "c4f4b693c733190aab9de9a5cb54ef744b56644e58b1454c263b3f3baea7b57e"
+    },
+    {
+      "path": "/opt/homebrew/bin/bd",
+      "sha256": "eaf8c29f38d198874c42555e9dbc4abc60140f024edf5e3d591550a45b60b1fd"
+    }
+  ]
+}

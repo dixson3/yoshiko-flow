@@ -1,0 +1,15 @@
+{
+  "probe": "unmodified installed resolver AST with gate-inclusive snapshot children, no subprocesses",
+  "result": [
+    null,
+    null,
+    "no start-gate wrapper task (title `Begin: \u2026`) under pim-mol-vp2"
+  ],
+  "default_children_ids": [
+    "pim-mol-vp2.7",
+    "pim-mol-vp2.4",
+    "pim-mol-vp2.3",
+    "pim-mol-vp2.2",
+    "pim-mol-vp2.1"
+  ]
+}

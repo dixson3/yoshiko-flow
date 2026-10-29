@@ -1,0 +1,128 @@
+51: pe = importlib.util.module_from_spec(_spec)
+52: _spec.loader.exec_module(pe)
+53: 
+54: TITLE_ID = re.compile(r"^\s*(?:Issue\s+)?((?:\d+|[A-Z])\.\d+[a-z]?)\s*[:.\s]")
+55: EPIC_NUM = re.compile(r"^Epic\s*:?\s*(\d+|[A-Z])\s*:")
+56: SCAFFOLD = re.compile(r"^\s*(Begin|Reconcile)\s*:", re.I)
+57: 
+58: 
+59: def load_beads(path: Path):
+60:     beads = json.load(path.open())
+61:     if isinstance(beads, dict):
+62:         beads = beads.get("issues", [])
+63:     by_id = {b["id"]: b for b in beads}
+64:     kids: dict[str, list[str]] = {}
+65:     for b in beads:
+66:         parent = b.get("parent") or (b.get("metadata") or {}).get("parent")
+67:         if parent:
+68:             kids.setdefault(parent, []).append(b["id"])
+69:     return by_id, kids
+70: 
+71: 
+72: def descendants(root: str, kids) -> list[str]:
+73:     out, stack = [], list(kids.get(root, []))
+74:     while stack:
+75:         i = stack.pop()
+76:         out.append(i)
+77:         stack += kids.get(i, [])
+78:     return out
+79: 
+80: 
+81: def bead_issue_id(b: dict) -> tuple[str | None, str]:
+82:     """`(issue_id, source)` — metadata first (REQ-DATA-026), title as the legacy fallback."""
+83:     meta = b.get("metadata") or {}
+84:     if isinstance(meta, dict) and meta.get("plan_issue"):
+85:         return str(meta["plan_issue"]), "metadata"
+86:     m = TITLE_ID.match(b.get("title") or "")
+87:     return (m.group(1), "title") if m else (None, "none")
+88: 
+89: 
+90: def compare(plan_md: Path, epic_id: str, by_id, kids) -> dict:
+91:     ext = pe.extract(plan_md)
+92:     ids = descendants(epic_id, kids)
+93:     beads = [by_id[i] for i in ids if i in by_id]
+94: 
+95:     tasks = [b for b in beads if b.get("issue_type") == "task"
+96:              and not SCAFFOLD.match(b.get("title") or "")]
+97:     gates = [b for b in beads if b.get("issue_type") == "gate"]
+98:     bepics = [b for b in beads if b.get("issue_type") == "epic"]
+99: 
+100:     by_iid: dict[str, dict] = {}
+101:     unnumbered, duplicate, sources = [], [], {"metadata": 0, "title": 0}
+102:     for b in tasks:
+103:         iid, src = bead_issue_id(b)
+104:         if iid is None:
+105:             unnumbered.append({"id": b["id"], "title": (b.get("title") or "")[:80]})
+106:             continue
+107:         sources[src] = sources.get(src, 0) + 1
+108:         if iid in by_iid:
+109:             duplicate.append(iid)
+110:         else:
+111:             by_iid[iid] = b
+112: 
+113:     plan_ids = {i["id"] for i in ext["issues"]}
+114:     joinable = bool(by_iid) and bool(plan_ids)
+115: 
+116:     missing = sorted(plan_ids - set(by_iid), key=pe.natural_key)
+117:     extra = sorted(set(by_iid) - plan_ids, key=pe.natural_key)
+118: 
+119:     # --- edges ---------------------------------------------------------------------------
+120:     plan_edges = {(e["from"], e["to"]) for e in ext["edges"]}
+121:     rev = {b["id"]: iid for iid, b in by_iid.items()}
+122:     bd_edges, touching_unjoined = set(), 0
+123:     for iid, b in by_iid.items():
+124:         for dep in b.get("dependencies") or []:
+125:             # `bd` emits {issue_id, depends_on_id, type}. ONLY `blocks` is a declared
+126:             # dependency — `parent-child` is the CONTAINMENT edge every bead has to its
+127:             # epic. Counting containment here would invent one edge per issue on every
+128:             # plan in the corpus, which is a fabricated defect rate, not a measurement.
+129:             if isinstance(dep, dict):
+130:                 if (dep.get("type") or "").lower() not in ("blocks", "blocked-by", ""):
+131:                     continue
+132:                 dep_id = dep.get("depends_on_id") or dep.get("id")
+133:             else:
+134:                 dep_id = dep
+135:             if dep_id is None:
+136:                 continue
+137:             if dep_id in rev:
+138:                 bd_edges.add((iid, rev[dep_id]))
+139:             else:
+140:                 touching_unjoined += 1
+141: 
+142:     dropped = sorted(plan_edges - bd_edges)
+143:     invented = sorted(bd_edges - plan_edges)
+144: 
+145:     verdict = {
+146:         "issue_count_match": len(plan_ids) == len(by_iid),
+147:         "issue_id_set_match": not missing and not extra and not duplicate,
+148:         "edge_set_match": plan_edges == bd_edges,
+149:         "gate_count_match": len(ext["gates"]) == len(gates),
+150:         "epic_count_match": len(ext["epics"]) == len(bepics),
+151:     }
+152:     return {
+153:         "plan": plan_md.parent.name,
+154:         "epic_bead": epic_id,
+155:         "joinable": joinable,
+156:         "population": ("no-mapping" if not joinable else
+157:                        ("clean" if all(verdict.values()) and not unnumbered else "divergent")),
+158:         "id_source": sources,
+159:         "issues": {"plan": len(plan_ids), "bd": len(by_iid),
+160:                    "missing_beads": missing, "extra_beads": extra,
+161:                    "duplicate_ids": sorted(set(duplicate))},
+162:         "unnumbered_beads": unnumbered,
+163:         "edges": {"plan": len(plan_edges), "bd": len(bd_edges),
+164:                   "dropped": [list(x) for x in dropped],
+165:                   "invented": [list(x) for x in invented],
+166:                   "touching_unjoined": touching_unjoined},
+167:         "gates": {"plan": len(ext["gates"]), "bd": len(gates)},
+168:         "epics": {"plan": len(ext["epics"]), "bd": len(bepics)},
+169:         "extractor_unparsed": ext["counts"]["unparsed"],
+170:         "verdict": verdict,
+171:         "clean": all(verdict.values()) and not unnumbered and joinable,
+172:     }
+173: 
+174: 
+175: def run(beads_path: Path, plan_dirs: list[Path]) -> dict:
+176:     by_id, kids = load_beads(beads_path)
+177:     results, skipped = [], []
+178:     for d in plan_dirs:

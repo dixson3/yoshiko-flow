@@ -1,0 +1,42 @@
+[
+  {
+    "id": "probe-mol-bsx",
+    "title": "Begin: EXP001 early-close",
+    "description": "Start gate. Resolve in a new session via /yf-plan execute.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "gate",
+    "created_at": "2026-10-29T20:14:32Z",
+    "updated_at": "2026-10-29T20:14:32Z",
+    "dependencies": [
+      {
+        "id": "probe-mol-f8v",
+        "title": "Gate: human",
+        "description": "Async gate for step start-gate",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "gate",
+        "created_at": "2026-10-29T20:14:32Z",
+        "updated_at": "2026-10-29T20:14:32Z",
+        "await_type": "human",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "probe-mol-v4k",
+        "title": "plan-execute",
+        "description": "Plan execution pipeline with upstream reconciliation",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "molecule",
+        "created_at": "2026-10-29T20:14:32Z",
+        "updated_at": "2026-10-29T20:14:32Z",
+        "dependency_type": "parent-child"
+      }
+    ],
+    "parent": "probe-mol-v4k",
+    "dependent_count": 0,
+    "dependency_count": 2,
+    "comment_count": 0,
+    "revision": "745873187775575729"
+  }
+]

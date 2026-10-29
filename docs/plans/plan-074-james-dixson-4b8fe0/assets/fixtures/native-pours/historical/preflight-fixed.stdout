@@ -1,0 +1,11 @@
+{
+  "status": "rule_missing",
+  "missing": [],
+  "instructions": [
+    "BEADS_INIT.md is not installed — run `yf skills install` to install it to the scope+surface rules dir (user-scope ~/.<surface>/rules, project-scope <git-root>/.<surface>/rules); add --force to overwrite an existing copy"
+  ],
+  "rule": {
+    "outcome": "missing",
+    "rule": "BEADS_INIT.md"
+  }
+}

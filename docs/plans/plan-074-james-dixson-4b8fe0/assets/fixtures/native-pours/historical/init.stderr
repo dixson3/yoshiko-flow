@@ -1,0 +1,14 @@
+Thanks for using bd! Quick heads-up: bd shares anonymous usage metrics —
+   just which commands get run (plus the bd version and OS platform), never your
+   issues, paths, remotes, identity, or anything you type. Seeing how people use
+   bd is how we decide what to improve next, so it genuinely makes bd better for
+   everyone.
+      Curious what's sent?   bd metrics example
+      Prefer to opt out?     bd metrics off    (one command, no restart needed)
+
+
+⚠ No Dolt remote configured
+  Issues are stored in local Dolt. .beads/issues.jsonl is an export,
+  not cross-machine sync or the source of truth.
+  To enable durable sync, add a git origin and then run:
+    bd dolt push

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "probe-mol-odh",
+    "title": "Begin: EXP001 resolve-wrapper",
+    "description": "Start gate. Resolve in a new session via /yf-plan execute.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-29T20:14:36Z",
+    "updated_at": "2026-10-29T20:14:36Z",
+    "dependencies": [
+      {
+        "id": "probe-mol-aii",
+        "title": "Gate: human",
+        "description": "Async gate for step start-gate",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "gate",
+        "created_at": "2026-10-29T20:14:36Z",
+        "updated_at": "2026-10-29T20:14:36Z",
+        "await_type": "human",
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "probe-mol-e2w",
+        "title": "plan-execute",
+        "description": "Plan execution pipeline with upstream reconciliation",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "molecule",
+        "created_at": "2026-10-29T20:14:36Z",
+        "updated_at": "2026-10-29T20:14:36Z",
+        "dependency_type": "parent-child"
+      }
+    ],
+    "parent": "probe-mol-e2w",
+    "dependent_count": 0,
+    "dependency_count": 2,
+    "comment_count": 0
+  }
+]

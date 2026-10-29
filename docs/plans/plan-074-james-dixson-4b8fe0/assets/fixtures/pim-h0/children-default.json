@@ -1,0 +1,154 @@
+[
+  {
+    "id": "pim-mol-vp2.7",
+    "title": "Reconcile: update upstream issues",
+    "description": "Update upstream issues per plan dispositions.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:04Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T12:59:04Z",
+    "metadata": {
+      "agent": "agents/reconciler.md",
+      "context": [
+        "plan.md"
+      ]
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.7",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:04Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.7",
+        "depends_on_id": "pim-mol-vp2.6",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:04Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.4",
+    "title": "Epic: Surface coverage, repeatability and bounded handoff",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 4 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:55Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:27Z",
+    "closed_at": "2026-10-29T19:27:27Z",
+    "close_reason": "children re-closed after bounded H4 retry",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.4",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:55Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.3",
+    "title": "Epic: Exercise real backends and classify evidence honestly",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 3 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:54Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T15:04:39Z",
+    "closed_at": "2026-10-29T15:04:39Z",
+    "close_reason": "children re-closed after round-2 residual corrections",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.3",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:54Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.2",
+    "title": "Epic: Implement strict logical fixture infrastructure",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 2 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:53Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:24Z",
+    "closed_at": "2026-10-29T19:27:24Z",
+    "close_reason": "children re-closed after bounded H4 retry",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.2",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:53Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.1",
+    "title": "Epic: Freeze the bounded contract and source inventory",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 1 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:52Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T13:05:16Z",
+    "closed_at": "2026-10-29T13:05:16Z",
+    "close_reason": "Epic 1 complete: 1.1, 1.2 closed",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.1",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:52Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  }
+]

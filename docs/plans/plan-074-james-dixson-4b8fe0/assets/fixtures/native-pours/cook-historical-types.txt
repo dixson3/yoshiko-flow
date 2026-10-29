@@ -1,0 +1,19 @@
+18: // stepTypeToIssueType converts a formula step type string to a types.IssueType.
+19: // Returns types.TypeTask for empty or unrecognized types.
+20: func stepTypeToIssueType(stepType string) types.IssueType {
+21: 	switch stepType {
+22: 	case "task":
+23: 		return types.TypeTask
+24: 	case "bug":
+25: 		return types.TypeBug
+26: 	case "feature":
+27: 		return types.TypeFeature
+28: 	case "epic":
+29: 		return types.TypeEpic
+30: 	case "chore":
+31: 		return types.TypeChore
+32: 	default:
+33: 		return types.TypeTask
+34: 	}
+35: }
+36: 

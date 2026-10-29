@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "8ae6b1d5-8c50-460b-8c00-eee20acc5be2",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.json",
+  "output": "/Users/james/workspace/dixson3/yoshiko-flow/docs/plans/plan-074-james-dixson-4b8fe0/diagrams/roles.html",
+  "specification": {
+    "sha256": "70d650d33ab3bb1f3df2166c6e3dba83a3ed67dc698a3dc51be2c7e4da0c7bdb",
+    "bytes": 2469
+  },
+  "artifact": {
+    "sha256": "adb2ea41763880b6f59af89b2b48b5429f524b4b2447f631b98a6e8a45767074",
+    "bytes": 819575
+  }
+}

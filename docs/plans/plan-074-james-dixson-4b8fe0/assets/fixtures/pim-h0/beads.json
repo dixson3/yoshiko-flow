@@ -1,0 +1,701 @@
+[
+  {
+    "id": "pim-mol-vp2.7",
+    "title": "Reconcile: update upstream issues",
+    "description": "Update upstream issues per plan dispositions.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:04Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T12:59:04Z",
+    "metadata": {
+      "agent": "agents/reconciler.md",
+      "context": [
+        "plan.md"
+      ]
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.7",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:04Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.7",
+        "depends_on_id": "pim-mol-vp2.6",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:04Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.6",
+    "title": "Gate: Reconcile upstream",
+    "description": "Blocks reconciliation until execution complete.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "gate",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:04Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T12:59:04Z",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.6",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:04Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.5",
+    "title": "Gate: Explicit bounded policy and profile acceptance",
+    "description": "Condition: Operator explicitly accepted P1, P2 and P3 against the reviewed proposal digests; master-routed receipt is present and verified by the executor. Study approval alone is insufficient.\nTest: test -s docs/plans/plan-012-james-dixson-d1af33/references/policy-acceptance.json\nInstructions: Frontload at execute start because all proposals are already available. Read the actual master answer and verify the receipt's decision set and content digests; never auto-resolve from file existence. If withheld, only 1.1 may proceed; route concrete amendments to the planner/master. The planner does not create its own acceptance.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "gate",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:03Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T12:59:36Z",
+    "closed_at": "2026-10-29T12:59:36Z",
+    "close_reason": "Consent verified (not inferred from file existence): references/policy-acceptance.json committed cf0bd0c records the operator's master-session answers 'Approve bounded plan (Recommended)' and 'Accept P1\u2013P3 as written (Recommended)'; accepted=[P1,P2,P3], amended=[], withheld=[]; reviewedContentFingerprint 2dd5d32c\u2026d2db7 == stored == current; design/current-format-contract.md sha256 3849f383\u2026aba72d and design/corpus-contract.md sha256 cef864e4\u2026e165 recomputed and match; master launch prompt re-states the separate P1\u2013P3 acceptance.",
+    "metadata": {
+      "cwd": "repo-root",
+      "test": "test -s docs/plans/plan-012-james-dixson-d1af33/references/policy-acceptance.json",
+      "gate_type": "human",
+      "test_class": "consent"
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.5",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 7,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.4.1",
+    "title": "Issue 4.1: Exercise real CLI and existing facade surfaces with explicit coverage gaps",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nAdd `crates/pim-regression/tests/surface_smoke.rs` and `scripts/check-h0.sh` modes `surfaces` and `all`. Build the actual pim executable and pass its explicit binary path; I1/G1/P1 run on each backend with fresh processes, explicit scratch URIs and JSON semantic assertions after reopen. Run existing Rust pim-node facade tests with their correct SQLite/Git scope. Inventory actual Node/Python runtime coverage as separate cells; absence may remain not-run under this profile, not a native parity claim. No global installs or binding feature implementation. The shell runner must reject unknown modes, missing binaries and zero-test selections, propagate failures, and clean owned scratch on both success and failure.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:01Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:19Z",
+    "started_at": "2026-10-29T13:28:49Z",
+    "closed_at": "2026-10-29T19:27:19Z",
+    "close_reason": "Bounded H4 retry @b1c6096 verified: reviewer exact [{}] proxy -> bootstrap 1/certify 1 (was 0/shipped-pass); 4 more proxy variants 1/1; 26-case payload matrix; check-h0.sh all PASS x2 (hostile run 1: 0 external writes); evidence/round-4 @024c20a. yf_attempts=3 preserved (max-attempts=10, ESC-002).",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "plan_issue": "4.1",
+      "yf_attempts": 3
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.4.1",
+        "depends_on_id": "pim-mol-vp2.4",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:01Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.4.1",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.4.1",
+        "depends_on_id": "pim-mol-vp2.3.2",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:01Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.4"
+  },
+  {
+    "id": "pim-mol-vp2.4.2",
+    "title": "Issue 4.2: Produce verified bootstrap evidence, coverage index and overview impact",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nRun `scripts/check-h0.sh all` twice from fresh scratch stores, compare stable observations/digests while keeping separate run receipts and generated-ID mappings, and run the four exact retained-suite selectors listed in the corpus contract (backend journal/sync, CLI app/convenience, pim-node facade targets, and core/app/formula suites). Commit primary-side `evidence/bootstrap-report.json`, `evidence/validation.md`, `evidence/frozen-preservation.json`, `evidence/overview-impact.md` and `docs/regression/coverage.md` with all five status counts, required denominators, exact supported schedules/surfaces and per-capability blocking owners. Preserve original frozen evidence hashes and protected-data boundaries. Assess docs/overview: narrowly update implemented/accepted/proposed explanation if warranted, otherwise record no-change rationale; do not silently re-pin sources. Reconcile #36/#27 only as partial scoped progress through yf-beads-upstream after authorized landing; neither whole issue nor #14\u2013#22 closes here. Report capability gaps and proposed next safe-open lane, not an execution authorization for it.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:01Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:22Z",
+    "started_at": "2026-10-29T13:33:23Z",
+    "closed_at": "2026-10-29T19:27:22Z",
+    "close_reason": "Bounded H4 retry @b1c6096 verified: reviewer exact [{}] proxy -> bootstrap 1/certify 1 (was 0/shipped-pass); 4 more proxy variants 1/1; 26-case payload matrix; check-h0.sh all PASS x2 (hostile run 1: 0 external writes); evidence/round-4 @024c20a. yf_attempts=3 preserved (max-attempts=10, ESC-002).",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "upstream": "#36",
+      "plan_issue": "4.2",
+      "disposition": "partial",
+      "yf_attempts": 3
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.4.2",
+        "depends_on_id": "pim-mol-vp2.4",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:01Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.4.2",
+        "depends_on_id": "pim-mol-vp2.4.1",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:01Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.4.2",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.4"
+  },
+  {
+    "id": "pim-mol-vp2.3.2",
+    "title": "Issue 3.2: Implement defect companions, result classifier and fail-closed certification",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nAdd isolated fresh D17/D21/D22 raw-input companions, preserve all nine issue records and produce complete per-cell JSON with command/evidence provenance. Implement `bootstrap` and `certify --profile` behavior specified in the corpus contract, with separate execution and semantic statuses. Add `crates/pim-regression/tests/report_contract.rs`: invert each named negative control, reject omitted/duplicate/stale results, empty selection and defect-as-pass; prove an always-failing certifier cannot pass with one synthetic valid positive control. Synthetic records never certify real capabilities. Unexpected defect pass is a review-triggering mismatch, not closure. Do not repair production code while adding a probe.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:59:00Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T15:04:29Z",
+    "started_at": "2026-10-29T13:25:17Z",
+    "closed_at": "2026-10-29T15:04:29Z",
+    "close_reason": "Round-2 residual corrections @424d0bb verified: check-h0.sh all PASS x2 (run 1 hostile env, 0 external writes); reviewer H1 transforms 7/7 -> 2; H2 hook probe 0 writes; H4 proxy -> 1; mapping all predicates accounted; evidence/round-3 @7d7e655. yf_attempts=2 preserved (not reset) per master instruction.",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "plan_issue": "3.2",
+      "yf_attempts": 2
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.3.2",
+        "depends_on_id": "pim-mol-vp2.3.1",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:00Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.3.2",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.3.2",
+        "depends_on_id": "pim-mol-vp2.3",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:59:00Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.3"
+  },
+  {
+    "id": "pim-mol-vp2.3.1",
+    "title": "Issue 3.1: Implement disposable SQLite/Git reload, replay and schedule adapters",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nImplement actual Store/Journal/pim-app loading and read observations, all-handles-dropped reopen, reconstruction, exact copied-iota replay, Git snapshot-plus-tail versus full-WAL and the four finite sync schedules. Add `crates/pim-regression/tests/backend_matrix.rs`. No skipped mandatory cell, shadow readiness/deletion engine, accidental ambient store target or SQLite-sync claim. Adapter errors are setup errors, not semantic failures. Compare namespace/object/edge/reference identities, multiplicity, readiness and lineage at every applicable stage. For I1 on both backends verify effective app/spec binding after reopen and a known AppSpec-invalid mutation remains rejected without journal/projection changes; keep unbound N1 distinct. Separate valid exact-stream replay from malformed negative injection. Keep CLI distinct for Issue 4.1.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:59Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T15:04:26Z",
+    "started_at": "2026-10-29T13:22:15Z",
+    "closed_at": "2026-10-29T15:04:26Z",
+    "close_reason": "Round-2 residual corrections @424d0bb verified: check-h0.sh all PASS x2 (run 1 hostile env, 0 external writes); reviewer H1 transforms 7/7 -> 2; H2 hook probe 0 writes; H4 proxy -> 1; mapping all predicates accounted; evidence/round-3 @7d7e655. yf_attempts=2 preserved (not reset) per master instruction.",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "plan_issue": "3.1",
+      "yf_attempts": 2
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.3.1",
+        "depends_on_id": "pim-mol-vp2.3",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:59Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.3.1",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.3.1",
+        "depends_on_id": "pim-mol-vp2.2.2",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:58:59Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.3"
+  },
+  {
+    "id": "pim-mol-vp2.2.2",
+    "title": "Issue 2.2: Author the finite logical corpus and stable semantic oracle mappings",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nAdd `tests/regression/manifest.json`, `fixtures/`, `oracles/` and coverage/source links implementing the 21-family floor in design/corpus-contract.md. Capture accepted authority separately from shipped calibration and historical measurement. Preserve original evidence byte-for-byte; translate consumer intent explicitly. Pin fixture/oracle/spec digests and declared normalization, with exact identity assertions untouched. A8/A9 remain accepted-unimplemented; generic permissiveness and X2 refusal cannot be counted as support for missing policies.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:58Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:17Z",
+    "started_at": "2026-10-29T13:17:23Z",
+    "closed_at": "2026-10-29T19:27:17Z",
+    "close_reason": "Bounded H4 retry @b1c6096 verified: reviewer exact [{}] proxy -> bootstrap 1/certify 1 (was 0/shipped-pass); 4 more proxy variants 1/1; 26-case payload matrix; check-h0.sh all PASS x2 (hostile run 1: 0 external writes); evidence/round-4 @024c20a. yf_attempts=3 preserved (max-attempts=10, ESC-002).",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "plan_issue": "2.2",
+      "yf_attempts": 3
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.2.2",
+        "depends_on_id": "pim-mol-vp2.2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:58Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.2.2",
+        "depends_on_id": "pim-mol-vp2.2.1",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:58:58Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.2.2",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.2"
+  },
+  {
+    "id": "pim-mol-vp2.2.1",
+    "title": "Issue 2.1: Add non-published regression crate and strict fixture/result schemas",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nAdd `crates/pim-regression/Cargo.toml`, workspace registration and `src/{fixture,loader,oracle,runner,result}.rs` plus `src/bin/pim-regression.rs`. Add `tests/manifest_contract.rs`. Decode/validate the complete fixture and oracle envelope before any store side effect; reject unknown/duplicate/malformed inputs and unsafe paths. Use owned temporary roots, explicit namespaces/AppSpec/actor/order, two identity modes and required-cell enumeration. Initial oracle helpers inspect actual projections only; no competing algorithm. Negative parser/path controls must prove zero target mutation.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:57Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T14:13:45Z",
+    "started_at": "2026-10-29T13:05:19Z",
+    "closed_at": "2026-10-29T14:13:45Z",
+    "close_reason": "Round-1 corrections H1-H6 @ac3a059/6066e4d; check-h0.sh all PASS x2; evidence/round-2 committed primary 82aae59",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "plan_issue": "2.1"
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.2.1",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.2.1",
+        "depends_on_id": "pim-mol-vp2.2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:57Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.2.1",
+        "depends_on_id": "pim-mol-vp2.1.2",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:58:57Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.2"
+  },
+  {
+    "id": "pim-mol-vp2.1.2",
+    "title": "Issue 1.2: Publish the explicitly accepted bounded current-format contract",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nAfter the human policy gate, publish `docs/regression/current-format-contract.md` from the accepted proposal with its exact acceptance receipt and actual inventory references. State desired safety separately from known implementation gaps, and name the later owners of safe-open/admission/recovery work. No new production format version, migration or fallback implementation. Acceptance changes require re-review rather than silent edits to the proposal.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:56Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T13:05:13Z",
+    "started_at": "2026-10-29T13:04:41Z",
+    "closed_at": "2026-10-29T13:05:13Z",
+    "close_reason": "Published docs/regression/current-format-contract.md at 5243b63: P1-P3 verbatim (diff-verified vs proposal sha256 3849f383\u2026), receipt cf0bd0c, inventory refs, gap/owner table. No production change.",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "upstream": "#27",
+      "plan_issue": "1.2",
+      "disposition": "partial"
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.1.2",
+        "depends_on_id": "pim-mol-vp2.1",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:56Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.1.2",
+        "depends_on_id": "pim-mol-vp2.1.1",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:58:56Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.1.2",
+        "depends_on_id": "pim-mol-vp2.5",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:59:03Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.1"
+  },
+  {
+    "id": "pim-mol-vp2.1.1",
+    "title": "Issue 1.1: Inventory current format and oracle authority without changing production behavior",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nProduce `docs/regression/format-inventory.md` and `tests/regression/source-index.json`: actual SQLite metadata/schema recognition, Git WAL/snapshot recognition, Iota identity, AppSpec/binding/envelope shapes and entry points. Pin current source paths/commits/hashes and frozen plan-007/008/009 manifests; record every #14\u2013#22 owner, injected-input provenance and current versus historical status. No active-store search or database opening. Inventory disagreements are evidence for a question, not authority to choose new semantics.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "James Dixson",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:55Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T13:04:38Z",
+    "started_at": "2026-10-29T13:03:02Z",
+    "closed_at": "2026-10-29T13:04:38Z",
+    "close_reason": "docs/regression/format-inventory.md + tests/regression/source-index.json (26 prod sources, 8 authority, 363 frozen files pinned via inventory digest, 9 defect owners) committed 603c086",
+    "metadata": {
+      "plan": "plan-012-james-dixson-d1af33",
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33",
+      "plan_issue": "1.1"
+    },
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.1.1",
+        "depends_on_id": "pim-mol-vp2.1",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:55Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-vp2.1.1",
+        "depends_on_id": "pim-mol-3pg",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:58:55Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2.1"
+  },
+  {
+    "id": "pim-mol-vp2.4",
+    "title": "Epic: Surface coverage, repeatability and bounded handoff",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 4 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:55Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:27Z",
+    "closed_at": "2026-10-29T19:27:27Z",
+    "close_reason": "children re-closed after bounded H4 retry",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.4",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:55Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.3",
+    "title": "Epic: Exercise real backends and classify evidence honestly",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 3 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:54Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T15:04:39Z",
+    "closed_at": "2026-10-29T15:04:39Z",
+    "close_reason": "children re-closed after round-2 residual corrections",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.3",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:54Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.2",
+    "title": "Epic: Implement strict logical fixture infrastructure",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 2 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:53Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T19:27:24Z",
+    "closed_at": "2026-10-29T19:27:24Z",
+    "close_reason": "children re-closed after bounded H4 retry",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.2",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:53Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2.1",
+    "title": "Epic: Freeze the bounded contract and source inventory",
+    "description": "Plan: plan-012-james-dixson-d1af33 | Bundle: docs/plans/plan-012-james-dixson-d1af33 (repo-relative)\n\nEpic 1 of the plan.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "dixson3@gmail.com",
+    "created_at": "2026-10-29T12:58:52Z",
+    "created_by": "James Dixson",
+    "updated_at": "2026-10-29T13:05:16Z",
+    "closed_at": "2026-10-29T13:05:16Z",
+    "close_reason": "Epic 1 complete: 1.1, 1.2 closed",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-vp2.1",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:52Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-0u3",
+    "title": "Gate: human",
+    "description": "Async gate for step start-gate",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "gate",
+    "created_at": "2026-10-29T12:58:32Z",
+    "updated_at": "2026-10-29T12:59:26Z",
+    "closed_at": "2026-10-29T12:59:26Z",
+    "close_reason": "Start gate: operator approved plan-012 at fingerprint 2dd5d32c\u2026d2db7 in master session (references/policy-acceptance.json); fresh executor session started; fingerprint verified fresh (resume-scan stale_approved=false).",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-0u3",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:32Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "await_type": "human",
+    "dependency_count": 0,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-3pg",
+    "title": "Begin: Reloadable multi-app regression foundation and bounded current-format contract",
+    "description": "Start gate. Resolve in a new session via /yf-plan execute.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "gate",
+    "created_at": "2026-10-29T12:58:32Z",
+    "updated_at": "2026-10-29T12:59:26Z",
+    "closed_at": "2026-10-29T12:59:26Z",
+    "close_reason": "Start gate: operator approved plan-012 at fingerprint 2dd5d32c\u2026d2db7 in master session (references/policy-acceptance.json); fresh executor session started; fingerprint verified fresh (resume-scan stale_approved=false). (wrapper)",
+    "dependencies": [
+      {
+        "issue_id": "pim-mol-3pg",
+        "depends_on_id": "pim-mol-0u3",
+        "type": "blocks",
+        "created_at": "2026-10-29T12:58:32Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "pim-mol-3pg",
+        "depends_on_id": "pim-mol-vp2",
+        "type": "parent-child",
+        "created_at": "2026-10-29T12:58:32Z",
+        "created_by": "James Dixson",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "pim-mol-vp2"
+  },
+  {
+    "id": "pim-mol-vp2",
+    "title": "plan-execute",
+    "description": "Plan execution pipeline with upstream reconciliation",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "molecule",
+    "created_at": "2026-10-29T12:58:32Z",
+    "updated_at": "2026-10-29T12:58:33Z",
+    "external_ref": "https://github.com/dixson3/pim/issues/46",
+    "metadata": {
+      "plan_dir": "docs/plans/plan-012-james-dixson-d1af33"
+    },
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  }
+]

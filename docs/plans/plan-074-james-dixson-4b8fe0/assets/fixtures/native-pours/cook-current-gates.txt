@@ -1,0 +1,207 @@
+483: // createGateIssue creates a gate issue for a step with a Gate field.
+484: // Gate issues have type=gate and block the step they guard.
+485: // Returns the gate issue and its ID.
+486: func createGateIssue(step *formula.Step, parentID string) *types.Issue {
+487: 	if step.Gate == nil {
+488: 		return nil
+489: 	}
+490: 
+491: 	// Generate gate issue ID: {parentID}.gate-{step.ID}
+492: 	gateID := fmt.Sprintf("%s.gate-%s", parentID, step.ID)
+493: 
+494: 	// Build title from gate type and ID
+495: 	title := fmt.Sprintf("Gate: %s", step.Gate.Type)
+496: 	awaitID := gateAwaitID(step.Gate)
+497: 	if awaitID != "" {
+498: 		title = fmt.Sprintf("Gate: %s %s", step.Gate.Type, awaitID)
+499: 	}
+500: 
+501: 	// Parse timeout if specified
+502: 	var timeout time.Duration
+503: 	if step.Gate.Timeout != "" {
+504: 		if parsed, err := time.ParseDuration(step.Gate.Timeout); err == nil {
+505: 			timeout = parsed
+506: 		}
+507: 	}
+508: 
+509: 	gateIssue := &types.Issue{
+510: 		ID:          gateID,
+511: 		Title:       title,
+512: 		Description: fmt.Sprintf("Async gate for step %s", step.ID),
+513: 		Status:      types.StatusOpen,
+514: 		Priority:    2,
+515: 		IssueType:   "gate",
+516: 		AwaitType:   step.Gate.Type,
+517: 		AwaitID:     awaitID,
+518: 		Timeout:     timeout,
+519: 		IsTemplate:  true,
+520: 		CreatedAt:   time.Now(),
+521: 		UpdatedAt:   time.Now(),
+522: 	}
+523: 
+524: 	// Propagate the formula-declared repo selector (SF2), matching the
+525: 	// declarative `metadata.repo` selector documented for ad-hoc gates.
+526: 	// Malformed values are left for check time (githubRepoFromIssue) to
+527: 	// reject, consistent with how a check-time-only value on any other
+528: 	// gate created outside `bd gate create` is validated.
+529: 	//
+530: 	// Restricted to gh:* gate types (SF4), same as repoMetadataForGate: a
+531: 	// `repo` field on a human/timer/bead gate step is unrelated, ordinary
+532: 	// metadata, not a GitHub repo selector, so only gh:run/gh:pr gates
+533: 	// write it here.
+534: 	if isGitHubGateType(step.Gate.Type) && step.Gate.Repo != "" {
+535: 		if metaJSON, err := json.Marshal(map[string]string{"repo": step.Gate.Repo}); err == nil {
+536: 			gateIssue.Metadata = metaJSON
+537: 		}
+538: 	}
+539: 
+540: 	return gateIssue
+541: }
+542: 
+543: func gateAwaitID(gate *formula.Gate) string {
+544: 	if gate == nil {
+545: 		return ""
+546: 	}
+547: 	if gate.AwaitID != "" {
+548: 		return gate.AwaitID
+549: 	}
+550: 	return gate.ID
+551: }
+552: 
+553: // processStepToIssue converts a formula.Step to a types.Issue.
+554: // The issue includes all fields including Labels populated from step.Labels and waits_for.
+555: // This is the shared core logic used by both DB-persisted and in-memory cooking.
+556: func processStepToIssue(step *formula.Step, parentID string) *types.Issue {
+557: 	// Generate issue ID (formula-name.step-id)
+558: 	issueID := fmt.Sprintf("%s.%s", parentID, step.ID)
+559: 
+560: 	// Determine issue type. A parent step with no declared type defaults to
+561: 	// epic; a declared type is honored even when the step has children
+562: 	// (GH#5443).
+563: 	declaredType := strings.TrimSpace(step.Type)
+564: 	issueType := stepTypeToIssueType(declaredType)
+565: 	if len(step.Children) > 0 && declaredType == "" {
+566: 		issueType = types.TypeEpic
+567: 	}
+568: 
+569: 	// Determine priority
+570: 	priority := 2
+571: 	if step.Priority != nil {
+572: 		priority = *step.Priority
+573: 	}
+574: 
+575: 	issue := &types.Issue{
+576: 		ID:             issueID,
+577: 		Title:          step.Title, // Keep {{variables}} for substitution at pour time
+578: 		Description:    step.Description,
+579: 		Notes:          step.Notes,
+580: 		Status:         types.StatusOpen,
+581: 		Priority:       priority,
+582: 		IssueType:      issueType,
+583: 		Assignee:       step.Assignee,
+584: 		IsTemplate:     true,
+585: 		CreatedAt:      time.Now(),
+586: 		UpdatedAt:      time.Now(),
+587: 		SourceFormula:  step.SourceFormula,  // Source tracing
+588: 		SourceLocation: step.SourceLocation, // Source tracing
+589: 	}
+590: 
+591: 	// Populate labels from step
+592: 	issue.Labels = append(issue.Labels, step.Labels...)
+593: 
+594: 	// Add gate label for waits_for field
+595: 	if step.WaitsFor != "" {
+596: 		gateLabel := fmt.Sprintf("gate:%s", step.WaitsFor)
+597: 		issue.Labels = append(issue.Labels, gateLabel)
+598: 	}
+599: 
+600: 	// Carry step metadata through to the issue (GH#3341).
+601: 	if len(step.Metadata) > 0 {
+602: 		if metaJSON, err := json.Marshal(step.Metadata); err == nil {
+603: 			issue.Metadata = metaJSON
+604: 		}
+605: 	}
+606: 
+607: 	return issue
+608: }
+609: 
+610: // collectSteps collects issues and dependencies for steps and their children.
+611: // This is the unified implementation used by both DB-persisted and in-memory cooking.
+612: //
+613: // Parameters:
+614: //   - idMapping: step.ID → issue.ID (always populated, used for dependency resolution)
+615: //   - issueMap: issue.ID → issue (optional, nil for DB path, populated for in-memory path)
+616: //   - labelHandler: callback for each label (if nil, labels stay on issue; if set, labels are
+617: //     extracted and issue.Labels is cleared - use for DB path)
+618: func collectSteps(steps []*formula.Step, parentID string,
+619: 	idMapping map[string]string,
+620: 	issueMap map[string]*types.Issue,
+621: 	issues *[]*types.Issue,
+622: 	deps *[]*types.Dependency,
+623: 	labelHandler func(issueID, label string)) {
+624: 
+625: 	for _, step := range steps {
+626: 		issue := processStepToIssue(step, parentID)
+627: 		*issues = append(*issues, issue)
+628: 
+629: 		// Build mappings
+630: 		idMapping[step.ID] = issue.ID
+631: 		if issueMap != nil {
+632: 			issueMap[issue.ID] = issue
+633: 		}
+634: 
+635: 		// Handle labels: extract via callback (DB path) or keep on issue (in-memory path)
+636: 		if labelHandler != nil {
+637: 			for _, label := range issue.Labels {
+638: 				labelHandler(issue.ID, label)
+639: 			}
+640: 			issue.Labels = nil // DB stores labels separately
+641: 		}
+642: 
+643: 		// Add parent-child dependency
+644: 		*deps = append(*deps, &types.Dependency{
+645: 			IssueID:     issue.ID,
+646: 			DependsOnID: parentID,
+647: 			Type:        types.DepParentChild,
+648: 		})
+649: 
+650: 		// Create gate issue if step has a Gate (bd-7zka.2)
+651: 		if step.Gate != nil {
+652: 			gateIssue := createGateIssue(step, parentID)
+653: 			*issues = append(*issues, gateIssue)
+654: 
+655: 			// Add gate to mapping (use gate-{step.ID} as key)
+656: 			gateKey := fmt.Sprintf("gate-%s", step.ID)
+657: 			idMapping[gateKey] = gateIssue.ID
+658: 			if issueMap != nil {
+659: 				issueMap[gateIssue.ID] = gateIssue
+660: 			}
+661: 
+662: 			// Handle gate labels if needed
+663: 			if labelHandler != nil && len(gateIssue.Labels) > 0 {
+664: 				for _, label := range gateIssue.Labels {
+665: 					labelHandler(gateIssue.ID, label)
+666: 				}
+667: 				gateIssue.Labels = nil
+668: 			}
+669: 
+670: 			// Gate is a child of the parent (same level as the step)
+671: 			*deps = append(*deps, &types.Dependency{
+672: 				IssueID:     gateIssue.ID,
+673: 				DependsOnID: parentID,
+674: 				Type:        types.DepParentChild,
+675: 			})
+676: 
+677: 			// Step depends on gate (gate blocks the step)
+678: 			*deps = append(*deps, &types.Dependency{
+679: 				IssueID:     issue.ID,
+680: 				DependsOnID: gateIssue.ID,
+681: 				Type:        types.DepBlocks,
+682: 			})
+683: 		}
+684: 
+685: 		// Recursively collect children
+686: 		if len(step.Children) > 0 {
+687: 			collectSteps(step.Children, issue.ID, idMapping, issueMap, issues, deps, labelHandler)
+688: 		}
+689: 	}

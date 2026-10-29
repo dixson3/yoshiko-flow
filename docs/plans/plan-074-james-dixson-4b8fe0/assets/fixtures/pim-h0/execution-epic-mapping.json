@@ -1,0 +1,24 @@
+{
+ "epic": "pim-mol-vp2",
+ "start_gate": "pim-mol-3pg",
+ "start_gate_bead": "pim-mol-0u3",
+ "child_epics": {
+  "1": "pim-mol-vp2.1",
+  "2": "pim-mol-vp2.2",
+  "3": "pim-mol-vp2.3",
+  "4": "pim-mol-vp2.4"
+ },
+ "issues": {
+  "1.1": "pim-mol-vp2.1.1",
+  "1.2": "pim-mol-vp2.1.2",
+  "2.1": "pim-mol-vp2.2.1",
+  "2.2": "pim-mol-vp2.2.2",
+  "3.1": "pim-mol-vp2.3.1",
+  "3.2": "pim-mol-vp2.3.2",
+  "4.1": "pim-mol-vp2.4.1",
+  "4.2": "pim-mol-vp2.4.2"
+ },
+ "capability_gate": "pim-mol-vp2.5",
+ "reconcile_gate": "pim-mol-vp2.6",
+ "reconcile_step": "pim-mol-vp2.7"
+}

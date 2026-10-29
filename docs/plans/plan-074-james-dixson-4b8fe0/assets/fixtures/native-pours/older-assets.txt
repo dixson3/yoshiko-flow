@@ -1,0 +1,10 @@
+beads-v1.1.0.spdx.json	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads-v1.1.0.spdx.json
+beads_1.1.0_android_arm64.tar.gz	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_android_arm64.tar.gz
+beads_1.1.0_darwin_amd64.tar.gz	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_darwin_amd64.tar.gz
+beads_1.1.0_darwin_arm64.tar.gz	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_darwin_arm64.tar.gz
+beads_1.1.0_freebsd_amd64.tar.gz	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_freebsd_amd64.tar.gz
+beads_1.1.0_linux_amd64.tar.gz	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_linux_amd64.tar.gz
+beads_1.1.0_linux_arm64.tar.gz	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_linux_arm64.tar.gz
+beads_1.1.0_windows_amd64.zip	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_windows_amd64.zip
+beads_1.1.0_windows_arm64.zip	https://github.com/gastownhall/beads/releases/download/v1.1.0/beads_1.1.0_windows_arm64.zip
+checksums.txt	https://github.com/gastownhall/beads/releases/download/v1.1.0/checksums.txt

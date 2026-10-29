@@ -1,0 +1,74 @@
+{
+ "comparable": 1,
+ "skipped": [],
+ "populations": {
+  "no_mapping": {
+   "plans": [],
+   "count": 0
+  },
+  "dropped_among_joinable": {
+   "plans": [],
+   "edges": 0
+  },
+  "invented_in_cleanly_parsed_plans": {
+   "plans": [],
+   "edges": 0
+  },
+  "invented_where_document_is_unreadable": {
+   "plans": [],
+   "edges": 0,
+   "note": "NOT a pour defect: the plan declared these in a form the REQ-DATA-019 grammar refuses, so the edge exists in `bd` and not in the extracted DAG. The document is malformed, not the pour."
+  }
+ },
+ "divergent_plans": 1,
+ "totals": {
+  "plan_edges": 7,
+  "bd_edges": 7,
+  "plan_issues": 8,
+  "bd_issues": 8
+ },
+ "results": [
+  {
+   "plan": "plan-012-james-dixson-d1af33",
+   "epic_bead": "pim-mol-vp2",
+   "joinable": true,
+   "population": "divergent",
+   "id_source": {
+    "metadata": 8,
+    "title": 0
+   },
+   "issues": {
+    "plan": 8,
+    "bd": 8,
+    "missing_beads": [],
+    "extra_beads": [],
+    "duplicate_ids": []
+   },
+   "unnumbered_beads": [],
+   "edges": {
+    "plan": 7,
+    "bd": 7,
+    "dropped": [],
+    "invented": [],
+    "touching_unjoined": 8
+   },
+   "gates": {
+    "plan": 3,
+    "bd": 4
+   },
+   "epics": {
+    "plan": 4,
+    "bd": 4
+   },
+   "extractor_unparsed": 0,
+   "verdict": {
+    "issue_count_match": true,
+    "issue_id_set_match": true,
+    "edge_set_match": true,
+    "gate_count_match": false,
+    "epic_count_match": true
+   },
+   "clean": false
+  }
+ ]
+}
