@@ -1,0 +1,43 @@
+{
+  "schema": "yf-plan-operator-decisions/v1",
+  "planId": "plan-074-james-dixson-4b8fe0",
+  "authority": "Explicit operator answers obtained in master and relayed to this intake session; not planner or reviewer consent",
+  "at": "2026-10-29T20:54:47.135289+00:00",
+  "reviewedCommit": "f1b399fd1feb114491970bbe69d70fad772c8fe7",
+  "candidateFingerprint": "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c",
+  "proposalDigests": {
+    "plan.md": "ec7d7ddf119f1663550860875b8a778b9ef81a21f1315cdaee0c9f64500bf0bf",
+    "references/compatibility-contract.md": "a5eeaa2288750732903b24db4de3a8804cc1bf346b01c94f0c7a351f10b80ee5",
+    "references/bootstrap-proposal.md": "8261d0a334493f0247b9d3a723544cc9eb1a32417422aeb28ab657d5a0dcc3c0"
+  },
+  "answers": {
+    "plan_and_policy": "Approve plan and policy (Recommended)",
+    "B0": "Accept B0 (Recommended)",
+    "B1": "Conditionally accept B1 (Recommended)",
+    "B2": "Accept B2 evidence policy (Recommended)"
+  },
+  "limits": {
+    "B1_requires_successful_rehearsal": true,
+    "actual_install_manifest_confirmation_required": true,
+    "fresh_apply_confirmation_required": true,
+    "B2_external_evidence_only": true,
+    "live_PIM_receipt_write_authorized": false,
+    "H0_resumption_authorized": false,
+    "fidelity_waiver_authorized": false,
+    "landing_engine_scope_expansion_authorized": false,
+    "graph_retyping_authorized": false,
+    "permission_broadening_authorized": false,
+    "source_checker_substitution_authorized": false,
+    "planner_execution_pour_authorized": false,
+    "planner_implementation_authorized": false,
+    "planner_deployment_or_apply_authorized": false
+  },
+  "bounded_permissions": {
+    "plan_and_policy": "Approve the exact reviewed plan and strict receipt-bound compatibility policy. Preserve the reviewed content and its linked proposal hashes.",
+    "B0": "Accept the reviewed old-tool intake bridge for a future fresh executor: durable prospective native captures, exact identity and consent checks, supported actual-human-gate remediation, and later newly installed recorder conversion. This planner must not pour or execute.",
+    "B1": "Conditional one-plan early-promotion timing only. Successful disposable mechanical rehearsal, the exact clean synchronized FULL-validated deployment tree, full actual changed-set detection, enumerated deployment surfaces and pre/post hashes, and the specified later operator manifest/install and fresh-apply confirmations are required. Unsafe rehearsal or replay leaves the boundary held. No general landing-order change or engine scope expansion.",
+    "B2": "Accept EXTERNAL legacy-attested evidence policy only. Adding a live PIM receipt and resuming H0 remain explicitly unauthorized and require later operator decisions. Do not overwrite existing PIM graph, consent records, code or frozen evidence.",
+    "this_session": "Normal authorized intake only: adjacent checks, durable exact decision record, approved fingerprint, scoped plan bookkeeping commit/publication and upstream tracker workflow. Stop after verified handoff. Only master launches fresh cpa/claude-opus-5-5 executor."
+  },
+  "interpretation": "Reviewed proposal files retain their historical UNAPPROVED wording byte-for-byte. This explicit later receipt records the bounded decisions above; it does not remove future rehearsal, installation, apply or PIM gates. A file's existence alone is not consent."
+}

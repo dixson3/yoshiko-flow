@@ -1,0 +1,83 @@
+{
+  "ready": true,
+  "reasons": [],
+  "verdict": "APPROVE",
+  "review_pass": 3,
+  "malformed_review": null,
+  "audit_status": "pass",
+  "stale_approved": false,
+  "criteria": {
+    "rows": [
+      {
+        "id": "SC1",
+        "status": "manual"
+      },
+      {
+        "id": "SC2",
+        "command": "test -f _shared/test_gate_roles.py && uv run _shared/test_gate_roles.py",
+        "expected_exit": "0",
+        "actual_exit": 1,
+        "holds_now": false,
+        "status": "ran"
+      },
+      {
+        "id": "SC3",
+        "command": "test -f skills/yf-plan/scripts/test_execution_roles.py && uv run skills/yf-plan/scripts/test_execution_roles.py",
+        "expected_exit": "0",
+        "actual_exit": 1,
+        "holds_now": false,
+        "status": "ran"
+      },
+      {
+        "id": "SC4",
+        "command": "test -f skills/yf-plan/scripts/test_gate_wrapper_resolver.py && uv run skills/yf-plan/scripts/test_gate_wrapper_resolver.py",
+        "expected_exit": "0",
+        "actual_exit": 1,
+        "holds_now": false,
+        "status": "ran"
+      },
+      {
+        "id": "SC5",
+        "command": "test -f _shared/test_gate_wrapper_fidelity.py && uv run _shared/test_gate_wrapper_fidelity.py",
+        "expected_exit": "0",
+        "actual_exit": 1,
+        "holds_now": false,
+        "status": "ran"
+      },
+      {
+        "id": "SC6",
+        "command": "test -f skills/yf-plan/test-harness/gate-wrapper.sh && bash skills/yf-plan/test-harness/gate-wrapper.sh gate",
+        "expected_exit": "0",
+        "actual_exit": 1,
+        "holds_now": false,
+        "status": "ran"
+      },
+      {
+        "id": "SC7",
+        "command": "test -f skills/yf-plan/test-harness/gate-wrapper-bootstrap.sh && bash skills/yf-plan/test-harness/gate-wrapper-bootstrap.sh gate",
+        "expected_exit": "0",
+        "actual_exit": 1,
+        "holds_now": false,
+        "status": "ran"
+      },
+      {
+        "id": "SC8",
+        "status": "manual"
+      },
+      {
+        "id": "SC9",
+        "status": "manual"
+      }
+    ],
+    "failures": [],
+    "checked": 9,
+    "preamble_present": false
+  },
+  "gate_consistency": {
+    "verdict": "PASS",
+    "exit": 0,
+    "findings": [],
+    "gates": 3,
+    "reason": null
+  }
+}

@@ -34,3 +34,4 @@ This plan folder is **portable** — a cold reader understands its purpose, envi
 - [references/reproduction.md](references/reproduction.md) - Portable offline baseline reproduction, genuine native fixture controls and artifact-provenance limits.
 - [references/readiness.md](references/readiness.md) - Exact reviewed hashes, mechanical readiness, unapproved B0/B1/B2 decisions and no-authority handoff.
 - [plan-retrospective.md](plan-retrospective.md) - Stops and deviations recorded during execution (`## RE-NNN` entries). PRESENCE-OPTIONAL — absent from most bundles, and its absence is never an audit finding (REQ-PORT-ACT-RETROSPECTIVE).
+- [references/operator-decisions.json](references/operator-decisions.json)

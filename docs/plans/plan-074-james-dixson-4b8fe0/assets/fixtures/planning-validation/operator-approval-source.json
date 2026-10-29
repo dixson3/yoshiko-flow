@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-29T20:54:47.135289+00:00",
+  "planId": "plan-074-james-dixson-4b8fe0",
+  "reviewedCommit": "f1b399fd1feb114491970bbe69d70fad772c8fe7",
+  "candidateFingerprint": "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c",
+  "proposalDigests": {
+    "plan.md": "ec7d7ddf119f1663550860875b8a778b9ef81a21f1315cdaee0c9f64500bf0bf",
+    "references/compatibility-contract.md": "a5eeaa2288750732903b24db4de3a8804cc1bf346b01c94f0c7a351f10b80ee5",
+    "references/bootstrap-proposal.md": "8261d0a334493f0247b9d3a723544cc9eb1a32417422aeb28ab657d5a0dcc3c0"
+  },
+  "answers": {
+    "plan_and_policy": "Approve plan and policy (Recommended)",
+    "B0": "Accept B0 (Recommended)",
+    "B1": "Conditionally accept B1 (Recommended)",
+    "B2": "Accept B2 evidence policy (Recommended)"
+  },
+  "limits": {
+    "B1_requires_successful_rehearsal": true,
+    "actual_install_manifest_confirmation_required": true,
+    "fresh_apply_confirmation_required": true,
+    "B2_external_evidence_only": true,
+    "live_PIM_receipt_write_authorized": false,
+    "H0_resumption_authorized": false,
+    "fidelity_waiver_authorized": false,
+    "landing_engine_scope_expansion_authorized": false
+  }
+}

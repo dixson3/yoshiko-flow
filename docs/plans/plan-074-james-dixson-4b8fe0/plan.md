@@ -6,14 +6,18 @@ description: Receipt-bound native gate-wrapper compatibility with fail-closed fi
 id: plan-074-james-dixson-4b8fe0
 author: james-dixson
 created: '2026-10-29'
-status: ready-for-approval
+status: approved
+deliverable_class: standard
+fingerprint: 8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c
 ---
 # Plan: Gate-wrapper compatibility for start resolution and pour fidelity
 
 **ID:** plan-074-james-dixson-4b8fe0
 **Author:** james-dixson
 **Created:** 2026-10-29
-**Status:** ready-for-approval
+**Status:** approved
+**Deliverable-class:** standard
+**Fingerprint:** 8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c
 
 ## Objective
 Repair yf-plan's start resolution and pour fidelity for genuine native task- and gate-typed Begin wrappers, without hiding real gates, changing executed graphs or inferring consent. Establish a bounded, explicitly gated self-hosting proposal; this planning session stops at ready-for-approval, not execution.
