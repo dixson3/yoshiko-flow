@@ -82,8 +82,22 @@ ROOT = POUR["new_epic_id"]
 WRAP = POUR["id_mapping"][gr.ROLE_WRAPPER]
 GATE = POUR["id_mapping"][gr.ROLE_GATE]
 CREATES = jload(B0 / "gate-creates.json")
-SUB = jload(B0 / "plan-subgraph.list.json")              # FILTERED
-SHOWS = [jload(B0 / f)[0] for f in ("root-show.json", "wrapper-show.json", "gate-show.json")]
+SUB_RAW = jload(B0 / "plan-subgraph.list.json")          # FILTERED, genuine bytes (pre-guard root)
+SHOWS_RAW = [jload(B0 / f)[0] for f in ("root-show.json", "wrapper-show.json", "gate-show.json")]
+
+
+def stamp(records, root, fp="8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c"):
+    """SYNTHETIC: add the prospective `yf_origin_fingerprint` that new-pour linkage now writes
+    (REQ-DATA-077 DEV guard). The genuine B0 root predates the guard and carries none."""
+    out = copy.deepcopy(records)
+    for r in out:
+        if r["id"] == root:
+            r["metadata"] = {**(r.get("metadata") or {}), "yf_origin_fingerprint": fp}
+    return out
+
+
+SUB = stamp(SUB_RAW, "yf-mol-9s78")
+SHOWS = stamp(SHOWS_RAW, "yf-mol-9s78")
 CAP_DECL = next(g["name"] for g in PLAN["gates"] if g["name"].startswith("Capability Gate"))
 CAP, REC = CREATES[CAP_DECL]["id"], CREATES["Reconcile Gate"]["id"]
 EVID = ["pour.json", "gate-creates.json", "creates/gate-capability.json", "creates/gate-reconcile.json"]
@@ -155,7 +169,8 @@ def probe(ver):
 
 def link(records, root):
     """SYNTHETIC: add only the yf root linkage (`metadata.plan_dir`) EXP-001 did not perform."""
-    return mutate(records, root, lambda r: r.update(metadata={"plan_dir": PDIR}))
+    return mutate(records, root, lambda r: r.update(metadata={"plan_dir": PDIR,
+                                                              "yf_origin_fingerprint": FPR}))
 
 
 for ver, wtype in (("1.1.0", "task"), ("1.3.1", "gate")):
@@ -190,11 +205,27 @@ for ver, wtype in (("1.1.0", "task"), ("1.3.1", "gate")):
     rc2.update(root=wp[gr.ROLE_ROOT], roles={k: wp[k] for k in gr.ROLE_KEYS},
                gates={"Start Gate (mandatory)": wp[gr.ROLE_GATE]})
     rshow = {"id": wp[gr.ROLE_ROOT], "issue_type": "molecule", "status": "open",
-             "title": "plan-execute", "metadata": {"plan_dir": PDIR}, "dependencies": []}
+             "title": "plan-execute", "metadata": {"plan_dir": PDIR, "yf_origin_fingerprint": FPR},
+             "dependencies": []}
     v = run([rshow, after_w, after_g], plan=plan2, recorded_root=wp[gr.ROLE_ROOT], rcpt=rc2)
     check(f"closed wrapper over OPEN human gate ({ver}): roles classify, but nothing reads as consent",
           v["verdict"] == "pass" and after_g["status"] == "open"
           and not any(k in v for k in ("discharged", "consent", "resolved", "passed")), str(v))
+
+# --- DEV origin-stamp guard (REQ-DATA-077) ---------------------------------------------------
+v = run(SUB_RAW)
+check("GENUINE unstamped (pre-guard) B0 root, native receipt -> inconclusive",
+      v["verdict"] == "inconclusive" and any("yf_origin_fingerprint" in d for d in v["diagnostics"]), str(v))
+check("GENUINE unstamped B0 show shape -> inconclusive",
+      run(SHOWS_RAW, rcpt=receipt("start-only"))["verdict"] == "inconclusive")
+check("SYNTHETIC stamp from a DIFFERENT approval -> fail",
+      run(stamp(SUB_RAW, "yf-mol-9s78", "0" * 64))["verdict"] == "fail")
+check("SYNTHETIC empty stamp -> inconclusive",
+      run(stamp(SUB_RAW, "yf-mol-9s78", ""))["verdict"] == "inconclusive")
+_leg = receipt(evidence_kind="legacy-attested", acceptance={"sha256": "0" * 64, "decision": "SYNTHETIC",
+                                                              "decided_by": "test", "at": "x"})
+check("legacy-attested receipt on the unstamped root is NOT subject to the native stamp guard",
+      run(SUB_RAW, rcpt=_leg)["verdict"] == "pass")
 
 # --- binding adversaries (SYNTHETIC) ---------------------------------------------------------
 check("copied topology with NO receipt -> inconclusive", run(SUB, rcpt=None)["verdict"] == "inconclusive")

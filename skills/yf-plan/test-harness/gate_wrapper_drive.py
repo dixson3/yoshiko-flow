@@ -142,7 +142,11 @@ def extract(root: Path) -> dict:
     return d[0] if isinstance(d, list) else d
 
 
-def pour_and_wire(label: str, root: Path, real_bd: str, *, full: bool = True) -> dict:
+FP_PLAN = "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c"   # fixture plan.md
+
+
+def pour_and_wire(label: str, root: Path, real_bd: str, *, full: bool = True,
+                  stamp: str | None = FP_PLAN) -> dict:
     """SKILL.md §5.2a, mechanically. Returns the ids."""
     cap = root / PREL / "assets" / "execution-roles"
     (cap / "creates").mkdir(parents=True)
@@ -158,13 +162,19 @@ def pour_and_wire(label: str, root: Path, real_bd: str, *, full: bool = True) ->
     m = pour["id_mapping"]
     ids = {"root": m["plan-execute"], "wrapper": m["plan-execute.start-gate"],
            "gate": m["plan-execute.gate-start-gate"], "cap": root / PREL / "assets"}
-    bd(root, real_bd, "update", ids["root"], "--metadata", json.dumps({"plan_dir": PREL}), "-q")
+    # SKILL.md §5.2a linkage: plan_dir + the prospective yf_origin_fingerprint (REQ-DATA-077).
+    meta = {"plan_dir": PREL} if stamp is None else {"plan_dir": PREL, "yf_origin_fingerprint": stamp}
+    bd(root, real_bd, "update", ids["root"], "--metadata", json.dumps(meta), "-q")
     r = pm(SKILL, root, real_bd, "record-epic", PREL, ids["root"])
     check(f"[{label}] record-epic links the root", r.returncode == 0, r.stdout + r.stderr)
+    if stamp is not None and stamp != FP_PLAN:
+        return ids            # guard scenario: the caller drives the refusal itself
     g = cap / "graph-start.json"
     g.write_text(bd(root, real_bd, "list", "--all", "--include-gates", "--limit", "0", "--json").stdout)
     r = pm(SKILL, root, real_bd, "record-execution-roles", PREL, "--graph", str(g), "--pour",
            f"{PREL}/assets/execution-roles/pour.json", "--json")
+    if stamp is None:
+        return {**ids, "_record": r}
     check(f"[{label}] start-only receipt recorded from the retained native pour",
           r.returncode == 0 and jout(r).get("state") == "start-only", r.stdout + r.stderr)
     if not full:
@@ -330,11 +340,34 @@ def wrong_target(real_bd: str):
           and show(root, real_bd, ids["gate"])["status"] == "closed", (r.stdout[-300:], muts))
 
 
+def origin_guard(real_bd: str):
+    """REQ-DATA-077 DEV guard on REAL bd: unstamped and mismatched roots are refused, zero writes."""
+    root = new_repo("bd131-unstamped", real_bd)
+    ids = pour_and_wire("bd131-unstamped", root, real_bd, full=False, stamp=None)
+    r = ids["_record"]
+    rp = root / PREL / "references" / "execution-roles.json"
+    check("[origin-guard] REAL unstamped linkage: record-execution-roles -> exit 2, no receipt",
+          r.returncode == 2 and not rp.exists(), (r.returncode, r.stdout[-300:]))
+    root = new_repo("bd131-mismatch", real_bd)
+    pour_and_wire("bd131-mismatch", root, real_bd, full=False, stamp="0" * 64)
+    cap = root / PREL / "assets" / "execution-roles"
+    g = cap / "graph-start.json"
+    g.write_text(bd(root, real_bd, "list", "--all", "--include-gates", "--limit", "0", "--json").stdout)
+    ext = SB / "tmp" / "ext-mismatch.json"
+    for args, where in (((), "default"), (("--out", str(ext)), "--out")):
+        r = pm(SKILL, root, real_bd, "record-execution-roles", PREL, "--graph", str(g), "--pour",
+               f"{PREL}/assets/execution-roles/pour.json", *args, "--json")
+        check(f"[origin-guard] REAL stamp from another approval, {where} output -> exit 1, zero writes",
+              r.returncode == 1 and not (root / PREL / "references" / "execution-roles.json").exists()
+              and not ext.exists(), (r.returncode, r.stdout[-300:]))
+
+
 def main() -> int:
     op_before = {str(p): sha(p) for d in (OLD_SKILL,) for p in d.rglob("*.py")}
     try:
         scenario("bd131", BD131, "gate")
         wrong_target(BD131)
+        origin_guard(BD131)
         if BD110:
             scenario("bd110", BD110, "task")
         else:

@@ -408,6 +408,20 @@ def classify(*, plan: dict, plan_id: str, fingerprint: str, plan_dir: str,
     rmeta = g.nodes[root].metadata
     if "plan_dir" not in rmeta:
         return _verdict(INCONCLUSIVE, [f"root {root} carries no plan_dir binding"], **base)
+    # DEV delivery guard (REQ-DATA-077): a NATIVE receipt is bound to the approval the pour was
+    # linked under, recorded prospectively at new-pour linkage as `yf_origin_fingerprint`. Missing
+    # is INCONCLUSIVE (an unstamped, pre-guard root is not native evidence); a different value is a
+    # FAIL. This module never writes metadata, so nothing here stamps, backfills or migrates a root.
+    # Legacy-attested imports are a separate human-attested mode and are not subject to it.
+    if receipt["evidence_kind"] == "native":
+        stamp = rmeta.get("yf_origin_fingerprint")
+        if not stamp:
+            return _verdict(INCONCLUSIVE, [f"root {root} carries no yf_origin_fingerprint stamp; "
+                                           f"a pre-guard or unlinked root is not native evidence"],
+                            **base)
+        if stamp != fingerprint or stamp != receipt["fingerprint"]:
+            return _verdict(FAIL, [f"root {root} yf_origin_fingerprint {stamp!r} does not match the "
+                                   f"current approved fingerprint"], **base)
     if rmeta.get("plan_dir") != plan_dir:
         fails.append(f"root plan_dir {rmeta.get('plan_dir')!r} != {plan_dir!r}")
     w, a = g.nodes[wid], g.nodes[gid]
@@ -470,6 +484,8 @@ def main() -> int:  # pragma: no cover - thin CLI for diagnostics
     ap.add_argument("--require-final", action="store_true")
     a = ap.parse_args()
     spec = importlib.util.spec_from_file_location("pe", Path(__file__).with_name("plan_extract.py"))
+    if spec is None or spec.loader is None:
+        raise ImportError("cannot build an import spec for plan_extract.py")
     pe = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(pe)
     plan = pe.extract(a.plan_dir / "plan.md")

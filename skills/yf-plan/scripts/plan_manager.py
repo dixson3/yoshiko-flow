@@ -23,6 +23,7 @@ import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
+from typing import NoReturn
 
 import click
 
@@ -5920,6 +5921,8 @@ def _gate_roles():
     for cand in (here / "gate_roles.py", here.parent.parent.parent / "_shared" / "gate_roles.py"):
         if cand.is_file():
             spec = _ilu.spec_from_file_location("gate_roles_for_pm", cand)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"cannot build an import spec for {cand}")
             mod = _ilu.module_from_spec(spec)
             spec.loader.exec_module(mod)
             return mod
@@ -6107,6 +6110,10 @@ def _record_execution_roles(plan_dir: Path, graph: Path, pour: Path | None, crea
             gates, state = {start_decl: roles[gr.ROLE_GATE]}, "start-only"
         kind = "native"
     else:
+        # Narrowed by the mode checks at the top; restated so the invariant is explicit, not
+        # inferred (exactly one of --pour / --import-legacy, and --acceptance with the latter).
+        if legacy is None or acceptance is None:
+            raise _RolesRefusal(2, "--import-legacy requires --acceptance")
         roles, gates, acceptance_obj, evidence = _legacy_roles(
             legacy, acceptance, plan_dir, plan, plan_id, plan_dir_rel, fingerprint, root,
             start_decl, gr)
@@ -6139,7 +6146,7 @@ def _record_execution_roles(plan_dir: Path, graph: Path, pour: Path | None, crea
         if not formula.is_file():
             raise _RolesRefusal(2, f"formula not found: {formula}")
         receipt["formula_sha256"] = _sha256_file(formula)
-    if acceptance_obj is not None:
+    if acceptance_obj is not None and acceptance is not None:
         receipt["acceptance"] = {"sha256": _sha256_file(acceptance), "decision": acceptance_obj["decision"],
                                  "decided_by": acceptance_obj["decided_by"], "at": acceptance_obj["at"]}
 
@@ -6264,7 +6271,7 @@ def resolve_start_gate(plan_dir: str, as_json: bool):
     plan_md = pdir / "plan.md"
     base = {"passed": False, "epic": None, "wrapper": None, "gate": None, "actions": []}
 
-    def emit(code: int, verdict: str, **kw):
+    def emit(code: int, verdict: str, **kw) -> NoReturn:
         out = {**base, "verdict": verdict, "exit": code, **kw}
         out["passed"] = code == 0
         click.echo(json.dumps(out, indent=2))

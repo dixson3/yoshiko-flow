@@ -78,7 +78,10 @@ live_before = LIVE_RECEIPT.exists() and sha(LIVE_RECEIPT)
 TMP = Path(tempfile.mkdtemp(prefix="yf-p074-roles-"))
 
 
-def b0_repo(name: str) -> tuple[Path, Path]:
+FP_B0 = "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c"
+
+
+def b0_repo(name: str, unstamped: bool = False, stamp_fp: str = FP_B0) -> tuple[Path, Path]:
     """A scratch git repo holding a COPY of plan-074's bundle with the B0 captures retained under
     `assets/execution-roles/` exactly as SKILL.md §5.2a lays them out."""
     root = TMP / name
@@ -90,7 +93,14 @@ def b0_repo(name: str) -> tuple[Path, Path]:
     shutil.copy2(B0 / "gate-creates.json", cap / "gate-creates.json")
     for f in ("gate-capability.json", "gate-reconcile.json"):
         shutil.copy2(B0 / "creates" / f, cap / "creates" / f)
-    shutil.copy2(B0 / "plan-subgraph.list.json", root / "graph.json")
+    # SYNTHETIC: stamp the root as new-pour linkage now does (REQ-DATA-077 DEV guard); the
+    # genuine B0 root predates the guard. `unstamped=True` keeps the genuine bytes.
+    g = json.loads((B0 / "plan-subgraph.list.json").read_text())
+    if not unstamped:
+        for n in g:
+            if n["id"] == "yf-mol-9s78":
+                n["metadata"] = {**(n.get("metadata") or {}), "yf_origin_fingerprint": stamp_fp}
+    (root / "graph.json").write_text(json.dumps(g))
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     return root, bundle
 
@@ -215,6 +225,19 @@ try:
            edit_plan("- Issue 0.1:", "- Issue 0.1 malformed"), *POUR)
     refuse("both --pour and --import-legacy", 2, nop, *POUR, "--import-legacy", "x.json",
            "--acceptance", "y.json")
+
+    # --- DEV origin-stamp guard on BOTH output paths (REQ-DATA-077) ----------------------------
+    for label, kw, code in (("GENUINE unstamped (pre-guard) root", {"unstamped": True}, 2),
+                            ("SYNTHETIC stamp from a different approval", {"stamp_fp": "0" * 64}, 1)):
+        for out_args in ((), ("--out", "EXT")):
+            root, bundle = b0_repo(("st-" + label[:12] + str(len(out_args))).replace(" ", "-"), **kw)
+            ext = TMP / f"ext-{ran}.json"
+            args = tuple(str(ext) if a == "EXT" else a for a in out_args)
+            before = tree_digest(root)
+            rc, out = pm(root, B_REL, "--graph", "graph.json", "--pour", f"{CAP}/pour.json", *args, *BD)
+            check(f"{label}, {'--out' if out_args else 'default'} output -> exit {code}, zero writes",
+                  rc == code and tree_digest(root) == before and not ext.exists()
+                  and not (bundle / "references" / "execution-roles.json").exists(), (rc, out))
 
     # --- legacy-attested import over an immutable PIM copy -------------------------------------
     def pim_repo(name):

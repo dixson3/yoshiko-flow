@@ -2,6 +2,10 @@
 
 Structured planning with beads-tracked execution and upstream issue reconciliation.
 
+> **Development build scope (plan-074 partial, #417):** v1 native gate-wrapper compatibility only.
+> Plans poured before this build carry no role receipt or `yf_origin_fingerprint` stamp and stay
+> held; formal approval lineage and landing recovery are not supported in this build.
+
 ## Why yf-plan
 
 Claude Code has a native plan mode, but it treats planning as a single-session, single-machine activity: the agent thinks, drafts a plan, and executes it — all in one context. That works for contained tasks. It breaks down when:

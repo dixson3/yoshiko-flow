@@ -52,6 +52,8 @@ pe = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pe)
 
 _gspec = importlib.util.spec_from_file_location("gate_roles_for_pf", SHARED / "gate_roles.py")
+if _gspec is None or _gspec.loader is None:
+    raise ImportError("cannot build an import spec for gate_roles.py")
 gr = importlib.util.module_from_spec(_gspec)
 _gspec.loader.exec_module(gr)
 

@@ -23,7 +23,6 @@ gets mutated:
 
 from __future__ import annotations
 
-import copy
 import json
 import os
 import shutil
@@ -105,7 +104,10 @@ def env_for(state: Path, log: Path, fail="", with_bd=True):
     return e
 
 
-def make_case(name, *, ver="1.3.1", mutate_state=None, receipt=True):
+FP_B0 = "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c"
+
+
+def make_case(name, *, ver="1.3.1", mutate_state=None, receipt=True, stamped=True):
     """Scratch repo + plan bundle + state file. Receipt written by the REAL verb from the GENUINE
     pour. Returns (root, state_path)."""
     root = TMP / name
@@ -116,6 +118,7 @@ def make_case(name, *, ver="1.3.1", mutate_state=None, receipt=True):
     if ver == "1.3.1":
         shutil.copy2(B0 / "pour.json", cap / "pour.json")
         state = json.loads((B0 / "plan-subgraph.list.json").read_text())
+        root_id = "yf-mol-9s78"
     else:
         d = FX / "native-1.1.0"
         shutil.copy2(d / "pour.stdout", cap / "pour.json")
@@ -127,6 +130,10 @@ def make_case(name, *, ver="1.3.1", mutate_state=None, receipt=True):
         plan = plan.replace("epic: yf-mol-9s78", f"epic: {root_id}").replace(
             "**Epic:** yf-mol-9s78", f"**Epic:** {root_id}")
     (bundle / "plan.md").write_text(plan)
+    if stamped:   # SYNTHETIC: the yf_origin_fingerprint new-pour linkage now writes (REQ-DATA-077)
+        for n in state:
+            if n["id"] == root_id:
+                n["metadata"] = {**(n.get("metadata") or {}), "yf_origin_fingerprint": FP_B0}
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     sp = root / "state.json"
     sp.write_text(json.dumps(state))
@@ -217,6 +224,12 @@ try:
               rc == code and out.get("passed") is False and mutations(calls) == []
               and sp.read_text() == before, (rc, out, calls))
         return out
+
+    root, sp = make_case("unstamped", stamped=False, receipt=False)
+    rp = root / B_REL / "references"
+    rp.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(TMP / "b0" / B_REL / "references" / "execution-roles.json", rp / "execution-roles.json")
+    refused("GENUINE unstamped (pre-guard) root with a native receipt", root, sp, 2)
 
     root, sp = make_case("noreceipt", receipt=False)
     refused("no role receipt (no title fallback)", root, sp, 2)

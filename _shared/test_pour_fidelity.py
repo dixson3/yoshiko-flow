@@ -245,7 +245,8 @@ with tempfile.TemporaryDirectory() as td:
         # gate `fx-e.g1`, both direct children of the root; the entry issue waits on the wrapper.
         path.write_text(json.dumps([
             {"id": "fx-e", "title": "plan-execute", "issue_type": "epic", "status": "open",
-             "metadata": {"plan_dir": str(plan_dir) if plan_dir else "x"}},
+             "metadata": {"plan_dir": str(plan_dir) if plan_dir else "x",
+                          "yf_origin_fingerprint": FPR}},   # SYNTHETIC new-pour stamp (REQ-DATA-077)
             {"id": "fx-e.e1", "title": "Epic 1: Work", "issue_type": "epic",
              "status": "closed", "parent": "fx-e", "metadata": {}, "dependencies": [pc("fx-e.e1", "fx-e")]},
             {"id": "fx-e.w", "title": "Begin: fixture", "issue_type": "gate", "status": "closed",

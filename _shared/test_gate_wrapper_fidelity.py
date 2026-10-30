@@ -87,7 +87,13 @@ try:
     for f in ("gate-capability.json", "gate-reconcile.json"):
         shutil.copy2(B0 / "creates" / f, cap / "creates" / f)
     graph = root / "graph.json"
-    shutil.copy2(B0 / "plan-subgraph.list.json", graph)
+    # SYNTHETIC: stamp the root as new-pour linkage now does (REQ-DATA-077 DEV guard).
+    _g = json.loads((B0 / "plan-subgraph.list.json").read_text())
+    for _n in _g:
+        if _n["id"] == "yf-mol-9s78":
+            _n["metadata"] = {**(_n.get("metadata") or {}),
+                              "yf_origin_fingerprint": "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c"}
+    graph.write_text(json.dumps(_g))
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     PREL = f"docs/plans/{P074}"
     r = subprocess.run(["uv", "run", str(PM), "record-execution-roles", PREL, "--graph", str(graph),
@@ -182,6 +188,11 @@ try:
     rp.write_text(saved)
     check("absent receipt on the GENUINE B0 graph -> 2 (no title fallback), gate count alone unjudged",
           rc == 2 and res.get("gates", {}).get("bd") == 4, (rc, res.get("gates")))
+    raw = root / "graph-unstamped.json"
+    shutil.copy2(B0 / "plan-subgraph.list.json", raw)
+    rc, res, err = strict(root, raw, PREL)
+    check("GENUINE unstamped (pre-guard) B0 root + native receipt -> 2 (not native evidence)",
+          rc == 2 and "yf_origin_fingerprint" in err, (rc, err[-300:]))
     check("no receipt file was created by any strict run", sorted(p.name for p in (bundle / "references").iterdir())
           == ["execution-roles.json"])
 
