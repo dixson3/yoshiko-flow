@@ -1456,6 +1456,12 @@
 >     documentation site.
 >
 >   No landing-order requirement changes. Implementation lands in Epics 1–3.
+>   - **DEV delivery (2026-10-30, operator-approved development route; partial, not formal
+>     completion).** **Amended `REQ-DATA-077`** and **`REQ-PLAN-087`**: a prospective
+>     `yf_origin_fingerprint` root stamp written at new-pour linkage; native receipts require it
+>     (missing INCONCLUSIVE, mismatch FAIL, zero writes); no reader backfills existing roots;
+>     legacy-attested imports unchanged. Shipped scope is the v1 compatibility repair only:
+>     approval lineage, landing recovery and origin-evidence machinery are NOT delivered.
 
 ## 1. Purpose & scope
 

@@ -1143,6 +1143,18 @@ at most one capability gate — an ambiguous name→id assignment is INCONCLUSIV
 **What a receipt proves.** It is an auditable identity binding, **not** cryptographically
 authenticated native output: digests prove bytes, not authorship or operator consent. Tests shall not
 call a fabricated same-topology graph native evidence.
+
+*(DEV delivery, plan-074 partial; operator-approved bounded finish)* **Prospective native origin
+stamp.** When SKILL.md §5.2a links a genuinely NEW pour, the root's metadata records, in the same
+write as `plan_dir`, `yf_origin_fingerprint` = the plan's current approved fingerprint. A **native**
+receipt is valid only when the root carries that stamp and it equals the receipt's `fingerprint` and
+the plan's current approved fingerprint: `record-execution-roles` (default output and `--out`
+alike) and the classifier treat a MISSING stamp as INCONCLUSIVE (exit 2) and a MISMATCHED stamp as a
+failure (exit 1), each with zero writes. No reader stamps, backfills, migrates or overwrites a
+root's metadata; roots poured before this delivery stay unstamped and are therefore not native
+evidence. This is a data-match guard against first-write rebinding of a pour to a different
+approval, not authentication of forged input. `legacy-attested` imports are unaffected and remain a
+separately human-attested mode, never native-origin or amendment-lineage proof.
 Rationale: #417 — graph fields cannot distinguish a copied lookalike from the native pair, and
 persisted graphs carry no formula/role provenance (EXP-001), so identity must be captured when the
 native tool emits it.

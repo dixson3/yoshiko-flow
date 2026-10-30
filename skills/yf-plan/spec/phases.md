@@ -256,6 +256,9 @@ Verification: `_shared/test_gate_roles.py` — genuine native 1.1.0 task and 1.3
 list and show shapes, open and resolved, plus every labelled synthetic adversary in the plan-074
 compatibility contract, including copied topology without a receipt and closed wrapper over an open
 human gate.
+*(DEV delivery, plan-074 partial)* For a `native` receipt the classifier additionally requires the
+root's `yf_origin_fingerprint` metadata (REQ-DATA-077): missing → `inconclusive`, different from the
+receipt/current fingerprint → `fail`. It never writes metadata.
 
 REQ-COMPLETE-004: **Gate-before-close.** `close-reconcile-step` requires the plan's **Reconcile
 Gate to be resolved first**, and shall assert that ordering with an **exit code** rather than
