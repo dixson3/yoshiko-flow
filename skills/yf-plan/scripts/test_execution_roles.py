@@ -239,6 +239,24 @@ try:
                   rc == code and tree_digest(root) == before and not ext.exists()
                   and not (bundle / "references" / "execution-roles.json").exists(), (rc, out))
 
+    # --- R1: duplicate same-id root records with a CONFLICTING stamp, both orders ---------------
+    for order in ("good-first", "bad-first"):
+        for out_args in ((), ("--out", "EXT")):
+            root, bundle = b0_repo(f"dup-{order}-{len(out_args)}")
+            g = json.loads((root / "graph.json").read_text())
+            good = next(n for n in g if n["id"] == "yf-mol-9s78")
+            bad = json.loads(json.dumps(good))
+            bad["metadata"]["yf_origin_fingerprint"] = "0" * 64
+            g = g + [bad] if order == "good-first" else [bad] + g
+            (root / "graph.json").write_text(json.dumps(g))
+            ext = TMP / f"ext-dup-{ran}.json"
+            args = tuple(str(ext) if a == "EXT" else a for a in out_args)
+            before = tree_digest(root)       # FULL scratch tree (bundle, captures, graph), not just outputs
+            rc, out = pm(root, B_REL, "--graph", "graph.json", "--pour", f"{CAP}/pour.json", *args, *BD)
+            check(f"R1 SYNTHETIC conflicting duplicate root ({order}), "
+                  f"{'--out' if out_args else 'default'} output -> exit 2, zero writes (full tree)",
+                  rc == 2 and tree_digest(root) == before and not ext.exists(), (rc, out))
+
     # --- legacy-attested import over an immutable PIM copy -------------------------------------
     def pim_repo(name):
         root = TMP / name

@@ -58,6 +58,8 @@ WRAPPER_TYPES = ("task", "gate")
 # Fields whose presence on a node means "this node awaits something". The native wrapper has none.
 AWAIT_FIELDS = ("await_type", "await_id", "timeout", "waiters")
 CONTAINMENT = "parent-child"
+#: Root metadata the role binding depends on. Every record of one id must agree on these.
+BINDING_METADATA_KEYS = ("plan_dir", "yf_origin_fingerprint")
 
 PASS, FAIL, INCONCLUSIVE = "pass", "fail", "inconclusive"
 EXIT = {PASS: 0, FAIL: 1, INCONCLUSIVE: 2}
@@ -182,7 +184,15 @@ def normalize(records) -> Graph:
             prev = g.nodes[nid]
             if (prev.type, prev.parent, prev.awaits) != (node.type, node.parent, node.awaits):
                 raise Inconclusive(f"{nid}: duplicate records disagree structurally")
-            # status/metadata may legitimately differ between two reads; keep the first.
+            # Binding-critical metadata must agree in PRESENCE and VALUE across every record of
+            # the same id, or the verdict would depend on input order (independent review R1).
+            for key in BINDING_METADATA_KEYS:
+                a = (key in prev.metadata, prev.metadata.get(key))
+                b = (key in node.metadata, node.metadata.get(key))
+                if a != b:
+                    raise Inconclusive(f"{nid}: duplicate records disagree on binding metadata "
+                                       f"{key!r}; refusing rather than choosing by input order")
+            # Other status/metadata may legitimately differ between two reads; keep the first.
         else:
             g.nodes[nid] = node
         g.edges |= edges

@@ -232,7 +232,10 @@ def pour_and_wire(label: str, root: Path, real_bd: str, *, full: bool = True,
 def fidelity(skill: Path, root: Path, real_bd: str, tag: str):
     snap = SB / "tmp" / f"snap-{tag}.json"
     snap.write_text(bd(root, real_bd, "list", "--all", "--include-gates", "--limit", "0", "--json").stdout)
-    r = run([PY, str(skill / "scripts" / "pour_fidelity.py"), str(snap), PREL, "--strict",
+    # The NEW checker declares PEP 723 deps (pyyaml, for the canonical freshness chain), so it is
+    # run exactly as L14 and SKILL.md §6.4 run it: `uv run`. The OLD (base) checker has none.
+    launcher = [PY] if skill == OLD_SKILL else ["uv", "run", "--quiet"]
+    r = run([*launcher, str(skill / "scripts" / "pour_fidelity.py"), str(snap), PREL, "--strict",
              "--plan", PLAN_ID, "--json"], root, real_bd)
     try:
         res = json.loads(r.stdout)["results"][0]
@@ -340,6 +343,11 @@ def wrong_target(real_bd: str):
           and show(root, real_bd, ids["gate"])["status"] == "closed", (r.stdout[-300:], muts))
 
 
+def bundle_digest(root: Path) -> dict:
+    b = root / PREL
+    return {str(p.relative_to(b)): sha(p) for p in sorted(b.rglob("*")) if p.is_file()}
+
+
 def origin_guard(real_bd: str):
     """REQ-DATA-077 DEV guard on REAL bd: unstamped and mismatched roots are refused, zero writes."""
     root = new_repo("bd131-unstamped", real_bd)
@@ -348,6 +356,15 @@ def origin_guard(real_bd: str):
     rp = root / PREL / "references" / "execution-roles.json"
     check("[origin-guard] REAL unstamped linkage: record-execution-roles -> exit 2, no receipt",
           r.returncode == 2 and not rp.exists(), (r.returncode, r.stdout[-300:]))
+    # Stronger zero-write evidence: re-run the refusal with a full bundle-tree digest and the bd
+    # call log, asserting no file changed and no mutating bd call was made.
+    g0 = root / PREL / "assets" / "execution-roles" / "graph-start.json"
+    before, k = bundle_digest(root), log_mark()
+    r = pm(SKILL, root, real_bd, "record-execution-roles", PREL, "--graph", str(g0), "--pour",
+           f"{PREL}/assets/execution-roles/pour.json", "--json")
+    check("[origin-guard] REAL unstamped refusal: bundle tree byte-identical and zero mutating bd calls",
+          r.returncode == 2 and bundle_digest(root) == before and mutations(log_since(k)) == [],
+          (r.returncode, mutations(log_since(k))))
     root = new_repo("bd131-mismatch", real_bd)
     pour_and_wire("bd131-mismatch", root, real_bd, full=False, stamp="0" * 64)
     cap = root / PREL / "assets" / "execution-roles"
@@ -355,11 +372,13 @@ def origin_guard(real_bd: str):
     g.write_text(bd(root, real_bd, "list", "--all", "--include-gates", "--limit", "0", "--json").stdout)
     ext = SB / "tmp" / "ext-mismatch.json"
     for args, where in (((), "default"), (("--out", str(ext)), "--out")):
+        before, k = bundle_digest(root), log_mark()
         r = pm(SKILL, root, real_bd, "record-execution-roles", PREL, "--graph", str(g), "--pour",
                f"{PREL}/assets/execution-roles/pour.json", *args, "--json")
-        check(f"[origin-guard] REAL stamp from another approval, {where} output -> exit 1, zero writes",
-              r.returncode == 1 and not (root / PREL / "references" / "execution-roles.json").exists()
-              and not ext.exists(), (r.returncode, r.stdout[-300:]))
+        check(f"[origin-guard] REAL stamp from another approval, {where} output -> exit 1, bundle "
+              f"tree byte-identical, no output, zero mutating bd calls",
+              r.returncode == 1 and bundle_digest(root) == before and not ext.exists()
+              and mutations(log_since(k)) == [], (r.returncode, r.stdout[-300:]))
 
 
 def main() -> int:

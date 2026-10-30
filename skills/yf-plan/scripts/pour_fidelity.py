@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pyyaml>=6"]
 # ///
 """Compare a plan's DECLARED issue DAG against the beads the pour actually created.
 
@@ -87,12 +87,75 @@ def _repo_relative(plan_dir: Path) -> str:
     return str(plan_dir).rstrip("/")
 
 
+#: The manager's canonical freshness chain (REQ-PORT-040/041), reused VERBATIM — never
+#: reimplemented here (independent review R2). Only these definitions are executed, so importing
+#: plan_manager's module top level (which runs `_migrate_state_dir()`, a state-moving write) never
+#: happens in this read-only comparator. A missing definition fails closed.
+_CANONICAL_FP_DEFS = ("FINGERPRINT_EXCLUDE_SECTIONS", "_read_plan_field", "_plan_content_sections",
+                      "_plan_content_fingerprint", "_read_plan_fingerprint_field",
+                      "_fingerprint_status")
+_FP_STATUS = None
+
+
+def _canonical_fingerprint_status(plan_dir: Path) -> dict:
+    global _FP_STATUS
+    if _FP_STATUS is None:
+        import ast
+        import hashlib
+        here = Path(__file__).resolve().parent
+        pm = next((c for c in (here / "plan_manager.py",
+                               here.parent / "skills" / "yf-plan" / "scripts" / "plan_manager.py")
+                   if c.is_file()), None)
+        okp = next((c for c in (here / "okf.py", here.parent / "_shared" / "okf.py") if c.is_file()),
+                   None)
+        if pm is None or okp is None:
+            raise FileNotFoundError("canonical plan_manager.py / okf.py not found")
+        ospec = importlib.util.spec_from_file_location("okf_for_pf", okp)
+        if ospec is None or ospec.loader is None:
+            raise ImportError(f"cannot build an import spec for {okp}")
+        okf_mod = importlib.util.module_from_spec(ospec)
+        # okf declares dataclasses, which resolve their module through sys.modules at class creation.
+        sys.modules["okf_for_pf"] = okf_mod
+        ospec.loader.exec_module(okf_mod)
+        tree = ast.parse(pm.read_text(encoding="utf-8"))
+        picked = []
+        for node in tree.body:
+            name = getattr(node, "name", None)
+            if name is None and isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
+                name = node.targets[0].id
+            if name in _CANONICAL_FP_DEFS:
+                picked.append(node)
+        found = {getattr(n, "name", None) or n.targets[0].id for n in picked}
+        if found != set(_CANONICAL_FP_DEFS):
+            raise ImportError(f"canonical fingerprint definitions missing: "
+                              f"{sorted(set(_CANONICAL_FP_DEFS) - found)}")
+        ns = {"__name__": "plan_manager_fingerprint", "okf": okf_mod, "re": re,
+              "hashlib": hashlib, "Path": Path}
+        exec(compile(ast.Module(body=picked, type_ignores=[]), str(pm), "exec"), ns)
+        _FP_STATUS = ns["_fingerprint_status"]
+    return _FP_STATUS(plan_dir)
+
+
 def role_analysis(plan_dir: Path, ext: dict, epic_id: str, records: list,
                   roles_path: Path | None = None) -> dict:
     """REQ-DATA-026 (as amended by plan-074): classify the start-gate roles from the bundle's
     finalized REQ-DATA-077 receipt. READ-ONLY — `roles_path` only names WHICH receipt to read
     (the diagnostic `--roles`); nothing is written and no environment variable can substitute."""
     rp = roles_path or plan_dir / "references" / "execution-roles.json"
+    # R2: establish canonical CURRENT-content freshness first; classify against the verified value.
+    try:
+        fp = _canonical_fingerprint_status(plan_dir)
+    except Exception as e:  # noqa: BLE001 - any failure to evaluate freshness is INCONCLUSIVE
+        return {"status": "inconclusive", "receipt": str(rp),
+                "diagnostics": [f"canonical fingerprint freshness unavailable: {e}"]}
+    if not fp.get("stored_fingerprint"):
+        return {"status": "inconclusive", "receipt": str(rp),
+                "diagnostics": ["plan has no stored approved fingerprint"]}
+    if fp.get("stale_approved") or fp["stored_fingerprint"] != fp.get("current_fingerprint"):
+        return {"status": gr.FAIL, "receipt": str(rp),
+                "diagnostics": [f"stale approval: stored fingerprint {fp['stored_fingerprint']} != "
+                                f"current content fingerprint {fp.get('current_fingerprint')}"]}
+    current_fp = fp["current_fingerprint"]
     if not rp.is_file():
         return {"status": "no-receipt", "receipt": str(rp), "diagnostics":
                 [f"no execution role receipt at {rp}"]}
@@ -100,7 +163,7 @@ def role_analysis(plan_dir: Path, ext: dict, epic_id: str, records: list,
         receipt = json.loads(rp.read_text())
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         return {"status": "inconclusive", "receipt": str(rp), "diagnostics": [str(e)]}
-    v = gr.classify(plan=ext, plan_id=plan_dir.name, fingerprint=ext.get("fingerprint"),
+    v = gr.classify(plan=ext, plan_id=plan_dir.name, fingerprint=current_fp,
                     plan_dir=_repo_relative(plan_dir), recorded_root=epic_id, records=records,
                     receipt=receipt, require_final=True, evidence_base=plan_dir)
     return {"status": v["verdict"], "receipt": str(rp), "wrapper": v["wrapper"],

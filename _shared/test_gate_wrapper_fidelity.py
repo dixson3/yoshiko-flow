@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pyyaml>=6"]
 # ///
 """REQ-DATA-026 (as amended by plan-074) controls: receipt-bound gate identity in pour fidelity.
 
@@ -193,6 +193,34 @@ try:
     rc, res, err = strict(root, raw, PREL)
     check("GENUINE unstamped (pre-guard) B0 root + native receipt -> 2 (not native evidence)",
           rc == 2 and "yf_origin_fingerprint" in err, (rc, err[-300:]))
+    # --- R2 (independent review): canonical CURRENT-content freshness ---------------------------
+    pmd = bundle / "plan.md"
+    orig_plan = pmd.read_text()
+    assert "## Objective\n" in orig_plan
+    pmd.write_text(orig_plan.replace("## Objective\n", "## Objective\nUnapproved objective change.\n", 1))
+    rc, res, err = strict(root, graph, PREL)
+    check("R2 SYNTHETIC unapproved Objective edit (header, receipt, DAG unchanged) -> --strict exit 1",
+          rc == 1 and "stale approval" in err, (rc, err[-300:]))
+    pmd.write_text("\n".join(ln for ln in orig_plan.split("\n")
+                             if not ln.startswith("fingerprint:") and not ln.startswith("**Fingerprint:**")))
+    rc, res, err = strict(root, graph, PREL)
+    check("R2 SYNTHETIC plan without a stored approved fingerprint -> --strict exit 2",
+          rc == 2 and "no stored approved fingerprint" in err, (rc, err[-300:]))
+    pmd.write_text(orig_plan)
+    rc, res, err = strict(root, graph, PREL)
+    check("R2 restored plan -> --strict exit 0 again (positive control)", rc == 0, (rc, err[-300:]))
+
+    # --- R1 (independent review): conflicting duplicate root records, both orders ----------------
+    good = next(n for n in base_graph if n["id"] == "yf-mol-9s78")
+    bad = json.loads(json.dumps(good))
+    bad["metadata"]["yf_origin_fingerprint"] = "0" * 64
+    for order, g in (("good-first", base_graph + [bad]), ("bad-first", [bad] + base_graph)):
+        gp = TMP / f"dup-{order}.json"
+        gp.write_text(json.dumps(g))
+        rc, res, err = strict(root, gp, PREL)
+        check(f"R1 SYNTHETIC conflicting duplicate root ({order}) -> --strict exit 2", rc == 2,
+              (rc, err[-300:]))
+
     check("no receipt file was created by any strict run", sorted(p.name for p in (bundle / "references").iterdir())
           == ["execution-roles.json"])
 

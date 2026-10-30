@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pyyaml>=6"]
 # ///
 """POSITIVE CONTROL for the pour-fidelity comparator (plan-047 Issue 5.4).
 
@@ -165,8 +165,13 @@ with tempfile.TemporaryDirectory() as td:
       # strict completion can no longer judge its gate population by count alone. That is the
       # deliberate, documented boundary — NOT a pass. Tier A's A0/A5 carry the exit-0 contract
       # on a receipt-bound plan; the divergent arm below still proves exit 1.
-      check("--strict on clean plan-047 (no role receipt) is INCONCLUSIVE (2), never a silent 0",
-            rc == 2, f"got {rc}")
+      # R2 (independent review): freshness is now checked canonically FIRST. plan-047 is measured
+      # STALE-APPROVED by the manager's own `fingerprint check` (content changed after approval),
+      # so strict completion reports that divergence (1); were it fresh it would be 2 (no receipt).
+      _fresh = pf._canonical_fingerprint_status(PLAN)
+      _want = 1 if _fresh["stale_approved"] else 2
+      check(f"--strict on plan-047 (no role receipt; stale_approved={_fresh['stale_approved']}) "
+            f"exits {_want}, never a silent 0", rc == _want, f"got {rc}")
       d = tmp / "m4"
       shutil.copytree(PLAN, d)
       (d / "plan.md").write_text((d / "plan.md").read_text().replace(
@@ -227,7 +232,18 @@ with tempfile.TemporaryDirectory() as td:
             "## Success Criteria\n| # | Criterion | Verification | Discharged-by |\n"
             "| :-- | :-- | :-- | :-- |\n| SC1 | none | `true` \u2192 exit 0 | 1.1 |\n",
             encoding="utf-8")
+        # R2: the comparator now checks CANONICAL freshness, so the fixture records the real
+        # content fingerprint (header lines are excluded from the hash, so this is not circular).
+        if epic:
+            cur = pf._canonical_fingerprint_status(d)["current_fingerprint"]
+            for f in (d / "plan.md", d / "references" / "execution-roles.json"):
+                if f.is_file():
+                    f.write_text(f.read_text().replace(FPR, cur))
         return d
+
+    def _fp_of(plan_dir: Path) -> str:
+        m = re.search(r"^\*\*Fingerprint:\*\* (\S+)", (plan_dir / "plan.md").read_text(), re.M)
+        return m.group(1) if m else FPR
 
     def _beads(path: Path, *, joinable: bool, plan_dir: Path | None = None) -> Path:
         """A realistic pour: root epic, child epic, gate, two tasks.
@@ -246,7 +262,7 @@ with tempfile.TemporaryDirectory() as td:
         path.write_text(json.dumps([
             {"id": "fx-e", "title": "plan-execute", "issue_type": "epic", "status": "open",
              "metadata": {"plan_dir": str(plan_dir) if plan_dir else "x",
-                          "yf_origin_fingerprint": FPR}},   # SYNTHETIC new-pour stamp (REQ-DATA-077)
+                          "yf_origin_fingerprint": _fp_of(plan_dir) if plan_dir else FPR}},   # SYNTHETIC new-pour stamp (REQ-DATA-077)
             {"id": "fx-e.e1", "title": "Epic 1: Work", "issue_type": "epic",
              "status": "closed", "parent": "fx-e", "metadata": {}, "dependencies": [pc("fx-e.e1", "fx-e")]},
             {"id": "fx-e.w", "title": "Begin: fixture", "issue_type": "gate", "status": "closed",

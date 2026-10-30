@@ -227,6 +227,24 @@ _leg = receipt(evidence_kind="legacy-attested", acceptance={"sha256": "0" * 64, 
 check("legacy-attested receipt on the unstamped root is NOT subject to the native stamp guard",
       run(SUB_RAW, rcpt=_leg)["verdict"] == "pass")
 
+# --- R1: duplicate same-id records must agree on binding metadata, ORDER-INDEPENDENT ----------
+_root_good = next(r for r in SUB if r["id"] == "yf-mol-9s78")
+_root_bad = copy.deepcopy(_root_good)
+_root_bad["metadata"]["yf_origin_fingerprint"] = "0" * 64
+_root_nostamp = copy.deepcopy(_root_good)
+del _root_nostamp["metadata"]["yf_origin_fingerprint"]
+_root_otherdir = copy.deepcopy(_root_good)
+_root_otherdir["metadata"]["plan_dir"] = "docs/plans/elsewhere"
+for label, extra in (("conflicting stamp", _root_bad), ("stamp present vs absent", _root_nostamp),
+                     ("conflicting plan_dir", _root_otherdir)):
+    a = run(SUB + [extra])                     # good record first, conflicting duplicate appended
+    b = run([extra] + SUB)                     # conflicting duplicate first
+    check(f"R1 SYNTHETIC duplicate root, {label}: good-first -> inconclusive", a["verdict"] == "inconclusive", str(a))
+    check(f"R1 SYNTHETIC duplicate root, {label}: bad-first -> inconclusive", b["verdict"] == "inconclusive", str(b))
+check("R1 agreeing duplicate root records (list + identical copy) still pass",
+      run(SUB + [copy.deepcopy(_root_good)])["verdict"] == "pass")
+check("R1 agreeing list + show of the same nodes still pass", run(SUB + SHOWS)["verdict"] == "pass")
+
 # --- binding adversaries (SYNTHETIC) ---------------------------------------------------------
 check("copied topology with NO receipt -> inconclusive", run(SUB, rcpt=None)["verdict"] == "inconclusive")
 for label, over in (("foreign plan", {"plan_id": "plan-999-x-000000"}),
