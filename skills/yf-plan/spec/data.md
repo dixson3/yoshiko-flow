@@ -1155,6 +1155,11 @@ root's metadata; roots poured before this delivery stay unstamped and are theref
 evidence. This is a data-match guard against first-write rebinding of a pour to a different
 approval, not authentication of forged input. `legacy-attested` imports are unaffected and remain a
 separately human-attested mode, never native-origin or amendment-lineage proof.
+**Conflicting observations refuse, independent of order (independent review R1).** When the graph
+input carries more than one record for the same id, their binding-critical metadata — at least
+`plan_dir` and `yf_origin_fingerprint` — must agree in presence and value; any disagreement is
+INCONCLUSIVE with zero writes, whichever record comes first. Agreeing duplicates (e.g. a list
+snapshot plus a show of the same bead) remain valid.
 Rationale: #417 — graph fields cannot distinguish a copied lookalike from the native pair, and
 persisted graphs carry no formula/role provenance (EXP-001), so identity must be captured when the
 native tool emits it.
