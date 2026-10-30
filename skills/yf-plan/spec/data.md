@@ -302,6 +302,12 @@ environment-variable or implicit override, and normal landing reads only the bun
 receipt. Older plans with no trustworthy receipt become INCONCLUSIVE at strict completion — a
 deliberately stricter boundary, not an automatic migration. Structural fidelity passing on an open
 graph is **not** completion and not consent; open human gates still halt completion.
+*(DEV delivery, independent review R2)* **Fidelity binds to the canonical CURRENT fingerprint.**
+Before classification the comparator establishes, with the manager's canonical
+`_fingerprint_status` (no separate hash implementation), that the plan's stored approved fingerprint
+equals its current content fingerprint, and classifies against that verified value. A stored
+fingerprint that no longer matches the content (stale approval) is a divergence (exit 1); an absent
+stored fingerprint is INCONCLUSIVE (exit 2). The bundle receipt and `--roles` both follow this rule.
 Rationale: #417 / EXP-003 — PIM H0's unchanged graph matched 8 issues, 7 edges and 4 epics yet failed
 3 declared vs 4 observed gates because `bd` 1.3.1 types the wrapper `gate`. Subtracting a
 `Begin:`-titled node would let an equal-count substitution hide a missing real gate.

@@ -1460,7 +1460,11 @@
 >     completion).** **Amended `REQ-DATA-077`** and **`REQ-PLAN-087`**: a prospective
 >     `yf_origin_fingerprint` root stamp written at new-pour linkage; native receipts require it
 >     (missing INCONCLUSIVE, mismatch FAIL, zero writes); no reader backfills existing roots;
->     legacy-attested imports unchanged. Shipped scope is the v1 compatibility repair only:
+>     legacy-attested imports unchanged. Independent review corrections: duplicate same-id records
+>     with conflicting `plan_dir`/`yf_origin_fingerprint` refuse independent of order (R1); pour
+>     fidelity checks canonical current-content freshness via `_fingerprint_status` and binds to
+>     the verified current fingerprint (R2, amended `REQ-DATA-026`). Shipped scope is the v1
+>     compatibility repair only:
 >     approval lineage, landing recovery and origin-evidence machinery are NOT delivered.
 
 ## 1. Purpose & scope
