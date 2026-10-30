@@ -1,0 +1,64 @@
+{
+  "schema": "plan-074-b0-binding/v1",
+  "note": "OLD-TOOL RAW INPUT binding for B0. Not a new-format execution-roles.json. This file grants no consent.",
+  "planId": "plan-074-james-dixson-4b8fe0",
+  "approvedFingerprint": "8c5b67da2c5640331746e67a1ae718c4602867079ef75a89190f848d0aa9f85c",
+  "planDir": "docs/plans/plan-074-james-dixson-4b8fe0",
+  "sourceCommit": "7a6ce3a32f18c8dee5bb693598e34edf93051177",
+  "originMain": "7a6ce3a32f18c8dee5bb693598e34edf93051177",
+  "worktreeClean": true,
+  "capturedAt": "2026-10-29T21:58:11.470474+00:00",
+  "preRecheck": {
+    "resumeScan": {
+      "epic_state": "none",
+      "epic_id": null,
+      "stale_approved": false
+    },
+    "fingerprintCheck": "current"
+  },
+  "installed": {
+    "skillDir": "/Users/james/.agents/skills/yf-plan",
+    "plan_manager.py": "1b1cd81c86234121c32a3bcfdb2f66b315dff299881825d6ac356524aa643085",
+    "pour_fidelity.py": "e65f03cf3231e97a3313746dcbdf62b384fcdd99c4d26f5f4f0af3c71375106a",
+    "close_cascade.py": "75471b3f1f353ae979e6aafeb9c3a1b3b2c0e161d4c54eb5f6888b4f55c276a2",
+    "plan_extract.py": "ed1c1eb6a41550391b785108eb0adf81330e020b902fab3107b18dfeac453222",
+    "SKILL.md": "b9dad8936bd299930595a1fcab0aa0f440a160fff12baefce4047f28798d08d4",
+    "formula.installed": "792fa24f8f707be7bc46b8031053d2f5b19066b994ec592c61d76dc7af31d65c",
+    "formula.staged(.beads/formulas)": "792fa24f8f707be7bc46b8031053d2f5b19066b994ec592c61d76dc7af31d65c",
+    "bd": {
+      "path": "/opt/homebrew/bin/bd",
+      "sha256": "eaf8c29f38d198874c42555e9dbc4abc60140f024edf5e3d591550a45b60b1fd",
+      "version": "bd version 1.3.1 (Homebrew)"
+    },
+    "yf": {
+      "path": "/Users/james/.local/bin/yf",
+      "sha256": "c4f4b693c733190aab9de9a5cb54ef744b56644e58b1454c263b3f3baea7b57e",
+      "version": "yf 0.5.0 (5677780-dirty)"
+    }
+  },
+  "approvalEvidence": {
+    "operatorDecisions": {
+      "path": "references/operator-decisions.json",
+      "sha256": "0282d1fce4a51476c00accef93dd89397ec61987e8448ec91401654c23eb2e8a"
+    },
+    "operatorApprovalSource": {
+      "path": "assets/fixtures/planning-validation/operator-approval-source.json",
+      "sha256": "31daf5473a99ffcf934d28768caa0bb2d03d22cc068bdd5c5ea5fea6dc037578"
+    },
+    "compatibilityContractSha256": "a5eeaa2288750732903b24db4de3a8804cc1bf346b01c94f0c7a351f10b80ee5",
+    "bootstrapProposalSha256": "8261d0a334493f0247b9d3a723544cc9eb1a32417422aeb28ab657d5a0dcc3c0",
+    "receiptDigestsVerified": "compatibility-contract and bootstrap-proposal match receipt proposalDigests; plan.md digest matches receipt at reviewedCommit f1b399fd; later plan.md diff is approval/tracker bookkeeping, fingerprint unchanged"
+  },
+  "executorSession": {
+    "name": "yf-exec-gatefix",
+    "harness": "pi",
+    "model": "cpa/claude-opus-5-5",
+    "sessionId": "01a189a9-263a-70d4-bbbc-226e02c45e86",
+    "launchedBy": "master (fresh session)",
+    "parentPane": "yf-plan-gatefix"
+  },
+  "intakeMirror": {
+    "bead": "yf-kfjd",
+    "tracker": "https://github.com/dixson3/yoshiko-flow/issues/456"
+  }
+}

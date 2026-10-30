@@ -189,6 +189,7 @@ skills/yf-plan/
 │   ├── derive_land_launchers.py           # REQ-LAND-037's ctx-less-helper closure, DERIVED from the AST
 │   ├── doc_lint.py
 │   ├── gate_consistency.py                # Gate/Blocks-set consistency: self-satisfaction and
+│   ├── gate_roles.py
 │   ├── land_rehearsal.py
 │   ├── manifest_update.py                 # Vendored manifest hash/version helper
 │   ├── okf.py                             # Vendored OKF engine (byte-identical to _shared/okf.py)
@@ -207,7 +208,9 @@ skills/yf-plan/
 │   ├── test_config_tiers.py
 │   ├── test_epic_ref_audit.py
 │   ├── test_escalations.py
+│   ├── test_execution_roles.py
 │   ├── test_gate_consistency.py
+│   ├── test_gate_wrapper_resolver.py
 │   ├── test_gates.py
 │   ├── test_index_members.py
 │   ├── test_intake_lint_binding.py
@@ -248,6 +251,8 @@ skills/yf-plan/
 ├── test-harness/
 │   ├── .gitignore
 │   ├── bootstrap.sh                       # Tier-2 sandboxed-HOME harness setup (see TESTING.md)
+│   ├── gate-wrapper.sh
+│   ├── gate_wrapper_drive.py
 │   ├── README.md                          # This file
 │   └── smoke.sh                           # Tier-2 mechanical drive of the manager verbs
 ├── OKF-EXTENSION.md                       # The per-skill OKF extension rules for a plan bundle

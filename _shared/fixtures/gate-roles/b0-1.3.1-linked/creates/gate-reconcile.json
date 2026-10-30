@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-10-29T21:59:20.768449Z",
+  "created_by": "James Dixson",
+  "description": "Blocks reconciliation until execution complete.",
+  "id": "yf-mol-9s78.6",
+  "issue_type": "gate",
+  "owner": "dixson3@gmail.com",
+  "priority": 2,
+  "schema_version": 1,
+  "status": "open",
+  "title": "Gate: Reconcile upstream",
+  "updated_at": "2026-10-29T21:59:20.768449Z"
+}

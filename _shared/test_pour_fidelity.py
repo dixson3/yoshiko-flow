@@ -161,7 +161,12 @@ with tempfile.TemporaryDirectory() as td:
           [sys.executable, str(SHARED / "pour_fidelity.py"), str(beads), str(PLAN),
            "--strict", "--plan", PLAN.name],
           capture_output=True, text=True).returncode
-      check("--strict exits 0 on a clean plan", rc == 0, f"got {rc}")
+      # plan-074 (REQ-DATA-026 as amended): plan-047 predates the REQ-DATA-077 role receipt, so
+      # strict completion can no longer judge its gate population by count alone. That is the
+      # deliberate, documented boundary — NOT a pass. Tier A's A0/A5 carry the exit-0 contract
+      # on a receipt-bound plan; the divergent arm below still proves exit 1.
+      check("--strict on clean plan-047 (no role receipt) is INCONCLUSIVE (2), never a silent 0",
+            rc == 2, f"got {rc}")
       d = tmp / "m4"
       shutil.copytree(PLAN, d)
       (d / "plan.md").write_text((d / "plan.md").read_text().replace(
@@ -179,10 +184,31 @@ with tempfile.TemporaryDirectory() as td:
   # Builds its own bundle and its own bead graph. No `bd`, no live bead state, no corpus —
   # so it runs under a sandboxed HOME in any repository. SC5b asserts exactly this.
   # ======================================================================================
-    def _bundle(name: str, *, epic: str | None = "fx-e", body_extra: str = "") -> Path:
+    FPR = "f" * 64
+
+    def _bundle(name: str, *, epic: str | None = "fx-e", body_extra: str = "",
+                receipt: bool = True) -> Path:
+        """SYNTHETIC bundle. With `receipt`, it carries a finalized REQ-DATA-077 receipt over a
+        retained pour capture, so the ONLY reason an arm below exits non-zero is that arm's cause
+        (plan-074: a receipt-less plan is INCONCLUSIVE at strict completion)."""
         d = tmp / name
         d.mkdir(parents=True, exist_ok=True)
-        epic_line = f"**Epic:** {epic}\n" if epic else ""
+        if receipt and epic:
+            (d / "assets").mkdir(exist_ok=True)
+            (d / "assets" / "pour.json").write_text(json.dumps({"new_epic_id": epic, "id_mapping": {
+                "plan-execute": epic, "plan-execute.start-gate": f"{epic}.w",
+                "plan-execute.gate-start-gate": f"{epic}.g1"}}))
+            (d / "references").mkdir(exist_ok=True)
+            (d / "references" / "execution-roles.json").write_text(json.dumps({
+                "schema": "yf-plan-execution-roles/v1", "plan_id": name, "fingerprint": FPR,
+                "plan_dir": str(d), "root": epic, "bd_version": "fixture",
+                "evidence_kind": "native", "state": "finalized",
+                "evidence": [{"path": "assets/pour.json", "sha256": __import__("hashlib")
+                              .sha256((d / "assets" / "pour.json").read_bytes()).hexdigest()}],
+                "roles": {"plan-execute": epic, "plan-execute.start-gate": f"{epic}.w",
+                          "plan-execute.gate-start-gate": f"{epic}.g1"},
+                "gates": {"Start Gate (mandatory)": f"{epic}.g1"}}))
+        epic_line = f"**Epic:** {epic}\n**Fingerprint:** {FPR}\n" if epic else ""
         (d / "plan.md").write_text(
             "---\ntype: Plan\nokf_spec: OKF-PLAN\nid: " + name + "\nauthor: fixture\n"
             "created: 2026-08-25\nstatus: executing\n---\n"
@@ -203,7 +229,7 @@ with tempfile.TemporaryDirectory() as td:
             encoding="utf-8")
         return d
 
-    def _beads(path: Path, *, joinable: bool) -> Path:
+    def _beads(path: Path, *, joinable: bool, plan_dir: Path | None = None) -> Path:
         """A realistic pour: root epic, child epic, gate, two tasks.
 
         CONTAINMENT IS THE `parent` KEY — `load_beads` builds its tree from `b["parent"]`, not
@@ -212,18 +238,30 @@ with tempfile.TemporaryDirectory() as td:
         """
         md = (lambda i: {"plan_issue": i}) if joinable else (lambda i: {})
         title = (lambda i, t: t) if joinable else (lambda i, t: t)
+
+        def pc(i, parent):   # the native parent-child containment edge every child carries
+            return {"issue_id": i, "depends_on_id": parent, "type": "parent-child"}
+        # SYNTHETIC native-shaped pour: a gate-typed wrapper `fx-e.w` blocking the actual human
+        # gate `fx-e.g1`, both direct children of the root; the entry issue waits on the wrapper.
         path.write_text(json.dumps([
             {"id": "fx-e", "title": "plan-execute", "issue_type": "epic", "status": "open",
-             "metadata": {"plan_dir": "x"}},
+             "metadata": {"plan_dir": str(plan_dir) if plan_dir else "x"}},
             {"id": "fx-e.e1", "title": "Epic 1: Work", "issue_type": "epic",
-             "status": "closed", "parent": "fx-e", "metadata": {}},
-            {"id": "fx-e.g1", "title": "Gate: Start Gate", "issue_type": "gate",
-             "status": "closed", "parent": "fx-e", "metadata": {}},
+             "status": "closed", "parent": "fx-e", "metadata": {}, "dependencies": [pc("fx-e.e1", "fx-e")]},
+            {"id": "fx-e.w", "title": "Begin: fixture", "issue_type": "gate", "status": "closed",
+             "parent": "fx-e", "dependencies": [pc("fx-e.w", "fx-e"),
+                                                {"issue_id": "fx-e.w", "depends_on_id": "fx-e.g1",
+                                                 "type": "blocks"}]},
+            {"id": "fx-e.g1", "title": "Gate: human", "issue_type": "gate", "await_type": "human",
+             "status": "closed", "parent": "fx-e", "metadata": {}, "dependencies": [pc("fx-e.g1", "fx-e")]},
             {"id": "fx-e.1", "title": title("1.1", "Do the first thing"), "issue_type": "task",
-             "status": "closed", "parent": "fx-e.e1", "metadata": md("1.1")},
+             "status": "closed", "parent": "fx-e.e1", "metadata": md("1.1"),
+             "dependencies": [pc("fx-e.1", "fx-e.e1"),
+                              {"issue_id": "fx-e.1", "depends_on_id": "fx-e.w", "type": "blocks"}]},
             {"id": "fx-e.2", "title": title("1.2", "Do the second thing"), "issue_type": "task",
              "status": "closed", "parent": "fx-e.e1", "metadata": md("1.2"),
-             "dependencies": [{"depends_on_id": "fx-e.1", "type": "blocks"}]},
+             "dependencies": [pc("fx-e.2", "fx-e.e1"),
+                              {"issue_id": "fx-e.2", "depends_on_id": "fx-e.1", "type": "blocks"}]},
         ]))
         return path
 
@@ -234,12 +272,10 @@ with tempfile.TemporaryDirectory() as td:
             cmd += ["--plan", plan]
         return subprocess.run(cmd, capture_output=True, text=True).returncode
 
-    ok_beads = _beads(tmp / "a-ok.json", joinable=True)
-    nomap_beads = _beads(tmp / "a-nomap.json", joinable=False)
-
     # --- A0. THE BASELINE MUST BE CLEAN AND EXIT 0 -------------------------------------
     # Without this every arm below is satisfiable by a comparator that always returns 2.
     ok_dir = _bundle("plan-a0-fixture-aaaaaa")
+    ok_beads = _beads(tmp / "a-ok.json", joinable=True, plan_dir=ok_dir)
     check("TIER A baseline: a clean, joinable, in-scope plan exits 0",
           _strict(ok_beads, ok_dir, ok_dir.name) == 0)
 
@@ -249,15 +285,17 @@ with tempfile.TemporaryDirectory() as td:
     # manufactured by the parser's blind spot rather than measured.
     bad_dir = _bundle("plan-a1-fixture-bbbbbb",
                       body_extra="- This is a column-0 bullet that is not a conformant issue\n")
+    bad_beads = _beads(tmp / "a-bad.json", joinable=True, plan_dir=bad_dir)
     check("A1: --strict exits 2 (INCONCLUSIVE) when plan.md has an unparsed construct",
-          _strict(ok_beads, bad_dir, bad_dir.name) == 2,
-          f"got {_strict(ok_beads, bad_dir, bad_dir.name)}")
+          _strict(bad_beads, bad_dir, bad_dir.name) == 2,
+          f"got {_strict(bad_beads, bad_dir, bad_dir.name)}")
 
     # --- A2. EXIT 2 ON THE `no-mapping` POPULATION UNDER --strict -----------------------
     # THE POPULATION #210 JUSTIFIES THE GATE BY. #186/#187's masked titles are exactly what
     # destroys the title fallback, so the plans the gate most needs to judge were the ones it
     # silently passed at exit 0.
     nm_dir = _bundle("plan-a2-fixture-cccccc")
+    nomap_beads = _beads(tmp / "a-nomap.json", joinable=False, plan_dir=nm_dir)
     check("A2: --strict exits 2 on a `no-mapping` plan (was a silent 0)",
           _strict(nomap_beads, nm_dir, nm_dir.name) == 2,
           f"got {_strict(nomap_beads, nm_dir, nm_dir.name)}")
@@ -286,6 +324,49 @@ with tempfile.TemporaryDirectory() as td:
     check("A5 (NARROWNESS): the clean plan STILL exits 0 after all four exit-2 arms",
           _strict(ok_beads, ok_dir, ok_dir.name) == 0,
           "a blanket `return 2 under --strict` satisfies A1-A4 and breaks the verb")
+
+    # --- A6. plan-074: the receipt boundary (REQ-DATA-026 as amended) ---------------------
+    # The SAME clean beads with the receipt removed must be INCONCLUSIVE, not 0 — gate identity
+    # cannot be judged by count (an equal-count substitution would pass).
+    nr_dir = _bundle("plan-a6-fixture-eeeeee", receipt=False)
+    nr_beads = _beads(tmp / "a-nr.json", joinable=True, plan_dir=nr_dir)
+    check("A6: clean plan WITHOUT a role receipt -> --strict exits 2",
+          _strict(nr_beads, nr_dir, nr_dir.name) == 2, f"got {_strict(nr_beads, nr_dir, nr_dir.name)}")
+    # A definite issue-edge divergence is still 1 even without a receipt (it was observed).
+    nr2 = _bundle("plan-a6b-fixture-ffffff", receipt=False)
+    nr2_beads = _beads(tmp / "a-nr2.json", joinable=True, plan_dir=nr2)
+    (nr2 / "plan.md").write_text((nr2 / "plan.md").read_text().replace("  - depends-on: 1.1\n", "", 1))
+    check("A6b: definite edge divergence without a receipt -> 1 (observed, not unjudgeable)",
+          _strict(nr2_beads, nr2, nr2.name) == 1, f"got {_strict(nr2_beads, nr2, nr2.name)}")
+    # Receipt present but naming the wrong actual gate -> role FAIL -> 1.
+    rf = _bundle("plan-a6c-fixture-gggggg")
+    rf_beads = _beads(tmp / "a-rf.json", joinable=True, plan_dir=rf)
+    rr = json.loads((rf / "references" / "execution-roles.json").read_text())
+    rr["roles"]["plan-execute.start-gate"], rr["roles"]["plan-execute.gate-start-gate"] = "fx-e.g1", "fx-e.w"
+    rr["gates"]["Start Gate (mandatory)"] = "fx-e.w"
+    (rf / "references" / "execution-roles.json").write_text(json.dumps(rr))
+    check("A6c: receipt contradicting the graph (swapped roles) -> --strict exits 1",
+          _strict(rf_beads, rf, rf.name) == 1, f"got {_strict(rf_beads, rf, rf.name)}")
+    # --roles is READ-ONLY and needs exactly one plan dir.
+    ext = tmp / "external-roles.json"
+    shutil.copy2(ok_dir / "references" / "execution-roles.json", ext)
+    (nr_dir / "assets").mkdir(exist_ok=True)
+    shutil.copy2(ok_dir / "assets" / "pour.json", nr_dir / "assets" / "pour.json")
+    ext.write_text(ext.read_text().replace(str(ok_dir), str(nr_dir)).replace(
+        "plan-a0-fixture-aaaaaa", "plan-a6-fixture-eeeeee"))
+    before = sorted((p, p.read_bytes()) for p in nr_dir.rglob("*") if p.is_file())
+    rc = subprocess.run([sys.executable, str(SHARED / "pour_fidelity.py"), str(nr_beads), str(nr_dir),
+                         "--strict", "--plan", nr_dir.name, "--roles", str(ext)],
+                        capture_output=True, text=True).returncode
+    after = sorted((p, p.read_bytes()) for p in nr_dir.rglob("*") if p.is_file())
+    check("A6d: --roles <external receipt> verifies the receipt-less bundle -> 0, writing nothing",
+          rc == 0 and before == after, f"got {rc}")
+    rc = subprocess.run([sys.executable, str(SHARED / "pour_fidelity.py"), str(nr_beads), str(nr_dir),
+                         str(ok_dir), "--strict", "--roles", str(ext)], capture_output=True,
+                        text=True).returncode
+    check("A6e: --roles with two plan dirs -> 2", rc == 2, f"got {rc}")
+    check("A6f (NARROWNESS): the receipt-bound clean plan STILL exits 0 after the A6 arms",
+          _strict(ok_beads, ok_dir, ok_dir.name) == 0)
 
 if skipped:
     print(f"\n{len(skipped)} skipped (stated, never counted as a pass): {skipped}")

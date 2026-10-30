@@ -5893,50 +5893,336 @@ def _gate_is_resolved(bead: dict) -> bool:
     return _cc._bead_is_terminal(bead)
 
 
-def _find_start_gate_pair(epic: str) -> tuple[dict | None, dict | None, str | None]:
-    """`(wrapper, gate, error)` for the plan-execute start gate under `epic`.
+# --- record-execution-roles (REQ-DATA-077, plan-074 Issue 1.2, #417) --------------------------
+#
+# The ONE writer of `references/execution-roles.json`. It turns RETAINED NATIVE OUTPUT (the pour's
+# `id_mapping`, each gate create's returned id) into a receipt, validates that receipt against the
+# live-or-captured graph through the shared classifier, and only then writes. It never edits the
+# graph to fit the receipt, never infers an id from a title, and grants no consent. Named freeze
+# exception: REQ-PLAN-086 (ESC-002).
 
-    The pour expands ONE `type = "gate"` formula step into TWO beads (REQ-PLAN-077): a
-    wrapper TASK (`plan-execute.start-gate`, titled `Begin: <objective>`) that entry issues
-    take as a `--deps` predecessor, and the real GATE (`plan-execute.gate-start-gate`).
+LEGACY_ACCEPTANCE_SCHEMA = "yf-plan-legacy-acceptance/v1"
+LEGACY_ACCEPTANCE_FIELDS = {"schema", "plan_id", "plan_dir", "fingerprint", "root",
+                            "mapping_sha256", "decision", "decided_by", "at"}
 
-    The wrapper does NOT carry a dotted child id under the epic — the pour allocates it a
-    sibling id — so it is found by PARENT EDGE, never by an id prefix. Reading it by prefix
-    is how a derivation silently finds nothing and reports success on an empty set.
 
-    The gate is then resolved from the wrapper's own `blocks` dependency rather than by
-    title, because `Gate: human` is the formula's generic title and would match any human
-    gate under the same epic.
+class _RolesRefusal(Exception):
+    """(exit, reason). exit 1 = definite refusal, exit 2 = INCONCLUSIVE. Both write nothing."""
+
+    def __init__(self, code: int, reason: str):
+        super().__init__(reason)
+        self.code, self.reason = code, reason
+
+
+def _gate_roles():
+    import importlib.util as _ilu
+    here = Path(__file__).resolve().parent
+    for cand in (here / "gate_roles.py", here.parent.parent.parent / "_shared" / "gate_roles.py"):
+        if cand.is_file():
+            spec = _ilu.spec_from_file_location("gate_roles_for_pm", cand)
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+    raise FileNotFoundError("gate_roles.py not found beside plan_manager.py or in _shared/")
+
+
+def _sha256_file(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def _read_json_file(p: Path, what: str):
+    if not p.is_file():
+        raise _RolesRefusal(2, f"{what} not found: {p}")
+    try:
+        data = json.loads(p.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise _RolesRefusal(2, f"{what} is not valid JSON ({p}): {e}")
+    if isinstance(data, dict) and "error" in data:
+        raise _RolesRefusal(2, f"{what} is an error envelope ({p}): {str(data['error'])[:120]}")
+    return data
+
+
+def _inside(p: Path, base: Path) -> bool:
+    p, base = p.resolve(), base.resolve()
+    return p == base or base in p.parents
+
+
+def _bundle_rel(p: Path, bundle: Path, what: str) -> str:
+    if not _inside(p, bundle):
+        raise _RolesRefusal(1, f"{what} must be retained inside the bundle ({bundle}): {p}")
+    return str(p.resolve().relative_to(bundle.resolve()))
+
+
+def _repo_relative_plan_dir(pdir: Path) -> str:
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, cwd=str(pdir), timeout=30)
+        if top.returncode == 0 and top.stdout.strip():
+            return str(pdir.resolve().relative_to(Path(top.stdout.strip()).resolve()))
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        pass
+    return str(pdir).rstrip("/")
+
+
+def _native_roles_from_pour(pour: dict, gr) -> dict:
+    if not isinstance(pour, dict) or not isinstance(pour.get("id_mapping"), dict):
+        raise _RolesRefusal(2, "pour capture carries no id_mapping object")
+    m = pour["id_mapping"]
+    missing = [k for k in gr.ROLE_KEYS if not m.get(k)]
+    if missing:
+        raise _RolesRefusal(2, f"pour capture lacks native role keys {missing}")
+    roles = {k: str(m[k]) for k in gr.ROLE_KEYS}
+    if len(set(roles.values())) != 3:
+        raise _RolesRefusal(1, f"pour capture maps roles to non-distinct ids {roles}")
+    if pour.get("new_epic_id") and str(pour["new_epic_id"]) != roles[gr.ROLE_ROOT]:
+        raise _RolesRefusal(1, "pour new_epic_id disagrees with id_mapping['plan-execute']")
+    return roles
+
+
+def _gates_from_creates(index_path: Path, bundle: Path, plan: dict, start_decl: str,
+                        roles: dict, gr) -> tuple[dict, list[str]]:
+    """(declaration -> id, evidence paths). Ids come from each RAW native create output."""
+    index = _read_json_file(index_path, "creates index")
+    if not isinstance(index, dict):
+        raise _RolesRefusal(2, "creates index is not a JSON object")
+    declared = [g["name"] for g in plan.get("gates", [])]
+    unknown = sorted(set(index) - set(declared))
+    if unknown:
+        raise _RolesRefusal(1, f"creates index names undeclared gates {unknown}")
+    gates, evidence = {start_decl: roles[gr.ROLE_GATE]}, []
+    for name in declared:
+        if name == start_decl:
+            ent = index.get(name)
+            if isinstance(ent, dict) and ent.get("id") and str(ent["id"]) != roles[gr.ROLE_GATE]:
+                raise _RolesRefusal(1, f"creates index maps {name!r} to {ent['id']!r}, but the "
+                                       f"pour's actual gate is {roles[gr.ROLE_GATE]!r}")
+            continue
+        ent = index.get(name)
+        if not isinstance(ent, dict) or not ent.get("raw"):
+            raise _RolesRefusal(2, f"no retained native create output for declared gate {name!r}")
+        if ent.get("exit") not in (None, 0):
+            raise _RolesRefusal(1, f"create for {name!r} recorded exit {ent.get('exit')}")
+        raw = (index_path.parent / ent["raw"])
+        evidence.append(_bundle_rel(raw, bundle, f"create output for {name!r}"))
+        out = _read_json_file(raw, f"create output for {name!r}")
+        out = out[0] if isinstance(out, list) and len(out) == 1 else out
+        if not isinstance(out, dict) or not out.get("id"):
+            raise _RolesRefusal(2, f"create output for {name!r} carries no id")
+        gid = str(out["id"])
+        if ent.get("id") and str(ent["id"]) != gid:
+            raise _RolesRefusal(1, f"creates index id {ent['id']!r} for {name!r} disagrees with "
+                                   f"its raw output {gid!r}")
+        gates[name] = gid
+    if len(set(gates.values())) != len(gates):
+        raise _RolesRefusal(1, f"gate creates repeat an id: {gates}")
+    return gates, evidence
+
+
+def _legacy_roles(mapping_path: Path, acceptance_path: Path, bundle: Path, plan: dict,
+                  plan_id: str, plan_dir_rel: str, fingerprint: str, root: str,
+                  start_decl: str, gr) -> tuple[dict, dict, dict, list[str]]:
+    mapping = _read_json_file(mapping_path, "legacy mapping")
+    acc = _read_json_file(acceptance_path, "legacy acceptance")
+    if not isinstance(acc, dict) or set(acc) != LEGACY_ACCEPTANCE_FIELDS \
+            or acc.get("schema") != LEGACY_ACCEPTANCE_SCHEMA:
+        raise _RolesRefusal(1, "legacy acceptance does not match yf-plan-legacy-acceptance/v1 "
+                               "exactly (missing, unknown or wrong-schema fields)")
+    msha = _sha256_file(mapping_path)
+    binding = {"plan_id": plan_id, "plan_dir": plan_dir_rel, "fingerprint": fingerprint,
+               "root": root, "mapping_sha256": msha}
+    wrong = sorted(k for k, v in binding.items() if acc.get(k) != v)
+    if wrong:
+        raise _RolesRefusal(1, f"legacy acceptance does not bind this import: {wrong}")
+    if not str(acc.get("decision") or "").strip() or not str(acc.get("decided_by") or "").strip():
+        raise _RolesRefusal(1, "legacy acceptance carries no verbatim decision/decider")
+    if not isinstance(mapping, dict):
+        raise _RolesRefusal(2, "legacy mapping is not a JSON object")
+    need = ("epic", "start_gate", "start_gate_bead")
+    if any(not mapping.get(k) for k in need):
+        raise _RolesRefusal(2, f"legacy mapping lacks {[k for k in need if not mapping.get(k)]}")
+    if str(mapping["epic"]) != root:
+        raise _RolesRefusal(1, f"legacy mapping epic {mapping['epic']!r} != recorded root {root!r}")
+    roles = {gr.ROLE_ROOT: root, gr.ROLE_WRAPPER: str(mapping["start_gate"]),
+             gr.ROLE_GATE: str(mapping["start_gate_bead"])}
+    if len(set(roles.values())) != 3:
+        raise _RolesRefusal(1, f"legacy mapping roles are not distinct: {roles}")
+    declared = [g["name"] for g in plan.get("gates", [])]
+    caps = [n for n in declared if n.startswith("Capability Gate")]
+    others = [n for n in declared if n not in caps and n != start_decl and n != "Reconcile Gate"]
+    if len(caps) > 1 or others:
+        raise _RolesRefusal(2, f"legacy mapping cannot assign declarations unambiguously "
+                               f"(capability gates {caps}, other gates {others})")
+    gates = {start_decl: roles[gr.ROLE_GATE]}
+    for decl, key in ([(caps[0], "capability_gate")] if caps else []) + \
+            ([("Reconcile Gate", "reconcile_gate")] if "Reconcile Gate" in declared else []):
+        if not mapping.get(key) or not isinstance(mapping[key], str):
+            raise _RolesRefusal(2, f"legacy mapping lacks a single id for {decl!r} ({key})")
+        gates[decl] = mapping[key]
+    if len(set(gates.values())) != len(gates) or roles[gr.ROLE_WRAPPER] in gates.values():
+        raise _RolesRefusal(1, f"legacy mapping assigns one id to two roles: {gates}")
+    evidence = [_bundle_rel(mapping_path, bundle, "legacy mapping")]
+    return roles, gates, acc, evidence
+
+
+def _record_execution_roles(plan_dir: Path, graph: Path, pour: Path | None, creates: Path | None,
+                            legacy: Path | None, acceptance: Path | None, bd_version: str | None,
+                            formula: Path | None, out: Path | None) -> dict:
+    gr = _gate_roles()
+    plan_md = plan_dir / "plan.md"
+    if not plan_md.is_file():
+        raise _RolesRefusal(2, f"plan.md not found under {plan_dir}")
+    if (pour is None) == (legacy is None):
+        raise _RolesRefusal(2, "exactly one of --pour or --import-legacy is required")
+    if (legacy is None) != (acceptance is None):
+        raise _RolesRefusal(2, "--import-legacy and --acceptance must be given together")
+    if creates is not None and pour is None:
+        raise _RolesRefusal(2, "--creates requires --pour")
+    plan = _run_plan_extract(plan_dir)
+    if plan.get("unparsed"):
+        raise _RolesRefusal(2, f"plan.md has unparsed constructs: {plan['unparsed']}")
+    fp = _fingerprint_status(plan_dir)
+    if not fp["stored_fingerprint"] or fp["stale_approved"]:
+        raise _RolesRefusal(1, "plan has no fresh approved fingerprint (stored != current or absent)")
+    root = _read_plan_epic_field(plan_md.read_text())
+    if not root:
+        raise _RolesRefusal(2, "plan.md records no **Epic:** root")
+    plan_id, fingerprint = _plan_id_from_dir(plan_dir), fp["stored_fingerprint"]
+    plan_dir_rel = _repo_relative_plan_dir(plan_dir)
+    start_decl = gr.start_declaration(plan)
+    if start_decl is None:
+        raise _RolesRefusal(2, "plan has no unique `Start Gate` declaration")
+
+    acceptance_obj = None
+    if pour is not None:
+        evidence = [_bundle_rel(pour, plan_dir, "pour capture")]
+        roles = _native_roles_from_pour(_read_json_file(pour, "pour capture"), gr)
+        if roles[gr.ROLE_ROOT] != root:
+            raise _RolesRefusal(1, f"pour root {roles[gr.ROLE_ROOT]!r} != recorded **Epic:** {root!r}")
+        if creates is not None:
+            evidence.append(_bundle_rel(creates, plan_dir, "creates index"))
+            gates, more = _gates_from_creates(creates, plan_dir, plan, start_decl, roles, gr)
+            evidence += more
+            state = "finalized"
+        else:
+            gates, state = {start_decl: roles[gr.ROLE_GATE]}, "start-only"
+        kind = "native"
+    else:
+        roles, gates, acceptance_obj, evidence = _legacy_roles(
+            legacy, acceptance, plan_dir, plan, plan_id, plan_dir_rel, fingerprint, root,
+            start_decl, gr)
+        # The acceptance may live outside the bundle (an external, not-yet-authorized-for-live
+        # decision). Its digest is recorded in `acceptance.sha256` either way.
+        if _inside(acceptance, plan_dir):
+            evidence.append(_bundle_rel(acceptance, plan_dir, "legacy acceptance"))
+        state, kind = "finalized", "legacy-attested"
+
+    if bd_version is None:
+        try:
+            r = subprocess.run(["bd", "--version"], capture_output=True, text=True, timeout=30)
+            bd_version = r.stdout.strip() if r.returncode == 0 else None
+        except (OSError, subprocess.TimeoutExpired):
+            bd_version = None
+    if not bd_version:
+        raise _RolesRefusal(2, "bd version unavailable; pass --bd-version explicitly")
+
+    receipt = {
+        "schema": gr.SCHEMA, "plan_id": plan_id, "fingerprint": fingerprint,
+        "plan_dir": plan_dir_rel, "root": root, "bd_version": bd_version,
+        "evidence_kind": kind,
+        "evidence": [{"path": p, "sha256": _sha256_file(plan_dir / p)} for p in evidence],
+        "state": state, "roles": roles, "gates": gates,
+    }
+    if formula is not None:
+        if kind != "native":
+            raise _RolesRefusal(1, "--formula is not recorded on a historical import (no "
+                                   "formula-source field is fabricated)")
+        if not formula.is_file():
+            raise _RolesRefusal(2, f"formula not found: {formula}")
+        receipt["formula_sha256"] = _sha256_file(formula)
+    if acceptance_obj is not None:
+        receipt["acceptance"] = {"sha256": _sha256_file(acceptance), "decision": acceptance_obj["decision"],
+                                 "decided_by": acceptance_obj["decided_by"], "at": acceptance_obj["at"]}
+
+    records = _read_json_file(graph, "graph")
+    verdict = gr.classify(plan=plan, plan_id=plan_id, fingerprint=fingerprint,
+                          plan_dir=plan_dir_rel, recorded_root=root, records=records,
+                          receipt=receipt, require_final=(state == "finalized"),
+                          evidence_base=plan_dir)
+    if verdict["verdict"] != gr.PASS:
+        raise _RolesRefusal(verdict["exit"], "role classification " + verdict["verdict"] + ": "
+                            + "; ".join(verdict["diagnostics"]))
+
+    default = plan_dir / "references" / "execution-roles.json"
+    target = out if out is not None else default
+    if out is not None and _inside(out, plan_dir) and out.resolve() != default.resolve():
+        raise _RolesRefusal(1, f"--out may not name a non-default path inside the bundle: {out}")
+    if target.exists():
+        existing = _read_json_file(target, "existing receipt")
+        same_identity = (isinstance(existing, dict)
+                         and all(existing.get(k) == receipt[k]
+                                 for k in ("plan_id", "fingerprint", "plan_dir", "root", "roles")))
+        if existing == receipt:
+            return {"verdict": "pass", "action": "unchanged", "written": [], "path": str(target),
+                    "state": state}
+        if not same_identity:
+            raise _RolesRefusal(1, f"existing receipt at {target} conflicts with this evidence "
+                                   f"(identity differs); refusing to overwrite")
+        if existing.get("state") == "finalized":
+            if state == "start-only" and all(existing.get("gates", {}).get(k) == v
+                                             for k, v in gates.items()):
+                return {"verdict": "pass", "action": "already-finalized", "written": [],
+                        "path": str(target), "state": "finalized"}
+            raise _RolesRefusal(1, f"existing finalized receipt at {target} conflicts with this "
+                                   f"evidence; refusing to overwrite")
+        if existing.get("evidence_kind") != kind or any(
+                existing.get("gates", {}).get(k) not in (None, v) for k, v in gates.items()):
+            raise _RolesRefusal(1, f"existing start-only receipt at {target} conflicts with "
+                                   f"this evidence; refusing to overwrite")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + f".tmp-{os.getpid()}")
+    payload = json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+    tmp.write_text(payload)
+    os.replace(tmp, target)
+    if json.loads(target.read_text()) != receipt:
+        raise _RolesRefusal(1, f"read-back of {target} does not match what was written")
+    return {"verdict": "pass", "action": "written", "written": [str(target)], "path": str(target),
+            "state": state, "sha256": _sha256_file(target)}
+
+
+@cli.command("record-execution-roles")
+@click.argument("plan_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--graph", "graph", required=True, type=click.Path(dir_okay=False),
+              help="Complete gate-inclusive graph: `bd list --all --include-gates --limit 0 --json`.")
+@click.option("--pour", "pour", type=click.Path(dir_okay=False),
+              help="Retained native `bd mol pour --json` output (inside the bundle).")
+@click.option("--creates", "creates", type=click.Path(dir_okay=False),
+              help="Index: gate declaration -> {raw: <retained native create output>}. Finalizes.")
+@click.option("--import-legacy", "legacy", type=click.Path(dir_okay=False),
+              help="Historical executor-authored mapping (legacy-attested; needs --acceptance).")
+@click.option("--acceptance", "acceptance", type=click.Path(dir_okay=False),
+              help="yf-plan-legacy-acceptance/v1 operator provenance acceptance.")
+@click.option("--bd-version", "bd_version", default=None, help="bd version of the pour.")
+@click.option("--formula", "formula", type=click.Path(dir_okay=False), default=None,
+              help="The formula file the pour used (native evidence only).")
+@click.option("--out", "out", type=click.Path(dir_okay=False), default=None,
+              help="Write an EXTERNAL receipt here instead of the bundle default.")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def record_execution_roles(plan_dir, graph, pour, creates, legacy, acceptance, bd_version,
+                           formula, out, as_json):
+    """Write the plan's execution role receipt from retained native evidence (REQ-DATA-077).
+
+    Exit 0 written-or-identical · 1 refused (conflict / definite invalidity) · 2 INCONCLUSIVE.
+    Every non-zero outcome writes NOTHING.
     """
-    children = _bd_children(epic)
-    if not children:
-        return (None, None, f"no children under {epic} (bd may be unavailable)")
-
-    wrappers = [c for c in children
-                if (c.get("issue_type") or c.get("type")) == "task"
-                and str(c.get("title", "")).startswith("Begin:")]
-    if not wrappers:
-        return (None, None,
-                f"no start-gate wrapper task (title `Begin: …`) under {epic}")
-    if len(wrappers) > 1:
-        return (None, None,
-                "more than one start-gate wrapper under "
-                f"{epic}: {[w.get('id') for w in wrappers]} — refusing to guess")
-
-    wrapper = _bd_show_one(str(wrappers[0].get("id"))) or wrappers[0]
-
-    gates = [d for d in (wrapper.get("dependencies") or [])
-             if d.get("issue_type") == "gate"]
-    if not gates:
-        gates = [c for c in children if (c.get("issue_type") or c.get("type")) == "gate"
-                 and str(c.get("title", "")).startswith("Gate:")]
-    if len(gates) != 1:
-        return (wrapper, None,
-                f"expected exactly one start gate for wrapper {wrapper.get('id')}, "
-                f"found {len(gates)}")
-
-    gate = _bd_show_one(str(gates[0].get("id"))) or gates[0]
-    return (wrapper, gate, None)
+    P = lambda v: Path(v) if v is not None else None  # noqa: E731
+    try:
+        res = _record_execution_roles(Path(plan_dir), Path(graph), P(pour), P(creates), P(legacy),
+                                      P(acceptance), bd_version, P(formula), P(out))
+    except _RolesRefusal as r:
+        click.echo(json.dumps({"verdict": "inconclusive" if r.code == 2 else "refused",
+                               "exit": r.code, "written": [], "reason": r.reason}))
+        sys.exit(r.code)
+    click.echo(json.dumps(res))
 
 
 def _start_gate_close_reason(gate_id: str, plan_id: str) -> str:
@@ -5956,115 +6242,142 @@ def _start_gate_close_reason(gate_id: str, plan_id: str) -> str:
 @click.option("--json-output", "--json", "as_json", is_flag=True,
               help="Emit the structured verdict (default is also JSON).")
 def resolve_start_gate(plan_dir: str, as_json: bool):
-    """Resolve the start gate AND close its wrapper task, in one step (REQ-PLAN-077).
+    """Resolve the ACTUAL start gate, then close its wrapper (REQ-PLAN-077 as amended by plan-074).
 
-    WHY THIS IS A VERB AND NOT `bd gate resolve` FOLLOWED BY A HAND-TYPED `bd close`
-    -------------------------------------------------------------------------------
-    `bd gate resolve` closes the GATE. Nothing closes the WRAPPER. `close_cascade.py` then
-    fail-louds on a non-terminal child under the molecule — correctly; the cascade is not the
-    defect, the un-closed wrapper is.
+    The pair is identified ONLY by the plan's REQ-DATA-077 role receipt, checked against the
+    complete gate-inclusive graph by the shared REQ-PLAN-087 classifier. Titles, wrapper type and
+    the old generic `Gate:` fallback are gone: on `bd` 1.3.1 the wrapper is itself a gate, and
+    `bd gate resolve <wrapper>` closes it while the real human gate stays open (EXP-001). A
+    closed wrapper is NOT consent.
 
-    Measured across the live bead DB (EXP-002): **49 of 49** wrapper beads ever poured were
-    closed BY HAND, with **29 distinct** improvised `close_reason` values. That is not an
-    intermittent defect. It is a universal manual step with no mechanism and no exit code —
-    the corpus's own headline in miniature.
+    Mutation order is fixed and every step is READ BACK: resolve the actual gate -> re-read it ->
+    ordinary `bd close` of the wrapper (never `gate resolve`, never `--force`) -> re-read both.
+    This verb grants no authority: the caller's fresh-session approval (REQ-SESSION-001) is the
+    only authority to run it.
 
-    The fix is at the pour/resolve seam and NOT in `_bead_is_terminal`, which is reporting
-    correctly. Weakening it would silence a true fail-loud, which is the "succeeds visibly
-    while doing nothing" class this repo has measured repeatedly; the `neg-179-open-wrapper`
-    scenario asserts it still refuses a genuinely open child, before and after.
-
-    Idempotent: an already-closed wrapper is a clean pass, so a resumed session may re-run it.
+    Exit 0 pass (both re-read terminal) · 1 fail (definite inconsistency or partial mutation;
+    the JSON names exact ids and the recovery command) · 2 INCONCLUSIVE (ambiguous/incomplete/
+    unavailable input, ZERO mutations). Every non-zero result is `passed: false`, and a caller
+    must halt on both.
     """
     pdir = Path(plan_dir)
     plan_md = pdir / "plan.md"
-    if not plan_md.exists():
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "epic": None,
-            "reason": f"plan.md not found under {plan_dir}",
-            "remediation": "Check the plan_dir argument, then re-run §5.2a.",
-        }))
-        sys.exit(1)
+    base = {"passed": False, "epic": None, "wrapper": None, "gate": None, "actions": []}
 
+    def emit(code: int, verdict: str, **kw):
+        out = {**base, "verdict": verdict, "exit": code, **kw}
+        out["passed"] = code == 0
+        click.echo(json.dumps(out, indent=2))
+        sys.exit(code)
+
+    if not plan_md.exists():
+        emit(2, "inconclusive", reason=f"plan.md not found under {plan_dir}",
+             remediation="Check the plan_dir argument, then re-run §5.2a.")
     plan_id = _plan_id_from_dir(pdir)
     epic = _read_plan_epic_field(plan_md.read_text())
+    base["epic"] = epic
     if not epic:
-        click.echo(json.dumps({
-            "verdict": "fail", "passed": False, "epic": None,
-            "reason": "no **Epic:** field on plan.md — the start-gate pair cannot be "
-                      "re-derived",
-            "remediation": "Run `plan_manager.py record-epic <plan_dir> <epic-id>` "
-                           "immediately after the pour, then re-run.",
-        }))
-        sys.exit(1)
-
-    wrapper, gate, err = _find_start_gate_pair(epic)
-    if err is not None:
-        click.echo(json.dumps({
-            "verdict": "inconclusive", "passed": False, "epic": epic,
-            "wrapper": (wrapper or {}).get("id"), "gate": None,
-            "reason": err,
-            "remediation": "Inspect `bd children " + epic + " --json` and resolve the start "
-                           "gate by hand if the pour is non-standard.",
-        }))
-        sys.exit(0)
-
-    wrapper_id, gate_id = str(wrapper["id"]), str(gate["id"])
+        emit(2, "inconclusive", reason="no **Epic:** field on plan.md — the start-gate pair "
+             "cannot be re-derived",
+             remediation="Run `plan_manager.py record-epic <plan_dir> <epic-id>` immediately "
+                         "after the pour, then re-run.")
+    fp = _fingerprint_status(pdir)
+    if not fp["stored_fingerprint"] or fp["stale_approved"]:
+        emit(1, "fail", reason="the plan has no fresh approved fingerprint; the start gate "
+             "must not be released against changed content (REQ-PORT-041)",
+             remediation="Re-approve the plan, then re-run.")
+    gr = _gate_roles()
+    rpath = pdir / "references" / "execution-roles.json"
+    if not rpath.is_file():
+        emit(2, "inconclusive", reason=f"no execution role receipt at {rpath} — the wrapper and "
+             "the actual gate cannot be told apart without retained native evidence",
+             remediation="Record it from the retained pour: `plan_manager.py "
+                         "record-execution-roles <plan_dir> --graph <file> --pour <file>` "
+                         "(SKILL.md §5.2a). Never resolve by title.")
+    try:
+        receipt = json.loads(rpath.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        emit(2, "inconclusive", reason=f"role receipt is not valid JSON: {e}")
+    try:
+        records = gr.acquire_live()
+    except gr.Inconclusive as e:
+        emit(2, "inconclusive", reason=f"could not read the complete graph: {e}",
+             remediation="Restore `bd`, then re-run. No bead was touched.")
+    plan = _run_plan_extract(pdir)
+    v = gr.classify(plan=plan, plan_id=plan_id, fingerprint=fp["stored_fingerprint"],
+                    plan_dir=_repo_relative_plan_dir(pdir), recorded_root=epic, records=records,
+                    receipt=receipt, require_final=False, evidence_base=pdir)
+    base.update(wrapper=v.get("wrapper"), gate=v.get("gate"), classification=v)
+    if v["verdict"] != gr.PASS:
+        emit(v["exit"], v["verdict"], reason="start-gate roles did not classify: "
+             + "; ".join(v["diagnostics"]),
+             remediation="No bead was touched. Repair the evidence or graph; never fall back "
+                         "to a title match.")
+    wrapper_id, gate_id = v["wrapper"], v["gate"]
     reason = _start_gate_close_reason(gate_id, plan_id)
-    actions: list[str] = []
+    actions = base["actions"]
 
-    if not _gate_is_resolved(gate):
+    def reread(i):
+        b = _bd_show_one(i)
+        if b is None:
+            emit(1 if actions else 2, "fail" if actions else "inconclusive",
+                 reason=f"could not re-read {i}", recovery=_start_gate_recovery(wrapper_id, gate_id))
+        return b
+
+    def run_bd(argv):
         try:
-            r = subprocess.run(["bd", "gate", "resolve", gate_id],
-                               capture_output=True, text=True, timeout=60)
-            rc, errtxt = r.returncode, (r.stderr or "").strip()
+            r = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+            return r.returncode, (r.stderr or "").strip()
         except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as e:
-            rc, errtxt = None, str(e)
+            return None, str(e)
+
+    gate = reread(gate_id)
+    if not _gate_is_resolved(gate):
+        rc, err = run_bd(["bd", "gate", "resolve", gate_id, "--reason",
+                          f"start gate for {plan_id} released at execute start (REQ-PLAN-077)"])
         if rc != 0:
-            click.echo(json.dumps({
-                "verdict": "fail", "passed": False, "epic": epic,
-                "wrapper": wrapper_id, "gate": gate_id, "close_reason": None,
-                "reason": f"could not resolve gate {gate_id}: "
-                          f"{errtxt or 'bd exited ' + str(rc)}",
-                "remediation": f"bd gate resolve {gate_id}",
-            }))
-            sys.exit(1)
+            emit(1, "fail", reason=f"could not resolve the actual gate "
+                 f"{gate_id}: {err or 'bd exited ' + str(rc)}",
+                 recovery=_start_gate_recovery(wrapper_id, gate_id))
         actions.append("gate-resolved")
+        gate = reread(gate_id)
+        if not _gate_is_resolved(gate):
+            emit(1, "fail", reason=f"`bd gate resolve {gate_id}` returned but the gate re-reads "
+                 f"as {gate.get('status')!r}", recovery=_start_gate_recovery(wrapper_id, gate_id))
     else:
         actions.append("gate-already-resolved")
 
+    wrapper = reread(wrapper_id)
     if wrapper.get("status") != "closed":
-        try:
-            r = subprocess.run(["bd", "close", wrapper_id, "--reason", reason],
-                               capture_output=True, text=True, timeout=60)
-            rc, errtxt = r.returncode, (r.stderr or "").strip()
-        except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as e:
-            rc, errtxt = None, str(e)
+        # ORDINARY close — never `bd gate resolve <wrapper>`, never --force.
+        rc, err = run_bd(["bd", "close", wrapper_id, "--reason", reason])
         if rc != 0:
-            # FAIL, not inconclusive: the gate is now resolved and the wrapper is not, which
-            # is EXACTLY the #179 state. Reporting it softly would leave the caller believing
-            # the seam had been closed.
-            click.echo(json.dumps({
-                "verdict": "fail", "passed": False, "epic": epic,
-                "wrapper": wrapper_id, "gate": gate_id, "close_reason": reason,
-                "actions": actions,
-                "reason": f"gate {gate_id} resolved but wrapper {wrapper_id} could not be "
-                          f"closed: {errtxt or 'bd exited ' + str(rc)}",
-                "remediation": f"bd close {wrapper_id} --reason '{reason}'",
-            }))
-            sys.exit(1)
+            emit(1, "fail", close_reason=reason,
+                 reason=f"actual gate {gate_id} is resolved but wrapper {wrapper_id} could not be "
+                        f"closed: {err or 'bd exited ' + str(rc)}",
+                 recovery=_start_gate_recovery(wrapper_id, gate_id))
         actions.append("wrapper-closed")
     else:
         actions.append("wrapper-already-closed")
         reason = wrapper.get("close_reason") or reason
 
-    click.echo(json.dumps({
-        "verdict": "pass", "passed": True, "epic": epic,
-        "wrapper": wrapper_id, "gate": gate_id, "close_reason": reason,
-        "actions": actions,
-        "reason": f"start gate {gate_id} resolved and wrapper {wrapper_id} closed",
-        "remediation": None,
-    }, indent=2))
+    gate, wrapper = reread(gate_id), reread(wrapper_id)
+    observed = {"gate": gate.get("status"), "wrapper": wrapper.get("status")}
+    if not _gate_is_resolved(gate) or wrapper.get("status") != "closed":
+        emit(1, "fail", observed=observed, reason="post-condition re-read failed: the pair is "
+             "not both terminal", recovery=_start_gate_recovery(wrapper_id, gate_id))
+    emit(0, "pass", observed=observed, close_reason=reason,
+         reason=f"actual start gate {gate_id} resolved and wrapper {wrapper_id} closed "
+                f"(both re-read terminal)", remediation=None)
+
+
+def _start_gate_recovery(wrapper_id: str, gate_id: str) -> list[str]:
+    """Recovery keyed to EXPLICIT ids — the state is preserved, never guessed at."""
+    return [f"bd show {gate_id} --json   # the ACTUAL human gate",
+            f"bd show {wrapper_id} --json   # the wrapper",
+            f"if the gate is open: bd gate resolve {gate_id}   (never the wrapper)",
+            f"then: bd close {wrapper_id} --reason '<names {gate_id}>'   (no --force)",
+            "then re-run resolve-start-gate to verify"]
 
 
 @cli.command("close-reconcile-step")

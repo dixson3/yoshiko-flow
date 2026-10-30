@@ -36,8 +36,9 @@ installed binary; re-verify on a `bd version` bump.
   SKILL.md "Closing a bead with open dependents" §.
 
 - **REQ-CLI-007:** `bd mol pour <formula> --json` returns `new_epic_id` and `id_mapping`
-  (formula-step → bead ID); a `gate` step yields two beads (`<f>.<step>` wrapper task +
-  `<f>.gate-<step>` gate). — *Rationale:* downstream wiring and gate resolution target different
+  (formula-step → bead ID); a `gate` step yields two beads (`<f>.<step>` wrapper +
+  `<f>.gate-<step>` gate). *(amended plan-074, #417)* The wrapper is typed `task` on bd
+  1.0.5/1.1.0 and `gate` on 1.3.1; only `id_mapping` distinguishes the pair. — *Rationale:* downstream wiring and gate resolution target different
   keys. — *Verify:* SKILL.md "`bd mol pour` output shape" §; cross-ref beads-authoring formula gate steps.
 
 - **REQ-CLI-008:** Bulk edge intake uses `bd batch` (one dolt transaction, atomic rollback);

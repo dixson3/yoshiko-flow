@@ -227,6 +227,12 @@ approved: yes
 | `diagrams-published` | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 | `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
 | `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
+| `gate-roles` | `uv run _shared/test_gate_roles.py` |  |  |
+| `gate-plan074-amendment` | `uv run scripts/check_amendment_log.py --plan plan-074-james-dixson-4b8fe0` |  |  |
+| `gate-plan074-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 7 docs/plans/plan-074-james-dixson-4b8fe0` |  |  |
+| `uv-yf-execution-roles` | `uv run skills/yf-plan/scripts/test_execution_roles.py` |  |  |
+| `uv-yf-gate-wrapper-resolver` | `uv run skills/yf-plan/scripts/test_gate_wrapper_resolver.py` |  |  |
+| `gate-wrapper-fidelity` | `uv run _shared/test_gate_wrapper_fidelity.py` |  |  |
 
 ### full
 
@@ -334,6 +340,13 @@ approved: yes
 |  | `uv run scripts/checks/plan067_checks.py diagrams-published` |  |  |
 | `gate-plan072-amendment` | `uv run scripts/check_amendment_log.py --plan plan-072-james-dixson-bae8de` |  |  |
 | `gate-plan072-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 20 docs/plans/plan-072-james-dixson-bae8de` |  |  |
+| `gate-roles` | `uv run _shared/test_gate_roles.py` |  |  |  |
+| `gate-plan074-amendment` | `uv run scripts/check_amendment_log.py --plan plan-074-james-dixson-4b8fe0` |  |  |  |
+| `gate-plan074-reqcoverage` | `uv run scripts/checks/check-req-coverage.py --min-issues 7 docs/plans/plan-074-james-dixson-4b8fe0` |  |  |  |
+| `uv-yf-execution-roles` | `uv run skills/yf-plan/scripts/test_execution_roles.py` |  |  |  |
+| `uv-yf-gate-wrapper-resolver` | `uv run skills/yf-plan/scripts/test_gate_wrapper_resolver.py` |  |  |  |
+| `gate-wrapper-fidelity` | `uv run _shared/test_gate_wrapper_fidelity.py` |  |  |  |
+| `gate-wrapper-harness` | `bash skills/yf-plan/test-harness/gate-wrapper.sh gate` |  | 1800 |  |
 | `trigger-eval` | `uv run scripts/checks/skill_trigger_eval.py --mode candidate --skills all --harness both --reps 3 --max-runs-per-hour 150 --max-backoff-seconds 1800 --deadline-seconds 25200` |  | 28800 | `inconclusive-exit=4,stream` |
 
 ## 2. Signal Fingerprint
@@ -399,12 +412,22 @@ approved: yes
 | `docs/plans/plan-062-james-dixson-c3e98f/**` | `okf-index-drift`, `gate-plan062-amendment` |
 | `scripts/checks/_figures.py` | `uv-yf-land-manifest` |
 | `scripts/checks/check-cited-figures.py` | `uv-yf-land-manifest` |
-| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home`, `gate-plan072-amendment` |
+| `SPEC.md` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment`, `gate-plan064-amendment`, `gate-plan064-dualhome`, `gate-plan067-amendment`, `gate-plan066-amendment`, `req-normative-home`, `gate-plan072-amendment`, `gate-plan074-amendment` |
 | `skills/yf-skill-authoring/SPEC.md` | `gate-plan072-amendment` |
 | `skills/yf-change-validation/spec/*.md` | `gate-plan072-amendment` |
 | `docs/plans/plan-072-james-dixson-bae8de/**` | `okf-index-drift`, `gate-plan072-amendment`, `gate-plan072-reqcoverage` |
 | `skills/yf-okf/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
 | `skills/yf-okf-hygiene/SPEC.md` | `gate-plan064-amendment`, `gate-plan064-dualhome` |
+| `_shared/gate_roles.py` | `gate-roles`, `uv-_shared`, `pour-fidelity`, `gate-wrapper-fidelity`, `uv-yf-execution-roles`, `uv-yf-gate-wrapper-resolver` |
+| `_shared/test_gate_roles.py` | `gate-roles` |
+| `_shared/test_gate_wrapper_fidelity.py` | `gate-wrapper-fidelity` |
+| `_shared/fixtures/gate-roles/**` | `gate-roles` |
+| `skills/yf-plan/scripts/gate_roles.py` | `gate-roles`, `uv-_shared`, `uv-yf-execution-roles`, `uv-yf-gate-wrapper-resolver` |
+| `skills/yf-plan/scripts/plan_manager.py` | `uv-yf-execution-roles`, `uv-yf-gate-wrapper-resolver` |
+| `skills/yf-plan/scripts/test_execution_roles.py` | `uv-yf-execution-roles` |
+| `skills/yf-plan/scripts/test_gate_wrapper_resolver.py` | `uv-yf-gate-wrapper-resolver` |
+| `skills/yf-plan/SPEC.md` | `gate-plan074-amendment` |
+| `docs/plans/plan-074-james-dixson-4b8fe0/**` | `okf-index-drift`, `gate-plan074-amendment`, `gate-plan074-reqcoverage` |
 | `skills/yf-plan/spec/**` | `gate-plan060-amendment`, `gate-plan062-amendment`, `gate-plan063-amendment` |
 | `docs/plans/plan-063-james-dixson-3f74c1/**` | `okf-index-drift`, `gate-plan063-amendment` |
 | `docs/plans/plan-064-james-dixson-a0b7fa/**` | `okf-index-drift`, `gate-plan064-amendment`, `gate-plan064-reqcoverage`, `gate-plan064-dualhome` |
@@ -540,7 +563,7 @@ approved: yes
 | `skills/*/spec/*.md` | `cargo`, `doclint`, `doclint-tests` |
 | `_shared/doc_lint.py` | `doclint`, `doclint-tests` |
 | `_shared/plan_extract.py` | `plan-extract`, `pour-fidelity` |
-| `_shared/pour_fidelity.py` | `pour-fidelity` |
+| `_shared/pour_fidelity.py` | `pour-fidelity`, `gate-wrapper-fidelity` |
 | `_shared/test_plan_extract.py` | `plan-extract` |
 | `_shared/test_pour_fidelity.py` | `pour-fidelity` |
 | `_shared/document_types/**` | `doclint`, `doclint-tests` |

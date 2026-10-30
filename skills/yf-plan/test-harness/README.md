@@ -213,3 +213,32 @@ in a Claude Code session whose `HOME` is the sandbox printed by `setup`, then ru
   feature branch `<plan-id>` exists and is the ancestor (pinned base) of `<plan-id>-execute`;
 - `plan.md` carries a `**Fingerprint:**` header;
 - `topology.txt` records `git branch -vv`, `git worktree list`, and the verdict.
+
+## `gate-wrapper.sh` — native gate-wrapper compatibility (plan-074, #417)
+
+```bash
+bash skills/yf-plan/test-harness/gate-wrapper.sh gate   # exit 0 pass · 1 fail · 2 inconclusive · 3 missing tool · 64 usage
+```
+
+A one-shot, fully mechanical Tier-2 drive (no interactive walk) of SKILL.md §5.2a against
+**real** native `bd` stores the harness owns. `gate_wrapper_drive.py` is its driver.
+
+- **Owned sandbox.** HOME, `XDG_*`, `TMPDIR`, uv's cache, git repos and `bd` stores all live
+  in one `mktemp -d`, removed on exit (`YFGW_KEEP=1` keeps it). `PATH` holds only a `bd` shim,
+  a `uv` link, `/usr/bin` and `/bin`; the shim logs every `bd` argv with its cwd, **refuses any
+  cwd outside the sandbox** (self-tested before the drive), then execs the real binary.
+- **Modified skill.** The repo's debug `yf` installs `yf-plan` into the sandbox HOME; the
+  harness asserts the install is not shadowed and its four scripts are byte-equal to source.
+- **Native tools.** `bd` 1.3.1 from `PATH` (gate-typed wrapper) and the `bd` 1.1.0 release
+  binary (task-typed wrapper), fetched and verified against the digests EXP-001 recorded. No
+  verified 1.1.0 → INCONCLUSIVE (2), never a pass.
+- **Old control.** Pre-plan-074 `yf-plan` comes from this checkout's own history
+  (`git archive 7a6ce3a`), digest-checked against the installed copy EXP-003 recorded — no
+  dependency on the operator's HOME. On the genuine 1.3.1 graph the old checker fails (3 vs 4
+  gates) and the old resolver is INCONCLUSIVE; the modified ones pass the same graph.
+- **Asserted per version:** retained raw pour/create output, start-only then finalized
+  receipts, 8/7/4 denominators, refusals with **zero mutations** (no receipt, swapped receipt,
+  `bd` absent), mutations exactly `gate resolve <actual>` then `close <wrapper>` (never
+  `--force`), the human capability gate untouched, idempotent re-run, and — on 1.3.1 — that
+  `bd gate resolve <wrapper>` really closes the wrapper while the actual gate stays open, and
+  the new resolver does not read that as consent.

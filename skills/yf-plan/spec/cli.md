@@ -30,9 +30,28 @@ REQ-CLI-006: `plan_manager.py` exposes its subcommands **flat** — one `@cli.co
 
 > the set of verbs enumerated in this REQ **equals** the set of `@cli.command` names in `skills/yf-plan/scripts/plan_manager.py`.
 
-The enumeration (currently **31**): `json-get`, `init`, `scope`, `triage`, `list`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `clear-epic` (REQ-CLI-027), `escalation-raise` (REQ-PORT-053), `escalation-resolve` (REQ-PORT-054), `escalation-push` (plan-059 Issue 3.3), `land` (REQ-CLI-030).
+The enumeration (currently **32**): `json-get`, `init`, `scope`, `triage`, `list`, `update-status`, `stamp-tracker`, `record-epic`, `set-deliverable-class`, `classify-deliverable`, `attest-validation`, `complete-gate`, `verify-reconcile`, `commit-plan`, `validate-merged`, `resume-scan`, `audit`, `close-reconcile-step`, `ready-check`, `config-resolve` (REQ-CLI-021), `retrospective-append` (REQ-CLI-022), `retrospective-report` (REQ-CLI-022), `review-loop-check` (REQ-CLI-023), `resolve-start-gate` (REQ-PLAN-077), `recheck-criteria` (REQ-PLAN-080), `gate-consistency` (#113), `clear-epic` (REQ-CLI-027), `escalation-raise` (REQ-PORT-053), `escalation-resolve` (REQ-PORT-054), `escalation-push` (plan-059 Issue 3.3), `land` (REQ-CLI-030), `record-execution-roles` (REQ-DATA-077; named REQ-PLAN-086 exception).
 
 *(plan-071 Issue 4.1 / REQ-PLAN-086 removed six verbs with no live caller — ownership-report, escalation-report, verify-beads, index-add, judgement-echo-check and grant — and folded the parked verb into a `list --parked` filter; Issue 4.3 removed audit-close and folded judgement-never-fired-report into retrospective-report. The retired names are spelled bare here so the enumeration parser above does not count them.)*
+
+*(amended plan-074 Issue 0.1, #417)* **Role-receipt CLI surface.** plan-074 adds one flat verb,
+**`record-execution-roles`** (REQ-DATA-077): `plan_manager.py record-execution-roles <plan-dir>
+--graph <file> (--pour <file> [--creates <index>] | --import-legacy <mapping> --acceptance <file>)
+[--bd-version TEXT] [--formula <file>] [--out <file>] [--json]`, where `--creates` names an index
+mapping each exact gate declaration to its retained native create output (its presence finalizes).
+Evidence files must lie inside the bundle (SKILL.md §5.2a retains them under
+`assets/execution-roles/`). `--out` writes an explicitly named EXTERNAL receipt instead of the bundle
+default — the only way to produce a historical receipt for a bundle that must not be written — and is
+refused when it resolves inside the bundle to any path other than the default. It reads only the named files,
+validates through REQ-PLAN-087, writes `references/execution-roles.json` atomically, reads it back and
+exits `0` written-or-identical, `1` refused (conflict or definite invalidity, zero writes), `2`
+INCONCLUSIVE (unreadable/incomplete input, zero writes). The verb is added to the enumeration line
+above **in the same change that registers it** (Issue 1.2), so the executing set-equality check is
+never red between commits; this paragraph is its SPEC-first contract. **`resolve-start-gate`** exits
+`0` pass, `1` fail, `2` INCONCLUSIVE — non-zero on every `passed: false` outcome (REQ-PLAN-077 as
+amended); every caller halts on both non-zero codes. **`pour_fidelity.py --roles <file>`** is a
+read-only diagnostic argument naming an explicit receipt (REQ-DATA-026 as amended); no environment
+variable or implicit path substitutes for it, and normal landing uses only the bundle default.
 
 Adding a verb **requires** adding it here. The count is written as *currently N* precisely because it is a **derived** fact: the invariant is the set equality, and the number is a convenience that the executing check re-derives. Separately, `plan_manager.py` also exposes the click **groups** `fingerprint`, `worktree` and `landing-lock`, whose subcommands are registered on the group (`@fingerprint.command`, etc.) and are therefore **outside** both the enumeration and the check — which is why REQ-CLI-021 mandates the flat form.
 Rationale: These are the mechanical operations SKILL.md delegates; missing any breaks the wiring. This REQ has drifted **three times**: it read 10 while the script carried 21; plan-045 corrected it to 23, then to 24 when `review-loop-check` landed; and it was *still* wrong at 25 because `retrospective-report` was added in the same epic that fixed the previous drift. Each fix bumped a hardcoded literal, which is a repair that re-breaks on the very next verb.

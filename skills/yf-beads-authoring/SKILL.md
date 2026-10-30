@@ -198,15 +198,20 @@ description = "Human-readable description of this step."
 A `type = "gate"` step does **not** pour to a single bead. In bd 1.0.5 it compiles to
 **two** beads, both surfaced in `id_mapping`:
 
-- `<formula>.<step-id>` — a **task wrapper** (type `task`), titled `Begin: …`. This is
-  what downstream `needs` edges depend on; wire `--deps` against this key.
+- `<formula>.<step-id>` — the **wrapper**, titled `Begin: …`. This is what downstream
+  `needs` edges depend on; wire `--deps` against this key. Its native type is
+  **version-dependent**: `task` on bd 1.0.5/1.1.0, **`gate` on bd 1.3.1** (#417).
 - `<formula>.gate-<step-id>` — the **actual gate** (type `gate`), which blocks the
   wrapper. This is what `bd gate resolve` must target.
 
 So for a step `id = "start-gate"`: depend downstream work on `id_mapping["<f>.start-gate"]`,
 but resolve with `bd gate resolve id_mapping["<f>.gate-start-gate"]`. Resolving the gate
 unblocks the wrapper, which the coordinator loop then closes, releasing downstream work.
-Calling `bd gate resolve` on the wrapper key fails with `… is not a gate issue (type=task)`.
+Calling `bd gate resolve` on a task-typed wrapper fails with `… is not a gate issue (type=task)`;
+on a **gate-typed** wrapper (1.3.1) it *succeeds* and closes the wrapper while the actual gate stays
+open. So never tell the two apart by type or title, and never read a closed wrapper as consent:
+retain the pour's raw `--json` output and identify both beads from its `id_mapping` (yf-plan
+records this as `references/execution-roles.json`, REQ-DATA-077).
 
 ### Dynamic fan-out (hybrid pattern)
 

@@ -1,0 +1,24 @@
+{
+  "purpose": "Retained native evidence for _shared/test_gate_roles.py (REQ-PLAN-087, plan-074 Issue 1.1).",
+  "native-1.1.0": {
+    "label": "GENUINE",
+    "source": "docs/plans/plan-074-james-dixson-4b8fe0/assets/fixtures/native-pours/historical/ (EXP-001 owned probe)",
+    "bd": "bd version 1.1.0 (8e4e59d39), release binary sha256 efa02cc59bbb50cd1ecf2a9af242033eb66b2676d64cd50a7414730e67cfa5b1",
+    "note": "byte-exact copies; root NOT linked by yf (no metadata.plan_dir)"
+  },
+  "native-1.3.1": {
+    "label": "GENUINE",
+    "source": "docs/plans/plan-074-james-dixson-4b8fe0/assets/fixtures/native-pours/current/ (EXP-001 owned probe)",
+    "bd": "bd version 1.3.1 (Homebrew), binary sha256 eaf8c29f38d198874c42555e9dbc4abc60140f024edf5e3d591550a45b60b1fd",
+    "note": "byte-exact copies; root NOT linked by yf (no metadata.plan_dir); resolve-wrapper-* is the wrong-target false-consent probe"
+  },
+  "b0-1.3.1-linked": {
+    "label": "GENUINE except where noted",
+    "source": "docs/plans/plan-074-james-dixson-4b8fe0/assets/fixtures/bootstrap-intake/ (plan-074 B0 execution pour, real repo tracker)",
+    "byte_exact": ["pour.json", "root-show.json", "wrapper-show.json", "gate-show.json", "gate-creates.json", "binding.json", "creates/gate-capability.json", "creates/gate-reconcile.json", "creates/reconcile-step.json"],
+    "plan/plan.md": "byte-exact `git show 4493c4b:docs/plans/plan-074-james-dixson-4b8fe0/plan.md` (records Epic yf-mol-9s78)",
+    "plan-subgraph.list.json": "FILTERED: the 18 node objects with id yf-mol-9s78, yf-mol-9s78.*, yf-mol-r0p2, yf-mol-nh83 selected from bootstrap-intake/post-create-snapshot.json and re-serialized; values unchanged",
+    "gate-creates.json": "executor-authored index over the retained native create outputs (part of B0 capture)"
+  },
+  "synthetic": "All adversarial graphs/receipts are produced in memory by test_gate_roles.py and labelled SYNTHETIC there; none is stored here."
+}

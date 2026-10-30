@@ -1420,6 +1420,42 @@
 >     table gains an optional fifth `flags` column. An absent column means no flags.
 >
 >   Implementation lands in Epics 1–5; this entry records the SPEC-first Epic 0 amendments.
+> - **plan-074 (2026-10-29, #417):** **receipt-bound native gate-wrapper compatibility for
+>   yf-plan start resolution and pour fidelity.** `bd` 1.3.1 types the start-gate wrapper `gate`
+>   where 1.1.0 typed it `task`; the start resolver could not find it and fidelity counted four
+>   gates against three declarations. The repair binds roles to retained native evidence instead
+>   of titles, and fails closed. SPEC-first Epic 0:
+>
+>   - **Amended `REQ-PLAN-077`** (`skills/yf-plan/spec/phases.md`): both native wrapper types;
+>     identification only via role classification and the receipt; resolve only the actual human
+>     gate, re-read, ordinary-close the wrapper, re-read both; never gate-resolve the wrapper or
+>     force; a closed wrapper is not consent; exit `0/1/2` with INCONCLUSIVE now non-zero.
+>   - **Added `REQ-PLAN-087`** (`skills/yf-plan/spec/phases.md`): the pure shared classifier
+>     `_shared/gate_roles.py`, normalized complete-graph input, structural predicates and the
+>     three-valued refusal behavior.
+>   - **Amended `REQ-DATA-026`** (`skills/yf-plan/spec/data.md`): every existing issue/edge/epic
+>     check preserved; gate comparison becomes one-to-one receipt-bound identity; strict completion
+>     without a finalized receipt is INCONCLUSIVE; read-only `--roles`; no hidden overrides.
+>   - **Added `REQ-DATA-077`** (`skills/yf-plan/spec/data.md`): the versioned
+>     `references/execution-roles.json` receipt, start-only/finalized states, write discipline,
+>     explicit `legacy-attested` historical imports and the stated provenance limit.
+>   - **Amended the CLI surface** (`skills/yf-plan/spec/cli.md`): `record-execution-roles`,
+>     resolver exit codes and the fidelity `--roles` argument. The verb joins the `REQ-CLI-006`
+>     enumeration in the change that registers it.
+>   - **Amended `REQ-PLAN-086`** (`skills/yf-plan/SPEC.md` §2.9; execution escalation ESC-002,
+>     explicit operator decision "Authorize named exception"): ONE named freeze exception for
+>     `record-execution-roles`. `verb_ceiling = 32` unchanged (slack becomes zero); the verb meets
+>     the full live-caller and negative invocation-test retention standard; no land step and no
+>     `REQ-LAND-*` id is added; the freeze is otherwise unrelaxed.
+>   - **Amended `REQ-FORMULA-001`** (`skills/yf-beads-authoring/spec/formulas.md`) and
+>     **`REQ-BAUTH-011`** (`skills/yf-beads-authoring/SPEC.md`): the gate-step wrapper's native
+>     type is version-dependent (`task` on 1.0.5/1.1.0, `gate` on 1.3.1); consumers identify the
+>     pair only by the retained `id_mapping`, and a closed wrapper is never evidence of resolution.
+>   - **Amended `REQ-CLI-007`** (`skills/yf-beads-extra/spec/cli.md`) and **`REQ-BEXTRA-CLI-007`**
+>     (`skills/yf-beads-extra/SPEC.md`): the same version-dependent wrapper type, at the pour-output
+>     documentation site.
+>
+>   No landing-order requirement changes. Implementation lands in Epics 1–3.
 
 ## 1. Purpose & scope
 

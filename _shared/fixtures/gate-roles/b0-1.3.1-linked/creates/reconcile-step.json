@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-10-29T21:59:20.918181Z",
+  "created_by": "James Dixson",
+  "description": "Update upstream issues per plan dispositions.",
+  "id": "yf-mol-9s78.7",
+  "issue_type": "task",
+  "metadata": {
+    "agent": "agents/reconciler.md",
+    "context": [
+      "plan.md"
+    ]
+  },
+  "owner": "dixson3@gmail.com",
+  "priority": 1,
+  "schema_version": 1,
+  "status": "open",
+  "title": "Reconcile: update upstream issues",
+  "updated_at": "2026-10-29T21:59:20.918181Z"
+}

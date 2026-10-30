@@ -198,6 +198,65 @@ the **negative control** `neg-179-open-wrapper` asserts a genuinely open wrapper
 `close_cascade.py` non-zero **after** the fix; `git diff` over `_bead_is_terminal` is empty;
 SKILL.md §5.2a invokes the verb instead of a bare `bd gate resolve`.
 
+*(amended plan-074 Issue 0.1, #417)* **Both native wrapper types, and actual-gate-only mutation.**
+The wrapper is whatever bead the pour maps to `plan-execute.start-gate`: `bd` 1.1.0 types it
+`task`, `bd` 1.3.1 types it `gate` (EXP-001, same installed formula). The verb shall identify the
+pair **only** through REQ-PLAN-087 role classification over a complete gate-inclusive graph and the
+plan's REQ-DATA-077 role receipt — never by title (`Begin:`), id prefix, array order, wrapper type,
+or a generic `Gate:`-titled fallback, and never via default `bd children`, which omits gates.
+Mutation order is fixed: (1) `bd gate resolve` the **actual human gate** only; (2) re-read it and
+require it terminal; (3) ordinary `bd close` of the wrapper with the generated reason; (4) re-read
+**both** and report their observed state. It shall **never** `bd gate resolve` the wrapper (measured:
+that closes a gate-typed wrapper while the real human gate stays open) and never `--force`. A
+**closed wrapper is not consent**: a pre-closed wrapper over an open actual gate is not a pass.
+Role recognition grants no authority — the caller's existing fresh-session/approval checks
+(REQ-SESSION-001) are unchanged and remain the only authority to resolve.
+**Three-valued exit, all non-pass outcomes non-zero:** `0` pass (both nodes re-read terminal);
+`1` fail (a definite inconsistency, or a partial mutation — the JSON names the exact ids and the
+recovery command); `2` INCONCLUSIVE (ambiguous, incomplete or unavailable input, **with zero
+mutations**). The former `inconclusive` at exit 0 is withdrawn: a `passed: false` result shall not
+be able to advance execution through a caller that reads only `$?`. SKILL.md §5.2a and every caller
+are amended in the same change to halt on both non-zero codes.
+Rationale: #417 / EXP-001 — the 1.3.1 gate-typed wrapper is invisible to the task-only search, and
+the old generic-Gate fallback could select a capability gate. Exit-0 INCONCLUSIVE let a caller that
+checked only `$?` proceed with an unresolved start gate.
+Verification: `skills/yf-plan/scripts/test_gate_wrapper_resolver.py` — genuine 1.1.0-task and
+1.3.1-gate positives, idempotent re-run, wrong-target prevention, pre-closed wrapper with open human
+gate, CLI error envelopes, partial-mutation recovery, and zero mutations on every refusal.
+
+REQ-PLAN-087: *(added plan-074 Issue 0.1, #417)* **Receipt-bound start-gate role classification.**
+A single pure module, `_shared/gate_roles.py` (vendored into yf-plan by `_shared/sync.py`), shall
+classify the start-gate roles. Inputs: the extracted plan (REQ-DATA-043 gate on `unparsed[]`), the
+expected plan id and fresh approved fingerprint, the recorded molecule root, a **complete
+normalized** graph, and a REQ-DATA-077 receipt. Output: `pass` | `fail` | `inconclusive`, the
+identified wrapper and actual-gate ids, the evidence source, and diagnostics. It performs **no
+writes, resolves no gate and grants no consent**.
+**Normalization.** Node type from `issue_type`, with `type` accepted only as an unambiguous alias;
+list edges (`depends_on_id`, `type`) and show edges (`id`, `dependency_type`) normalize to one
+form; conflicting aliases are refused. Node ids are unique; root membership is explicit;
+`parent` and `parent-child` agree; containment is acyclic; the input closes over every id it names.
+Live acquisition uses `bd list --all --include-gates --limit 0 --json` (checking exit status and
+error envelopes) plus explicit `bd show` where required. A failed or incomplete read is
+INCONCLUSIVE — **never an empty graph**.
+**Predicates (all required for `pass`).** Three distinct receipt-mapped ids; root equals the plan's
+recorded `**Epic:**` and carries this `plan_dir`; receipt plan id and fingerprint equal the fresh
+ones; wrapper and actual gate are direct siblings under that root; wrapper type `task` or `gate`
+with **no** await semantics; actual gate type `gate` with `await_type=human`; exactly one
+wrapper→actual-gate `blocks` edge (parent-child, related or reverse edges do not substitute); no
+extra wrapper blocking dependency; no competing role claim or unmapped competing wrapper pair.
+Titles and descriptions may corroborate but **never** authorize exclusion. Structural roles do not
+change when statuses close.
+**Outcomes.** Missing, unreadable, partial-where-final-required or unknown-schema receipt, or
+incomplete graph → `inconclusive`. A definite contradiction (wrong root/plan/fingerprint, swapped or
+repeated ids, gate masquerading as task, await on the wrapper, wrong await type, missing/extra/
+reversed/containment-only wrapper edge, multiple candidate pairs) → `fail`.
+Rationale: #417 — native graph fields alone cannot distinguish a deliberately copied lookalike, so
+identity must be bound to retained native evidence; a title filter would hide a real gate.
+Verification: `_shared/test_gate_roles.py` — genuine native 1.1.0 task and 1.3.1 gate positives in
+list and show shapes, open and resolved, plus every labelled synthetic adversary in the plan-074
+compatibility contract, including copied topology without a receipt and closed wrapper over an open
+human gate.
+
 REQ-COMPLETE-004: **Gate-before-close.** `close-reconcile-step` requires the plan's **Reconcile
 Gate to be resolved first**, and shall assert that ordering with an **exit code** rather than
 document it in prose. With the reconcile gate unresolved the verb emits `verdict: "fail"` and

@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-10-29T21:59:20.618661Z",
+  "created_by": "James Dixson",
+  "description": "Condition: Operator separately accepted the strict role-evidence policy, B0 old-tool intake bridge and proposed B1 promotion exception against reviewed hashes; B2 remains separately required before any live PIM receipt is added. Master drafting permission is not consent.\nTest: test -s docs/plans/plan-074-james-dixson-4b8fe0/references/operator-decisions.json\nInstructions: Frontload at execute start. Read the actual operator answer, verify decision identities, proposal hashes and scope; file existence never resolves this gate. If withheld or ambiguous, remain held and route questions through planner to master. A rehearsal failure prevents live bootstrap even with prior conditional acceptance.",
+  "id": "yf-mol-9s78.5",
+  "issue_type": "gate",
+  "metadata": {
+    "cwd": "repo-root",
+    "gate_type": "human",
+    "test": "test -s docs/plans/plan-074-james-dixson-4b8fe0/references/operator-decisions.json",
+    "test_class": "consent"
+  },
+  "owner": "dixson3@gmail.com",
+  "priority": 2,
+  "schema_version": 1,
+  "status": "open",
+  "title": "Gate: Explicit compatibility policy and bootstrap decisions",
+  "updated_at": "2026-10-29T21:59:20.618661Z"
+}

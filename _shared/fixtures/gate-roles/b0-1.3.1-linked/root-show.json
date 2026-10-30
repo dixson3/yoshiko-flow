@@ -1,0 +1,20 @@
+[
+  {
+    "id": "yf-mol-9s78",
+    "title": "plan-execute",
+    "description": "Plan execution pipeline with upstream reconciliation",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "molecule",
+    "created_at": "2026-10-29T21:58:21Z",
+    "updated_at": "2026-10-29T21:58:31Z",
+    "external_ref": "https://github.com/dixson3/yoshiko-flow/issues/456",
+    "metadata": {
+      "plan_dir": "docs/plans/plan-074-james-dixson-4b8fe0"
+    },
+    "dependent_count": 2,
+    "dependency_count": 0,
+    "comment_count": 0,
+    "revision": "-2751358736381039154"
+  }
+]

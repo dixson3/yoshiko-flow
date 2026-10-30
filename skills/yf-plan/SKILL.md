@@ -994,16 +994,23 @@ a second epic (the duplicate-epic failure #2 guards against).
 
 #### 5.2a — Pour + create beads (`epic_state` ∈ {`none`, `stale`})
 
-**Pour the molecule.** The gate-type formula step yields TWO beads: a task wrapper (key
+**Pour the molecule.** The gate-type formula step yields TWO beads: a wrapper (key
 `plan-execute.start-gate`, what downstream TASK `--deps` reference — never an epic) and the
-real gate (key `plan-execute.gate-start-gate`, what `bd gate resolve` must target). See
-`yf-beads-authoring` → *Formula gate steps*.
+real gate (key `plan-execute.gate-start-gate`, what `bd gate resolve` must target). `bd` 1.1.0
+types the wrapper `task`; `bd` 1.3.1 types it `gate` (#417). **Never tell them apart by type or
+title** — only the pour's own `id_mapping` knows which is which, so its raw output is RETAINED
+before any id is extracted (REQ-DATA-077). See `yf-beads-authoring` → *Formula gate steps*.
 
 `yf preflight` already staged this skill's embedded `formulas/*` into `.beads/formulas/`
 (REQ-YF-PRE-011), so the pour resolves the proto with no per-call `cp`/`rm` staging:
 
 ```bash
-RESULT=$(bd mol pour plan-execute --var objective="${objective}" --var plan_dir="${plan_dir}" --json)
+# Retain the COMPLETE native output first (REQ-DATA-077): it is the only provenance for which
+# bead is the wrapper and which is the actual gate. Stop on a non-zero exit or empty capture.
+ROLES_DIR="${plan_dir}/assets/execution-roles"; mkdir -p "${ROLES_DIR}/creates"
+bd mol pour plan-execute --var objective="${objective}" --var plan_dir="${plan_dir}" --json \
+  > "${ROLES_DIR}/pour.json" 2> "${ROLES_DIR}/pour.stderr" || { echo "STOP: pour failed"; exit 1; }
+RESULT=$(cat "${ROLES_DIR}/pour.json")
 
 EPIC=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get new_epic_id)
 START_GATE=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id_mapping "plan-execute.start-gate")
@@ -1014,7 +1021,8 @@ START_GATE_BEAD=$(echo "$RESULT" | uv run ${SKILL_DIR}/scripts/plan_manager.py j
 *`bd mol pour` output shape*. `json-get` is yf-plan's hardened defensive JSON parser
 (`bd` output may be a multi-document array; see `yf-beads-extra` → *`--json` is not always a
 single JSON document*). Use `${START_GATE}` for entry-issue `--deps` wiring (tasks only, never
-epics) and `${START_GATE_BEAD}` for `bd gate resolve` (below).
+epics). `${START_GATE_BEAD}` is the ACTUAL gate; it is released only by `resolve-start-gate`
+(below), which re-derives both ids from the role receipt — never `bd gate resolve` by hand.
 
 **Write the epic↔plan linkage ATOMICALLY, immediately after the pour** (REQ-RESUME-004) — a
 crash between the pour and this write must never orphan the epic, so it is the very next step.
@@ -1035,6 +1043,14 @@ uv run ${SKILL_DIR}/scripts/plan_manager.py record-epic "${plan_dir}" "${EPIC}"
 #     not at §4.5 — see below. Fail-soft: no tracker yet is a normal state, never a pour
 #     failure.
 uv run ${SKILL_DIR}/scripts/plan_manager.py stamp-tracker "${plan_dir}" --json
+
+# (d) Record the START-ONLY role receipt from the retained pour (REQ-DATA-077). Validated
+#     against the complete gate-inclusive graph before anything is written; exit 1/2 writes
+#     nothing and STOPS the pour sequence — never retry by re-pouring.
+bd list --all --include-gates --limit 0 --json > "${ROLES_DIR}/graph-start.json"
+uv run ${SKILL_DIR}/scripts/plan_manager.py record-execution-roles "${plan_dir}" \
+  --graph "${ROLES_DIR}/graph-start.json" --pour "${ROLES_DIR}/pour.json" --json \
+  || { echo "STOP: role receipt refused — see JSON above"; exit 1; }
 ```
 
 **Why the stamp is here and not at §4.5 (REQ-PLAN-073).** #131 as filed asks for the stamp
@@ -1088,7 +1104,7 @@ EPIC_BEAD=$(bd create "Epic: ${epic_name}" \
 ISSUE_DESC="$(printf 'Plan: %s | Bundle: %s (repo-relative)\n\n%s' \
   "${plan_id}" "${plan_dir}" "${issue_detail}")"
 
-# Entry issue (no intra-plan predecessor) — gate on the start-gate wrapper task.
+# Entry issue (no intra-plan predecessor) — gate on the start-gate WRAPPER (task on bd 1.1.0, gate on 1.3.1).
 ISSUE_BEAD=$(bd create "Issue ${issue_id}: ${entry_issue_description}" \
   --description="${ISSUE_DESC}" -t task -p 2 \
   --parent ${EPIC_BEAD} --deps "${START_GATE}" \
@@ -1171,14 +1187,18 @@ of its input.
 printf -v GATE_DESC 'Condition: %s\nTest: %s\nInstructions: %s' \
   "${condition}" "${test_cmd}" "${instructions}"
 
-CAP_GATE=$(bd create "Gate: ${gate_name}" \
+# Retain each create's RAW output (REQ-DATA-077) under a per-gate file, then extract the id.
+# `${gate_slug}` is any filesystem-safe name unique per gate; the index below records the
+# exact plan declaration name (`Capability Gate: <name>`, as plan_extract reports it).
+bd create "Gate: ${gate_name}" \
   --description="${GATE_DESC}" \
   -t gate --parent ${EPIC} \
   --metadata "$(jq -nc \
       --arg gt "${gate_type}" --arg t "${test_cmd}" \
       --arg tc "${test_class}" --arg cwd "${gate_cwd}" \
       '{gate_type:$gt, test:$t, test_class:$tc, cwd:$cwd}')" \
-  --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
+  --json > "${ROLES_DIR}/creates/${gate_slug}.json" || { echo "STOP: gate create failed"; exit 1; }
+CAP_GATE=$(uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id < "${ROLES_DIR}/creates/${gate_slug}.json")
 ```
 
 **Field vocabulary.**
@@ -1221,16 +1241,35 @@ printf '%b' "${DEP_OPS}" | bd batch -m "plan-${plan_id} dep wiring"
 non-exclude disposition):
 
 ```bash
-RECONCILE_GATE=$(bd create "Gate: Reconcile upstream" \
+bd create "Gate: Reconcile upstream" \
   --description="Blocks reconciliation until execution complete." \
   -t gate --parent ${EPIC} \
-  --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
+  --json > "${ROLES_DIR}/creates/reconcile-gate.json" || { echo "STOP: gate create failed"; exit 1; }
+RECONCILE_GATE=$(uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id < "${ROLES_DIR}/creates/reconcile-gate.json")
 
 RECONCILE_STEP=$(bd create "Reconcile: update upstream issues" \
   --description="Update upstream issues per plan dispositions." \
   -t task -p 1 --parent ${EPIC} --deps "${RECONCILE_GATE}" \
   --metadata "{\"agent\":\"agents/reconciler.md\",\"context\":[\"plan.md\"]}" \
   --json | uv run ${SKILL_DIR}/scripts/plan_manager.py json-get id)
+```
+
+**Finalize the role receipt** — after every declared gate exists and BEFORE the start gate is
+resolved (REQ-DATA-077). The index maps each **exact** declaration name to its retained raw
+create output; the Start Gate comes from the pour and needs no entry. A `start-only` receipt can
+never pass completion fidelity, so this step is not optional:
+
+```bash
+# One entry per declared non-start gate, keyed by the plan's exact declaration name.
+jq -n --arg cap "Capability Gate: ${gate_name}" --arg capf "creates/${gate_slug}.json" \
+      '{($cap): {raw: $capf}, "Reconcile Gate": {raw: "creates/reconcile-gate.json"}}' \
+  > "${ROLES_DIR}/gate-creates.json"   # one entry per declared capability gate; every declared
+                                        # gate needs its created bead (pour fidelity requires it)
+bd list --all --include-gates --limit 0 --json > "${ROLES_DIR}/graph-final.json"
+uv run ${SKILL_DIR}/scripts/plan_manager.py record-execution-roles "${plan_dir}" \
+  --graph "${ROLES_DIR}/graph-final.json" --pour "${ROLES_DIR}/pour.json" \
+  --creates "${ROLES_DIR}/gate-creates.json" --json \
+  || { echo "STOP: role receipt refused — do not resolve the start gate"; exit 1; }
 ```
 
 **Burn the investigation wisp** (captured in §2 as `INVESTIGATION_WISP_ID`). `--force` is
@@ -1250,7 +1289,15 @@ gate can only be released here, REQ-SESSION-001):
 # leaves the wrapper open, which is the state `close_cascade.py` correctly fail-louds on at
 # §6.4. Measured: 49 of 49 wrappers ever poured were closed by hand, with 29 distinct
 # improvised reasons. The verb is idempotent, so a resumed session may re-run it.
-uv run ${SKILL_DIR}/scripts/plan_manager.py resolve-start-gate "${plan_dir}" --json
+#
+# plan-074 (#417): the pair comes ONLY from the role receipt finalized above — never a title,
+# never the wrapper's type (bd 1.3.1 makes the wrapper a gate). The verb resolves the ACTUAL
+# gate, re-reads it, ordinary-closes the wrapper and re-reads both. A closed wrapper is not
+# consent. Exit 0 pass · 1 fail · 2 INCONCLUSIVE — BOTH non-zero codes halt here; never set
+# `executing` on `passed: false`, and never hand-resolve by title. On 1, follow the JSON's
+# `recovery` lines (explicit ids); on 2 nothing was touched.
+uv run ${SKILL_DIR}/scripts/plan_manager.py resolve-start-gate "${plan_dir}" --json \
+  || { echo "STOP: start gate not released — see JSON above"; exit 1; }
 uv run ${SKILL_DIR}/scripts/plan_manager.py update-status "${plan_dir}" "executing" -m "start gate resolved"
 ```
 
@@ -1869,7 +1916,9 @@ if [ "$FIDELITY_RC" -eq 2 ]; then
   echo "FAIL-LOUD: pour fidelity is INCONCLUSIVE — the comparison could not be made at all."
   echo "This is a statement about the INSTRUMENT, not a verdict on the DAG: an empty scope"
   echo "(a 'no-mapping' plan, a --plan matching nothing, or a bundle with no **Epic:** field)"
-  echo "or an unparsed construct in plan.md. Completion HALTS; do NOT set 'complete' — an"
+  echo "or an unparsed construct in plan.md, or (plan-074) NO PROVEN FINALIZED ROLE RECEIPT at"
+  echo "references/execution-roles.json — gate identity cannot be judged by count. Never"
+  echo "subtract a Begin-titled node by hand. Completion HALTS; do NOT set 'complete' — an"
   echo "unjudgeable plan is not a clean one. Read the INCONCLUSIVE lines above, repair the"
   echo "cause, then re-run §6.4."
   exit 1

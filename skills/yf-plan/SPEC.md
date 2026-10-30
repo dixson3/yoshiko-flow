@@ -524,6 +524,15 @@ execution with merge-back, crash-resume, and upstream triage/reconciliation.
   `req_land_ceiling = 22` — at most 22 distinct `REQ-LAND-*` ids in `spec/landing.md`: 39 at scoping
   − 3 deleted − 14 absorbed by six merge groups = **22**.
 
+  *(amended plan-074, ESC-002 operator decision "Authorize named exception")* **One named
+  exception to the freeze: `record-execution-roles`** (REQ-DATA-077, #417). It is the only verb this
+  exception admits; it is not a relaxation of the freeze, and the remaining numeric slack confers no
+  authority on any other addition. `verb_ceiling = 32` is **unchanged** (31 + this verb = 32, slack
+  zero). The verb is held to the full retention standard above — a live call site on a leg-(a)
+  surface and invocation-form tests including a genuine negative control — and the exception adds
+  **no** land step and **no** `REQ-LAND-*` id. Any further verb requires its own explicit operator
+  decision and amendment here.
+
   The check requires, for every registered verb, at least one call site on the leg-(a) surfaces and
   at least one **invocation-form** test reference (`plan_manager.py <verb>` inside an argv list, or a
   `CliRunner.invoke`; a bare mention in an enumeration list such as `test_cli_enumeration.py` does

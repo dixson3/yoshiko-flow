@@ -1,0 +1,20 @@
+{
+  "Capability Gate: Explicit compatibility policy and bootstrap decisions": {
+    "id": "yf-mol-9s78.5",
+    "raw": "creates/gate-capability.json",
+    "stderr": "creates/gate-capability.stderr",
+    "exit": 0
+  },
+  "Reconcile Gate": {
+    "id": "yf-mol-9s78.6",
+    "raw": "creates/gate-reconcile.json",
+    "stderr": "creates/gate-reconcile.stderr",
+    "exit": 0
+  },
+  "Start Gate (mandatory)": {
+    "id": "yf-mol-nh83",
+    "source": "pour.json id_mapping plan-execute.gate-start-gate",
+    "wrapper": "yf-mol-r0p2",
+    "wrapperSource": "pour.json id_mapping plan-execute.start-gate"
+  }
+}

@@ -283,6 +283,34 @@ Verification: a fresh pour writes `plan_issue` on every task bead; the comparato
 and can fail it; the positive control's three mutations each produce a failure and the unmutated
 copy is silent.
 
+*(amended plan-074 Issue 0.1, #417)* **Gate identity, not gate count.** Every existing check is
+preserved unchanged: issue ids and counts, duplicate detection, epic counts, the three populations
+and issue-to-issue dependency comparison. The gate comparison is strengthened from a count to a
+**one-to-one identity** comparison bound to the plan's REQ-DATA-077 receipt: every declared gate
+maps to exactly one observed real gate, and every observed gate other than the **one** wrapper
+proven by REQ-PLAN-087 maps to a declaration. Missing, extra, duplicated and **count-preserving
+substituted** gates each diverge. Only that proven wrapper is removed from the gate population; a
+mapped real gate typed `task` is never silently dropped, and no title, prefix or order excludes a
+node. The comparator also validates the wrapper→actual-gate edge, entry-issue gating on the wrapper,
+and the capability/reconcile `blocks` relations the plan declares; unrelated extra edge types are
+reported as distinct, not invented prerequisites. Under `--strict --plan` (completion) a missing or
+non-finalized receipt, or a REQ-PLAN-087 `inconclusive`, is **INCONCLUSIVE (exit 2)**; a REQ-PLAN-087
+`fail` or identity divergence is exit 1. Exit codes stay `0/1/2` = pass/divergence/inconclusive, and
+landing still halts on **both** non-zero classes. A read-only `--roles PATH` argument names an
+explicit receipt for diagnostic verification without writing anything; there is **no**
+environment-variable or implicit override, and normal landing reads only the bundle's default
+receipt. Older plans with no trustworthy receipt become INCONCLUSIVE at strict completion — a
+deliberately stricter boundary, not an automatic migration. Structural fidelity passing on an open
+graph is **not** completion and not consent; open human gates still halt completion.
+Rationale: #417 / EXP-003 — PIM H0's unchanged graph matched 8 issues, 7 edges and 4 epics yet failed
+3 declared vs 4 observed gates because `bd` 1.3.1 types the wrapper `gate`. Subtracting a
+`Begin:`-titled node would let an equal-count substitution hide a missing real gate.
+Verification: `_shared/test_pour_fidelity.py` (unchanged controls still fire) and
+`_shared/test_gate_wrapper_fidelity.py` — positives for both native wrapper types, the archived H0
+snapshot moving from the recorded 3-vs-4 red to green under an accepted historical receipt with
+8/7/4 denominators unchanged, and negatives for missing/extra/duplicate/substituted gates, dropped or
+invented gate-blocking edges, incomplete snapshots and absent receipts.
+
 REQ-DATA-027: **Vendored content** — a file copied verbatim from an external source into a yf
 bundle (an upstream issue body, a third-party spec, a salvaged document) — shall carry
 `source:` and `retrieved:` frontmatter keys. That frontmatter **is** the exclusion predicate the
@@ -1082,3 +1110,43 @@ is a schema-clean fixture whose only defect is one off-vocabulary cell, so a `ce
 finding there is attributable; and the check reports on a real historical bundle
 (`docs/plans/plan-027-james-dixson-a59656/reviews/pass-1.md`) **without failing it**, which is what
 shipping at `R` means.
+
+REQ-DATA-077: *(added plan-074 Issue 0.1, #417)* **The execution role receipt.** A plan bundle's
+execution role identities are recorded in `references/execution-roles.json`, schema version `1`,
+written only by `plan_manager.py record-execution-roles`. Fields: `schema`, `plan_id`,
+`fingerprint` (approved), `plan_dir` (repo-relative bundle identity), `root`, `formula_sha256`,
+`bd_version`, `evidence_kind` (`native` | `legacy-attested`), `evidence` (each retained capture's
+repo-relative path and SHA-256), `state` (`start-only` | `finalized`), `roles` with exactly the
+three native keys `plan-execute`, `plan-execute.start-gate` and `plan-execute.gate-start-gate`, and
+`gates`, a one-to-one map from each **exact extracted gate declaration name** (no line numbers) to a
+bead id. `Start Gate` maps to the **actual human gate**, never its wrapper. Duplicate names or ids,
+unknown fields and unknown schema versions are invalid.
+**Lifecycle.** At pour, a `start-only` receipt is written immediately after root linkage from the
+retained native pour output; after capability/reconcile creation it is `finalized` from the retained
+native create outputs, before execute-start resolution. A `start-only` receipt cannot pass completion
+fidelity. Ids come only from retained native outputs — never from titles, prefixes or array order.
+**Write discipline.** Inputs are explicitly named capture files; the verb validates before writing,
+persists by atomic replace, reports exactly which paths it wrote, and reads them back. Re-running
+with identical evidence is a no-op; conflicting evidence refuses with **zero writes**. The graph is
+never updated to fit a receipt.
+**Historical evidence.** A `legacy-attested` receipt binds executor-authored historical mappings
+(e.g. PIM H0's `execution-epic-mapping.json`) only with an explicit, separately recorded operator
+provenance acceptance, a fresh fingerprint/root check and unchanged frozen inputs. It records the
+evidence digest and the acceptance separately from execution/start consent, and never fabricates
+native origin or formula-source fields. Absent acceptance, stale fingerprint, wrong root, conflicting
+maps or unknown fields refuse. The acceptance is a separate JSON file, schema
+`yf-plan-legacy-acceptance/v1`, with exactly `schema`, `plan_id`, `plan_dir`, `fingerprint`, `root`,
+`mapping_sha256`, `decision` (the operator's verbatim answer), `decided_by` and `at`; every binding
+field must equal the plan/root/mapping being imported. The importer accepts the mapping shape
+`{epic, start_gate, start_gate_bead, capability_gate, reconcile_gate, ...}` only where the plan declares
+at most one capability gate — an ambiguous name→id assignment is INCONCLUSIVE, never guessed.
+**What a receipt proves.** It is an auditable identity binding, **not** cryptographically
+authenticated native output: digests prove bytes, not authorship or operator consent. Tests shall not
+call a fabricated same-topology graph native evidence.
+Rationale: #417 — graph fields cannot distinguish a copied lookalike from the native pair, and
+persisted graphs carry no formula/role provenance (EXP-001), so identity must be captured when the
+native tool emits it.
+Verification: `skills/yf-plan/scripts/test_execution_roles.py` — start-only and finalized writes,
+idempotence, conflict refusal with zero writes, atomic readback, stale/foreign/conflicting/
+missing-acceptance historical imports over immutable PIM copies, and no acceptance file created in a
+live bundle by tests.

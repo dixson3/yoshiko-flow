@@ -51,7 +51,8 @@ skill); authoring beads-backed skills — formulas, coordinator loops, the `coor
   `bd dep list` / `bd blocked`. (REQ-CLI-006.)
 - **REQ-BEXTRA-CLI-007** *(testable)* `bd mol pour <formula> --json` shall be documented as
   returning `new_epic_id` and `id_mapping` (formula-step → bead ID), with a `gate` step yielding
-  two beads (`<f>.<step>` wrapper task + `<f>.gate-<step>` gate). (REQ-CLI-007; cross-ref
+  two beads (`<f>.<step>` wrapper + `<f>.gate-<step>` gate), the wrapper typed `task` on bd
+  1.0.5/1.1.0 and `gate` on 1.3.1 *(amended plan-074)*. (REQ-CLI-007; cross-ref
   `yf-beads-authoring` REQ-BAUTH-011.)
 - **REQ-BEXTRA-CLI-008** *(testable)* bulk edge intake shall use `bd batch` (one dolt transaction,
   atomic rollback on any error); creates are **not** batchable — each needs its returned ID

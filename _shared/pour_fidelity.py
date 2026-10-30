@@ -51,6 +51,10 @@ _spec = importlib.util.spec_from_file_location("pe", SHARED / "plan_extract.py")
 pe = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pe)
 
+_gspec = importlib.util.spec_from_file_location("gate_roles_for_pf", SHARED / "gate_roles.py")
+gr = importlib.util.module_from_spec(_gspec)
+_gspec.loader.exec_module(gr)
+
 TITLE_ID = re.compile(r"^\s*(?:Issue\s+)?((?:\d+|[A-Z])\.\d+[a-z]?)\s*[:.\s]")
 EPIC_NUM = re.compile(r"^Epic\s*:?\s*(\d+|[A-Z])\s*:")
 SCAFFOLD = re.compile(r"^\s*(Begin|Reconcile)\s*:", re.I)
@@ -67,6 +71,39 @@ def load_beads(path: Path):
         if parent:
             kids.setdefault(parent, []).append(b["id"])
     return by_id, kids
+
+
+def _repo_relative(plan_dir: Path) -> str:
+    import subprocess
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, cwd=str(plan_dir), timeout=30)
+        if top.returncode == 0 and top.stdout.strip():
+            return str(plan_dir.resolve().relative_to(Path(top.stdout.strip()).resolve()))
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        pass
+    return str(plan_dir).rstrip("/")
+
+
+def role_analysis(plan_dir: Path, ext: dict, epic_id: str, records: list,
+                  roles_path: Path | None = None) -> dict:
+    """REQ-DATA-026 (as amended by plan-074): classify the start-gate roles from the bundle's
+    finalized REQ-DATA-077 receipt. READ-ONLY — `roles_path` only names WHICH receipt to read
+    (the diagnostic `--roles`); nothing is written and no environment variable can substitute."""
+    rp = roles_path or plan_dir / "references" / "execution-roles.json"
+    if not rp.is_file():
+        return {"status": "no-receipt", "receipt": str(rp), "diagnostics":
+                [f"no execution role receipt at {rp}"]}
+    try:
+        receipt = json.loads(rp.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return {"status": "inconclusive", "receipt": str(rp), "diagnostics": [str(e)]}
+    v = gr.classify(plan=ext, plan_id=plan_dir.name, fingerprint=ext.get("fingerprint"),
+                    plan_dir=_repo_relative(plan_dir), recorded_root=epic_id, records=records,
+                    receipt=receipt, require_final=True, evidence_base=plan_dir)
+    return {"status": v["verdict"], "receipt": str(rp), "wrapper": v["wrapper"],
+            "gate": v["gate"], "gates": v["gates"], "evidence_source": v["evidence_source"],
+            "diagnostics": v["diagnostics"]}
 
 
 def descendants(root: str, kids) -> list[str]:
@@ -87,14 +124,32 @@ def bead_issue_id(b: dict) -> tuple[str | None, str]:
     return (m.group(1), "title") if m else (None, "none")
 
 
-def compare(plan_md: Path, epic_id: str, by_id, kids) -> dict:
+def compare(plan_md: Path, epic_id: str, by_id, kids, records: list | None = None,
+            roles_path: Path | None = None) -> dict:
     ext = pe.extract(plan_md)
     ids = descendants(epic_id, kids)
     beads = [by_id[i] for i in ids if i in by_id]
+    roles = (role_analysis(plan_md.parent, ext, epic_id, records, roles_path)
+             if records is not None else {"status": "not-evaluated", "diagnostics": []})
+    proven = roles["status"] == gr.PASS
+    wrapper = roles.get("wrapper") if proven else None
 
-    tasks = [b for b in beads if b.get("issue_type") == "task"
-             and not SCAFFOLD.match(b.get("title") or "")]
-    gates = [b for b in beads if b.get("issue_type") == "gate"]
+    # With a PROVEN wrapper, the wrapper is removed BY ID — never by its `Begin:` title, and a
+    # task-typed wrapper (bd 1.1.0) is excluded from the issue population the same way. Without
+    # a receipt the legacy title scaffold is kept for historical corpus reporting only; strict
+    # completion refuses that case as INCONCLUSIVE (see main()).
+    if proven:
+        tasks = [b for b in beads if b.get("issue_type") == "task" and b["id"] != wrapper
+                 and not re.match(r"^\s*Reconcile\s*:", b.get("title") or "", re.I)]
+        gates = [b for b in beads if b.get("issue_type") == "gate" and b["id"] != wrapper]
+        # A mapped real gate typed `task` is COUNTED, never silently dropped.
+        mapped = set(roles["gates"].values())
+        gates += [b for b in beads if b["id"] in mapped and b.get("issue_type") != "gate"]
+        tasks = [b for b in tasks if b["id"] not in mapped]
+    else:
+        tasks = [b for b in beads if b.get("issue_type") == "task"
+                 and not SCAFFOLD.match(b.get("title") or "")]
+        gates = [b for b in beads if b.get("issue_type") == "gate"]
     bepics = [b for b in beads if b.get("issue_type") == "epic"]
 
     by_iid: dict[str, dict] = {}
@@ -149,6 +204,48 @@ def compare(plan_md: Path, epic_id: str, by_id, kids) -> dict:
         "gate_count_match": len(ext["gates"]) == len(gates),
         "epic_count_match": len(ext["epics"]) == len(bepics),
     }
+
+    # --- receipt-bound gate identity and gate-blocking edges (plan-074) ----------------------
+    gate_edges = None
+    if proven:
+        gmap = roles["gates"]
+        verdict["gate_identity_match"] = {b["id"] for b in gates} == set(gmap.values())
+        expected, observed = set(), set()
+        for i in ext["issues"]:
+            if not i["depends_on"]:
+                expected.add((i["id"], "<start-wrapper>"))
+        for g in ext["gates"]:
+            for blk in g.get("blocks") or []:
+                if blk.get("kind") == "issue":
+                    expected.add((blk["ref"], g["name"]))
+        target = {wrapper: "<start-wrapper>", **{v: k for k, v in gmap.items()}}
+        for iid, b in by_iid.items():
+            for dep in b.get("dependencies") or []:
+                if not isinstance(dep, dict) or (dep.get("type") or "").lower() not in ("blocks", ""):
+                    continue
+                to = dep.get("depends_on_id") or dep.get("id")
+                if to in target:
+                    observed.add((iid, target[to]))
+        rec_decl = next((g["name"] for g in ext["gates"] if any(
+            blk.get("kind") == "sentinel" for blk in g.get("blocks") or [])), None)
+        # The reconcile gate's declared block is the SENTINEL "reconcile step": some non-issue
+        # task under the root must depend on the mapped reconcile gate with a `blocks` edge.
+        rec_ok = True
+        if rec_decl and rec_decl in gmap:
+            issue_bead_ids = {x["id"] for x in by_iid.values()}
+            rec_ok = False
+            for b in beads:
+                if b.get("issue_type") != "task" or b["id"] in issue_bead_ids or b["id"] == wrapper:
+                    continue
+                for d in b.get("dependencies") or []:
+                    if (isinstance(d, dict) and (d.get("depends_on_id") or d.get("id")) == gmap[rec_decl]
+                            and (d.get("type") or "blocks").lower() == "blocks"):
+                        rec_ok = True
+        gate_edges = {"expected": len(expected), "observed": len(observed),
+                      "dropped": sorted(map(list, expected - observed)),
+                      "invented": sorted(map(list, observed - expected)),
+                      "reconcile_step_gated": rec_ok}
+        verdict["gate_edges_match"] = expected == observed and rec_ok
     return {
         "plan": plan_md.parent.name,
         "epic_bead": epic_id,
@@ -164,7 +261,9 @@ def compare(plan_md: Path, epic_id: str, by_id, kids) -> dict:
                   "dropped": [list(x) for x in dropped],
                   "invented": [list(x) for x in invented],
                   "touching_unjoined": touching_unjoined},
-        "gates": {"plan": len(ext["gates"]), "bd": len(gates)},
+        "gates": {"plan": len(ext["gates"]), "bd": len(gates),
+                  "wrapper_excluded": wrapper, "edges": gate_edges},
+        "roles": roles,
         "epics": {"plan": len(ext["epics"]), "bd": len(bepics)},
         "extractor_unparsed": ext["counts"]["unparsed"],
         "verdict": verdict,
@@ -172,8 +271,10 @@ def compare(plan_md: Path, epic_id: str, by_id, kids) -> dict:
     }
 
 
-def run(beads_path: Path, plan_dirs: list[Path]) -> dict:
+def run(beads_path: Path, plan_dirs: list[Path], roles_path: Path | None = None) -> dict:
     by_id, kids = load_beads(beads_path)
+    raw = json.load(beads_path.open())
+    records = raw.get("issues", []) if isinstance(raw, dict) else raw
     results, skipped = [], []
     for d in plan_dirs:
         pm = d / "plan.md" if d.is_dir() else d
@@ -184,7 +285,7 @@ def run(beads_path: Path, plan_dirs: list[Path]) -> dict:
         if not ext_epic:
             skipped.append({"plan": pm.parent.name, "reason": "no **Epic:** field"})
             continue
-        results.append(compare(pm, ext_epic.group(1), by_id, kids))
+        results.append(compare(pm, ext_epic.group(1), by_id, kids, records, roles_path))
 
     no_map = [r for r in results if r["population"] == "no-mapping"]
     joinable = [r for r in results if r["joinable"]]
@@ -239,9 +340,16 @@ def main() -> int:
     ap.add_argument("--strict", action="store_true",
                     help="Exit 1 if any JOINABLE plan diverges (the close-gate mode).")
     ap.add_argument("--plan", help="Restrict --strict to one plan dir name (close-gate use).")
+    ap.add_argument("--roles", type=Path, default=None,
+                    help="READ-ONLY diagnostic: verify against this explicit role receipt instead "
+                         "of the bundle default. Requires exactly one plan dir. Writes nothing.")
     a = ap.parse_args()
+    if a.roles is not None and len(a.plan_dirs) != 1:
+        print("INCONCLUSIVE: --roles names one receipt, so exactly one plan dir is required.",
+              file=sys.stderr)
+        return 2
 
-    res = run(a.beads_json, a.plan_dirs)
+    res = run(a.beads_json, a.plan_dirs, a.roles)
     if a.json:
         print(json.dumps(res, indent=1))
     else:
@@ -318,6 +426,28 @@ def main() -> int:
                 print(f"INCONCLUSIVE: {r['plan']} has {r['extractor_unparsed']} unparsed "
                       f"construct(s); its declared DAG is incomplete, so pour fidelity "
                       f"cannot be judged.", file=sys.stderr)
+            return 2
+        # plan-074 (REQ-DATA-026 as amended). PRECEDENCE: a definite issue/edge/epic divergence
+        # is reported as 1 even without a receipt (it was observed); then a role FAIL is 1;
+        # then a missing / start-only / inconclusive receipt is 2 — the gate population cannot
+        # be judged by count alone, because an equal-count substitution would pass. A clean
+        # verdict REQUIRES a proven, finalized receipt.
+        legacy = ("issue_count_match", "issue_id_set_match", "edge_set_match", "epic_count_match")
+        if any(not all(r["verdict"][k] for k in legacy) or r["unnumbered_beads"] for r in scope):
+            return 1
+        role_fail = [r for r in scope if r["roles"]["status"] == gr.FAIL]
+        for r in role_fail:
+            print(f"DIVERGENT: {r['plan']} start-gate roles FAIL: "
+                  + "; ".join(r["roles"]["diagnostics"]), file=sys.stderr)
+        if role_fail:
+            return 1
+        unproven = [r for r in scope if r["roles"]["status"] != gr.PASS]
+        for r in unproven:
+            print(f"INCONCLUSIVE: {r['plan']} has no proven finalized role receipt "
+                  f"({r['roles']['status']}): " + "; ".join(r["roles"]["diagnostics"])
+                  + ". Gate identity cannot be judged by count; completion halts.",
+                  file=sys.stderr)
+        if unproven:
             return 2
         return 1 if any(not r["clean"] for r in scope) else 0
     return 0

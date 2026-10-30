@@ -50,9 +50,11 @@ parsing (`yf-beads-extra`); general skill layout/token rules (`yf-skill-authorin
   shall **not** hand-stage: a per-call `cp`/`rm` bracket around a pour is drift, and the
   `e-formula-name` edge FAILs on it. (REQ-STRUCT-003.)
 - **REQ-BAUTH-011** *(testable)* a `type = "gate"` step shall be treated as pouring to **two**
-  beads, both surfaced in `id_mapping`: `<formula>.<step-id>` (a `task` wrapper, `Begin: …`, the
+  beads, both surfaced in `id_mapping`: `<formula>.<step-id>` (the wrapper, `Begin: …`, the
   key downstream `needs`/`--deps` reference) and `<formula>.gate-<step-id>` (the actual `gate`, the
-  key `bd gate resolve` targets). (REQ-FORMULA-001; cross-ref `yf-beads-extra` REQ-BEXTRA-CLI-007.)
+  key `bd gate resolve` targets). *(amended plan-074, #417)* The wrapper is typed `task` by `bd`
+  1.0.5/1.1.0 and `gate` by 1.3.1; the two shall be told apart only by the retained `id_mapping`,
+  never by type or title. (REQ-FORMULA-001; cross-ref `yf-beads-extra` REQ-BEXTRA-CLI-007.)
 - **REQ-BAUTH-012** *(testable)* a formula's `[[steps]]` shall encode only the **stable, declared
   shape** — work that always exists at pour time and always wires identically; dynamic structure
   (per-run epics, fan-out, runtime gates) is injected post-pour, wiring *beside* declared edges,

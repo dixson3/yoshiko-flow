@@ -382,6 +382,15 @@ WHOLE_FILE_ASSETS = [
         canonical=REPO_ROOT / "_shared" / "pour_fidelity.py",
         consumers=[_skill("yf-plan", "scripts", "pour_fidelity.py")],
     ),
+    # plan-074 Issue 1.1 (REQ-PLAN-087, #417). The ONE start-gate role classifier, shared by
+    # `plan_manager.py` (resolver + `record-execution-roles`) and `pour_fidelity.py`, so the
+    # two can never disagree about which bead is the wrapper. Stdlib-only; its diagnostic
+    # `main()` reaches the sibling `plan_extract.py`, already vendored above.
+    WholeFileAsset(
+        name="gate_roles.py",
+        canonical=REPO_ROOT / "_shared" / "gate_roles.py",
+        consumers=[_skill("yf-plan", "scripts", "gate_roles.py")],
+    ),
     WholeFileAsset(
         name="okf.py",
         canonical=REPO_ROOT / "_shared" / "okf.py",
